@@ -166,6 +166,11 @@ export function UnityCallAvatar({
     '--unity-speech-level': displayedSpeechLevel.toFixed(3),
   } as React.CSSProperties;
 
+  // Turning to the laptop drops the droid's gaze to its work; turning back lifts
+  // it to meet the camera. Shifting the eyes with the body makes the swivel read
+  // as a deliberate "getting to work" gesture rather than a blank rotation.
+  const poseRestingEyes: CreatureEyes = isActing ? 'down' : baseEyes;
+
   // Speech + eyes stay live for the whole call via the bare `active` prop; the
   // body pose is driven by our own animated `progress` through `fixed` (0 =
   // restView/head-on, 1 = activeView/isometric). `fixed` only affects the pose,
@@ -183,7 +188,7 @@ export function UnityCallAvatar({
       emotion={mood}
       isSpeaking={isSpeaking}
       isUserSpeaking={isUserSpeaking}
-      restingEyes={isHovered ? 'square' : baseEyes}
+      restingEyes={isHovered ? 'square' : poseRestingEyes}
       stableBox
       speechLevel={displayedSpeechLevel}
       mouthShape={displayedMouthShape}

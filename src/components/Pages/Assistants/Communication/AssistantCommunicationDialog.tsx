@@ -42,28 +42,29 @@ export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'act
 // Once the droid stops speaking, it holds eye contact for this long before it
 // drifts back to working on its laptop. Speech is the ONLY thing that turns the
 // droid to face the camera; everything else only ever turns it to the laptop.
-const SILENCE_TO_LAPTOP_MS = 20_000;
+const SILENCE_TO_LAPTOP_MS = 5_000;
 
-// Minimum time the droid must hold a pose before it's allowed to turn the other
-// way. Stops it swivelling to the laptop and immediately back (or vice-versa)
-// when work and speech land within a moment of each other.
-const MIN_POSE_DWELL_MS = 5_000;
+// How long the droid must have been heads-down on the laptop before the start of
+// a speaking turn is allowed to turn it to face the camera. A turn that begins
+// sooner is ignored — the droid keeps working and speaks from the laptop.
+const MIN_LAPTOP_DWELL_BEFORE_FACING_MS = 5_000;
 
 /**
- * Computes the call-window droid's *desired* "working on a laptop" pose. Returns
- * `true` while the droid should be turned to its laptop (the default), `false`
- * only while it faces the camera. (The actual displayed pose is this value passed
- * through `useMinPoseDwell`, which enforces a minimum dwell between turns.)
+ * Computes the call-window droid's "working on a laptop" pose. Returns `true`
+ * while it is turned to its laptop (the default, resting pose) and `false` only
+ * while it faces the camera.
  *
- * The asymmetry is deliberate: turning to face the camera is jarring mid-call, so
- *  - a new speaking turn is the *only* thing that faces the camera, and it holds
- *    that pose for as long as the droid keeps speaking;
+ * Facing the camera is strictly edge-triggered and never deferred:
+ *  - the ONLY thing that turns the droid to the camera is the *start* of a
+ *    speaking turn, and only if it has already been on the laptop for at least
+ *    `MIN_LAPTOP_DWELL_BEFORE_FACING_MS` at that instant. A turn that starts too
+ *    soon is ignored outright — the droid keeps working and speaks from the
+ *    laptop until a *later* turn begins under valid conditions. So it is never
+ *    seen swivelling to the camera mid-speech or during a silence.
+ *  - while facing the camera it holds that pose for as long as speech continues;
  *  - once it falls silent it returns to the laptop after `SILENCE_TO_LAPTOP_MS`;
  *  - picking up other work (a fresh comms event or a newly in-flight `act`) turns
  *    it back to the laptop immediately, but never interrupts a live speaking turn.
- *
- * This keeps cascading comms events from yanking the droid round to smile at the
- * camera between turns, and avoids it staring into the camera through long pauses.
  */
 function useWorkingPose(
   isSpeaking: boolean,
@@ -72,10 +73,26 @@ function useWorkingPose(
 ): boolean {
   const [onLaptop, setOnLaptop] = React.useState(false);
 
-  // A new speaking turn faces the camera; it stays there while speech continues.
+  // Stamp when the droid arrives on (or leaves) the laptop, so a later speaking
+  // turn can measure how long it has been heads-down.
+  const laptopSinceRef = React.useRef<number | null>(null);
   React.useEffect(() => {
-    if (isSpeaking) setOnLaptop(false);
-  }, [isSpeaking]);
+    laptopSinceRef.current = onLaptop ? Date.now() : null;
+  }, [onLaptop]);
+
+  // The start of a speaking turn faces the camera — but only once the droid has
+  // been on the laptop long enough. Edge-triggered on the rising edge of speech
+  // (never mid-turn), and gated by dwell, so a too-soon turn is ignored and the
+  // droid keeps working until a later turn starts under valid conditions.
+  const wasSpeakingRef = React.useRef(isSpeaking);
+  React.useEffect(() => {
+    const speechStarted = isSpeaking && !wasSpeakingRef.current;
+    wasSpeakingRef.current = isSpeaking;
+    if (!speechStarted || !onLaptop) return;
+    const onLaptopFor =
+      laptopSinceRef.current == null ? Infinity : Date.now() - laptopSinceRef.current;
+    if (onLaptopFor >= MIN_LAPTOP_DWELL_BEFORE_FACING_MS) setOnLaptop(false);
+  }, [isSpeaking, onLaptop]);
 
   // Silence after facing the camera → drift back to the laptop.
   React.useEffect(() => {
@@ -99,38 +116,6 @@ function useWorkingPose(
   }, [lastCommsActivityAt, hasActiveAction, isSpeaking]);
 
   return onLaptop;
-}
-
-/**
- * Rate-limits a boolean pose so it can't reverse direction until it has been held
- * for at least `minMs`. The first change is applied immediately; after that, any
- * change requested within the dwell window is deferred until the window elapses,
- * and the *latest* desired value wins when it does — so a quick there-and-back
- * (e.g. turn to the laptop, then a speaking turn a beat later) collapses to no
- * visible turn at all instead of a jittery double swivel.
- */
-function useMinPoseDwell(desired: boolean, minMs: number): boolean {
-  const [shown, setShown] = React.useState(desired);
-  const lastTurnAtRef = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    if (desired === shown) return;
-
-    const elapsed = lastTurnAtRef.current == null ? Infinity : Date.now() - lastTurnAtRef.current;
-    if (elapsed >= minMs) {
-      lastTurnAtRef.current = Date.now();
-      setShown(desired);
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      lastTurnAtRef.current = Date.now();
-      setShown(desired);
-    }, minMs - elapsed);
-    return () => window.clearTimeout(timer);
-  }, [desired, shown, minMs]);
-
-  return shown;
 }
 
 interface AssistantCommunicationDialogContentProps {
@@ -359,8 +344,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     assistantActions.actions ?? { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     { enabled: isCallConnected }
   );
-  const desiredOnLaptop = useWorkingPose(isAssistantSpeaking, lastCommsActivityAt, hasActiveAction);
-  const isActing = useMinPoseDwell(desiredOnLaptop, MIN_POSE_DWELL_MS);
+  const isActing = useWorkingPose(isAssistantSpeaking, lastCommsActivityAt, hasActiveAction);
 
   React.useEffect(() => {
     if (!isCallConnected) return;
