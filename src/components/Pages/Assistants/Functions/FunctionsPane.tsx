@@ -24,6 +24,7 @@ import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { AssistantMarkdown, fencedCode } from '../Common/AssistantMarkdown';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabFooter } from '../Common/TabFooter';
+import { FunctionSignatureDocs } from './FunctionSignatureDocs';
 import {
   mapFunctionRow,
   filterFunctions,
@@ -31,6 +32,7 @@ import {
   type FunctionSkill,
   type FunctionKindFilter,
 } from '@/utils/assistants/functions';
+import { docstringPreview } from '@/utils/assistants/functionDoc';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface FunctionsPaneProps {
@@ -51,8 +53,10 @@ function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
   return (
     <span
       className={cn(
-        'rounded-full px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-wide',
-        isPrimitive ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
+        'shrink-0 rounded-full px-[7px] py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.04em]',
+        isPrimitive
+          ? 'bg-[color-mix(in_srgb,var(--role-purple)_14%,transparent)] text-[color:var(--role-purple)]'
+          : 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
       )}
     >
       {isPrimitive ? 'primitive' : 'learned'}
@@ -75,11 +79,8 @@ function FunctionBadges({ skill }: { skill: FunctionSkill }) {
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="function-badges">
       <KindBadge isPrimitive={skill.isPrimitive} />
-      <span className="text-code-sm rounded-full border bg-muted px-2 py-0.5 text-muted-foreground">
-        {skill.language}
-      </span>
       {skill.verify && (
-        <span className="bg-primary/10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-primary">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--status-success-bg)] px-2 py-0.5 text-[10.5px] font-semibold text-[color:var(--status-success)]">
           <Check className="h-3 w-3" /> verified
         </span>
       )}
@@ -90,15 +91,11 @@ function FunctionBadges({ skill }: { skill: FunctionSkill }) {
 function FunctionAbout({ skill }: { skill: FunctionSkill }) {
   return (
     <div className="space-y-4 pr-4" data-testid="function-detail-body">
-      <DetailField label="Signature">
-        <AssistantMarkdown>{fencedCode(skill.argspec, skill.language)}</AssistantMarkdown>
-      </DetailField>
-
-      {skill.docstring && (
-        <DetailField label="Docstring">
-          <AssistantMarkdown>{skill.docstring}</AssistantMarkdown>
-        </DetailField>
-      )}
+      <FunctionSignatureDocs
+        argspec={skill.argspec}
+        docstring={skill.docstring}
+        language={skill.language}
+      />
 
       {skill.dependsOn.length > 0 && (
         <DetailField label="Depends on">
@@ -148,7 +145,7 @@ function FunctionAbout({ skill }: { skill: FunctionSkill }) {
 
 function CopySignatureButton({ skill }: { skill: FunctionSkill }) {
   const { isCopied, handleCopy } = useCopyToClipboard({
-    text: skill.implementation || shortSignature(skill),
+    text: skill.implementation || skill.argspec,
     copyMessage: 'Copied',
     showSuccessNotification: false,
   });
@@ -224,6 +221,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
     <div className="flex h-full flex-col" data-testid="functions-pane">
       <TabToolbar
         testId="functions-header"
+        searchScopeId="functions"
         leading={
           <div className="flex items-center gap-1" data-testid="functions-kind-seg">
             {KINDS.map((k) => (
@@ -253,7 +251,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
       <div className="min-h-0 flex-1" data-testid="functions-body">
         {isLoading && skills.length === 0 ? (
           <div
-            className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3 p-3"
+            className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 p-4"
             data-testid="functions-skeleton"
           >
             {Array.from({ length: 6 }).map((_, i) => (
@@ -266,46 +264,43 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
           </div>
         ) : (
           <ScrollArea className="h-full">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3 p-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 p-4">
               {filtered.map((skill) => (
                 <button
                   key={`${skill.functionId ?? skill.name}`}
-                  className="hover:border-primary/40 hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border bg-card p-2.5 text-left transition-colors"
+                  className="hover:border-primary/40 hover:bg-muted/40 flex min-h-[168px] flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors"
                   onClick={() => {
-                    // TODO(wire-backend): setDrawerTab('about') — restore with the Run tab.
                     setSelected(skill);
                   }}
                   data-testid={`function-card-${skill.name}`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <Code2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                    <span className="truncate font-mono text-[11.5px] font-medium text-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg bg-accent-soft text-accent-soft-foreground">
+                      <Code2 className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0 flex-1 truncate font-mono text-[12.5px] font-semibold text-foreground">
                       {skill.name}
-                    </span>
-                    <span className="ml-auto">
-                      <KindBadge isPrimitive={skill.isPrimitive} />
-                    </span>
+                    </div>
+                    <KindBadge isPrimitive={skill.isPrimitive} />
                   </div>
-                  <div className="truncate font-mono text-[10.5px] text-muted-foreground">
-                    {shortSignature(skill)}
-                  </div>
-                  <div className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
-                    {skill.docstring || 'No description.'}
-                  </div>
-                  <div className="mt-auto flex items-center gap-1.5 border-t pt-1.5 text-[10px] text-muted-foreground">
-                    <span className="font-mono">{skill.language}</span>
+
+                  {skill.argspec && (
+                    <div className="truncate rounded-md bg-muted px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+                      {shortSignature(skill)}
+                    </div>
+                  )}
+
+                  <p className="text-foreground/80 line-clamp-2 flex-1 text-[12px] leading-relaxed">
+                    {docstringPreview(skill.docstring) || 'No description.'}
+                  </p>
+
+                  <div className="mt-auto flex items-center gap-2.5 pt-0.5">
+                    <span className="text-[10.5px] text-muted-foreground">{skill.language}</span>
                     {skill.dependsOn.length > 0 && (
-                      <span>
-                        · {skill.dependsOn.length} dep{skill.dependsOn.length > 1 ? 's' : ''}
+                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-medium text-accent-soft-foreground">
+                        {skill.dependsOn.length} dep{skill.dependsOn.length !== 1 ? 's' : ''}
                       </span>
                     )}
-                    {/*
-                      TODO(wire-backend): card "Run" affordance — function
-                      invocation isn't wired to a backend yet.
-                      <span className="ml-auto inline-flex items-center gap-1 font-medium text-primary">
-                        <Play className="h-2.5 w-2.5" /> Run
-                      </span>
-                    */}
                   </div>
                 </button>
               ))}
@@ -328,11 +323,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
           if (!open) setSelected(null);
         }}
       >
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col sm:!max-w-2xl"
-          data-testid="function-detail"
-        >
+        <SheetContent side="right" className="flex w-full flex-col" data-testid="function-detail">
           <SheetHeader className="shrink-0 space-y-2">
             <div>
               <SheetTitle className="break-all font-mono text-[15px]">{selected?.name}</SheetTitle>
