@@ -12,8 +12,8 @@ const test = createAccountTest(user);
 
 test.afterAll(() => cleanupUser(user.id));
 
-test('Advanced tab shows a masked API key', async ({ authedPage: page }) => {
-  await page.goto('/account?tab=advanced');
+test('Security tab shows a masked API key', async ({ authedPage: page }) => {
+  await page.goto('/account?tab=security');
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
 
   const keyLabel = page.locator('text=API Key');
@@ -30,7 +30,7 @@ test('regenerating API key via API produces a new key in the database', async ({
   const oldKey = getUserApiKeyFromDb(user.id);
   expect(oldKey).toBeTruthy();
 
-  await page.goto('/account?tab=advanced');
+  await page.goto('/account?tab=security');
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
 
   const response = await page.request.get(

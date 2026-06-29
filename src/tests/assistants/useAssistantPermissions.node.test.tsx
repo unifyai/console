@@ -41,6 +41,8 @@ function setOrganizationWorkspace({
       apiKey: 'org-api-key',
     },
     currentUserId,
+    isUnifyAdmin: false,
+    isUnifyMember: false,
     isWorkspaceSwitchable: true,
     isSwitchingWorkspace: false,
     switchWorkspace: vi.fn(),
