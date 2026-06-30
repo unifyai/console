@@ -449,27 +449,27 @@ export function ChatWithInfoPanel({
   ]);
 
   React.useLayoutEffect(() => {
-    if (infoPanelFocusLayoutRequest <= 0) return;
+    if (infoPanelFocusLayoutRequest === 0) return;
     if (assistant.isCoordinator !== true || !hasIncompleteOnboarding) return;
     if (seededInfoFocusLayoutRequestRef.current === infoPanelFocusLayoutRequest) return;
 
+    seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
+
     // On mobile the focus layout would cover the docked call/chat surface,
-    // so we consume the request without auto-opening the panel.
+    // so consume the request without auto-opening the panel.
     if (isMobileInfoPanelViewport()) {
-      seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
-      setIsInfoOpen(false);
+      // Toggle requests from the header shortcut surface the onboarding
+      // checklist full-width on phone; bootstrap focus layout stays closed.
+      setIsInfoOpen(infoPanelFocusLayoutRequest < 0);
       return;
     }
 
-    // Open transiently for the onboarding focus layout at the default
-    // inspector width — the chat stays the dominant column beside it (per
-    // the redesign, the profile is a fixed-width side panel, not a takeover).
-    // We deliberately don't persist here: this is a request-driven override
-    // of the global preference, not the user choosing to open the panel, so
-    // it must not flip the shared open/closed state for every other assistant.
+    // Open transiently for onboarding shortcuts at the default inspector
+    // width — the chat stays the dominant column beside it. We deliberately
+    // don't persist here: this is a request-driven override of the global
+    // preference, not the user choosing to open the panel.
     setIsInfoOpen(true);
     setInfoPanelWidthWithinBounds(INFO_PANEL_DEFAULT_WIDTH);
-    seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
   }, [
     assistant.isCoordinator,
     hasIncompleteOnboarding,

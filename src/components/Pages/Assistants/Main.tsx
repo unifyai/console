@@ -43,7 +43,7 @@ import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistant
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 import { Loader } from '@/components/Common/Loader';
@@ -155,6 +155,7 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 
 export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const onboardingFocusParam = searchParams.get('onboarding');
@@ -825,19 +826,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (!canonicalCoordinatorId || isLoadingAssistants) return;
     if (consumedOnboardingFocusParamRef.current === onboardingFocusParam) return;
     consumedOnboardingFocusParamRef.current = onboardingFocusParam;
+
+    // Brain sections replace the chat/info pane entirely, so route back to
+    // Chat before opening the Coordinator onboarding panel.
+    setActiveBrainSectionId(null);
+    setPaneState((prev) => ({
+      ...prev,
+      primary: { tab: 'chat' },
+      secondary: null,
+    }));
     handleShowProfile(canonicalCoordinatorId);
     if (onboardingFocusParam.startsWith('toggle:')) {
       requestCoordinatorOnboardingInfoToggle();
     } else {
       requestCoordinatorOnboardingFocusLayout();
     }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete('onboarding');
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
   }, [
     canonicalCoordinatorId,
     handleShowProfile,
     isLoadingAssistants,
     onboardingFocusParam,
+    pathname,
     requestCoordinatorOnboardingFocusLayout,
     requestCoordinatorOnboardingInfoToggle,
+    router,
+    searchParams,
   ]);
 
   // --- Assistant Status Polling ---
@@ -2467,6 +2487,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           : false
                       }
                       infoPanelFocusLayoutRequest={
+                        coordinatorOnboardingFocusLayoutRequest < 0 ||
                         canApplyCoordinatorOnboardingFocusLayout
                           ? coordinatorOnboardingFocusLayoutRequest
                           : 0
