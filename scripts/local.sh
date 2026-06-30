@@ -754,7 +754,7 @@ cmd_gateway_setup() {
   log_info "Delegating to Unity gateway setup..."
   (
     cd "$UNITY_REPO_PATH"
-    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unity.gateway "${args[@]}"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unify.gateway "${args[@]}"
   )
 }
 
@@ -768,7 +768,7 @@ cmd_gateway_doctor() {
   log_info "Delegating to Unity gateway doctor..."
   (
     cd "$UNITY_REPO_PATH"
-    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unity.gateway doctor --env-file "$env_file" "$@"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unify.gateway doctor --env-file "$env_file" "$@"
   )
 }
 
@@ -784,7 +784,7 @@ cmd_gateway_urls() {
   log_info "Delegating to Unity gateway URL printer..."
   (
     cd "$UNITY_REPO_PATH"
-    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" UNITY_GATEWAY_PUBLIC_URL="$public_url" "$python_bin" -m unity.gateway urls "$@"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" UNITY_GATEWAY_PUBLIC_URL="$public_url" "$python_bin" -m unify.gateway urls "$@"
   )
 }
 
