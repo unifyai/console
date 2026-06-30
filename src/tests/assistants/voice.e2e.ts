@@ -48,7 +48,7 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await page.waitForTimeout(2_000);
 
   const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Unity' })
+    .getByRole('heading', { name: 'Onboard Digital Twin' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);

@@ -25,7 +25,7 @@ import {
   EPHEMERAL_EXPIRATION_TTL,
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
-import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
+import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { topicSuffix } from '@/lib/environment/comms-env';
 
@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  if (!hasCredentials()) {
+  if (localEventBusEnabled()) {
     return createLocalStream(request, billingAccountId);
   }
 

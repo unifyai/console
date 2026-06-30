@@ -15,6 +15,7 @@ import {
   setMeteredPlan,
   clearMeteredPlan,
   waitForAssistantsReady,
+  expectOnboardButtonEnabled,
   type TestUser,
 } from './helpers';
 
@@ -52,10 +53,7 @@ withCreditTest.afterAll(() => cleanupUser(withCreditUser.id));
 
 withCreditTest('buttons are enabled when user has credits', async ({ authedPage: page }) => {
   await page.goto('/assistants');
-  await waitForAssistantsReady(page);
-
-  const newBtn = page.locator('button', { hasText: 'New' });
-  await expect(newBtn).toBeEnabled({ timeout: 10_000 });
+  await expectOnboardButtonEnabled(page);
 });
 
 // ---------------------------------------------------------------------------
@@ -80,10 +78,7 @@ restoreTest(
 
     setUserCredits(restoreUser.id, 5_000);
     await page.reload();
-    await waitForAssistantsReady(page);
-
-    const newBtn = page.locator('button', { hasText: 'New' });
-    await expect(newBtn).toBeEnabled({ timeout: 10_000 });
+    await expectOnboardButtonEnabled(page);
   }
 );
 
@@ -120,10 +115,7 @@ meteredTest(
     await page.goto('/assistants');
     await waitForAssistantsReady(page);
 
-    // The "New" button is the canonical billable action on /assistants
-    // — same locator as the CREDITS-mode "with credits" test above.
-    const newBtn = page.locator('button', { hasText: 'New' });
-    await expect(newBtn).toBeEnabled({ timeout: 10_000 });
+    await expectOnboardButtonEnabled(page);
 
     // And the guard's tooltip wrapper (which only renders when blocked)
     // must NOT appear anywhere on the page.

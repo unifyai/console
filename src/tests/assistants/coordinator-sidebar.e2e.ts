@@ -21,6 +21,7 @@ import {
   deleteOrg,
   ensureProjectSync,
   navigateToAssistants,
+  openAssistantInfoPanel,
   openUnitySwitcher,
 } from './helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
@@ -352,7 +353,7 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await page.keyboard.press('Escape');
 
   await expectCoordinatorChatOpen(page, coordinator.agentId);
-  await page.getByTestId('assistant-info-button').click();
+  await openAssistantInfoPanel(page);
   await expect(page.getByTestId('assistant-info-tab-onboarding')).toContainText('Onboarding');
   await expect(page.getByTestId('assistant-info-tab-contact')).toContainText('Contact info');
 });

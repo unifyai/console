@@ -22,6 +22,7 @@ import {
   seedRewardedReferral,
   clearReferralData,
   dbExec,
+  skipIfManualTopupBilling,
 } from './helpers';
 
 const referrer = createTestUser({ name: 'Referrer', lastName: 'Main', credits: 100 });
@@ -179,6 +180,7 @@ test('referrer dashboard reflects a rewarded referral', async ({ authedPage: pag
   }
   seedRewardedReferral(referrer.id, friend.id, { code, rewardUsd: 12.5 });
 
+  await skipIfManualTopupBilling(test, page);
   await page.goto('/billing?mode=credits');
 
   const section = page.getByTestId('referrals-section');

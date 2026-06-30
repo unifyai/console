@@ -56,3 +56,13 @@ export function publish(assistantId: string, event: Record<string, unknown>): vo
 export function hasCredentials(): boolean {
   return !!process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS || !!process.env.PUBSUB_EMULATOR_HOST;
 }
+
+/**
+ * Route live-action and billing-event SSE through the in-memory bus (and allow
+ * the companion push endpoints) whenever cloud comms credentials are absent.
+ * The Pub/Sub emulator may still run for chat topics, but E2E injects
+ * assistant/billing events through the local push routes.
+ */
+export function localEventBusEnabled(): boolean {
+  return !process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
+}

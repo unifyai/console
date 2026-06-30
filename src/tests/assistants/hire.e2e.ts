@@ -52,7 +52,7 @@ test('hiring an assistant persists it to the database and shows it in the list',
 
   // Hire dialog auto-opens on empty state; open manually if it didn't.
   const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Unity' })
+    .getByRole('heading', { name: 'Onboard Digital Twin' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);

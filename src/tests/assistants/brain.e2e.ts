@@ -476,170 +476,93 @@ test('Contacts: clicking a card opens the detail drawer', async ({ authedPage: p
 });
 
 // ===========================================================================
-// Transcripts — consolidated table (BrainPane pinned to a single context)
+// Transcripts — feed / threads pane (dedicated rail section)
 // ===========================================================================
 
-test('Transcripts: displays seeded messages and hides the context switcher', async ({
-  authedPage: page,
-}) => {
+async function openTranscriptsSection(page: import('@playwright/test').Page, agentId: number) {
+  await openBrainSection(page, agentId, 'transcripts');
+  await expect(page.getByTestId('transcripts-pane')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('transcripts-threads')).toBeVisible({ timeout: 15_000 });
+}
+
+test('Transcripts: displays seeded messages in the threads view', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+  await openTranscriptsSection(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('brain-table-transcripts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-  await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
+  const reader = page.getByTestId('transcripts-reader');
+  await expect(reader).toBeVisible({ timeout: 10_000 });
+  await expect(reader.getByText('Hello, can you help me with my schedule?')).toBeVisible({
     timeout: 5_000,
   });
-  await expect(table.locator('text=Of course! Let me check your calendar.')).toBeVisible({
-    timeout: 5_000,
-  });
-  await expect(table.locator('text=What is the status of the project?')).toBeVisible({
+  await expect(reader.getByText('Of course! Let me check your calendar.')).toBeVisible({
     timeout: 5_000,
   });
 
-  // Pinned single-context view hides the in-pane Brain context switcher.
   await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
 });
 
-test('Transcripts: clicking a row opens the detail with full content', async ({
+test('Transcripts: selecting a thread shows its messages in the reader', async ({
   authedPage: page,
 }) => {
   await ensureSeeded();
-  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+  await openTranscriptsSection(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('brain-table-transcripts');
-  const row = table.locator('[data-testid="brain-table-row"]', { hasText: 'schedule' });
-  await expect(row).toBeVisible({ timeout: 10_000 });
-  await row.click();
-
-  const detail = page.getByTestId('brain-row-detail');
-  await expect(detail).toBeVisible({ timeout: 5_000 });
-  await expect(detail.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
-    timeout: 3_000,
+  const threadRow = page.getByTestId('transcripts-threads').locator('button', {
+    hasText: 'project',
   });
+  await expect(threadRow).toBeVisible({ timeout: 10_000 });
+  await threadRow.click();
 
-  const closeBtn = detail.locator('button:has(svg)').first();
-  await closeBtn.click();
-  await expect(detail).not.toBeVisible({ timeout: 3_000 });
-});
-
-test('Transcripts: search filters server-side', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
-
-  const table = page.getByTestId('brain-table-transcripts');
-  await expect(table.locator('text=What is the status of the project?')).toBeVisible({
-    timeout: 10_000,
-  });
-
-  const search = page.getByTestId('brain-search');
-  await search.fill('schedule');
-  await search.press('Enter');
-
-  await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(table.locator('text=What is the status of the project?')).not.toBeVisible({
-    timeout: 5_000,
-  });
-
-  await page.getByTestId('brain-search-clear').click();
-  await expect(table.locator('text=What is the status of the project?')).toBeVisible({
-    timeout: 10_000,
-  });
-});
-
-test('Transcripts: clicking a column header sorts server-side', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
-
-  const table = page.getByTestId('brain-table-transcripts');
-  const timeHeader = table.locator('th', { hasText: 'Time' });
-  await expect(timeHeader).toBeVisible({ timeout: 10_000 });
-
-  await timeHeader.click();
-  await page.waitForTimeout(1_500);
-  await expect(table.locator('[data-testid="brain-table-row"]').first()).toBeVisible({
-    timeout: 5_000,
-  });
-
-  await timeHeader.click();
-  await page.waitForTimeout(1_500);
-  await expect(table.locator('[data-testid="brain-table-row"]').first()).toBeVisible({
+  const reader = page.getByTestId('transcripts-reader');
+  await expect(reader.getByText('What is the status of the project?')).toBeVisible({
     timeout: 5_000,
   });
 });
 
-test('Transcripts: footer shows loaded-of-total and refresh refetches', async ({
-  authedPage: page,
-}) => {
+test('Transcripts: search filters the thread list', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+  await openTranscriptsSection(page, dataAssistant.agentId);
 
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-  await expect(footer).toContainText('of');
+  await expect(
+    page.getByTestId('transcripts-reader').getByText('What is the status of the project?')
+  ).toBeVisible({ timeout: 10_000 });
 
-  const refresh = page.getByTestId('brain-refresh');
-  await refresh.click();
-  await page.waitForTimeout(1_500);
-  await expect(refresh).toBeEnabled();
-  await expect(page.getByTestId('brain-table-transcripts')).toBeVisible({ timeout: 5_000 });
+  await page.getByTestId('transcripts-search').fill('schedule');
+  await expect(
+    page.getByTestId('transcripts-threads').getByText('What is the status of the project?')
+  ).not.toBeVisible({ timeout: 5_000 });
+
+  await page.getByRole('button', { name: 'Clear search' }).click();
+  await expect(
+    page.getByTestId('transcripts-reader').getByText('What is the status of the project?')
+  ).toBeVisible({ timeout: 10_000 });
 });
 
-test('Transcripts: the table is read-only', async ({ authedPage: page }) => {
+test('Transcripts: refresh reloads transcript data', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+  await openTranscriptsSection(page, dataAssistant.agentId);
 
-  const body = page.getByTestId('brain-body');
-  await expect(body).toBeVisible({ timeout: 10_000 });
-  await expect(body.locator('button:has-text("Edit")')).toHaveCount(0);
-  await expect(body.locator('button:has-text("Delete")')).toHaveCount(0);
-  await expect(body.locator('input')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Refresh transcripts' }).click();
+  await expect(page.getByTestId('transcripts-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('transcripts-reader')).toBeVisible({ timeout: 10_000 });
 });
 
-test('Transcripts: destination dropdown is hidden for solo assistants', async ({
+test('Transcripts: the pane is read-only', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await openTranscriptsSection(page, dataAssistant.agentId);
+
+  const pane = page.getByTestId('transcripts-pane');
+  await expect(pane).toBeVisible({ timeout: 10_000 });
+  await expect(pane.locator('button:has-text("Edit")')).toHaveCount(0);
+  await expect(pane.locator('button:has-text("Delete")')).toHaveCount(0);
+});
+
+test('Transcripts: destination dropdown is not shown in the transcripts rail', async ({
   authedPage: page,
 }) => {
   await openBrainSection(page, emptyAssistant.agentId, 'transcripts');
-
-  await expect(page.getByTestId('brain-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('transcripts-pane')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('brain-destination-dropdown')).toHaveCount(0);
-});
-
-test('Transcripts: destination dropdown drills into personal and shared roots', async ({
-  authedPage: page,
-}) => {
-  const { org, assistant: destination } = ensureDestinationAssistant();
-
-  await page.goto('/assistants');
-  await closeHireDialogIfOpen(page);
-  await page.evaluate(async (orgId) => {
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(orgId) }),
-    });
-  }, org.id);
-  await page.reload();
-  await closeHireDialogIfOpen(page);
-
-  await ensureDestinationSeeded();
-  await openBrainSection(page, destination.agentId, 'transcripts');
-
-  const table = page.getByTestId('brain-table-transcripts');
-  await expect(table.locator('text=Personal scope ping')).toBeVisible({ timeout: 10_000 });
-  await expect(table.locator('text=Shared scope ping')).toBeVisible({ timeout: 10_000 });
-
-  await page.getByTestId('brain-destination-dropdown').click();
-  await page.getByRole('option', { name: /Brain Drill Team/ }).click();
-  await expect(table.locator('text=Shared scope ping')).toBeVisible({ timeout: 20_000 });
-  await expect(table.locator('text=Personal scope ping')).not.toBeVisible({ timeout: 10_000 });
-
-  await page.getByTestId('brain-destination-dropdown').click();
-  await page.getByRole('option', { name: 'Personal' }).click();
-  await expect(table.locator('text=Personal scope ping')).toBeVisible({ timeout: 20_000 });
-  await expect(table.locator('text=Shared scope ping')).not.toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================

@@ -490,16 +490,23 @@ export async function skipWorkspaceSetupIfPrompted(page: Page) {
 }
 
 /**
- * Click the "Onboard Unity" button in the hire dialog.
+ * Click the "Onboard Digital Twin" button in the hire dialog.
  * Scrolls the button into view first since the dialog content may be tall, and
  * ticks the workspace "Skip" first so the flow isn't blocked on workspace setup.
  */
 export async function clickHireButton(page: Page) {
   await skipWorkspaceSetupIfPrompted(page);
-  const hireBtn = page.getByRole('button', { name: 'Onboard Unity', exact: true });
+  const hireBtn = page.getByRole('button', { name: 'Onboard Digital Twin', exact: true });
   await hireBtn.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await hireBtn.click();
+}
+
+/** Open the assistant info side panel from the chat toolbar. */
+export async function openAssistantInfoPanel(page: Page) {
+  const btn = page.getByTestId('assistant-info-button');
+  await expect(btn).toBeVisible({ timeout: 20_000 });
+  await btn.click();
 }
 
 // =============================================================================

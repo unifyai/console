@@ -21,7 +21,7 @@ import {
   setMeteredPlan,
   clearMeteredPlan,
   insertMeteredInvoice,
-  type TestUser,
+  skipIfManualTopupBilling,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -58,6 +58,10 @@ insertMeteredInvoice(user.id, {
 });
 
 const test = createBillingTest(user);
+
+test.beforeEach(async ({ authedPage: page }) => {
+  await skipIfManualTopupBilling(test, page);
+});
 
 test.afterAll(() => {
   clearMeteredPlan(user.id);

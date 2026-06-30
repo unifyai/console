@@ -5,7 +5,13 @@
  */
 
 import { test as unauthTest, expect } from '@playwright/test';
-import { createTestUser, cleanupUser, createBillingTest, type TestUser } from './helpers';
+import {
+  createTestUser,
+  cleanupUser,
+  createBillingTest,
+  waitForBillingReady,
+  isManualTopupMode,
+} from './helpers';
 
 // ---------------------------------------------------------------------------
 // Unauthenticated redirects
@@ -33,9 +39,11 @@ const test = createBillingTest(user);
 test.afterAll(() => cleanupUser(user.id));
 
 test('billing page shows all main sections', async ({ authedPage: page }) => {
-  await page.goto('/billing');
-  await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('text=Billing Profile')).toBeVisible({ timeout: 10_000 });
+  await waitForBillingReady(page);
+  const manualTopup = await isManualTopupMode(page);
+  if (!manualTopup) {
+    await expect(page.locator('text=Billing Profile')).toBeVisible({ timeout: 10_000 });
+  }
   // Local Orchestra runs in manualTopup mode — tier picker is subscription-only.
   const tierSelect = page.getByTestId('tier-select-trigger');
   if (await tierSelect.isVisible({ timeout: 2_000 }).catch(() => false)) {

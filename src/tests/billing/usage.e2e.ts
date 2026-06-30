@@ -13,6 +13,7 @@ import {
   dbExecBlock,
   dbExec,
   type TestUser,
+  waitForUsageReady,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -118,11 +119,9 @@ test.afterAll(() => {
 // ---------------------------------------------------------------------------
 
 test('loads usage page with all key components visible', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 15_000 });
+  await waitForUsageReady(page);
 
-  await expect(page.getByTestId('usage-filters-bar')).toBeVisible();
-  await expect(page.getByTestId('category-filter')).toBeVisible();
+  await expect(page.getByTestId('category-filter')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('granularity-filter')).toBeVisible();
   await expect(page.getByTestId('timeframe-filter')).toBeVisible();
   await expect(page.getByTestId('spending-limit-card')).toBeVisible();

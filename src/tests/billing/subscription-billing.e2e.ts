@@ -43,6 +43,7 @@ import {
   insertMeteredInvoice,
   dbExec,
   waitForAssistantsReady,
+  skipIfManualTopupBilling,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -82,6 +83,10 @@ const unsubUser = createTestUser({ name: 'SubFlow', lastName: 'Unsub', credits: 
 const unsubTest = createBillingTest(unsubUser);
 
 unsubTest.afterAll(() => cleanupUser(unsubUser.id));
+
+unsubTest.beforeEach(async ({ authedPage: page }) => {
+  await skipIfManualTopupBilling(unsubTest, page);
+});
 
 unsubTest.describe('subscribe — gating & framing (unsubscribed)', () => {
   unsubTest(
@@ -270,6 +275,10 @@ const subTest = createBillingTest(subUser);
 subTest.afterAll(() => {
   setAccountStatus(subUser.id, 'ACTIVE');
   cleanupUser(subUser.id);
+});
+
+subTest.beforeEach(async ({ authedPage: page }) => {
+  await skipIfManualTopupBilling(subTest, page);
 });
 
 subTest.describe('subscribed account — view & plan change', () => {

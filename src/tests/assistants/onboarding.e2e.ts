@@ -30,6 +30,7 @@ import {
   cleanupUser,
   createAssistantTest,
   openHireDialog,
+  openAssistantInfoPanel,
   fillProfileFields,
   selectVoice,
   clickHireButton,
@@ -72,7 +73,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await navigateForRoadmapTests(page);
 
   const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Unity' })
+    .getByRole('heading', { name: 'Onboard Digital Twin' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -103,7 +104,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
 async function ensureInfoPanelOpen(page: Page) {
   const infoSheet = page.getByTestId('assistant-info-sheet');
   if (!(await infoSheet.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    await page.getByTestId('assistant-info-button').click();
+    await openAssistantInfoPanel(page);
   }
   await expect(infoSheet).toBeVisible({ timeout: 5_000 });
 }

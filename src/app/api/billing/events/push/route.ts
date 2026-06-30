@@ -4,8 +4,8 @@
  * Accepts billing events via POST and publishes them to the in-memory
  * event bus, where active billing SSE connections pick them up instantly.
  *
- * Only available in local development mode (no COMMS_SERVICE_ACCOUNT_CREDENTIALS
- * and no PUBSUB_EMULATOR_HOST). In production, events flow through GCP Pub/Sub.
+ * Only available in local development mode (no COMMS_SERVICE_ACCOUNT_CREDENTIALS).
+ * In production, events flow through GCP Pub/Sub.
  *
  * Usage:
  *   POST http://localhost:3000/api/billing/events/push
@@ -18,12 +18,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { hasCredentials, publish } from '@/lib/pubsub/local-event-bus';
+import { localEventBusEnabled, publish } from '@/lib/pubsub/local-event-bus';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  if (hasCredentials()) {
+  if (!localEventBusEnabled()) {
     return NextResponse.json(
       { detail: 'Push endpoint is only available in local development mode.' },
       { status: 403 }

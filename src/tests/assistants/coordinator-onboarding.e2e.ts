@@ -42,6 +42,7 @@ import {
   dbExec,
   deleteAllAssistantsForUser,
   orchestraFetch,
+  openAssistantInfoPanel,
   openUnitySwitcher,
   selectAssistantInList,
 } from './helpers';
@@ -94,7 +95,7 @@ async function expectPickerVisible(page: Page) {
 async function openOnboardingChecklist(page: Page) {
   const onboardingTab = page.getByTestId('assistant-info-tab-onboarding');
   if (!(await onboardingTab.isVisible({ timeout: 5_000 }).catch(() => false))) {
-    await page.getByTestId('assistant-info-button').click();
+    await openAssistantInfoPanel(page);
     await expect(onboardingTab).toBeVisible({ timeout: 10_000 });
   }
   await onboardingTab.click();
@@ -593,7 +594,7 @@ test('switching back to T-W1N does not reapply the onboarding focus layout', asy
 
   // Close the Coordinator's info sheet, then bounce to another unity and
   // back via the rail's unity switcher.
-  await page.getByTestId('assistant-info-button').click();
+  await openAssistantInfoPanel(page);
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 
   await selectAssistantInList(page, otherAssistant.agentId);
