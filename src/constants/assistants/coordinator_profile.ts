@@ -1,4 +1,4 @@
-export const COORDINATOR_DEFAULT_JOB_TITLE = 'Coordinator';
+export const COORDINATOR_DEFAULT_JOB_TITLE = '';
 export const COORDINATOR_DEFAULT_ABOUT = '';
 
 export function resolveCoordinatorJobTitle(value: string | null | undefined): string {

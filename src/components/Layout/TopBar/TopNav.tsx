@@ -275,8 +275,12 @@ export default function TopNav() {
 
         {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
-          <Link href="/" className="flex items-center rounded-md px-1" aria-label="Unify Console">
-            <UnifyBlockMark />
+          <Link
+            href="/"
+            className="flex h-full w-[42px] items-center rounded-md px-1"
+            aria-label="Unify Console"
+          >
+            <UnifyBlockMark className="scale-110" />
           </Link>
           {selfHostResetControl}
 
@@ -285,7 +289,7 @@ export default function TopNav() {
             (activeWorkspace.type === 'organization' || isWorkspaceSwitchable) && (
               <>
                 <div
-                  className="mx-[13px] h-5 w-px bg-[color:var(--border)]"
+                  className="mr-[13px] h-5 w-px bg-[color:var(--border)]"
                   aria-hidden="true"
                 ></div>
                 {isWorkspaceSwitchable ? (
@@ -603,7 +607,7 @@ export default function TopNav() {
             <AlertDialogDescription className="space-y-3 text-left">
               <span className="block">
                 This clears local chat, onboarding, organization, and assistant history while
-                keeping the self-host owner account and T-W1N Coordinator.
+                keeping the self-host owner account and T-W1N.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>

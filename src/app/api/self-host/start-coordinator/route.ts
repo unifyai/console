@@ -103,7 +103,7 @@ export async function POST() {
         ? error.message
         : typeof error === 'string'
           ? error
-          : 'Failed to start Coordinator runtime';
+          : 'Failed to start runtime';
     return NextResponse.json({ error: 'start_failed', message }, { status: 500 });
   }
 }

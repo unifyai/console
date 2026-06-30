@@ -25,7 +25,7 @@ import {
 const personalWorkspace: MockScenario = {
   id: 'personal-workspace',
   label: 'Personal workspace',
-  description: 'Single user, personal coordinator, a couple of assistants.',
+  description: 'Single user, T-W1N, and a couple of assistants.',
   user: personalUser,
   assistants: personalAssistants,
   projects,

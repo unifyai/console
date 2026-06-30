@@ -7,12 +7,12 @@ import { MOCK_ORG_ID, MOCK_USER_ID } from './users';
 
 export const personalCoordinator: MockAssistant = {
   agentId: 1001,
-  firstName: 'Coordinator',
+  firstName: 'T-W1N',
   surname: '',
   userId: MOCK_USER_ID,
   organizationId: null,
   isCoordinator: true,
-  jobTitle: 'Personal Coordinator',
+  jobTitle: '',
   bio: 'Routes your work to the right assistant.',
   photoUrl: null,
   status: 'active',
@@ -20,13 +20,13 @@ export const personalCoordinator: MockAssistant = {
 
 export const orgCoordinator: MockAssistant = {
   agentId: 2001,
-  firstName: 'Coordinator',
+  firstName: 'T-W1N',
   surname: '',
   userId: MOCK_USER_ID,
   organizationId: MOCK_ORG_ID,
   isCoordinator: true,
-  jobTitle: 'Acme Coordinator',
-  bio: 'Coordinates the Acme Labs workspace.',
+  jobTitle: '',
+  bio: 'Supports the Acme Labs workspace.',
   photoUrl: null,
   status: 'active',
 };

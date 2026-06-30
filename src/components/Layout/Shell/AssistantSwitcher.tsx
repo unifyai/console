@@ -53,7 +53,7 @@ export function AssistantSwitcher({ activeUnity, listProps, collapsed }: Assista
   const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a digital twin';
   const unitySub = activeUnity
     ? activeUnity.isCoordinator
-      ? 'Coordinator'
+      ? null
       : activeUnity.jobTitle?.trim() || 'Digital twin'
     : 'No digital twin selected';
 
@@ -93,9 +93,11 @@ export function AssistantSwitcher({ activeUnity, listProps, collapsed }: Assista
             <>
               <div className="min-w-0 text-left">
                 <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
-                <div className="truncate text-[11.5px] capitalize text-muted-foreground">
-                  {unitySub}
-                </div>
+                {unitySub ? (
+                  <div className="truncate text-[11.5px] capitalize text-muted-foreground">
+                    {unitySub}
+                  </div>
+                ) : null}
               </div>
               <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
             </>
