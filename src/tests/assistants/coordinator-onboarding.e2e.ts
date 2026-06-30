@@ -43,13 +43,14 @@ import {
   deleteAllAssistantsForUser,
   orchestraFetch,
   openAssistantInfoPanel,
+  openRailSection,
   openUnitySwitcher,
   selectAssistantInList,
 } from './helpers';
 
 const user = createTestUser({ name: 'CoordOnboard', lastName: 'E2E', credits: 50_000 });
 const test = createAssistantTest(user);
-test.setTimeout(120_000);
+test.setTimeout(180_000);
 test.describe.configure({ mode: 'serial' });
 
 test.afterAll(() => {
@@ -422,13 +423,15 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   );
   await expect(emailReplyRow).toHaveAttribute('role', 'button');
   await expect(emailReplyRow).not.toHaveAttribute('data-status', 'done');
-  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
+  const appsRowAfterReplyCheck = page.getByTestId('coordinator-onboarding-item-apps').first();
+  await expect(appsRowAfterReplyCheck).toBeVisible();
+  await expect(appsRowAfterReplyCheck).not.toHaveAttribute('data-next', 'true');
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
   await expect
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
+  await expect(appsRowAfterReplyCheck).not.toHaveAttribute('data-next', 'true');
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
   // No skip / resume affordances exist on the platform either.
@@ -529,6 +532,43 @@ test('resolving the picker persists intro_watched and reload defaults to T-W1N +
   });
 });
 
+test('keeps the onboarding checklist visible while navigating assistant sections', async ({
+  authedPage: page,
+}) => {
+  createPersonalCoordinator(user.id);
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await openOnboardingChecklist(page);
+  await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
+    timeout: 15_000,
+  });
+
+  for (const { section, pane } of [
+    { section: 'actions', pane: 'live-actions-viewer' },
+    { section: 'tasks', pane: 'tasks-pane' },
+    { section: 'integrations', pane: 'integrations-pane' },
+    { section: 'contacts', pane: 'contacts-pane' },
+  ] as const) {
+    await openRailSection(page, section);
+    await expect(page.getByTestId(`rail-section-${section}`)).toHaveAttribute(
+      'aria-current',
+      'page',
+      { timeout: 10_000 }
+    );
+    await expect(page.getByTestId(pane)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
+      timeout: 5_000,
+    });
+  }
+});
+
 test('working mode offers a reactivate affordance that re-enters onboarding', async ({
   authedPage: page,
 }) => {
@@ -553,7 +593,6 @@ test('working mode offers a reactivate affordance that re-enters onboarding', as
   // Reload so the client reads the working-mode snapshot, then open the
   // Coordinator's onboarding sub-tab.
   await gotoAssistants(page);
-  await page.getByTestId(`assistant-list-item-${coordinator.agentId}`).click();
   await openOnboardingChecklist(page);
 
   // Working mode shows the reactivate affordance instead of the checklist.

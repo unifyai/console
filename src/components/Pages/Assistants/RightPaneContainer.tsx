@@ -7,9 +7,12 @@ import { DashboardsPane } from './Dashboards';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
+import type {
+  AssistantInfoPanelCoordinatorOnboarding,
+  AssistantInfoPanelLayoutContext,
+} from './Layout/AssistantInfoPanelLayout';
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import type { ContactType } from '@/types/assistants/contact';
 import type { DashboardPaneData } from '@/types/assistants/dashboard';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import {
@@ -60,11 +63,9 @@ interface RightPaneContainerProps {
   callPillHistories: Record<string, CallPill[]>;
   setCallPillHistories: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   userEmail: string | null | undefined;
-  currentUserId?: string | null;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
   onFirstViewCompleted?: () => void;
-  onStartCall: (assistant: Assistant, callType: 'video' | 'audio') => void;
   activeCallAssistantId: string | null;
   isCallConnected: boolean;
   isConnectingCall: boolean;
@@ -86,56 +87,13 @@ interface RightPaneContainerProps {
    */
   paneState: RightPaneState;
   onPaneStateChange: (next: RightPaneState) => void;
-  /** Open the Edit Profile dialog for the given assistant (wired from Main). */
-  onEditAssistant?: (assistant: Assistant) => void;
-  /** Open the Contact Manager dialog for the given assistant (wired from Main). */
-  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
-  /** True iff the user has sent ≥1 message in this assistant's chat. */
-  hasUserMessage?: boolean;
-  /** True iff this assistant has ≥1 historical call recorded. */
-  hasHistoricalCall?: boolean;
-  /** True iff the logged-in user has a phone number on their profile. */
-  hasUserPhoneNumber?: boolean;
-  /** Latest user-message timestamp in this chat (drives prefill done-detection). */
-  latestUserMessageAt?: Date | null;
-  /** User's own phone number for chat prefill personalisation. */
-  userPhoneNumber?: string | null;
-  /** Open the logged-in user's account settings page. Optional `tab`
-   *  mirrors the /account `?tab=` query param so callers can deep-link
-   *  to a specific section (e.g. `'contact-info'`). */
-  onOpenUserSettings?: (tab?: string) => void;
-  /** True iff this assistant has outstanding setup work — drives the
-   *  dot on the chat header's profile toggle. */
-  hasIncompleteOnboarding?: boolean;
+  infoPanel: AssistantInfoPanelLayoutContext;
   /**
-   * One-shot request id that seeds the assistant info panel open at its
-   * maximum available width.
+   * Coordinator-only handler bag. This container only uses the live
+   * completion callback while Tasks / Actions / Integrations are mounted;
+   * the shared side panel renders the checklist itself.
    */
-  infoPanelFocusLayoutRequest?: number;
-  /**
-   * Coordinator-only handler bag forwarded down to the info panel.
-   * When the active assistant is the canonical Coordinator and it's
-   * still in onboarding mode, the info panel surfaces a third
-   * "Onboarding" sub-tab whose action rows are wired from here.
-   * Ignored for non-coordinator assistants. */
-  coordinatorOnboarding?: {
-    onStartOnboardingStep?: (stepId: string) => void;
-    onTriggerReferenceStep?: (stepId: string) => void;
-    onAddWhatsappNumber?: () => void;
-    onAddPhoneNumber?: () => void;
-    onConnectSlack?: () => void;
-    onConnectDiscord?: () => void;
-    onConnectWorkspace?: () => void;
-    onConnectApps?: () => void;
-    onActNow?: () => void;
-    onScheduleTask?: () => void;
-    /** Marks a coordinator onboarding step complete when the matching
-     * domain data lands (a secret connected → ``apps``, a task created →
-     * ``schedule``, an action running → ``act``). Provided only when the
-     * rendered assistant is the canonical Coordinator, so another
-     * assistant's panes can't tick off its steps. */
-    onStepComplete?: (stepId: string) => void;
-  };
+  coordinatorOnboarding?: AssistantInfoPanelCoordinatorOnboarding;
   /**
    * Renderer for the docked call surface (the
    * ``AssistantCommunicationDialog`` in ``docked`` mode). Threaded
@@ -150,9 +108,8 @@ interface RightPaneContainerProps {
  * Hosts the assistant's right-pane bodies (Chat / Actions / Dashboards /
  * Integrations / Tasks). The rail owns navigation and supplies the active
  * tab via `paneState.primary.tab`; each body force-mounts so per-tab
- * scroll/mount state survives switching. The Chat body owns its own
- * profile side panel (see `ChatWithInfoPanel`), so the profile surface
- * only appears on Chat.
+ * scroll/mount state survives switching. The shared `/assistants`
+ * side-panel layout owns the profile/onboarding panel outside this tab host.
  */
 export function RightPaneContainer({
   assistant,
@@ -164,11 +121,9 @@ export function RightPaneContainer({
   callPillHistories,
   setCallPillHistories,
   userEmail,
-  currentUserId,
   isFirstView = false,
   preHireChat,
   onFirstViewCompleted,
-  onStartCall,
   activeCallAssistantId,
   isCallConnected,
   isConnectingCall,
@@ -180,16 +135,7 @@ export function RightPaneContainer({
   chatStreamActivitySignal,
   paneState,
   onPaneStateChange,
-  onEditAssistant,
-  onOpenContactManager,
-  hasUserMessage,
-  hasHistoricalCall,
-  hasUserPhoneNumber,
-  latestUserMessageAt,
-  userPhoneNumber,
-  onOpenUserSettings,
-  hasIncompleteOnboarding,
-  infoPanelFocusLayoutRequest = 0,
+  infoPanel,
   coordinatorOnboarding,
   renderDockedCall,
 }: RightPaneContainerProps) {
@@ -229,8 +175,6 @@ export function RightPaneContainer({
     );
   }
 
-  const isInThisCall = activeCallAssistantId === assistant.agentId;
-  const isSpendingBlocked = spendingGate.isBlocked && !isInThisCall;
   const activeTab = paneState.primary.tab;
 
   const handleTabChange = (next: string) => {
@@ -252,7 +196,6 @@ export function RightPaneContainer({
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
           userEmail={userEmail}
-          currentUserId={currentUserId}
           userTimezone={userTimezone}
           isFirstView={isFirstView}
           preHireChat={preHireChat}
@@ -261,24 +204,16 @@ export function RightPaneContainer({
           chatStreamConnectionStatus={chatStreamConnectionStatus}
           reconnectChatStream={reconnectChatStream}
           chatStreamActivitySignal={chatStreamActivitySignal}
-          onStartCall={onStartCall}
           activeCallAssistantId={activeCallAssistantId}
           isCallConnected={isCallConnected}
           isConnectingCall={isConnectingCall}
-          isSpendingBlocked={isSpendingBlocked}
-          spendingBlockedMessage={spendingGate.blockedMessage}
-          onEditProfile={onEditAssistant}
-          onOpenContactManager={onOpenContactManager}
-          canWrite={canWrite}
-          hasUserMessage={hasUserMessage}
-          hasHistoricalCall={hasHistoricalCall}
-          hasUserPhoneNumber={hasUserPhoneNumber}
-          latestUserMessageAt={latestUserMessageAt}
-          userPhoneNumber={userPhoneNumber}
-          onOpenUserSettings={onOpenUserSettings}
-          hasIncompleteOnboarding={hasIncompleteOnboarding}
-          infoPanelFocusLayoutRequest={infoPanelFocusLayoutRequest}
-          coordinatorOnboarding={coordinatorOnboarding}
+          isInfoOpen={infoPanel.isInfoOpen}
+          onToggleInfo={infoPanel.toggleInfo}
+          showOnboardingDot={infoPanel.showOnboardingDot}
+          draftSeed={infoPanel.draftSeed}
+          onStartAudioCall={infoPanel.startAudioCall}
+          isCallButtonDisabled={infoPanel.isCallButtonDisabled}
+          callButtonTooltip={infoPanel.callButtonTooltip}
           renderDockedCall={renderDockedCall}
         />
       </TabsContent>

@@ -58,10 +58,8 @@ export { login, switchToEmailTab };
  */
 async function tryDevQuickLogin(page: Page, email: string): Promise<boolean> {
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
-      await page.goto('/login');
-      await page.waitForLoadState('domcontentloaded');
-    }
+    await page.goto(attempt === 0 ? '/login?signout=true' : '/login');
+    await page.waitForLoadState('domcontentloaded');
     const quickLoginButton = page
       .getByTestId('dev-quick-login')
       .locator('button', { hasText: email })
@@ -96,7 +94,8 @@ export async function authenticate(page: Page, email: string, password: string):
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await page.goto('/login', { timeout: 45_000 });
+      await page.goto(attempt === 1 ? '/login?signout=true' : '/login', { timeout: 45_000 });
+      if (await tryDevQuickLogin(page, email)) return;
       try {
         await loginAndWaitForRedirect(page, email, password, 30_000);
       } catch {
@@ -145,6 +144,7 @@ export async function loginAndSaveState(
     }
   }
 
+  await page.close();
   await ctx.storageState({ path: stateFile });
   await ctx.close();
   return stateFile;
@@ -197,6 +197,7 @@ export async function loginAndSaveOrgState(
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(2_000);
 
+  await page.close();
   await ctx.storageState({ path: stateFile });
   await ctx.close();
   return stateFile;
