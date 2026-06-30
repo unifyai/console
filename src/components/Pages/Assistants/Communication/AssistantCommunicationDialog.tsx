@@ -40,31 +40,19 @@ export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'act
   Partial<Pick<AssistantActions, 'voice'>>;
 
 // Once the droid stops speaking, it holds eye contact for this long before it
-// drifts back to working on its laptop. Speech is the ONLY thing that turns the
-// droid to face the camera; everything else only ever turns it to the laptop.
+// turns to its laptop to get to work.
 const SILENCE_TO_LAPTOP_MS = 5_000;
-
-// How long the droid must have been heads-down on the laptop before the start of
-// a speaking turn is allowed to turn it to face the camera. A turn that begins
-// sooner is ignored — the droid keeps working and speaks from the laptop.
-const MIN_LAPTOP_DWELL_BEFORE_FACING_MS = 5_000;
 
 /**
  * Computes the call-window droid's "working on a laptop" pose. Returns `true`
- * while it is turned to its laptop (the default, resting pose) and `false` only
- * while it faces the camera.
+ * once the droid has turned to its laptop and `false` only while it still faces
+ * the camera.
  *
- * Facing the camera is strictly edge-triggered and never deferred:
- *  - the ONLY thing that turns the droid to the camera is the *start* of a
- *    speaking turn, and only if it has already been on the laptop for at least
- *    `MIN_LAPTOP_DWELL_BEFORE_FACING_MS` at that instant. A turn that starts too
- *    soon is ignored outright — the droid keeps working and speaks from the
- *    laptop until a *later* turn begins under valid conditions. So it is never
- *    seen swivelling to the camera mid-speech or during a silence.
- *  - while facing the camera it holds that pose for as long as speech continues;
- *  - once it falls silent it returns to the laptop after `SILENCE_TO_LAPTOP_MS`;
- *  - picking up other work (a fresh comms event or a newly in-flight `act`) turns
- *    it back to the laptop immediately, but never interrupts a live speaking turn.
+ * The droid answers the call facing the camera. The first time it turns to its
+ * laptop — to take up work (a fresh comms event or a newly in-flight `act`) or
+ * simply because the conversation has gone quiet — it stays there for the rest
+ * of the call. Nothing ever turns it back to face the camera: the turn is a
+ * one-way latch.
  */
 function useWorkingPose(
   isSpeaking: boolean,
@@ -73,28 +61,7 @@ function useWorkingPose(
 ): boolean {
   const [onLaptop, setOnLaptop] = React.useState(false);
 
-  // Stamp when the droid arrives on (or leaves) the laptop, so a later speaking
-  // turn can measure how long it has been heads-down.
-  const laptopSinceRef = React.useRef<number | null>(null);
-  React.useEffect(() => {
-    laptopSinceRef.current = onLaptop ? Date.now() : null;
-  }, [onLaptop]);
-
-  // The start of a speaking turn faces the camera — but only once the droid has
-  // been on the laptop long enough. Edge-triggered on the rising edge of speech
-  // (never mid-turn), and gated by dwell, so a too-soon turn is ignored and the
-  // droid keeps working until a later turn starts under valid conditions.
-  const wasSpeakingRef = React.useRef(isSpeaking);
-  React.useEffect(() => {
-    const speechStarted = isSpeaking && !wasSpeakingRef.current;
-    wasSpeakingRef.current = isSpeaking;
-    if (!speechStarted || !onLaptop) return;
-    const onLaptopFor =
-      laptopSinceRef.current == null ? Infinity : Date.now() - laptopSinceRef.current;
-    if (onLaptopFor >= MIN_LAPTOP_DWELL_BEFORE_FACING_MS) setOnLaptop(false);
-  }, [isSpeaking, onLaptop]);
-
-  // Silence after facing the camera → drift back to the laptop.
+  // Silence while the droid still faces the camera → turn to the laptop.
   React.useEffect(() => {
     if (isSpeaking || onLaptop) return;
     const timer = window.setTimeout(() => setOnLaptop(true), SILENCE_TO_LAPTOP_MS);
@@ -102,8 +69,9 @@ function useWorkingPose(
   }, [isSpeaking, onLaptop]);
 
   // A fresh comms event or a newly in-flight action → turn to the laptop now,
-  // unless mid speaking turn (eye contact wins). Refs gate this to the work
-  // signals themselves, so it stays inert when the speaking flag merely flips.
+  // unless the droid is still speaking its opening turn (it answers facing the
+  // camera first). Refs gate this to the work signals themselves, so it stays
+  // inert when the speaking flag merely flips.
   const prevCommsAtRef = React.useRef(lastCommsActivityAt);
   const prevActiveRef = React.useRef(hasActiveAction);
   React.useEffect(() => {
@@ -336,8 +304,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   // Drive the call avatar's "working on a laptop" pose. The same SSE stream the
   // Actions pane consumes surfaces in-flight `act`s (`hasActiveAction`) and fresh
   // non-unify comms events (email/SMS/WhatsApp/…, via `lastCommsActivityAt`);
-  // both turn the droid to its laptop, while only a new speaking turn faces it
-  // back to the camera.
+  // both turn the droid to its laptop, where it then stays for the rest of the
+  // call.
   const { hasActiveAction, lastCommsActivityAt } = useAssistantActions(
     assistant.userId,
     assistant.agentId,

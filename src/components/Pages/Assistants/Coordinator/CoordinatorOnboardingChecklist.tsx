@@ -154,6 +154,16 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
 }
 
 const EMPTY_ONBOARDING_STEP_IDS: ReadonlySet<string> = new Set();
+
+/**
+ * Step ids that are not yet shipped. Dropping them from the rendered
+ * tree leaves their phase with no visible children, so it falls back to
+ * the generic locked "[coming soon]" placeholder (see
+ * ``createComingSoonPlaceholder``) — the same empty-section treatment the
+ * Learning phase gets — instead of surfacing an actionable row.
+ */
+const COMING_SOON_STEP_IDS: ReadonlySet<string> = new Set(['schedule']);
+
 type BlockingFeedbackHint = 'next' | 'locked';
 const EMPTY_BLOCKING_STEP_HINTS: ReadonlyMap<string, BlockingFeedbackHint> = new Map();
 
@@ -248,6 +258,7 @@ function buildVisibleChecklist(
     resetStepIds
   );
   for (const step of render.steps) {
+    if (COMING_SOON_STEP_IDS.has(step.id)) continue;
     const phaseSkipped = skippedPhases.has(step.phase);
     const localStatus = localStatuses.get(step.id) ?? step.status;
     const action = STEP_ACTIONS[step.id];

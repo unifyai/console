@@ -259,7 +259,13 @@ const authOptions: AuthOptions = {
       // Forcibly sign out any existing session whose email is not allowed
       // in the current environment. Read by the middleware to clear the
       // session cookie and redirect the user back to /login.
-      if (!isSelfHost() && IS_STAGING && !isStagingAllowedEmail(token.email ?? user?.email)) {
+      //
+      // During impersonation the active identity is the (possibly non-Unify)
+      // target, so gate against the impersonating Unify staff member instead —
+      // otherwise "view as customer" would self-destruct on staging.
+      const gateEmail =
+        (token as { impersonatorEmail?: string }).impersonatorEmail ?? token.email ?? user?.email;
+      if (!isSelfHost() && IS_STAGING && !isStagingAllowedEmail(gateEmail)) {
         return { restrictedSignOut: true };
       }
 
@@ -405,6 +411,13 @@ const authOptions: AuthOptions = {
       // email/password sessions from OAuth sessions.
       if (token.provider) {
         session.provider = token.provider as string;
+      }
+      // Expose impersonation state so the client banner can render and offer a
+      // "return to your account" control.
+      if ((token as { impersonating?: boolean }).impersonating) {
+        session.impersonating = true;
+        session.impersonatorEmail = (token as { impersonatorEmail?: string }).impersonatorEmail;
+        session.impersonatorName = (token as { impersonatorName?: string }).impersonatorName;
       }
       return session;
     },

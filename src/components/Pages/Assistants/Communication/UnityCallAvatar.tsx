@@ -26,8 +26,8 @@ interface UnityCallAvatarProps {
   /** Whether the droid should be turned into its "working on a laptop" pose
    *  (laptop unfolds, keys flicker) rather than facing the camera. The body keeps
    *  lipsyncing in either pose. Driven by the call window's pose state machine:
-   *  a new speaking turn faces the camera, while work or silence turns it to the
-   *  laptop. */
+   *  the droid answers facing the camera and, once it turns to the laptop for
+   *  work or silence, stays there for the rest of the call. */
   isActing?: boolean;
   isUserSpeaking?: boolean;
   animateBodyMotion?: boolean;
@@ -166,9 +166,9 @@ export function UnityCallAvatar({
     '--unity-speech-level': displayedSpeechLevel.toFixed(3),
   } as React.CSSProperties;
 
-  // Turning to the laptop drops the droid's gaze to its work; turning back lifts
-  // it to meet the camera. Shifting the eyes with the body makes the swivel read
-  // as a deliberate "getting to work" gesture rather than a blank rotation.
+  // Turning to the laptop drops the droid's gaze to its work. Shifting the eyes
+  // with the body makes the swivel read as a deliberate "getting to work"
+  // gesture rather than a blank rotation.
   const poseRestingEyes: CreatureEyes = isActing ? 'down' : baseEyes;
 
   // Speech + eyes stay live for the whole call via the bare `active` prop; the

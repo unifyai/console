@@ -25,6 +25,12 @@ declare module 'next-auth' {
     onboardingStep?: string;
     /** The auth provider used for the current session ('credentials', 'google', 'azure-ad'). */
     provider?: string;
+    /** True when a Unify staff member is currently impersonating this user. */
+    impersonating?: boolean;
+    /** Email of the Unify staff member doing the impersonation. */
+    impersonatorEmail?: string;
+    /** Display name of the Unify staff member doing the impersonation. */
+    impersonatorName?: string;
   }
 }
 
@@ -51,5 +57,11 @@ declare module 'next-auth/jwt' {
     onboardingStep?: string;
     /** The auth provider used for the current session ('credentials', 'google', 'azure-ad'). */
     provider?: string;
+    /** True when a Unify staff member is currently impersonating this user. */
+    impersonating?: boolean;
+    /** Email of the Unify staff member doing the impersonation. */
+    impersonatorEmail?: string;
+    /** Display name of the Unify staff member doing the impersonation. */
+    impersonatorName?: string;
   }
 }

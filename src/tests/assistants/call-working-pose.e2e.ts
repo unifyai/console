@@ -2,16 +2,14 @@
  * Call Working-Pose E2E — verifies the call-window droid's pose state machine.
  *
  * Behaviour under test (see `useWorkingPose` in AssistantCommunicationDialog):
- *  - A new speaking turn is the ONLY thing that faces the camera. There is no
- *    real agent audio in local mode, so this spec exercises the laptop side: the
- *    droid turns to its laptop for work / silence and never turns back without
- *    speech.
+ *  - The droid answers facing the camera. The first time it turns to its laptop
+ *    it stays there for the rest of the call — nothing ever turns it back to
+ *    face the camera (a one-way latch).
  *  - An in-flight `act` turns the droid to its laptop, and it STAYS there after
- *    the act completes (no revert without speech).
- *  - A non-unify comms event turns the droid to its laptop, and it STAYS there
- *    (no cooloff revert).
- *  - With no speech and no events, the droid drifts to its laptop after the
- *    silence window.
+ *    the act completes.
+ *  - A non-unify comms event turns the droid to its laptop, and it STAYS there.
+ *  - With no events, the droid turns to its laptop after the silence window and
+ *    stays.
  *
  * Local mode: LiveKit creds are absent so the call hook reports connected
  * immediately; Pub/Sub creds are absent so actions flow through the in-memory
@@ -130,8 +128,8 @@ test('an in-flight act turns the droid to the laptop and it stays there after th
   });
   await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
 
-  // The act completes — but with no new speech the droid keeps working on the
-  // laptop rather than turning back to the camera.
+  // The act completes — but the droid keeps working on the laptop and never
+  // turns back to the camera.
   await pushEvent(assistant.agentId, makeActEvent(callingId, 'outgoing'));
   await page.waitForTimeout(3_000);
 
@@ -154,8 +152,8 @@ test('a comms event turns the droid to the laptop and it stays there (no cooloff
   });
   await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
 
-  // No further events: well past the old 10s comms cooloff, the droid is still
-  // on the laptop — only new speech turns it back to the camera.
+  // No further events: well past any old cooloff window, the droid is still on
+  // the laptop — once turned, it never faces the camera again.
   await page.waitForTimeout(13_000);
   await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'true');
   await expect(page.getByTestId('unity-call-laptop')).toBeVisible();

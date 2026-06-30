@@ -52,8 +52,8 @@ export interface UseAssistantActionsResult {
   hasActiveAction: boolean;
 
   /** Client-clock ms of the most recent non-unify comms event (email / SMS /
-   *  WhatsApp / …), or null if none seen this session. Drives the call-window
-   *  avatar's transient "working" pose; consumers apply their own cooloff. */
+   *  WhatsApp / …), or null if none seen this session. A fresh value turns the
+   *  call-window avatar to its "working on a laptop" pose, where it then stays. */
   lastCommsActivityAt: number | null;
 
   /** Whether the initial load is in progress */
@@ -484,7 +484,8 @@ export function useAssistantActions(
         if (!parsed?.data) return;
 
         // Comms-activity ping: a non-unify inbound/outbound message just landed.
-        // Record the arrival time so consumers can run a cooloff-based pose.
+        // Record the arrival time so the call-window avatar can turn to its
+        // laptop pose.
         if (parsed.type === 'CommsActivity') {
           setLastCommsActivityAt(Date.now());
           return;
