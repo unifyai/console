@@ -670,6 +670,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const resumeCoordinatorOnboarding = React.useCallback(() => {
     void updateCoordinatorOnboardingState({ onboardingDeferred: false });
   }, [updateCoordinatorOnboardingState]);
+  // Re-enter onboarding from working mode. Flipping ``mode`` back to
+  // ``onboarding`` lets Orchestra re-derive the progress render and the
+  // Coordinator's nudges re-engage; clearing the defer switch alongside
+  // guarantees a clean active flow (a no-op when it wasn't deferred).
+  const reactivateCoordinatorOnboarding = React.useCallback(() => {
+    void updateCoordinatorOnboardingState({ mode: 'onboarding', onboardingDeferred: false });
+  }, [updateCoordinatorOnboardingState]);
 
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({
@@ -685,6 +692,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onboardingDeferred: isCoordinatorOnboardingDeferred,
       deferOnboarding: deferCoordinatorOnboarding,
       resumeOnboarding: resumeCoordinatorOnboarding,
+      mode: coordinatorOnboardingState?.mode ?? null,
+      reactivateOnboarding: reactivateCoordinatorOnboarding,
       onboarding: coordinatorOnboardingState?.onboarding ?? null,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
@@ -702,6 +711,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isCoordinatorOnboardingDeferred,
       deferCoordinatorOnboarding,
       resumeCoordinatorOnboarding,
+      coordinatorOnboardingState?.mode,
+      reactivateCoordinatorOnboarding,
       coordinatorOnboardingState?.onboarding,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,

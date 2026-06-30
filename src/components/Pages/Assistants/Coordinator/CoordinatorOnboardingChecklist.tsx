@@ -555,6 +555,8 @@ export function CoordinatorOnboardingChecklist({
   const onboardingDeferred = ctx?.onboardingDeferred ?? false;
   const deferOnboarding = ctx?.deferOnboarding;
   const resumeOnboarding = ctx?.resumeOnboarding;
+  const coordinatorMode = ctx?.mode ?? null;
+  const reactivateOnboarding = ctx?.reactivateOnboarding;
   const onboarding = ctx?.onboarding ?? null;
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
@@ -839,7 +841,10 @@ export function CoordinatorOnboardingChecklist({
   // Global "do onboarding later" collapses the whole checklist to a
   // single resume affordance. The underlying per-step state is
   // untouched, so resuming brings the user back exactly where they were.
-  if (onboardingDeferred) {
+  // Only relevant while actively onboarding; once the row is in working
+  // mode the reactivate affordance below is the canonical re-entry, so a
+  // stale deferral flag never strands the user on an empty resume panel.
+  if (onboardingDeferred && coordinatorMode === 'onboarding') {
     return (
       <div
         className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}
@@ -884,9 +889,45 @@ export function CoordinatorOnboardingChecklist({
     );
   }
 
-  // Nothing to show when the server reports no active onboarding
-  // (complete or working mode) — the panel falls back to its other tabs.
-  if (!resolved.length) return null;
+  // Working mode: onboarding has been exited, so Orchestra reports no
+  // active render. Rather than an empty tab, offer a single affordance to
+  // re-enter onboarding — flipping the row back to ``onboarding`` mode
+  // repopulates this checklist and re-engages the Coordinator's nudges
+  // from wherever the durable domain state leaves off.
+  if (!resolved.length) {
+    if (coordinatorMode === 'working') {
+      return (
+        <div
+          className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}
+          data-testid="coordinator-onboarding-working"
+        >
+          <div className="rounded-control bg-muted/40 px-2.5 py-2">
+            <p className="text-body-sm text-muted-foreground">
+              Onboarding complete. You can revisit the setup checklist anytime.
+            </p>
+          </div>
+          <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
+            {reactivateOnboarding ? (
+              <button
+                type="button"
+                onClick={reactivateOnboarding}
+                className={cn(
+                  'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
+                  'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                )}
+                data-testid="coordinator-onboarding-reactivate"
+              >
+                Reactivate onboarding
+              </button>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+    // No coordinator state yet (or non-coordinator surface) — the panel
+    // falls back to its other tabs.
+    return null;
+  }
 
   // Offer the global defer only while there's still onboarding left to
   // do — once everything resolves there's nothing to postpone.
