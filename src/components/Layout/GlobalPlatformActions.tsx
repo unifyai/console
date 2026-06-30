@@ -7,6 +7,7 @@ import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 import { ReferralPromoButton } from '@/components/Layout/TopBar/ReferralPromoButton';
+import { OnboardingProgressShortcut } from '@/components/Layout/TopBar/OnboardingProgressShortcut';
 
 /** Workspace-level quick actions shared across section and internal route headers. */
 export function GlobalPlatformActions() {
@@ -18,6 +19,7 @@ export function GlobalPlatformActions() {
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex items-center gap-0.5">
+        <OnboardingProgressShortcut />
         <ReferralPromoButton />
         <SupportTicketDialog />
         <Tooltip>

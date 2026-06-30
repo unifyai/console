@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   User,
   CreditCard,
@@ -51,11 +51,7 @@ import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog'
 import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
-import { fetchAssistants } from '@/lib/client/assistant';
-import { resolveCanonicalWorkspaceCoordinator } from '@/lib/assistants/coordinatorIdentity';
-import { type OnboardingRender } from '@/lib/assistants/coordinatorState';
-import { cn } from '@/lib/utils';
-import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
+import { OnboardingProgressShortcut } from '@/components/Layout/TopBar/OnboardingProgressShortcut';
 
 const getInitials = (name: string) =>
   name
@@ -65,34 +61,6 @@ const getInitials = (name: string) =>
     .join('')
     .toUpperCase()
     .slice(0, 2);
-
-const COORDINATOR_COMMUNICATION_SECTION_ID = 'communication';
-
-function coordinatorOnboardingProgress(render: OnboardingRender | null): {
-  completed: number;
-  total: number;
-  pct: number;
-} {
-  if (!render) return { completed: 0, total: 0, pct: 0 };
-  const communicationPhase = render.phases.find(
-    (phase) => phase.id === COORDINATOR_COMMUNICATION_SECTION_ID
-  );
-  const communicationSteps = communicationPhase
-    ? render.steps.filter((step) => step.phase === communicationPhase.phase)
-    : [];
-  const completed = communicationSteps.filter(
-    (step) => step.status === 'done' || step.status === 'skipped'
-  ).length;
-  const placeholderSections = render.phases.filter(
-    (phase) => phase.id !== COORDINATOR_COMMUNICATION_SECTION_ID
-  ).length;
-  const total = communicationSteps.length + placeholderSections;
-  return {
-    completed,
-    total,
-    pct: total > 0 ? Math.round((completed / total) * 100) : 0,
-  };
-}
 
 function WorkspaceInitialBadge({ name, size }: { name: string; size: 'sm' | 'md' }) {
   const sizeClass = size === 'md' ? 'h-5 w-5 text-[11px]' : 'h-4 w-4 text-[9px]';
@@ -119,7 +87,6 @@ export default function TopNav() {
   const [showSelfHostResetConfirm, setShowSelfHostResetConfirm] = useState(false);
   const [isSelfHostResetting, setIsSelfHostResetting] = useState(false);
   const [workspacePhotos, setWorkspacePhotos] = useState<Record<string, string>>({});
-  const [coordinatorId, setCoordinatorId] = useState<string | null>(null);
   const [showImpersonateDialog, setShowImpersonateDialog] = useState(false);
 
   const {
@@ -129,10 +96,7 @@ export default function TopNav() {
     switchWorkspace,
     isWorkspaceSwitchable,
     isSwitchingWorkspace,
-    currentUserId,
   } = useWorkspace();
-  const { state: coordinatorOnboardingState } = useCoordinatorOnboarding(coordinatorId);
-
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!activeOrganization?.image) {
@@ -154,8 +118,6 @@ export default function TopNav() {
       .then((d) => setOrgLogoUrl(d?.signed_url ?? null))
       .catch(() => setOrgLogoUrl(null));
   }, [activeOrganization?.image]);
-
-  const router = useRouter();
 
   const handlePersonalWorkspaceSwitch = () => {
     // Only show confirmation if switching FROM an organization to personal
@@ -303,63 +265,6 @@ export default function TopNav() {
       </Tooltip>
     </TooltipProvider>
   ) : null;
-  const onboardingProgress = React.useMemo(() => {
-    return coordinatorOnboardingProgress(coordinatorOnboardingState?.onboarding ?? null);
-  }, [coordinatorOnboardingState?.onboarding]);
-  const showOnboardingShortcut =
-    !!coordinatorId &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
-    coordinatorOnboardingState.onboardingDeferred !== true &&
-    !!coordinatorOnboardingState.onboarding &&
-    onboardingProgress.total > 0 &&
-    onboardingProgress.completed < onboardingProgress.total;
-
-  useEffect(() => {
-    let cancelled = false;
-    const workspace =
-      activeWorkspace?.type === 'organization'
-        ? {
-            type: 'organization' as const,
-            organizationId: Number.isFinite(Number(activeWorkspace.id))
-              ? Number(activeWorkspace.id)
-              : null,
-          }
-        : { type: 'personal' as const, organizationId: null };
-
-    const loadCoordinatorOnboarding = async () => {
-      if (!currentUserId || !activeWorkspace) {
-        setCoordinatorId(null);
-        return;
-      }
-      const assistants = await fetchAssistants(workspace, true, { currentUserId });
-      if (cancelled || !Array.isArray(assistants)) return;
-      const coordinator = resolveCanonicalWorkspaceCoordinator(
-        assistants,
-        currentUserId,
-        workspace
-      );
-      if (!coordinator) {
-        setCoordinatorId(null);
-        return;
-      }
-      setCoordinatorId(coordinator.agentId);
-    };
-
-    void loadCoordinatorOnboarding();
-    const interval = window.setInterval(loadCoordinatorOnboarding, 30_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [activeWorkspace, currentUserId]);
-
-  const openOnboarding = React.useCallback(() => {
-    if (!coordinatorId) return;
-    router.push(
-      `/assistants?profile=${encodeURIComponent(coordinatorId)}&onboarding=toggle:${Date.now()}`
-    );
-  }, [coordinatorId, router]);
-
   return (
     <div className="fixed left-0 right-0 top-0 z-50 h-10 border-b border-border bg-card">
       <div className="relative flex h-full items-center justify-between px-3.5">
@@ -549,31 +454,7 @@ export default function TopNav() {
           {/* Support Ticket — only when a support delivery channel is configured */}
           {supportEnabled && <SupportTicketDialog />}
 
-          {showOnboardingShortcut ? (
-            <button
-              type="button"
-              onClick={openOnboarding}
-              className={cn(
-                'rounded-control flex h-8 min-w-[7.25rem] flex-col justify-center gap-1 px-2 text-left',
-                'text-body-muted hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-              )}
-              data-testid="top-nav-onboarding-shortcut"
-              aria-label={`Open onboarding, ${onboardingProgress.pct}% complete`}
-            >
-              <span className="flex items-center justify-between gap-2">
-                <span className="text-caption font-medium leading-none">Onboarding</span>
-                <span className="text-caption tabular-nums leading-none">
-                  {onboardingProgress.pct}%
-                </span>
-              </span>
-              <span className="h-1 overflow-hidden rounded-full bg-muted">
-                <span
-                  className="block h-full bg-primary transition-all"
-                  style={{ width: `${onboardingProgress.pct}%` }}
-                />
-              </span>
-            </button>
-          ) : null}
+          <OnboardingProgressShortcut />
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
