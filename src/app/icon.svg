@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="-80.26 -80.26 160.51 160.51" fill="none" role="img" aria-label="Unify mark">
-  <polygon points="60.97,-35.2 0,0 0,70.4 60.97,35.2" fill="#c15b56" stroke="#241a2b" stroke-width="2.4" stroke-linejoin="round"></polygon>
-  <polygon points="-60.97,-35.2 0,0 0,70.4 -60.97,35.2" fill="#2f9d97" stroke="#241a2b" stroke-width="2.4" stroke-linejoin="round"></polygon>
-  <polygon points="0,-70.4 60.97,-35.2 0,0 -60.97,-35.2" fill="#d7aa5d" stroke="#241a2b" stroke-width="2.4" stroke-linejoin="round"></polygon>
+  <polygon points="60.97,-35.2 37.8,-21.82 37.8,21.82 0,43.65 0,70.4 60.97,35.2" fill="#c15b56"/>
+  <polygon points="-60.97,-35.2 -37.8,-21.82 -37.8,21.82 0,43.65 0,70.4 -60.97,35.2" fill="#2f9d97"/>
+  <polygon points="0,-70.4 60.97,-35.2 37.8,-21.82 0,-43.65 -37.8,-21.82 -60.97,-35.2" fill="#d7aa5d"/>
+  <polygon points="0,-43.65 37.8,-21.82 37.8,21.82 0,0" fill="#1c6460"/>
+  <polygon points="0,-43.65 -37.8,-21.82 -37.8,21.82 0,0" fill="#8f3b39"/>
+  <polygon points="0,0 37.8,21.82 0,43.65 -37.8,21.82" fill="#8f6824"/>
+  <polygon points="24.39,-14.08 0,0 0,28.16 24.39,14.08" fill="#c15b56"/>
+  <polygon points="-24.39,-14.08 0,0 0,28.16 -24.39,14.08" fill="#2f9d97"/>
+  <polygon points="0,-28.16 24.39,-14.08 0,0 -24.39,-14.08" fill="#d7aa5d"/>
 </svg>
