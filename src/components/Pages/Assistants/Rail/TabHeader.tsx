@@ -27,7 +27,7 @@ export function TabHeader({ section, right }: TabHeaderProps) {
         <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-accent-soft text-accent-soft-foreground">
           <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 max-w-[44vw] xl:max-w-[40rem]">
           <div className="flex items-center gap-1.5">
             <span className="text-h2 truncate text-foreground">{section.label}</span>
             <button

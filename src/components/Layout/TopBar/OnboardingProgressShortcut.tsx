@@ -112,7 +112,7 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
       type="button"
       onClick={openOnboarding}
       className={cn(
-        'rounded-control flex h-8 min-w-[7.25rem] flex-col justify-center gap-1 px-2 text-left',
+        'rounded-control flex h-8 min-w-[7.25rem] translate-y-0.5 flex-col justify-center gap-1 px-2 text-left',
         'text-body-muted hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         className
       )}
