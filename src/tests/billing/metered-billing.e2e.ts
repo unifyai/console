@@ -21,7 +21,6 @@ import {
   setMeteredPlan,
   clearMeteredPlan,
   insertMeteredInvoice,
-  skipIfManualTopupBilling,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -57,11 +56,7 @@ insertMeteredInvoice(user.id, {
   stripeInvoiceId: 'in_test_recent',
 });
 
-const test = createBillingTest(user);
-
-test.beforeEach(async ({ authedPage: page }) => {
-  await skipIfManualTopupBilling(test, page);
-});
+const test = createBillingTest(user, { skipWhenManualTopup: true });
 
 test.afterAll(() => {
   clearMeteredPlan(user.id);

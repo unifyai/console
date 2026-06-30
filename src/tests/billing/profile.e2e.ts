@@ -5,13 +5,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
-import {
-  createTestUser,
-  cleanupUser,
-  createBillingTest,
-  type TestUser,
-  skipIfManualTopupBilling,
-} from './helpers';
+import { createTestUser, cleanupUser, createBillingTest, type TestUser } from './helpers';
 
 async function openProfileDialog(page: Page) {
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
@@ -39,13 +33,9 @@ async function fillRequiredAddress(page: Page) {
 }
 
 const user = createTestUser({ name: 'Profile', lastName: 'Test', credits: 5_000 });
-const test = createBillingTest(user);
+const test = createBillingTest(user, { skipWhenManualTopup: true });
 
 test.afterAll(() => cleanupUser(user.id));
-
-test.beforeEach(async ({ authedPage: page }) => {
-  await skipIfManualTopupBilling(test, page);
-});
 
 test('opens and closes the profile dialog via cancel', async ({ authedPage: page }) => {
   await page.goto('/billing');

@@ -188,7 +188,10 @@ export async function loginAndNavigateTo(
  *
  * For unauthenticated tests, use the built-in `page` fixture (fresh context).
  */
-export function createBillingTest(user: { email: string; password: string }) {
+export function createBillingTest(
+  user: { email: string; password: string },
+  opts?: { skipWhenManualTopup?: boolean }
+) {
   let authFile: string | undefined;
 
   return base.extend<{ authedPage: Page }>({
@@ -199,6 +202,15 @@ export function createBillingTest(user: { email: string; password: string }) {
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();
+      if (opts?.skipWhenManualTopup) {
+        await waitForBillingReady(page);
+        if (await isManualTopupMode(page)) {
+          testInfo.skip(
+            true,
+            'Stripe subscription billing UI is unavailable in manual-top-up mode (local Orchestra).'
+          );
+        }
+      }
       // eslint-disable-next-line react-hooks/rules-of-hooks
       await use(page);
       await ctx.close();
