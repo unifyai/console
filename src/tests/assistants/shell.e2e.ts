@@ -48,7 +48,7 @@ test('the rail renders with the brand and unity switcher', async ({ authedPage: 
 
   const rail = page.getByTestId('assistant-rail');
   await expect(rail).toBeVisible({ timeout: 15_000 });
-  await expect(rail.getByText('Unity', { exact: true })).toBeVisible();
+  await expect(rail.getByText('Unify', { exact: true })).toBeVisible();
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible();
 });
 

@@ -67,7 +67,7 @@ export function AppRail({
       >
         <UnifyBlockMark />
         {!collapsed && (
-          <span className="font-display text-[18px] font-semibold tracking-tight">Unity</span>
+          <span className="font-display text-[18px] font-semibold tracking-tight">Unify</span>
         )}
       </div>
 
