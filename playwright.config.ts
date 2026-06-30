@@ -67,10 +67,24 @@ export default defineConfig({
   // Ignore Vitest test files
   testIgnore: ['**/*.test.ts', '**/*.test.tsx', '**/*.node.test.ts', '**/*.browser.test.tsx'],
 
-  fullyParallel: true,
+  // Warm the dev server's lazy route compilation once before any spec, so the
+  // first test of a run doesn't eat the cold-start cost and flake on auth.
+  globalSetup: './src/tests/global-setup.ts',
+
+  // Per src/tests/README.md, different spec files are fully independent but tests
+  // *within* a file run serially and share state. `fullyParallel: false` honours
+  // that contract: each file is dispatched whole to a worker (intra-file order
+  // preserved), while distinct files run in parallel across workers. This lets CI
+  // use the multi-core runners instead of crawling through every suite on one
+  // worker (which pushed the larger suites past the 30-min job timeout).
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.PLAYWRIGHT_WORKERS
+    ? Number(process.env.PLAYWRIGHT_WORKERS)
+    : process.env.CI
+      ? 2
+      : undefined,
   reporter: 'html',
 
   use: {

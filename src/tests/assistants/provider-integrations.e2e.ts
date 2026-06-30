@@ -16,6 +16,7 @@ import {
   closeHireDialogIfOpen,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  openRailSection,
 } from './helpers';
 
 type PolicyLevel = 'auto' | 'specific_approval' | 'forbidden';
@@ -164,9 +165,7 @@ async function openMockIntegrationsTab(page: Page) {
   }
   await page.waitForTimeout(1_500);
 
-  const tab = page.getByTestId('right-pane-tab-integrations');
-  await expect(tab).toBeVisible({ timeout: 10_000 });
-  await tab.click();
+  await openRailSection(page, 'integrations');
 
   const pane = page.getByTestId('integrations-pane');
   await expect(pane).toBeVisible({ timeout: 5_000 });
@@ -234,7 +233,6 @@ test('mock connected-apps page shows dynamic apps, permissions, tools, and conne
   });
 
   await page.getByTestId('integration-gallery-search').fill('Slack');
-  await page.getByTestId('integration-gallery-search-submit').click();
   await expect(page.getByTestId('provider-integration-card-slack')).toBeVisible();
   await page.getByTestId('integration-card-primary-slack').click();
   await expect(page.getByTestId('provider-integration-connect-dialog')).toBeVisible();

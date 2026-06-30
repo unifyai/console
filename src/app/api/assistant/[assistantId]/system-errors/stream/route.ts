@@ -25,7 +25,7 @@ import {
   EPHEMERAL_EXPIRATION_TTL,
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
-import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
+import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 
 export const dynamic = 'force-dynamic';
@@ -202,7 +202,7 @@ export async function GET(
 
   // In development, always use the local event bus so the push endpoint
   // and DevPanel triggers work regardless of whether credentials are present.
-  if (!hasCredentials()) {
+  if (localEventBusEnabled()) {
     return createLocalStream(request, assistantId);
   }
 

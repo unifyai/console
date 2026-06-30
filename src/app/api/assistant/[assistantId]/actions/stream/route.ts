@@ -34,7 +34,7 @@ import {
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { isManagerExcluded } from '@/lib/assistants/event-filters';
-import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
+import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 
 export const dynamic = 'force-dynamic';
@@ -251,7 +251,7 @@ export async function GET(
   }
 
   // ── Local development: no Pub/Sub credentials → in-memory event bus ──
-  if (!hasCredentials()) {
+  if (localEventBusEnabled()) {
     return createLocalStream(request, assistantId);
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/UI/dialog';
 import { Input } from '@/components/UI/input';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
@@ -21,15 +21,24 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
   const [open, setOpen] = useState(false);
   const [orgName, setOrgName] = useState('');
   const [dataSharingMode, setDataSharingMode] = useState<DataSharingMode>('private');
+  const dataSharingModeRef = useRef<DataSharingMode>('private');
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleDataSharingModeChange = (next: DataSharingMode) => {
+    dataSharingModeRef.current = next;
+    setDataSharingMode(next);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
 
     const trimmedName = orgName.trim();
     if (!trimmedName) return;
+    const formData = new FormData(e.currentTarget);
+    const submittedDataSharingMode =
+      formData.get('dataSharingMode') === 'shared' ? 'shared' : dataSharingModeRef.current;
 
     setIsValidating(true);
 
@@ -55,10 +64,10 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
       }
 
       // If valid, proceed with creation
-      onCreate(trimmedName, dataSharingMode);
+      onCreate(trimmedName, submittedDataSharingMode);
       setOpen(false);
       setOrgName('');
-      setDataSharingMode('private');
+      handleDataSharingModeChange('private');
     } catch (err) {
       console.error(err);
       setError('An unexpected error occurred.');
@@ -71,7 +80,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
     setOpen(isOpen);
     if (!isOpen) {
       setOrgName('');
-      setDataSharingMode('private');
+      handleDataSharingModeChange('private');
       setError(null);
     }
   };
@@ -98,6 +107,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
               className={error ? 'border-destructive focus-visible:ring-destructive' : ''}
               autoFocus
               disabled={isValidating}
+              data-testid="create-org-name-input"
             />
             {error && (
               <div className="text-body text-error flex items-center duration-200 animate-in fade-in slide-in-from-top-1">
@@ -108,7 +118,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
           </div>
           <OrganizationDataSharingChoice
             value={dataSharingMode}
-            onChange={setDataSharingMode}
+            onChange={handleDataSharingModeChange}
             disabled={isValidating}
             testIdPrefix="create-org-sharing"
           />

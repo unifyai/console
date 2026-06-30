@@ -32,6 +32,8 @@ CONSOLE_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ORCHESTRA_REPO_PATH="${ORCHESTRA_REPO_PATH:-$(cd "$CONSOLE_DIR/../orchestra" 2>/dev/null && pwd -P || echo "")}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
+PUBSUB_EMULATOR_HOST="${PUBSUB_EMULATOR_HOST:-127.0.0.1:8085}"
+PUBSUB_PROJECT_ID="${PUBSUB_PROJECT_ID:-local-test-project}"
 ADMIN_KEY="${ORCHESTRA_ADMIN_KEY:-ci-test-admin-key-e2e}"
 
 RED='\033[0;31m'
@@ -69,6 +71,25 @@ if [[ -z "$ORCHESTRA_REPO_PATH" || ! -f "$ORCHESTRA_REPO_PATH/scripts/local.sh" 
 fi
 log_success "Orchestra repo: $ORCHESTRA_REPO_PATH"
 
+# Propagate the resolved paths to later workflow steps. GitHub Actions runs each
+# step in a fresh shell, so a value computed here is invisible to the test-run
+# step unless written to $GITHUB_ENV. Without this the test process re-derives
+# ORCHESTRA_REPO_PATH from a relative default that is wrong under the CI checkout
+# layout (orchestra lives one level deeper), so argon2 password-hash generation
+# for seeded email logins fails and every UI login in the suite fails fast.
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "ORCHESTRA_REPO_PATH=$ORCHESTRA_REPO_PATH" >> "$GITHUB_ENV"
+  echo "PUBSUB_EMULATOR_HOST=$PUBSUB_EMULATOR_HOST" >> "$GITHUB_ENV"
+  echo "PUBSUB_PROJECT_ID=$PUBSUB_PROJECT_ID" >> "$GITHUB_ENV"
+  if command -v poetry &>/dev/null; then
+    poetry_venv="$(cd "$ORCHESTRA_REPO_PATH" && poetry env info -p 2>/dev/null || true)"
+    if [[ -n "$poetry_venv" && -x "$poetry_venv/bin/python" ]]; then
+      echo "ORCHESTRA_PYTHON=$poetry_venv/bin/python" >> "$GITHUB_ENV"
+      log_success "Resolved Orchestra Python: $poetry_venv/bin/python"
+    fi
+  fi
+fi
+
 if ! command -v docker &>/dev/null; then
   log_error "Docker is not installed (required for PostgreSQL)"
   exit 1
@@ -103,6 +124,8 @@ JWT_SECRET=ci-e2e-test-jwt-secret-must-be-at-least-32-characters
 NEXTAUTH_URL=http://localhost:${CONSOLE_PORT}
 ORCHESTRA_URL=http://127.0.0.1:${ORCHESTRA_PORT}
 ORCHESTRA_ADMIN_KEY=${ADMIN_KEY}
+PUBSUB_EMULATOR_HOST=${PUBSUB_EMULATOR_HOST}
+PUBSUB_PROJECT_ID=${PUBSUB_PROJECT_ID}
 CLOUD_RUN_ORCHESTRA_DB_USER=orchestra
 CLOUD_RUN_ORCHESTRA_DB_PASS=orchestra
 CLOUD_RUN_ORCHESTRA_HOST=localhost
@@ -130,30 +153,137 @@ fi
 
 log_success "Orchestra ready at http://127.0.0.1:${ORCHESTRA_PORT}"
 
-# ── 4. Start Console ──────────────────────────────────────────────────
+# ── 4. Start Pub/Sub emulator ─────────────────────────────────────────
+
+log_info "Starting Pub/Sub emulator on ${PUBSUB_EMULATOR_HOST}..."
+if [[ -f /tmp/pubsub-ci.pid ]]; then
+  stale_pubsub_pid="$(tr -d '\n' < /tmp/pubsub-ci.pid || true)"
+  if [[ -n "$stale_pubsub_pid" ]]; then
+    kill "$stale_pubsub_pid" 2>/dev/null || true
+  fi
+fi
+pubsub_port="${PUBSUB_EMULATOR_HOST##*:}"
+pubsub_pids=$(lsof -t -i ":${pubsub_port}" 2>/dev/null || true)
+if [[ -n "$pubsub_pids" ]]; then
+  echo "$pubsub_pids" | xargs kill -9 2>/dev/null || true
+  sleep 1
+fi
+if ! command -v gcloud &>/dev/null; then
+  log_error "gcloud is required for the Pub/Sub emulator"
+  exit 1
+fi
+# Guarantee the emulator component is functionally present. On CI the helper
+# re-adds the Google Cloud apt repo and installs the package; locally it no-ops
+# when the emulator is already available.
+if [[ "${CI:-}" == "true" ]]; then
+  bash "$SCRIPT_DIR/ci-install-pubsub-emulator.sh"
+fi
+setsid gcloud beta emulators pubsub start \
+  --project="$PUBSUB_PROJECT_ID" \
+  --host-port="$PUBSUB_EMULATOR_HOST" \
+  > /tmp/pubsub-ci.log 2>&1 </dev/null &
+PUBSUB_PID=$!
+echo "$PUBSUB_PID" > /tmp/pubsub-ci.pid
+for _ in {1..60}; do
+  if ! kill -0 "$PUBSUB_PID" 2>/dev/null; then
+    log_error "Pub/Sub emulator exited before readiness"
+    tail -50 /tmp/pubsub-ci.log 2>/dev/null || true
+    tail -50 /tmp/pubsub-emulator-apt.log 2>/dev/null || true
+    exit 1
+  fi
+  if curl -s --connect-timeout 1 --max-time 2 "http://${PUBSUB_EMULATOR_HOST}/" &>/dev/null; then
+    log_success "Pub/Sub emulator ready at ${PUBSUB_EMULATOR_HOST}"
+    break
+  fi
+  sleep 1
+done
+if ! kill -0 "$PUBSUB_PID" 2>/dev/null; then
+  log_error "Pub/Sub emulator failed to start"
+  tail -50 /tmp/pubsub-ci.log 2>/dev/null || true
+  tail -50 /tmp/pubsub-emulator-apt.log 2>/dev/null || true
+  exit 1
+fi
+
+# ── 5. Start Console ──────────────────────────────────────────────────
 
 cd "$CONSOLE_DIR"
 
 # Kill any stale processes on the Console port
+if [[ -f /tmp/console-ci.pid ]]; then
+  stale_pid="$(tr -d '\n' < /tmp/console-ci.pid || true)"
+  if [[ -n "$stale_pid" ]]; then
+    kill "$stale_pid" 2>/dev/null || true
+  fi
+fi
 stale_pids=$(lsof -t -i ":${CONSOLE_PORT}" 2>/dev/null || true)
 if [[ -n "$stale_pids" ]]; then
   echo "$stale_pids" | xargs kill -9 2>/dev/null || true
   sleep 1
 fi
 
-log_info "Starting Console on port ${CONSOLE_PORT}..."
-
 export NEXTAUTH_URL="http://localhost:${CONSOLE_PORT}"
 export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+export PUBSUB_EMULATOR_HOST
+export PUBSUB_PROJECT_ID
+export NEXT_TELEMETRY_DISABLED=1
 
-nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > /tmp/console-ci.log 2>&1 &
+# Build once, then serve with `next start`. Running E2E against a production
+# build instead of `next dev` removes per-route compile-on-demand, which was
+# the dominant cost: under `next dev` a cold route hit took 1-2 min (and often
+# blew the per-test timeout, surfacing as "flaky" retries). A prod build
+# compiles everything up front so every navigation is served in milliseconds.
+# Call `next` directly to skip the npm `prebuild` live-stack guard and the
+# style check (already enforced by the lint gate).
+log_info "Building Console (production)..."
+if ! NODE_OPTIONS="--max-old-space-size=6144" npx next build --no-lint > /tmp/console-build.log 2>&1; then
+  log_error "Console build failed"
+  tail -80 /tmp/console-build.log 2>/dev/null || true
+  exit 1
+fi
+log_success "Console build complete"
+
+log_info "Starting Console on port ${CONSOLE_PORT}..."
+mkdir -p "$CONSOLE_DIR/.next/standalone/.next"
+cp -r "$CONSOLE_DIR/.next/static" "$CONSOLE_DIR/.next/standalone/.next/static" 2>/dev/null || true
+cp -r "$CONSOLE_DIR/public" "$CONSOLE_DIR/.next/standalone/public" 2>/dev/null || true
+
+# The Next.js standalone server (`node server.js`) does NOT read `.env.local` at
+# runtime — only `next dev` / `next start` load env files. Running the standalone
+# build without exporting the generated secrets leaves NextAuth with no
+# `NEXTAUTH_SECRET`, so it throws `MissingSecretError` in production mode and
+# every credentials sign-in fails (all authenticated tests then bounce back to
+# `/login`). Export the whole generated env into the server process so the
+# secrets (NEXTAUTH_SECRET, JWT_SECRET, ORCHESTRA_ADMIN_KEY, OAuth ids, …) and
+# any future additions flow through automatically.
+set -a
+# shellcheck disable=SC1091
+. "$CONSOLE_DIR/.env.local"
+set +a
+
+# Give the long-lived server process a generous, explicit heap. The standalone
+# `node server.js` otherwise inherits the V8 default old-space cap (~2 GB), and
+# under a full sharded E2E run (hundreds of SSR renders + API/SSE requests) GC
+# pressure near that ceiling makes late-running tests slow down and time out
+# even though early tests in the same shard passed. The runner has 16 GB and the
+# build has already finished by this point, so 4 GB is comfortably safe.
+setsid env \
+  PORT="$CONSOLE_PORT" \
+  HOSTNAME=0.0.0.0 \
+  NODE_OPTIONS="--max-old-space-size=4096" \
+  node "$CONSOLE_DIR/.next/standalone/server.js" > /tmp/console-ci.log 2>&1 </dev/null &
 CONSOLE_PID=$!
 echo "$CONSOLE_PID" > /tmp/console-ci.pid
 
-# Wait for Console — first compile can be slow in CI
-max_attempts=180
+# `next start` serves as soon as it binds the port; no compile wait needed.
+max_attempts=90
 attempt=0
 while (( attempt < max_attempts )); do
+  if ! kill -0 "$CONSOLE_PID" 2>/dev/null; then
+    log_error "Console server process exited before readiness"
+    log_info "Last 50 lines of Console log:"
+    tail -50 /tmp/console-ci.log 2>/dev/null || true
+    exit 1
+  fi
   if curl -s --connect-timeout 2 --max-time 5 "http://localhost:${CONSOLE_PORT}" &>/dev/null; then
     log_success "Console ready at http://localhost:${CONSOLE_PORT} (${attempt}s)"
     break
@@ -169,7 +299,7 @@ if (( attempt >= max_attempts )); then
   exit 1
 fi
 
-# ── 5. Seed test data (optional) ──────────────────────────────────────
+# ── 6. Seed test data (optional) ──────────────────────────────────────
 #
 # E2E tests create their own users/assistants in beforeAll, so seeding
 # is optional. It can help pre-warm the database schema validation and

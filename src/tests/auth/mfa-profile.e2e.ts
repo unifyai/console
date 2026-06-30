@@ -105,6 +105,8 @@ test.describe('MFA Disable from Profile', () => {
   });
 
   test('disables 2FA with a valid TOTP code', async ({ page }) => {
+    test.setTimeout(60_000);
+
     await loginWithMfaAndNavigateTo(
       page,
       user.email,
@@ -174,6 +176,11 @@ test.describe('MFA Recovery Code Management', () => {
   });
 
   test('regenerates recovery codes from profile security settings', async ({ page }) => {
+    // Regeneration requires a TOTP confirmation, and `enterTOTPWithRetry`
+    // may sleep up to a full ~30s code window for a fresh token. The 30s
+    // default test timeout can't absorb that on top of login + navigation,
+    // so give it the same headroom as the other TOTP-gated MFA tests.
+    test.setTimeout(60_000);
     await loginWithMfaAndNavigateTo(
       page,
       user.email,

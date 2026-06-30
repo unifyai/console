@@ -4,7 +4,6 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
-import { ScrollArea } from '@/components/UI/scroll-area';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +64,7 @@ import {
 import { ApiKeyIntegrationDialog } from './ApiKeyIntegrationDialog';
 import { OAuthIntegrationDialog, type OAuthSubmitPayload } from './OAuthIntegrationDialog';
 import { getIntegrationProvider } from '@/constants/assistants/integrations';
+import { TabFooter } from '../Common/TabFooter';
 
 interface IntegrationsPaneProps {
   ownerId: string;
@@ -196,7 +196,7 @@ export function IntegrationsPane({
     cancelUploadJson,
     onSubmit,
     fetchSecrets,
-  } = useAssistantSecrets(assistantId, ownerId, secretActions, { enabled: isVisible });
+  } = useAssistantSecrets(assistantId, ownerId, secretActions);
   const [galleryFilters, setGalleryFilters] =
     React.useState<IntegrationGalleryFilters>(DEFAULT_GALLERY_FILTERS);
   const catalogSourceType =
@@ -801,27 +801,35 @@ export function IntegrationsPane({
 
   return (
     <div className="flex h-full flex-col" data-testid="integrations-pane">
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="to-muted/20 border-b bg-gradient-to-b from-background px-3 py-4">
-          <IntegrationGalleryShell
-            items={shouldShowGallerySkeleton ? [] : galleryItems}
-            isLoading={shouldShowGallerySkeleton || isProviderCatalogLoading}
-            isMock={isProviderCatalogMock}
-            busySlug={providerConnectingSlug}
-            isRefreshing={isProviderCatalogLoading}
-            filters={galleryFilters}
-            onFiltersChange={setGalleryFilters}
-            total={providerCatalogTotal + filteredStaticDefinitions.length}
-            facets={providerCatalogFacets}
-            hasMore={hasMoreProviderIntegrations}
-            isLoadingMore={isProviderCatalogLoadingMore}
-            onLoadMore={loadMoreProviderIntegrations}
-            onOpen={setSelectedIntegration}
-            onPrimaryAction={handleGalleryPrimaryAction}
-            onRefresh={refreshProviderCatalog}
-          />
-        </div>
-      </ScrollArea>
+      <div className="min-h-0 flex-1">
+        <IntegrationGalleryShell
+          items={shouldShowGallerySkeleton ? [] : galleryItems}
+          isLoading={shouldShowGallerySkeleton || isProviderCatalogLoading}
+          isMock={isProviderCatalogMock}
+          busySlug={providerConnectingSlug}
+          isRefreshing={isProviderCatalogLoading}
+          filters={galleryFilters}
+          onFiltersChange={setGalleryFilters}
+          total={providerCatalogTotal + filteredStaticDefinitions.length}
+          facets={providerCatalogFacets}
+          hasMore={hasMoreProviderIntegrations}
+          isLoadingMore={isProviderCatalogLoadingMore}
+          onLoadMore={loadMoreProviderIntegrations}
+          onOpen={setSelectedIntegration}
+          onPrimaryAction={handleGalleryPrimaryAction}
+          onRefresh={refreshProviderCatalog}
+        />
+      </div>
+
+      <TabFooter
+        testId="integrations-footer"
+        right={
+          <span className="text-caption">
+            {activeIntegrationCount} connected · {galleryItems.length} of{' '}
+            {providerCatalogTotal + filteredStaticDefinitions.length} apps
+          </span>
+        }
+      />
 
       {/* Custom secret create/edit dialog */}
       <SecretFormDialog

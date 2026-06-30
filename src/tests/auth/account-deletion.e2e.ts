@@ -38,7 +38,7 @@ test.describe('Account Deletion', () => {
       await expect(page.getByTestId('confirm-delete-btn')).toBeVisible({ timeout: 5000 });
 
       // Cancel instead of confirming
-      await page.locator('button:has-text("Cancel")').click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
 
       // User should still exist
       const userCount = dbExec(`SELECT count(*) FROM "user" WHERE id = '${user.id}'`);

@@ -5,38 +5,30 @@
 
 @layer base {
   :root {
-    --ink: #0a1410;
-    --ink-2: #1a2a23;
-    --paper: #f5f1ea;
-    --paper-2: #ebe6dc;
-    --rule: #d9d2c4;
-    --muted-ink: #6b6a64;
+    /*
+     * Brand primitives (ink/paper neutrals, role + neo palettes, unity tokens,
+     * alert/soft/cream, grain, checkerboard) are the single source of truth in
+     * `@unity/brand/tokens.css`, imported before this file in `app/layout.tsx`.
+     * Console keeps only its semantic theme layer plus the extensions below.
+     */
 
-    --role-green: #2f9d97;
-    --role-green-deep: #1c6460;
-    --role-blue: #c95f5a;
-    --role-orange: #cf9a3e;
-    --role-purple: #6e4a86;
-    --role-yellow: #ffb24a;
-    --role-teal: #3c8f86;
-    --role-pink: #e85a8e;
-    --role-cyan: #4f7fa8;
-    --unity-screen: #0e2027;
-    --unity-glow: #79efdd;
-    --unity-outline: #173534;
-    --unity-shadow: #cdb89b;
+    /* Brand-spec extensions not present in @unity/brand/tokens.css */
+    --paper-3: #e2dccf;
+    --rule-2: #cdc5b4;
+    --card-2: var(--cream-white);
+    --primary-shadow: var(--role-green-deep);
+    --accent-soft: #e7efe9;
+    --accent-soft-ink: var(--role-green-deep);
+    --shadow-pop: rgba(10, 20, 16, 0.3);
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    /* Font family aliases → brand font variables (set on <html> by @unity/brand/fonts) */
+    --font-sans: var(--font-inter);
+    --font-mono: var(--font-roboto-mono);
+    --font-serif: var(--font-instrument-serif);
+    --font-display: var(--font-space-grotesk);
     --brand-grain-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23grain)' opacity='0.26'/%3E%3C/svg%3E");
-    --neo-teal: #2f9d97;
-    --neo-teal-dark: #1c6460;
-    --neo-coral: #c95f5a;
-    --neo-coral-dark: #8f3b39;
-    --neo-amber: #cf9a3e;
-    --neo-amber-dark: #8f6824;
-
-    --alert-red: #d94a3d;
-    --soft-amber: #c47a00;
-    --cream-white: #fffaf1;
-
     --surface: rgba(10, 20, 16, 0.04);
     --surface-hover: rgba(10, 20, 16, 0.08);
     --frosted-bg: rgba(245, 241, 234, 0.78);
@@ -46,10 +38,10 @@
     --shadow-soft: rgba(10, 20, 16, 0.1);
     --status-success: var(--role-green-deep);
     --status-success-bg: color-mix(in srgb, var(--role-green) 14%, transparent);
-    --status-info: var(--role-blue);
-    --status-info-bg: color-mix(in srgb, var(--role-blue) 12%, transparent);
-    --status-warning: var(--role-orange);
-    --status-warning-bg: color-mix(in srgb, var(--role-orange) 12%, transparent);
+    --status-info: var(--role-cyan);
+    --status-info-bg: color-mix(in srgb, var(--role-cyan) 14%, transparent);
+    --status-warning: var(--soft-amber);
+    --status-warning-bg: color-mix(in srgb, var(--role-orange) 16%, transparent);
     --status-danger: var(--destructive);
     --status-danger-bg: color-mix(in srgb, var(--destructive) 12%, transparent);
     --status-neutral: var(--muted-ink);
@@ -108,8 +100,8 @@
     --code-border: rgba(10, 20, 16, 0.1);
     --code-fg: var(--role-green-deep);
 
-    --radius: 0.75rem;
-    --radius-control: calc(var(--radius) - 9px);
+    --radius: 0.625rem;
+    --radius-control: calc(var(--radius) - 7px);
 
     --chart-1: var(--role-green-deep);
     --chart-2: var(--role-blue);
@@ -146,18 +138,20 @@
     /* Dark theme variables */
     --background: #0d0f12;
     --foreground: #eef0ea;
-    --role-pink: #e85a8e;
-    --role-cyan: #4f7fa8;
-    --unity-screen: #0e2027;
-    --unity-glow: #79efdd;
+    --ink-2: rgba(238, 240, 234, 0.84);
+
+    /* Genuine dark overrides of brand primitives (others inherit tokens.css) */
     --unity-outline: #79c9bf;
     --unity-shadow: rgba(0, 0, 0, 0.42);
-    --neo-teal: #2f9d97;
-    --neo-teal-dark: #1c6460;
-    --neo-coral: #c95f5a;
-    --neo-coral-dark: #8f3b39;
-    --neo-amber: #cf9a3e;
-    --neo-amber-dark: #8f6824;
+
+    /* Brand-spec extensions (dark) */
+    --paper-3: #1b2024;
+    --rule-2: rgba(238, 240, 234, 0.18);
+    --card-2: #151b18;
+    --primary-shadow: #14403d;
+    --accent-soft: rgba(47, 157, 151, 0.16);
+    --accent-soft-ink: #7fd0c8;
+    --shadow-pop: rgba(0, 0, 0, 0.55);
 
     --primary: var(--role-green);
     --primary-foreground: #fffaf1;
@@ -191,8 +185,8 @@
     --code-border: rgba(255, 255, 255, 0.08);
     --code-fg: var(--role-green);
 
-    --radius: 0.75rem;
-    --radius-control: calc(var(--radius) - 9px);
+    --radius: 0.625rem;
+    --radius-control: calc(var(--radius) - 7px);
 
     --chart-1: var(--role-green);
     --chart-2: #7aa7ff;
@@ -860,19 +854,19 @@
     }
   }
   .text-display {
-    @apply font-sans text-xl font-medium leading-tight tracking-tight md:text-2xl lg:text-3xl;
+    @apply font-display text-xl font-semibold leading-tight tracking-tight md:text-2xl lg:text-3xl;
   }
   .text-h1 {
-    @apply font-sans text-lg font-medium leading-tight md:text-xl;
+    @apply font-display text-base font-semibold leading-tight md:text-lg;
   }
   .text-h2 {
-    @apply font-sans text-base font-medium md:text-lg;
+    @apply font-display text-base font-semibold leading-tight tracking-tight;
   }
   .text-h3 {
-    @apply font-sans text-sm font-medium md:text-base;
+    @apply font-display text-sm font-semibold;
   }
   .text-title {
-    @apply font-sans text-sm font-medium;
+    @apply font-display text-sm font-medium;
   }
   .text-subtitle {
     @apply font-sans text-xs text-muted-foreground;
@@ -881,13 +875,13 @@
     @apply font-sans text-sm leading-snug;
   }
   .text-body-dense {
-    @apply font-sans text-xs leading-snug;
+    @apply font-sans text-[13px] leading-snug;
   }
   .text-body-sm {
     @apply font-sans text-xs leading-tight;
   }
   .text-caption {
-    @apply font-sans text-xs text-muted-foreground;
+    @apply font-sans text-[12.5px] text-muted-foreground;
   }
   .text-mono {
     @apply font-mono;
@@ -905,7 +899,7 @@
     @apply tabular-nums;
   }
   .text-label {
-    @apply font-sans text-xs font-medium;
+    @apply font-sans text-xs font-normal;
   }
   .text-data {
     @apply font-sans text-xs leading-snug;
@@ -933,21 +927,31 @@
     @apply font-sans text-base leading-normal text-muted-foreground;
   }
   .text-label-muted {
-    @apply font-sans text-xs font-medium text-muted-foreground;
+    @apply font-sans text-xs font-normal text-muted-foreground;
+  }
+
+  /* Secondary body ink — softer than full foreground (nav labels, markdown body). */
+  .text-ink-2 {
+    color: var(--ink-2);
+  }
+
+  /* Document reader title (Guidance/Knowledge). */
+  .text-doc-title {
+    @apply font-display text-[19px] font-semibold leading-tight tracking-tight text-foreground;
   }
 
   /* Bold heading variants */
   .text-h1-bold {
-    @apply font-sans text-lg font-bold leading-tight md:text-xl;
+    @apply font-display text-lg font-bold leading-tight md:text-xl;
   }
   .text-h2-bold {
-    @apply font-sans text-base font-bold md:text-lg;
+    @apply font-display text-base font-bold md:text-lg;
   }
   .text-h3-bold {
-    @apply font-sans text-sm font-bold md:text-base;
+    @apply font-display text-sm font-bold md:text-base;
   }
   .text-title-bold {
-    @apply font-sans text-sm font-bold;
+    @apply font-display text-sm font-bold;
   }
 
   /* State colors */
@@ -1044,6 +1048,26 @@
     -webkit-mask-size: 200% 100%;
     animation: shimmer 1s linear infinite reverse;
   }
+
+  @keyframes skeleton-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--foreground) 7%, transparent) 0%,
+      color-mix(in srgb, var(--foreground) 14%, transparent) 50%,
+      color-mix(in srgb, var(--foreground) 7%, transparent) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
   @keyframes nudge {
     0%,
     100% {

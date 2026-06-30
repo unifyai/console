@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { transformQueryParams } from '../../_utils/casingTransform';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
@@ -16,6 +17,18 @@ export async function GET(
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
+  }
+
+  // This route uses a raw upstream fetch, bypassing the Orchestra client seam;
+  // route metric aggregations through the dispatcher when mock mode is on.
+  if (mockSimulationEnabled()) {
+    const { simulationFetch } = await import('@/lib/simulation/dispatch');
+    const simResponse = await simulationFetch(
+      `http://mock.local/v0/logs/metric/${metricName}${url.search}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    const simData = await simResponse.json().catch(() => 0);
+    return NextResponse.json(snakeToCamelObject(simData), { status: simResponse.status });
   }
 
   const controller = new AbortController();

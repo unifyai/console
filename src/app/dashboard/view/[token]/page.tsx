@@ -7,6 +7,7 @@
  */
 
 import { Metadata } from 'next';
+import { BrandStatusCard } from '@/components/Brand';
 import { fetchDashboardData } from '@/lib/dashboardData';
 import { DashboardViewer } from '@/components/Pages/Dashboard/DashboardViewer';
 
@@ -49,14 +50,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 function DashboardNotFoundMessage() {
   return (
     <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
-      <div className="max-w-md px-6 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-          <svg
-            className="h-8 w-8 text-muted-foreground"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+      <BrandStatusCard
+        className="mx-6 max-w-md p-8"
+        eyebrow="Shared dashboard"
+        title="Dashboard Not Found"
+        description="This dashboard has been deleted or the link is invalid."
+        tone="neutral"
+        icon={
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -64,12 +65,8 @@ function DashboardNotFoundMessage() {
               d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
             />
           </svg>
-        </div>
-        <h1 className="text-display text-semibold mb-2">Dashboard Not Found</h1>
-        <p className="text-muted-foreground">
-          This dashboard has been deleted or the link is invalid.
-        </p>
-      </div>
+        }
+      />
     </main>
   );
 }
@@ -77,14 +74,14 @@ function DashboardNotFoundMessage() {
 function ErrorMessage({ message }: { message: string }) {
   return (
     <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
-      <div className="max-w-md px-6 text-center">
-        <div className="bg-destructive/10 mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
-          <svg
-            className="h-8 w-8 text-destructive"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+      <BrandStatusCard
+        className="mx-6 max-w-md p-8"
+        eyebrow="Shared dashboard"
+        title="Unable to Load Dashboard"
+        description={message}
+        tone="danger"
+        icon={
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -92,10 +89,8 @@ function ErrorMessage({ message }: { message: string }) {
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
-        </div>
-        <h1 className="text-display text-semibold mb-2">Unable to Load Dashboard</h1>
-        <p className="text-muted-foreground">{message}</p>
-      </div>
+        }
+      />
     </main>
   );
 }

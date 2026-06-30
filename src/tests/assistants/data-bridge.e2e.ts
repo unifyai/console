@@ -268,7 +268,7 @@ test('UnifyData.reduce() routes through TileViewer to /api/.../reduce', async ({
     return ud.reduce({ context: 'Metrics', metric: 'sum', columns: ['revenue'] });
   });
 
-  expect(result).toEqual({ result: 42 });
+  expect(result).toBe(42);
   expect(captured).toHaveLength(1);
   expect(captured[0].context).toBe('Metrics');
   expect(captured[0].metric).toBe('sum');
@@ -301,7 +301,7 @@ test('UnifyData.join() routes through TileViewer to /api/.../join', async ({ pag
     });
   });
 
-  expect(result).toEqual({ rows: [{ name: 'Widget', total: 100 }], total_count: 1 });
+  expect(result).toEqual([{ name: 'Widget', total: 100 }]);
   expect(captured).toHaveLength(1);
   expect(captured[0].joinExpr).toBe('a.product_id == b.id');
   expect(captured[0].tables).toEqual(['Orders', 'Products']);
@@ -337,7 +337,7 @@ test('UnifyData.joinReduce() routes through TileViewer to /api/.../join-reduce',
     });
   });
 
-  expect(result).toEqual({ result: 99 });
+  expect(result).toBe(99);
   expect(captured).toHaveLength(1);
   expect(captured[0].metric).toBe('sum');
   expect(captured[0].joinExpr).toBe('a.product_id == b.id');
@@ -460,10 +460,13 @@ test('auto-exec tile injects bridge and executes on_data with resolved bindings'
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([
-        { month: 'Jan', revenue: 100 },
-        { month: 'Feb', revenue: 200 },
-      ]),
+      body: JSON.stringify({
+        rows: [
+          { month: 'Jan', revenue: 100 },
+          { month: 'Feb', revenue: 200 },
+        ],
+        total_count: 2,
+      }),
     });
   });
 
@@ -471,7 +474,7 @@ test('auto-exec tile injects bridge and executes on_data with resolved bindings'
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(300),
+      body: JSON.stringify({ result: 300 }),
     });
   });
 
@@ -504,7 +507,7 @@ test('auto-exec tile sends correct params per binding (mixed filter + reduce)', 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([]),
+      body: JSON.stringify({ rows: [], total_count: 0 }),
     });
   });
 
@@ -513,7 +516,7 @@ test('auto-exec tile sends correct params per binding (mixed filter + reduce)', 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(0),
+      body: JSON.stringify({ result: 0 }),
     });
   });
 
@@ -535,14 +538,14 @@ test('auto-exec tile sends correct params per binding (mixed filter + reduce)', 
 // Static tile — no bindings, no bridge injection
 // ===========================================================================
 
-test('static tile renders HTML as-is without bridge script', async ({ page }) => {
+test('static tile renders without auto-exec bindings', async ({ page }) => {
   await ensureSeeded();
 
   await page.goto(`/tile/view/${STATIC_TOKEN}`);
   const iframe = page.frameLocator('iframe');
 
   await expect(iframe.locator('#status')).toHaveText('static-ready', { timeout: 15_000 });
-  await expect(iframe.locator('#bridge-check')).toHaveText('no-bridge');
+  await expect(iframe.locator('#bridge-check')).toHaveText('has-bridge');
 });
 
 // ===========================================================================

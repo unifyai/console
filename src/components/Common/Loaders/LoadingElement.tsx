@@ -1,9 +1,18 @@
-import { BrandLoader } from '@unity/brand/components';
+'use client';
 
+import React from 'react';
+import { Loader } from '@/components/Common/Loader';
+
+/**
+ * Standalone loading indicator. Renders the canonical on-brand block-mark
+ * `Loader` sized to the requested footprint, so every surface shows the same
+ * loading animation. The `height`/`width` props are kept for call-site
+ * compatibility and map to the loader's square slot size.
+ */
 const LoadingElement = ({ height = 150, width = 150 }: { height?: number; width?: number }) => {
   return (
-    <div className="flex flex-col gap-6 py-10">
-      <BrandLoader size={Math.min(height, width)} />
+    <div className="flex flex-col items-center gap-6 py-10">
+      <Loader size={Math.min(height, width)} />
     </div>
   );
 };

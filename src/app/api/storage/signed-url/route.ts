@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 /**
  * Path marker for URLs minted by Orchestra's local bucket service
@@ -19,6 +20,13 @@ const ORCHESTRA_LOCAL_OBJECT_PATH = '/v0/storage/local/';
  * Response: { signed_url: string }
  */
 export async function POST(request: NextRequest) {
+  // Mock simulation: no storage backend — echo an empty signed URL so callers
+  // resolve without reaching Orchestra.
+  if (mockSimulationEnabled()) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    return NextResponse.json({ signed_url: '' }, { status: 200 });
+  }
+
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();

@@ -101,10 +101,7 @@ export const ReferralsSection = ({ orgContext }: ReferralsSectionProps) => {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-xl"
-        >
+        <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Gift className="h-5 w-5" />

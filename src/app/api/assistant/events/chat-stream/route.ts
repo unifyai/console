@@ -68,12 +68,58 @@ import {
   PERSISTENT_EXPIRATION_TTL,
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 const encoder = new TextEncoder();
+
+/**
+ * Benign keep-alive-only SSE stream for mock simulation mode. There is no
+ * Pub/Sub backend, so we hold the connection open with periodic comments and
+ * never emit chat frames (history is served read-only from the logs seam).
+ */
+function createBenignStream(request: NextRequest): Response {
+  const stream = new ReadableStream({
+    start(controller) {
+      try {
+        controller.enqueue(encoder.encode(': connected\n\n'));
+      } catch {
+        /* already closed */
+      }
+      const keepAlive = setInterval(() => {
+        if (request.signal.aborted) {
+          clearInterval(keepAlive);
+          return;
+        }
+        try {
+          controller.enqueue(encoder.encode(': keep-alive\n\n'));
+        } catch {
+          clearInterval(keepAlive);
+        }
+      }, 15000);
+      request.signal.addEventListener('abort', () => {
+        clearInterval(keepAlive);
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      });
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Content-Encoding': 'none',
+    },
+  });
+}
 
 const CHAT_FILTER =
   'attributes.thread = "unify_message_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "unify_meet_incoming"';
@@ -113,6 +159,10 @@ function parsePairs(raw: string | null): Pair[] {
 }
 
 export async function GET(request: NextRequest) {
+  if (mockSimulationEnabled()) {
+    return createBenignStream(request);
+  }
+
   const rawPairs = request.nextUrl.searchParams.get('pairs');
   const pairs = parsePairs(rawPairs);
 

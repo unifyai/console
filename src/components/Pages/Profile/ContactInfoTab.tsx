@@ -513,10 +513,8 @@ const ContactInfoTab = ({ user }: { user: User }) => {
   }, [discordId, saveField]);
 
   return (
-    <div className="mt-4 space-y-6">
-      <div className="flex justify-end">
-        <SaveStatus status={status} />
-      </div>
+    <div className="relative space-y-4">
+      <SaveStatus status={status} className="absolute right-0 top-0 z-10" />
       <div>
         <div className="flex items-center gap-2">
           <Mail className="h-4 w-4 text-muted-foreground" />

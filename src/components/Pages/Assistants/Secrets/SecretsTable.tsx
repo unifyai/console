@@ -215,7 +215,7 @@ export function SecretsTable({
   // When there are no rows to render (and we aren't loading the initial set),
   // show a single centered placeholder that fills the available area. Matches
   // the unified "No {entrytype} found" empty-state style used elsewhere in
-  // the right-pane tabs (Actions, Tasks, Memory, Dashboards).
+  // the right-pane tabs (Actions, Tasks, Brain, Dashboards).
   if (!isLoading && rows.length === 0) {
     return (
       <div

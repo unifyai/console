@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Main from '@/components/Pages/Organization/Main';
-import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
+import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 import { getCurrentUser } from '@/lib/user/user';
 import * as OrganizationActions from '@/lib/user/organization';
 import * as TeamActions from '@/lib/user/team';
@@ -11,6 +11,7 @@ import * as MfaSettingsActions from '@/lib/orchestra/api/organization';
 import { Organization, isOrgSpendingLimitData } from '@/types/organization';
 import { redirect } from 'next/navigation';
 import { isSelfHost } from '@/lib/environment/environment';
+import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
 
 const OrganizationPage = async () => {
   const user = await getCurrentUser();
@@ -43,6 +44,32 @@ const OrganizationPage = async () => {
 
   const isUnifyMember = user.organizations?.some((o: any) => o.name === 'Unify') ?? false;
 
+  return (
+    <ShellSectionPage sectionId="organizations" fill>
+      <Suspense fallback={<SectionBodySkeleton />}>
+        <OrganizationsData
+          userId={user.id}
+          organizations={organizations}
+          isUnifyMember={isUnifyMember}
+        />
+      </Suspense>
+    </ShellSectionPage>
+  );
+};
+
+/**
+ * Streams the per-org spending limit + MFA settings so the section header
+ * paints immediately while these reads resolve.
+ */
+async function OrganizationsData({
+  userId,
+  organizations,
+  isUnifyMember,
+}: {
+  userId: string;
+  organizations: Organization[];
+  isUnifyMember: boolean;
+}) {
   const orgActions = {
     createOrg: OrganizationActions.createOrgAction,
     deleteOrg: OrganizationActions.deleteOrganizationAction,
@@ -107,23 +134,19 @@ const OrganizationPage = async () => {
   }
 
   return (
-    <div className="h-full w-full overflow-auto p-1">
-      <Suspense fallback={<SkeletonLoader />}>
-        <Main
-          initialOrganizations={organizations}
-          userId={user.id}
-          actions={orgActions}
-          teamActions={teamActions}
-          roleActions={roleActions}
-          memberSpendingActions={memberSpendingActions}
-          orgSpendingLimit={orgSpendingLimit}
-          mfaSettingsActions={mfaSettingsActionsObj}
-          initialMfaRequired={initialMfaRequired}
-          isUnifyMember={isUnifyMember}
-        />
-      </Suspense>
-    </div>
+    <Main
+      initialOrganizations={organizations}
+      userId={userId}
+      actions={orgActions}
+      teamActions={teamActions}
+      roleActions={roleActions}
+      memberSpendingActions={memberSpendingActions}
+      orgSpendingLimit={orgSpendingLimit}
+      mfaSettingsActions={mfaSettingsActionsObj}
+      initialMfaRequired={initialMfaRequired}
+      isUnifyMember={isUnifyMember}
+    />
   );
-};
+}
 
 export default OrganizationPage;

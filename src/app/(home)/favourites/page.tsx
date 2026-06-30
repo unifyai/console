@@ -1,8 +1,11 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/user/user';
 import { getProjects } from '@/lib/interfaces/projects';
 import { getFavourites } from '@/lib/interfaces/favourites';
 import FavouritesClient from '@/components/Pages/Favourites/FavouritesClient';
+import { FavouritesBodySkeleton } from '@/components/Pages/Favourites/FavouritesBodySkeleton';
+import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -15,17 +18,17 @@ export default async function FavouritesPage() {
     redirect('/login?signout=true');
   }
 
-  try {
-    const projects = await getProjects();
-    const favourites = await getFavourites();
+  return (
+    <ShellSectionPage sectionId="favourites">
+      <Suspense fallback={<FavouritesBodySkeleton />}>
+        <FavouritesData />
+      </Suspense>
+    </ShellSectionPage>
+  );
+}
 
-    return (
-      <div className="h-full w-full overflow-auto pb-6">
-        <FavouritesClient initialProjects={projects} initialFavourites={favourites} />
-      </div>
-    );
-  } catch (error) {
-    // Propagate to Next.js error boundary
-    throw error;
-  }
+/** Streams the projects + favourites so the section header paints immediately. */
+async function FavouritesData() {
+  const [projects, favourites] = await Promise.all([getProjects(), getFavourites()]);
+  return <FavouritesClient initialProjects={projects} initialFavourites={favourites} />;
 }

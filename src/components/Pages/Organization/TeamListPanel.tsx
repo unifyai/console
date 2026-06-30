@@ -397,7 +397,7 @@ const TeamListPanel = ({
 
 export default TeamListPanel;
 
-// Use raw `<div>` with `bg-muted` (proven pattern from `MemoryTable`)
+// Use raw `<div>` with `bg-muted` (proven pattern from `BrainTable`)
 // instead of the global `<Skeleton>` component. The latter applies
 // `bg-primary/10`, an opacity-modified CSS variable that silently
 // no-ops in our theme (vars are raw hex, not HSL channels), making the

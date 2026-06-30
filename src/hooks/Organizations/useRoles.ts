@@ -25,7 +25,7 @@ export const useRoles = (
 ) => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
-  // Initialize to `true` (proven pattern, see `useMemoryData`) so the
+  // Initialize to `true` (proven pattern, see `useBrainData`) so the
   // role list renders skeleton rows on first paint instead of briefly
   // flashing an empty body before the fetch effect runs.
   const [isLoading, setIsLoading] = useState<boolean>(true);

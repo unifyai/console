@@ -74,3 +74,5 @@ src/workflows/recordings/
 
 # Service-account credential files
 comm-sa.json
+
+.design/

@@ -23,6 +23,8 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   orchestraFetch,
+  openUnitySwitcher,
+  openRailSection,
 } from './helpers';
 
 const CONSOLE_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -152,17 +154,16 @@ async function selectAssistant(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
+  await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(1_500);
 
-  // Actions live in their own right-pane tab (default-collapsed under
-  // the tab strip; a single click brings the viewer into focus).
-  const actionsTab = page.getByTestId('right-pane-tab-actions');
-  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
-  await actionsTab.click();
-  await expect(actionsTab).toHaveAttribute('data-state', 'active');
+  // Actions are a rail section (Workspace cluster); selecting it brings the
+  // live-actions viewer into focus in the section host.
+  await openRailSection(page, 'actions');
+  await expect(page.getByTestId('rail-section-actions')).toHaveAttribute('aria-current', 'page');
   await page.waitForTimeout(500);
 }
 

@@ -85,7 +85,7 @@ const SecuritySettingsPanel = ({
 
   if (isLoading) {
     // Use raw `<div>` with `bg-muted` (proven pattern from
-    // `MemoryTable`) instead of the global `<Skeleton>` component;
+    // `BrainTable`) instead of the global `<Skeleton>` component;
     // `<Skeleton>` applies `bg-primary/10`, an opacity-modified CSS
     // variable that silently no-ops in our theme (vars are raw hex,
     // not HSL channels), making placeholders invisible.

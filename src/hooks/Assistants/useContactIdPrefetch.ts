@@ -45,9 +45,30 @@ export function setSessionContactId(assistantId: string, id: number, email?: str
     : `${CONTACT_ID_SESSION_PREFIX}${assistantId}`;
   try {
     sessionStorage.setItem(key, String(id));
+    if (email && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('owner-contact-id-updated', { detail: { email } }));
+    }
   } catch {
     // sessionStorage unavailable
   }
+}
+
+/** First cached contact id for this user (profile switcher avatar tone). */
+export function getAnySessionContactIdForUser(email: string): number | undefined {
+  const prefix = `${CONTACT_ID_SESSION_PREFIX}${email}:`;
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (!key?.startsWith(prefix)) continue;
+      const val = sessionStorage.getItem(key);
+      if (val === null) continue;
+      const parsed = parseInt(val, 10);
+      if (!isNaN(parsed)) return parsed;
+    }
+  } catch {
+    // sessionStorage unavailable
+  }
+  return undefined;
 }
 
 // ── In-flight request deduplication ─────────────────────────────────────

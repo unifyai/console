@@ -1,9 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { Plus, Search, Upload, X } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { TabToolbar } from '../Common/TabToolbar';
+import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -60,7 +63,7 @@ export function SecretsPane({
 
   // Local controlled value for the input; we only commit the query to the
   // hook (and thus trigger a re-fetch) when the user hits Enter, matching the
-  // Memory/Tasks search UX.
+  // Brain/Tasks search UX.
   const [searchValue, setSearchValue] = React.useState(searchQuery);
   React.useEffect(() => {
     setSearchValue(searchQuery);
@@ -71,13 +74,6 @@ export function SecretsPane({
     if (trimmed) handleSearch(trimmed);
     else clearSearch();
   }, [searchValue, handleSearch, clearSearch]);
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submitSearch();
-    }
-  };
 
   const handleClearSearch = () => {
     setSearchValue('');
@@ -163,103 +159,85 @@ export function SecretsPane({
   return (
     <div className="flex h-full flex-col" data-testid="secrets-pane">
       {/* Header — search + actions */}
-      <div
-        className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
-        data-testid="secrets-header"
-      >
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            className="h-7 w-full rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder="Search…"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            data-testid="secrets-search"
-          />
-          {searchValue && (
-            <button
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-              onClick={handleClearSearch}
-              data-testid="secrets-search-clear"
-              aria-label="Clear search"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1" />
-
-        {canWrite && (
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  onClick={openCreate}
-                  disabled={isSubmitting}
-                  data-testid="secrets-new-button"
-                  aria-label="Add new secret"
+      <TabToolbar
+        testId="secrets-header"
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        searchPlaceholder={tabSearchPlaceholder('secrets')}
+        onSearchSubmit={submitSearch}
+        onSearchClear={handleClearSearch}
+        searchTestId="secrets-search"
+        searchClearTestId="secrets-search-clear"
+        addAction={
+          canWrite && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={openCreate}
+                    disabled={isSubmitting}
+                    data-testid="secrets-new-button"
+                    aria-label="Add new secret"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Add new secret</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSubmitting}
+                    data-testid="secrets-upload-button"
+                    aria-label="Upload JSON"
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  align="end"
+                  className="max-w-xs whitespace-normal p-3 text-xs"
+                  data-testid="secrets-upload-tooltip"
                 >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Add new secret</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isSubmitting}
-                  data-testid="secrets-upload-button"
-                  aria-label="Upload JSON"
-                >
-                  <Upload className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent
-                side="top"
-                align="end"
-                className="max-w-xs whitespace-normal p-3 text-xs"
-                data-testid="secrets-upload-tooltip"
-              >
-                <p className="mb-2 font-medium">Upload secrets from JSON file</p>
-                <p className="mb-1.5 text-muted-foreground">
-                  Simple &mdash; keys are secret names, values are secret values:
-                </p>
-                <pre className="mb-3 rounded bg-muted p-2 text-[11px] leading-relaxed">
-                  {`{\n  "API_KEY": "sk-abc123",\n  "DB_URL": "postgres://..."\n}`}
-                </pre>
-                <p className="mb-1.5 text-muted-foreground">
-                  Rich &mdash; values are objects with{' '}
-                  <code className="rounded bg-muted px-1">value</code> (required) and optional{' '}
-                  <code className="rounded bg-muted px-1">description</code>:
-                </p>
-                <pre className="rounded bg-muted p-2 text-[11px] leading-relaxed">
-                  {`{\n  "API_KEY": {\n    "value": "sk-abc123",\n    "description": "Production key"\n  }\n}`}
-                </pre>
-                <p className="mt-2 text-muted-foreground">
-                  Use <code className="rounded bg-muted px-1">/</code> in names for folder structure
-                  (e.g. <code className="rounded bg-muted px-1">aws/prod/API_KEY</code>
-                  ).
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  Both formats can be mixed in a single file.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+                  <p className="mb-2 font-medium">Upload secrets from JSON file</p>
+                  <p className="mb-1.5 text-muted-foreground">
+                    Simple &mdash; keys are secret names, values are secret values:
+                  </p>
+                  <pre className="mb-3 rounded bg-muted p-2 text-[11px] leading-relaxed">
+                    {`{\n  "API_KEY": "sk-abc123",\n  "DB_URL": "postgres://..."\n}`}
+                  </pre>
+                  <p className="mb-1.5 text-muted-foreground">
+                    Rich &mdash; values are objects with{' '}
+                    <code className="rounded bg-muted px-1">value</code> (required) and optional{' '}
+                    <code className="rounded bg-muted px-1">description</code>:
+                  </p>
+                  <pre className="rounded bg-muted p-2 text-[11px] leading-relaxed">
+                    {`{\n  "API_KEY": {\n    "value": "sk-abc123",\n    "description": "Production key"\n  }\n}`}
+                  </pre>
+                  <p className="mt-2 text-muted-foreground">
+                    Use <code className="rounded bg-muted px-1">/</code> in names for folder
+                    structure (e.g. <code className="rounded bg-muted px-1">aws/prod/API_KEY</code>
+                    ).
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    Both formats can be mixed in a single file.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        }
+      />
 
       {/* Body — table */}
       <div className="min-h-0 flex-1">
@@ -277,6 +255,13 @@ export function SecretsPane({
           onDeleteFolder={onRequestDeleteFolder}
         />
       </div>
+
+      <TabFooter
+        testId="secrets-footer"
+        count={secrets.length}
+        singular="secret"
+        plural="secrets"
+      />
 
       {/* Hidden file input for JSON uploads */}
       <input

@@ -20,6 +20,11 @@ const ORCHESTRA_FEATURES_TIMEOUT_MS = 2_000;
 /** How long Next.js may cache Orchestra's capability flags (seconds). */
 const ORCHESTRA_FEATURES_REVALIDATE_S = 60;
 
+function localOrchestra(url: string): boolean {
+  const normalized = url.toLowerCase();
+  return normalized.includes('localhost') || normalized.includes('127.0.0.1');
+}
+
 async function fetchOrchestraAuthority(): Promise<FeatureAuthority> {
   const base = process.env.ORCHESTRA_URL;
   if (!base) {
@@ -42,14 +47,25 @@ async function fetchOrchestraAuthority(): Promise<FeatureAuthority> {
     const data = (await res.json()) as Record<string, unknown>;
     const bool = (key: string): boolean | undefined =>
       typeof data[key] === 'boolean' ? (data[key] as boolean) : undefined;
+    const localAuthority = localOrchestra(base);
+    const billingAuthority = localAuthority
+      ? {}
+      : {
+          billing: bool('billing'),
+          manualTopup: bool('manual_topup'),
+        };
+    const contactAuthority = localAuthority
+      ? {}
+      : {
+          contactPhone: bool('contact_phone'),
+          contactWhatsapp: bool('contact_whatsapp'),
+          contactDiscord: bool('contact_discord'),
+        };
     return {
-      billing: bool('billing'),
-      manualTopup: bool('manual_topup'),
+      ...billingAuthority,
       workspaceGoogle: bool('workspace_google'),
       workspaceMicrosoft: bool('workspace_microsoft'),
-      contactPhone: bool('contact_phone'),
-      contactWhatsapp: bool('contact_whatsapp'),
-      contactDiscord: bool('contact_discord'),
+      ...contactAuthority,
     };
   } catch {
     // Orchestra unreachable → fall back to local env resolution only.

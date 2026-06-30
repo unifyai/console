@@ -8,10 +8,10 @@ export default function FallbackPreviewPage() {
       actionLabel="Try again"
       apology="Sorry about that. We're working on a fix now."
       bubble="Looks like this view lost signal."
-      description="The console hit a snag while loading this view. Try again, or head back to the console while the unity resets."
+      description="The console hit a snag while loading this view. Try again, or head back to the console while the digital twin resets."
       eyebrow="System hiccup"
       onAction={() => window.location.reload()}
-      title="A unity tripped over a loose cable"
+      title="A digital twin tripped over a loose cable"
     />
   );
 }

@@ -10,6 +10,9 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { populateApiKeyCache, invalidateApiKeyCache } from '@/app/api/_utils/api-key-cache';
 import { resolveAuthMode } from '@/lib/environment/environment';
 import { requireUserApiKey } from '@/lib/server-action-session';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
+import { getActiveSimulation } from '@/lib/simulation/scenario-server';
+import { buildMockSession, buildMockUser } from '@/lib/simulation/identity';
 
 // Note: getUserByID, getUserByEmail, updateUser, deleteUser are defined here
 // but also available from '@/lib/orchestra/api/admin' for new code
@@ -76,6 +79,10 @@ export async function deleteUser(userID: string) {
 export const getServerSessionCached = cache(async () => getServerSession(authOptions));
 
 export async function getSession() {
+  if (mockSimulationEnabled()) {
+    const { scenario, workspaceId } = await getActiveSimulation();
+    return buildMockSession(scenario, workspaceId);
+  }
   if (resolveAuthMode() === 'external') {
     const sessionResponse = await fetch(`${process.env.NEXTAUTH_URL}/sessionInfo.json`);
     const sessionInfo = snakeToCamelObject<Session>(await sessionResponse.json());
@@ -122,6 +129,11 @@ export async function getExternalIdentityUser(): Promise<User | null> {
  * User object if available, otherwise null.
  */
 export async function getCurrentUser(): Promise<User | null> {
+  if (mockSimulationEnabled()) {
+    const { scenario, workspaceId } = await getActiveSimulation();
+    return buildMockUser(scenario, workspaceId);
+  }
+
   const session = await getSession();
   let user: User | null = null;
 

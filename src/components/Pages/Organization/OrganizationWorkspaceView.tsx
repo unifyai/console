@@ -19,6 +19,7 @@ import type { DataSharingMode } from '@/types/organization';
 import { Role, Permission } from '@/types/role';
 import { Input } from '@/components/UI/input';
 import { Search, Users, Shield } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { TableCell } from '@/components/UI/table';
 import dynamic from 'next/dynamic';
 import MemberRow, { MemberSpendingInfo } from './MemberRow';
@@ -44,7 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
+import { Tabs, TabsContent } from '@/components/UI/tabs';
 import { toast } from 'sonner';
 import OrganizationSettingsTab from './OrganizationSettingsTab';
 import OrganizationSecurityTab from './OrganizationSecurityTab';
@@ -526,254 +527,278 @@ const OrganizationWorkspaceView = ({
   );
 
   return (
-    <div className="h-full w-full overflow-auto px-4 py-6 sm:px-6 lg:px-8">
-      {/* Tabs */}
+    <div className="h-full w-full overflow-auto">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full">
-          {canUpdateOrg && (
-            <TabsTrigger value="organization" className="flex-1">
+        <div className="flex min-h-full">
+          <aside className="w-[200px] shrink-0 border-r border-border px-2.5 py-4">
+            <div className="px-3 pb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               Organization
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="members" className="flex-1">
-            Members
-          </TabsTrigger>
-          <TabsTrigger value="teams" className="flex-1">
-            Teams
-          </TabsTrigger>
-          <TabsTrigger value="roles" className="flex-1">
-            Roles
-          </TabsTrigger>
-          {canUpdateOrg && (
-            <TabsTrigger value="security" className="flex-1">
-              Security
-            </TabsTrigger>
-          )}
-        </TabsList>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {canUpdateOrg && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('organization')}
+                  className={cn(
+                    'rounded-lg px-3 py-2 text-left text-[13px] transition-colors',
+                    activeTab === 'organization'
+                      ? 'bg-accent-soft text-accent-soft-foreground'
+                      : 'text-foreground hover:bg-muted'
+                  )}
+                >
+                  Organization
+                </button>
+              )}
+              {[
+                ['members', 'Members'],
+                ['teams', 'Teams'],
+                ['roles', 'Roles'],
+                ...(canUpdateOrg ? [['security', 'Security'] as const] : []),
+              ].map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'rounded-lg px-3 py-2 text-left text-[13px] transition-colors',
+                    activeTab === tab
+                      ? 'bg-accent-soft text-accent-soft-foreground'
+                      : 'text-foreground hover:bg-muted'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </aside>
 
-        {/* Members Tab */}
-        <TabsContent value="members" className="mt-4">
-          <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
-            {/* Toolbar */}
-            <div className="bg-muted/20 flex flex-shrink-0 flex-col items-center justify-between gap-4 border-b p-4 xl:flex-row">
-              <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto xl:w-auto">
-                {/* Invite Button */}
-                {canManageMembers && (
-                  <InviteMemberDialog
-                    onInvite={onInvite}
-                    existingMembers={activeMembersForProps}
-                    roles={roles}
-                  />
-                )}
+          <div className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <TabsContent value="members" className="mt-4">
+              <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+                {/* Toolbar */}
+                <div className="bg-muted/20 flex flex-shrink-0 flex-col items-center justify-between gap-4 border-b p-4 xl:flex-row">
+                  <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto xl:w-auto">
+                    {/* Invite Button */}
+                    {canManageMembers && (
+                      <InviteMemberDialog
+                        onInvite={onInvite}
+                        existingMembers={activeMembersForProps}
+                        roles={roles}
+                      />
+                    )}
 
-                {/* Search */}
-                <div className="relative w-full xl:w-64">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search members..."
-                    className="bg-background pl-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                    {/* Search */}
+                    <div className="relative w-full xl:w-64">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search members..."
+                        className="bg-background pl-9"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Role Filter */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="default" className="items-center">
+                          <Shield className="h-4 w-4" />
+                          {roleFilter === 'All' ? 'All Roles' : roleFilter}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => setRoleFilter('All')}>
+                          All Roles
+                        </DropdownMenuItem>
+                        {roles.map((role) => (
+                          <DropdownMenuItem key={role.id} onClick={() => setRoleFilter(role.name)}>
+                            {role.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Team Filter */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="default" className="items-center">
+                          <Users className="h-4 w-4" />
+                          {teamFilter === 'All' ? 'All Teams' : teamFilter}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => setTeamFilter('All')}>
+                          All Teams
+                        </DropdownMenuItem>
+                        {teams.map((t) => (
+                          <DropdownMenuItem key={t.id} onClick={() => setTeamFilter(t.name)}>
+                            {t.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
 
-                {/* Role Filter */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="default" className="items-center">
-                      <Shield className="h-4 w-4" />
-                      {roleFilter === 'All' ? 'All Roles' : roleFilter}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => setRoleFilter('All')}>
-                      All Roles
-                    </DropdownMenuItem>
-                    {roles.map((role) => (
-                      <DropdownMenuItem key={role.id} onClick={() => setRoleFilter(role.name)}>
-                        {role.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {/* Member Table */}
+                <div className="flex-1 overflow-auto bg-background px-3">
+                  <Table className="table-fixed">
+                    <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
+                      <TableRow>
+                        <TableHead
+                          className={`${spendingEnabled ? 'w-[20%]' : 'w-[30%]'} min-w-[180px]`}
+                        >
+                          User
+                        </TableHead>
+                        <TableHead className="hidden w-[15%] min-w-[180px] lg:table-cell">
+                          Email
+                        </TableHead>
+                        <TableHead className="w-[15%] min-w-[100px] text-center">
+                          Assistants
+                        </TableHead>
+                        <TableHead className="w-[12%] min-w-[100px] text-center">Teams</TableHead>
+                        <TableHead className="w-[12%] min-w-[80px] text-center">Role</TableHead>
+                        {spendingEnabled && (
+                          <TableHead className="w-[12%] min-w-[100px] text-center">
+                            Monthly Limit
+                          </TableHead>
+                        )}
+                        {spendingEnabled && (
+                          <TableHead className="w-[12%] min-w-[100px] text-center">Spent</TableHead>
+                        )}
+                        <TableHead className="w-[8%] min-w-[50px] text-right"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="h-full">
+                      {isLoadingMembers && filteredMembers.length === 0 ? (
+                        Array.from({ length: 6 }).map((_, i) => (
+                          <MemberRowSkeleton
+                            key={`member-skel-${i}`}
+                            spendingEnabled={spendingEnabled}
+                          />
+                        ))
+                      ) : filteredMembers.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={spendingEnabled ? 8 : 6}
+                            className="text-body-muted py-12 text-center"
+                          >
+                            No members found.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                      {filteredMembers.map((member) => {
+                        const userTeams = member.userId
+                          ? (teamNamesByUserId.get(member.userId) ?? [])
+                          : [];
+                        const memberSpending = member.userId
+                          ? memberSpendingMap.get(member.userId)
+                          : undefined;
+                        return (
+                          <MemberRow
+                            key={member.id}
+                            member={member}
+                            userTeams={userTeams}
+                            memberAssistants={
+                              member.userId ? memberAssistantsMap?.get(member.userId) : undefined
+                            }
+                            prefetchedImageUrl={
+                              member.image ? signedAvatarUrls[member.image] : undefined
+                            }
+                            roles={roles}
+                            currentUserId={currentUserId}
+                            canManageMembers={canManageMembers}
+                            isOrgOwner={isOrgOwner}
+                            onRemove={onRemoveMember}
+                            onUpdateRole={onUpdateRole}
+                            onTransferOwnership={onTransferOwnership}
+                            onCancelInvite={onCancelInvite}
+                            onResendInvite={onResendInvite}
+                            showSpending={spendingEnabled}
+                            spendingInfo={memberSpending}
+                            onEditSpendingLimit={handleEditSpendingLimit}
+                            freeTrial={organization.freeTrial && !isUnifyMember}
+                          />
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </section>
+            </TabsContent>
 
-                {/* Team Filter */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="default" className="items-center">
-                      <Users className="h-4 w-4" />
-                      {teamFilter === 'All' ? 'All Teams' : teamFilter}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => setTeamFilter('All')}>
-                      All Teams
-                    </DropdownMenuItem>
-                    {teams.map((t) => (
-                      <DropdownMenuItem key={t.id} onClick={() => setTeamFilter(t.name)}>
-                        {t.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+            {/* Teams Tab */}
+            <TabsContent value="teams" className="mt-4">
+              <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+                <TeamListPanel
+                  teams={teams}
+                  members={activeMembersForProps}
+                  isLoading={isLoadingTeams}
+                  onCreateTeam={onCreateTeam}
+                  onUpdateTeam={onUpdateTeam}
+                  onDeleteTeam={onDeleteTeam}
+                  onAddMember={onAddTeamMember}
+                  onRemoveMember={onRemoveTeamMember}
+                  orgSharingMode={
+                    teams.some((team) => team.isOrgWideSharing)
+                      ? 'shared'
+                      : (organization.dataSharingMode ?? 'private')
+                  }
+                  canManageOrgSharing={canUpdateOrg}
+                  onUpdateOrgSharingMode={onUpdateOrgSharingMode}
+                />
+              </section>
+            </TabsContent>
 
-            {/* Member Table */}
-            <div className="flex-1 overflow-auto bg-background px-3">
-              <Table className="table-fixed">
-                <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
-                  <TableRow>
-                    <TableHead
-                      className={`${spendingEnabled ? 'w-[20%]' : 'w-[30%]'} min-w-[180px]`}
-                    >
-                      User
-                    </TableHead>
-                    <TableHead className="hidden w-[15%] min-w-[180px] lg:table-cell">
-                      Email
-                    </TableHead>
-                    <TableHead className="w-[15%] min-w-[100px] text-center">Assistants</TableHead>
-                    <TableHead className="w-[12%] min-w-[100px] text-center">Teams</TableHead>
-                    <TableHead className="w-[12%] min-w-[80px] text-center">Role</TableHead>
-                    {spendingEnabled && (
-                      <TableHead className="w-[12%] min-w-[100px] text-center">
-                        Monthly Limit
-                      </TableHead>
-                    )}
-                    {spendingEnabled && (
-                      <TableHead className="w-[12%] min-w-[100px] text-center">Spent</TableHead>
-                    )}
-                    <TableHead className="w-[8%] min-w-[50px] text-right"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="h-full">
-                  {isLoadingMembers && filteredMembers.length === 0 ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <MemberRowSkeleton
-                        key={`member-skel-${i}`}
-                        spendingEnabled={spendingEnabled}
-                      />
-                    ))
-                  ) : filteredMembers.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={spendingEnabled ? 8 : 6}
-                        className="text-body-muted py-12 text-center"
-                      >
-                        No members found.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                  {filteredMembers.map((member) => {
-                    const userTeams = member.userId
-                      ? (teamNamesByUserId.get(member.userId) ?? [])
-                      : [];
-                    const memberSpending = member.userId
-                      ? memberSpendingMap.get(member.userId)
-                      : undefined;
-                    return (
-                      <MemberRow
-                        key={member.id}
-                        member={member}
-                        userTeams={userTeams}
-                        memberAssistants={
-                          member.userId ? memberAssistantsMap?.get(member.userId) : undefined
-                        }
-                        prefetchedImageUrl={
-                          member.image ? signedAvatarUrls[member.image] : undefined
-                        }
-                        roles={roles}
-                        currentUserId={currentUserId}
-                        canManageMembers={canManageMembers}
-                        isOrgOwner={isOrgOwner}
-                        onRemove={onRemoveMember}
-                        onUpdateRole={onUpdateRole}
-                        onTransferOwnership={onTransferOwnership}
-                        onCancelInvite={onCancelInvite}
-                        onResendInvite={onResendInvite}
-                        showSpending={spendingEnabled}
-                        spendingInfo={memberSpending}
-                        onEditSpendingLimit={handleEditSpendingLimit}
-                        freeTrial={organization.freeTrial && !isUnifyMember}
-                      />
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
-        </TabsContent>
+            {/* Roles Tab */}
+            <TabsContent value="roles" className="mt-4">
+              <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+                <RoleListPanel
+                  roles={managedRoles}
+                  allPermissions={allPermissions}
+                  isLoading={isLoadingRoles}
+                  onCreateRole={onCreateRole}
+                  onUpdateRole={onUpdateManagedRole}
+                  onDeleteRole={onDeleteRole}
+                  onAddPermission={onAddRolePermission}
+                  onRemovePermission={onRemoveRolePermission}
+                />
+              </section>
+            </TabsContent>
 
-        {/* Teams Tab */}
-        <TabsContent value="teams" className="mt-4">
-          <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
-            <TeamListPanel
-              teams={teams}
-              members={activeMembersForProps}
-              isLoading={isLoadingTeams}
-              onCreateTeam={onCreateTeam}
-              onUpdateTeam={onUpdateTeam}
-              onDeleteTeam={onDeleteTeam}
-              onAddMember={onAddTeamMember}
-              onRemoveMember={onRemoveTeamMember}
-              orgSharingMode={
-                teams.some((team) => team.isOrgWideSharing)
-                  ? 'shared'
-                  : (organization.dataSharingMode ?? 'private')
-              }
-              canManageOrgSharing={canUpdateOrg}
-              onUpdateOrgSharingMode={onUpdateOrgSharingMode}
-            />
-          </section>
-        </TabsContent>
+            {/* Organization Tab (admin-gated) */}
+            {canUpdateOrg && (
+              <TabsContent value="organization" className="mt-4">
+                <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+                  <OrganizationSettingsTab
+                    orgId={organization.id}
+                    currentName={organization.name}
+                    currentImage={organization.image}
+                    currentTimezone={organization.timezone}
+                    onUpdate={onUpdateOrg}
+                  />
+                </section>
+              </TabsContent>
+            )}
 
-        {/* Roles Tab */}
-        <TabsContent value="roles" className="mt-4">
-          <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
-            <RoleListPanel
-              roles={managedRoles}
-              allPermissions={allPermissions}
-              isLoading={isLoadingRoles}
-              onCreateRole={onCreateRole}
-              onUpdateRole={onUpdateManagedRole}
-              onDeleteRole={onDeleteRole}
-              onAddPermission={onAddRolePermission}
-              onRemovePermission={onRemoveRolePermission}
-            />
-          </section>
-        </TabsContent>
-
-        {/* Organization Tab (admin-gated) */}
-        {canUpdateOrg && (
-          <TabsContent value="organization" className="mt-4">
-            <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
-              <OrganizationSettingsTab
-                orgId={organization.id}
-                currentName={organization.name}
-                currentImage={organization.image}
-                currentTimezone={organization.timezone}
-                onUpdate={onUpdateOrg}
-              />
-            </section>
-          </TabsContent>
-        )}
-
-        {/* Security Tab (admin-gated) */}
-        {canUpdateOrg && (
-          <TabsContent value="security" className="mt-4">
-            <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
-              <OrganizationSecurityTab
-                organizationId={organization.id}
-                organizationName={organization.name}
-                canEdit={canUpdateOrg}
-                canDelete={canDeleteOrg}
-                onDeleteOrg={onDeleteOrg}
-                mfaSettingsActions={mfaSettingsActions}
-                initialMfaRequired={initialMfaRequired}
-              />
-            </section>
-          </TabsContent>
-        )}
+            {/* Security Tab (admin-gated) */}
+            {canUpdateOrg && (
+              <TabsContent value="security" className="mt-4">
+                <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+                  <OrganizationSecurityTab
+                    organizationId={organization.id}
+                    organizationName={organization.name}
+                    canEdit={canUpdateOrg}
+                    canDelete={canDeleteOrg}
+                    onDeleteOrg={onDeleteOrg}
+                    mfaSettingsActions={mfaSettingsActions}
+                    initialMfaRequired={initialMfaRequired}
+                  />
+                </section>
+              </TabsContent>
+            )}
+          </div>
+        </div>
       </Tabs>
 
       {/* Member Spending Dialog */}
@@ -814,7 +839,7 @@ export default OrganizationWorkspaceView;
 /**
  * Skeleton row that mirrors the column layout of `MemberRow`. Uses
  * raw `<div>`s with `bg-muted` (matching the proven pattern used by
- * `MemoryTable`) instead of the global `<Skeleton>` component — the
+ * `BrainTable`) instead of the global `<Skeleton>` component — the
  * latter applies `bg-primary/10`, an opacity-modified CSS variable
  * that silently no-ops in our theme (the variables are defined as
  * raw hex, not HSL channels), making the placeholders invisible.

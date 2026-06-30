@@ -42,6 +42,7 @@ import {
   getTierTemplateId,
   insertMeteredInvoice,
   dbExec,
+  waitForAssistantsReady,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -78,7 +79,7 @@ const FULL_ADDRESS = {
 // ===========================================================================
 
 const unsubUser = createTestUser({ name: 'SubFlow', lastName: 'Unsub', credits: 50 });
-const unsubTest = createBillingTest(unsubUser);
+const unsubTest = createBillingTest(unsubUser, { skipWhenManualTopup: true });
 
 unsubTest.afterAll(() => cleanupUser(unsubUser.id));
 
@@ -264,7 +265,7 @@ unsubTest.describe('subscribe — gating & framing (unsubscribed)', () => {
 // ===========================================================================
 
 const subUser = createTestUser({ name: 'SubFlow', lastName: 'Subbed', credits: 0 });
-const subTest = createBillingTest(subUser);
+const subTest = createBillingTest(subUser, { skipWhenManualTopup: true });
 
 subTest.afterAll(() => {
   setAccountStatus(subUser.id, 'ACTIVE');
@@ -480,7 +481,7 @@ subTest.describe('subscribed account — lifecycle', () => {
     // Recovery (invoice.paid / subscription active) clears the banner.
     setAccountStatus(subUser.id, 'ACTIVE');
     await page.goto('/assistants');
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
     await expect(page.getByTestId('account-status-banner')).not.toBeVisible({ timeout: 5_000 });
   });
 

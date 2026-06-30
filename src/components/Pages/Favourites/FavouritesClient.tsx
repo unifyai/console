@@ -352,7 +352,7 @@ export default function FavouritesClient({
       <div
         ref={setNodeRef as any}
         style={style}
-        className={`hover:bg-muted/30 group grid grid-cols-4 items-center gap-4 rounded-md p-2 ${isDragging ? 'opacity-50' : ''}`}
+        className={`bg-background/60 hover:border-primary/40 group grid grid-cols-4 items-center gap-4 rounded-lg border border-border p-2 transition-colors hover:bg-[var(--surface-hover)] ${isDragging ? 'opacity-50' : ''}`}
       >
         <div
           className="flex cursor-grab justify-center text-muted-foreground"
@@ -372,7 +372,7 @@ export default function FavouritesClient({
             <Button
               variant="outline"
               size="sm"
-              className="flex h-10 w-10 min-w-0 items-center justify-center p-0 shadow-sm"
+              className="flex h-10 w-10 min-w-0 items-center justify-center rounded-lg p-0 shadow-sm"
             >
               {iconMap[fav.projectName] ? (
                 <Icon name={iconMap[fav.projectName] as any} className="h-5 w-5" />
@@ -452,16 +452,21 @@ export default function FavouritesClient({
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-foreground">Favourites</h1>
+    <div className="brand-chat-bg mx-auto min-h-full w-full space-y-6 p-6 lg:p-8">
+      <div className="mx-auto flex w-full max-w-6xl items-start justify-between gap-4">
+        <div>
+          <p className="text-label mb-2 uppercase tracking-[0.16em] text-muted-foreground">
+            Console
+          </p>
+          <h1 className="text-h2 font-display text-foreground">Favourites</h1>
+          <p className="text-body-muted">
+            Choose the projects that should stay pinned across dashboard navigation.
+          </p>
+        </div>
         <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing}>
           <RefreshCcw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
         </Button>
       </div>
-      <p className="text-muted-foreground">
-        Select up to 10 projects to display on your dashboard.
-      </p>
 
       {maxLimitReached && (
         <Alert
@@ -501,15 +506,16 @@ export default function FavouritesClient({
       )}
 
       <SuspenseLoader message="Loading favourites…">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Projects list */}
-          <Card className="w-full border border-border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-h1 text-semibold">Available Projects</CardTitle>
+          <Card className="bg-card/95 w-full overflow-hidden border border-border shadow-pop backdrop-blur-sm">
+            <CardHeader className="border-b border-border pb-4">
+              <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">
+                Catalogue
+              </p>
+              <CardTitle className="text-h2 font-display">Available Projects</CardTitle>
               <p className="text-body-muted">Select projects to add to your favourites (max 10)</p>
             </CardHeader>
-
-            <Separator />
 
             {/* Search input */}
             <div className="px-6 py-3">
@@ -542,11 +548,11 @@ export default function FavouritesClient({
             <CardContent className="p-0">
               <ScrollArea className="h-[400px] px-6 py-4">
                 {projects.length === 0 ? (
-                  <div className="flex h-[200px] flex-col items-center justify-center text-muted-foreground">
+                  <div className="bg-background/60 flex h-[200px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground">
                     <p>No projects available</p>
                   </div>
                 ) : filteredProjects.length === 0 ? (
-                  <div className="flex h-[200px] flex-col items-center justify-center text-muted-foreground">
+                  <div className="bg-background/60 flex h-[200px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground">
                     <p>No projects match your search</p>
                     <Button
                       variant="link"
@@ -565,10 +571,10 @@ export default function FavouritesClient({
                         <div
                           key={name}
                           className={cn(
-                            'flex items-center gap-3 rounded-md border p-3 transition-colors',
+                            'flex items-center gap-3 rounded-lg border p-3 transition-colors',
                             isChecked
-                              ? 'bg-primary/5 border-primary/20'
-                              : 'hover:bg-muted/60 border-transparent'
+                              ? 'border-primary/40 bg-accent-soft'
+                              : 'bg-background/60 hover:border-primary/40 border-border hover:bg-[var(--surface-hover)]'
                           )}
                         >
                           <Checkbox
@@ -584,7 +590,7 @@ export default function FavouritesClient({
                             {name}
                           </label>
                           {isChecked && (
-                            <div className="text-label flex items-center text-primary">
+                            <div className="text-label flex items-center text-accent-soft-foreground">
                               <Star className="mr-1 h-3 w-3 fill-primary text-primary" />
                               Added
                             </div>
@@ -599,13 +605,12 @@ export default function FavouritesClient({
           </Card>
 
           {/* Selected favourites with icon pickers */}
-          <Card className="w-full border border-border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-h1 text-semibold">Selected Favourites</CardTitle>
+          <Card className="bg-card/95 w-full overflow-hidden border border-border shadow-pop backdrop-blur-sm">
+            <CardHeader className="border-b border-border pb-4">
+              <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">Pinned</p>
+              <CardTitle className="text-h2 font-display">Selected Favourites</CardTitle>
               <p className="text-body-muted">Customize icons for your favourite projects</p>
             </CardHeader>
-
-            <Separator />
 
             <CardContent className="pt-5">
               {selected.size > 0 ? (
@@ -631,7 +636,7 @@ export default function FavouritesClient({
                   </DndContext>
                 </>
               ) : (
-                <div className="bg-muted/10 border-muted-foreground/30 flex h-[320px] flex-col items-center justify-center rounded-lg border border-dashed text-muted-foreground">
+                <div className="bg-background/60 flex h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground">
                   <p className="font-medium">No favourites selected</p>
                   <p className="text-body mt-2">Select projects from the list on the left</p>
                 </div>

@@ -2,26 +2,19 @@
 
 import React from 'react';
 import { Suspense } from 'react';
-import LoadingIcon from './LoadingIcon';
+import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 
 /**
- * SuspenseLoader component provides a fallback UI using React's Suspense.
- *
- * Props:
- * - message: A message to display above the loading icon to inform users about the loading content.
- * - children: The content to load once ready. This should be components or data that may load asynchronously.
- *
- * Usage:
- * Wrap components that load asynchronously with SuspenseLoader to provide a consistent loading
- * UI and message to users while waiting for content to load.
+ * SuspenseLoader wraps async children with the platform-standard skeleton
+ * placeholder instead of the legacy favicon spinner.
  */
 const SuspenseLoader = ({ message, children }: { message: string; children?: React.ReactNode }) => {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-col items-center gap-2 self-center">
-          <p className="text-body text-foreground">{message}</p>
-          <LoadingIcon height={100} width={100} />
+        <div className="flex min-h-[240px] w-full flex-col gap-3">
+          {message ? <p className="text-body px-6 pt-6 text-muted-foreground">{message}</p> : null}
+          <SectionBodySkeleton className="flex-1" />
         </div>
       }
     >

@@ -607,8 +607,7 @@ export default function OrganizationsAdminMain({
         } transition-all`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h1 className="text-h1 text-semibold">Admin · Organizations</h1>
+        <div className="flex items-center justify-end border-b border-border px-4 py-3">
           <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">

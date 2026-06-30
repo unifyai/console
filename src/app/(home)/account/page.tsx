@@ -28,13 +28,11 @@ const AccountPage = async () => {
   }
 
   return (
-    <div className="h-full w-full overflow-auto">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       <GithubDeprecationBanner />
-      <div className="p-1">
-        <Suspense fallback={<SkeletonLoader />}>
-          <Main user={user} externalIdentity={externalIdentity} />
-        </Suspense>
-      </div>
+      <Suspense fallback={<SkeletonLoader />}>
+        <Main user={user} externalIdentity={externalIdentity} />
+      </Suspense>
     </div>
   );
 };

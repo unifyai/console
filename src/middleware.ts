@@ -5,6 +5,7 @@ import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
 import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
 import { resolveAuthMode } from '@/lib/environment/environment';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 const ENFORCE_ACCOUNT_ONBOARDING = false;
 
@@ -61,6 +62,13 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
       url.searchParams.set('project', 'Assistants');
       return NextResponse.redirect(url);
     }
+  }
+
+  // Mock simulation mode: the mock identity is injected at the data boundary, so
+  // NextAuth/JWT gating is bypassed entirely and every route renders the real
+  // shell against fixtures. Reachable only when the build-time flag is on.
+  if (mockSimulationEnabled()) {
+    return NextResponse.next();
   }
 
   // External-auth deployments (legacy ON_PREM) inject identity upstream, so

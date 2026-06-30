@@ -6,6 +6,7 @@
  */
 
 import { expect } from '@playwright/test';
+import { openUnitySwitcher } from '../assistants/helpers';
 import {
   createTestUser,
   cleanupUser,
@@ -148,6 +149,7 @@ test('locked org users still see org assistants even with a personal workspace c
   const wsCookie = cookies.find((c) => c.name === 'unify_workspace_id');
   expect(wsCookie?.value).toBe('personal');
 
+  await openUnitySwitcher(page);
   await expect(
     page.getByText(`${lockedOrgAssistant.firstName} ${lockedOrgAssistant.surname}`)
   ).toBeVisible({ timeout: 10_000 });

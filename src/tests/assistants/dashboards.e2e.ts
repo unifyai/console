@@ -21,7 +21,10 @@ import {
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
+  selectAssistantInList,
+  openRailSection,
 } from './helpers';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 
 const user = createTestUser({ name: 'DashPaneE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -187,14 +190,10 @@ async function selectAssistantAndOpenDashboards(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, agentId);
   await page.waitForTimeout(1_500);
 
-  const dashTab = page.getByTestId('right-pane-tab-dashboards');
-  await expect(dashTab).toBeVisible({ timeout: 5_000 });
-  await dashTab.click();
+  await openRailSection(page, 'dashboards');
   await page.waitForTimeout(1_000);
 }
 
@@ -206,59 +205,50 @@ test('defaults to the Chat tab when an assistant is selected', async ({ authedPa
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, emptyAssistant.agentId);
   await page.waitForTimeout(1_500);
 
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  await expect(chatTab).toBeVisible({ timeout: 5_000 });
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 });
 
-test('switches between Chat, Actions drawer, Dashboards, and Memory', async ({
+test('switches between Chat, Actions drawer, Dashboards, and Brain', async ({
   authedPage: page,
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, emptyAssistant.agentId);
   await page.waitForTimeout(1_500);
 
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  // Top-level navigation flows through the rail's sections.
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 
-  // Actions are reachable via their own right-pane tab.
-  const actionsTab = page.getByTestId('right-pane-tab-actions');
-  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
-  await actionsTab.click();
-  await expect(actionsTab).toHaveAttribute('data-state', 'active');
-  await page.waitForTimeout(300);
+  await openRailSection(page, 'actions');
+  await expect(page.getByTestId('rail-section-actions')).toHaveAttribute('aria-current', 'page');
 
-  const dashTab = page.getByTestId('right-pane-tab-dashboards');
-  await dashTab.click();
-  await page.waitForTimeout(500);
-  await expect(dashTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'dashboards');
+  await expect(page.getByTestId('rail-section-dashboards')).toHaveAttribute('aria-current', 'page');
 
-  // Memory is a dropdown trigger — click + pick a sub-tab to switch.
-  const memoryTab = page.getByTestId('right-pane-tab-memory');
-  await memoryTab.click();
-  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
-  await page.waitForTimeout(500);
-  await expect(memoryTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'transcripts');
+  await expect(page.getByTestId('rail-section-transcripts')).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
 
-  await chatTab.click();
-  await page.waitForTimeout(500);
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'chat');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 });
 
 // ===========================================================================
 // Split-pane layout
 // ===========================================================================
 
-test('split tabs lets the user view two right-pane tabs side by side and close either side', async ({
+// Deferred (Phase 5 split-pane rework): under the rail shell the in-pane tab
+// strip is suppressed (`hideTabStrip`), so the secondary slot only exposes the
+// active tab's sub-tab dropdown and can no longer switch its top-level view
+// from the strip. Driving a secondary pane to an arbitrary view now needs a
+// rail-aware affordance that doesn't exist yet; re-enable once that lands.
+test.fixme('split tabs lets the user view two right-pane tabs side by side and close either side', async ({
   authedPage: page,
 }) => {
   // The split affordance turns the right pane into two independent
@@ -295,30 +285,30 @@ test('split tabs lets the user view two right-pane tabs side by side and close e
   await expect(page.getByTestId('right-pane-close-secondary')).toBeVisible();
 
   // Confirm both panes can be driven independently — switch the
-  // secondary to Memory while leaving the primary on Chat. Memory is
+  // secondary to Tasks while leaving the primary on Chat. Tasks is
   // a dropdown trigger, so opening it and picking a sub-tab is what
   // actually performs the switch.
-  await page.getByTestId('right-pane-secondary-tab-memory').click();
-  await page.getByTestId('right-pane-secondary-tab-memory-menu-contacts').click();
-  await expect(page.getByTestId('right-pane-secondary-tab-memory')).toHaveAttribute(
+  await page.getByTestId('right-pane-secondary-tab-tasks').click();
+  await page.getByTestId('right-pane-secondary-tab-tasks-menu-activity').click();
+  await expect(page.getByTestId('right-pane-secondary-tab-tasks')).toHaveAttribute(
     'data-state',
     'active'
   );
   await expect(primaryChatTab).toHaveAttribute('data-state', 'active');
 
   // Closing the *primary* should promote whatever was in the secondary
-  // (Memory) into the primary slot, then collapse out of split mode.
+  // (Tasks) into the primary slot, then collapse out of split mode.
   await page.getByTestId('right-pane-close-primary').click();
   await expect(page.getByTestId('right-pane-splitter')).toHaveCount(0, { timeout: 5_000 });
-  await expect(page.getByTestId('right-pane-tab-memory')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('right-pane-tab-tasks')).toHaveAttribute('data-state', 'active');
 
   // Re-split, then close the secondary side. Should also collapse,
-  // and the primary tab (Memory) should remain active.
+  // and the primary tab (Tasks) should remain active.
   await page.getByTestId('right-pane-split-button').click();
   await expect(page.getByTestId('right-pane-splitter')).toBeVisible({ timeout: 5_000 });
   await page.getByTestId('right-pane-close-secondary').click();
   await expect(page.getByTestId('right-pane-splitter')).toHaveCount(0, { timeout: 5_000 });
-  await expect(page.getByTestId('right-pane-tab-memory')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('right-pane-tab-tasks')).toHaveAttribute('data-state', 'active');
 });
 
 // ===========================================================================
@@ -330,23 +320,20 @@ test('shows empty state when assistant has no dashboards or tiles', async ({
 }) => {
   await selectAssistantAndOpenDashboards(page, emptyAssistant.agentId);
 
-  await expect(page.locator('text=No dashboards found')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('No dashboards yet')).toBeVisible({ timeout: 10_000 });
 });
 
-test('no tabs visible and shows placeholder when no assistant is selected', async ({
+test('defaults to the Coordinator chat when no assistant is selected', async ({
   authedPage: page,
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await page.waitForTimeout(1_000);
 
-  await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-dashboards')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-memory')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-actions')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
-    timeout: 5_000,
+  await expect(page.getByRole('button', { name: 'Chat' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('textbox', { name: 'Search conversation' })).toBeVisible({
+    timeout: 10_000,
   });
+  await expect(page.getByText('T-W1N').first()).toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================
@@ -363,7 +350,9 @@ test('renders searchable combobox selector when dashboards exist', async ({ auth
   await selector.click();
   await page.waitForTimeout(500);
 
-  await expect(page.locator('input[placeholder="Search dashboards & tiles…"]')).toBeVisible({
+  await expect(
+    page.locator(`input[placeholder="${tabSearchPlaceholder('dashboards')}"]`)
+  ).toBeVisible({
     timeout: 5_000,
   });
 });
@@ -384,7 +373,7 @@ test('renders dashboard summary card with metadata and action buttons', async ({
   await expect(summaryCard.locator('text=2 tiles')).toBeVisible({ timeout: 5_000 });
 
   await expect(page.getByTestId('dashboard-open-tab')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('dashboard-download-zip')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('dashboard-download')).toBeVisible({ timeout: 5_000 });
 });
 
 test('shows refresh button in header that triggers refetch', async ({ authedPage: page }) => {

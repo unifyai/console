@@ -140,7 +140,7 @@ export interface Assistant {
    * An empty array means the assistant is currently personal-only.
    */
   teamIds: number[];
-  /** Human-readable metadata for each shared-memory team membership. */
+  /** Human-readable metadata for each shared-brain team membership. */
   teamSummaries: SharedTeamSummary[];
   /**
    * Contact id representing the assistant in its own conversation data.
@@ -253,6 +253,8 @@ export type AssistantFormData = Omit<
   | 'userId'
   | 'organizationId'
   | 'isCoordinator'
+  | 'age'
+  | 'nationality'
   | 'createdAt'
   | 'updatedAt'
   | 'signedProfilePhotoUrl'
@@ -300,7 +302,7 @@ export type AssistantFormData = Omit<
   isPresetPristine?: boolean;
   presetOriginalValues?: Pick<
     AssistantFormData,
-    'firstName' | 'surname' | 'age' | 'nationality' | 'voiceId' | 'profilePhotoUrl'
+    'firstName' | 'surname' | 'voiceId' | 'profilePhotoUrl'
   > | null;
   currentPreset?: AssistantPreset | null;
 

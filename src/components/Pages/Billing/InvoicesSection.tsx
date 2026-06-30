@@ -93,10 +93,7 @@ export const InvoicesSection = ({
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-3xl"
-        >
+        <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Invoices</SheetTitle>
             <SheetDescription>{description}</SheetDescription>

@@ -24,12 +24,25 @@ export function unitySystemEventPayload(args: UnitySystemEventDispatch): Record<
   });
 }
 
+function localOrchestraWithoutAdapters(): boolean {
+  const orchestraUrl = (process.env.ORCHESTRA_URL ?? '').toLowerCase();
+  return (
+    !process.env.LOCAL_ADAPTERS_URL &&
+    !process.env.UNITY_ADAPTERS_URL &&
+    (orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1'))
+  );
+}
+
 export async function dispatchUnitySystemEvent(
   args: UnitySystemEventDispatch
 ): Promise<UnitySystemEventDispatchResult> {
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
   if (!adminKey) {
     return { ok: false, status: 500, detail: 'Server configuration error' };
+  }
+
+  if (localOrchestraWithoutAdapters()) {
+    return { ok: true, status: 202, data: { skipped: true, reason: 'local-adapters-unset' } };
   }
 
   const webhookUrl = `${getAdaptersBaseUrl({

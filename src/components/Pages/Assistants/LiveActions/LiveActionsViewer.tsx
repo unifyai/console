@@ -73,7 +73,10 @@ export function LiveActionsViewer({
   // When true, the next roots load skips auto-expand (historic pulls should
   // start collapsed).  Stays true across the intermediate empty-roots state
   // that refresh(true) causes, and resets once real data arrives.
-  const suppressAutoExpandRef = React.useRef(false);
+  // Start suppressed so the initial bulk load of roots renders collapsed;
+  // it flips off after the first batch so genuinely new live SSE roots still
+  // auto-expand.
+  const suppressAutoExpandRef = React.useRef(true);
 
   // ==========================================================================
   // Visibility-based Polling

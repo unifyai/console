@@ -226,10 +226,10 @@ export function HtmlAttachmentEmbed({
         />
         {!isInteractive && (
           <div
-            className="absolute inset-0 flex cursor-pointer items-center justify-center transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+            className="absolute inset-0 flex cursor-pointer items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
             onClick={() => setIsInteractive(true)}
           >
-            <span className="text-label rounded-md bg-black/60 px-3 py-1.5 text-white opacity-0 transition-opacity [div:hover>&]:opacity-100">
+            <span className="text-label bg-card/95 rounded-md border border-border px-3 py-1.5 text-foreground opacity-0 shadow-pop transition-opacity [div:hover>&]:opacity-100">
               Click to interact
             </span>
           </div>

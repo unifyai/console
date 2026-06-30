@@ -25,6 +25,7 @@ import {
   createBillingTest,
   getBillingAccountId,
   dbExec,
+  waitForAssistantsReady,
 } from './helpers';
 
 function readCredits(userId: string): number {
@@ -105,7 +106,7 @@ gateTest(
 
     // Banner is gone now that there are credits again.
     await page.goto('/assistants');
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
     await expect(page.getByTestId('out-of-credits-banner')).not.toBeVisible({ timeout: 5_000 });
   }
 );

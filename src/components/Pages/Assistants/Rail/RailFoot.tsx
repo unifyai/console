@@ -1,0 +1,313 @@
+'use client';
+
+import * as React from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  Settings,
+  ShieldCheck,
+  ChevronsUpDown,
+  Check,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Loader2,
+} from 'lucide-react';
+import { signOut } from 'next-auth/react';
+import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import {
+  profileAvatarTone,
+  profileInitials,
+  userFullName,
+  userInitials,
+} from '@/utils/user/profileDisplay';
+import { getAnySessionContactIdForUser } from '@/hooks/Assistants/useContactIdPrefetch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { ReferralPromoNavButton } from '@/components/Layout/TopBar/ReferralPromoButton';
+import { RailNavButton } from './RailNavButton';
+
+async function resolveStorageUrl(gsUrl: string): Promise<string> {
+  if (!gsUrl.startsWith('gs://')) return gsUrl;
+  const response = await fetch('/api/storage/signed-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    body: JSON.stringify({ gs_url: gsUrl }),
+  });
+  if (!response.ok) return '';
+  const data = await response.json();
+  return data.signed_url ?? '';
+}
+
+function WorkspaceInitialBadge({
+  name,
+  contactId,
+  className,
+}: {
+  name: string;
+  contactId?: number | null;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'grid h-4 w-4 shrink-0 place-items-center rounded-md font-display text-[9px] font-semibold text-primary-foreground',
+        className
+      )}
+      style={{ backgroundColor: profileAvatarTone(name, contactId) }}
+    >
+      {profileInitials(name)}
+    </span>
+  );
+}
+
+interface RailFootProps {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
+/**
+ * The rail's foot: quick Settings/Admin nav, an account row that opens the
+ * workspace switcher and sign out, and the collapse-to-dock control.
+ */
+export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const {
+    user,
+    workspaces,
+    activeWorkspace,
+    activeOrganization,
+    switchWorkspace,
+    isWorkspaceSwitchable,
+    isSwitchingWorkspace,
+    isUnifyAdmin,
+  } = useWorkspace();
+
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const [ownerContactId, setOwnerContactId] = React.useState<number | null>(null);
+
+  const personalDisplayName = user ? userFullName(user) || 'Personal' : 'Personal';
+  const displayName =
+    activeWorkspace?.type === 'organization'
+      ? (activeWorkspace.name ?? 'Organization')
+      : personalDisplayName;
+  const subtitle = activeWorkspace?.type === 'organization' ? 'Organization' : 'Personal';
+  const initials =
+    activeWorkspace?.type === 'organization'
+      ? profileInitials(displayName)
+      : user
+        ? userInitials(user)
+        : profileInitials(displayName);
+  const avatarTone = profileAvatarTone(
+    displayName,
+    activeWorkspace?.type === 'personal' ? ownerContactId : null
+  );
+
+  React.useEffect(() => {
+    if (!user?.email || activeWorkspace?.type !== 'personal') {
+      setOwnerContactId(null);
+      return;
+    }
+    const syncContactId = () => {
+      const cached = getAnySessionContactIdForUser(user.email);
+      setOwnerContactId(cached ?? null);
+    };
+    syncContactId();
+    const onContactIdUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ email?: string }>).detail;
+      if (!detail?.email || detail.email === user.email) syncContactId();
+    };
+    window.addEventListener('owner-contact-id-updated', onContactIdUpdated);
+    return () => window.removeEventListener('owner-contact-id-updated', onContactIdUpdated);
+  }, [user?.email, activeWorkspace?.type]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const image =
+        activeWorkspace?.type === 'organization' ? activeOrganization?.image : user?.image;
+      if (!image) {
+        if (!cancelled) setAvatarUrl(null);
+        return;
+      }
+      const url = await resolveStorageUrl(image).catch(() => '');
+      if (!cancelled) setAvatarUrl(url || null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspace?.type, activeOrganization?.image, user?.image]);
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    window.location.assign('/login');
+  };
+
+  const personalWorkspaces = workspaces.filter((w) => w.type === 'personal');
+  const orgWorkspaces = workspaces.filter((w) => w.type === 'organization');
+
+  return (
+    <div
+      className={cn(
+        'mt-auto flex flex-col gap-0.5 border-t border-border pt-2',
+        collapsed ? 'px-3 pb-2.5' : 'px-2.5 pb-2.5'
+      )}
+    >
+      {isUnifyAdmin && (
+        <RailNavButton
+          Icon={ShieldCheck}
+          label="Admin"
+          collapsed={collapsed}
+          active={pathname?.startsWith('/admin')}
+          onClick={() => router.push('/admin')}
+          testId="rail-nav-admin"
+        />
+      )}
+      <RailNavButton
+        Icon={Settings}
+        label="Settings"
+        collapsed={collapsed}
+        active={pathname?.startsWith('/account')}
+        onClick={() => router.push('/account')}
+        testId="rail-nav-settings"
+      />
+
+      <ReferralPromoNavButton collapsed={collapsed} />
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            data-testid="rail-account-trigger"
+            title={collapsed ? displayName : undefined}
+            className={cn(
+              'flex items-center gap-3 rounded-[10px] transition-colors hover:bg-muted',
+              collapsed ? 'justify-center px-0 py-1.5' : 'px-2.5 py-1.5'
+            )}
+          >
+            <Avatar className="h-[30px] w-[30px] shrink-0 rounded-[9px]">
+              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+              <AvatarFallback
+                className="rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
+                style={{ backgroundColor: avatarTone }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="min-w-0 text-left">
+                <div className="truncate text-[13px] font-semibold text-foreground">
+                  {displayName}
+                </div>
+                <div className="truncate text-[11.5px] text-muted-foreground">{subtitle}</div>
+              </div>
+            )}
+            {!collapsed &&
+              (isSwitchingWorkspace ? (
+                <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+              ) : (
+                <ChevronsUpDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ))}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          side="top"
+          align="start"
+          className="w-[250px]"
+          data-testid="rail-account-menu"
+        >
+          {isWorkspaceSwitchable && (
+            <>
+              <DropdownMenuLabel className="text-caption">Personal</DropdownMenuLabel>
+              {personalWorkspaces.map((w) => (
+                <DropdownMenuItem
+                  key={w.id}
+                  onSelect={() => switchWorkspace(w.id)}
+                  className="cursor-pointer items-center gap-2"
+                >
+                  <WorkspaceInitialBadge
+                    name={w.name}
+                    contactId={w.type === 'personal' ? ownerContactId : null}
+                  />
+                  <span className="truncate">{w.name}</span>
+                  {activeWorkspace?.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuLabel className="text-caption">Organizations</DropdownMenuLabel>
+              {orgWorkspaces.length === 0 && (
+                <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
+                  No organizations
+                </div>
+              )}
+              {orgWorkspaces.map((w) => (
+                <DropdownMenuItem
+                  key={w.id}
+                  onSelect={() => switchWorkspace(w.id)}
+                  className="cursor-pointer items-center gap-2"
+                >
+                  <WorkspaceInitialBadge
+                    name={w.name}
+                    contactId={w.type === 'personal' ? ownerContactId : null}
+                  />
+                  <span className="truncate">{w.name}</span>
+                  {activeWorkspace?.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+            </>
+          )}
+
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              handleSignOut();
+            }}
+            className="cursor-pointer text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sign out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              data-testid="rail-collapse-toggle"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className={cn(
+                'flex items-center gap-3 rounded-[10px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2'
+              )}
+            >
+              {collapsed ? (
+                <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              ) : (
+                <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              )}
+              {!collapsed && <span>Collapse</span>}
+            </button>
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right">
+              <p>Expand sidebar</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+}

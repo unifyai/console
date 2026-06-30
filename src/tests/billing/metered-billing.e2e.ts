@@ -21,7 +21,6 @@ import {
   setMeteredPlan,
   clearMeteredPlan,
   insertMeteredInvoice,
-  type TestUser,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -57,7 +56,7 @@ insertMeteredInvoice(user.id, {
   stripeInvoiceId: 'in_test_recent',
 });
 
-const test = createBillingTest(user);
+const test = createBillingTest(user, { skipWhenManualTopup: true });
 
 test.afterAll(() => {
   clearMeteredPlan(user.id);

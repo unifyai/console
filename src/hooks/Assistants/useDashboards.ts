@@ -39,6 +39,9 @@ export function useDashboards({
     queryFn: () => getMetadata(assistant),
     refetchInterval: shouldPoll ? 5000 : false,
     enabled: !!ownerId && !!assistantId,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const dashboards = React.useMemo(() => data?.dashboards ?? [], [data?.dashboards]);

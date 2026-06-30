@@ -59,11 +59,7 @@ const TOOLS: AdminTool[] = [
 
 export default function AdminIndexPage() {
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-border px-4 py-3">
-        <h1 className="text-h1 text-semibold">Admin</h1>
-        <p className="text-caption">Internal tools for Unify operators.</p>
-      </div>
+    <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-1 space-y-2 overflow-auto p-4">
         {TOOLS.map(({ href, title, blurb, Icon }) => (
           <Link key={href} href={href} className="block">

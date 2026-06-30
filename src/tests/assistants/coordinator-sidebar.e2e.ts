@@ -16,10 +16,13 @@ import {
   createOrg,
   createTestUser,
   dbExec,
+  deferCoordinatorOnboarding,
   deleteAllAssistantsForUser,
   deleteOrg,
   ensureProjectSync,
   navigateToAssistants,
+  openAssistantInfoPanel,
+  openUnitySwitcher,
 } from './helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
 
@@ -114,6 +117,7 @@ async function loginAndSaveWorkspaceState(
 }
 
 async function openAssistantMenu(page: Page, agentId: number) {
+  await openUnitySwitcher(page);
   const row = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(row).toBeVisible({ timeout: 15_000 });
   await row.hover();
@@ -121,12 +125,14 @@ async function openAssistantMenu(page: Page, agentId: number) {
 }
 
 async function expectCoordinatorChatOpen(page: Page, agentId: number) {
+  await openUnitySwitcher(page);
   await page.getByTestId(`assistant-list-item-${agentId}`).click();
   await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-  await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 }
 
 async function expectPinnedBeforeSolo(page: Page) {
+  await openUnitySwitcher(page);
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({
     timeout: 15_000,
   });
@@ -288,6 +294,18 @@ const test = base.extend<{
 test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
+// A freshly provisioned Coordinator resolves to ``mode: onboarding`` with
+// ``intro_watched: false``, which renders the full-screen onboarding overlay
+// (``data-testid="coordinator-onboarding"``, ``absolute inset-0 z-50``) that
+// intercepts every pointer event. This suite drives the regular two-pane shell
+// (rail switcher, list groups), so defer onboarding for the canonical
+// coordinators it views up front — exactly as ``createAssistantTest`` does for
+// the standard flows.
+test.beforeAll(async () => {
+  await deferCoordinatorOnboarding(org.ownerOrgApiKey, coordinator.agentId);
+  await deferCoordinatorOnboarding(personalUser.apiKey, personalCoordinator.agentId);
+});
+
 test.afterAll(() => {
   const cleanupSteps: Array<() => void> = [
     () => deleteAllAssistantsForUser(owner.id),
@@ -335,7 +353,7 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await page.keyboard.press('Escape');
 
   await expectCoordinatorChatOpen(page, coordinator.agentId);
-  await page.getByTestId('assistant-info-button').click();
+  await openAssistantInfoPanel(page);
   await expect(page.getByTestId('assistant-info-tab-onboarding')).toContainText('Onboarding');
   await expect(page.getByTestId('assistant-info-tab-contact')).toContainText('Contact info');
 });
@@ -345,6 +363,7 @@ test('organization admin cannot access another user coordinator in org workspace
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
   await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
     timeout: 15_000,
@@ -358,12 +377,15 @@ test('organization member cannot access another user coordinator in org workspac
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
   await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
     timeout: 15_000,
   });
   await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
   await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
+  await openUnitySwitcher(page);
+  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).hover();
   const memberMenuTrigger = page.getByTestId(`assistant-menu-${regularAssistant.agentId}`);
   const hasMenuTrigger = (await memberMenuTrigger.count()) > 0;
   if (hasMenuTrigger) {
@@ -380,6 +402,7 @@ test('personal workspace shows the personal Coordinator surface', async ({
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   await expect(page.getByTestId(`assistant-list-item-${personalCoordinator.agentId}`)).toBeVisible({
     timeout: 15_000,

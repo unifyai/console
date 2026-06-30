@@ -178,31 +178,3 @@ export function buildStaticIntegrationDefinitions(args: {
     })
     .filter((definition): definition is IntegrationDefinition => Boolean(definition));
 }
-
-export function buildCustomSecretDefinition(customSecretCount: number): IntegrationDefinition {
-  const provider = INTEGRATION_PROVIDERS.find((item) => item.id === 'custom');
-  if (!provider) {
-    throw new Error('Static integration registry is missing the custom secret entry.');
-  }
-  const definition = mapStaticProviderToDefinition(provider);
-  return {
-    ...definition,
-    status: customSecretCount > 0 ? 'configured' : 'not_connected',
-    connections:
-      customSecretCount > 0
-        ? [
-            {
-              id: 'custom:secrets',
-              definitionId: definition.id,
-              canonicalSlug: definition.canonicalSlug,
-              source: 'custom_secret',
-              status: 'configured',
-              accountLabel: `${customSecretCount} custom ${
-                customSecretCount === 1 ? 'secret' : 'secrets'
-              }`,
-              sourceMetadata: definition.sourceMetadata,
-            },
-          ]
-        : [],
-  };
-}

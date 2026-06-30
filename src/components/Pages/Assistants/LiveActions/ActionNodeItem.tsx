@@ -40,6 +40,7 @@ import {
   CornerDownLeft,
   ArrowRight,
   ImageIcon,
+  Clock,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -469,9 +470,9 @@ export interface ActionNodeItemProps {
  * Get label styling based on node status.
  */
 function getLabelStyles(status: ActionNodeStatus): string {
-  if (status === 'error') return 'text-error font-normal';
-  if (status === 'running') return 'text-muted-foreground font-normal animate-shimmer';
-  return 'text-muted-foreground font-normal';
+  if (status === 'error') return 'text-error font-medium';
+  if (status === 'running') return 'text-foreground font-medium animate-shimmer';
+  return 'text-foreground font-medium';
 }
 
 /**
@@ -504,24 +505,94 @@ function getNodeIcon(displayLabel?: string): LucideIcon {
 function getNodeTooltip(displayLabel?: string): string {
   if (!displayLabel) return 'event';
   const dl = displayLabel.toLowerCase();
-  if (dl === 'session') return 'persistent session';
-  if (dl === 'taking action') return 'action';
+  if (dl === 'session' || dl.includes('persistent session')) return 'persistent session';
+  if (dl === 'taking action' || dl === 'action') return 'action';
   if (dl === 'running code') return 'code execution';
   if (dl.startsWith('running:')) return 'function execution';
-  if (dl === 'storing reusable skills') return 'storage';
+  if (dl === 'storing reusable skills' || dl.includes('storage')) return 'storage';
   if (dl === 'reading file') return 'file read';
   if (dl === 'processing memory chunk') return 'memory processing';
   if (dl === 'working on task') return 'task';
   if (dl === 'reorganizing notes') return 'note reorganization';
   if (dl === 'searching the web') return 'web search';
-  if (dl === 'answering question') return 'question answering';
+  if (dl === 'answering question' || dl.includes('question answering')) return 'question answering';
   if (dl.includes('contact')) return 'contact lookup';
   if (dl.includes('notes') || dl.includes('knowledge')) return 'knowledge base';
   if (dl.includes('credential') || dl.includes('secret')) return 'credential access';
   if (dl.includes('task')) return 'task management';
   if (dl.includes('conversation') || dl.includes('transcript')) return 'conversation';
+  if (dl.includes('handling request')) return 'action';
+  if (dl.includes('searching skills')) return 'storage';
   return 'event';
 }
+
+/** Visual kind for the color-coded icon box on root action rows. */
+type NodeKind = 'request' | 'note' | 'question' | 'default';
+
+function getNodeKind(displayLabel?: string): NodeKind {
+  if (!displayLabel) return 'default';
+  const dl = displayLabel.toLowerCase();
+  if (dl === 'answering question' || dl === 'searching the web') return 'question';
+  if (
+    dl === 'storing reusable skills' ||
+    dl === 'reorganizing notes' ||
+    dl === 'reading file' ||
+    dl === 'processing memory chunk' ||
+    dl.includes('review')
+  ) {
+    return 'note';
+  }
+  if (
+    dl === 'taking action' ||
+    dl.startsWith('running:') ||
+    dl === 'running code' ||
+    dl === 'working on task' ||
+    dl === 'session'
+  ) {
+    return 'request';
+  }
+  return 'request';
+}
+
+const NODE_KIND_STYLES: Record<NodeKind, { bg: string; fg: string }> = {
+  request: { bg: 'var(--status-success-bg)', fg: 'var(--status-success)' },
+  note: { bg: 'var(--status-warning-bg)', fg: 'var(--status-warning)' },
+  question: { bg: 'var(--status-info-bg)', fg: 'var(--status-info)' },
+  default: { bg: 'var(--muted)', fg: 'var(--muted-foreground)' },
+};
+
+const NodeIconBox = React.forwardRef<
+  HTMLButtonElement,
+  {
+    kind: NodeKind;
+    icon: LucideIcon;
+    status: ActionNodeStatus;
+    className?: string;
+    onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  }
+>(function NodeIconBox({ kind, icon: Icon, status, onClick, className, ...props }, ref) {
+  const tone = NODE_KIND_STYLES[kind];
+  return (
+    <button
+      ref={ref}
+      type="button"
+      {...props}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(e);
+      }}
+      className={cn(
+        'grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg border border-transparent',
+        status === 'running' && 'ring-primary/25 ring-2',
+        className
+      )}
+      style={{ backgroundColor: tone.bg, color: tone.fg }}
+    >
+      <Icon className={cn('h-3.5 w-3.5', status === 'running' && 'animate-shimmer')} />
+    </button>
+  );
+});
+NodeIconBox.displayName = 'NodeIconBox';
 
 /**
  * Parse a timestamp string, ensuring UTC interpretation.
@@ -531,7 +602,7 @@ function parseTs(ts: string): Date {
 }
 
 /**
- * Format a timestamp string to a short local time (HH:MM:SS).
+ * Format a timestamp string to local 24-hour time with seconds.
  */
 function formatEventTime(ts: string): string {
   return parseTs(ts).toLocaleTimeString([], {
@@ -542,21 +613,9 @@ function formatEventTime(ts: string): string {
   });
 }
 
-/**
- * Format a timestamp as mm/dd/yy · HH:MM:SS for root-level nodes.
- */
-function formatEventDateTime(ts: string): string {
-  const d = parseTs(ts);
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const year = String(d.getFullYear()).slice(-2);
-  const time = d.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-  return `${month}/${day}/${year} · ${time}`;
+/** Root rows omit the date — date sub-headings carry that context. */
+function formatRootEventTime(ts: string): string {
+  return formatEventTime(ts);
 }
 
 /**
@@ -692,7 +751,7 @@ function findSpawningToolCallId(
  * Live-ticking duration badge. Ticks every second while running,
  * shows static duration when completed/errored.
  */
-function LiveDuration({ node }: { node: ActionNode }) {
+function LiveDuration({ node, variant = 'tag' }: { node: ActionNode; variant?: 'tag' | 'inline' }) {
   const [now, setNow] = React.useState(Date.now);
 
   React.useEffect(() => {
@@ -707,10 +766,19 @@ function LiveDuration({ node }: { node: ActionNode }) {
   const endMs =
     node.status === 'running' ? now : node.endTime ? new Date(node.endTime).getTime() : startMs;
   const elapsed = Math.max(0, endMs - startMs);
+  const label = formatCompactDuration(elapsed);
+
+  if (variant === 'inline') {
+    return (
+      <span className="text-muted-foreground/40 ml-1.5 shrink-0 text-[10px] tabular-nums">
+        · {label}
+      </span>
+    );
+  }
 
   return (
-    <span className="text-muted-foreground/40 ml-1.5 shrink-0 text-[10px] tabular-nums">
-      · {formatCompactDuration(elapsed)}
+    <span className="shrink-0 rounded-md border border-border bg-muted px-[7px] py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+      {label}
     </span>
   );
 }
@@ -1081,7 +1149,7 @@ function ContentArea({
       <div
         ref={contentRef}
         className={cn(
-          'overflow-y-auto text-[11px] leading-relaxed text-muted-foreground',
+          'overflow-y-auto text-[12px] leading-relaxed text-muted-foreground',
           'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
         )}
         style={{
@@ -1526,7 +1594,7 @@ function InlineContentRow({
       </div>
       {isOpen && rest && (
         <div
-          className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
+          className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[12px] leading-relaxed text-muted-foreground"
           onClick={() => setIsOpen(false)}
         >
           <RichContent content={rest} />
@@ -1700,7 +1768,7 @@ function ToolLoopMessage({
         >
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="shrink-0 text-indigo-500/70 dark:text-indigo-400/60">
+              <span className="text-primary/70 shrink-0">
                 <ArrowRight className="h-2.5 w-2.5" />
               </span>
             </TooltipTrigger>
@@ -2281,7 +2349,7 @@ function ToolLoopMessage({
             if (!rest) return null;
             return (
               <div
-                className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
+                className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[12px] leading-relaxed text-muted-foreground"
                 onClick={() => {
                   setIsOpen(false);
                   onLayoutChange?.();
@@ -2564,6 +2632,44 @@ function LiveToolLoopTimeline({
 }
 
 /**
+ * Status pill shown on the right of a root action row (Done / Failed /
+ * Running), matching the design's per-request status chips.
+ */
+function RootStatusPill({ status }: { status: ActionNode['status'] }) {
+  const cfg =
+    status === 'running'
+      ? {
+          label: 'Running',
+          cls: 'border border-primary/50 bg-primary/10 text-primary',
+          dot: true,
+        }
+      : status === 'error'
+        ? {
+            label: 'Failed',
+            cls: 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]',
+            dot: false,
+          }
+        : {
+            label: 'Done',
+            cls: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
+            dot: false,
+          };
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full px-[9px] py-0.5 text-[11px] font-semibold capitalize',
+        cfg.cls
+      )}
+    >
+      {cfg.dot && (
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+      )}
+      {cfg.label}
+    </span>
+  );
+}
+
+/**
  * Prominent display for request/response content pulled out of the collapsed
  * step sections. Matches the faded/scrollable style of ContentArea.
  */
@@ -2576,6 +2682,7 @@ function PromotedContent({
   defaultOpen = false,
   timestamp,
   searchTerm,
+  calloutTone,
 }: {
   icon?: LucideIcon;
   label: string;
@@ -2585,12 +2692,16 @@ function PromotedContent({
   defaultOpen?: boolean;
   timestamp?: string;
   searchTerm?: string;
+  /** When set, render as a tinted "callout" box (e.g. the final response). */
+  calloutTone?: 'success' | 'error';
 }) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isTruncated, setIsTruncated] = React.useState(false);
   const inlineRef = React.useRef<HTMLSpanElement>(null);
   const rowRef = React.useRef<HTMLDivElement>(null);
   const pad = `${20 + depth * 8}px`;
+  const toneSolid = calloutTone === 'error' ? 'var(--status-danger)' : 'var(--status-success)';
+  const toneBg = calloutTone === 'error' ? 'var(--status-danger-bg)' : 'var(--status-success-bg)';
 
   const trimmedContent = content.replace(/^\s+/, '');
   const hasMoreLines = trimmedContent.includes('\n');
@@ -2626,76 +2737,113 @@ function PromotedContent({
 
   return (
     <div
-      className="group min-w-0 rounded-sm transition-colors duration-150"
-      style={{ paddingLeft: pad }}
+      className={cn(
+        'group min-w-0 transition-colors duration-150',
+        calloutTone ? 'mb-2 mt-2' : 'rounded-sm'
+      )}
+      style={calloutTone ? { marginLeft: pad } : { paddingLeft: pad }}
     >
-      <div
-        ref={rowRef}
-        className="hover:bg-muted/40 flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
-        onClick={handleClick}
-      >
-        {Icon && (
+      {calloutTone && (
+        <div className="mb-1 flex items-center gap-2 pr-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className={cn('mt-[3px] shrink-0', labelColor)}>
-                <Icon className="h-2.5 w-2.5" />
+              <span
+                className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em]"
+                style={{ color: toneSolid }}
+              >
+                {Icon && <Icon className="h-2.5 w-2.5" />}
+                {label}
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
               {label}
             </TooltipContent>
           </Tooltip>
-        )}
-        {!Icon && <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>}
-        {!isOpen && (
-          <span ref={inlineRef} className="min-w-0 truncate text-muted-foreground">
-            {searchTerm ? (
-              <HighlightText
-                text={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
-                term={searchTerm}
-              />
-            ) : (
-              <TruncatedMarkdown
-                content={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
-              />
-            )}
-          </span>
-        )}
-        {isOpen && (
-          <span ref={inlineRef} className="min-w-0 break-words text-muted-foreground">
-            {searchTerm ? (
-              <HighlightText text={trimmedContent.split(/\n/)[0]} term={searchTerm} />
-            ) : (
-              <TruncatedMarkdown content={trimmedContent.split(/\n/)[0]} />
-            )}
-          </span>
-        )}
-        {!isOpen && canExpand && (
-          <ChevronRight className="text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100" />
-        )}
-        {!isOpen && timestamp && (
-          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-            {timestamp}
-          </span>
-        )}
-      </div>
-      {isOpen &&
-        (() => {
-          const rest = trimmedContent.split(/\n/).slice(1).join('\n').trim();
-          if (!rest) return null;
-          return (
-            <div
-              className="text-[11px] leading-relaxed text-muted-foreground"
-              style={{ paddingLeft: pad, maxWidth: `calc(100% - 8px)` }}
-            >
+          {timestamp && (
+            <span className="text-muted-foreground/70 ml-auto shrink-0 font-mono text-[10px] tabular-nums">
+              {timestamp}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div
+        className={cn(calloutTone && 'rounded-lg border px-3 py-2.5', !calloutTone && 'rounded-sm')}
+        style={calloutTone ? { backgroundColor: toneBg, borderColor: toneSolid } : undefined}
+      >
+        <div
+          ref={rowRef}
+          className={cn(
+            'flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[12px]',
+            !calloutTone && 'hover:bg-muted/40'
+          )}
+          onClick={handleClick}
+        >
+          {!calloutTone && Icon && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn('mt-[3px] shrink-0', labelColor)}>
+                  <Icon className="h-2.5 w-2.5" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+                {label}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {!calloutTone && !Icon && (
+            <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
+          )}
+          {!isOpen && (
+            <span ref={inlineRef} className="min-w-0 truncate text-muted-foreground">
               {searchTerm ? (
-                <HighlightText text={rest} term={searchTerm} />
+                <HighlightText
+                  text={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+                  term={searchTerm}
+                />
               ) : (
-                <RichContent content={rest} />
+                <TruncatedMarkdown
+                  content={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+                />
               )}
-            </div>
-          );
-        })()}
+            </span>
+          )}
+          {isOpen && (
+            <span ref={inlineRef} className="min-w-0 break-words text-muted-foreground">
+              {searchTerm ? (
+                <HighlightText text={trimmedContent.split(/\n/)[0]} term={searchTerm} />
+              ) : (
+                <TruncatedMarkdown content={trimmedContent.split(/\n/)[0]} />
+              )}
+            </span>
+          )}
+          {!isOpen && canExpand && (
+            <ChevronRight className="text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100" />
+          )}
+          {!isOpen && !calloutTone && timestamp && (
+            <span className="text-muted-foreground/70 ml-auto shrink-0 pl-2 font-mono text-[10px] tabular-nums">
+              {timestamp}
+            </span>
+          )}
+        </div>
+        {isOpen &&
+          (() => {
+            const rest = trimmedContent.split(/\n/).slice(1).join('\n').trim();
+            if (!rest) return null;
+            return (
+              <div
+                className="text-[11px] leading-relaxed text-muted-foreground"
+                style={{ maxWidth: `calc(100% - 8px)` }}
+              >
+                {searchTerm ? (
+                  <HighlightText text={rest} term={searchTerm} />
+                ) : (
+                  <RichContent content={rest} />
+                )}
+              </div>
+            );
+          })()}
+      </div>
     </div>
   );
 }
@@ -2771,8 +2919,8 @@ function CollapsibleToolLoopSection({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'group flex w-full items-center gap-1 py-0.5 text-[11px]',
-          'text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors duration-150'
+          'group flex w-full items-center gap-1 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em]',
+          'text-muted-foreground/60 hover:text-muted-foreground/90 transition-colors duration-150'
         )}
         style={{ paddingLeft: pad }}
         title={!isOpen ? 'Click to expand' : undefined}
@@ -2780,7 +2928,7 @@ function CollapsibleToolLoopSection({
         <span>
           {stepCount} {stepCount === 1 ? 'step' : 'steps'}
           {sectionDuration && (
-            <span className="text-muted-foreground/25 ml-1">· {sectionDuration}</span>
+            <span className="text-muted-foreground/40 ml-1">· {sectionDuration}</span>
           )}
         </span>
         <ChevronRight
@@ -3251,7 +3399,8 @@ export function ActionNodeItem({
       {/* Node header */}
       <div
         className={cn(
-          'group flex min-w-0 select-none items-center gap-1.5 rounded-sm py-0.5 pr-1',
+          'group flex min-w-0 select-none items-center gap-2 rounded-sm py-0.5 pr-1',
+          depth === 0 ? 'gap-2.5' : 'gap-1.5',
           'hover:bg-muted/50 transition-colors duration-150',
           isExpandable && 'cursor-pointer',
           depth > 0 && 'ml-3'
@@ -3260,53 +3409,92 @@ export function ActionNodeItem({
         onClick={isExpandable ? handleToggle : undefined}
         data-testid={isExpandable ? 'expand-button' : undefined}
       >
-        {/* Icon + Label with tooltip */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="flex min-w-0 items-center gap-1.5">
-              <NodeIcon
+        {depth === 0 ? (
+          <>
+            {isExpandable && (
+              <ChevronRight
                 className={cn(
-                  'h-3.5 w-3.5 shrink-0',
-                  node.status === 'error'
-                    ? 'text-error'
-                    : node.status === 'running'
-                      ? 'text-muted-foreground/50 animate-shimmer'
-                      : 'text-muted-foreground/40'
+                  'text-muted-foreground/50 h-3.5 w-3.5 shrink-0 transition-all duration-150',
+                  isExpanded && 'rotate-90'
                 )}
               />
-              <span
-                className={cn(
-                  'flex min-w-0 items-baseline gap-0 text-xs',
-                  getLabelStyles(node.status)
-                )}
-              >
-                <span className="min-w-0 truncate">
-                  <TruncatedMarkdown content={effectiveLabel} />
-                </span>
-                <LiveDuration node={node} />
-              </span>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" align="start" size="sm" className="px-2 py-1 text-xs">
-            {getNodeTooltip(node.displayLabel)}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Expand/collapse chevron — next to duration, visible on hover */}
-        {isExpandable && (
-          <ChevronRight
-            className={cn(
-              'text-muted-foreground/40 h-3 w-3 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
-              isExpanded && 'rotate-90'
             )}
-          />
-        )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <NodeIconBox
+                  kind={getNodeKind(node.displayLabel)}
+                  icon={NodeIcon}
+                  status={node.status}
+                />
+              </TooltipTrigger>
+              <TooltipContent side="top" align="start" size="sm" className="px-2 py-1 text-xs">
+                {getNodeTooltip(node.displayLabel)}
+              </TooltipContent>
+            </Tooltip>
+            <span
+              className={cn('min-w-0 flex-1 truncate text-[13px]', getLabelStyles(node.status))}
+            >
+              <TruncatedMarkdown content={effectiveLabel} />
+            </span>
+            <div className="ml-auto flex shrink-0 items-center gap-2.5">
+              <RootStatusPill status={node.status} />
+              {node.startTime && (
+                <span className="inline-flex items-center gap-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+                  <Clock className="h-2.5 w-2.5 shrink-0 opacity-70" aria-hidden="true" />
+                  {formatRootEventTime(node.startTime)}
+                </span>
+              )}
+              <LiveDuration node={node} />
+            </div>
+          </>
+        ) : (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <NodeIcon
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      node.status === 'error'
+                        ? 'text-error'
+                        : node.status === 'running'
+                          ? 'animate-shimmer text-muted-foreground'
+                          : 'text-muted-foreground'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'flex min-w-0 items-baseline gap-0 text-[13px]',
+                      getLabelStyles(node.status)
+                    )}
+                  >
+                    <span className="min-w-0 truncate">
+                      <TruncatedMarkdown content={effectiveLabel} />
+                    </span>
+                    <LiveDuration node={node} variant="inline" />
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" align="start" size="sm" className="px-2 py-1 text-xs">
+                {getNodeTooltip(node.displayLabel)}
+              </TooltipContent>
+            </Tooltip>
 
-        {/* Right-aligned start time */}
-        {node.startTime && (
-          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-            {depth === 0 ? formatEventDateTime(node.startTime) : formatEventTime(node.startTime)}
-          </span>
+            {isExpandable && (
+              <ChevronRight
+                className={cn(
+                  'text-muted-foreground/40 h-3 w-3 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+                  isExpanded && 'rotate-90'
+                )}
+              />
+            )}
+
+            {node.startTime && (
+              <span className="text-muted-foreground/70 ml-auto shrink-0 pl-2 font-mono text-[10px] tabular-nums">
+                {formatEventTime(node.startTime)}
+              </span>
+            )}
+          </>
         )}
       </div>
 
@@ -3325,12 +3513,14 @@ export function ActionNodeItem({
       {isExpanded && contentReady && promoted.response && (
         <PromotedContent
           icon={ArrowUp}
-          label="response"
+          label="final response"
           labelColor="text-[color:var(--status-success)]"
           content={promoted.response.content}
           depth={depth}
+          defaultOpen
           timestamp={promoted.response.time}
           searchTerm={searchTerm}
+          calloutTone={node.status === 'error' ? 'error' : 'success'}
         />
       )}
 

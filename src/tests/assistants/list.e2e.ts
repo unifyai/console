@@ -15,11 +15,14 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openHireDialog,
+  openUnitySwitcher,
+  selectAssistantInList,
   fillProfileFields,
   selectVoice,
   clickHireButton,
-  getAssistantAgentIds,
   getAssistantFromDb,
+  getCoordinatorAgentId,
+  deferCoordinatorOnboarding,
   deleteAllAssistantsForUser,
   ensureProjectSync,
 } from './helpers';
@@ -29,24 +32,37 @@ ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
 
+test.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(user.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(user.apiKey, coordinatorId);
+  }
+});
+
 test.afterAll(() => {
   deleteAllAssistantsForUser(user.id);
   cleanupUser(user.id);
 });
 
-test('empty state opens the hire dialog automatically', async ({ authedPage: page }) => {
+test('the Onboard button opens the hire dialog', async ({ authedPage: page }) => {
   deleteAllAssistantsForUser(user.id);
+  // Every workspace now has an always-present personal Coordinator, so the list
+  // is never truly empty and the legacy "auto-open on empty" path no longer
+  // fires. A coordinator-only workspace stays on the onboarding intro, so seed
+  // one regular assistant to land on the standard list, then drive the hire
+  // dialog from the Onboard button (the surviving user-initiated entry point).
+  createAssistant({ userId: user.id, firstName: 'Existing', surname: 'Unity' });
 
   await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
 
-  // On an empty list the hire dialog should auto-open
+  await openHireDialog(page);
+
   const dialog = page.locator('[role="dialog"]');
   await expect(dialog).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('text=Hire Assistant').first()).toBeVisible({ timeout: 5_000 });
-
-  // The list pane should show the "No assistants found." text behind the dialog
-  await closeHireDialogIfOpen(page);
-  await expect(page.locator('text=No assistants found.')).toBeVisible({ timeout: 5_000 });
+  await expect(dialog.getByRole('heading', { name: 'Onboard Digital Twin' })).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
 test('seeded assistants appear in the list with correct names', async ({ authedPage: page }) => {
@@ -58,13 +74,18 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
+  // The list now lives inside the rail's unity switcher popover.
+  await openUnitySwitcher(page);
+
   const item1 = page.getByTestId(`assistant-list-item-${a1.agentId}`);
   const item2 = page.getByTestId(`assistant-list-item-${a2.agentId}`);
 
   await expect(item1).toBeVisible({ timeout: 15_000 });
   await expect(item2).toBeVisible({ timeout: 5_000 });
 
-  await expect(page.locator('[data-testid^="assistant-list-group-"]')).toHaveCount(0);
+  // Solo assistants (no shared team) must not be bucketed into a team section.
+  // The pinned Coordinator group is always present and is expected.
+  await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(item1).toContainText('Alpha');
   await expect(item2).toContainText('Beta');
 });
@@ -72,39 +93,41 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
 test('clicking an assistant in the list selects it and shows the Chat tab', async ({
   authedPage: page,
 }) => {
-  const agentIds = getAssistantAgentIds(user.id);
-  expect(agentIds.length).toBeGreaterThan(0);
-  const agentId = agentIds[0];
+  deleteAllAssistantsForUser(user.id);
+  const seeded = createAssistant({ userId: user.id, firstName: 'Clickable', surname: 'Selectee' });
+  const agentId = seeded.agentId;
   const dbAssistant = getAssistantFromDb(agentId);
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_000);
+  // Selecting from the switcher opens the unity in the section host with the
+  // Chat section active by default (the rail owns section nav now).
+  await selectAssistantInList(page, agentId);
 
-  // Chat tab should be active and show the assistant's name
-  await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page', {
+    timeout: 10_000,
+  });
   await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
     timeout: 5_000,
   });
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
-
-  await listItem.click();
-  await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
-    timeout: 5_000,
-  });
 });
 
-test('rapid select/deselect settles on the final click and does not snap back', async ({
+// RETIRED (Phase 5 — Hire/onboarding): this journey asserts the legacy
+// two-pane model — clicking a selected row to *deselect* it back to a
+// ``right-pane-tab-chat`` / "Select a unity…" empty state. Both are gone: the
+// rail owns section nav (``rail-section-*``) and the workspace auto-selects the
+// personal Coordinator, so a bare list never sits in an empty/deselected state
+// and clicking a row only switches selection. The deselect-to-empty behaviour
+// no longer exists, so the test stays disabled until/unless that interaction is
+// reintroduced under the Coordinator default-selection model.
+test.fixme('rapid select/deselect settles on the final click and does not snap back', async ({
   authedPage: page,
 }) => {
-  const agentIds = getAssistantAgentIds(user.id);
-  expect(agentIds.length).toBeGreaterThan(0);
-  const agentId = agentIds[0];
+  deleteAllAssistantsForUser(user.id);
+  const seeded = createAssistant({ userId: user.id, firstName: 'Rapid', surname: 'Toggler' });
+  const agentId = seeded.agentId;
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
@@ -159,9 +182,7 @@ test('the chat info side panel can be resized down to its minimum width', async 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${titled.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, titled.agentId);
 
   // Open the inline info side panel from the chat sub-header. We can't
   // rely on the post-hire auto-open path here because this assistant
@@ -197,24 +218,36 @@ test('the chat info side panel can be resized down to its minimum width', async 
 test('list updates after hiring a new assistant without page reload', async ({
   authedPage: page,
 }) => {
+  deleteAllAssistantsForUser(user.id);
+  // A regular assistant must exist so the page renders the standard list view
+  // (a coordinator-only workspace stays on the onboarding intro).
+  createAssistant({ userId: user.id, firstName: 'Baseline', surname: 'Unity' });
   const firstName = `Fresh${Date.now()}`;
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  // Count visible list items before hire
+  // The list lives inside the rail's unity switcher popover — open it to
+  // count visible list items before the hire, then close it (the popover is
+  // itself a [role="dialog"], so leaving it open would make openHireDialog
+  // think the hire dialog is already up).
+  await openUnitySwitcher(page);
   const itemsBefore = await page.locator('[data-testid^="assistant-list-item-"]').count();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
 
   await openHireDialog(page);
   await fillProfileFields(page, {
     firstName,
     lastName: 'ListNew',
-    age: 29,
     about: 'Testing list update after hire.',
   });
   await selectVoice(page);
   await clickHireButton(page);
 
+  // The hire dialog (and the switcher popover) dismiss on submit; reopen the
+  // switcher to confirm the freshly hired unity shows without a page reload.
+  await openUnitySwitcher(page);
   const newItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(newItem).toBeVisible({ timeout: 60_000 });
 

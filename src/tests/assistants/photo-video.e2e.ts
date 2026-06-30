@@ -23,6 +23,7 @@ import {
   getAssistantFromDb,
   deleteAssistantFromDb,
   ensureProjectSync,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'PhotoE2E', lastName: 'Tester', credits: 50_000 });
@@ -63,7 +64,6 @@ test('generating a photo and hiring saves the photo URL to the database', async 
   await fillProfileFields(page, {
     firstName,
     lastName: 'WithPhoto',
-    age: 25,
     about: 'Testing AI photo generation during hire.',
   });
 
@@ -85,7 +85,8 @@ test('generating a photo and hiring saves the photo URL to the database', async 
   await selectVoice(page);
   await clickHireButton(page);
 
-  // Wait for the assistant to appear in the list
+  // Wait for the assistant to appear in the list (now inside the switcher)
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -110,7 +111,6 @@ test('editing a generated photo updates the photo URL in the database', async ({
   await fillProfileFields(page, {
     firstName,
     lastName: 'EditTest',
-    age: 30,
     about: 'Testing photo edit flow.',
   });
 
@@ -138,6 +138,7 @@ test('editing a generated photo updates the photo URL in the database', async ({
   // Hire with the edited photo
   await selectVoice(page);
   await clickHireButton(page);
+  await openUnitySwitcher(page);
   const listItem2 = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem2).toBeVisible({ timeout: 60_000 });
 
@@ -159,7 +160,6 @@ test('animating a photo with TTS completes without error', async ({ authedPage: 
   await fillProfileFields(page, {
     firstName,
     lastName: 'AnimTest',
-    age: 27,
     about: 'Testing photo animation flow.',
   });
 
@@ -192,6 +192,7 @@ test('animating a photo with TTS completes without error', async ({ authedPage: 
 
   // Hire the assistant
   await clickHireButton(page);
+  await openUnitySwitcher(page);
   const listItem3 = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem3).toBeVisible({ timeout: 60_000 });
 

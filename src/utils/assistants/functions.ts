@@ -1,0 +1,134 @@
+/**
+ * View-model mapping for the Brain → Functions view.
+ *
+ * Field inventory is the `Function` pydantic model in the unity repo
+ * (`function_manager/types/function.py`). The `/api/logs` route runs the body
+ * through `createOrchestraClient`, which deep-converts snake→camel, so `entries`
+ * reach this mapper in camelCase. `readField(snake, camel)` resolves the camel
+ * key at runtime and keeps the snake key as a harmless fallback.
+ */
+
+import type { FunctionRow } from '@/types/assistants/brain';
+
+export interface FunctionSkill {
+  functionId: number | null;
+  name: string;
+  language: string;
+  argspec: string;
+  docstring: string;
+  implementation: string | null;
+  dependsOn: string[];
+  guidanceIds: number[];
+  precondition: Record<string, unknown> | null;
+  isPrimitive: boolean;
+  verify: boolean;
+}
+
+export type FunctionKindFilter = 'All' | 'Learned' | 'Primitives';
+
+function readField(row: Record<string, unknown>, snake: string, camel: string): unknown {
+  const snakeValue = row[snake];
+  if (snakeValue !== undefined && snakeValue !== null) return snakeValue;
+  return row[camel];
+}
+
+function asString(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return typeof value === 'string' ? value : String(value);
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => asString(item)).filter((item) => item.length > 0);
+}
+
+function asNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'number' ? item : Number(item)))
+    .filter((item) => Number.isFinite(item));
+}
+
+export function mapFunctionRow(row: FunctionRow): FunctionSkill {
+  const raw = row as Record<string, unknown>;
+  const table = asString(raw._table);
+  const isPrimitiveField = readField(raw, 'is_primitive', 'isPrimitive');
+  const implementation = readField(raw, 'implementation', 'implementation');
+  const functionIdRaw = readField(raw, 'function_id', 'functionId');
+  const functionId =
+    typeof functionIdRaw === 'number'
+      ? functionIdRaw
+      : Number.isFinite(Number(functionIdRaw))
+        ? Number(functionIdRaw)
+        : null;
+
+  return {
+    functionId,
+    name: asString(readField(raw, 'name', 'name')),
+    language: asString(readField(raw, 'language', 'language')) || 'python',
+    argspec: asString(readField(raw, 'argspec', 'argspec')),
+    docstring: asString(readField(raw, 'docstring', 'docstring')),
+    implementation: implementation === undefined ? null : (implementation as string | null),
+    dependsOn: asStringArray(readField(raw, 'depends_on', 'dependsOn')),
+    guidanceIds: asNumberArray(readField(raw, 'guidance_ids', 'guidanceIds')),
+    precondition:
+      (readField(raw, 'precondition', 'precondition') as Record<string, unknown>) ?? null,
+    isPrimitive: typeof isPrimitiveField === 'boolean' ? isPrimitiveField : table === 'Primitives',
+    verify: readField(raw, 'verify', 'verify') !== false,
+  };
+}
+
+/** The function's bare (unqualified) name — last dotted segment. */
+export function bareFunctionName(skill: FunctionSkill): string {
+  return skill.name.includes('.') ? (skill.name.split('.').pop() ?? skill.name) : skill.name;
+}
+
+/**
+ * Short, signature-style summary for a function card.
+ *
+ * `argspec` may already begin with the function name (e.g.
+ * `update(task_id: int, ...)`) or be a bare parameter list (e.g.
+ * `(self, task_id: int)`). Only prepend the name in the latter case — prefixing
+ * an already-named argspec is what produced the `updateupdate(...)` duplication.
+ */
+export function shortSignature(skill: FunctionSkill): string {
+  const args = skill.argspec.replace(/^\(self,\s*/, '(').replace(/^\(self\)/, '()');
+  return args.trimStart().startsWith('(') ? `${bareFunctionName(skill)}${args}` : args;
+}
+
+export function filterFunctions(
+  skills: FunctionSkill[],
+  query: string,
+  kind: FunctionKindFilter
+): FunctionSkill[] {
+  const q = query.trim().toLowerCase();
+  return skills.filter((skill) => {
+    if (!skill.name.trim()) return false;
+    if (kind === 'Learned' && skill.isPrimitive) return false;
+    if (kind === 'Primitives' && !skill.isPrimitive) return false;
+    if (!q) return true;
+    return (skill.name + ' ' + skill.docstring).toLowerCase().includes(q);
+  });
+}
+
+function functionSkillKey(skill: FunctionSkill, table?: string): string {
+  return `${table ?? 'unknown'}:${skill.functionId ?? skill.name}`;
+}
+
+/** Maps log rows to view-model skills, dropping blank names and duplicate keys. */
+export function normalizeFunctionSkills(rows: FunctionRow[]): FunctionSkill[] {
+  const seen = new Set<string>();
+  const skills: FunctionSkill[] = [];
+
+  for (const row of rows) {
+    const skill = mapFunctionRow(row);
+    if (!skill.name.trim()) continue;
+    const table = asString((row as Record<string, unknown>)._table);
+    const key = functionSkillKey(skill, table);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    skills.push(skill);
+  }
+
+  return skills;
+}

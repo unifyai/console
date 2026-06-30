@@ -552,17 +552,14 @@ export default function BillingPlansAdminMain({ actions }: Props) {
       >
         {/* ── Header ───────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            <h1 className="text-h1 text-semibold">Admin · Billing Plans</h1>
-            <p className="text-caption">
-              Plan templates and the groups that scope self-serve switching. Per-account assignments
-              live on{' '}
-              <a href="/admin/organizations" className="underline">
-                Organizations
-              </a>
-              .
-            </p>
-          </div>
+          <p className="text-caption min-w-0">
+            Plan templates and the groups that scope self-serve switching. Per-account assignments
+            live on{' '}
+            <a href="/admin/organizations" className="underline">
+              Organizations
+            </a>
+            .
+          </p>
           {/* Tab switcher lives in the header so the page chrome doesn't
             shift when the operator flips between tabs. The per-tab
             primary action (Create Plan / New Group) renders inside its

@@ -18,6 +18,7 @@ import {
   getAssistantFromDb,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  openUnitySwitcher,
 } from './helpers';
 import {
   approvedCharacterVoiceMetadata,
@@ -51,6 +52,7 @@ async function openEditDialog(
 ) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -108,6 +110,7 @@ test('updating the first name and surname via the edit dialog persists to DB', a
   expect(dbAfter.surname).toBe(newLast);
 
   // Verify the updated name is visible in the list
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: newFirst });
   await expect(listItem).toBeVisible({ timeout: 10_000 });
 });

@@ -1,6 +1,12 @@
 # Dependencies
 node_modules/
 
+# Brand submodule (formatting owned by the branding repo)
+branding/
+
+# Local design spec reference (gitignored)
+.design/
+
 # Build outputs
 .next/
 out/

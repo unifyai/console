@@ -68,7 +68,7 @@ const ControlButton: React.FC<{
             variant="ghost"
             size="icon"
             className={cn(
-              'h-8 w-8 rounded-full bg-black/20 text-white hover:bg-black/40',
+              'bg-card/85 h-8 w-8 rounded-full border border-border text-foreground shadow-sm hover:bg-[var(--surface-hover)]',
               className
             )}
             onPointerDown={(e) => e.stopPropagation()}
@@ -202,7 +202,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
       <div className="flex flex-shrink-0 items-center gap-2">
         <ControlButton
           tooltip="Hang Up"
-          className="bg-destructive hover:bg-destructive"
+          className="border-destructive bg-destructive text-destructive-foreground hover:bg-destructive"
           onClick={onHangUp}
         >
           <PhoneOff className="h-4 w-4" />
@@ -344,7 +344,7 @@ export function AssistantCommunicationMinimized(props: AssistantCommunicationMin
       drag={!isResizing}
       dragMomentum={false}
       whileDrag={isResizing ? undefined : { scale: 1.02 }}
-      className="bg-background/80 group fixed bottom-5 right-5 z-50 flex cursor-grab flex-col items-center justify-center rounded-lg border p-4 shadow-2xl backdrop-blur-md active:cursor-grabbing"
+      className="bg-card/90 group fixed bottom-5 right-5 z-50 flex cursor-grab flex-col items-center justify-center rounded-xl border border-border p-4 shadow-pop-lg backdrop-blur-md active:cursor-grabbing"
       style={{ width: size.width, height: size.height, x, y }}
     >
       {/* Resize handles on corners */}

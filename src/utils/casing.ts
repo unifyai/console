@@ -161,6 +161,19 @@ export async function fetchOrchestra<T>(url: string, options: RequestInit = {}):
     }
   }
 
+  // Mock simulation mode: serve from the in-memory fixtures via the shared seam.
+  // Dynamically imported so the dispatcher never lands in client bundles when
+  // the flag is off (this module is imported by client components).
+  if (process.env.NEXT_PUBLIC_MOCK_SIM === 'true') {
+    const { simulationFetch } = await import('@/lib/simulation/dispatch');
+    const response = await simulationFetch(fullUrl, transformedOptions);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Orchestra API error (${response.status}): ${errorText}`);
+    }
+    return snakeToCamelObject<T>(await response.json());
+  }
+
   const response = await fetch(fullUrl, transformedOptions);
 
   if (!response.ok) {
@@ -192,6 +205,11 @@ export async function fetchOrchestraRaw(url: string, options: RequestInit = {}):
     } catch {
       // Not JSON, leave as-is
     }
+  }
+
+  if (process.env.NEXT_PUBLIC_MOCK_SIM === 'true') {
+    const { simulationFetch } = await import('@/lib/simulation/dispatch');
+    return simulationFetch(fullUrl, transformedOptions);
   }
 
   return fetch(fullUrl, transformedOptions);

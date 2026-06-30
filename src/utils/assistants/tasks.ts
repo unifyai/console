@@ -1,7 +1,7 @@
 /**
  * Column definitions and formatting utilities for the Tasks tab.
  *
- * Extracted from memory.ts to give Tasks its own dedicated tab
+ * Extracted from brain.ts to give Tasks its own dedicated tab
  * with task-specific rendering, status badges, and detail sections.
  */
 
@@ -9,16 +9,16 @@ import React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
-import { truncate, isPresent, formatTimestamp } from '@/utils/assistants/memory';
+import { truncate, isPresent, formatTimestamp } from '@/utils/assistants/brain';
 import type {
-  TaskMemoryView,
+  TaskBrainView,
   TaskRow,
   TaskScheduleRow,
   TaskTriggerRow,
   TaskRepeatPatternRow,
   TaskRunRow,
-} from '@/types/assistants/memory';
-import type { DetailSection, DetailSectionItem } from '@/utils/assistants/memory';
+} from '@/types/assistants/brain';
+import type { DetailSection, DetailSectionItem } from '@/utils/assistants/brain';
 
 const BADGE_BASE_CLASS =
   'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]';
@@ -388,7 +388,7 @@ function describeTaskStatus(value: string): string | undefined {
   return TASK_STATUS_DESCRIPTIONS.get(value.toLowerCase());
 }
 
-function taskStatusBadge(
+export function taskStatusBadge(
   value: unknown,
   opts?: {
     showRunningDot?: boolean;
@@ -589,7 +589,7 @@ export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
     (_row, value) =>
       taskStatusBadge(value, {
         showRunningDot: true,
-        dotTestId: 'memory-running-state-indicator',
+        dotTestId: 'brain-running-state-indicator',
       }),
     120
   ),
@@ -597,7 +597,7 @@ export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
   accessorCell<TaskRunRow>('startedAt', 'Timing', (row) => formatRunTimingCell(row), 260),
 ];
 
-export function getColumnsForTaskView(view: TaskMemoryView, _fields?: string[]) {
+export function getColumnsForTaskView(view: TaskBrainView, _fields?: string[]) {
   switch (view) {
     case 'Tasks':
       return TASK_COLUMNS;
@@ -668,6 +668,11 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
       ['name', 'Task', row.name],
       ['description', 'Description', row.description],
       ['status', 'Status', isPresent(row.status) ? humanizeTaskLabel(row.status) : undefined],
+      [
+        'priority',
+        'Priority',
+        isPresent(row.priority) ? humanizeTaskLabel(row.priority) : undefined,
+      ],
     ]);
     addSection('Type', [
       ['taskStartMode', 'Type', formatTaskStartLabel(taskRow)],
@@ -675,14 +680,129 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
       ['taskCadence', 'Cadence', formatTaskRecurrenceCadence(taskRow)],
       ['taskStartDetail', 'Behavior', formatTaskStartDetail(taskRow)],
       ['triggerMedium', 'Channel', triggerMedium ? humanizeTaskLabel(triggerMedium) : undefined],
-      ['offline', 'Execution', isOfflineTask(taskRow) ? 'Runs in the background' : undefined],
-      ['nextDueAt', 'Next due', readTaskDueAt(taskRow)],
+      [
+        'offline',
+        'Execution',
+        isOfflineTask(taskRow)
+          ? 'Runs in the background'
+          : isPresent(row.entrypoint)
+            ? 'Runs a saved function'
+            : undefined,
+      ],
+      ['nextDue', 'Next due', readTaskDueAt(taskRow)],
     ]);
     addSection('Timing', [
+      [
+        'deadline',
+        'Deadline',
+        isPresent(row.deadline) ? formatTimestamp(String(row.deadline)) : undefined,
+      ],
       ['createdAt', 'Created at', row.createdAt],
       ['updatedAt', 'Updated at', row.updatedAt],
     ]);
+    addSection('Outcome', [['info', 'Summary', row.info]]);
   }
 
   return sections;
+}
+
+// ── Task card / run-history formatting (expandable Tasks view) ────────
+
+export interface TaskCardField {
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
+/** The human-facing "Type" label for a task (Scheduled / Triggered / …). */
+export function getTaskTypeLabel(row: TaskRow): string {
+  return formatTaskStartLabel(row);
+}
+
+/** Statuses that read as paused/stopped for the All/Active/Paused filter. */
+const PAUSED_TASK_STATUSES = new Set(['paused', 'cancelled', 'disabled', 'inactive', 'stopped']);
+
+export function isPausedTaskStatus(status: unknown): boolean {
+  if (!isPresent(status)) return false;
+  return PAUSED_TASK_STATUSES.has(String(status).trim().toLowerCase());
+}
+
+/** Six labelled fields shown in the open task card's left column. */
+export function getTaskCardFields(row: TaskRow): TaskCardField[] {
+  const record = asRecord(row);
+  const triggerMedium = readTaskTriggerMedium(row);
+  const trigger = triggerMedium
+    ? humanizeTaskLabel(triggerMedium)
+    : resolveTaskStartMode(row) === 'triggered'
+      ? 'On event'
+      : '—';
+
+  // Cadence is always derived from the task's repeat patterns / recurring
+  // trigger — the scheduler model has no flat cadence column.
+  const cadence = formatTaskRecurrenceCadence(row) ?? '—';
+
+  const startCandidate =
+    readFirstPresentValue(readTaskSchedule(row), ['startAt', 'start_at']) ?? row.createdAt;
+  const nextDue = readTaskDueAt(row);
+  const priorityValue = readFirstPresentValue(record, ['priority']);
+
+  return [
+    { label: 'Type', value: getTaskTypeLabel(row) },
+    { label: 'Trigger', value: trigger },
+    { label: 'Cadence', value: cadence },
+    {
+      label: 'Start',
+      value: isPresent(startCandidate) ? formatTimestamp(String(startCandidate)) : '—',
+      mono: true,
+    },
+    { label: 'Next run', value: nextDue ? formatTimestamp(nextDue) : '—', mono: true },
+    {
+      label: 'Priority',
+      value: isPresent(priorityValue) ? humanizeTaskLabel(priorityValue) : '—',
+    },
+  ];
+}
+
+/** Plain-language reason a run started ("On schedule", "Triggered by …"). */
+export function getRunWhyLabel(row: TaskRunRow): string {
+  return formatRunSourcePrimary(row);
+}
+
+/** Wall-clock duration between a run's start and finish, e.g. "2m 3s". */
+export function formatRunDuration(
+  startedAt: string | null | undefined,
+  completedAt: string | null | undefined
+): string {
+  if (!isPresent(startedAt) || !isPresent(completedAt)) return '—';
+  const start = new Date(String(startedAt)).getTime();
+  const end = new Date(String(completedAt)).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return '—';
+
+  const totalSeconds = Math.round((end - start) / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) return seconds ? `${minutes}m ${seconds}s` : `${minutes}m`;
+
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  return remMinutes ? `${hours}h ${remMinutes}m` : `${hours}h`;
+}
+
+export interface RunHistoryCells {
+  whyLabel: string;
+  startedLabel: string;
+  finishedLabel: string;
+  durationLabel: string;
+}
+
+/** Pre-formatted cell text for one row of the run-history table. */
+export function getRunHistoryCells(row: TaskRunRow): RunHistoryCells {
+  return {
+    whyLabel: getRunWhyLabel(row),
+    startedLabel: isPresent(row.startedAt) ? formatTimestamp(String(row.startedAt)) : '—',
+    finishedLabel: isPresent(row.completedAt) ? formatTimestamp(String(row.completedAt)) : '—',
+    durationLabel: formatRunDuration(row.startedAt, row.completedAt),
+  };
 }

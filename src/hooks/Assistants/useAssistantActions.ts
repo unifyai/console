@@ -800,7 +800,6 @@ export function useAssistantActions(
         initialLoad();
       }
     } else {
-      isInitialLoadDoneRef.current = false;
       setConnectionStatus('idle');
 
       if (eventSourceRef.current) {

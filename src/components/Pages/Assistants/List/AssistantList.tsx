@@ -22,6 +22,7 @@ import {
 } from '@/lib/assistants/coordinatorIdentity';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
   groupAssistantsByTeam,
   type AssistantListEntry,
@@ -463,6 +464,7 @@ export function AssistantList({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
+                        data-testid="assistant-onboard-button"
                         variant={isFolded ? 'ghost' : 'outline'}
                         size="icon"
                         className="h-7 w-7"
@@ -474,7 +476,7 @@ export function AssistantList({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>Onboard new unity</p>
+                      <p>Onboard new digital twin</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -487,7 +489,7 @@ export function AssistantList({
               <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search"
+                placeholder={tabSearchPlaceholder('assistants')}
                 className="h-7 w-full pl-7 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -496,6 +498,7 @@ export function AssistantList({
             </div>
             {showHireButton && (
               <Button
+                data-testid="assistant-onboard-button"
                 variant="outline"
                 size="sm"
                 className="hidden h-7 items-center text-xs md:inline-flex"
@@ -560,7 +563,7 @@ export function AssistantList({
       {onToggleFold && (
         <div
           className={cn(
-            // h-10 keeps this bar aligned with the chat input and the memory /
+            // h-10 keeps this bar aligned with the chat input and the brain /
             // tasks / actions / dashboards tab footers at the bottom of the
             // right pane.
             'hidden h-10 flex-shrink-0 items-center px-2 md:flex',

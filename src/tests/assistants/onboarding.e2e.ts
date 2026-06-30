@@ -30,12 +30,14 @@ import {
   cleanupUser,
   createAssistantTest,
   openHireDialog,
+  openAssistantInfoPanel,
   fillProfileFields,
   selectVoice,
   clickHireButton,
   deleteAllAssistantsForUser,
   ensureProjectSync,
   setUserCredits,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'Roadmap', lastName: 'Tester', credits: 50_000 });
@@ -71,7 +73,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await navigateForRoadmapTests(page);
 
   const dialogVisible = await page
-    .locator('text=Hire Assistant')
+    .getByRole('heading', { name: 'Onboard Digital Twin' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -82,13 +84,13 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await fillProfileFields(page, {
     firstName,
     lastName,
-    age: 30,
     about: 'Setup roadmap test assistant.',
   });
   await selectVoice(page);
   await clickHireButton(page);
 
-  // Confirm hire success: assistant lands in the list.
+  // Confirm hire success: assistant lands in the list (inside the switcher).
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
     hasText: firstName,
   });
@@ -102,7 +104,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
 async function ensureInfoPanelOpen(page: Page) {
   const infoSheet = page.getByTestId('assistant-info-sheet');
   if (!(await infoSheet.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    await page.getByTestId('assistant-info-button').click();
+    await openAssistantInfoPanel(page);
   }
   await expect(infoSheet).toBeVisible({ timeout: 5_000 });
 }

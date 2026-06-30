@@ -82,27 +82,77 @@ export function ActionTree({
   return (
     <TooltipProvider delayDuration={300}>
       <div
-        className={cn('min-w-0 space-y-0.5 overflow-hidden', className)}
+        className={cn('min-w-0 overflow-hidden', className)}
         style={{ contain: 'inline-size', maxWidth: '100%' }}
       >
-        {roots.map((node) => (
-          <ActionNodeItem
-            key={node.id}
-            node={node}
-            ownerId={ownerId}
-            depth={0}
-            defaultExpanded={defaultExpanded}
-            expandedNodeIds={expandedNodeIds}
-            onExpandedChange={onExpandedChange}
-            assistantId={assistantId}
-            getToolLoopEvents={getToolLoopEvents}
-            loadChildren={loadChildren}
-            sectionToggleSignal={sectionToggleSignal}
-            matchedIds={matchedIds}
-            searchTerm={searchTerm}
-          />
-        ))}
+        {roots.map((node, idx) => {
+          const prev = idx > 0 ? roots[idx - 1] : undefined;
+          const showDate = !prev || !isSameDay(prev.startTime, node.startTime);
+          const isOpen = expandedNodeIds?.has(node.id) ?? false;
+
+          return (
+            <React.Fragment key={node.id}>
+              {showDate && <TimelineDateSeparator timestamp={node.startTime} />}
+              {/* Flat list of independent action cards — no timeline spine
+                  between cards. Collapsed rows read as a flat list; expanding
+                  promotes the row into a framed card so the steps + final
+                  response read as a contained unit. */}
+              <div
+                className={cn(
+                  'mb-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm transition-colors',
+                  isOpen && node.status === 'running' && 'border-primary/40',
+                  isOpen && node.status === 'error' && 'border-destructive/40',
+                  !isOpen && 'hover:border-border/80'
+                )}
+                data-testid="action-card"
+              >
+                <ActionNodeItem
+                  node={node}
+                  ownerId={ownerId}
+                  depth={0}
+                  defaultExpanded={defaultExpanded}
+                  expandedNodeIds={expandedNodeIds}
+                  onExpandedChange={onExpandedChange}
+                  assistantId={assistantId}
+                  getToolLoopEvents={getToolLoopEvents}
+                  loadChildren={loadChildren}
+                  sectionToggleSignal={sectionToggleSignal}
+                  matchedIds={matchedIds}
+                  searchTerm={searchTerm}
+                />
+              </div>
+            </React.Fragment>
+          );
+        })}
       </div>
     </TooltipProvider>
+  );
+}
+
+/** True when two ISO timestamps fall on the same calendar day (local time). */
+function isSameDay(a: string, b: string): boolean {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
+/** Date divider rule shown between calendar-day groups of actions. */
+function TimelineDateSeparator({ timestamp }: { timestamp: string }) {
+  const label = new Date(timestamp).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  return (
+    <div className="mb-1 mt-2.5 flex items-center gap-2.5 first:mt-0">
+      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </span>
+      <span className="h-px flex-1 bg-border" />
+    </div>
   );
 }

@@ -139,7 +139,6 @@ describe('provider integrations gallery model', () => {
     fireEvent.change(screen.getByTestId('integration-gallery-search'), {
       target: { value: 'Slack' },
     });
-    fireEvent.click(screen.getByTestId('integration-gallery-search-submit'));
     expect(screen.getByTestId('provider-integration-card-slack')).toBeInTheDocument();
     expect(
       result.current

@@ -124,7 +124,7 @@ export function AssistantCommunicationMainView({
 
   if (isRemoteControlActive) {
     return (
-      <div className="relative flex h-full w-full items-center justify-center bg-black">
+      <div className="relative flex h-full w-full items-center justify-center bg-background">
         {remoteControlUrl ? (
           <>
             <iframe

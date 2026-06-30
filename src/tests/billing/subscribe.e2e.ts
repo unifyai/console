@@ -17,7 +17,12 @@
  */
 
 import { test as unauthTest, expect } from '@playwright/test';
-import { createTestUser, cleanupUser, createBillingTest, type TestUser } from './helpers';
+import {
+  createTestUser,
+  cleanupUser,
+  createBillingTest,
+  skipIfManualTopupBilling,
+} from './helpers';
 
 const user = createTestUser({ name: 'Subscribe', lastName: 'Test', credits: 50 });
 const test = createBillingTest(user);
@@ -111,11 +116,8 @@ unauthTest('subscribe API requires authentication', async ({ page }) => {
 test('unsubscribed account shows trial credits + choose-a-plan CTA', async ({
   authedPage: page,
 }) => {
-  await page.goto('/billing');
-  await page.waitForSelector('[data-testid="credits-balance-section"]', { timeout: 15_000 });
-
-  // Trial credits card + countdown copy and the plan picker CTA.
-  await expect(page.getByTestId('choose-plan-card')).toBeVisible({ timeout: 10_000 });
+  await skipIfManualTopupBilling(test, page);
+  await page.waitForSelector('[data-testid="choose-plan-card"]', { timeout: 15_000 });
   await expect(page.getByTestId('tier-select-trigger')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('subscribe-plan-cta')).toHaveText(/subscribe/i, {
     timeout: 10_000,

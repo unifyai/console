@@ -65,7 +65,7 @@ import {
   getRotatingBotViewBox,
 } from '@unity/brand/components';
 
-const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
+const staticSkillsText = `The bio doesn't influence the digital twin's abilities. All digital twins come with the same foundational skills and can specialize in whichever area you want them to.`;
 const UNITY_PREVIEW_SIZE = 120;
 const UNITY_PREVIEW_REST_SIZE = 152;
 const UNITY_PREVIEW_REST_SCALE = UNITY_PREVIEW_REST_SIZE / UNITY_PREVIEW_SIZE;
@@ -257,6 +257,8 @@ export interface HireFormProps {
   /** Whether the user has explicitly selected/changed a preset (not the initial auto-select) */
   userHasChangedPreset?: boolean;
   onRandomizeProfile?: () => void;
+  /** Hands the combined profile+appearance randomizer up to the dialog header. */
+  onRegisterRandomize?: (randomize: () => void) => void;
   workspaceProvider?: OAuthProvider | null;
   onWorkspaceProviderSelect?: (provider: OAuthProvider) => void;
   skipWorkspaceSetup?: boolean;
@@ -279,6 +281,7 @@ export function HireForm({
   mode = 'hire',
   onAddPaymentMethod,
   onRandomizeProfile,
+  onRegisterRandomize,
   workspaceProvider,
   onWorkspaceProviderSelect,
   skipWorkspaceSetup = false,
@@ -437,7 +440,9 @@ export function HireForm({
     ];
   const nextOutfit = appearanceOutfitOptions[(outfitIndex + 1) % appearanceOutfitOptions.length];
   const workspaceAssistantName =
-    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
+    typeof firstName === 'string' && firstName.trim().length > 0
+      ? firstName.trim()
+      : 'this digital twin';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const unityControlTop = React.useMemo(() => {
     const form = getUnityBodyForm(selectedUnityBody);
@@ -483,6 +488,12 @@ export function HireForm({
     onRandomizeProfile?.();
     randomizeUnityAppearance();
   }, [onRandomizeProfile, randomizeUnityAppearance]);
+
+  // Surface the combined randomizer so the dialog header's Randomize control can
+  // drive both the profile fields and the live appearance from outside the form.
+  React.useEffect(() => {
+    onRegisterRandomize?.(randomizeProfileAndAppearance);
+  }, [onRegisterRandomize, randomizeProfileAndAppearance]);
 
   const handlePlaySelectedVoicePreviewChange = React.useCallback(
     (playPreviewForSelectedVoice: (() => void) | null) => {
@@ -535,32 +546,6 @@ export function HireForm({
             <div>
               <section className="min-w-0">
                 <div className="space-y-3">
-                  {onRandomizeProfile && (
-                    <div className="flex justify-start">
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              aria-label="Randomize droid profile"
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-8 gap-1.5"
-                              disabled={isSubmitting}
-                              onClick={randomizeProfileAndAppearance}
-                            >
-                              <Shuffle className="h-3.5 w-3.5" />
-                              Randomize
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Randomize name, role, and bio</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  )}
-
                   <div className="space-y-1.5">
                     <Label htmlFor="firstName">First Name</Label>
 
@@ -626,9 +611,9 @@ export function HireForm({
                                   className="text-caption max-w-xs"
                                 >
                                   <p>
-                                    Optional short label to remember what this droid is for (e.g.
-                                    &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                    the droids list hover card.
+                                    Optional short label to remember what this digital twin is for
+                                    (e.g. &quot;Growth marketing&quot;, &quot;QA engineer&quot;).
+                                    Shown in the digital twins list hover card.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -892,7 +877,7 @@ export function HireForm({
                                     color={selectedUnityColor}
                                     baseEyes={selectedUnityEyes}
                                     outfit={selectedUnityOutfit}
-                                    label="Droid avatar"
+                                    label="Digital twin avatar"
                                   />
                                 </span>
                               </button>
@@ -1170,8 +1155,8 @@ export function HireForm({
                               {isWorkspaceWarning && (
                                 <>
                                   <span className="block">
-                                    It&apos;s advised to create a workspace for your new unity{' '}
-                                    <strong className="font-bold">now</strong>, so they can get
+                                    It&apos;s advised to create a workspace for your new digital
+                                    twin <strong className="font-bold">now</strong>, so they can get
                                     started right away. If you don&apos;t want to create one yet,
                                     click skip.
                                   </span>
@@ -1272,7 +1257,7 @@ export function HireForm({
                             className={cn(
                               'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
                               workspaceProvider === 'google'
-                                ? 'border-primary ring-1 ring-primary'
+                                ? 'border-primary bg-accent-soft ring-1 ring-primary'
                                 : 'border-border'
                             )}
                             aria-label={
@@ -1318,7 +1303,7 @@ export function HireForm({
                             className={cn(
                               'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
                               workspaceProvider === 'microsoft'
-                                ? 'border-primary ring-1 ring-primary'
+                                ? 'border-primary bg-accent-soft ring-1 ring-primary'
                                 : 'border-border'
                             )}
                             aria-label={

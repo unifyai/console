@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { User } from '@/types/user';
 import ChangePasswordForm from './ChangePassword';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, LogOut } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import SecuritySettings from '@/components/Pages/Profile/SecuritySettings';
 import MfaModal, { type MfaCodeType } from '@/components/Common/Auth/MfaModal';
@@ -26,6 +27,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/UI/alert-dialog';
+import { ApiKeyField } from './ApiKeyField';
+
 import { toast } from 'sonner';
 
 interface EmailCredentials {
@@ -35,7 +38,7 @@ interface EmailCredentials {
   passwordChangedAt?: string;
 }
 
-const SecurityTab = ({ user }: { user: User }) => {
+const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
   const router = useRouter();
   const [credentials, setCredentials] = useState<EmailCredentials | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -155,6 +158,16 @@ const SecurityTab = ({ user }: { user: User }) => {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-lg border p-4">
+        <div className="mb-3 flex flex-col gap-1">
+          <h3 className="text-title">API access</h3>
+          <p className="text-caption">
+            Your personal API key for programmatic access to the Unify platform.
+          </p>
+        </div>
+        <ApiKeyField apiKey={apiKey} />
+      </div>
+
       {/* Password Card */}
       <div className="rounded-lg border p-4">
         <div className="flex items-start justify-between gap-4">
@@ -254,6 +267,27 @@ const SecurityTab = ({ user }: { user: User }) => {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-border bg-card p-5">
+        <div>
+          <h3 className="text-body font-semibold text-foreground">Sign out</h3>
+          <p className="text-body-muted mt-1 text-sm">
+            End your session on this device. You can sign back in at any time.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+          data-testid="account-sign-out"
+          onClick={async () => {
+            await signOut({ redirect: false });
+            window.location.assign('/login');
+          }}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign out
+        </Button>
       </div>
 
       {/* Password Modal */}

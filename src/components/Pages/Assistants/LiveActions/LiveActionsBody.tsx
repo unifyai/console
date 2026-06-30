@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertCircle, RefreshCw, Eye } from 'lucide-react';
-import { Loader } from '@/components/Common/Loader';
+import { ActionCardSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { Button } from '@/components/UI/button';
 import { ActionTree } from './ActionTree';
 import type { SectionToggleSignal } from './ActionNodeItem';
@@ -175,15 +175,17 @@ export function LiveActionsBody({
     );
   }
 
-  // Loading state (initial load only)
+  // Loading state (initial load only) — skeleton rows that approximate the
+  // action timeline so navigation paints an on-brand loader, not a bare spinner.
   if (isLoading && roots.length === 0) {
     return (
       <div
-        className={cn('flex flex-1 items-center justify-center text-muted-foreground', className)}
+        className={cn('flex flex-1 flex-col gap-2 overflow-hidden p-3', className)}
         data-testid="live-actions-loading"
       >
-        <Loader size={20} className="mr-2" />
-        <span className="text-sm">Loading actions...</span>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <ActionCardSkeleton key={i} />
+        ))}
       </div>
     );
   }

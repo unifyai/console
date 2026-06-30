@@ -7,6 +7,7 @@
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { BrandStatusCard } from '@/components/Brand';
 import { PlotViewer } from '@/components/Pages/Plot/PlotViewer';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
@@ -171,14 +172,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 function PlotNotFoundMessage() {
   return (
     <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
-      <div className="max-w-md px-6 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-          <svg
-            className="h-8 w-8 text-muted-foreground"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+      <BrandStatusCard
+        className="mx-6 max-w-md p-8"
+        eyebrow="Shared plot"
+        title="Plot Not Found"
+        description="This plot has been deleted or the link is invalid. Please request a new link from the original source."
+        tone="neutral"
+        icon={
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -186,13 +187,8 @@ function PlotNotFoundMessage() {
               d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
             />
           </svg>
-        </div>
-        <h1 className="text-display text-semibold mb-2">Plot Not Found</h1>
-        <p className="text-muted-foreground">
-          This plot has been deleted or the link is invalid. Please request a new link from the
-          original source.
-        </p>
-      </div>
+        }
+      />
     </main>
   );
 }
@@ -203,14 +199,14 @@ function PlotNotFoundMessage() {
 function ErrorMessage({ message }: { message: string }) {
   return (
     <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
-      <div className="max-w-md px-6 text-center">
-        <div className="bg-destructive/10 mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
-          <svg
-            className="h-8 w-8 text-destructive"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+      <BrandStatusCard
+        className="mx-6 max-w-md p-8"
+        eyebrow="Shared plot"
+        title="Unable to Load Plot"
+        description={message}
+        tone="danger"
+        icon={
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -218,10 +214,8 @@ function ErrorMessage({ message }: { message: string }) {
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
-        </div>
-        <h1 className="text-display text-semibold mb-2">Unable to Load Plot</h1>
-        <p className="text-muted-foreground">{message}</p>
-      </div>
+        }
+      />
     </main>
   );
 }

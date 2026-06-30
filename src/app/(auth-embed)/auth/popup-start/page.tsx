@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
+import { BrandStatusCard } from '@/components/Brand';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { isAuthPopupProvider, safeAuthPopupCallbackUrl } from '@/lib/auth/popup';
 
@@ -66,21 +67,24 @@ function PopupStart() {
 
   if (error) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background p-8 text-center text-foreground">
-        <div className="max-w-sm rounded-2xl border border-border bg-card p-6 shadow-lg">
-          <h1 className="text-h1 text-semibold mb-2">Couldn&apos;t start sign in</h1>
-          <p className="text-body-muted">{error}</p>
-        </div>
+      <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background p-8 text-center text-foreground">
+        <BrandStatusCard
+          eyebrow="Auth"
+          title="Couldn't start sign in"
+          description={error}
+          tone="danger"
+        />
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <LoadingElement />
-        <p className="text-body-muted">Opening secure sign in...</p>
-      </div>
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
+      <BrandStatusCard
+        eyebrow="Auth"
+        description="Opening secure sign in..."
+        icon={<LoadingElement />}
+      />
     </main>
   );
 }

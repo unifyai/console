@@ -22,6 +22,7 @@ import type {
   AttachmentType,
 } from '@/types/assistants/chat';
 import type { UseChatSearchReturn } from '@/hooks/Assistants/useChatSearch';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 
 interface ChatSearchDialogProps {
   open: boolean;
@@ -190,7 +191,7 @@ export function ChatSearchDialog({
         <form onSubmit={handleSearch} className="flex gap-2">
           <Input
             ref={inputRef}
-            placeholder="Search messages..."
+            placeholder={tabSearchPlaceholder('chat')}
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
             data-testid="chat-search-input"

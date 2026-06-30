@@ -11,12 +11,18 @@ import React, {
 import { useRouter } from 'next/navigation';
 import { User, UserOrganization, UserWorkspace } from '@/types/user';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
+import { userFullName } from '@/utils/user/profileDisplay';
 
 interface WorkspaceContextType {
+  user: User | null;
   workspaces: UserWorkspace[];
   activeWorkspace: UserWorkspace | null;
   activeOrganization: UserOrganization | null;
   currentUserId: string | null;
+  /** Whether the signed-in user is Owner/Admin of the Unify org. */
+  isUnifyAdmin: boolean;
+  /** Whether the user belongs to the Unify organization. */
+  isUnifyMember: boolean;
   /** Whether the user can switch between workspaces (false for non-Unify org members). */
   isWorkspaceSwitchable: boolean;
   isSwitchingWorkspace: boolean;
@@ -39,7 +45,7 @@ export function WorkspaceProvider({
     if (!user) return [];
 
     const list: UserWorkspace[] = [
-      { id: 'personal', name: user.name ?? 'Personal', type: 'personal' },
+      { id: 'personal', name: userFullName(user) || 'Personal', type: 'personal' },
     ];
 
     if (user.organizations && user.organizations.length > 0) {
@@ -65,6 +71,19 @@ export function WorkspaceProvider({
 
   // 2c. Current User ID
   const currentUserId = user?.id || null;
+
+  const isUnifyMember = useMemo(
+    () => user?.organizations?.some((o) => o.name === 'Unify') ?? false,
+    [user]
+  );
+
+  const isUnifyAdmin = useMemo(
+    () =>
+      user?.organizations?.some(
+        (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
+      ) ?? false,
+    [user]
+  );
 
   // 3. Switcher Logic
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
@@ -103,10 +122,13 @@ export function WorkspaceProvider({
   return (
     <WorkspaceContext.Provider
       value={{
+        user,
         workspaces,
         activeWorkspace,
         activeOrganization,
         currentUserId,
+        isUnifyAdmin,
+        isUnifyMember,
         isWorkspaceSwitchable,
         isSwitchingWorkspace,
         switchWorkspace,

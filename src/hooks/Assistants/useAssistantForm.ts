@@ -56,8 +56,6 @@ export function useAssistantForm(
       firstName: '',
       surname: '',
       jobTitle: null,
-      age: null,
-      nationality: 'United States',
       about: '',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
@@ -119,8 +117,6 @@ export function useAssistantForm(
   const watchedFields = watch([
     'firstName',
     'surname',
-    'age',
-    'nationality',
     'about',
     'voiceId',
     'photoFile',
@@ -128,17 +124,8 @@ export function useAssistantForm(
     'presetOriginalValues',
   ]);
   React.useEffect(() => {
-    const [
-      firstName,
-      surname,
-      age,
-      nationality,
-      about,
-      voiceId,
-      photoFile,
-      profilePhotoUrl,
-      originalValues,
-    ] = watchedFields;
+    const [firstName, surname, about, voiceId, photoFile, profilePhotoUrl, originalValues] =
+      watchedFields;
 
     if (photoFile) {
       if (getValues('isPresetPristine')) {
@@ -159,11 +146,9 @@ export function useAssistantForm(
       ? voiceId === currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER]
       : voiceId === originalValues.voiceId;
 
-    let isPristine =
+    const isPristine =
       firstName === originalValues.firstName &&
       surname === originalValues.surname &&
-      age === originalValues.age &&
-      (nationality ?? '') === (originalValues.nationality ?? '') &&
       isVoicePristine &&
       (profilePhotoUrl === originalValues.profilePhotoUrl ||
         (!profilePhotoUrl && !originalValues.profilePhotoUrl));
@@ -229,10 +214,6 @@ export function useAssistantForm(
       setValue('firstName', preset.firstName, { shouldValidate: true });
       setValue('surname', preset.surname, { shouldValidate: true });
       setValue('jobTitle', preset.jobTitle ?? null, { shouldValidate: true });
-      setValue('age', preset.age, { shouldValidate: true });
-      setValue('nationality', preset.nationality ?? 'United States', {
-        shouldValidate: true,
-      });
       setValue('about', preset.about ?? '', { shouldValidate: true });
       setValue('profilePhotoUrl', null);
       setValue('photoPreviewUrl', null);
@@ -288,8 +269,6 @@ export function useAssistantForm(
       const originalValues = {
         firstName: preset.firstName,
         surname: preset.surname,
-        age: preset.age,
-        nationality: preset.nationality ?? '',
         voiceId: selectedPresetVoiceDetails.voiceId,
         profilePhotoUrl: preset.profilePhoto,
       };
@@ -342,8 +321,6 @@ export function useAssistantForm(
         firstName: values?.firstName || '',
         surname: values?.surname || '',
         jobTitle: values?.jobTitle ?? null,
-        age: values?.age || null,
-        nationality: values?.nationality || 'United States',
         about: values?.about || '',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
@@ -415,8 +392,6 @@ export function useAssistantForm(
         jobTitle: assistant.isCoordinator
           ? resolveCoordinatorJobTitle(assistant.jobTitle)
           : (assistant.jobTitle ?? null),
-        age: assistant.age,
-        nationality: assistant.nationality,
         about: assistant.isCoordinator
           ? resolveCoordinatorAbout(assistant.about)
           : assistant.about || '',
@@ -506,24 +481,6 @@ export function useAssistantForm(
         });
         throw new Error('Missing assistant first name.');
       }
-      const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
-      if (
-        data.age != null &&
-        (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
-      ) {
-        setError('age', {
-          type: 'manual',
-          message: 'Age must be between 18 and 70.',
-        });
-        throw new Error('Invalid age provided.');
-      }
-      if (!data.nationality) {
-        setError('nationality', {
-          type: 'manual',
-          message: 'Missing assistant nationality.',
-        });
-        throw new Error('Missing assistant nationality.');
-      }
 
       // Construct payload with only changed fields
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
@@ -539,8 +496,6 @@ export function useAssistantForm(
       if (normalizedJobTitle !== (editingAssistant.jobTitle ?? null)) {
         payload.jobTitle = normalizedJobTitle;
       }
-      if (data.age !== editingAssistant.age) payload.age = data.age ?? undefined;
-      if (data.nationality !== editingAssistant.nationality) payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
       // Orchestra requires both voice_id and voice_provider together, so send
@@ -651,24 +606,6 @@ export function useAssistantForm(
         });
         throw new Error('Missing assistant first name.');
       }
-      const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
-      if (
-        data.age != null &&
-        (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
-      ) {
-        setError('age', {
-          type: 'manual',
-          message: 'Age must be between 18 and 70.',
-        });
-        throw new Error('Invalid age provided.');
-      }
-      if (!data.nationality) {
-        setError('nationality', {
-          type: 'manual',
-          message: 'Missing assistant nationality.',
-        });
-        throw new Error('Missing assistant nationality.');
-      }
 
       if (!data.voiceId || !data.voiceName || !data.voiceGender || !data.voiceLanguage) {
         setError('voiceId', {
@@ -686,9 +623,9 @@ export function useAssistantForm(
         try {
           const greetingResult = await generatePostHireGreeting(
             assistantDisplayName,
-            data.age,
+            null,
             data.about,
-            data.nationality
+            null
           );
           if (greetingResult.error) {
             throw new Error(greetingResult.error);
@@ -759,8 +696,8 @@ export function useAssistantForm(
         data.firstName,
         data.surname,
         normalizedJobTitle,
-        ageNumber,
-        data.nationality,
+        null,
+        null,
         data.timezone,
         finalImageUrlToSend,
         finalVideoUrlToSend,
@@ -829,12 +766,10 @@ export function useAssistantForm(
       resetFormAndHints();
       if (onHireSuccess) onHireSuccess(assistantForSuccess, data, finalChatHistory);
     } catch (error: any) {
+      // Only the fields we surface inline (firstName, voiceId) should suppress the
+      // generic toast — every other failure must stay visible to the user.
       const isRHFError = !!(
-        formMethods.formState.errors.age ||
-        formMethods.formState.errors.voiceId ||
-        formMethods.formState.errors.firstName ||
-        formMethods.formState.errors.surname ||
-        formMethods.formState.errors.about
+        formMethods.formState.errors.firstName || formMethods.formState.errors.voiceId
       );
 
       if (!isRHFError) {

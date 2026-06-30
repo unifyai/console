@@ -115,7 +115,7 @@ export function AssistantCommunicationControls({
   const iconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
   const highlightMutedMic = isConnectionEstablished && !isMicOn && isMutedSpeechDetected;
   // ``h-10`` is the same footer height the assistant-list collapse
-  // bar and the memory/tasks/actions/dashboards tab footers use, so
+  // bar and the brain/tasks/actions/dashboards tab footers use, so
   // the compact docked toolbar's icons line up horizontally with
   // them across the page bottom. ``h-6 w-6`` buttons match the
   // ``PanelLeftClose`` chip in the list footer for the same reason.

@@ -17,7 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { hasCredentials, publish } from '@/lib/pubsub/local-event-bus';
+import { localEventBusEnabled, publish } from '@/lib/pubsub/local-event-bus';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +26,7 @@ export async function POST(
   { params }: { params: Promise<{ assistantId: string }> }
 ) {
   const { assistantId } = await params;
-  if (hasCredentials()) {
+  if (!localEventBusEnabled()) {
     return NextResponse.json(
       { detail: 'Push endpoint is only available in local development mode.' },
       { status: 403 }

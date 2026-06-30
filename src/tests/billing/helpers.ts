@@ -14,7 +14,7 @@
  * ```
  */
 
-import { test as base, type Page, type Browser } from '@playwright/test';
+import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 
@@ -47,6 +47,62 @@ export type { SeededOrg } from '../helpers/seeds/types';
 
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
 export { login, switchToEmailTab };
+
+/** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
+export async function waitForAssistantsReady(page: Page) {
+  await page.goto('/assistants');
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('rail-unity-switcher')).toBeVisible({ timeout: 10_000 });
+}
+
+/** Wait until the billing page has loaded its primary credits section. */
+export async function waitForBillingReady(page: Page) {
+  await page.goto('/billing');
+  await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
+}
+
+/** Local Orchestra enables manual-top-up mode — credits + top-up only, no Stripe UI. */
+export async function isManualTopupMode(page: Page): Promise<boolean> {
+  return page
+    .getByTestId('topup-section')
+    .isVisible({ timeout: 2_000 })
+    .catch(() => false);
+}
+
+/**
+ * Skip UI tests that require the Stripe subscription billing surface (profile,
+ * tier picker, referrals, metered layout). No-op in hosted Stripe environments.
+ */
+export async function skipIfManualTopupBilling(
+  testInstance: { skip: (condition: boolean, description: string) => void },
+  page: Page
+): Promise<void> {
+  await waitForBillingReady(page);
+  if (await isManualTopupMode(page)) {
+    testInstance.skip(
+      true,
+      'Stripe subscription billing UI is unavailable in manual-top-up mode (local Orchestra).'
+    );
+  }
+}
+
+/** Wait until the usage dashboard has loaded filters and main content. */
+export async function waitForUsageReady(page: Page) {
+  await page.goto('/usage');
+  await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('usage-filters-bar')).toBeVisible({ timeout: 15_000 });
+}
+
+/** Assert the rail onboard CTA is enabled (canonical billable action on /assistants). */
+export async function expectOnboardButtonEnabled(page: Page) {
+  await waitForAssistantsReady(page);
+  const popover = page.getByTestId('rail-unity-switcher-popover');
+  if (!(await popover.isVisible({ timeout: 500 }).catch(() => false))) {
+    await page.getByTestId('rail-unity-switcher').click();
+  }
+  await expect(popover).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('assistant-onboard-button')).toBeEnabled({ timeout: 10_000 });
+}
 
 // =============================================================================
 // Shared Auth — storageState
@@ -132,7 +188,10 @@ export async function loginAndNavigateTo(
  *
  * For unauthenticated tests, use the built-in `page` fixture (fresh context).
  */
-export function createBillingTest(user: { email: string; password: string }) {
+export function createBillingTest(
+  user: { email: string; password: string },
+  opts?: { skipWhenManualTopup?: boolean }
+) {
   let authFile: string | undefined;
 
   return base.extend<{ authedPage: Page }>({
@@ -143,6 +202,15 @@ export function createBillingTest(user: { email: string; password: string }) {
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();
+      if (opts?.skipWhenManualTopup) {
+        await waitForBillingReady(page);
+        if (await isManualTopupMode(page)) {
+          testInfo.skip(
+            true,
+            'Stripe subscription billing UI is unavailable in manual-top-up mode (local Orchestra).'
+          );
+        }
+      }
       // eslint-disable-next-line react-hooks/rules-of-hooks
       await use(page);
       await ctx.close();

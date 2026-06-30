@@ -26,6 +26,7 @@ function setOrganizationWorkspace({
     Viewer: 4,
   } as const;
   mockUseWorkspace.mockReturnValue({
+    user: null,
     workspaces: [],
     activeWorkspace: {
       id: String(organizationId),
@@ -41,6 +42,8 @@ function setOrganizationWorkspace({
       apiKey: 'org-api-key',
     },
     currentUserId,
+    isUnifyAdmin: false,
+    isUnifyMember: false,
     isWorkspaceSwitchable: true,
     isSwitchingWorkspace: false,
     switchWorkspace: vi.fn(),

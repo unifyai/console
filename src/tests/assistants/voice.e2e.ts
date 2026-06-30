@@ -12,7 +12,6 @@ import {
   createAssistantTest,
   navigateToAssistants,
   openHireDialog,
-  openAccordionSection,
   fillProfileFields,
   clickHireButton,
   closeHireDialogIfOpen,
@@ -20,6 +19,7 @@ import {
   getAssistantFromDb,
   deleteAssistantFromDb,
   ensureProjectSync,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'VoiceE2E', lastName: 'Tester', credits: 50_000 });
@@ -48,7 +48,7 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await page.waitForTimeout(2_000);
 
   const dialogVisible = await page
-    .locator('text=Hire Assistant')
+    .getByRole('heading', { name: 'Onboard Digital Twin' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -59,12 +59,11 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await fillProfileFields(page, {
     firstName,
     lastName: 'WithVoice',
-    age: 30,
     about: 'Testing voice assignment during hire.',
   });
 
-  // Open voice section and select the first voice
-  await openAccordionSection(page, 'voice');
+  // The voice section is always visible in the flat hire form; select the first
+  // voice option directly.
   await page.waitForTimeout(2_000);
 
   const firstVoice = page.locator('[role="option"]').first();
@@ -80,6 +79,7 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await expect(firstVoice).toHaveAttribute('aria-selected', 'true');
 
   await clickHireButton(page);
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -104,11 +104,9 @@ test('hiring with a different voice assigns the correct voice_id', async ({ auth
   await fillProfileFields(page, {
     firstName,
     lastName: 'DiffVoice',
-    age: 25,
     about: 'Testing different voice selection.',
   });
 
-  await openAccordionSection(page, 'voice');
   await page.waitForTimeout(2_000);
 
   const voiceOptions = page.locator('[role="option"]');
@@ -123,6 +121,7 @@ test('hiring with a different voice assigns the correct voice_id', async ({ auth
   await page.waitForTimeout(500);
 
   await clickHireButton(page);
+  await openUnitySwitcher(page);
   const listItem2 = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem2).toBeVisible({ timeout: 60_000 });
 

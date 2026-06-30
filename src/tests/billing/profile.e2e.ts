@@ -33,7 +33,7 @@ async function fillRequiredAddress(page: Page) {
 }
 
 const user = createTestUser({ name: 'Profile', lastName: 'Test', credits: 5_000 });
-const test = createBillingTest(user);
+const test = createBillingTest(user, { skipWhenManualTopup: true });
 
 test.afterAll(() => cleanupUser(user.id));
 

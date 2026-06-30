@@ -260,10 +260,6 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
       <div className="flex h-full flex-col">
         {/* Header */}
         <div className="border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-h1 text-semibold">Invoices</h1>
-          </div>
           <p className="text-caption">
             All invoices across billing accounts. <strong>Upcoming</strong> rows are projected
             month-end totals for active METERED plans — actual invoice amounts may differ once the

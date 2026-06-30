@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Gift, X } from 'lucide-react';
+import { DISMISS_KEY, PROMO_LABEL } from '@/components/Layout/TopBar/ReferralPromoButton';
 
 /**
  * Centered "Refer a friend" promo pill in the top nav.
@@ -16,8 +17,6 @@ import { Gift, X } from 'lucide-react';
  * avoid an SSR/client mismatch — `localStorage` isn't available on the server.
  */
 
-const DISMISS_KEY = 'referral-banner-dismissed';
-
 export default function ReferralBanner() {
   const [visible, setVisible] = useState(false);
 
@@ -25,7 +24,6 @@ export default function ReferralBanner() {
     try {
       if (localStorage.getItem(DISMISS_KEY) !== '1') setVisible(true);
     } catch {
-      // Private mode / storage disabled: still show it, just don't persist.
       setVisible(true);
     }
   }, []);
@@ -57,7 +55,7 @@ export default function ReferralBanner() {
           data-testid="referral-banner-link"
         >
           <Gift className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-label">Refer a friend to earn $100 in credits</span>
+          <span className="text-label">{PROMO_LABEL}</span>
         </Link>
         <button
           type="button"

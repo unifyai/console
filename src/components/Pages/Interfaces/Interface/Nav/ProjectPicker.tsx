@@ -114,7 +114,7 @@ export function ProjectPicker({
           variant="outline"
           role="combobox"
           aria-expanded={isOpen}
-          className="h-8 min-w-0 flex-1 justify-between"
+          className="bg-background/60 hover:border-primary/50 h-9 min-w-0 flex-1 justify-between rounded-lg border-border shadow-sm hover:bg-accent-soft"
           data-testid="project-picker-trigger"
         >
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
@@ -123,13 +123,15 @@ export function ProjectPicker({
             ) : (
               renderSidebarIcon(displayIcon, 'h-3.5 w-3.5 flex-shrink-0', 'project')
             )}
-            <span className="text-label truncate">{displayProject || 'Select project'}</span>
+            <span className="text-label truncate font-medium">
+              {displayProject || 'Select project'}
+            </span>
           </div>
           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] max-w-[20rem] overflow-hidden p-0"
+        className="bg-popover/95 w-[var(--radix-popover-trigger-width)] max-w-[20rem] overflow-hidden rounded-xl border-border p-0 shadow-pop backdrop-blur-sm"
         onOpenAutoFocus={(e) => e.preventDefault()}
         data-testid="project-picker-content"
         side="bottom"
@@ -194,8 +196,10 @@ export function ProjectPicker({
                         value={project.projectName}
                         onSelect={() => handleSelect(project.projectName)}
                         className={cn(
-                          'text-label max-w-full overflow-hidden',
-                          isSelected && !isProjectLoading && 'bg-accent'
+                          'text-label max-w-full overflow-hidden rounded-lg',
+                          isSelected &&
+                            !isProjectLoading &&
+                            'bg-accent-soft text-accent-soft-foreground'
                         )}
                         data-testid={`project-option-${project.projectName}`}
                       >

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { buildCacheControl } from '../_utils/cacheResponse';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 const __DEV__ = process.env.NODE_ENV === 'development';
@@ -160,6 +161,20 @@ export async function DELETE(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
+  }
+
+  // DELETE uses a raw fetch (openapi-fetch drops DELETE bodies), so it bypasses
+  // the Orchestra client's simulation seam. Route it through the dispatcher
+  // explicitly when mock mode is on so brain deletes mutate the in-session store.
+  if (mockSimulationEnabled()) {
+    const { simulationFetch } = await import('@/lib/simulation/dispatch');
+    const simResponse = await simulationFetch('http://mock.local/v0/logs', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const simData = await simResponse.json().catch(() => ({ success: true }));
+    return NextResponse.json(simData, { status: simResponse.status });
   }
 
   // Support both camelCase (frontend) and snake_case input

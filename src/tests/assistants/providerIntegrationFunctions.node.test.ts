@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { fetchFunctionsTables } from '@/lib/client/memory';
+import { fetchFunctionsTables } from '@/lib/client/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 
 describe('provider integration Functions tab rows', () => {

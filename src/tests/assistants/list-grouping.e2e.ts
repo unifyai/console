@@ -16,6 +16,8 @@ import {
   addAssistantToTeam,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  openUnitySwitcher,
+  openRailSection,
   deleteAllAssistantsForUser,
   ensureProjectSync,
   loginAndSaveOrgState,
@@ -100,13 +102,16 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const teamsSection = page.getByTestId('assistant-list-section-teams');
   const soloSection = page.getByTestId('assistant-list-section-solo');
   await expect(teamsSection.getByRole('button', { name: /Teams/ })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(soloSection.getByRole('button', { name: /Team.*1/ })).toBeVisible({
+  // Section headers no longer render a count badge, so match the solo
+  // section's "Team" header by its exact label instead of a "Team 1" count.
+  await expect(soloSection.getByRole('button', { name: 'Team', exact: true })).toBeVisible({
     timeout: 10_000,
   });
 
@@ -136,14 +141,19 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   await multiTeamCue.hover();
   await expect(page.getByRole('tooltip', { name: 'Also in Patch Alpha' })).toBeVisible();
 
+  // Selecting a colleague row dismisses the switcher popover and drives the
+  // section host to that unity's Chat view (the rail now owns primary nav).
   await secondaryListing.click();
-  await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('text=Mina').first()).toBeVisible({ timeout: 10_000 });
 
-  await page.getByTestId('right-pane-tab-memory').click();
-  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
-  await expect(page.getByTestId('memory-destination-dropdown')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('memory-destination-dropdown').click();
+  // Brain destinations stay scoped to the selected assistant's teams. With the
+  // rail owning primary nav, the Transcripts Brain section renders the Brain
+  // pane whose header carries the destination dropdown.
+  await openRailSection(page, 'transcripts');
+  await expect(page.getByTestId('brain-destination-dropdown')).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('brain-destination-dropdown').click();
   await expect(page.getByRole('option', { name: 'Patch Alpha' })).toBeVisible({
     timeout: 20_000,
   });
@@ -152,7 +162,10 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   });
   await page.keyboard.press('Escape');
 
-  await patchAlphaHeader.click();
+  // Folding a team group persists. Re-open the switcher (selection dismissed it)
+  // to interact with the grouped list again.
+  await openUnitySwitcher(page);
+  await page.getByRole('button', { name: /Patch Alpha/ }).click();
   await expect(page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`)).toHaveCount(0);
   await expect
     .poll(() =>
@@ -165,6 +178,7 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
 
   await page.reload();
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
   await expect(page.getByRole('button', { name: /Patch Alpha/ })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`)).toHaveCount(0);
   await expect(
@@ -177,6 +191,7 @@ test('typing in the sidebar search filters assistants and hides groups with no m
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   await expect(page.getByRole('button', { name: /Patch Alpha/ })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('button', { name: /Patch Beta/ })).toBeVisible({ timeout: 10_000 });
@@ -197,6 +212,7 @@ test('typing in the sidebar search filters assistants and hides groups with no m
 test('kebab menu stays visible while Teams section is expanded', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const teamsSection = page.getByTestId('assistant-list-section-teams');
   await expect(teamsSection).toBeVisible({ timeout: 15_000 });
@@ -228,6 +244,9 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
     await menuTrigger.click();
     await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
     await page.keyboard.press('Escape');
+    // The dropdown is a Radix portal that unmounts asynchronously; wait for it
+    // to detach before opening the next row's menu so the testid stays unique.
+    await expect(page.getByTestId('menu-edit-profile')).toHaveCount(0, { timeout: 5_000 });
   };
 
   await assertMenuInSidebar(patchAssistant.agentId);
@@ -237,12 +256,16 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
 test('kebab menu stays visible for multi-team assistant rows', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const groupedRow = page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`);
   await expect(groupedRow).toBeVisible({ timeout: 15_000 });
   await groupedRow.hover();
 
-  const menuTrigger = page.getByTestId(`assistant-menu-${multiAssistant.agentId}`);
+  // A multi-team assistant lists once per team, so its kebab testid is no
+  // longer page-unique; scope to the primary group row (which carries the
+  // unique list-item testid) to target a single trigger.
+  const menuTrigger = groupedRow.getByTestId(`assistant-menu-${multiAssistant.agentId}`);
   await expect(menuTrigger).toBeVisible({ timeout: 5_000 });
   await expect(groupedRow.getByText('2 teams')).toBeVisible();
 
