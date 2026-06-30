@@ -439,6 +439,88 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
+test('workspace demos trigger a unify_message summary and complete from the outbound', async ({
+  authedPage: page,
+}) => {
+  // Connecting the workspace email marks the ``workspace`` connect step
+  // done (Orchestra derives it from the BYOD email contact), which unlocks
+  // the mailbox / drive / calendar demo steps that depend on it.
+  const coordinator = createPersonalCoordinator(user.id);
+  connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await openUnitySwitcher(page);
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.keyboard.press('Escape');
+
+  await openOnboardingChecklist(page);
+  await selectCoordinatorOnboardingSection(page, 'workspace');
+
+  // All three demos are available (the connect step is done) and clickable.
+  const mailboxRow = page.getByTestId('coordinator-onboarding-item-workspace-mailbox').first();
+  await expect(mailboxRow).toBeVisible();
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-workspace-drive').first()
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-workspace-calendar').first()
+  ).toBeVisible();
+  await expectChecklistItemClickable(page, 'workspace-mailbox');
+  await expectChecklistItemClickable(page, 'workspace-drive');
+  await expectChecklistItemClickable(page, 'workspace-calendar');
+
+  let stepEventRequests = 0;
+  let lastStepId: string | null = null;
+  page.on('request', (request) => {
+    if (request.url().includes('/api/coordinator-onboarding-step-event')) {
+      stepEventRequests += 1;
+      try {
+        lastStepId = (JSON.parse(request.postData() ?? '{}') as { stepId?: string }).stepId ?? null;
+      } catch {
+        /* body shape asserted via the request count below */
+      }
+    }
+  });
+
+  // Clicking the row dispatches a single graph-owned step event for the
+  // demo and surfaces the in-flight feedback label.
+  await mailboxRow.click();
+  await expect(
+    page.getByTestId('coordinator-onboarding-action-feedback-workspace-mailbox')
+  ).toHaveText('Summarizing...');
+  await expect.poll(() => stepEventRequests, { timeout: 5_000 }).toBe(1);
+  expect(lastStepId).toBe('workspace-mailbox');
+  await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
+
+  // An untagged unify_message is not proof of the demo.
+  await seedCoordinatorOutboundTranscript(
+    coordinator.agentId,
+    'unify_message',
+    'Untagged unify_message — not a workspace demo proof.'
+  );
+  await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
+
+  // The tagged unify_message summary the assistant delivers completes it.
+  await seedCoordinatorOutboundTranscript(
+    coordinator.agentId,
+    'unify_message',
+    "Here's a quick summary of your mailbox.",
+    'workspace-mailbox'
+  );
+  await expect(mailboxRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
+
+  // The drive / calendar demos stay independently actionable.
+  await expectChecklistItemClickable(page, 'workspace-drive');
+  await expectChecklistItemClickable(page, 'workspace-calendar');
+});
+
 test('starting a call connects and docks the call in the platform', async ({
   authedPage: page,
 }) => {

@@ -66,6 +66,9 @@ export type ChecklistAction =
   | 'trigger-discord-reference'
   | 'start-discord-message'
   | 'connect-workspace'
+  | 'trigger-workspace-mailbox'
+  | 'trigger-workspace-drive'
+  | 'trigger-workspace-calendar'
   | 'connect-apps'
   | 'act'
   | 'schedule';
@@ -121,6 +124,9 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'discord-reference': 'trigger-discord-reference',
   'discord-message': 'start-discord-message',
   workspace: 'connect-workspace',
+  'workspace-mailbox': 'trigger-workspace-mailbox',
+  'workspace-drive': 'trigger-workspace-drive',
+  'workspace-calendar': 'trigger-workspace-calendar',
   apps: 'connect-apps',
   act: 'act',
   schedule: 'schedule',
@@ -141,6 +147,9 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'start-slack-message': 'Checking...',
   'trigger-discord-reference': 'Sending...',
   'start-discord-message': 'Checking...',
+  'trigger-workspace-mailbox': 'Summarizing...',
+  'trigger-workspace-drive': 'Summarizing...',
+  'trigger-workspace-calendar': 'Summarizing...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -620,6 +629,11 @@ export function CoordinatorOnboardingChecklist({
         onTriggerReferenceStep?.('discord-reference');
       else if (action === 'start-discord-message') onStartOnboardingStep?.('discord-message');
       else if (action === 'connect-workspace') onConnectWorkspace?.();
+      else if (action === 'trigger-workspace-mailbox')
+        onTriggerReferenceStep?.('workspace-mailbox');
+      else if (action === 'trigger-workspace-drive') onTriggerReferenceStep?.('workspace-drive');
+      else if (action === 'trigger-workspace-calendar')
+        onTriggerReferenceStep?.('workspace-calendar');
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
       else if (action === 'schedule') onScheduleTask?.();
@@ -718,6 +732,13 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'connect-slack') return !!onConnectSlack;
       if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
+      if (
+        action === 'trigger-workspace-mailbox' ||
+        action === 'trigger-workspace-drive' ||
+        action === 'trigger-workspace-calendar'
+      ) {
+        return !!onTriggerReferenceStep && !!onConnectWorkspace;
+      }
       if (action === 'connect-apps') return !!onConnectApps;
       if (action === 'act') return !!onActNow;
       if (action === 'schedule') return !!onScheduleTask;
