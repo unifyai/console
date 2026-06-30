@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { ScrollArea } from '@/components/UI/scroll-area';
 import { cn } from '@/lib/utils';
 import type {
   OnboardingChip,
@@ -945,104 +946,106 @@ export function CoordinatorOnboardingChecklist({
   const canDeferAll = !!deferOnboarding && nextActionableId !== null;
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
-      <ul className="min-h-0 flex-1 overflow-y-auto" data-testid="coordinator-onboarding-checklist">
-        <style jsx>{`
-          @keyframes coordinator-onboarding-blocked-jiggle {
-            0%,
-            100% {
-              transform: translateX(0);
+      <ScrollArea className="min-h-0 flex-1" viewportTestId="coordinator-onboarding-checklist">
+        <ul>
+          <style jsx>{`
+            @keyframes coordinator-onboarding-blocked-jiggle {
+              0%,
+              100% {
+                transform: translateX(0);
+              }
+              20% {
+                transform: translateX(-1.5px);
+              }
+              40% {
+                transform: translateX(1.5px);
+              }
+              60% {
+                transform: translateX(-1px);
+              }
+              80% {
+                transform: translateX(1px);
+              }
             }
-            20% {
-              transform: translateX(-1.5px);
-            }
-            40% {
-              transform: translateX(1.5px);
-            }
-            60% {
-              transform: translateX(-1px);
-            }
-            80% {
-              transform: translateX(1px);
-            }
-          }
-        `}</style>
-        {resolved.map((section, index) => {
-          const isOpen = openSectionIds.has(section.id);
-          const hasVisibleChildren = (section.children?.length ?? 0) > 0;
-          const sectionItems = hasVisibleChildren
-            ? section.children!
-            : [createComingSoonPlaceholder(section)];
-          return (
-            <li key={section.id}>
-              <SectionHeader
-                section={section}
-                index={index}
-                progress={progressForItems(sectionItems)}
-                isOpen={isOpen}
-                onToggle={() => toggleSection(section.id)}
-              />
-              {isOpen ? (
-                <ul>
-                  {section.id === COMMUNICATION_SECTION_ID
-                    ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
-                        <CommunicationSubgroup
-                          key={group.id}
-                          id={group.id}
-                          title={`${index + 1}.${groupIndex + 1} ${group.title}`}
-                          progress={progressForItems(group.items)}
-                          isOpen={openSubgroupIds.has(group.id)}
-                          onToggle={() => toggleSubgroup(group.id)}
-                        >
-                          {group.items.map((item) => (
-                            <ChecklistRow
-                              key={item.id}
-                              item={item}
-                              isChild
-                              isInSkippedSection={section.sectionSkipped === true}
-                              onAction={handleChecklistRowAction}
-                              isActionWired={isActionWired}
-                              nextActionableId={nextActionableId}
-                              allVisibleItems={visibleLeaves}
-                              actionFeedback={actionFeedbackByStepId.get(item.id)}
-                              blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
-                              blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                              blockingStepHints={
-                                blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
-                              }
-                              onBlockedStepClick={triggerBlockedFeedback}
-                              isOnCall={isOnCall}
-                              onResetStepProgress={resetStepProgress}
-                            />
-                          ))}
-                        </CommunicationSubgroup>
-                      ))
-                    : sectionItems.map((item) => (
-                        <ChecklistRow
-                          key={item.id}
-                          item={item}
-                          isChild
-                          isInSkippedSection={section.sectionSkipped === true}
-                          onAction={handleChecklistRowAction}
-                          isActionWired={isActionWired}
-                          nextActionableId={nextActionableId}
-                          allVisibleItems={visibleLeaves}
-                          actionFeedback={actionFeedbackByStepId.get(item.id)}
-                          blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
-                          blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                          blockingStepHints={
-                            blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
-                          }
-                          onBlockedStepClick={triggerBlockedFeedback}
-                          isOnCall={isOnCall}
-                          onResetStepProgress={resetStepProgress}
-                        />
-                      ))}
-                </ul>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+          `}</style>
+          {resolved.map((section, index) => {
+            const isOpen = openSectionIds.has(section.id);
+            const hasVisibleChildren = (section.children?.length ?? 0) > 0;
+            const sectionItems = hasVisibleChildren
+              ? section.children!
+              : [createComingSoonPlaceholder(section)];
+            return (
+              <li key={section.id}>
+                <SectionHeader
+                  section={section}
+                  index={index}
+                  progress={progressForItems(sectionItems)}
+                  isOpen={isOpen}
+                  onToggle={() => toggleSection(section.id)}
+                />
+                {isOpen ? (
+                  <ul>
+                    {section.id === COMMUNICATION_SECTION_ID
+                      ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
+                          <CommunicationSubgroup
+                            key={group.id}
+                            id={group.id}
+                            title={`${index + 1}.${groupIndex + 1} ${group.title}`}
+                            progress={progressForItems(group.items)}
+                            isOpen={openSubgroupIds.has(group.id)}
+                            onToggle={() => toggleSubgroup(group.id)}
+                          >
+                            {group.items.map((item) => (
+                              <ChecklistRow
+                                key={item.id}
+                                item={item}
+                                isChild
+                                isInSkippedSection={section.sectionSkipped === true}
+                                onAction={handleChecklistRowAction}
+                                isActionWired={isActionWired}
+                                nextActionableId={nextActionableId}
+                                allVisibleItems={visibleLeaves}
+                                actionFeedback={actionFeedbackByStepId.get(item.id)}
+                                blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
+                                blockedFeedbackToken={blockedFeedback?.token ?? 0}
+                                blockingStepHints={
+                                  blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
+                                }
+                                onBlockedStepClick={triggerBlockedFeedback}
+                                isOnCall={isOnCall}
+                                onResetStepProgress={resetStepProgress}
+                              />
+                            ))}
+                          </CommunicationSubgroup>
+                        ))
+                      : sectionItems.map((item) => (
+                          <ChecklistRow
+                            key={item.id}
+                            item={item}
+                            isChild
+                            isInSkippedSection={section.sectionSkipped === true}
+                            onAction={handleChecklistRowAction}
+                            isActionWired={isActionWired}
+                            nextActionableId={nextActionableId}
+                            allVisibleItems={visibleLeaves}
+                            actionFeedback={actionFeedbackByStepId.get(item.id)}
+                            blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
+                            blockedFeedbackToken={blockedFeedback?.token ?? 0}
+                            blockingStepHints={
+                              blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
+                            }
+                            onBlockedStepClick={triggerBlockedFeedback}
+                            isOnCall={isOnCall}
+                            onResetStepProgress={resetStepProgress}
+                          />
+                        ))}
+                  </ul>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </ScrollArea>
       <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
         {canDeferAll ? (
           <button

@@ -290,13 +290,13 @@ function CoordinatorAssistantInfoSidePanelContent({
           </TabsContent>
         </Tabs>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <ScrollArea className="min-h-0 flex-1">
           <ContactInfoGrid
             assistant={assistant}
             onOpenContactManager={onOpenContactManager}
             canWrite={canWrite}
           />
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Send, Loader2, Paperclip, Mic, Square, Camera, File, X } from 'lucide-react';
+import { Send, Loader2, Paperclip, Mic, Square, Camera, File, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -311,6 +311,7 @@ export function AssistantProfileChatPanel({
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
   const isAtBottomRef = React.useRef(true);
+  const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const preserveScrollRef = React.useRef<number | null>(null);
   const prevSpendingBlockedRef = React.useRef<boolean>(isSpendingBlocked);
@@ -448,6 +449,20 @@ export function AssistantProfileChatPanel({
     }
   }, [inputValue]);
 
+  const getChatViewport = React.useCallback(() => {
+    return scrollAreaRef.current?.querySelector<HTMLDivElement>(
+      '[data-radix-scroll-area-viewport]'
+    );
+  }, []);
+
+  const scrollChatToBottom = React.useCallback(() => {
+    const viewport = getChatViewport();
+    if (!viewport) return;
+    viewport.scrollTop = viewport.scrollHeight;
+    isAtBottomRef.current = true;
+    setShowScrollToBottom(false);
+  }, [getChatViewport]);
+
   /* Infinite scroll trigger + track bottom stickiness on manual scroll */
   React.useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
@@ -456,7 +471,11 @@ export function AssistantProfileChatPanel({
     if (!viewport) return;
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = viewport;
-      isAtBottomRef.current = scrollHeight - scrollTop - clientHeight <= 20;
+      const atBottom = scrollHeight - scrollTop - clientHeight <= 20;
+      isAtBottomRef.current = atBottom;
+      if (!isHistoricalMode) {
+        setShowScrollToBottom(!atBottom);
+      }
 
       if (isHistoricalMode) {
         if (scrollTop < 10 && historicalView?.hasOlder && !historicalView.isLoadingOlder) {
@@ -548,6 +567,7 @@ export function AssistantProfileChatPanel({
 
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
       viewport.scrollTop = scrollHeight;
+      setShowScrollToBottom(false);
     } else if (scrollHeight !== prevScrollHeight && !wasBottom) {
       clientLog('SCROLL_NOT_STICKY', {
         wasBottom,
@@ -675,7 +695,7 @@ export function AssistantProfileChatPanel({
         // `break-words` on bubbles do their job and stay within the
         // viewport bounds. Scoped to this scroll area so we don't
         // disturb any callsite that genuinely wants horizontal scroll.
-        className="flex-1 px-3 pb-4 md:px-6 [&>[data-radix-scroll-area-viewport]>div]:!block"
+        className="scroll-fade-y [&>[data-radix-scroll-area-viewport]]:scroll-fade-y flex-1 px-3 pb-4 md:px-6 [&>[data-radix-scroll-area-viewport]>div]:!block"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -864,6 +884,22 @@ export function AssistantProfileChatPanel({
           </div>
         )}
       </ScrollArea>
+
+      {!isHistoricalMode && showScrollToBottom && (
+        <div className="pointer-events-none relative z-10 -mt-12 flex justify-center">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="pointer-events-auto h-8 w-8 rounded-full shadow-md"
+            onClick={scrollChatToBottom}
+            aria-label="Scroll to bottom"
+            data-testid="chat-scroll-to-bottom"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Historical view banner */}
       {isHistoricalMode && <OlderMessagesBanner onJumpToPresent={handleJumpToPresent} />}

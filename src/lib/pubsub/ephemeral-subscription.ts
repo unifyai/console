@@ -13,6 +13,7 @@
 import { GoogleAuth } from 'google-auth-library';
 import { PubSub } from '@google-cloud/pubsub';
 import fs from 'fs';
+import path from 'path';
 import { topicSuffix } from '@/lib/environment/comms-env';
 
 /** Ephemeral subscriptions auto-delete after this much inactivity. */
@@ -29,6 +30,73 @@ interface PubSubEmulatorConfig {
   restBaseUrl: string;
 }
 
+const LOCAL_PUBSUB_EMULATOR: PubSubEmulatorConfig = {
+  grpcEndpoint: 'localhost:8085',
+  restBaseUrl: 'http://localhost:8085/v1',
+};
+
+function usesLocalOrchestra(): boolean {
+  const orchestraUrl = process.env.ORCHESTRA_URL || '';
+  return orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
+}
+
+function resolveCredentialsPath(raw: string): string {
+  return path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
+}
+
+function parseCommsCredentials(raw: string): {
+  credentials: Record<string, unknown>;
+  projectId: string;
+} {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error('COMMS_SERVICE_ACCOUNT_CREDENTIALS is empty.');
+  }
+
+  let credentials: Record<string, unknown>;
+  if (trimmed.startsWith('{')) {
+    try {
+      credentials = JSON.parse(trimmed) as Record<string, unknown>;
+    } catch {
+      throw new Error('COMMS_SERVICE_ACCOUNT_CREDENTIALS contains invalid JSON.');
+    }
+  } else {
+    const credentialsPath = resolveCredentialsPath(trimmed);
+    if (!fs.existsSync(credentialsPath)) {
+      throw new Error(
+        `COMMS_SERVICE_ACCOUNT_CREDENTIALS file not found: ${trimmed} (looked at ${credentialsPath})`
+      );
+    }
+    try {
+      const credentialsFile = fs.readFileSync(credentialsPath, 'utf8');
+      credentials = JSON.parse(credentialsFile) as Record<string, unknown>;
+    } catch {
+      throw new Error(
+        `COMMS_SERVICE_ACCOUNT_CREDENTIALS file is unreadable or not valid JSON: ${trimmed}`
+      );
+    }
+  }
+
+  const projectId = credentials.project_id;
+  if (typeof projectId !== 'string' || !projectId) {
+    throw new Error('Invalid Pub/Sub credentials format: missing project_id.');
+  }
+
+  return { credentials, projectId };
+}
+
+/** True only when cloud comms credentials are present and parse successfully. */
+export function commsCredentialsConfigured(): boolean {
+  const raw = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
+  if (!raw?.trim()) return false;
+  try {
+    parseCommsCredentials(raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function resolvePubSubEmulatorConfig(): PubSubEmulatorConfig | null {
   const explicitHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
   if (explicitHost) {
@@ -40,16 +108,16 @@ function resolvePubSubEmulatorConfig(): PubSubEmulatorConfig | null {
     return { grpcEndpoint, restBaseUrl };
   }
 
-  const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const likelyLocalConsole =
-    process.env.NODE_ENV === 'development' &&
-    (orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1'));
+  // Valid GCP comms credentials always win. Console often runs on localhost
+  // while subscribing to staging/prod Pub/Sub topics.
+  if (commsCredentialsConfigured()) {
+    return null;
+  }
 
-  if (likelyLocalConsole) {
-    return {
-      grpcEndpoint: 'localhost:8085',
-      restBaseUrl: 'http://localhost:8085/v1',
-    };
+  // Full local stack (local Orchestra) uses the Pub/Sub emulator when cloud
+  // credentials are absent — matches local.sh / ci-test-setup behaviour.
+  if (usesLocalOrchestra()) {
+    return LOCAL_PUBSUB_EMULATOR;
   }
 
   return null;
@@ -72,27 +140,12 @@ export const PUBSUB_API_BASE = 'https://pubsub.googleapis.com/v1';
 
 function getCredentials(): { credentials: any; projectId: string } {
   const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
-  if (!credentialsValue) {
+  if (!credentialsValue?.trim()) {
     throw new Error('COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.');
   }
 
-  let credentials;
-  try {
-    credentials = JSON.parse(credentialsValue);
-  } catch {
-    try {
-      const credentialsFile = fs.readFileSync(credentialsValue, 'utf8');
-      credentials = JSON.parse(credentialsFile);
-    } catch {
-      throw new Error('Invalid Pub/Sub credentials.');
-    }
-  }
-
-  if (!credentials?.project_id) {
-    throw new Error('Invalid Pub/Sub credentials format.');
-  }
-
-  return { credentials, projectId: credentials.project_id };
+  const { credentials, projectId } = parseCommsCredentials(credentialsValue);
+  return { credentials, projectId };
 }
 
 /**

@@ -143,9 +143,11 @@ export function RightPaneContainer({
   // dashboards pane can poll its tiles. The Actions body owns the
   // subscription and reports up.
   const [hasActiveAction, setHasActiveAction] = useState(false);
+
   const handleActiveActionChange = useCallback((active: boolean) => {
     setHasActiveAction(active);
   }, []);
+
   const { canOpenAssistantChat } = useAssistantPermissions();
 
   if (!assistant) {
@@ -272,6 +274,7 @@ export function RightPaneContainer({
           assistant={assistant}
           actions={actions}
           className="h-full"
+          isPaneVisible={activeTab === 'actions'}
           onHasActiveActionChange={handleActiveActionChange}
         />
       </TabsContent>

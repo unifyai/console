@@ -31,7 +31,7 @@ import {
   filterActionTree,
 } from '@/utils/assistants/assistant-actions';
 import type { SectionToggleSignal } from './ActionNodeItem';
-import type { AssistantActionActions } from '@/types/assistants/action';
+import type { ActionNode, AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant } from '@/types/assistants/assistant';
 import { USE_MOCK_DATA, MOCK_ACTION_ROOTS } from '@/utils/assistants/action-mock-data';
 
@@ -44,6 +44,8 @@ export interface LiveActionsViewerProps {
   className?: string;
   /** Notifies parent when hasActiveAction changes (for dashboard polling) */
   onHasActiveActionChange?: (active: boolean) => void;
+  /** True when the Actions tab body is the active right-pane tab */
+  isPaneVisible?: boolean;
 }
 
 export function LiveActionsViewer({
@@ -51,6 +53,7 @@ export function LiveActionsViewer({
   actions,
   className,
   onHasActiveActionChange,
+  isPaneVisible = true,
 }: LiveActionsViewerProps) {
   // ==========================================================================
   // State
@@ -59,7 +62,6 @@ export function LiveActionsViewer({
   const [searchTerm, setSearchTerm] = React.useState('');
   const [expandedNodeIds, setExpandedNodeIds] = React.useState<Set<string>>(new Set());
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
-  const [isVisible, setIsVisible] = React.useState(true);
   const [sectionToggleSignal, setSectionToggleSignal] = React.useState<SectionToggleSignal>({
     open: false,
     gen: 0,
@@ -77,27 +79,8 @@ export function LiveActionsViewer({
   // it flips off after the first batch so genuinely new live SSE roots still
   // auto-expand.
   const suppressAutoExpandRef = React.useRef(true);
-
-  // ==========================================================================
-  // Visibility-based Polling
-  // ==========================================================================
-
-  React.useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Consider visible if any part of the element is in view
-        const isInView = entries.some((entry) => entry.isIntersecting);
-        setIsVisible(isInView);
-      },
-      { threshold: 0 }
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
+  const wasPaneVisibleRef = React.useRef(isPaneVisible);
+  const pendingAutoExpandRef = React.useRef<Set<string>>(new Set());
 
   // ==========================================================================
   // Data Fetching
@@ -105,8 +88,9 @@ export function LiveActionsViewer({
 
   const hasAssistant = assistant !== null && actions !== null;
 
-  // Only poll when visible AND assistant is selected
-  const shouldPoll = hasAssistant && isVisible;
+  // Subscribe whenever an assistant is selected so Chat can observe live work
+  // while the Actions tab is hidden. Visibility only gates auto-expand UX.
+  const shouldSubscribe = hasAssistant;
 
   // Compute the lookback ms from the selected preset (dynamic for Today/Yesterday)
   const lookbackMs = React.useMemo(() => {
@@ -129,7 +113,7 @@ export function LiveActionsViewer({
     hasAssistant ? assistant.agentId : '',
     actions || { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     {
-      enabled: shouldPoll,
+      enabled: shouldSubscribe,
       initialLookbackMs: lookbackMs,
     }
   );
@@ -291,14 +275,36 @@ export function LiveActionsViewer({
     });
     prevRootIdsRef.current = currentIds;
 
-    if (newIds.length > 0) {
+    if (newIds.length === 0) return;
+
+    if (isPaneVisible) {
       setExpandedNodeIds((prev) => {
         const next = new Set(prev);
         newIds.forEach((id) => next.add(id));
         return next;
       });
+      setSectionToggleSignal((prev) => ({ open: true, gen: prev.gen + 1 }));
+    } else {
+      newIds.forEach((id) => pendingAutoExpandRef.current.add(id));
     }
-  }, [roots]);
+  }, [roots, isPaneVisible]);
+
+  // When the Actions tab becomes visible, expand running roots and any
+  // live roots that arrived while the tab was hidden.
+  React.useEffect(() => {
+    const becameVisible = isPaneVisible && !wasPaneVisibleRef.current;
+    wasPaneVisibleRef.current = isPaneVisible;
+    if (!becameVisible) return;
+
+    const toExpand = new Set(pendingAutoExpandRef.current);
+    roots.filter((root) => root.status === 'running').forEach((root) => toExpand.add(root.id));
+    pendingAutoExpandRef.current.clear();
+
+    if (toExpand.size === 0) return;
+
+    setExpandedNodeIds((prev) => new Set([...prev, ...toExpand]));
+    setSectionToggleSignal((prev) => ({ open: true, gen: prev.gen + 1 }));
+  }, [isPaneVisible, roots]);
 
   // Reset state when assistant changes
   React.useEffect(() => {

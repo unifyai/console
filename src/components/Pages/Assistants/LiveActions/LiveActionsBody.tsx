@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { Loader2, AlertCircle, RefreshCw, Eye } from 'lucide-react';
 import { ActionCardSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { Button } from '@/components/UI/button';
+import { ScrollArea } from '@/components/UI/scroll-area';
 import { ActionTree } from './ActionTree';
 import type { SectionToggleSignal } from './ActionNodeItem';
 import type { ActionNode, GetToolLoopEventsFn, LoadChildrenFn } from '@/types/assistants/action';
@@ -248,27 +249,29 @@ export function LiveActionsBody({
       )}
 
       {/* Scrollable tree container */}
-      <div
-        ref={scrollContainerRef}
-        className="h-full overflow-y-auto p-3"
-        style={{ scrollbarWidth: 'thin' }}
-        onScroll={handleScroll}
-        data-testid="live-actions-scroll-container"
+      <ScrollArea
+        className="scroll-fade-y h-full"
+        viewportRef={scrollContainerRef}
+        viewportProps={{ onScroll: handleScroll }}
+        viewportTestId="live-actions-scroll-container"
+        viewportClassName="scroll-fade-y"
       >
-        <ActionTree
-          roots={filteredRoots}
-          ownerId={ownerId || ''}
-          assistantId={assistantId || ''}
-          getToolLoopEvents={getToolLoopEvents}
-          loadChildren={loadChildren}
-          defaultExpanded={false}
-          expandedNodeIds={expandedNodeIds}
-          onExpandedChange={onExpandedChange}
-          sectionToggleSignal={sectionToggleSignal}
-          matchedIds={matchedIds}
-          searchTerm={searchTerm}
-        />
-      </div>
+        <div className="p-3">
+          <ActionTree
+            roots={filteredRoots}
+            ownerId={ownerId || ''}
+            assistantId={assistantId || ''}
+            getToolLoopEvents={getToolLoopEvents}
+            loadChildren={loadChildren}
+            defaultExpanded={false}
+            expandedNodeIds={expandedNodeIds}
+            onExpandedChange={onExpandedChange}
+            sectionToggleSignal={sectionToggleSignal}
+            matchedIds={matchedIds}
+            searchTerm={searchTerm}
+          />
+        </div>
+      </ScrollArea>
 
       {/* Subtle loading indicator when refreshing with data */}
       {isLoading && roots.length > 0 && (

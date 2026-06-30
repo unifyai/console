@@ -1115,6 +1115,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
       if (mergeOutcome === 'duplicate') return;
 
+      if (mergeOutcome === 'merged' && message.role === 'assistant') {
+        handleChatActivity(assistantId);
+      }
+
       // Mark the assistant as "online" in the list — an incoming message
       // is the strongest possible signal the process is reachable. This
       // applies to both merged and skipped-no-history cases.
@@ -1143,7 +1147,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         /* BroadcastChannel unsupported (very old browsers) */
       }
     },
-    [markAssistantOnline]
+    [handleChatActivity, markAssistantOnline]
   );
 
   const handleChatStreamDesktopReady = React.useCallback(
@@ -2475,16 +2479,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     onOpenChatSection={handleOpenChatSection}
                   >
                     {(infoPanel) => {
-                      if (activeSectionDef.kind === 'brain-view' && profileAssistant) {
-                        return (
-                          <BrainSectionsHost
-                            assistant={profileAssistant}
-                            activeSectionId={activeSectionDef.id}
-                            onManageContacts={() => handleOpenContactManager(profileAssistant)}
-                          />
-                        );
-                      }
-                      return (
+                      const rightPane = (
                         <RightPaneContainer
                           assistant={profileAssistant}
                           actions={assistantActions.actions || null}
@@ -2574,6 +2569,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           }
                         />
                       );
+
+                      const showBrainHost =
+                        activeSectionDef.kind === 'brain-view' && profileAssistant;
+
+                      if (showBrainHost) {
+                        return (
+                          <div className="relative h-full min-h-0">
+                            <div
+                              className={cn(
+                                'h-full min-h-0',
+                                'pointer-events-none absolute inset-0 hidden'
+                              )}
+                              aria-hidden
+                            >
+                              {rightPane}
+                            </div>
+                            <BrainSectionsHost
+                              assistant={profileAssistant}
+                              activeSectionId={activeSectionDef.id}
+                              onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                            />
+                          </div>
+                        );
+                      }
+
+                      return rightPane;
                     }}
                   </AssistantInfoPanelLayout>
                 )}

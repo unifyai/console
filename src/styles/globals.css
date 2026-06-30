@@ -1049,6 +1049,23 @@
     animation: shimmer 1s linear infinite reverse;
   }
 
+  .scroll-fade-y {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black 24px,
+      black calc(100% - 24px),
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black 24px,
+      black calc(100% - 24px),
+      transparent 100%
+    );
+  }
+
   @keyframes skeleton-shimmer {
     0% {
       background-position: 200% 0;

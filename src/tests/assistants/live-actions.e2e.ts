@@ -26,6 +26,7 @@ import {
   openUnitySwitcher,
   openRailSection,
 } from './helpers';
+import { createContactSeeder, createOpenAssistantChat } from './chat-helpers';
 
 const CONSOLE_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
@@ -39,6 +40,9 @@ const assistant = createAssistant({
   firstName: 'ActionBot',
   surname: 'E2E',
 });
+
+const seedContact = createContactSeeder(assistant.bossContactId);
+const openAssistantChat = createOpenAssistantChat(assistant);
 
 test.afterAll(() => {
   deleteAllAssistantsForUser(user.id);
