@@ -1,7 +1,7 @@
 import { BrandLoader } from '@unity/brand/components';
 
 type LoaderProps = {
-  /** Slot size in px. The brand mark is rendered compactly within that old spinner footprint. */
+  /** Slot size in px. The cube mark is rendered at half this size, centered in the slot. */
   size?: number;
   className?: string;
   /** Accessible label announced to assistive tech. */
@@ -9,7 +9,7 @@ type LoaderProps = {
 };
 
 /**
- * The console's canonical loading indicator: the animated Unify block-mark loader. Use this
+ * The console's canonical loading indicator: the animated Unify cube loader. Use this
  * everywhere a standalone "loading" spinner is shown (loading screens, page/section/dialog
  * loaders) so there is a single, on-brand loading icon across the app.
  */

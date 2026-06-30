@@ -36,3 +36,23 @@ export async function requireUnifyAdmin(): Promise<ResponseProps | null> {
   }
   return null;
 }
+
+/**
+ * Membership-only sibling of {@link requireUnifyAdmin}. Returns ``null`` when
+ * the caller belongs to the "Unify" organization (any role); otherwise returns
+ * a ``ResponseProps`` error meant to be returned verbatim by the action.
+ *
+ * Used by the impersonation ("view as user") actions, which are available to
+ * every Unify staff member rather than only Owner/Admin.
+ */
+export async function requireUnifyMember(): Promise<ResponseProps | null> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { detail: 'Unauthorized', status: 401 };
+  }
+  const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
+  if (!isUnifyMember) {
+    return { detail: 'Forbidden', status: 403 };
+  }
+  return null;
+}

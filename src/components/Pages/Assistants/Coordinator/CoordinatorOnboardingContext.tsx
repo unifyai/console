@@ -23,7 +23,7 @@
  */
 
 import * as React from 'react';
-import type { OnboardingRender } from '@/lib/assistants/coordinatorState';
+import type { CoordinatorMode, OnboardingRender } from '@/lib/assistants/coordinatorState';
 
 export interface CoordinatorOnboardingContextValue {
   /** Per-session record of which onboarding steps the user has
@@ -77,6 +77,15 @@ export interface CoordinatorOnboardingContextValue {
   deferOnboarding: () => void;
   /** Bring the deferred onboarding flow back, exactly where it was. */
   resumeOnboarding: () => void;
+  /** Coordinator lifecycle mode. ``'working'`` once onboarding has been
+   * exited (the checklist body is otherwise empty); drives the
+   * reactivate affordance. ``null`` until the state row loads. */
+  mode: CoordinatorMode | null;
+  /** Flip the coordinator back into ``onboarding`` mode (clearing any
+   * deferral) so the checklist repopulates and the Coordinator's nudges
+   * re-engage from wherever the durable domain state leaves off. No-op
+   * when the surface has no state writer. */
+  reactivateOnboarding: () => void;
   /** Server-computed onboarding rendering (steps + statuses + valid next
    * targets). The checklist renders directly from this — availability
    * and ordering are no longer computed client-side. ``null`` outside

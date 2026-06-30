@@ -1,6 +1,7 @@
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import React from 'react';
 import TopNav from '@/components/Layout/TopBar/TopNav';
+import ImpersonationBanner from '@/components/Layout/TopBar/ImpersonationBanner';
 import Providers from '@/components/Pages/Providers/Base';
 import { Suspense } from 'react';
 import 'react-grid-layout/css/styles.css';
@@ -119,6 +120,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
             </Suspense>
           </CallProvider>
           <Toaster richColors position="bottom-right" closeButton />
+          <ImpersonationBanner />
           <SelfHostRuntimeBootstrap />
           <TimezoneSync />
           <NetworkStatusToast />

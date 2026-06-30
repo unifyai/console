@@ -17,6 +17,7 @@ import {
   Loader2,
   ShieldCheck,
   RotateCcw,
+  UserSearch,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -47,6 +48,7 @@ import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { UserOrganization } from '@/types/user';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
+import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
 import { fetchAssistants } from '@/lib/client/assistant';
@@ -118,6 +120,7 @@ export default function TopNav() {
   const [isSelfHostResetting, setIsSelfHostResetting] = useState(false);
   const [workspacePhotos, setWorkspacePhotos] = useState<Record<string, string>>({});
   const [coordinatorId, setCoordinatorId] = useState<string | null>(null);
+  const [showImpersonateDialog, setShowImpersonateDialog] = useState(false);
 
   const {
     workspaces,
@@ -633,6 +636,19 @@ export default function TopNav() {
                   </Link>
                 </DropdownMenuItem>
               )}
+              {isUnifyMember && (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setShowImpersonateDialog(true);
+                  }}
+                  className="text-body flex cursor-pointer items-center hover:text-[color:var(--foreground)]"
+                  data-testid="view-as-user-menu-item"
+                >
+                  <UserSearch className="mr-2 h-4 w-4" />
+                  <span>View as user</span>
+                </DropdownMenuItem>
+              )}
               {isUnifyAdmin && (
                 <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                   <Link
@@ -659,6 +675,10 @@ export default function TopNav() {
           </DropdownMenu>
         </div>
       </div>
+
+      {isUnifyMember && (
+        <ImpersonateDialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog} />
+      )}
 
       {/* Personal Workspace Confirmation Dialog */}
       <AlertDialog
