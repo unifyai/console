@@ -46,12 +46,13 @@ export {
 export type { SeededOrg } from '../helpers/seeds/types';
 
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import { deferCoordinatorForUser } from '../helpers/coordinator';
 export { login, switchToEmailTab };
 
 /** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
 export async function waitForAssistantsReady(page: Page) {
   await page.goto('/assistants');
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible({ timeout: 10_000 });
 }
 
@@ -138,8 +139,12 @@ export async function expectOnboardButtonDisabled(page: Page) {
 export async function loginAndSaveState(
   browser: Browser,
   email: string,
-  password: string
+  password: string,
+  opts?: { userId?: string; apiKey?: string }
 ): Promise<string> {
+  if (opts?.userId && opts?.apiKey) {
+    await deferCoordinatorForUser(opts.userId, opts.apiKey);
+  }
   const stateFile = path.join(os.tmpdir(), `pw-billing-${email.replace(/[^a-z0-9]/gi, '-')}.json`);
 
   const ctx = await browser.newContext();
@@ -203,7 +208,7 @@ export async function loginAndNavigateTo(
  * For unauthenticated tests, use the built-in `page` fixture (fresh context).
  */
 export function createBillingTest(
-  user: { email: string; password: string },
+  user: { id: string; email: string; password: string; apiKey: string },
   opts?: { skipWhenManualTopup?: boolean }
 ) {
   let authFile: string | undefined;
@@ -212,7 +217,10 @@ export function createBillingTest(
     authedPage: async ({ browser }, use, testInfo) => {
       if (!authFile) {
         testInfo.setTimeout(testInfo.timeout + 30_000);
-        authFile = await loginAndSaveState(browser, user.email, user.password);
+        authFile = await loginAndSaveState(browser, user.email, user.password, {
+          userId: user.id,
+          apiKey: user.apiKey,
+        });
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();

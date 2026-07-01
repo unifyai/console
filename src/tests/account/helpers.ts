@@ -15,6 +15,7 @@ import {
   loginAndNavigateTo,
   switchToEmailTab,
 } from '../auth/helpers';
+import { deferCoordinatorForUser } from '../helpers/coordinator';
 
 export { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -41,8 +42,13 @@ export { login, loginAndNavigateTo, switchToEmailTab };
 export async function loginAndSaveState(
   browser: Browser,
   email: string,
-  password: string
+  password: string,
+  opts?: { userId?: string; apiKey?: string }
 ): Promise<string> {
+  if (opts?.userId && opts?.apiKey) {
+    await deferCoordinatorForUser(opts.userId, opts.apiKey);
+  }
+
   const stateFile = path.join(os.tmpdir(), `pw-account-${email.replace(/[^a-z0-9]/gi, '-')}.json`);
 
   const ctx = await browser.newContext();
@@ -75,14 +81,22 @@ export async function loginAndSaveState(
 // Fixture: createAccountTest
 // =============================================================================
 
-export function createAccountTest(user: { email: string; password: string }) {
+export function createAccountTest(user: {
+  id: string;
+  email: string;
+  password: string;
+  apiKey: string;
+}) {
   let authFile: string | undefined;
 
   return base.extend<{ authedPage: Page }>({
     authedPage: async ({ browser }, use, testInfo) => {
       if (!authFile) {
         testInfo.setTimeout(testInfo.timeout + 30_000);
-        authFile = await loginAndSaveState(browser, user.email, user.password);
+        authFile = await loginAndSaveState(browser, user.email, user.password, {
+          userId: user.id,
+          apiKey: user.apiKey,
+        });
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();

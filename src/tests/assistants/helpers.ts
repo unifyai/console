@@ -11,6 +11,11 @@ import path from 'path';
 import os from 'os';
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
 import { orchestraFetch as _orchestraFetch } from '../helpers/seeds/client';
+import {
+  deferCoordinatorForUser,
+  deferCoordinatorOnboarding,
+  getCoordinatorAgentId,
+} from '../helpers/coordinator';
 
 export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -34,6 +39,11 @@ export {
   ensureVoicePreset,
   ensureProjectSync,
 } from '../helpers/seeds/client';
+export {
+  deferCoordinatorForUser,
+  deferCoordinatorOnboarding,
+  getCoordinatorAgentId,
+} from '../helpers/coordinator';
 export type {
   SeededOrg,
   SeededAssistant,
@@ -224,10 +234,7 @@ export function createAssistantTest(user: {
         // ``absolute inset-0 z-50``) that intercepts every pointer event. The
         // legacy two-pane assistant flows assume the standard shell, so defer
         // onboarding once up front before the first authenticated page loads.
-        const coordinatorId = getCoordinatorAgentId(user.id);
-        if (coordinatorId) {
-          await deferCoordinatorOnboarding(user.apiKey, coordinatorId);
-        }
+        await deferCoordinatorForUser(user.id, user.apiKey);
         authFile = await loginAndSaveState(browser, user.email, user.password);
       }
       const ctx = await browser.newContext({
@@ -268,6 +275,7 @@ export async function navigateToAssistants(page: Page) {
   await page.goto('/assistants');
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(2_000);
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
 }
 
 /**
@@ -455,20 +463,16 @@ export async function fillProfileFields(
  * The first voice is auto-selected by default; this explicitly clicks one.
  */
 export async function selectVoice(page: Page, voiceNameSubstring?: string) {
+  await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
+    timeout: 10_000,
+  });
   await openAccordionSection(page, 'voice');
-  await page.waitForTimeout(1_000);
 
-  if (voiceNameSubstring) {
-    const voiceOption = page
-      .getByRole('option', { name: new RegExp(voiceNameSubstring, 'i') })
-      .first();
-    await voiceOption.scrollIntoViewIfNeeded();
-    await voiceOption.click();
-  } else {
-    const firstVoice = page.getByRole('option').first();
-    await firstVoice.scrollIntoViewIfNeeded();
-    await firstVoice.click();
-  }
+  const voiceOption = voiceNameSubstring
+    ? page.getByRole('option', { name: new RegExp(voiceNameSubstring, 'i') }).first()
+    : page.getByRole('option').first();
+  await expect(voiceOption).toBeVisible({ timeout: 15_000 });
+  await voiceOption.click();
   await page.waitForTimeout(300);
 }
 
@@ -498,8 +502,8 @@ export async function skipWorkspaceSetupIfPrompted(page: Page) {
 export async function clickHireButton(page: Page) {
   await skipWorkspaceSetupIfPrompted(page);
   const hireBtn = page.getByRole('button', { name: 'Onboard Teammate', exact: true });
-  await hireBtn.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
+  await expect(hireBtn).toBeVisible({ timeout: 10_000 });
+  await expect(hireBtn).toBeEnabled({ timeout: 10_000 });
   await hireBtn.click();
 }
 
@@ -624,45 +628,6 @@ export function getAssistantAgentIds(userId: string): number[] {
   );
   if (!result) return [];
   return result.split('\n').map((id) => parseInt(id, 10));
-}
-
-/** Agent ID of a user's personal (non-org) Coordinator, or null if none. */
-export function getCoordinatorAgentId(userId: string): number | null {
-  const result = dbExec(
-    `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND is_coordinator = TRUE AND organization_id IS NULL ORDER BY agent_id LIMIT 1`
-  );
-  const parsed = parseInt(result, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * Dismiss the Coordinator onboarding gate for a workspace.
- *
- * A freshly provisioned Coordinator resolves to ``mode: onboarding`` with
- * ``intro_watched: false``, so the assistants page renders the full-screen
- * onboarding intro overlay (``data-testid="coordinator-onboarding"``,
- * ``absolute inset-0 z-50``) that intercepts every pointer event. Legacy
- * assistant flows (list, chat, profile, hire, …) assume the standard shell,
- * so they defer onboarding up front. Setting ``onboarding_deferred`` clears
- * both the intro overlay and the coordinator focus layout in one shot,
- * leaving the regular two-pane list. Idempotent and one-way sticky for
- * ``intro_watched`` server-side.
- */
-export async function deferCoordinatorOnboarding(
-  apiKey: string,
-  coordinatorId: number
-): Promise<void> {
-  const res = await _orchestraFetch(
-    `/v0/assistant/${coordinatorId}/state`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ intro_watched: true, onboarding_deferred: true }),
-    },
-    apiKey
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to defer coordinator onboarding: ${res.status}`);
-  }
 }
 
 export function deleteAssistantFromDb(agentId: number): void {

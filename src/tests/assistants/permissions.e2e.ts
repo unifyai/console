@@ -32,7 +32,14 @@ import {
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
-import { openUnitySwitcher, openRailSection, openEditDialogFromList } from './helpers';
+import { deferCoordinatorForUser } from '../helpers/coordinator';
+import {
+  navigateToAssistants,
+  openUnitySwitcher,
+  openRailSection,
+  closeHireDialogIfOpen,
+  openEditDialogFromList,
+} from './helpers';
 
 // =============================================================================
 // Test Users & Org Setup
@@ -71,6 +78,11 @@ async function loginAndSaveOrgState(
   await page.goto('/login');
   await loginAndWaitForRedirect(page, email, password, 45_000);
 
+  await deferCoordinatorForUser(
+    email === owner.email ? owner.id : member.id,
+    email === owner.email ? owner.apiKey : member.apiKey
+  );
+
   // Handle onboarding
   if (page.url().includes('/login/onboarding')) {
     // For org members, autoComplete might kick in. Wait for redirect.
@@ -101,7 +113,7 @@ async function loginAndSaveOrgState(
   }, orgId);
 
   await page.reload();
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
 
   await ctx.storageState({ path: stateFile });
   await ctx.close();
@@ -165,26 +177,6 @@ test.afterAll(() => {
 // =============================================================================
 // Helpers
 // =============================================================================
-
-async function navigateToAssistants(page: Page) {
-  await page.goto('/assistants');
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
-}
-
-async function closeHireDialogIfOpen(page: Page) {
-  const dialog = page.locator('[role="dialog"]');
-  if (await dialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
-    if (await dialog.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      const closeBtn = page.getByRole('button', { name: /close/i }).first();
-      if (await closeBtn.isVisible({ timeout: 1_000 }).catch(() => false)) {
-        await closeBtn.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  }
-}
 
 /**
  * Open the edit dialog from a list row via the info panel.

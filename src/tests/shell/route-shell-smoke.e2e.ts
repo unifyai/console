@@ -10,35 +10,16 @@
  */
 
 import { expect } from '@playwright/test';
-import {
-  createTestUser,
-  cleanupUser,
-  createOrg,
-  deleteOrg,
-  dbExec,
-  createAssistantTest,
-  addMember,
-} from '../assistants/helpers';
+import { createTestUser, cleanupUser, createAssistantTest } from '../assistants/helpers';
+import { ensureUnifyOrg } from '../helpers/seeds/client';
 
 const user = createTestUser({ name: 'ShellRoutes', lastName: 'Smoke', credits: 50_000 });
-const existingUnifyOrgId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
-let unifyOrg: { id: number };
-let createdUnifyOrg = false;
-if (existingUnifyOrgId) {
-  unifyOrg = { id: parseInt(existingUnifyOrgId, 10) };
-  addMember({ orgId: unifyOrg.id, userId: user.id, role: 'Member' });
-} else {
-  unifyOrg = createOrg({ ownerId: user.id, name: 'Unify', credits: 50_000 });
-  createdUnifyOrg = true;
-}
+ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
 
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
 
 test.afterAll(() => {
-  if (createdUnifyOrg) {
-    deleteOrg(unifyOrg.id);
-  }
   cleanupUser(user.id);
 });
 
@@ -49,7 +30,7 @@ test('/favourites renders inside the rail shell with its section header', async 
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
 
   await expect(page).toHaveURL(/\/favourites/);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
   // Page body heading (TabHeader also shows the section label in the rail chrome).
   await expect(page.getByRole('heading', { name: 'Favourites' })).toBeVisible();
   // Favourites body streamed in.
@@ -64,6 +45,6 @@ test('/interfaces renders inside the rail shell for a Unify member', async ({
 
   // Unify members are not redirected to /assistants, and we stay out of /login.
   await expect(page).toHaveURL(/\/interfaces/);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByTestId('interface-picker-trigger')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('project-picker-trigger')).toBeVisible({ timeout: 15_000 });
 });

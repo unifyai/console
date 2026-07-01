@@ -721,6 +721,59 @@ END
   return orgApiKey;
 }
 
+export interface EnsureUnifyOrgOpts {
+  /** User who owns the org when one is created fresh. */
+  ownerId?: string;
+  /** User to add as a member of an existing or newly created org. */
+  memberId?: string;
+  /** Role for memberId on an existing org (default Member). */
+  memberRole?: OrgRole;
+  /** Role for ownerId when joining an existing org owned by someone else (default Admin). */
+  existingOrgOwnerRole?: OrgRole;
+  credits?: number;
+}
+
+/**
+ * Find or create the globally unique ``Unify`` org used by admin and
+ * interfaces gates. Parallel E2E jobs share one Orchestra DB — never
+ * DELETE-and-recreate this org in individual specs.
+ */
+export function ensureUnifyOrg(opts: EnsureUnifyOrgOpts): SeededOrg {
+  const existingId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
+
+  if (existingId) {
+    const orgId = parseInt(existingId, 10);
+    const ownerId = dbExec(`SELECT owner_id FROM organization WHERE id = ${orgId};`);
+    const ownerOrgApiKey = dbExec(
+      `SELECT key FROM api_key WHERE user_id = '${ownerId}' AND organization_id = ${orgId} LIMIT 1;`
+    );
+
+    if (opts.memberId) {
+      addMember({ orgId, userId: opts.memberId, role: opts.memberRole ?? 'Member' });
+    }
+    if (opts.ownerId && opts.ownerId !== ownerId) {
+      addMember({
+        orgId,
+        userId: opts.ownerId,
+        role: opts.existingOrgOwnerRole ?? 'Admin',
+      });
+    }
+
+    return { id: orgId, name: 'Unify', ownerId, ownerOrgApiKey };
+  }
+
+  const ownerId = opts.ownerId ?? opts.memberId;
+  if (!ownerId) {
+    throw new Error('ensureUnifyOrg: Unify org does not exist and no ownerId was provided');
+  }
+
+  return createOrg({
+    name: 'Unify',
+    ownerId,
+    credits: opts.credits,
+  });
+}
+
 // =============================================================================
 // Voice Preset (required FK for assistants)
 // =============================================================================
