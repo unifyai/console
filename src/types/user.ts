@@ -25,6 +25,7 @@ export interface User {
   discordId: string | null;
   createdAt: string;
   apiKey: string;
+  personalWorkspaceDisabled?: boolean;
   stripeCustomerId: string;
   organization: {
     name: string;

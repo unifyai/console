@@ -44,9 +44,9 @@ export function WorkspaceProvider({
   const workspaces = useMemo<UserWorkspace[]>(() => {
     if (!user) return [];
 
-    const list: UserWorkspace[] = [
-      { id: 'personal', name: userFullName(user) || 'Personal', type: 'personal' },
-    ];
+    const list: UserWorkspace[] = user.personalWorkspaceDisabled
+      ? []
+      : [{ id: 'personal', name: userFullName(user) || 'Personal', type: 'personal' }];
 
     if (user.organizations && user.organizations.length > 0) {
       user.organizations.forEach((org) => {
