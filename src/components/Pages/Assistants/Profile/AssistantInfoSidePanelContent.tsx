@@ -131,50 +131,41 @@ export interface AssistantInfoSidePanelContentProps {
 
 const COORDINATOR_COPY_RESET_MS = 2000;
 const CONTACT_COPY_RESET_MS = 2000;
-const PROFILE_TAB_SHIMMER_MS = 1400;
 
 type CoordinatorPanelTab = 'onboarding' | 'profile';
+
+function nudgeElement(element: HTMLElement | null) {
+  if (!element) return;
+  element.classList.remove('animate-nudge');
+  void element.offsetWidth;
+  element.classList.add('animate-nudge');
+}
 
 function useProfileTabHeaderFocus(
   showProfileTab: boolean,
   activeTab: CoordinatorPanelTab,
-  setActiveTab: React.Dispatch<React.SetStateAction<CoordinatorPanelTab>>
+  setActiveTab: React.Dispatch<React.SetStateAction<CoordinatorPanelTab>>,
+  profileSectionTitleRef: React.MutableRefObject<HTMLHeadingElement | null>
 ) {
-  const [profileTabShimmer, setProfileTabShimmer] = React.useState(false);
-  const shimmerTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  React.useEffect(
-    () => () => {
-      if (shimmerTimerRef.current) clearTimeout(shimmerTimerRef.current);
-    },
-    []
-  );
-
-  const focusProfileTabFromHeader = React.useCallback(() => {
-    if (!showProfileTab) return;
-    if (activeTab === 'profile') {
-      setProfileTabShimmer(true);
-      if (shimmerTimerRef.current) clearTimeout(shimmerTimerRef.current);
-      shimmerTimerRef.current = setTimeout(() => {
-        shimmerTimerRef.current = null;
-        setProfileTabShimmer(false);
-      }, PROFILE_TAB_SHIMMER_MS);
+  const focusProfileFromHeader = React.useCallback(() => {
+    if (showProfileTab && activeTab !== 'profile') {
+      setActiveTab('profile');
       return;
     }
-    setActiveTab('profile');
-  }, [activeTab, setActiveTab, showProfileTab]);
+    nudgeElement(profileSectionTitleRef.current);
+  }, [activeTab, profileSectionTitleRef, setActiveTab, showProfileTab]);
 
-  return { profileTabShimmer, focusProfileTabFromHeader };
+  return focusProfileFromHeader;
 }
 
-function ProfileTabTrigger({ shimmer = false }: { shimmer?: boolean }) {
+function ProfileTabTrigger() {
   return (
     <TabsTrigger
       value="profile"
       data-testid="assistant-info-tab-profile"
       className={PANEL_TAB_TRIGGER_CLASS}
     >
-      <span className={cn(shimmer && 'animate-shimmer')}>Profile</span>
+      Profile
     </TabsTrigger>
   );
 }
@@ -269,14 +260,16 @@ function CoordinatorAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
-  const { profileTabShimmer, focusProfileTabFromHeader } = useProfileTabHeaderFocus(
+  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
-    setActiveTab
+    setActiveTab,
+    profileSectionTitleRef
   );
   React.useEffect(() => {
-    onRegisterFocusProfileTab?.(focusProfileTabFromHeader);
-  }, [focusProfileTabFromHeader, onRegisterFocusProfileTab]);
+    onRegisterFocusProfileTab?.(focusProfileFromHeader);
+  }, [focusProfileFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
     if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
   }, [showOnboardingTab, activeTab]);
@@ -315,7 +308,7 @@ function CoordinatorAssistantInfoSidePanelContent({
         isIdCopied={isIdCopied}
         onCopyId={copyId}
         onClose={onClose}
-        onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileTabFromHeader : undefined}
+        onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileFromHeader : undefined}
         onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
         isStartCallDisabled={isStartCallDisabled}
         startCallTooltip={startCallTooltip}
@@ -341,7 +334,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             >
               Onboarding
             </TabsTrigger>
-            <ProfileTabTrigger shimmer={profileTabShimmer} />
+            <ProfileTabTrigger />
           </TabsList>
           {coordinatorOnboarding && (
             <TabsContent
@@ -378,6 +371,7 @@ function CoordinatorAssistantInfoSidePanelContent({
               onOpenWorkspaceManager={onOpenWorkspaceManager}
               onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
+              profileSectionTitleRef={profileSectionTitleRef}
             />
           </TabsContent>
         </Tabs>
@@ -390,6 +384,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             onOpenWorkspaceManager={onOpenWorkspaceManager}
             onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
+            profileSectionTitleRef={profileSectionTitleRef}
           />
         </ScrollArea>
       )}
@@ -441,14 +436,16 @@ function RegularAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile'>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
-  const { profileTabShimmer, focusProfileTabFromHeader } = useProfileTabHeaderFocus(
+  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
-    setActiveTab
+    setActiveTab,
+    profileSectionTitleRef
   );
   React.useEffect(() => {
-    onRegisterFocusProfileTab?.(focusProfileTabFromHeader);
-  }, [focusProfileTabFromHeader, onRegisterFocusProfileTab]);
+    onRegisterFocusProfileTab?.(focusProfileFromHeader);
+  }, [focusProfileFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
     if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
     if (showOnboardingTab && activeTab === 'profile' && onboardingState.resolvedSteps === 0) {
@@ -480,6 +477,7 @@ function RegularAssistantInfoSidePanelContent({
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
       canWrite={canWrite}
+      profileSectionTitleRef={profileSectionTitleRef}
     />
   );
 
@@ -495,7 +493,7 @@ function RegularAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onClose={onClose}
-          onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileTabFromHeader : undefined}
+          onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileFromHeader : undefined}
           onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
           isStartCallDisabled={isStartCallDisabled}
           startCallTooltip={startCallTooltip}
@@ -525,7 +523,7 @@ function RegularAssistantInfoSidePanelContent({
                   {onboardingState.totalSteps - onboardingState.resolvedSteps}
                 </span>
               </TabsTrigger>
-              <ProfileTabTrigger shimmer={profileTabShimmer} />
+              <ProfileTabTrigger />
             </TabsList>
             <TabsContent value="onboarding" className="mt-0">
               <AssistantSetupRoadmap
@@ -663,13 +661,13 @@ function IdentityHeader({
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={onFocusProfileTab}
                   data-testid="assistant-info-edit-profile"
-                  aria-label="Show profile tab"
+                  aria-label="Edit"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">
-                <p>Profile</p>
+                <p>Edit</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -704,6 +702,7 @@ interface ProfileSectionsPanelProps {
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   canWrite: boolean;
+  profileSectionTitleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
 }
 
 const DESKTOP_OS_LABELS: Record<string, string> = {
@@ -832,6 +831,7 @@ function ProfileSectionsPanel({
   onOpenWorkspaceManager,
   onConnectDesktop,
   canWrite,
+  profileSectionTitleRef,
 }: ProfileSectionsPanelProps) {
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
@@ -846,6 +846,7 @@ function ProfileSectionsPanel({
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
+        titleRef={profileSectionTitleRef}
       />
       <ProfileSectionTile
         title="Workspace"
@@ -920,6 +921,7 @@ interface ProfileSectionTileProps {
   onEdit?: () => void;
   editTestId: string;
   editAriaLabel: string;
+  titleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
   /** When true, the tile stays mouse-clickable but omits button semantics (nested controls own keyboard/a11y). */
   suppressTileButtonSemantics?: boolean;
 }
@@ -932,8 +934,17 @@ function ProfileSectionTile({
   onEdit,
   editTestId,
   editAriaLabel,
+  titleRef,
   suppressTileButtonSemantics = false,
 }: ProfileSectionTileProps) {
+  const assignTitleRef = React.useCallback(
+    (element: HTMLHeadingElement | null) => {
+      if (titleRef) {
+        titleRef.current = element;
+      }
+    },
+    [titleRef]
+  );
   const isInteractive = canEdit && !!onEdit;
   const useTileButtonSemantics = isInteractive && !suppressTileButtonSemantics;
 
@@ -965,7 +976,13 @@ function ProfileSectionTile({
       onKeyDown={handleKeyDown}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-label text-semibold">{title}</h3>
+        <h3
+          ref={titleRef ? assignTitleRef : undefined}
+          className="text-label text-semibold"
+          data-testid={title === 'Profile' ? 'assistant-info-profile-section-title' : undefined}
+        >
+          {title}
+        </h3>
         {isInteractive && (
           <ChevronRight
             className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70 transition-[opacity,transform] group-focus-within/tile:opacity-100 group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"

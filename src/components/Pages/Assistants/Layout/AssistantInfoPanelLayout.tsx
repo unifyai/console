@@ -488,7 +488,7 @@ export function AssistantInfoPanelLayout({
                   size="icon"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={() => focusProfileTabRef.current?.()}
-                  aria-label="Show profile tab"
+                  aria-label="Edit"
                   data-testid="assistant-info-edit-profile"
                 >
                   <Pencil className="h-4 w-4" />
