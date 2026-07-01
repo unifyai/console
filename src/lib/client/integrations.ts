@@ -42,6 +42,8 @@ const BUILTINS_APP_PUBLIC_FIELDS = [
   'external_account_label',
   'overlay',
   'api_key_schema',
+  'requires_custom_oauth',
+  'managed_auth',
   'native_metadata',
 ].join('&');
 const BUILTINS_TOOL_PUBLIC_FIELDS = [
@@ -92,6 +94,8 @@ interface ProviderAppPayload {
   externalAccountLabel?: string | null;
   overlay?: UnknownRecord | null;
   apiKeySchema?: UnknownRecord | IntegrationApiKeySchema | null;
+  requiresCustomOauth?: boolean | null;
+  managedAuth?: boolean | null;
   nativeMetadata?: UnknownRecord | null;
 }
 
@@ -482,6 +486,7 @@ export function mapProviderAppToDefinition(app: ProviderAppPayload): Integration
     tools,
     toolCount: app.toolCount ?? tools.length,
     apiKeySchema: normalizeApiKeySchema(app.apiKeySchema),
+    requiresCustomOauth: app.requiresCustomOauth === true,
     docsUrl: typeof app.overlay?.docsUrl === 'string' ? app.overlay.docsUrl : null,
     connections: connection ? [connection] : [],
   };

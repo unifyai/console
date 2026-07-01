@@ -969,6 +969,19 @@ export function ProviderIntegrationDetailSheet({
                       visibleConnectionCount > 0 &&
                       renderAccountSection('account')}
 
+                    {displayItem.requiresCustomOauth && !isConnectedApp && !isNativeApp && (
+                      <Alert className="bg-muted/20" data-testid="integration-requires-custom-oauth">
+                        <AlertTitle>Custom OAuth app required</AlertTitle>
+                        <AlertDescription>
+                          {displayItem.displayName} has no managed credentials, so it can only be
+                          connected with your own OAuth app.{' '}
+                          {canManageCustomAuth
+                            ? 'Configure one under "Bring your own OAuth" below before connecting.'
+                            : 'Ask a workspace admin to configure OAuth credentials for it.'}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     {displayItem.apiKeySchema && onApiKeySubmit && (
                       <section className="space-y-3">
                         <h3 className="text-title text-base">Credential</h3>

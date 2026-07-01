@@ -26,11 +26,14 @@ function toolkitSlugFor(item: IntegrationGalleryItem): string {
   return String(item.sourceMetadata?.providerAppId || item.canonicalSlug || '').trim();
 }
 
-function matchesToolkit(config: ProviderCustomAuthConfig, item: IntegrationGalleryItem): boolean {
-  const slug = toolkitSlugFor(item).toUpperCase();
+function matchesToolkitSlug(
+  config: ProviderCustomAuthConfig,
+  toolkitSlug: string,
+  canonicalSlug: string
+): boolean {
+  const configSlug = config.toolkitSlug.toUpperCase();
   return (
-    config.toolkitSlug.toUpperCase() === slug ||
-    config.toolkitSlug.toUpperCase() === String(item.canonicalSlug).toUpperCase()
+    configSlug === toolkitSlug.toUpperCase() || configSlug === canonicalSlug.toUpperCase()
   );
 }
 
@@ -53,6 +56,8 @@ export function ProviderCustomOAuthSection({
   backendId?: string;
 }) {
   const toolkitSlug = toolkitSlugFor(item);
+  const canonicalSlug = String(item.canonicalSlug || '');
+  const displayName = item.displayName;
   const supportsOAuth = item.authModes?.some((mode) => String(mode).toLowerCase() === 'oauth');
 
   const [existing, setExisting] = React.useState<ProviderCustomAuthConfig | null>(null);
@@ -65,18 +70,23 @@ export function ProviderCustomOAuthSection({
   const [error, setError] = React.useState<string | null>(null);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
 
+  // Depend only on stable primitives (not the `item` object, which the parent
+  // catalog recreates on every poll) so this effect doesn't refire and reload
+  // the panel on a loop.
   const refresh = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const configs = await listProviderCustomAuthConfigs(backendId);
-      setExisting(configs.find((config) => matchesToolkit(config, item)) ?? null);
+      setExisting(
+        configs.find((config) => matchesToolkitSlug(config, toolkitSlug, canonicalSlug)) ?? null
+      );
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load custom OAuth.');
     } finally {
       setLoading(false);
     }
-  }, [backendId, item]);
+  }, [backendId, toolkitSlug, canonicalSlug]);
 
   React.useEffect(() => {
     if (!supportsOAuth || !toolkitSlug) {
@@ -104,7 +114,7 @@ export function ProviderCustomOAuthSection({
           .split(/[\s,]+/)
           .map((scope) => scope.trim())
           .filter(Boolean),
-        displayName: `${item.displayName} (custom OAuth)`,
+        displayName: `${displayName} (custom OAuth)`,
       });
       setExisting(saved);
       setClientId('');
@@ -139,7 +149,7 @@ export function ProviderCustomOAuthSection({
         <h3 className="text-title text-base">Bring your own OAuth (admin)</h3>
       </div>
       <p className="text-caption">
-        Use your own OAuth app for {item.displayName} to show your branding on the consent screen,
+        Use your own OAuth app for {displayName} to show your branding on the consent screen,
         request custom scopes, or connect a provider without Composio-managed credentials. The
         client secret is stored in the provider vault, never by Unify.
       </p>
@@ -205,7 +215,7 @@ export function ProviderCustomOAuthSection({
             </div>
           )}
           <p className="text-caption">
-            New connections for {item.displayName} will use this OAuth app. Remove it to fall back to
+            New connections for {displayName} will use this OAuth app. Remove it to fall back to
             Composio-managed auth (where available).
           </p>
         </div>
