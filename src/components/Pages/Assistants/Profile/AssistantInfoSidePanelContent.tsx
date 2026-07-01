@@ -543,9 +543,9 @@ function IdentityHeader({
           onClick={onCopyId}
           className={cn(metadataRowClass, 'group/id w-full cursor-pointer text-left')}
           data-testid="assistant-info-copy-id"
-          aria-label="Copy droid ID"
+          aria-label="Copy teammate ID"
         >
-          <span className="opacity-70">Droid ID:</span>
+          <span className="opacity-70">Teammate ID:</span>
           <span className="flex min-w-0 items-center">
             {isIdCopied ? (
               <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />

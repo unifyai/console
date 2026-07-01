@@ -745,7 +745,7 @@ export function HireForm({
 
                                 <AppearanceControlTooltip label="Outfit" side="left">
                                   <Button
-                                    aria-label="Previous droid outfit"
+                                    aria-label="Previous teammate outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -767,7 +767,7 @@ export function HireForm({
                                 </AppearanceControlTooltip>
                                 <AppearanceControlTooltip label="Outfit" side="right">
                                   <Button
-                                    aria-label="Next droid outfit"
+                                    aria-label="Next teammate outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -896,7 +896,7 @@ export function HireForm({
                               <div className="flex items-center gap-2">
                                 <AppearanceControlTooltip label="Color" side="left">
                                   <Button
-                                    aria-label="Previous droid color"
+                                    aria-label="Previous teammate color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -912,7 +912,7 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
                                 <div
-                                  aria-label="Droid color"
+                                  aria-label="Teammate color"
                                   className="flex items-center gap-1.5 px-1 py-1"
                                   role="group"
                                 >
@@ -928,7 +928,7 @@ export function HireForm({
                                             aria-current={isSelected ? 'true' : undefined}
                                             aria-label={
                                               isSelected
-                                                ? `Current droid color: ${color}`
+                                                ? `Current teammate color: ${color}`
                                                 : `Select ${color}`
                                             }
                                             className={cn(
@@ -969,7 +969,7 @@ export function HireForm({
                                 </div>
                                 <AppearanceControlTooltip label="Color" side="right">
                                   <Button
-                                    aria-label="Next droid color"
+                                    aria-label="Next teammate color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -988,7 +988,7 @@ export function HireForm({
 
                               <div className="flex items-center justify-center">
                                 <Button
-                                  aria-label="Randomize droid appearance"
+                                  aria-label="Randomize teammate appearance"
                                   type="button"
                                   variant="outline"
                                   size="sm"

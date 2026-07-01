@@ -167,7 +167,7 @@ export function AssistantPhotoViewer({
                   <CreatureAvatar
                     appearance={creatureAppearance}
                     className="rounded-lg"
-                    label="Droid avatar"
+                    label="Teammate avatar"
                   />
                 ) : shouldRenderVideo ? (
                   <video

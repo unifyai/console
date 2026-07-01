@@ -171,7 +171,7 @@ export function LiveActionsBody({
         )}
         data-testid="live-actions-no-assistant"
       >
-        <p className="cursor-default text-center">Select a droid to watch live actions.</p>
+        <p className="cursor-default text-center">Select a teammate to watch live actions.</p>
       </div>
     );
   }

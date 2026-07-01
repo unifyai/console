@@ -8,7 +8,7 @@ type ApprovedVoiceMetadata = Pick<
 export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadata> = {
   cgSgspJ2msm6clMCkdW9: {
     name: 'Nova Guide',
-    description: 'Bright, polished, and upbeat for cheerful customer-facing droids.',
+    description: 'Bright, polished, and upbeat for cheerful customer-facing teammates.',
     gender: 'female',
     language: 'en',
     provider: 'elevenlabs',
@@ -36,7 +36,7 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
   },
   AZnzlk1XvdvUeBnXmlld: {
     name: 'Vector Pilot',
-    description: 'Lively, animated, and clear for high-presence operational droids.',
+    description: 'Lively, animated, and clear for high-presence operational teammates.',
     gender: 'female',
     language: 'en',
     provider: 'elevenlabs',
@@ -64,7 +64,7 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
   },
   TX3LPaxmHKxFdv7VOQHJ: {
     name: 'Beacon Operator',
-    description: 'Warm, friendly, and upbeat for approachable support droids.',
+    description: 'Warm, friendly, and upbeat for approachable support teammates.',
     gender: 'male',
     language: 'en',
     provider: 'elevenlabs',
