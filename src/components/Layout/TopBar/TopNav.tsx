@@ -267,7 +267,7 @@ export default function TopNav() {
   ) : null;
   return (
     <div className="fixed left-0 right-0 top-0 z-50 h-10 border-b border-border bg-card">
-      <div className="relative flex h-full items-center justify-between px-3.5">
+      <div className="relative flex h-full min-w-0 items-center justify-between overflow-x-auto px-3.5">
         {/* Refer & earn promo — centered, dismissible (persisted to
             localStorage), gated on billing access so the link always lands on
             a reachable billing page. */}

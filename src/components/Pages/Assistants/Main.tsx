@@ -48,6 +48,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 import { Loader } from '@/components/Common/Loader';
+import { maxWidthMediaQuery } from '@/constants/breakpoints';
+import { useBreakpoint } from '@/hooks/Common/useMobile';
+import { Button } from '@/components/UI/button';
+import { Sheet, SheetContent } from '@/components/UI/sheet';
+import { Menu } from 'lucide-react';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import {
   type CoordinatorWorkspaceScope,
@@ -254,7 +259,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       if (!stored) return;
       const parsed = JSON.parse(stored) as Partial<RightPaneState> | null;
       if (!parsed || typeof parsed !== 'object') return;
-      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      const isMobile = window.matchMedia(maxWidthMediaQuery('mobile')).matches;
       // Migrate legacy tab ids that no longer map to a right-pane tab:
       //  - 'secrets' was renamed to 'integrations' when the per-assistant
       //    Integrations tab landed.
@@ -292,7 +297,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Collapse to primary-only on viewport shrink to mobile so a stored
   // split doesn't suddenly look broken when the user resizes their window.
   React.useEffect(() => {
-    const mql = window.matchMedia('(max-width: 767px)');
+    const mql = window.matchMedia(maxWidthMediaQuery('mobile'));
     const handler = (e: MediaQueryListEvent) => {
       if (e.matches) {
         setPaneState((prev) => (prev.secondary ? { ...prev, secondary: null } : prev));
@@ -321,21 +326,31 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const activeSectionId = activeBrainSectionId ?? paneState.primary.tab;
   const activeSectionDef = SECTION_BY_ID[activeSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
 
+  const { isBelowMobile, isBelowTablet } = useBreakpoint();
+  const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
   const [railCollapsed, setRailCollapsed] = React.useState(false);
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
       if (stored !== null) {
         setRailCollapsed(stored === '1');
-      } else if (window.matchMedia('(max-width: 1023px)').matches) {
-        // No saved preference yet: dock the rail on narrow screens so the
-        // section host keeps usable width.
+      } else if (window.matchMedia(maxWidthMediaQuery('tablet')).matches) {
         setRailCollapsed(true);
       }
     } catch {
       /* localStorage unavailable — keep expanded */
     }
   }, []);
+  React.useEffect(() => {
+    if (isBelowTablet) {
+      setRailCollapsed(true);
+    }
+  }, [isBelowTablet]);
+  React.useEffect(() => {
+    if (!isBelowMobile) {
+      setMobileRailOpen(false);
+    }
+  }, [isBelowMobile]);
   const handleRailCollapsedChange = React.useCallback((collapsed: boolean) => {
     setRailCollapsed(collapsed);
     try {
@@ -2443,18 +2458,57 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           </div>
         ) : (
           <div className="relative flex min-h-0 flex-1 overflow-hidden">
-            <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
-              <AssistantRail
-                activeUnity={profileAssistant}
-                listProps={railListProps}
-                activeSection={activeSectionId}
-                onSelectSection={handleSelectSection}
-                collapsed={railCollapsed}
-                onCollapsedChange={handleRailCollapsedChange}
-              />
+            <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+              {isBelowMobile ? (
+                <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
+                  <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+                    <AssistantRail
+                      activeUnity={profileAssistant}
+                      listProps={railListProps}
+                      activeSection={activeSectionId}
+                      onSelectSection={(section) => {
+                        handleSelectSection(section);
+                        setMobileRailOpen(false);
+                      }}
+                      collapsed={false}
+                      onCollapsedChange={(next) => {
+                        if (next) {
+                          setMobileRailOpen(false);
+                          return;
+                        }
+                        handleRailCollapsedChange(false);
+                      }}
+                    />
+                  </SheetContent>
+                </Sheet>
+              ) : (
+                <AssistantRail
+                  activeUnity={profileAssistant}
+                  listProps={railListProps}
+                  activeSection={activeSectionId}
+                  onSelectSection={handleSelectSection}
+                  collapsed={railCollapsed}
+                  onCollapsedChange={handleRailCollapsedChange}
+                />
+              )}
 
               <SectionHost
                 section={activeSectionDef}
+                headerLeading={
+                  isBelowMobile ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      aria-label="Open navigation"
+                      data-testid="rail-mobile-toggle"
+                      onClick={() => setMobileRailOpen(true)}
+                    >
+                      <Menu className="h-4 w-4" />
+                    </Button>
+                  ) : undefined
+                }
                 renderView={() => (
                   <AssistantInfoPanelLayout
                     assistant={profileAssistant}
@@ -2506,6 +2560,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           chatStreamActivitySignal={profileChatActivitySignal}
                           paneState={paneState}
                           onPaneStateChange={setPaneState}
+                          workspacePaneObscured={activeBrainSectionId !== null}
                           infoPanel={infoPanel}
                           coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                           renderDockedCall={
@@ -2571,30 +2626,30 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       );
 
                       const showBrainHost =
-                        activeSectionDef.kind === 'brain-view' && profileAssistant;
+                        activeSectionDef.kind === 'brain-view' && profileAssistant != null;
 
-                      if (showBrainHost) {
-                        return (
-                          <div className="relative h-full min-h-0">
-                            <div
-                              className={cn(
-                                'h-full min-h-0',
-                                'pointer-events-none absolute inset-0 hidden'
-                              )}
-                              aria-hidden
-                            >
-                              {rightPane}
-                            </div>
-                            <BrainSectionsHost
-                              assistant={profileAssistant}
-                              activeSectionId={activeSectionDef.id}
-                              onManageContacts={() => handleOpenContactManager(profileAssistant)}
-                            />
+                      return (
+                        <div className="relative h-full min-h-0 w-full">
+                          <div
+                            className={cn(
+                              'h-full min-h-0 w-full',
+                              showBrainHost && 'pointer-events-none absolute inset-0 z-0 hidden'
+                            )}
+                            aria-hidden={showBrainHost ? true : undefined}
+                          >
+                            {rightPane}
                           </div>
-                        );
-                      }
-
-                      return rightPane;
+                          {showBrainHost ? (
+                            <div className="relative z-10 h-full min-h-0 w-full">
+                              <BrainSectionsHost
+                                assistant={profileAssistant}
+                                activeSectionId={activeSectionDef.id}
+                                onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      );
                     }}
                   </AssistantInfoPanelLayout>
                 )}

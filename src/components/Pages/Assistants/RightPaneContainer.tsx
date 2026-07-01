@@ -102,6 +102,8 @@ interface RightPaneContainerProps {
    * *this* assistant and hasn't been popped out.
    */
   renderDockedCall?: () => React.ReactNode;
+  /** True while a Brain section overlay hides the workspace pane (Actions SSE stays live). */
+  workspacePaneObscured?: boolean;
 }
 
 /**
@@ -138,6 +140,7 @@ export function RightPaneContainer({
   infoPanel,
   coordinatorOnboarding,
   renderDockedCall,
+  workspacePaneObscured = false,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. The Actions body owns the
@@ -178,6 +181,7 @@ export function RightPaneContainer({
   }
 
   const activeTab = paneState.primary.tab;
+  const isActionsPaneVisible = activeTab === 'actions' && !workspacePaneObscured;
 
   const handleTabChange = (next: string) => {
     onPaneStateChange({ ...paneState, primary: { tab: next as RightPaneTab } });
@@ -267,7 +271,7 @@ export function RightPaneContainer({
           assistant={assistant}
           actions={actions}
           className="h-full"
-          isPaneVisible={activeTab === 'actions'}
+          isPaneVisible={isActionsPaneVisible}
           onHasActiveActionChange={handleActiveActionChange}
         />
       </TabsContent>
