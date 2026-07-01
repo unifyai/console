@@ -34,6 +34,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { ConnectedAccountsSection } from './ConnectedAccountsSection';
 import { ProviderApiKeyForm } from './ProviderApiKeyForm';
+import { ProviderCustomOAuthSection } from './ProviderCustomOAuthSection';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
 import { integrationAuthLabels } from './integrationType';
 import {
@@ -518,6 +519,7 @@ export function ProviderIntegrationDetailSheet({
   onTestConnection,
   onUpdateConnectionLabel,
   isDetailLoading,
+  canManageCustomAuth = false,
 }: {
   item: IntegrationGalleryItem | null;
   open: boolean;
@@ -540,6 +542,13 @@ export function ProviderIntegrationDetailSheet({
     accountLabel: string
   ) => Promise<void> | void;
   isDetailLoading?: boolean;
+  /**
+   * When true, shows an admin surface for configuring a bring-your-own OAuth
+   * app (custom client id/secret) for OAuth-capable provider apps. This is
+   * platform-level configuration, so callers must only enable it for users
+   * allowed to manage integration backends.
+   */
+  canManageCustomAuth?: boolean;
 }) {
   const snapshot = React.useRef<IntegrationGalleryItem | null>(null);
   const [selectedScopeIds, setSelectedScopeIds] = React.useState<string[]>([]);
@@ -969,6 +978,13 @@ export function ProviderIntegrationDetailSheet({
                           onSubmit={(values) => onApiKeySubmit(displayItem, values)}
                         />
                       </section>
+                    )}
+
+                    {canManageCustomAuth && !isNativeApp && (
+                      <ProviderCustomOAuthSection
+                        item={displayItem}
+                        backendId={displayItem.sourceMetadata?.backendId || 'composio'}
+                      />
                     )}
 
                     {displayItem.tools.length > 0 && (

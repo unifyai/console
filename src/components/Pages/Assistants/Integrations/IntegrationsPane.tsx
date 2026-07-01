@@ -183,6 +183,7 @@ export function IntegrationsPane({
   ownerId,
   assistantId,
   secretActions,
+  canWrite = false,
   isVisible = true,
   onSecretsCountChange,
 }: IntegrationsPaneProps) {
@@ -882,6 +883,7 @@ export function IntegrationsPane({
         onUpdateConnectionLabel={(connection, accountLabel) =>
           handleConnectionLabelUpdate(connection, accountLabel)
         }
+        canManageCustomAuth={canWrite}
         isDetailLoading={
           !!selectedDisplayItem && isDetailLoading === selectedDisplayItem.canonicalSlug
         }

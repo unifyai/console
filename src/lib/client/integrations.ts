@@ -1132,3 +1132,58 @@ export async function syncIntegrations(
     body: JSON.stringify(camelToSnakeObject(request)),
   });
 }
+
+export interface ProviderCustomAuthConfig {
+  backendId: string;
+  toolkitSlug: string;
+  authConfigId: string;
+  authScheme: string;
+  scopes: string[];
+  managed: boolean;
+  oauthRedirectUri?: string | null;
+  displayName?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ProviderCustomAuthConfigRequest {
+  toolkitSlug: string;
+  clientId: string;
+  clientSecret: string;
+  authScheme?: string;
+  scopes?: string[];
+  displayName?: string | null;
+  oauthRedirectUri?: string | null;
+}
+
+export async function listProviderCustomAuthConfigs(
+  backendId: string
+): Promise<ProviderCustomAuthConfig[]> {
+  const data = await providerAdminFetch<{ configs?: ProviderCustomAuthConfig[] }>(
+    `backends/${encodeURIComponent(backendId)}/custom-auth`
+  );
+  return Array.isArray(data?.configs) ? data.configs : [];
+}
+
+export async function setProviderCustomAuthConfig(
+  backendId: string,
+  request: ProviderCustomAuthConfigRequest
+): Promise<ProviderCustomAuthConfig> {
+  return providerAdminFetch<ProviderCustomAuthConfig>(
+    `backends/${encodeURIComponent(backendId)}/custom-auth`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(camelToSnakeObject(request)),
+    }
+  );
+}
+
+export async function deleteProviderCustomAuthConfig(
+  backendId: string,
+  toolkitSlug: string
+): Promise<void> {
+  await providerAdminFetch(
+    `backends/${encodeURIComponent(backendId)}/custom-auth/${encodeURIComponent(toolkitSlug)}`,
+    { method: 'DELETE' }
+  );
+}

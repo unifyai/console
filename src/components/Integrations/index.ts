@@ -5,6 +5,7 @@ export type { IntegrationGalleryFilters } from './IntegrationGalleryShell';
 export { IntegrationGalleryVirtualGrid } from './IntegrationGalleryVirtualGrid';
 export { IntegrationStatusBadge, statusLabel } from './IntegrationStatusBadge';
 export { ProviderApiKeyForm } from './ProviderApiKeyForm';
+export { ProviderCustomOAuthSection } from './ProviderCustomOAuthSection';
 export { ProviderIntegrationCard } from './ProviderIntegrationCard';
 export { ProviderIntegrationDetailSheet } from './ProviderIntegrationDetailSheet';
 export { ScopeChipGroup } from './ScopeChipGroup';
