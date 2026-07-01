@@ -463,7 +463,7 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   await openOnboardingChecklist(page);
   await selectCoordinatorOnboardingSection(page, 'workspace');
 
-  // All three demos are available (the connect step is done) and clickable.
+  // All demos are available (the connect step is done) and clickable.
   const mailboxRow = page.getByTestId('coordinator-onboarding-item-workspace-mailbox').first();
   await expect(mailboxRow).toBeVisible();
   await expect(
@@ -472,9 +472,17 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   await expect(
     page.getByTestId('coordinator-onboarding-item-workspace-calendar').first()
   ).toBeVisible();
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-workspace-contacts').first()
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-workspace-tasks').first()
+  ).toBeVisible();
   await expectChecklistItemClickable(page, 'workspace-mailbox');
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
+  await expectChecklistItemClickable(page, 'workspace-contacts');
+  await expectChecklistItemClickable(page, 'workspace-tasks');
 
   let stepEventRequests = 0;
   let lastStepId: string | null = null;
@@ -516,9 +524,11 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   );
   await expect(mailboxRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
 
-  // The drive / calendar demos stay independently actionable.
+  // The other demos stay independently actionable.
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
+  await expectChecklistItemClickable(page, 'workspace-contacts');
+  await expectChecklistItemClickable(page, 'workspace-tasks');
 });
 
 test('starting a call connects and docks the call in the platform', async ({

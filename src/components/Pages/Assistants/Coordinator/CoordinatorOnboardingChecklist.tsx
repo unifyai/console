@@ -69,6 +69,8 @@ export type ChecklistAction =
   | 'trigger-workspace-mailbox'
   | 'trigger-workspace-drive'
   | 'trigger-workspace-calendar'
+  | 'trigger-workspace-contacts'
+  | 'trigger-workspace-tasks'
   | 'connect-apps'
   | 'act'
   | 'schedule';
@@ -127,6 +129,8 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'workspace-mailbox': 'trigger-workspace-mailbox',
   'workspace-drive': 'trigger-workspace-drive',
   'workspace-calendar': 'trigger-workspace-calendar',
+  'workspace-contacts': 'trigger-workspace-contacts',
+  'workspace-tasks': 'trigger-workspace-tasks',
   apps: 'connect-apps',
   act: 'act',
   schedule: 'schedule',
@@ -150,6 +154,8 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-mailbox': 'Summarizing...',
   'trigger-workspace-drive': 'Summarizing...',
   'trigger-workspace-calendar': 'Summarizing...',
+  'trigger-workspace-contacts': 'Summarizing...',
+  'trigger-workspace-tasks': 'Summarizing...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -634,6 +640,9 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'trigger-workspace-drive') onTriggerReferenceStep?.('workspace-drive');
       else if (action === 'trigger-workspace-calendar')
         onTriggerReferenceStep?.('workspace-calendar');
+      else if (action === 'trigger-workspace-contacts')
+        onTriggerReferenceStep?.('workspace-contacts');
+      else if (action === 'trigger-workspace-tasks') onTriggerReferenceStep?.('workspace-tasks');
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
       else if (action === 'schedule') onScheduleTask?.();
@@ -735,7 +744,9 @@ export function CoordinatorOnboardingChecklist({
       if (
         action === 'trigger-workspace-mailbox' ||
         action === 'trigger-workspace-drive' ||
-        action === 'trigger-workspace-calendar'
+        action === 'trigger-workspace-calendar' ||
+        action === 'trigger-workspace-contacts' ||
+        action === 'trigger-workspace-tasks'
       ) {
         return !!onTriggerReferenceStep && !!onConnectWorkspace;
       }
