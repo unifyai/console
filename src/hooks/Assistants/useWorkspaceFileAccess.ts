@@ -54,6 +54,15 @@ export function useWorkspaceFileAccess({
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
 
+  // The bootstrap rebuilds ``assistantActions`` on every server render, so the
+  // ``workspaceFiles`` object identity changes on each ``router.refresh()``
+  // (e.g. the window-focus / OAuth-complete refreshes around this very flow).
+  // Read it through a ref so those churns don't re-trigger the fetch below and
+  // re-flash the loader; the effect keys off stable primitives only.
+  const workspaceFileActions = assistantActions.workspaceFiles;
+  const actionsRef = React.useRef(workspaceFileActions);
+  actionsRef.current = workspaceFileActions;
+
   // ── Initial load: policy + roots ────────────────────────────────────────
   React.useEffect(() => {
     if (!isOpen || !provider) return;
@@ -63,8 +72,8 @@ export function useWorkspaceFileAccess({
       setIsLoading(true);
       try {
         const [policy, rootList] = await Promise.all([
-          assistantActions.workspaceFiles.getPolicy(assistantId, provider!),
-          assistantActions.workspaceFiles.listRoots(assistantId, provider!),
+          actionsRef.current.getPolicy(assistantId, provider!),
+          actionsRef.current.listRoots(assistantId, provider!),
         ]);
         if (cancelled) return;
 
@@ -102,7 +111,7 @@ export function useWorkspaceFileAccess({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, provider, assistantId, assistantActions.workspaceFiles]);
+  }, [isOpen, provider, assistantId]);
 
   // ── Reset when closed ────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -127,7 +136,7 @@ export function useWorkspaceFileAccess({
 
       setLoadingKeys((prev) => new Set(prev).add(k));
       try {
-        const result = await assistantActions.workspaceFiles.listChildren(
+        const result = await actionsRef.current.listChildren(
           assistantId,
           provider,
           node.driveId,
@@ -159,7 +168,7 @@ export function useWorkspaceFileAccess({
         });
       }
     },
-    [provider, assistantId, assistantActions.workspaceFiles, childrenByKey]
+    [provider, assistantId, childrenByKey]
   );
 
   const toggleExpand = React.useCallback(
@@ -289,7 +298,7 @@ export function useWorkspaceFileAccess({
     setIsSaving(true);
     const toastId = toast.loading('Saving file access...');
     try {
-      const result = await assistantActions.workspaceFiles.updatePolicy(
+      const result = await actionsRef.current.updatePolicy(
         assistantId,
         provider,
         defaultAllow,
@@ -310,7 +319,7 @@ export function useWorkspaceFileAccess({
     } finally {
       setIsSaving(false);
     }
-  }, [provider, isSaving, assistantId, assistantActions.workspaceFiles, defaultAllow, decisions]);
+  }, [provider, isSaving, assistantId, defaultAllow, decisions]);
 
   return {
     roots,
