@@ -837,8 +837,8 @@ function ProfileSectionsPanel({
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
 
   return (
-    <section className="flex flex-col gap-4" data-testid="assistant-info-profile-sections">
-      <ProfileSectionRow
+    <section className="flex flex-col gap-1" data-testid="assistant-info-profile-sections">
+      <ProfileSectionTile
         title="Profile"
         description={<ProfileSummary assistant={assistant} />}
         descriptionClassName="mt-0.5"
@@ -847,7 +847,7 @@ function ProfileSectionsPanel({
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
       />
-      <ProfileSectionRow
+      <ProfileSectionTile
         title="Workspace"
         description={
           workspaceStatus.provider ? (
@@ -864,7 +864,7 @@ function ProfileSectionsPanel({
         editTestId="assistant-info-edit-workspace-section"
         editAriaLabel="Edit workspace"
       />
-      <ProfileSectionRow
+      <ProfileSectionTile
         title="Contact Details"
         description={
           <ContactDetailsGrid
@@ -878,9 +878,10 @@ function ProfileSectionsPanel({
         onEdit={() => onOpenContactManager(assistant)}
         editTestId="assistant-info-edit-contact-section"
         editAriaLabel="Edit contact details"
+        suppressTileButtonSemantics
       />
       {showDesktopSection && (
-        <ProfileSectionRow
+        <ProfileSectionTile
           title="Desktop"
           description={getDesktopStatusDescription(assistant)}
           canEdit={canWrite && !!onConnectDesktop}
@@ -911,7 +912,7 @@ function WorkspaceStatusDescription({
   );
 }
 
-interface ProfileSectionRowProps {
+interface ProfileSectionTileProps {
   title: string;
   description: React.ReactNode;
   descriptionClassName?: string;
@@ -919,9 +920,11 @@ interface ProfileSectionRowProps {
   onEdit?: () => void;
   editTestId: string;
   editAriaLabel: string;
+  /** When true, the tile stays mouse-clickable but omits button semantics (nested controls own keyboard/a11y). */
+  suppressTileButtonSemantics?: boolean;
 }
 
-function ProfileSectionRow({
+function ProfileSectionTile({
   title,
   description,
   descriptionClassName,
@@ -929,26 +932,38 @@ function ProfileSectionRow({
   onEdit,
   editTestId,
   editAriaLabel,
-}: ProfileSectionRowProps) {
+  suppressTileButtonSemantics = false,
+}: ProfileSectionTileProps) {
+  const isInteractive = canEdit && !!onEdit;
+  const useTileButtonSemantics = isInteractive && !suppressTileButtonSemantics;
+
+  const activate = () => {
+    onEdit?.();
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!useTileButtonSemantics) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      activate();
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-1 border-b border-border pb-3 last:border-b-0 last:pb-0">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-label text-semibold">{title}</h3>
-        {canEdit && onEdit && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-caption -mr-2 h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
-            onClick={onEdit}
-            data-testid={editTestId}
-            aria-label={editAriaLabel}
-          >
-            <Pencil className="h-3 w-3" />
-            <span>Edit</span>
-          </Button>
-        )}
-      </div>
+    <div
+      className={cn(
+        'flex flex-col gap-1 rounded-lg px-3 py-2.5 transition-colors',
+        isInteractive &&
+          'hover:bg-muted/50 active:bg-muted/70 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+      )}
+      data-testid={editTestId}
+      role={useTileButtonSemantics ? 'button' : undefined}
+      tabIndex={useTileButtonSemantics ? 0 : undefined}
+      aria-label={useTileButtonSemantics ? editAriaLabel : undefined}
+      onClick={isInteractive ? activate : undefined}
+      onKeyDown={handleKeyDown}
+    >
+      <h3 className="text-label text-semibold">{title}</h3>
       <div className={cn('text-caption text-muted-foreground', descriptionClassName)}>
         {description}
       </div>
@@ -1042,8 +1057,11 @@ function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
       {isSet ? (
         <button
           type="button"
-          className="group/contact flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left text-foreground"
-          onClick={copyValue}
+          className="group/contact hover:bg-muted/60 -mx-1 flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md px-1 text-left text-foreground transition-colors"
+          onClick={(event) => {
+            event.stopPropagation();
+            copyValue();
+          }}
           aria-label={`Copy ${label.toLowerCase()}`}
         >
           <span className="min-w-0 truncate">{contactValue}</span>
@@ -1060,7 +1078,10 @@ function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
           type="button"
           variant="link"
           className="text-link h-auto p-0 text-sm font-normal"
-          onClick={onAdd}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAdd();
+          }}
         >
           Add {label.toLowerCase()}
         </Button>
