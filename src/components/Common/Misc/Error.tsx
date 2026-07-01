@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { tryReloadForChunkLoadError } from '@/utils/chunkLoadReload';
 import { BrandFallback } from './BrandFallback';
 
 export default function Error({
@@ -11,6 +12,10 @@ export default function Error({
   reset: () => void;
 }) {
   React.useEffect(() => {
+    if (tryReloadForChunkLoadError(error)) {
+      return;
+    }
+
     void fetch('/api/client-errors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
