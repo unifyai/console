@@ -1,13 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { fetchAssistants } from '@/lib/client/assistant';
 import { resolveCanonicalWorkspaceCoordinator } from '@/lib/assistants/coordinatorIdentity';
 import { type OnboardingRender } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { cn } from '@/lib/utils';
+import {
+  ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
+  readAssistantInfoPanelVisibility,
+  type AssistantInfoPanelVisibilityDetail,
+} from '@/lib/assistants/infoPanelVisibility';
 
 const COORDINATOR_COMMUNICATION_SECTION_ID = 'communication';
 
@@ -82,8 +87,11 @@ function useWorkspaceCoordinatorId(): string | null {
 /** Opens the workspace Coordinator onboarding panel when onboarding is in progress. */
 export function OnboardingProgressShortcut({ className }: { className?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const coordinatorId = useWorkspaceCoordinatorId();
   const { state: coordinatorOnboardingState } = useCoordinatorOnboarding(coordinatorId);
+  const [isOnboardingPanelOpen, setIsOnboardingPanelOpen] = React.useState(false);
+  const isOnAssistantsPage = pathname === '/assistants' || pathname.startsWith('/assistants/');
 
   const onboardingProgress = React.useMemo(
     () => coordinatorOnboardingProgress(coordinatorOnboardingState?.onboarding ?? null),
@@ -98,12 +106,39 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
     onboardingProgress.total > 0 &&
     onboardingProgress.completed < onboardingProgress.total;
 
+  React.useEffect(() => {
+    if (!coordinatorId || !isOnAssistantsPage) {
+      setIsOnboardingPanelOpen(false);
+      return;
+    }
+
+    const applyVisibilityDetail = (detail: AssistantInfoPanelVisibilityDetail) => {
+      setIsOnboardingPanelOpen(
+        detail.assistantId === coordinatorId && detail.isCoordinatorOnboarding && detail.isOpen
+      );
+    };
+    const onVisibilityChange = (event: Event) => {
+      applyVisibilityDetail((event as CustomEvent<AssistantInfoPanelVisibilityDetail>).detail);
+    };
+
+    window.addEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
+    const currentVisibility = readAssistantInfoPanelVisibility();
+    if (currentVisibility) applyVisibilityDetail(currentVisibility);
+
+    return () => {
+      window.removeEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
+    };
+  }, [coordinatorId, isOnAssistantsPage]);
+
+  const isShortcutActive = showOnboardingShortcut && isOnAssistantsPage && isOnboardingPanelOpen;
+
   const openOnboarding = React.useCallback(() => {
     if (!coordinatorId) return;
+    const action = isShortcutActive ? 'close' : 'open';
     router.push(
-      `/assistants?profile=${encodeURIComponent(coordinatorId)}&onboarding=toggle:${Date.now()}`
+      `/assistants?profile=${encodeURIComponent(coordinatorId)}&onboarding=${action}:${Date.now()}`
     );
-  }, [coordinatorId, router]);
+  }, [coordinatorId, isShortcutActive, router]);
 
   if (!showOnboardingShortcut) return null;
 
@@ -112,12 +147,14 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
       type="button"
       onClick={openOnboarding}
       className={cn(
-        'rounded-control flex h-8 min-w-[7.25rem] translate-y-0.5 flex-col justify-center gap-1 px-2 text-left',
+        'rounded-control flex h-8 min-w-[7.25rem] translate-y-0.5 flex-col justify-center gap-1 px-2 text-left transition-colors',
         'text-body-muted hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+        isShortcutActive && 'bg-primary/10 ring-primary/40 hover:bg-primary/20 text-primary ring-1',
         className
       )}
       data-testid="top-nav-onboarding-shortcut"
-      aria-label={`Open onboarding, ${onboardingProgress.pct}% complete`}
+      aria-label={`${isShortcutActive ? 'Close' : 'Open'} onboarding, ${onboardingProgress.pct}% complete`}
+      aria-pressed={isShortcutActive}
     >
       <span className="flex items-center justify-between gap-2">
         <span className="text-caption font-medium leading-none">Onboarding</span>

@@ -429,7 +429,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const acknowledgeFirstLoginCommunicationEmailOpen = React.useCallback(() => {
     setFirstLoginCommunicationEmailOpenRequest(0);
   }, []);
-  const requestCoordinatorOnboardingInfoToggle = React.useCallback(() => {
+  const requestCoordinatorOnboardingInfoClose = React.useCallback(() => {
     setCoordinatorOnboardingFocusLayoutRequest((current) => -(Math.abs(current) + 1));
   }, []);
 
@@ -837,8 +837,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       secondary: null,
     }));
     handleShowProfile(canonicalCoordinatorId);
-    if (onboardingFocusParam.startsWith('toggle:')) {
-      requestCoordinatorOnboardingInfoToggle();
+    if (onboardingFocusParam.startsWith('close:')) {
+      requestCoordinatorOnboardingInfoClose();
     } else {
       requestCoordinatorOnboardingFocusLayout();
     }
@@ -856,7 +856,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     onboardingFocusParam,
     pathname,
     requestCoordinatorOnboardingFocusLayout,
-    requestCoordinatorOnboardingInfoToggle,
+    requestCoordinatorOnboardingInfoClose,
     router,
     searchParams,
   ]);
@@ -2466,7 +2466,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     canWrite={profileCanWrite}
                     isSpendingBlocked={spendingGateStatus.isBlocked}
                     spendingBlockedMessage={spendingGateStatus.blockedMessage}
-                    onEditProfile={handleOpenEditDialog}
                     onOpenContactManager={handleOpenContactManager}
                     hasUserMessage={profiledHasUserMessage}
                     hasHistoricalCall={profiledHasHistoricalCall}

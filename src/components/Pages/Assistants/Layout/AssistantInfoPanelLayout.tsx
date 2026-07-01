@@ -9,6 +9,7 @@ import {
   AssistantInfoSidePanelContent,
   type AssistantInfoSidePanelContentProps,
 } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
+import { publishAssistantInfoPanelVisibility } from '@/lib/assistants/infoPanelVisibility';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 
@@ -100,7 +101,6 @@ interface AssistantInfoPanelLayoutProps {
   canWrite?: boolean;
   isSpendingBlocked?: boolean;
   spendingBlockedMessage?: string | null;
-  onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   hasUserMessage?: boolean;
   hasHistoricalCall?: boolean;
@@ -127,7 +127,6 @@ export function AssistantInfoPanelLayout({
   canWrite = true,
   isSpendingBlocked = false,
   spendingBlockedMessage,
-  onEditProfile,
   onOpenContactManager,
   hasUserMessage = false,
   hasHistoricalCall = false,
@@ -256,19 +255,29 @@ export function AssistantInfoPanelLayout({
 
     seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
 
-    if (isMobileInfoPanelViewport()) {
-      setIsInfoOpen(infoPanelFocusLayoutRequest < 0);
+    if (infoPanelFocusLayoutRequest < 0) {
+      setIsInfoOpenAndPersist(false);
       return;
     }
 
-    setIsInfoOpen(true);
+    setIsInfoOpenAndPersist(true);
     setInfoPanelWidthWithinBounds(INFO_PANEL_DEFAULT_WIDTH);
   }, [
     assistant,
     hasIncompleteOnboarding,
     infoPanelFocusLayoutRequest,
+    setIsInfoOpenAndPersist,
     setInfoPanelWidthWithinBounds,
   ]);
+
+  React.useEffect(() => {
+    if (!assistant?.agentId) return;
+    publishAssistantInfoPanelVisibility({
+      assistantId: assistant.agentId,
+      isOpen: isInfoOpen,
+      isCoordinatorOnboarding: assistant.isCoordinator === true && hasIncompleteOnboarding,
+    });
+  }, [assistant?.agentId, assistant?.isCoordinator, hasIncompleteOnboarding, isInfoOpen]);
 
   const isInThisCall = !!assistant && activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
@@ -427,7 +436,7 @@ export function AssistantInfoPanelLayout({
           <AssistantInfoSidePanelContent
             assistant={assistant}
             currentUserId={currentUserId}
-            onEditProfile={onEditProfile}
+            onClose={closeInfo}
             onOpenContactManager={onOpenContactManager}
             roadmap={roadmap}
             canWrite={canWrite}
