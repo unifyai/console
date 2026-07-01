@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { Gender, SupportedLanguage } from '@/types/assistants/cartesia';
 import {
   Select,
   SelectContent,
