@@ -33,7 +33,7 @@ const AssistantHire = dynamic(
 );
 const AssistantEdit = dynamic(
   () => import('./Edit/AssistantEdit').then((m) => ({ default: m.AssistantEdit })),
-  { loading: () => <Loader size={48} /> }
+  { loading: () => null }
 );
 const CoordinatorOnboarding = dynamic(
   () =>
