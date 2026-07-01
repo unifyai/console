@@ -228,11 +228,25 @@ test.describe('Onboarding', () => {
     await expect(page.getByTestId('workspace-continue')).toBeEnabled();
     await page.getByTestId('workspace-continue').click();
 
-    await page.waitForURL(/\/assistants/, { timeout: 15000 });
-    expect(new URL(page.url()).searchParams.has('openHire')).toBe(false);
+    await expect
+      .poll(() => dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`), {
+        timeout: 15_000,
+      })
+      .not.toBe('');
 
     const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
     if (userId) createdUserIds.push(userId);
+
+    const apiKey = dbExec(
+      `SELECT key FROM api_key WHERE user_id = '${userId}' AND organization_id IS NULL LIMIT 1`
+    );
+    await deferCoordinatorForUser(userId, apiKey);
+    await page.evaluate(() => {
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    });
+
+    await page.waitForURL(/\/assistants/, { timeout: 15_000 });
+    expect(new URL(page.url()).searchParams.has('openHire')).toBe(false);
 
     const orgId = dbExec(`SELECT id FROM organization WHERE name = '${orgName}'`);
     expect(orgId).toBeTruthy();
@@ -252,11 +266,6 @@ test.describe('Onboarding', () => {
     );
     expect(managedOrgTeamCount).toBe('0');
 
-    const apiKey = dbExec(
-      `SELECT key FROM api_key WHERE user_id = '${userId}' AND organization_id IS NULL LIMIT 1`
-    );
-    await deferCoordinatorForUser(userId, apiKey);
-    await page.reload();
     await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({

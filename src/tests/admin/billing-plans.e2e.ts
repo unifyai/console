@@ -27,6 +27,7 @@ import path from 'path';
 import os from 'os';
 import { createTestUser, cleanupUser, createOrg, deleteOrg, dbExec } from '../billing/helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
+import { deferCoordinatorForUser } from '../helpers/coordinator';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -64,6 +65,7 @@ const test = base.extend<{ adminPage: Page }>({
       );
       const ctx = await browser.newContext();
       const p = await ctx.newPage();
+      await deferCoordinatorForUser(adminUser.id, adminUser.apiKey);
       await p.goto('/login');
       await loginAndWaitForRedirect(p, adminUser.email, adminUser.password, 30_000);
       if (p.url().includes('/login/onboarding')) {
@@ -74,6 +76,8 @@ const test = base.extend<{ adminPage: Page }>({
           await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
         }
       }
+      await p.goto('/admin', { waitUntil: 'domcontentloaded' });
+      await expect(p).toHaveURL(/\/admin/, { timeout: 15_000 });
       await ctx.storageState({ path: authFile });
       await ctx.close();
     }

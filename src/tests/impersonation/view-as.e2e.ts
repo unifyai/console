@@ -19,37 +19,23 @@
 import { expect, test as base, type Page } from '@playwright/test';
 import path from 'path';
 import os from 'os';
+import { createTestUser, cleanupUser, loginAndWaitForRedirect } from '../auth/helpers';
+import { createAssistant, ensureUnifyOrg, deleteOrg } from '../helpers/seeds/client';
 import {
-  createTestUser,
-  cleanupUser,
-  createOrg,
-  deleteOrg,
-  loginAndWaitForRedirect,
-} from '../auth/helpers';
-import { createAssistant, addMember, dbExec } from '../helpers/seeds/client';
+  deferCoordinatorAfterAssistantsLoad,
+  deferCoordinatorForUser,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
 
 // ---------------------------------------------------------------------------
 // Seed (module scope, synchronous)
 // ---------------------------------------------------------------------------
 
 // Unify staff member — must belong to an org literally named "Unify" (the
-// product convention the membership gate keys off). The org name is globally
-// unique, so reuse an existing "Unify" org if one is already present (e.g. a
-// live local stack) and otherwise create one.
+// product convention the membership gate keys off).
 const adminUser = createTestUser({ name: 'Staff', lastName: 'Member' });
-
-const existingUnifyOrgId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
-let unifyOrgId: number;
-let createdUnifyOrg = false;
-if (existingUnifyOrgId) {
-  unifyOrgId = parseInt(existingUnifyOrgId, 10);
-  // A plain Member is enough — the "View as user" gate only requires
-  // membership, not Owner/Admin.
-  addMember({ orgId: unifyOrgId, userId: adminUser.id, role: 'Member' });
-} else {
-  unifyOrgId = createOrg({ name: 'Unify', ownerId: adminUser.id }).id;
-  createdUnifyOrg = true;
-}
+const unifyOrg = ensureUnifyOrg({ memberId: adminUser.id });
+const createdUnifyOrg = unifyOrg.ownerId === adminUser.id;
 
 // Target customer — separate user, personal workspace, one assistant.
 const targetUser = createTestUser({ name: 'Customer', lastName: 'Persona' });
@@ -75,6 +61,7 @@ const test = base.extend<{ adminPage: Page }>({
       );
       const ctx = await browser.newContext();
       const p = await ctx.newPage();
+      await deferCoordinatorForUser(adminUser.id, adminUser.apiKey);
       await p.goto('/login');
       await loginAndWaitForRedirect(p, adminUser.email, adminUser.password, 30_000);
       if (p.url().includes('/login/onboarding')) {
@@ -85,6 +72,10 @@ const test = base.extend<{ adminPage: Page }>({
           await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
         }
       }
+      await p.goto('/assistants', { waitUntil: 'domcontentloaded' });
+      await expect(p.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+      await deferCoordinatorAfterAssistantsLoad(p, adminUser.id, adminUser.apiKey);
+      await dismissCoordinatorOnboardingIfOpen(p);
       await ctx.storageState({ path: authFile });
       await ctx.close();
     }
@@ -101,7 +92,7 @@ const test = base.extend<{ adminPage: Page }>({
 // ---------------------------------------------------------------------------
 
 test.afterAll(() => {
-  if (createdUnifyOrg) deleteOrg(unifyOrgId);
+  if (createdUnifyOrg) deleteOrg(unifyOrg.id);
   cleanupUser(targetUser.id);
   cleanupUser(adminUser.id);
 });
@@ -112,9 +103,13 @@ test.afterAll(() => {
 
 test('Unify member can view as another user and return', async ({ adminPage: page }) => {
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await deferCoordinatorAfterAssistantsLoad(page, adminUser.id, adminUser.apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
 
   // Open the rail account menu and start impersonation.
-  await page.getByTestId('rail-account-trigger').click();
+  await expect(page.getByTestId('rail-account-trigger')).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId('rail-account-trigger').click({ timeout: 15_000 });
   await page.getByTestId('view-as-user-menu-item').click();
 
   const dialog = page.getByTestId('impersonate-dialog');

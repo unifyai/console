@@ -180,8 +180,7 @@ test('category filter narrows ledger to selected category', async ({ authedPage:
   const ledger = page.getByTestId('transaction-ledger');
 
   await page.getByTestId('category-filter').click();
-  await expect(page.getByRole('option', { name: 'LLM' })).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('option', { name: 'LLM' }).click();
+  await page.getByRole('option', { name: 'LLM' }).click({ timeout: 10_000 });
   await expect(ledger.getByText('Assistant work').first()).toBeVisible({ timeout: 10_000 });
   await expect(ledger.getByText('Assistant creation')).not.toBeVisible({ timeout: 10_000 });
   await expect(ledger.getByText('Generated photos and videos')).not.toBeVisible({

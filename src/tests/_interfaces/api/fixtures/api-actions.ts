@@ -34,7 +34,11 @@ export const realTestOptionsExtended = {
 export function getTestApiKey(): string {
   const apiKey = process.env.VITE_TEST_API_KEY;
   if (!apiKey) {
-    throw new Error('VITE_TEST_API_KEY is not set in .env.test');
+    throw new Error(
+      process.env.CI === 'true'
+        ? 'VITE_TEST_API_KEY is not set — ci-test-setup.sh must provision a local Orchestra key'
+        : 'VITE_TEST_API_KEY is not set in .env.test'
+    );
   }
   return apiKey;
 }
@@ -781,7 +785,9 @@ export const contextsApi = {
 // Endpoints API Actions (calls Orchestra directly)
 // ============================================
 
-const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
+const ORCHESTRA_URL =
+  process.env.ORCHESTRA_URL ||
+  (process.env.CI === 'true' ? 'http://127.0.0.1:8000' : 'https://api.unify.ai');
 
 /**
  * Helper to make authenticated fetch requests directly to Orchestra

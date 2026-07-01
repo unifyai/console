@@ -307,7 +307,13 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
               setCredentials((prev) => (prev ? { ...prev, hasEmailAccount: true } : prev));
               setShowPasswordModal(false);
             }}
-            onSuccess={() => setShowPasswordModal(false)}
+            onSuccess={async () => {
+              setShowPasswordModal(false);
+              if (hasEmailAccount) {
+                await signOut({ redirect: false });
+                router.push('/login?signout=true');
+              }
+            }}
           />
         </DialogContent>
       </Dialog>

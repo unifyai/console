@@ -693,7 +693,7 @@ export interface AddMemberOpts {
  * Also creates an org-scoped API key for the member so they can authenticate
  * in the org context.
  *
- * Idempotent: skips if the member already exists.
+ * Idempotent: upserts membership and upgrades role on conflict.
  */
 export function addMember(opts: AddMemberOpts): string {
   const orgApiKey = uniqueApiKey('member');
@@ -707,7 +707,7 @@ BEGIN
 
   INSERT INTO organization_member (organization_id, user_id, role_id)
   VALUES (${opts.orgId}, '${opts.userId}', _role_id)
-  ON CONFLICT DO NOTHING;
+  ON CONFLICT (organization_id, user_id) DO UPDATE SET role_id = EXCLUDED.role_id;
 
   INSERT INTO api_key (user_id, organization_id, key, name)
   VALUES ('${opts.userId}', ${opts.orgId}, '${orgApiKey}', 'Member Key')

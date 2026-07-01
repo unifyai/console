@@ -113,6 +113,11 @@ export async function expectOnboardButtonEnabled(page: Page) {
 export async function expectOnboardButtonDisabled(page: Page) {
   await waitForAssistantsReady(page);
   await openUnitySwitcherPopover(page);
+  await expect
+    .poll(async () => page.locator('[data-testid="billable-action-guard"]').isVisible(), {
+      timeout: 20_000,
+    })
+    .toBe(true);
   await expect(page.getByTestId('assistant-onboard-button')).toBeDisabled({ timeout: 10_000 });
   await expect(page.locator('[data-testid="billable-action-guard"]')).toBeVisible({
     timeout: 5_000,

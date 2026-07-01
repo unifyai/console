@@ -90,6 +90,7 @@ src/tests/
 
 The `local.sh` script automatically:
 
+- Aligns the sibling Orchestra checkout to match Console's branch (`main`→`main`, `staging`→`staging`, other branches→`staging`)
 - Starts PostgreSQL (Docker) and Orchestra with `ORCHESTRA_ENVIRONMENT=dev`
 - Generates seed data (users, assistants, orgs)
 - Starts the Console dev server without cloud credentials (stubs activate)

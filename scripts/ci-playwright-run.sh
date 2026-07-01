@@ -7,7 +7,7 @@ SHARD="${2:-}"
 
 MAX_FAILURES="${MAX_FAILURES:-20}"
 
-mapfile -t SPECS < <(bash scripts/ci-playwright-tiers.sh "$TIER")
+mapfile -t SPECS < <(bash scripts/ci-playwright-tiers.sh "$TIER" "$SHARD")
 
 if [ "${#SPECS[@]}" -eq 0 ]; then
   echo "No specs registered for tier: $TIER" >&2
@@ -15,7 +15,7 @@ if [ "${#SPECS[@]}" -eq 0 ]; then
 fi
 
 CMD=(npx playwright test "${SPECS[@]}" --reporter=list --max-failures="$MAX_FAILURES")
-if [ -n "$SHARD" ]; then
+if [ -n "$SHARD" ] && [[ "$TIER" != "exhaustive-assistants" ]]; then
   CMD+=(--shard="$SHARD")
 fi
 

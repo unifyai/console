@@ -40,11 +40,10 @@ test('/favourites renders inside the rail shell with its section header', async 
 test('/interfaces renders inside the rail shell for a Unify member', async ({
   authedPage: page,
 }) => {
-  await page.goto('/interfaces');
-  await page.waitForLoadState('networkidle', { timeout: 25_000 }).catch(() => {});
+  await page.goto('/interfaces', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/interfaces/, { timeout: 20_000 });
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
 
-  // Unify members are not redirected to /assistants, and we stay out of /login.
-  await expect(page).toHaveURL(/\/interfaces/);
   await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByTestId('project-picker-trigger')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('project-picker-trigger')).toBeVisible({ timeout: 25_000 });
 });

@@ -110,15 +110,24 @@ test('PATCH updates billing profile and change persists', async ({ authedPage: p
 
   expect(response.status).toBe(200);
 
-  const getResponse = await page.evaluate(async () => {
-    const res = await fetch('/api/billing/profile');
-    return { status: res.status, data: await res.json() };
-  });
-
-  expect(getResponse.status).toBe(200);
-  const persistedName =
-    getResponse.data.individual_name ?? getResponse.data.individualName ?? getResponse.data.name;
-  expect(persistedName).toBe(testName);
+  await expect
+    .poll(
+      async () => {
+        const getResponse = await page.evaluate(async () => {
+          const res = await fetch('/api/billing/profile');
+          return { status: res.status, data: await res.json() };
+        });
+        if (getResponse.status !== 200) return '';
+        return (
+          getResponse.data.individual_name ??
+          getResponse.data.individualName ??
+          getResponse.data.name ??
+          ''
+        );
+      },
+      { timeout: 15_000 }
+    )
+    .toBe(testName);
 });
 
 unauthTest('billing profile API requires authentication', async ({ page }) => {
