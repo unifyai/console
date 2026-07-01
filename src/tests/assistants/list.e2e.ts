@@ -209,9 +209,9 @@ test('the chat info side panel can be resized down to its minimum width', async 
 
   await selectAssistantInList(page, titled.agentId);
 
-  // Open the inline info side panel from the chat sub-header. We can't
-  // rely on the post-hire auto-open path here because this assistant
-  // was seeded via `createAssistant` (no `newlyHiredInfo` in memory).
+  // Open the inline info side panel from the top navbar. We can't rely on
+  // the post-hire auto-open path here because this assistant was seeded via
+  // `createAssistant` (no `newlyHiredInfo` in memory).
   const infoButton = page.getByTestId('assistant-info-button');
   await expect(infoButton).toBeVisible({ timeout: 10_000 });
 

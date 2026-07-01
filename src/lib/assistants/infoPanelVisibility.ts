@@ -6,6 +6,7 @@ export interface AssistantInfoPanelVisibilityDetail {
   assistantId: string;
   isOpen: boolean;
   isCoordinatorOnboarding: boolean;
+  showOnboardingDot: boolean;
 }
 
 export interface AssistantInfoPanelToggleRequestDetail {

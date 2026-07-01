@@ -88,9 +88,6 @@ export type AssistantInfoPanelCoordinatorOnboarding = NonNullable<
 };
 
 export interface AssistantInfoPanelLayoutContext {
-  isInfoOpen: boolean;
-  toggleInfo: () => void;
-  showOnboardingDot: boolean;
   draftSeed: ChatDraftSeed | null;
   startAudioCall: () => void;
   isCallButtonDisabled: boolean;
@@ -308,14 +305,23 @@ export function AssistantInfoPanelLayout({
     setInfoPanelWidthWithinBounds,
   ]);
 
+  const showOnboardingDot = hasIncompleteOnboarding && !!onOpenUserSettings;
+
   React.useEffect(() => {
     if (!assistant?.agentId) return;
     publishAssistantInfoPanelVisibility({
       assistantId: assistant.agentId,
       isOpen: isInfoOpen,
       isCoordinatorOnboarding: assistant.isCoordinator === true && hasIncompleteOnboarding,
+      showOnboardingDot,
     });
-  }, [assistant?.agentId, assistant?.isCoordinator, hasIncompleteOnboarding, isInfoOpen]);
+  }, [
+    assistant?.agentId,
+    assistant?.isCoordinator,
+    hasIncompleteOnboarding,
+    isInfoOpen,
+    showOnboardingDot,
+  ]);
 
   const isInThisCall = !!assistant && activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
@@ -337,27 +343,14 @@ export function AssistantInfoPanelLayout({
     onStartCall(assistant, 'audio');
   }, [assistant, onStartCall]);
 
-  const showOnboardingDot = hasIncompleteOnboarding && !!onOpenUserSettings;
-
   const context = React.useMemo<AssistantInfoPanelLayoutContext>(
     () => ({
-      isInfoOpen,
-      toggleInfo,
-      showOnboardingDot,
       draftSeed,
       startAudioCall,
       isCallButtonDisabled,
       callButtonTooltip,
     }),
-    [
-      callButtonTooltip,
-      draftSeed,
-      isCallButtonDisabled,
-      isInfoOpen,
-      showOnboardingDot,
-      startAudioCall,
-      toggleInfo,
-    ]
+    [callButtonTooltip, draftSeed, isCallButtonDisabled, startAudioCall]
   );
 
   const handleInfoPanelResizeKeyDown = React.useCallback(
@@ -427,9 +420,6 @@ export function AssistantInfoPanelLayout({
     assistant && canOpenAssistantChat(assistant)
       ? context
       : {
-          isInfoOpen: false,
-          toggleInfo: noop,
-          showOnboardingDot: false,
           draftSeed,
           startAudioCall: noop,
           isCallButtonDisabled: true,

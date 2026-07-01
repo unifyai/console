@@ -213,9 +213,6 @@ export function RightPaneContainer({
           activeCallAssistantId={activeCallAssistantId}
           isCallConnected={isCallConnected}
           isConnectingCall={isConnectingCall}
-          isInfoOpen={infoPanel.isInfoOpen}
-          onToggleInfo={infoPanel.toggleInfo}
-          showOnboardingDot={infoPanel.showOnboardingDot}
           draftSeed={infoPanel.draftSeed}
           onStartAudioCall={infoPanel.startAudioCall}
           isCallButtonDisabled={infoPanel.isCallButtonDisabled}

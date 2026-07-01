@@ -52,7 +52,7 @@ import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
 import AccountResetDialog from '@/components/Layout/TopBar/AccountResetDialog';
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
-import { OnboardingProgressShortcut } from '@/components/Layout/TopBar/OnboardingProgressShortcut';
+import { AssistantsNavPanelShortcut } from '@/components/Layout/TopBar/AssistantsNavPanelShortcut';
 
 const getInitials = (name: string) =>
   name
@@ -461,10 +461,10 @@ export default function TopNav() {
             </Button>
           )/*}
 
+          <AssistantsNavPanelShortcut />
+
           {/* Support Ticket — only when a support delivery channel is configured */}
           {supportEnabled && <SupportTicketDialog />}
-
-          <OnboardingProgressShortcut />
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />

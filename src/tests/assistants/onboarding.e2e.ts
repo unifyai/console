@@ -287,15 +287,12 @@ test('"Ask in chat" steps disable + tooltip until their channel is set up', asyn
   await expect(page.getByTestId('assistant-setup-roadmap-step-phoneAsk-action')).toBeDisabled();
 });
 
-test('chat header info button shows a "needs attention" dot while onboarding has outstanding work', async ({
+test('top navbar info button shows a "needs attention" dot while onboarding has outstanding work', async ({
   authedPage: page,
 }) => {
-  // The dot is anchored to the info-button rather than the list row
-  // so it points directly at the panel that holds the work — without
-  // it, a user who dismissed the auto-opened panel has no nudge
-  // pointing back to the outstanding setup. Visibility alone is
-  // asserted (not color/position) so the test stays robust to
-  // styling tweaks.
+  // The dot lives on the top-nav profile toggle rather than the chat
+  // toolbar so it stays visible across rail sections and points at the
+  // panel that holds the outstanding setup work.
   const firstName = `Dot${Date.now()}`;
   await hireBareAssistant(page, firstName);
 

@@ -503,7 +503,7 @@ export async function clickHireButton(page: Page) {
   await hireBtn.click();
 }
 
-/** Open the assistant info side panel from the chat toolbar. */
+/** Open the assistant info side panel from the top navbar. */
 export async function openAssistantInfoPanel(page: Page) {
   const btn = page.getByTestId('assistant-info-button');
   await expect(btn).toBeVisible({ timeout: 20_000 });
