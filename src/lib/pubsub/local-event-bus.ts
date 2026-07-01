@@ -16,6 +16,8 @@
  * separate module contexts (HMR, route-level code splitting).
  */
 
+import { commsCredentialsConfigured } from './ephemeral-subscription';
+
 export type LocalEventListener = (event: Record<string, unknown>) => void;
 
 type AssistantBus = Set<LocalEventListener>;
@@ -54,15 +56,15 @@ export function publish(assistantId: string, event: Record<string, unknown>): vo
  * Real credentials OR a running emulator both satisfy this check.
  */
 export function hasCredentials(): boolean {
-  return !!process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS || !!process.env.PUBSUB_EMULATOR_HOST;
+  return commsCredentialsConfigured() || !!process.env.PUBSUB_EMULATOR_HOST?.trim();
 }
 
 /**
  * Route live-action and billing-event SSE through the in-memory bus (and allow
- * the companion push endpoints) whenever cloud comms credentials are absent.
- * The Pub/Sub emulator may still run for chat topics, but E2E injects
- * assistant/billing events through the local push routes.
+ * the companion push endpoints) whenever cloud comms credentials are absent
+ * or fail to parse. The Pub/Sub emulator may still run for chat topics, but
+ * E2E injects assistant/billing events through the local push routes.
  */
 export function localEventBusEnabled(): boolean {
-  return !process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
+  return !commsCredentialsConfigured();
 }

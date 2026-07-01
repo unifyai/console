@@ -1,14 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  File as FileIcon,
-  Folder,
-  HardDrive,
-  Loader2,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, HardDrive, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Checkbox } from '@/components/UI/checkbox';
 import { Switch } from '@/components/UI/switch';
@@ -19,6 +12,12 @@ import { AssistantActions } from '@/types/assistants/assistant';
 import { OAuthProvider } from '@/types/assistants/contact';
 import { WorkspaceFileNode } from '@/types/assistants/workspace-files';
 import { useWorkspaceFileAccess, NodeCheckState } from '@/hooks/Assistants/useWorkspaceFileAccess';
+import {
+  getAttachmentColor,
+  getAttachmentIcon,
+  getAttachmentType,
+} from '@/components/Chat/attachmentUtils';
+import type { AttachmentType } from '@/types/assistants/chat';
 
 interface WorkspaceFileTreeProps {
   assistantId: string;
@@ -39,6 +38,49 @@ interface TreeRowProps {
   onToggleNode: (node: WorkspaceFileNode) => void;
   keyOf: (driveId: string, itemId: string) => string;
   disabled: boolean;
+}
+
+function getWorkspaceFileType(node: WorkspaceFileNode): AttachmentType {
+  const typeFromName = getAttachmentType(node.name);
+  if (typeFromName !== 'generic') return typeFromName;
+
+  const mimeType = node.mimeType?.toLowerCase() ?? '';
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.includes('pdf')) return 'pdf';
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType.includes('csv')) {
+    return 'excel';
+  }
+  if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'powerpoint';
+  if (mimeType.includes('document') || mimeType.includes('word')) return 'word';
+  if (mimeType.startsWith('text/')) return 'text';
+  if (mimeType.includes('json') || mimeType.includes('xml') || mimeType.includes('javascript')) {
+    return 'code';
+  }
+  if (mimeType.includes('zip') || mimeType.includes('tar') || mimeType.includes('archive')) {
+    return 'archive';
+  }
+  return 'generic';
+}
+
+function WorkspaceFileIcon({ node }: { node: WorkspaceFileNode }) {
+  if (node.kind === 'drive') {
+    return <HardDrive className="h-4 w-4 shrink-0 text-muted-foreground" />;
+  }
+  if (node.kind === 'folder') {
+    return <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />;
+  }
+
+  const fileType = getWorkspaceFileType(node);
+  const Icon = getAttachmentIcon(fileType);
+  return (
+    <Icon
+      className="h-4 w-4 shrink-0"
+      style={{ color: getAttachmentColor(fileType) }}
+      data-testid={`workspace-file-icon-${node.itemId}`}
+    />
+  );
 }
 
 const TreeRow: React.FC<TreeRowProps> = ({
@@ -94,13 +136,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
           data-testid={`workspace-file-checkbox-${node.itemId}`}
         />
 
-        {node.kind === 'drive' ? (
-          <HardDrive className="h-4 w-4 shrink-0 text-muted-foreground" />
-        ) : node.kind === 'folder' ? (
-          <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-        ) : (
-          <FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        )}
+        <WorkspaceFileIcon node={node} />
 
         <span className="text-body min-w-0 flex-1 truncate" title={node.name}>
           {node.name}
@@ -167,16 +203,32 @@ export function WorkspaceFileTree({
     selectAll,
     deselectAll,
     isDirty,
+    explicitDecisionCount,
     save,
     keyOf,
   } = useWorkspaceFileAccess({ assistantId, provider, assistantActions, isOpen });
 
   const disabled = !canWrite || isSaving;
+  const ruleCountLabel =
+    explicitDecisionCount === 0
+      ? 'No custom rules'
+      : `${explicitDecisionCount} custom rule${explicitDecisionCount === 1 ? '' : 's'}`;
+  const modeDescription = defaultAllow
+    ? 'Everything is accessible except unchecked files and folders.'
+    : 'Only checked files and folders are accessible.';
 
   return (
     <div className="flex flex-col gap-3" data-testid="workspace-file-tree">
       <div className="flex flex-col gap-1">
-        <Label className="text-label">File access</Label>
+        <div className="flex items-center justify-between gap-3">
+          <Label className="text-label">File access</Label>
+          <span
+            className="text-caption text-muted-foreground"
+            data-testid="workspace-file-rule-count"
+          >
+            {ruleCountLabel}
+          </span>
+        </div>
         <p className="text-caption text-muted-foreground">
           Choose which folders and files this assistant can access. Selecting a folder grants access
           to everything inside it.
@@ -211,10 +263,7 @@ export function WorkspaceFileTree({
       <div className="flex items-center justify-between gap-3 rounded-md border p-3">
         <div className="flex flex-col">
           <span className="text-body">New files accessible by default</span>
-          <span className="text-caption text-muted-foreground">
-            When on, files added later in places you haven&apos;t explicitly restricted are
-            accessible.
-          </span>
+          <span className="text-caption text-muted-foreground">{modeDescription}</span>
         </div>
         <Switch
           checked={defaultAllow}

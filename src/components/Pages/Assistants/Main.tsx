@@ -429,7 +429,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const acknowledgeFirstLoginCommunicationEmailOpen = React.useCallback(() => {
     setFirstLoginCommunicationEmailOpenRequest(0);
   }, []);
-  const requestCoordinatorOnboardingInfoToggle = React.useCallback(() => {
+  const requestCoordinatorOnboardingInfoClose = React.useCallback(() => {
     setCoordinatorOnboardingFocusLayoutRequest((current) => -(Math.abs(current) + 1));
   }, []);
 
@@ -837,8 +837,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       secondary: null,
     }));
     handleShowProfile(canonicalCoordinatorId);
-    if (onboardingFocusParam.startsWith('toggle:')) {
-      requestCoordinatorOnboardingInfoToggle();
+    if (onboardingFocusParam.startsWith('close:')) {
+      requestCoordinatorOnboardingInfoClose();
     } else {
       requestCoordinatorOnboardingFocusLayout();
     }
@@ -856,7 +856,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     onboardingFocusParam,
     pathname,
     requestCoordinatorOnboardingFocusLayout,
-    requestCoordinatorOnboardingInfoToggle,
+    requestCoordinatorOnboardingInfoClose,
     router,
     searchParams,
   ]);
@@ -1115,6 +1115,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
       if (mergeOutcome === 'duplicate') return;
 
+      if (mergeOutcome === 'merged' && message.role === 'assistant') {
+        handleChatActivity(assistantId);
+      }
+
       // Mark the assistant as "online" in the list — an incoming message
       // is the strongest possible signal the process is reachable. This
       // applies to both merged and skipped-no-history cases.
@@ -1143,7 +1147,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         /* BroadcastChannel unsupported (very old browsers) */
       }
     },
-    [markAssistantOnline]
+    [handleChatActivity, markAssistantOnline]
   );
 
   const handleChatStreamDesktopReady = React.useCallback(
@@ -1902,7 +1906,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         : undefined,
       onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
       onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
-      onScheduleTask: () => handleCoordinatorOpenPaneTab('tasks', 'schedule'),
+      onLaunchMission: () => handleCoordinatorOpenPaneTab('tasks', 'launch-mission'),
+      onArmTripwire: () => handleCoordinatorOpenPaneTab('tasks', 'arm-tripwire'),
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -2462,7 +2467,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     canWrite={profileCanWrite}
                     isSpendingBlocked={spendingGateStatus.isBlocked}
                     spendingBlockedMessage={spendingGateStatus.blockedMessage}
-                    onEditProfile={handleOpenEditDialog}
                     onOpenContactManager={handleOpenContactManager}
                     hasUserMessage={profiledHasUserMessage}
                     hasHistoricalCall={profiledHasHistoricalCall}
@@ -2475,16 +2479,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     onOpenChatSection={handleOpenChatSection}
                   >
                     {(infoPanel) => {
-                      if (activeSectionDef.kind === 'brain-view' && profileAssistant) {
-                        return (
-                          <BrainSectionsHost
-                            assistant={profileAssistant}
-                            activeSectionId={activeSectionDef.id}
-                            onManageContacts={() => handleOpenContactManager(profileAssistant)}
-                          />
-                        );
-                      }
-                      return (
+                      const rightPane = (
                         <RightPaneContainer
                           assistant={profileAssistant}
                           actions={assistantActions.actions || null}
@@ -2574,6 +2569,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           }
                         />
                       );
+
+                      const showBrainHost =
+                        activeSectionDef.kind === 'brain-view' && profileAssistant;
+
+                      if (showBrainHost) {
+                        return (
+                          <div className="relative h-full min-h-0">
+                            <div
+                              className={cn(
+                                'h-full min-h-0',
+                                'pointer-events-none absolute inset-0 hidden'
+                              )}
+                              aria-hidden
+                            >
+                              {rightPane}
+                            </div>
+                            <BrainSectionsHost
+                              assistant={profileAssistant}
+                              activeSectionId={activeSectionDef.id}
+                              onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                            />
+                          </div>
+                        );
+                      }
+
+                      return rightPane;
                     }}
                   </AssistantInfoPanelLayout>
                 )}

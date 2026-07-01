@@ -48,25 +48,45 @@ async function resolveStorageUrl(gsUrl: string): Promise<string> {
   return data.signed_url ?? '';
 }
 
-function WorkspaceInitialBadge({
+function WorkspaceAvatarBadge({
   name,
+  image,
   contactId,
   className,
 }: {
   name: string;
+  image?: string | null;
   contactId?: number | null;
   className?: string;
 }) {
+  const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+  const avatarTone = profileAvatarTone(name, contactId);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!image) {
+      setImageUrl(null);
+      return;
+    }
+    (async () => {
+      const url = await resolveStorageUrl(image).catch(() => '');
+      if (!cancelled) setImageUrl(url || null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [image]);
+
   return (
-    <span
-      className={cn(
-        'grid h-4 w-4 shrink-0 place-items-center rounded-md font-display text-[9px] font-semibold text-primary-foreground',
-        className
-      )}
-      style={{ backgroundColor: profileAvatarTone(name, contactId) }}
-    >
-      {profileInitials(name)}
-    </span>
+    <Avatar className={cn('h-4 w-4 shrink-0 rounded-md', className)}>
+      <AvatarImage src={imageUrl ?? undefined} alt={name} className="object-cover" />
+      <AvatarFallback
+        className="rounded-md font-display text-[9px] font-semibold text-primary-foreground"
+        style={{ backgroundColor: avatarTone }}
+      >
+        {profileInitials(name)}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -235,8 +255,9 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
                   onSelect={() => switchWorkspace(w.id)}
                   className="cursor-pointer items-center gap-2"
                 >
-                  <WorkspaceInitialBadge
+                  <WorkspaceAvatarBadge
                     name={w.name}
+                    image={w.image}
                     contactId={w.type === 'personal' ? ownerContactId : null}
                   />
                   <span className="truncate">{w.name}</span>
@@ -255,8 +276,9 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
                   onSelect={() => switchWorkspace(w.id)}
                   className="cursor-pointer items-center gap-2"
                 >
-                  <WorkspaceInitialBadge
+                  <WorkspaceAvatarBadge
                     name={w.name}
+                    image={w.image}
                     contactId={w.type === 'personal' ? ownerContactId : null}
                   />
                   <span className="truncate">{w.name}</span>

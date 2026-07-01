@@ -793,9 +793,7 @@ export function useAssistantProfileChat(
         });
         setInputValue('');
 
-        typingDelayTimerRef.current = setTimeout(() => {
-          setIsAssistantReplying(true);
-        }, 5000);
+        setIsAssistantReplying(true);
 
         const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
         const payload: BroadcastMessagePayload = {

@@ -25,6 +25,7 @@ export interface User {
   discordId: string | null;
   createdAt: string;
   apiKey: string;
+  personalWorkspaceDisabled?: boolean;
   stripeCustomerId: string;
   organization: {
     name: string;
@@ -55,6 +56,7 @@ export interface UserWorkspace {
   id: string;
   name: string;
   type: 'personal' | 'organization';
+  image?: string | null;
 }
 
 export interface UserUpdateRequest {

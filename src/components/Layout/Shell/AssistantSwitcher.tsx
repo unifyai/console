@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 
@@ -56,6 +57,9 @@ export function AssistantSwitcher({ activeUnity, listProps, collapsed }: Assista
       ? null
       : activeUnity.jobTitle?.trim() || 'Digital twin'
     : 'No digital twin selected';
+  const activeUnityStatus = activeUnity
+    ? listProps.assistantStatuses.get(activeUnity.agentId) || null
+    : null;
 
   const handleShowProfile = React.useCallback(
     (id: string) => {
@@ -80,10 +84,16 @@ export function AssistantSwitcher({ activeUnity, listProps, collapsed }: Assista
           )}
         >
           {activeUnity ? (
-            <UnityAvatar
-              assistant={activeUnity}
-              sizeClass={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
-            />
+            <span className="relative shrink-0">
+              <UnityAvatar
+                assistant={activeUnity}
+                sizeClass={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
+              />
+              <AssistantPresenceIndicator
+                status={activeUnityStatus}
+                testId={`rail-status-indicator-${activeUnity.agentId}`}
+              />
+            </span>
           ) : (
             <span className="rounded-control grid h-9 w-9 shrink-0 place-items-center bg-card text-muted-foreground">
               ?

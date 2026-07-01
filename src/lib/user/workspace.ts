@@ -1,6 +1,10 @@
 import type { User, UserOrganization, UserWorkspace } from '@/types/user';
 
-type WorkspaceResolvedUser = Pick<User, 'apiKey' | 'organizations' | 'name'> | null | undefined;
+type WorkspaceResolvedUser =
+  | (Pick<User, 'apiKey' | 'organizations' | 'name' | 'personalWorkspaceDisabled'> &
+      Partial<Pick<User, 'image'>>)
+  | null
+  | undefined;
 
 export interface ResolvedWorkspaceContext {
   activeOrganization: UserOrganization | null;
@@ -31,17 +35,22 @@ export function resolveWorkspaceContext(user: WorkspaceResolvedUser): ResolvedWo
   const activeOrganization =
     organizations.find((organization) => organization.apiKey === user.apiKey) ?? null;
   const isUnifyMember = organizations.some((organization) => organization.name === 'Unify');
-  const activeWorkspace: UserWorkspace = activeOrganization
+  const personalWorkspaceDisabled = user.personalWorkspaceDisabled === true;
+  const activeWorkspace: UserWorkspace | null = activeOrganization
     ? {
         id: activeOrganization.id.toString(),
         name: activeOrganization.name,
         type: 'organization',
+        ...(activeOrganization.image ? { image: activeOrganization.image } : {}),
       }
-    : {
-        id: 'personal',
-        name: user.name ?? 'Personal',
-        type: 'personal',
-      };
+    : personalWorkspaceDisabled
+      ? null
+      : {
+          id: 'personal',
+          name: user.name ?? 'Personal',
+          type: 'personal',
+          ...(user.image ? { image: user.image } : {}),
+        };
 
   return {
     activeOrganization,

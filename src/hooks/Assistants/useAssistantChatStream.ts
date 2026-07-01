@@ -704,11 +704,8 @@ export function useAssistantChatStream(
         }
         const myContactId = pair.contactId;
 
-        // NOTE: `onMessageActivity` is intentionally fired only for the
-        // `'chat'` case below — it's used by the active chat panel to
-        // clear its typing indicator, which should only happen on an
-        // actual reply, not on filtered backlog redeliveries, ignored
-        // threads, or desktop-ready signals.
+        // In-chat progress clearing runs in the chat merge callback after a
+        // successful assistant message merge — not on every SSE frame.
 
         // Top-level `__ackId` is set by the chat-stream route for every
         // Pub/Sub delivery; pluck it here so any frame-kind can ack without
@@ -767,7 +764,6 @@ export function useAssistantChatStream(
               content: frame.contentPreview,
             });
 
-            callbacksRef.current.onMessageActivity?.(assistantId);
             callbacksRef.current.onChatMessage(assistantId, frame.parsed);
 
             // Unread accounting — anything newer than the persisted

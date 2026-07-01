@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { ChatMarkdown } from '@/components/Chat/ChatMarkdown';
+import { ScrollArea } from '@/components/UI/scroll-area';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
@@ -364,54 +365,56 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       {isLoading ? (
         <TabSplitSkeleton listRows={8} />
       ) : viewMode === 'feed' ? (
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-testid="transcripts-feed">
-          <div className="mx-auto flex max-w-3xl flex-col gap-2">
-            {flatMessages.map(({ message, threadSubject, channel: ch }) => {
-              const isAssistant =
-                message.senderId !== null && message.senderId === assistant.selfContactId;
-              const senderName = isAssistant
-                ? assistant.firstName || 'Assistant'
-                : nameFor(message.senderId);
-              return (
-                <button
-                  key={message.messageId}
-                  type="button"
-                  className="flex w-full gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-muted"
-                  onClick={() => {
-                    setViewMode('threads');
-                    setOpenThreadId(threadKeyForRow(message));
-                  }}
-                >
-                  <span
-                    className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
-                    style={{
-                      backgroundColor: isAssistant
-                        ? 'var(--primary)'
-                        : toneFor(message.senderId ?? 0),
+        <ScrollArea className="min-h-0 flex-1" viewportTestId="transcripts-feed">
+          <div className="px-4 py-3">
+            <div className="mx-auto flex max-w-3xl flex-col gap-2">
+              {flatMessages.map(({ message, threadSubject, channel: ch }) => {
+                const isAssistant =
+                  message.senderId !== null && message.senderId === assistant.selfContactId;
+                const senderName = isAssistant
+                  ? assistant.firstName || 'Assistant'
+                  : nameFor(message.senderId);
+                return (
+                  <button
+                    key={message.messageId}
+                    type="button"
+                    className="flex w-full gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-muted"
+                    onClick={() => {
+                      setViewMode('threads');
+                      setOpenThreadId(threadKeyForRow(message));
                     }}
                   >
-                    {initialsFor(senderName)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex flex-wrap items-baseline gap-2">
-                      <b className="text-[12px] font-semibold">{senderName}</b>
-                      <span className="text-caption" style={{ color: ch?.cssVar }}>
-                        {ch?.label ?? 'Other'}
-                      </span>
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {formatTime(message.timestamp)}
-                      </span>
+                    <span
+                      className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
+                      style={{
+                        backgroundColor: isAssistant
+                          ? 'var(--primary)'
+                          : toneFor(message.senderId ?? 0),
+                      }}
+                    >
+                      {initialsFor(senderName)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-baseline gap-2">
+                        <b className="text-[12px] font-semibold">{senderName}</b>
+                        <span className="text-caption" style={{ color: ch?.cssVar }}>
+                          {ch?.label ?? 'Other'}
+                        </span>
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {formatTime(message.timestamp)}
+                        </span>
+                      </div>
+                      <p className="text-body-dense text-ink-2 line-clamp-2">
+                        {messageBody(message.content)}
+                      </p>
+                      <p className="text-caption mt-1 truncate">{threadSubject}</p>
                     </div>
-                    <p className="text-body-dense text-ink-2 line-clamp-2">
-                      {messageBody(message.content)}
-                    </p>
-                    <p className="text-caption mt-1 truncate">{threadSubject}</p>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       ) : threads.length === 0 ? (
         <p className="text-body-muted p-8 text-center">No conversations yet.</p>
       ) : (
@@ -419,143 +422,145 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
           paneId="transcripts-threads"
           defaultWidth={320}
           left={
-            <div
-              className="flex h-full flex-col gap-1 overflow-y-auto p-3"
-              data-testid="transcripts-threads"
-            >
-              {threads.map((thread) => {
-                const channelDef = thread.channel;
-                const Icon = channelDef?.Icon ?? MessageSquare;
-                const ch = channelDef?.cssVar ?? 'var(--muted-ink)';
-                const active = activeThread?.threadId === thread.threadId;
-                return (
-                  <button
-                    key={String(thread.threadId)}
-                    type="button"
-                    onClick={() => setOpenThreadId(thread.threadId)}
-                    data-testid={`transcripts-thread-${thread.threadId}`}
-                    style={
-                      {
-                        '--ch': ch,
-                        ...(active
-                          ? { backgroundColor: 'color-mix(in srgb, var(--ch) 12%, transparent)' }
-                          : {}),
-                      } as React.CSSProperties
-                    }
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors',
-                      !active && 'hover:bg-muted'
-                    )}
-                  >
-                    <span
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px]"
-                      style={{
-                        color: ch,
-                        backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
-                      }}
+            <ScrollArea className="h-full" viewportTestId="transcripts-threads">
+              <div className="flex flex-col gap-1 p-3">
+                {threads.map((thread) => {
+                  const channelDef = thread.channel;
+                  const Icon = channelDef?.Icon ?? MessageSquare;
+                  const ch = channelDef?.cssVar ?? 'var(--muted-ink)';
+                  const active = activeThread?.threadId === thread.threadId;
+                  return (
+                    <button
+                      key={String(thread.threadId)}
+                      type="button"
+                      onClick={() => setOpenThreadId(thread.threadId)}
+                      data-testid={`transcripts-thread-${thread.threadId}`}
+                      style={
+                        {
+                          '--ch': ch,
+                          ...(active
+                            ? { backgroundColor: 'color-mix(in srgb, var(--ch) 12%, transparent)' }
+                            : {}),
+                        } as React.CSSProperties
+                      }
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors',
+                        !active && 'hover:bg-muted'
+                      )}
                     >
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-title truncate">{thread.subject}</div>
-                      <div className="text-caption mt-0.5 truncate">
-                        <span style={{ color: ch }}>{channelDef?.label ?? 'Other'}</span> ·{' '}
-                        {thread.messages.length} msg · {thread.participantIds.length} people
+                      <span
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px]"
+                        style={{
+                          color: ch,
+                          backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
+                        }}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-title truncate">{thread.subject}</div>
+                        <div className="text-caption mt-0.5 truncate">
+                          <span style={{ color: ch }}>{channelDef?.label ?? 'Other'}</span> ·{' '}
+                          {thread.messages.length} msg · {thread.participantIds.length} people
+                        </div>
                       </div>
-                    </div>
-                    <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground">
-                      {formatDay(thread.last.timestamp)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                      <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground">
+                        {formatDay(thread.last.timestamp)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           }
           right={
             activeThread ? (
-              <div
-                className="flex h-full min-w-0 flex-col overflow-y-auto"
-                data-testid="transcripts-reader"
-                style={
-                  {
-                    '--ch': activeThread.channel?.cssVar ?? 'var(--muted-ink)',
-                  } as React.CSSProperties
-                }
-              >
-                <div className="sticky top-0 z-[1] border-b border-border bg-background px-6 py-4">
-                  <div className="mb-3 flex items-center gap-3">
-                    <span
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]"
-                      style={{
-                        color: 'var(--ch)',
-                        backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
-                      }}
-                    >
-                      {React.createElement(activeThread.channel?.Icon ?? MessageSquare, {
-                        className: 'h-[18px] w-[18px]',
-                        'aria-hidden': true,
-                      })}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-h2 truncate">{activeThread.subject}</div>
-                      <div className="text-caption mt-0.5">
-                        {activeThread.channel?.label ?? 'Other'} ·{' '}
-                        {typeof activeThread.threadId === 'number'
-                          ? `exchange #${activeThread.threadId}`
-                          : 'thread'}{' '}
-                        · {activeThread.messages.length} messages
+              <ScrollArea className="h-full min-w-0 flex-1" viewportTestId="transcripts-reader">
+                <div
+                  className="flex min-w-0 flex-col"
+                  style={
+                    {
+                      '--ch': activeThread.channel?.cssVar ?? 'var(--muted-ink)',
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="sticky top-0 z-[1] border-b border-border bg-background px-6 py-4">
+                    <div className="mb-3 flex items-center gap-3">
+                      <span
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]"
+                        style={{
+                          color: 'var(--ch)',
+                          backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
+                        }}
+                      >
+                        {React.createElement(activeThread.channel?.Icon ?? MessageSquare, {
+                          className: 'h-[18px] w-[18px]',
+                          'aria-hidden': true,
+                        })}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-h2 truncate">{activeThread.subject}</div>
+                        <div className="text-caption mt-0.5">
+                          {activeThread.channel?.label ?? 'Other'} ·{' '}
+                          {typeof activeThread.threadId === 'number'
+                            ? `exchange #${activeThread.threadId}`
+                            : 'thread'}{' '}
+                          · {activeThread.messages.length} messages
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="mr-0.5 inline-flex items-center gap-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground">
-                      <Users className="h-3 w-3" aria-hidden="true" /> Participants
-                    </span>
-                    {activeThread.participantIds.map((id) => (
-                      <span
-                        key={id}
-                        className="text-caption inline-flex items-center gap-1.5 rounded-full border border-border bg-card-2 py-[3px] pl-[3px] pr-2.5 text-foreground"
-                      >
-                        <span
-                          className="grid h-5 w-5 place-items-center rounded-full font-display text-[9px] font-semibold text-primary-foreground"
-                          style={{ backgroundColor: toneFor(id) }}
-                        >
-                          {initialsFor(nameFor(id))}
-                        </span>
-                        {nameFor(id)}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="mr-0.5 inline-flex items-center gap-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground">
+                        <Users className="h-3 w-3" aria-hidden="true" /> Participants
                       </span>
-                    ))}
+                      {activeThread.participantIds.map((id) => (
+                        <span
+                          key={id}
+                          className="text-caption inline-flex items-center gap-1.5 rounded-full border border-border bg-card-2 py-[3px] pl-[3px] pr-2.5 text-foreground"
+                        >
+                          <span
+                            className="grid h-5 w-5 place-items-center rounded-full font-display text-[9px] font-semibold text-primary-foreground"
+                            style={{ backgroundColor: toneFor(id) }}
+                          >
+                            {initialsFor(nameFor(id))}
+                          </span>
+                          {nameFor(id)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 px-6 py-5">
+                    {activeThread.messages.map((message) => {
+                      const isAssistant =
+                        message.senderId !== null && message.senderId === assistant.selfContactId;
+                      const out = message.senderId !== null && !isAssistant;
+                      const senderName = isAssistant
+                        ? assistant.firstName || 'Assistant'
+                        : nameFor(message.senderId);
+                      const receivers = message.receiverIds ?? [];
+                      return (
+                        <TranscriptMessageRow
+                          key={message.messageId}
+                          out={out}
+                          channelVar={activeThread.channel?.cssVar ?? 'var(--primary)'}
+                          senderName={senderName}
+                          senderTone={
+                            isAssistant ? 'var(--primary)' : toneFor(message.senderId ?? 0)
+                          }
+                          receiverSummary={
+                            receivers.length > 0
+                              ? `to ${receivers.map((id) => nameFor(id)).join(', ')}`
+                              : null
+                          }
+                          timeLabel={formatTime(message.timestamp)}
+                          body={messageBody(message.content)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
-
-                <div className="flex flex-col gap-3 px-6 py-5">
-                  {activeThread.messages.map((message) => {
-                    const isAssistant =
-                      message.senderId !== null && message.senderId === assistant.selfContactId;
-                    const out = message.senderId !== null && !isAssistant;
-                    const senderName = isAssistant
-                      ? assistant.firstName || 'Assistant'
-                      : nameFor(message.senderId);
-                    const receivers = message.receiverIds ?? [];
-                    return (
-                      <TranscriptMessageRow
-                        key={message.messageId}
-                        out={out}
-                        channelVar={activeThread.channel?.cssVar ?? 'var(--primary)'}
-                        senderName={senderName}
-                        senderTone={isAssistant ? 'var(--primary)' : toneFor(message.senderId ?? 0)}
-                        receiverSummary={
-                          receivers.length > 0
-                            ? `to ${receivers.map((id) => nameFor(id)).join(', ')}`
-                            : null
-                        }
-                        timeLabel={formatTime(message.timestamp)}
-                        body={messageBody(message.content)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+              </ScrollArea>
             ) : (
               <div className="text-body-muted flex h-full items-center justify-center">
                 Select a thread

@@ -71,4 +71,5 @@ export interface GrantedFeaturesResponse {
   provider: OAuthProvider | null;
   features: string[];
   requiredFeatures?: string[];
+  connectedAccountEmail?: string | null;
 }

@@ -21,6 +21,7 @@ import type { UserOrganization } from '@/types/user';
 
 interface CachedUserKeys {
   personalApiKey: string;
+  personalWorkspaceDisabled: boolean;
   organizations: Array<{
     id: number;
     name: string;
@@ -55,10 +56,12 @@ const MAX_CACHE_SIZE = 500;
 export function populateApiKeyCache(
   email: string,
   personalApiKey: string,
-  organizations: UserOrganization[] | undefined
+  organizations: UserOrganization[] | undefined,
+  personalWorkspaceDisabled = false
 ): void {
   cache.set(email, {
     personalApiKey,
+    personalWorkspaceDisabled,
     organizations: (organizations ?? []).map((org) => ({
       id: org.id,
       name: org.name,
@@ -107,6 +110,8 @@ export function resolvePersonalApiKeyFromCache(email: string): string | null {
     return null;
   }
 
+  if (entry.personalWorkspaceDisabled) return null;
+
   return entry.personalApiKey;
 }
 
@@ -143,7 +148,7 @@ function resolveWorkspaceApiKey(
 ): string {
   // Priority 1: Header API Key (for API calls / tests)
   if (headerApiKey) {
-    if (entry.personalApiKey === headerApiKey) {
+    if (!entry.personalWorkspaceDisabled && entry.personalApiKey === headerApiKey) {
       return headerApiKey;
     }
     const matchedOrg = entry.organizations.find((org) => org.apiKey === headerApiKey);
@@ -154,7 +159,10 @@ function resolveWorkspaceApiKey(
 
   // Priority 2: Cookie workspace — resolve but don't return yet.
   // Priority 3 (org lock) can override this for non-Unify members.
-  let resolvedKey = entry.personalApiKey;
+  let resolvedKey =
+    entry.personalWorkspaceDisabled && entry.organizations[0]
+      ? entry.organizations[0].apiKey
+      : entry.personalApiKey;
   if (workspaceId && workspaceId !== 'personal') {
     const org = entry.organizations.find((o) => o.id.toString() === workspaceId);
     if (org) {

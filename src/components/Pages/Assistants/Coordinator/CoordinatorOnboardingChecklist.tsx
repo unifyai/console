@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { ScrollArea } from '@/components/UI/scroll-area';
 import { cn } from '@/lib/utils';
 import type {
   OnboardingChip,
@@ -65,9 +66,15 @@ export type ChecklistAction =
   | 'trigger-discord-reference'
   | 'start-discord-message'
   | 'connect-workspace'
+  | 'trigger-workspace-mailbox'
+  | 'trigger-workspace-drive'
+  | 'trigger-workspace-calendar'
+  | 'trigger-workspace-contacts'
+  | 'trigger-workspace-tasks'
   | 'connect-apps'
   | 'act'
-  | 'schedule';
+  | 'launch-mission'
+  | 'arm-tripwire';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -120,9 +127,15 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'discord-reference': 'trigger-discord-reference',
   'discord-message': 'start-discord-message',
   workspace: 'connect-workspace',
+  'workspace-mailbox': 'trigger-workspace-mailbox',
+  'workspace-drive': 'trigger-workspace-drive',
+  'workspace-calendar': 'trigger-workspace-calendar',
+  'workspace-contacts': 'trigger-workspace-contacts',
+  'workspace-tasks': 'trigger-workspace-tasks',
   apps: 'connect-apps',
   act: 'act',
-  schedule: 'schedule',
+  'launch-mission': 'launch-mission',
+  'arm-tripwire': 'arm-tripwire',
 };
 
 const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
@@ -140,6 +153,11 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'start-slack-message': 'Checking...',
   'trigger-discord-reference': 'Sending...',
   'start-discord-message': 'Checking...',
+  'trigger-workspace-mailbox': 'Summarizing...',
+  'trigger-workspace-drive': 'Summarizing...',
+  'trigger-workspace-calendar': 'Summarizing...',
+  'trigger-workspace-contacts': 'Summarizing...',
+  'trigger-workspace-tasks': 'Summarizing...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -162,7 +180,7 @@ const EMPTY_ONBOARDING_STEP_IDS: ReadonlySet<string> = new Set();
  * ``createComingSoonPlaceholder``) — the same empty-section treatment the
  * Learning phase gets — instead of surfacing an actionable row.
  */
-const COMING_SOON_STEP_IDS: ReadonlySet<string> = new Set(['schedule']);
+const COMING_SOON_STEP_IDS: ReadonlySet<string> = new Set();
 
 type BlockingFeedbackHint = 'next' | 'locked';
 const EMPTY_BLOCKING_STEP_HINTS: ReadonlyMap<string, BlockingFeedbackHint> = new Map();
@@ -532,9 +550,24 @@ export interface CoordinatorOnboardingChecklistProps {
    * degrades to a static entry. */
   onActNow?: () => void;
   /** Opens the Tasks pane in the current surface. Hung off
-   * "Schedule a task for later". Unset means the row degrades to a
-   * static entry. */
-  onScheduleTask?: () => void;
+   * "Launch a mission" — the user schedules a task and watches me
+   * report back. Unset means the row degrades to a static entry. */
+  onLaunchMission?: () => void;
+  /** Opens the Tasks pane in the current surface. Hung off
+   * "Arm a tripwire" — the user arms an event-triggered task. Unset
+   * means the row degrades to a static entry. */
+  onArmTripwire?: () => void;
+  /** Deterministically fire the armed tripwire task by id — powers the
+   * inline "Test it" affordance under the ``arm-tripwire`` row. Unset
+   * (or a null ``armedTripwireTaskId``) hides the affordance. */
+  onTestTripwire?: (taskId: number) => void;
+  /** Task id of an armed (triggerable) task the user just created, used
+   * to target the "Test it" affordance. Null until one exists. */
+  armedTripwireTaskId?: number | null;
+  /** Absolute ISO due time of the nearest upcoming scheduled task, used
+   * to render the "Launch a mission" countdown. Null when none is
+   * pending. */
+  nextMissionDueAt?: string | null;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
@@ -555,7 +588,11 @@ export function CoordinatorOnboardingChecklist({
   onConnectWorkspace,
   onConnectApps,
   onActNow,
-  onScheduleTask,
+  onLaunchMission,
+  onArmTripwire,
+  onTestTripwire,
+  armedTripwireTaskId = null,
+  nextMissionDueAt = null,
   onSkipSection,
   onUnskipSection,
   isOnCall = false,
@@ -619,9 +656,18 @@ export function CoordinatorOnboardingChecklist({
         onTriggerReferenceStep?.('discord-reference');
       else if (action === 'start-discord-message') onStartOnboardingStep?.('discord-message');
       else if (action === 'connect-workspace') onConnectWorkspace?.();
+      else if (action === 'trigger-workspace-mailbox')
+        onTriggerReferenceStep?.('workspace-mailbox');
+      else if (action === 'trigger-workspace-drive') onTriggerReferenceStep?.('workspace-drive');
+      else if (action === 'trigger-workspace-calendar')
+        onTriggerReferenceStep?.('workspace-calendar');
+      else if (action === 'trigger-workspace-contacts')
+        onTriggerReferenceStep?.('workspace-contacts');
+      else if (action === 'trigger-workspace-tasks') onTriggerReferenceStep?.('workspace-tasks');
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
-      else if (action === 'schedule') onScheduleTask?.();
+      else if (action === 'launch-mission') onLaunchMission?.();
+      else if (action === 'arm-tripwire') onArmTripwire?.();
     },
     [
       onStartOnboardingStep,
@@ -633,7 +679,8 @@ export function CoordinatorOnboardingChecklist({
       onConnectWorkspace,
       onConnectApps,
       onActNow,
-      onScheduleTask,
+      onLaunchMission,
+      onArmTripwire,
     ]
   );
 
@@ -717,9 +764,19 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'connect-slack') return !!onConnectSlack;
       if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
+      if (
+        action === 'trigger-workspace-mailbox' ||
+        action === 'trigger-workspace-drive' ||
+        action === 'trigger-workspace-calendar' ||
+        action === 'trigger-workspace-contacts' ||
+        action === 'trigger-workspace-tasks'
+      ) {
+        return !!onTriggerReferenceStep && !!onConnectWorkspace;
+      }
       if (action === 'connect-apps') return !!onConnectApps;
       if (action === 'act') return !!onActNow;
-      if (action === 'schedule') return !!onScheduleTask;
+      if (action === 'launch-mission') return !!onLaunchMission;
+      if (action === 'arm-tripwire') return !!onArmTripwire;
       return false;
     },
     [
@@ -732,7 +789,8 @@ export function CoordinatorOnboardingChecklist({
       onConnectWorkspace,
       onConnectApps,
       onActNow,
-      onScheduleTask,
+      onLaunchMission,
+      onArmTripwire,
     ]
   );
 
@@ -945,104 +1003,112 @@ export function CoordinatorOnboardingChecklist({
   const canDeferAll = !!deferOnboarding && nextActionableId !== null;
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
-      <ul className="min-h-0 flex-1 overflow-y-auto" data-testid="coordinator-onboarding-checklist">
-        <style jsx>{`
-          @keyframes coordinator-onboarding-blocked-jiggle {
-            0%,
-            100% {
-              transform: translateX(0);
+      <ScrollArea className="min-h-0 flex-1" viewportTestId="coordinator-onboarding-checklist">
+        <ul>
+          <style jsx>{`
+            @keyframes coordinator-onboarding-blocked-jiggle {
+              0%,
+              100% {
+                transform: translateX(0);
+              }
+              20% {
+                transform: translateX(-1.5px);
+              }
+              40% {
+                transform: translateX(1.5px);
+              }
+              60% {
+                transform: translateX(-1px);
+              }
+              80% {
+                transform: translateX(1px);
+              }
             }
-            20% {
-              transform: translateX(-1.5px);
-            }
-            40% {
-              transform: translateX(1.5px);
-            }
-            60% {
-              transform: translateX(-1px);
-            }
-            80% {
-              transform: translateX(1px);
-            }
-          }
-        `}</style>
-        {resolved.map((section, index) => {
-          const isOpen = openSectionIds.has(section.id);
-          const hasVisibleChildren = (section.children?.length ?? 0) > 0;
-          const sectionItems = hasVisibleChildren
-            ? section.children!
-            : [createComingSoonPlaceholder(section)];
-          return (
-            <li key={section.id}>
-              <SectionHeader
-                section={section}
-                index={index}
-                progress={progressForItems(sectionItems)}
-                isOpen={isOpen}
-                onToggle={() => toggleSection(section.id)}
-              />
-              {isOpen ? (
-                <ul>
-                  {section.id === COMMUNICATION_SECTION_ID
-                    ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
-                        <CommunicationSubgroup
-                          key={group.id}
-                          id={group.id}
-                          title={`${index + 1}.${groupIndex + 1} ${group.title}`}
-                          progress={progressForItems(group.items)}
-                          isOpen={openSubgroupIds.has(group.id)}
-                          onToggle={() => toggleSubgroup(group.id)}
-                        >
-                          {group.items.map((item) => (
-                            <ChecklistRow
-                              key={item.id}
-                              item={item}
-                              isChild
-                              isInSkippedSection={section.sectionSkipped === true}
-                              onAction={handleChecklistRowAction}
-                              isActionWired={isActionWired}
-                              nextActionableId={nextActionableId}
-                              allVisibleItems={visibleLeaves}
-                              actionFeedback={actionFeedbackByStepId.get(item.id)}
-                              blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
-                              blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                              blockingStepHints={
-                                blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
-                              }
-                              onBlockedStepClick={triggerBlockedFeedback}
-                              isOnCall={isOnCall}
-                              onResetStepProgress={resetStepProgress}
-                            />
-                          ))}
-                        </CommunicationSubgroup>
-                      ))
-                    : sectionItems.map((item) => (
-                        <ChecklistRow
-                          key={item.id}
-                          item={item}
-                          isChild
-                          isInSkippedSection={section.sectionSkipped === true}
-                          onAction={handleChecklistRowAction}
-                          isActionWired={isActionWired}
-                          nextActionableId={nextActionableId}
-                          allVisibleItems={visibleLeaves}
-                          actionFeedback={actionFeedbackByStepId.get(item.id)}
-                          blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
-                          blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                          blockingStepHints={
-                            blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
-                          }
-                          onBlockedStepClick={triggerBlockedFeedback}
-                          isOnCall={isOnCall}
-                          onResetStepProgress={resetStepProgress}
-                        />
-                      ))}
-                </ul>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+          `}</style>
+          {resolved.map((section, index) => {
+            const isOpen = openSectionIds.has(section.id);
+            const hasVisibleChildren = (section.children?.length ?? 0) > 0;
+            const sectionItems = hasVisibleChildren
+              ? section.children!
+              : [createComingSoonPlaceholder(section)];
+            return (
+              <li key={section.id}>
+                <SectionHeader
+                  section={section}
+                  index={index}
+                  progress={progressForItems(sectionItems)}
+                  isOpen={isOpen}
+                  onToggle={() => toggleSection(section.id)}
+                />
+                {isOpen ? (
+                  <ul>
+                    {section.id === COMMUNICATION_SECTION_ID
+                      ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
+                          <CommunicationSubgroup
+                            key={group.id}
+                            id={group.id}
+                            title={`${index + 1}.${groupIndex + 1} ${group.title}`}
+                            progress={progressForItems(group.items)}
+                            isOpen={openSubgroupIds.has(group.id)}
+                            onToggle={() => toggleSubgroup(group.id)}
+                          >
+                            {group.items.map((item) => (
+                              <ChecklistRow
+                                key={item.id}
+                                item={item}
+                                isChild
+                                isInSkippedSection={section.sectionSkipped === true}
+                                onAction={handleChecklistRowAction}
+                                isActionWired={isActionWired}
+                                nextActionableId={nextActionableId}
+                                allVisibleItems={visibleLeaves}
+                                actionFeedback={actionFeedbackByStepId.get(item.id)}
+                                blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
+                                blockedFeedbackToken={blockedFeedback?.token ?? 0}
+                                blockingStepHints={
+                                  blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
+                                }
+                                onBlockedStepClick={triggerBlockedFeedback}
+                                isOnCall={isOnCall}
+                                onResetStepProgress={resetStepProgress}
+                                onTestTripwire={onTestTripwire}
+                                armedTripwireTaskId={armedTripwireTaskId}
+                                nextMissionDueAt={nextMissionDueAt}
+                              />
+                            ))}
+                          </CommunicationSubgroup>
+                        ))
+                      : sectionItems.map((item) => (
+                          <ChecklistRow
+                            key={item.id}
+                            item={item}
+                            isChild
+                            isInSkippedSection={section.sectionSkipped === true}
+                            onAction={handleChecklistRowAction}
+                            isActionWired={isActionWired}
+                            nextActionableId={nextActionableId}
+                            allVisibleItems={visibleLeaves}
+                            actionFeedback={actionFeedbackByStepId.get(item.id)}
+                            blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
+                            blockedFeedbackToken={blockedFeedback?.token ?? 0}
+                            blockingStepHints={
+                              blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
+                            }
+                            onBlockedStepClick={triggerBlockedFeedback}
+                            isOnCall={isOnCall}
+                            onResetStepProgress={resetStepProgress}
+                            onTestTripwire={onTestTripwire}
+                            armedTripwireTaskId={armedTripwireTaskId}
+                            nextMissionDueAt={nextMissionDueAt}
+                          />
+                        ))}
+                  </ul>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </ScrollArea>
       <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
         {canDeferAll ? (
           <button
@@ -1188,6 +1254,12 @@ interface ChecklistRowProps {
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
   onResetStepProgress?: (stepIds: readonly string[], resetStepId?: string) => void;
+  /** Deterministic tripwire fire — powers the "Test it" affordance. */
+  onTestTripwire?: (taskId: number) => void;
+  /** Armed tripwire task id, or null when none exists yet. */
+  armedTripwireTaskId?: number | null;
+  /** Nearest upcoming scheduled task due time (ISO), for the countdown. */
+  nextMissionDueAt?: string | null;
 }
 
 function ChecklistRow({
@@ -1205,6 +1277,9 @@ function ChecklistRow({
   onBlockedStepClick,
   isOnCall,
   onResetStepProgress,
+  onTestTripwire,
+  armedTripwireTaskId = null,
+  nextMissionDueAt = null,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
@@ -1450,12 +1525,23 @@ function ChecklistRow({
   // mid-voice-turn.
   // Suggestion chips come from the server render (sourced from the
   // canonical graph). The chat/call split lives in the data: ``act``
-  // carries distinct sets, ``schedule`` carries the same set for both,
-  // and every other step carries none — so an empty list naturally
-  // means "no chips here".
+  // carries distinct sets, the Tasks beats carry their own, and every
+  // other step carries none — so an empty list naturally means "no
+  // chips here".
   const suggestionsForItem = isOnCall ? item.chipsCall : item.chipsChat;
   const showSuggestions =
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
+
+  // Beat-specific affordances that sit under their row while it's the
+  // active step: a launch countdown once a mission is scheduled, and a
+  // deterministic "Test it" control once a tripwire is armed.
+  const showMissionCountdown =
+    item.id === 'launch-mission' && item.status === 'pending' && !!nextMissionDueAt;
+  const showTripwireTest =
+    item.id === 'arm-tripwire' &&
+    item.status === 'pending' &&
+    !!onTestTripwire &&
+    armedTripwireTaskId != null;
 
   return (
     <li className="flex flex-col gap-2">
@@ -1481,6 +1567,27 @@ function ChecklistRow({
           ))}
         </ul>
       ) : null}
+      {showMissionCountdown && nextMissionDueAt ? (
+        <div className="ml-6">
+          <MissionCountdown dueAt={nextMissionDueAt} />
+        </div>
+      ) : null}
+      {showTripwireTest && armedTripwireTaskId != null && onTestTripwire ? (
+        <div className="ml-6">
+          <button
+            type="button"
+            onClick={() => onTestTripwire(armedTripwireTaskId)}
+            className={cn(
+              'text-caption rounded-control inline-flex items-center gap-1.5 px-2 py-1 font-medium',
+              'bg-primary/10 hover:bg-primary/20 text-primary',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            )}
+            data-testid="coordinator-onboarding-test-tripwire"
+          >
+            Test it
+          </button>
+        </div>
+      ) : null}
       {item.children?.length ? (
         <ul className="space-y-2">
           {item.children.map((child) => (
@@ -1499,11 +1606,58 @@ function ChecklistRow({
               onBlockedStepClick={onBlockedStepClick}
               isOnCall={isOnCall}
               onResetStepProgress={onResetStepProgress}
+              onTestTripwire={onTestTripwire}
+              armedTripwireTaskId={armedTripwireTaskId}
+              nextMissionDueAt={nextMissionDueAt}
             />
           ))}
         </ul>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * Live countdown to the nearest scheduled mission's due time. Frames the
+ * ~minute wait before the assistant reports back as a mission launch beat
+ * ("reaching you in 00:47") rather than dead air. Counts down to zero and
+ * then flips to a launched state; the row itself lands once the scheduled
+ * Task Run actually appears.
+ */
+function MissionCountdown({ dueAt }: { dueAt: string }) {
+  const targetMs = React.useMemo(() => {
+    const parsed = Date.parse(dueAt);
+    return Number.isNaN(parsed) ? null : parsed;
+  }, [dueAt]);
+  const [remainingMs, setRemainingMs] = React.useState(() =>
+    targetMs == null ? 0 : Math.max(0, targetMs - Date.now())
+  );
+
+  React.useEffect(() => {
+    if (targetMs == null) return;
+    const tick = () => setRemainingMs(Math.max(0, targetMs - Date.now()));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [targetMs]);
+
+  if (targetMs == null) return null;
+
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const launched = totalSeconds <= 0;
+
+  return (
+    <span
+      className="text-caption inline-flex items-center gap-1.5 text-muted-foreground"
+      data-testid="coordinator-onboarding-mission-countdown"
+      data-launched={launched ? 'true' : undefined}
+    >
+      {launched
+        ? 'Mission launched — reaching out now…'
+        : `Reaching you in ${minutes}:${String(seconds).padStart(2, '0')}`}
+    </span>
   );
 }
 

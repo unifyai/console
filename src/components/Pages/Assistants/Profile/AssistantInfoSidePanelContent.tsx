@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock, X } from 'lucide-react';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -35,20 +35,18 @@ import {
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
+import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBeats';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
   currentUserId?: string | null;
-  /** Open the edit-profile dialog (wired from page-level Main).
-   *  Suppressed when `canWrite === false` regardless of whether a
-   *  handler is provided — the affordance vanishes from the header. */
-  onEditProfile?: (assistant: Assistant) => void;
+  /** Close the assistant info panel. */
+  onClose: () => void;
   /** Open the contact manager dialog, optionally on a specific channel tab. */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   /**
    * Whether the viewer can edit this assistant. Drives the visibility
    * of every edit affordance the panel surfaces:
-   *   - the IdentityHeader's pencil (profile edit)
    *   - the Contact Info section's "Edit" button
    *   - per-channel "Add phone / email / …" inline CTAs (read-only
    *     viewers see a quiet "—" placeholder instead)
@@ -100,7 +98,8 @@ export interface AssistantInfoSidePanelContentProps {
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
-    onScheduleTask?: () => void;
+    onLaunchMission?: () => void;
+    onArmTripwire?: () => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -121,7 +120,7 @@ const CONTACT_COPY_RESET_MS = 2000;
  *
  * Two-zone layout:
  *   1. An identity header (avatar call action, name, supervisor, copy-id)
- *      with a single icon-only Edit button in the top-right corner.
+ *      with a single icon-only close button in the top-right corner.
  *      Tapping the header itself does nothing; interactions stay attached
  *      to explicit controls.
  *   2. A tabbed body. While onboarding is in progress we render two
@@ -142,7 +141,7 @@ export function AssistantInfoSidePanelContent({
     return (
       <CoordinatorAssistantInfoSidePanelContent
         assistant={assistant}
-        onEditProfile={props.onEditProfile}
+        onClose={props.onClose}
         className={props.className}
         onOpenContactManager={props.onOpenContactManager}
         canWrite={props.canWrite}
@@ -161,7 +160,7 @@ type CoordinatorPanelTab = 'onboarding' | 'contact';
 
 function CoordinatorAssistantInfoSidePanelContent({
   assistant,
-  onEditProfile,
+  onClose,
   onOpenContactManager,
   className,
   canWrite = true,
@@ -171,7 +170,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   startCallTooltip,
 }: {
   assistant: Assistant;
-  onEditProfile?: (assistant: Assistant) => void;
+  onClose: () => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   className?: string;
   canWrite?: boolean;
@@ -181,6 +180,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   startCallTooltip?: string;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
+  const taskBeats = useCoordinatorTaskBeats(assistant, { enabled: showOnboardingTab });
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
@@ -224,7 +224,7 @@ function CoordinatorAssistantInfoSidePanelContent({
         }
         isIdCopied={isIdCopied}
         onCopyId={copyId}
-        onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+        onClose={onClose}
         onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
         isStartCallDisabled={isStartCallDisabled}
         startCallTooltip={startCallTooltip}
@@ -273,7 +273,11 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                 onConnectApps={coordinatorOnboarding.onConnectApps}
                 onActNow={coordinatorOnboarding.onActNow}
-                onScheduleTask={coordinatorOnboarding.onScheduleTask}
+                onLaunchMission={coordinatorOnboarding.onLaunchMission}
+                onArmTripwire={coordinatorOnboarding.onArmTripwire}
+                onTestTripwire={taskBeats.testTripwire}
+                armedTripwireTaskId={taskBeats.armedTripwireTaskId}
+                nextMissionDueAt={taskBeats.nextMissionDueAt}
                 onSkipSection={coordinatorOnboarding.onSkipSection}
                 onUnskipSection={coordinatorOnboarding.onUnskipSection}
                 isOnCall={coordinatorOnboarding.isOnCall}
@@ -290,13 +294,13 @@ function CoordinatorAssistantInfoSidePanelContent({
           </TabsContent>
         </Tabs>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <ScrollArea className="min-h-0 flex-1">
           <ContactInfoGrid
             assistant={assistant}
             onOpenContactManager={onOpenContactManager}
             canWrite={canWrite}
           />
-        </div>
+        </ScrollArea>
       )}
     </div>
   );
@@ -304,7 +308,7 @@ function CoordinatorAssistantInfoSidePanelContent({
 
 function RegularAssistantInfoSidePanelContent({
   assistant,
-  onEditProfile,
+  onClose,
   onOpenContactManager,
   roadmap,
   className,
@@ -384,7 +388,7 @@ function RegularAssistantInfoSidePanelContent({
           visibilityLabel="Everyone"
           isIdCopied={isIdCopied}
           onCopyId={copyId}
-          onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+          onClose={onClose}
           onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
           isStartCallDisabled={isStartCallDisabled}
           startCallTooltip={startCallTooltip}
@@ -459,7 +463,7 @@ interface IdentityHeaderProps {
   visibilityLabel: React.ReactNode;
   isIdCopied: boolean;
   onCopyId: () => void;
-  onEdit?: () => void;
+  onClose: () => void;
   onStartCall?: () => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
@@ -475,7 +479,7 @@ function IdentityHeader({
   visibilityLabel,
   isIdCopied,
   onCopyId,
-  onEdit,
+  onClose,
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
@@ -551,28 +555,26 @@ function IdentityHeader({
           </span>
         </button>
       </div>
-      {onEdit && (
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="-mr-1 -mt-1 h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
-                onClick={onEdit}
-                data-testid="assistant-info-edit-profile"
-                aria-label="Edit profile"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Edit profile</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="-mr-1 -mt-1 h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={onClose}
+              data-testid="assistant-info-close"
+              aria-label="Close assistant info"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>Close</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

@@ -21,7 +21,11 @@ import {
   REQUIRED_FEATURES,
 } from '@/constants/assistants/settings';
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
-import { buildOAuthCompleteUrl, openPendingOAuthTab } from '@/utils/assistants/oauth';
+import {
+  buildOAuthCompleteUrl,
+  openPendingOAuthTab,
+  subscribeOAuthComplete,
+} from '@/utils/assistants/oauth';
 import { fetchVisitorCountry } from '@/utils/geo';
 import { toast } from 'sonner';
 
@@ -240,45 +244,49 @@ export function useAssistantContactManager({
     };
   }, [isOpen, assistantActions.contact]);
 
-  // Fetch granted features when dialog opens and an email exists.
-  // The response determines whether the email is BYOD (provider non-null) or platform.
+  // Refetch the assistant's granted features (BYOD provider, scopes, and the
+  // connected account email). The response determines whether the email is
+  // BYOD (provider non-null) or platform, and drives the feature checklist and
+  // file picker.
+  const refetchGrantedFeatures = React.useCallback(async () => {
+    if (!assistant.email) return;
+    setIsLoadingFeatures(true);
+    try {
+      const result = await assistantActions.contact.getGrantedFeatures(assistant.agentId);
+      if ('detail' in result) {
+        console.warn(
+          '[useAssistantContactManager] Failed to fetch granted features:',
+          (result as ResponseProps).detail
+        );
+      } else {
+        const feats = result as GrantedFeaturesResponse;
+        setGrantedFeatures(feats);
+        setSelectedFeatures(feats.features);
+      }
+    } catch (error) {
+      console.warn('[useAssistantContactManager] Error fetching granted features:', error);
+    } finally {
+      setIsLoadingFeatures(false);
+    }
+  }, [assistant.email, assistant.agentId, assistantActions.contact]);
+
+  // Fetch granted features when the dialog opens and an email exists.
   React.useEffect(() => {
     if (!isOpen || !assistant.email) return;
+    void refetchGrantedFeatures();
+  }, [isOpen, assistant.email, refetchGrantedFeatures]);
 
-    let cancelled = false;
-
-    async function loadGrantedFeatures() {
-      setIsLoadingFeatures(true);
-      try {
-        const result = await assistantActions.contact.getGrantedFeatures(assistant.agentId);
-        if (cancelled) return;
-
-        if ('detail' in result) {
-          console.warn(
-            '[useAssistantContactManager] Failed to fetch granted features:',
-            (result as ResponseProps).detail
-          );
-        } else {
-          const feats = result as GrantedFeaturesResponse;
-          setGrantedFeatures(feats);
-          setSelectedFeatures(feats.features);
-        }
-      } catch (error) {
-        if (cancelled) return;
-        console.warn('[useAssistantContactManager] Error fetching granted features:', error);
-      } finally {
-        if (!cancelled) {
-          setIsLoadingFeatures(false);
-        }
-      }
-    }
-
-    loadGrantedFeatures();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, assistant.email, assistant.agentId, assistantActions.contact]);
+  // Refetch on OAuth completion so a freshly connected workspace reflects in
+  // the modal (feature checklist + file picker) without a manual reopen. This
+  // is the only durable refresh signal for a Coordinator, whose own mailbox
+  // stays platform-managed — no BYOD email contact is created, so
+  // ``assistant.email`` never changes to re-trigger the open effect above.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    return subscribeOAuthComplete(() => {
+      void refetchGrantedFeatures();
+    });
+  }, [isOpen, refetchGrantedFeatures]);
 
   // ---------------------------------------------------------------------------
   // UI state

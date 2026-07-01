@@ -81,6 +81,8 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     content = entries.question || entries.instructions || entries.request;
   }
 
+  const rawEntries = entries as unknown as Record<string, unknown>;
+
   return {
     id: log.id,
     timestamp: entries.eventTimestamp || log.ts,
@@ -97,7 +99,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     eventId: entries.eventId,
     errorType: entries.errorType,
     traceback: entries.traceback,
-    persist: (entries as unknown as Record<string, unknown>).persist === true ? true : undefined,
+    persist: rawEntries.persist === true ? true : undefined,
   };
 }
 

@@ -3390,6 +3390,7 @@ export function ActionNodeItem({
     <div
       ref={nodeRef}
       data-testid="action-node"
+      data-action-calling-id={depth === 0 ? node.id : undefined}
       data-type={node.type}
       data-status={node.status}
       data-match={isMatch || undefined}

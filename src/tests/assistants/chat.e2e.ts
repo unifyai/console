@@ -112,6 +112,8 @@ test('sending a message shows it as a user message in the chat', async ({ authed
   // Verify the message bubble has role="user" via data-role
   const userBubble = page.locator(`[data-role="user"]:has-text("${testMessage}")`);
   await expect(userBubble).toBeVisible({ timeout: 5_000 });
+
+  await expect(page.locator('text=Typing')).toBeVisible({ timeout: 5_000 });
 });
 
 test('historical transcript messages load when navigating to an assistant', async ({

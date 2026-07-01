@@ -203,7 +203,12 @@ export async function getCurrentUser(): Promise<User | null> {
   // key from cache without calling getCurrentUser() again (saving 1-3
   // Orchestra roundtrips per request).
   if (session?.user?.email) {
-    populateApiKeyCache(session.user.email, user.apiKey, user.organizations);
+    populateApiKeyCache(
+      session.user.email,
+      user.apiKey,
+      user.organizations,
+      user.personalWorkspaceDisabled === true
+    );
   }
 
   // 3. Apply Workspace Context
@@ -237,7 +242,7 @@ export async function getCurrentUser(): Promise<User | null> {
 
   // Priority 2: Cookie (if not resolved by header)
   if (!contextResolved && workspaceId) {
-    if (workspaceId === 'personal') {
+    if (workspaceId === 'personal' && !user.personalWorkspaceDisabled) {
       // Explicitly personal. user.apiKey is already personal default.
       contextResolved = true;
     } else {

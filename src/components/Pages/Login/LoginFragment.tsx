@@ -60,22 +60,19 @@ const LoginFragment = ({
         {/* Header */}
         <div className="relative flex flex-col items-center gap-6 text-center">
           <div className="flex justify-center">
-            <UnifyLogo />
+            <UnifyLogo
+              className="px-5 py-3"
+              markClassName="gap-3 [&_.glyph]:!h-10 [&_.glyph]:!w-10 [&_.text-title]:!text-[32px]"
+            />
           </div>
           <div className="inline-flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
             <span className="h-2 w-2 rounded-[2px] bg-primary" />
-            Welcome aboard
+            Free up your day, one task at a time.
           </div>
-          <div className="grid gap-4">
-            <h1 className="text-brand-display text-foreground">
-              Meet your first <span className="text-brand-serif-accent">Droid.</span>
-            </h1>
-            <p className="mx-auto max-w-[34rem] text-[15px] leading-6 text-muted-foreground">
-              {env.isSelfHost
-                ? 'No prompting, no setup, no jargon. Create or sign in to your local account and hop on a call with the teammate who takes tedious work off your plate.'
-                : 'No prompting, no setup, no jargon. Sign in and hop on a call with the teammate who takes tedious work off your plate.'}
-            </p>
-          </div>
+          <p className="mx-auto max-w-[34rem] text-[15px] leading-6 text-muted-foreground">
+            No prompting, no setup, no jargon. Just hop on a call, onboard like anyone else, and let
+            them take the tedious tasks off your plate.
+          </p>
         </div>
 
         {/* Content — auth buttons / email form */}

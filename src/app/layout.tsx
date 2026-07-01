@@ -15,8 +15,8 @@ export const metadata: Metadata = {
     default: 'Unify Console',
   },
   icons: {
-    icon: [{ url: '/icon.svg?v=neo-unity', type: 'image/svg+xml' }],
-    shortcut: [{ url: '/icon.svg?v=neo-unity', type: 'image/svg+xml' }],
+    icon: [{ url: '/icon.svg?v=nested-cube', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/icon.svg?v=nested-cube', type: 'image/svg+xml' }],
   },
 };
 
