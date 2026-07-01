@@ -159,7 +159,8 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
       className={cn(
         'rounded-control flex h-8 min-w-[7.25rem] translate-y-0.5 flex-col justify-center gap-1 px-2 text-left transition-colors',
         'text-body-muted hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-        isShortcutActive && 'bg-primary/10 ring-primary/40 hover:bg-primary/20 text-primary ring-1',
+        isShortcutActive &&
+          'bg-primary-tint-10 text-primary ring-1 ring-primary-tint-40 hover:bg-primary-tint-20',
         className
       )}
       data-testid="top-nav-onboarding-shortcut"

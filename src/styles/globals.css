@@ -68,6 +68,19 @@
     --primary: var(--role-green);
     --primary-foreground: var(--cream-white);
 
+    /* Opacity-modified primary tints (Tailwind `/N` on CSS-var colors no-ops). */
+    --primary-tint-5: color-mix(in srgb, var(--primary) 5%, transparent);
+    --primary-tint-10: color-mix(in srgb, var(--primary) 10%, transparent);
+    --primary-tint-15: color-mix(in srgb, var(--primary) 15%, transparent);
+    --primary-tint-20: color-mix(in srgb, var(--primary) 20%, transparent);
+    --primary-tint-25: color-mix(in srgb, var(--primary) 25%, transparent);
+    --primary-tint-30: color-mix(in srgb, var(--primary) 30%, transparent);
+    --primary-tint-40: color-mix(in srgb, var(--primary) 40%, transparent);
+    --primary-tint-50: color-mix(in srgb, var(--primary) 50%, transparent);
+    --primary-tint-60: color-mix(in srgb, var(--primary) 60%, transparent);
+    --primary-tint-70: color-mix(in srgb, var(--primary) 70%, transparent);
+    --primary-tint-90: color-mix(in srgb, var(--primary) 90%, transparent);
+
     --secondary: var(--paper-2);
     --secondary-foreground: var(--ink);
 

@@ -46,6 +46,21 @@ module.exports = {
           DEFAULT: 'var(--accent-soft)',
           foreground: 'var(--accent-soft-ink)',
         },
+        primary: {
+          tint: {
+            5: 'var(--primary-tint-5)',
+            10: 'var(--primary-tint-10)',
+            15: 'var(--primary-tint-15)',
+            20: 'var(--primary-tint-20)',
+            25: 'var(--primary-tint-25)',
+            30: 'var(--primary-tint-30)',
+            40: 'var(--primary-tint-40)',
+            50: 'var(--primary-tint-50)',
+            60: 'var(--primary-tint-60)',
+            70: 'var(--primary-tint-70)',
+            90: 'var(--primary-tint-90)',
+          },
+        },
         sidebar: {
           DEFAULT: 'var(--sidebar-background)',
           foreground: 'var(--sidebar-foreground)',
