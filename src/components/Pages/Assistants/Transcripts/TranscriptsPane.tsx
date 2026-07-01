@@ -22,6 +22,7 @@ import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import {
   invalidateTabDataCache,
   readTabDataCache,
@@ -163,6 +164,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
   const [isLoading, setIsLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [openThreadId, setOpenThreadId] = React.useState<string | number | null>(null);
+  const isStackedLayout = useMatchesBelow('tablet');
 
   const load = React.useCallback(async () => {
     const cacheKey = `${ownerId}:${assistantId}:transcripts`;
@@ -279,11 +281,20 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       return;
     }
     if (!threads.some((t) => t.threadId === openThreadId)) {
-      setOpenThreadId(threads[0].threadId);
+      if (isStackedLayout) {
+        setOpenThreadId(null);
+      } else {
+        setOpenThreadId(threads[0].threadId);
+      }
     }
-  }, [threads, openThreadId]);
+  }, [threads, openThreadId, isStackedLayout]);
 
-  const activeThread = threads.find((t) => t.threadId === openThreadId) ?? threads[0] ?? null;
+  const activeThread =
+    openThreadId !== null
+      ? (threads.find((t) => t.threadId === openThreadId) ?? null)
+      : isStackedLayout
+        ? null
+        : (threads[0] ?? null);
 
   const flatMessages = React.useMemo<FlatMessage[]>(() => {
     const rows = [...filtered].sort(
@@ -333,30 +344,48 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
                 />
               ))}
             </TabSegmentGroup>
-            <TabSegmentGroup testId="transcripts-channel-seg">
-              <TabSegment
-                label="All"
-                active={channel === 'all'}
-                onClick={() => setChannel('all')}
-                count={channelCounts.all}
-              />
-              {CHANNELS.map((channelDef) => {
-                const active = channel === channelDef.id;
-                return (
-                  <TabSegment
-                    key={channelDef.id}
-                    label={channelDef.label}
-                    active={active}
-                    onClick={() => setChannel(channelDef.id)}
-                    icon={channelDef.Icon}
-                    iconOnly
-                    activeStyle={active ? { color: channelDef.cssVar } : undefined}
-                    title={`${channelDef.label}${channelCounts[channelDef.id] ? ` · ${channelCounts[channelDef.id]}` : ''}`}
-                    testId={`transcripts-channel-${channelDef.id}`}
-                  />
-                );
-              })}
-            </TabSegmentGroup>
+            {isStackedLayout ? (
+              <select
+                value={channel}
+                onChange={(e) => setChannel(e.target.value)}
+                className="h-7 max-w-[9rem] shrink-0 rounded-md border border-border bg-transparent px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                data-testid="transcripts-channel-select"
+                aria-label="Filter by channel"
+              >
+                <option value="all">All ({channelCounts.all})</option>
+                {CHANNELS.map((channelDef) => (
+                  <option key={channelDef.id} value={channelDef.id}>
+                    {channelDef.label}
+                    {channelCounts[channelDef.id] ? ` (${channelCounts[channelDef.id]})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <TabSegmentGroup testId="transcripts-channel-seg" className="hidden md:flex">
+                <TabSegment
+                  label="All"
+                  active={channel === 'all'}
+                  onClick={() => setChannel('all')}
+                  count={channelCounts.all}
+                />
+                {CHANNELS.map((channelDef) => {
+                  const active = channel === channelDef.id;
+                  return (
+                    <TabSegment
+                      key={channelDef.id}
+                      label={channelDef.label}
+                      active={active}
+                      onClick={() => setChannel(channelDef.id)}
+                      icon={channelDef.Icon}
+                      iconOnly
+                      activeStyle={active ? { color: channelDef.cssVar } : undefined}
+                      title={`${channelDef.label}${channelCounts[channelDef.id] ? ` · ${channelCounts[channelDef.id]}` : ''}`}
+                      testId={`transcripts-channel-${channelDef.id}`}
+                    />
+                  );
+                })}
+              </TabSegmentGroup>
+            )}
           </div>
         }
       />
@@ -421,6 +450,11 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
         <SplitPaneLayout
           paneId="transcripts-threads"
           defaultWidth={320}
+          mobileMode="stack"
+          detailOpen={openThreadId !== null && activeThread !== null}
+          onDetailClose={() => setOpenThreadId(null)}
+          mobileBackLabel="Threads"
+          mobileBackTestId="transcripts-mobile-back"
           left={
             <ScrollArea className="h-full" viewportTestId="transcripts-threads">
               <div className="flex flex-col gap-1 p-3">
@@ -458,7 +492,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
                         <Icon className="h-4 w-4" aria-hidden="true" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-title truncate">{thread.subject}</div>
+                        <div className="text-title break-words">{thread.subject}</div>
                         <div className="text-caption mt-0.5 truncate">
                           <span style={{ color: ch }}>{channelDef?.label ?? 'Other'}</span> ·{' '}
                           {thread.messages.length} msg · {thread.participantIds.length} people
@@ -484,8 +518,8 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
                     } as React.CSSProperties
                   }
                 >
-                  <div className="sticky top-0 z-[1] border-b border-border bg-background px-6 py-4">
-                    <div className="mb-3 flex items-center gap-3">
+                  <div className="sticky top-0 z-[1] border-b border-border bg-background px-3 py-3 sm:px-6 sm:py-4">
+                    <div className="mb-3 flex items-start gap-3">
                       <span
                         className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]"
                         style={{
@@ -499,7 +533,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
                         })}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-h2 truncate">{activeThread.subject}</div>
+                        <div className="text-h2 break-words">{activeThread.subject}</div>
                         <div className="text-caption mt-0.5">
                           {activeThread.channel?.label ?? 'Other'} ·{' '}
                           {typeof activeThread.threadId === 'number'
@@ -530,7 +564,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 px-6 py-5">
+                  <div className="flex flex-col gap-3 px-3 py-4 sm:px-6 sm:py-5">
                     {activeThread.messages.map((message) => {
                       const isAssistant =
                         message.senderId !== null && message.senderId === assistant.selfContactId;
@@ -607,7 +641,12 @@ function TranscriptMessageRow({
   });
 
   return (
-    <div className={cn('group flex max-w-[82%] gap-3', out && 'ml-auto flex-row-reverse self-end')}>
+    <div
+      className={cn(
+        'group flex w-full max-w-full gap-2 sm:max-w-[82%] sm:gap-3',
+        out && 'ml-auto flex-row-reverse self-end'
+      )}
+    >
       <span
         className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
         style={{ backgroundColor: senderTone }}
@@ -644,7 +683,7 @@ function TranscriptMessageRow({
             {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           </button>
         </div>
-        <div className="text-ink-2 text-[13px] leading-relaxed">
+        <div className="text-ink-2 min-w-0 break-words text-[13px] leading-relaxed">
           <ChatMarkdown content={body} />
         </div>
       </div>
