@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   User as UserIcon,
   Contact,
@@ -20,6 +20,9 @@ import { useFeatures, useEnvironment } from '@/components/Pages/Providers/Enviro
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { HomeShellRailToggle } from './HomeShell';
+import { useSettingsNavigation } from './SettingsNavigationContext';
+import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
+import { accountTabHref, parseAccountTab } from '@/lib/navigation/settingsAccountTab';
 
 /**
  * Account sub-rail entries. Each maps to an in-page panel on `/account`, driven
@@ -60,6 +63,12 @@ interface SettingsShellProps {
   fill?: boolean;
 }
 
+function accountTabFromHref(href: string): SettingsAccountId | null {
+  if (!href.startsWith('/account')) return null;
+  const query = href.includes('?') ? href.slice(href.indexOf('?') + 1) : '';
+  return parseAccountTab(new URLSearchParams(query).get('tab'));
+}
+
 /**
  * The shared settings two-pane shell: a brand section header above a persistent
  * vertical sub-rail beside the active surface. Settings-family routes
@@ -72,16 +81,15 @@ export function SettingsShell({
   headerRight,
   fill = false,
 }: SettingsShellProps) {
-  const router = useRouter();
+  const { navigateTo } = useAppShellNavigation();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { accountTab, setAccountTab } = useSettingsNavigation();
   const { billing: billingEnabled } = useFeatures();
   const { isSelfHost } = useEnvironment();
   const { isUnifyAdmin } = useWorkspace();
 
   const onAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
   const onAccount = pathname === '/account';
-  const accountTab = onAccount ? (searchParams.get('tab') ?? 'profile') : null;
 
   const section = onAdmin ? SHELL_SECTIONS.admin : SHELL_SECTIONS[sectionId];
 
@@ -106,6 +114,29 @@ export function SettingsShell({
     return !onAccount && (pathname === href || pathname.startsWith(`${href}/`));
   };
 
+  const navigateAccountTab = React.useCallback(
+    (tab: SettingsAccountId) => {
+      if (onAccount) {
+        setAccountTab(tab);
+        return;
+      }
+      navigateTo(accountTabHref(tab));
+    },
+    [onAccount, navigateTo, setAccountTab]
+  );
+
+  const handleMobileNavChange = React.useCallback(
+    (href: string) => {
+      const tab = accountTabFromHref(href);
+      if (tab !== null && onAccount) {
+        setAccountTab(tab);
+        return;
+      }
+      navigateTo(href);
+    },
+    [onAccount, navigateTo, setAccountTab]
+  );
+
   const isBelowTablet = useMatchesBelow('tablet');
 
   const mobileNavItems = React.useMemo(() => {
@@ -115,7 +146,7 @@ export function SettingsShell({
       ADMIN_NAV_ITEMS.forEach((item) => items.push({ label: item.label, href: item.href }));
     } else {
       SETTINGS_ACCOUNT_ITEMS.forEach((item) =>
-        items.push({ label: item.label, href: `/account?tab=${item.id}` })
+        items.push({ label: item.label, href: accountTabHref(item.id) })
       );
     }
     workspaceLinks
@@ -124,7 +155,7 @@ export function SettingsShell({
     return items;
   }, [onAdmin, workspaceLinks]);
 
-  const mobileNavValue = onAccount ? `/account?tab=${accountTab}` : pathname;
+  const mobileNavValue = onAccount ? accountTabHref(accountTab) : pathname;
 
   const settingsHeaderLeading = <HomeShellRailToggle />;
 
@@ -133,7 +164,7 @@ export function SettingsShell({
       {isBelowTablet ? (
         <select
           value={mobileNavValue}
-          onChange={(e) => router.push(e.target.value)}
+          onChange={(e) => handleMobileNavChange(e.target.value)}
           className="h-8 max-w-[9rem] shrink-0 rounded-md border border-border bg-transparent px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring sm:max-w-[11rem]"
           data-testid="settings-nav-mobile"
           aria-label="Settings navigation"
@@ -166,7 +197,7 @@ export function SettingsShell({
                 Icon={Settings}
                 label="Settings"
                 active={false}
-                onClick={() => router.push('/account')}
+                onClick={() => navigateTo('/account')}
                 testId="settings-back-account"
               />
               <div className="px-3 pb-1.5 pt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -178,7 +209,7 @@ export function SettingsShell({
                   Icon={item.Icon}
                   label={item.label}
                   active={isAdminNavActive(pathname, item.href)}
-                  onClick={() => router.push(item.href)}
+                  onClick={() => navigateTo(item.href)}
                   testId={`admin-nav-${item.id}`}
                 />
               ))}
@@ -194,7 +225,7 @@ export function SettingsShell({
                   Icon={item.Icon}
                   label={item.label}
                   active={onAccount && accountTab === item.id}
-                  onClick={() => router.push(`/account?tab=${item.id}`)}
+                  onClick={() => navigateAccountTab(item.id)}
                   testId={`settings-nav-${item.id}`}
                 />
               ))}
@@ -212,7 +243,7 @@ export function SettingsShell({
                 Icon={link.Icon}
                 label={link.label}
                 active={isWorkspaceActive(link.href)}
-                onClick={() => router.push(link.href)}
+                onClick={() => navigateTo(link.href)}
                 testId={`settings-link-${link.id}`}
               />
             ))}

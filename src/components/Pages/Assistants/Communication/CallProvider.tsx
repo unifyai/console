@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
+import { useAppShellNavigation, useShellActivePath } from '@/lib/navigation/AppShellRouter';
 import {
   AssistantCommunicationDialog,
   useIsCoordinatorIntroAudioPlaying,
@@ -48,8 +48,6 @@ export function useCallContext(): CallContextValue {
   return ctx;
 }
 
-const ASSISTANTS_ROUTE = '/assistants';
-
 /**
  * Owns the single LiveKit Room and the call lifecycle for the whole (home)
  * layout. Because the layout persists across client-side navigation between
@@ -62,10 +60,12 @@ export function CallProvider({
   callActions,
   userMeta,
   children,
+  onCallLifecycleChange,
 }: {
   callActions: CallProviderActions;
   userMeta: CallUserMeta;
   children: React.ReactNode;
+  onCallLifecycleChange?: (active: boolean) => void;
 }) {
   const room = React.useMemo(() => {
     setLogLevel(LogLevel.warn);
@@ -93,20 +93,24 @@ export function CallProvider({
     [call, isDocked, popOut, redock]
   );
 
-  const pathname = usePathname();
-  const router = useRouter();
+  const { navigateToAssistants } = useAppShellNavigation();
+  const shellActivePath = useShellActivePath();
   const isCoordinatorIntroAudioPlaying = useIsCoordinatorIntroAudioPlaying();
 
   const { activeCallAssistant } = call;
   const hasActiveCall = !!activeCallAssistant;
-  const showFloating = hasActiveCall && pathname !== ASSISTANTS_ROUTE;
+  const showFloating = hasActiveCall && shellActivePath !== '/assistants';
+
+  React.useEffect(() => {
+    onCallLifecycleChange?.(call.isConnecting || call.isConnected);
+  }, [call.isConnecting, call.isConnected, onCallLifecycleChange]);
 
   // Docking the floating window means going back to where the docked surface
   // lives, so the redock control returns the user to /assistants.
   const handleFloatingRedock = React.useCallback(() => {
     redock();
-    router.push(ASSISTANTS_ROUTE);
-  }, [redock, router]);
+    navigateToAssistants();
+  }, [redock, navigateToAssistants]);
 
   return (
     <CallContext.Provider value={value}>

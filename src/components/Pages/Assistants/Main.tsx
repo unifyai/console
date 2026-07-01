@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
+import dynamic from 'next/dynamic';
 import {
   RightPaneContainer,
   DEFAULT_RIGHT_PANE_STATE,
@@ -24,8 +25,23 @@ import {
 } from '@/types/assistants/assistant';
 import { ContactType, type OAuthProvider } from '@/types/assistants/contact';
 import { toast } from 'sonner';
-import { AssistantHire } from './Hire/AssistantHire';
-import { AssistantEdit } from './Edit/AssistantEdit';
+import { Loader } from '@/components/Common/Loader';
+
+const AssistantHire = dynamic(
+  () => import('./Hire/AssistantHire').then((m) => ({ default: m.AssistantHire })),
+  { loading: () => <Loader size={48} /> }
+);
+const AssistantEdit = dynamic(
+  () => import('./Edit/AssistantEdit').then((m) => ({ default: m.AssistantEdit })),
+  { loading: () => <Loader size={48} /> }
+);
+const CoordinatorOnboarding = dynamic(
+  () =>
+    import('./Coordinator/CoordinatorOnboarding').then((m) => ({
+      default: m.CoordinatorOnboarding,
+    })),
+  { loading: () => <Loader size={48} /> }
+);
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
@@ -44,10 +60,10 @@ import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistant
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useQuery } from '@tanstack/react-query';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
+import { isAssistantsPath } from '@/lib/navigation/appShellRoutes';
 import { cn } from '@/lib/utils';
-import { Loader } from '@/components/Common/Loader';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
 import { Button } from '@/components/UI/button';
@@ -64,7 +80,6 @@ import {
   CoordinatorOnboardingProvider,
   type CoordinatorOnboardingContextValue,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
-import { CoordinatorOnboarding } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboarding';
 import {
   hasOutstandingCoordinatorOnboarding,
   type ChecklistAction,
@@ -161,7 +176,13 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 
 export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const routePathname = usePathname();
+  // `Main` is mounted persistently by the app shell and only hidden when the
+  // user is on another surface (settings/admin/etc). It must not write to the
+  // URL while hidden, or its `?profile=` sync would yank navigation back to
+  // `/assistants`. All URL writes target `/assistants` and are gated on this.
+  const isActiveSurface = isAssistantsPath(routePathname);
+  const pathname = '/assistants';
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const onboardingFocusParam = searchParams.get('onboarding');
@@ -186,6 +207,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const syncProfileQueryParam = React.useCallback(
     (assistantId: string | null) => {
       if (typeof window === 'undefined') return;
+      // Only the visible assistants surface owns the URL. When hidden behind a
+      // settings/admin route, skip the write so navigation is not hijacked.
+      if (!isActiveSurface) return;
 
       const currentProfile = searchParams.get('profile');
       if ((assistantId ?? null) === (currentProfile ?? null)) return;
@@ -198,13 +222,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       }
 
       const nextQuery = nextParams.toString();
-      const nextUrl =
-        nextQuery.length > 0
-          ? `${window.location.pathname}?${nextQuery}`
-          : window.location.pathname;
+      const nextUrl = nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname;
       router.replace(nextUrl, { scroll: false });
     },
-    [router, searchParams]
+    [isActiveSurface, router, searchParams]
   );
 
   // --- UI Panel Management ---
@@ -718,6 +739,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         coordinatorOnboardingState === null &&
         isCoordinatorOnboardingStateLoading));
 
+  const assistantsBootstrappedRef = React.useRef(false);
+  if (!isCoordinatorOnboardingResolvePending) {
+    assistantsBootstrappedRef.current = true;
+  }
+  const showWorkspaceBootstrapLoader =
+    isCoordinatorOnboardingResolvePending && !assistantsBootstrappedRef.current;
+
   React.useEffect(() => {
     debugConsole('coordinator-onboarding', 'gate.evaluate', {
       canonicalCoordinatorId,
@@ -858,15 +886,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       requestCoordinatorOnboardingFocusLayout();
     }
 
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete('onboarding');
-    const nextQuery = nextParams.toString();
-    router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
-      scroll: false,
-    });
+    if (isActiveSurface) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete('onboarding');
+      const nextQuery = nextParams.toString();
+      router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
+        scroll: false,
+      });
+    }
   }, [
     canonicalCoordinatorId,
     handleShowProfile,
+    isActiveSurface,
     isLoadingAssistants,
     onboardingFocusParam,
     pathname,
@@ -2452,7 +2483,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           billingMode={billingMode}
         />
 
-        {isCoordinatorOnboardingResolvePending ? (
+        {showWorkspaceBootstrapLoader ? (
           <div className="flex min-h-0 flex-1 items-center justify-center bg-background">
             <Loader size={64} label="Loading workspace" />
           </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { AppRail, RAIL_COLLAPSED_STORAGE_KEY } from './AppRail';
 import { GlobalUnitySwitcher } from './GlobalUnitySwitcher';
@@ -9,9 +8,12 @@ import { MobileShellRailProvider, useMobileShellRail } from './MobileShellRailCo
 import { useBreakpoint } from '@/hooks/Common/useMobile';
 import { Sheet, SheetContent } from '@/components/UI/sheet';
 import { Button } from '@/components/UI/button';
+import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 
 interface HomeShellProps {
   children: React.ReactNode;
+  /** When true, the route body owns its own rail (e.g. `/assistants`). */
+  hideGlobalRail?: boolean;
 }
 
 /**
@@ -20,8 +22,8 @@ interface HomeShellProps {
  * across the app. Workspace/Brain sections route to `/assistants`; the rail foot
  * owns Settings/Admin/account navigation.
  */
-export function HomeShell({ children }: HomeShellProps) {
-  const router = useRouter();
+export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) {
+  const { navigateToAssistants } = useAppShellNavigation();
   const { isBelowMobile, isBelowTablet } = useBreakpoint();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
@@ -53,9 +55,9 @@ export function HomeShell({ children }: HomeShellProps) {
   }, []);
 
   const handleSelectSection = React.useCallback(() => {
-    router.push('/assistants');
+    navigateToAssistants();
     setMobileRailOpen(false);
-  }, [router]);
+  }, [navigateToAssistants]);
 
   const rail = (
     <AppRail
@@ -80,20 +82,24 @@ export function HomeShell({ children }: HomeShellProps) {
         openMobileRail: () => setMobileRailOpen(true),
       }}
     >
-      <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
-        {isBelowMobile ? (
-          <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
-            <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
-              {rail}
-            </SheetContent>
-          </Sheet>
-        ) : (
-          rail
-        )}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-          {children}
+      {hideGlobalRail ? (
+        <div className="h-full min-h-0 w-full overflow-hidden">{children}</div>
+      ) : (
+        <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
+          {isBelowMobile ? (
+            <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
+              <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+                {rail}
+              </SheetContent>
+            </Sheet>
+          ) : (
+            rail
+          )}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+            {children}
+          </div>
         </div>
-      </div>
+      )}
     </MobileShellRailProvider>
   );
 }

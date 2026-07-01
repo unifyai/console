@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { TabHeader } from '@/components/Pages/Assistants/Rail/TabHeader';
 import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
-import { SettingsShell } from './SettingsShell';
 
 interface ShellSectionPageProps {
   /** Section identifier; the descriptor (incl. its icon) is resolved client-side. */
@@ -17,25 +16,12 @@ interface ShellSectionPageProps {
 }
 
 /**
- * Settings-family sections render inside the shared SettingsShell so the
- * Account + Workspace sub-rail persists across these routes. Other sections
- * (e.g. favourites) keep the plain header-over-body layout.
- */
-const SETTINGS_FAMILY_SECTIONS: ReadonlySet<ShellSectionId> = new Set([
-  'settings',
-  'organizations',
-  'usage',
-  'billing',
-]);
-
-/**
  * A home-route page hosted in the rail shell: the brand section header (icon,
  * title, guided steps, global actions) above the route body. Lets each migrated
  * route render its existing content beneath a consistent header.
  *
- * Server pages pass a serializable `sectionId`; the section descriptor (which
- * carries a non-serializable icon component) is resolved here on the client so
- * the icon never crosses the RSC boundary.
+ * Settings-family routes (`/account`, `/organizations`, `/usage`, `/billing`)
+ * mount the shared shell in `app/(home)/(settings)/layout.tsx` instead.
  */
 export function ShellSectionPage({
   sectionId,
@@ -43,14 +29,6 @@ export function ShellSectionPage({
   headerRight,
   fill = false,
 }: ShellSectionPageProps) {
-  if (SETTINGS_FAMILY_SECTIONS.has(sectionId)) {
-    return (
-      <SettingsShell sectionId={sectionId} headerRight={headerRight} fill={fill}>
-        {children}
-      </SettingsShell>
-    );
-  }
-
   const section = SHELL_SECTIONS[sectionId];
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">

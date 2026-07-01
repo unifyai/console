@@ -1,5 +1,5 @@
+import { cache } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
-import Main from '@/components/Pages/Assistants/Main';
 import {
   createAssistant,
   deleteAssistant,
@@ -50,8 +50,6 @@ import {
   getWorkspaceFilePolicy,
   updateWorkspaceFilePolicy,
 } from '@/lib/assistants/workspace-files';
-import { AssistantActions } from '@/types/assistants/assistant';
-import { redirect } from 'next/navigation';
 import { getSecrets, createSecret, updateSecret, deleteSecret } from '@/lib/assistants/secret';
 import {
   getCallConnectionDetails,
@@ -84,22 +82,34 @@ import {
   canManageOrgSlackInstall,
 } from '@/lib/slack/install';
 import { isSlackInstall, type SlackInstall, type SlackInstallOwner } from '@/types/slack/install';
+import type { AssistantActions } from '@/types/assistants/assistant';
 
-const AssistantsPage = async ({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) => {
-  const resolvedSearchParams = await searchParams;
+export type AssistantsMainBootstrap = {
+  assistantActions: AssistantActions;
+  userMeta: {
+    image: string | null | undefined;
+    timezone?: string | null;
+    email?: string | null;
+    phoneNumber?: string | null;
+    whatsappNumber?: string | null;
+    discordId?: string | null;
+    orgId?: number | null;
+    isOrgContext?: boolean;
+    isFreeTrial?: boolean;
+    mfaSetupRequired?: boolean;
+    slackOwner?: SlackInstallOwner | null;
+    slackCanManageInstall?: boolean;
+    slackInitialInstall?: SlackInstall | null;
+  };
+};
+
+/** Server props for the assistants `Main` surface, deduped within a request. */
+export const assembleMainBootstrap = cache(async (): Promise<AssistantsMainBootstrap | null> => {
   const user = await getCurrentUser();
   if (!user) {
-    const creditToken =
-      typeof resolvedSearchParams?.token === 'string' ? resolvedSearchParams.token : null;
-    const loginUrl = creditToken
-      ? `/login?signout=true&credit=${encodeURIComponent(creditToken)}`
-      : '/login?signout=true';
-    redirect(loginUrl);
+    return null;
   }
+
   const activeOrganization = getActiveOrganization(user);
   const orgId = activeOrganization?.id ?? null;
   const isFreeTrial = !!activeOrganization?.freeTrial;
@@ -193,21 +203,12 @@ const AssistantsPage = async ({
     },
   };
 
-  // Slack workspace install (owner-scoped, shared across every
-  // assistant in the active workspace). Only wired when Slack OAuth is
-  // configured on this deployment; otherwise the contact-details Slack
-  // entry stays hidden. The install owner is the active org, or the
-  // user's personal account when not in an org workspace — matching how
-  // Orchestra scopes ``@app <token>`` resolution.
   const slackConfigured = !!process.env.SLACK_CLIENT_ID && !!process.env.SLACK_CLIENT_SECRET;
   let slackOwner: SlackInstallOwner | null = null;
   let slackCanManageInstall = false;
   let slackInitialInstall: SlackInstall | null = null;
   if (slackConfigured) {
     slackOwner = orgId != null ? { kind: 'org', orgId } : { kind: 'user', userId: String(user.id) };
-    // Connect/disconnect is destructive and workspace-wide. Org installs
-    // are managed by org owners or admins; personal installs are managed
-    // by the user themselves.
     slackCanManageInstall = orgId != null ? canManageOrgSlackInstall(activeOrganization) : true;
     const getInstall = getSlackInstallAction;
     const revokeInstall = revokeSlackInstallAction;
@@ -218,27 +219,22 @@ const AssistantsPage = async ({
     }
   }
 
-  const userMeta = {
-    image: user.image,
-    timezone: user.timezone,
-    email: user.email,
-    phoneNumber: user.phoneNumber,
-    whatsappNumber: user.whatsappNumber,
-    discordId: user.discordId,
-    orgId,
-    isOrgContext,
-    isFreeTrial,
-    mfaSetupRequired: !!user.mfaSetupRequired,
-    slackOwner,
-    slackCanManageInstall,
-    slackInitialInstall,
+  return {
+    assistantActions,
+    userMeta: {
+      image: user.image,
+      timezone: user.timezone,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      whatsappNumber: user.whatsappNumber,
+      discordId: user.discordId,
+      orgId,
+      isOrgContext,
+      isFreeTrial,
+      mfaSetupRequired: !!user.mfaSetupRequired,
+      slackOwner,
+      slackCanManageInstall,
+      slackInitialInstall,
+    },
   };
-
-  return (
-    <div className="h-full w-full">
-      <Main assistantActions={assistantActions} userMeta={userMeta} />
-    </div>
-  );
-};
-
-export default AssistantsPage;
+});

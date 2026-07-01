@@ -12,10 +12,8 @@ import { TimezoneSync } from '@/components/Layout/TimezoneSync';
 import { NetworkStatusToast } from '@/components/Layout/NetworkStatusToast';
 import { SelfHostRuntimeBootstrap } from '@/components/SelfHost/SelfHostRuntimeBootstrap';
 import { Toaster } from '@/components/UI/Chat/sonner';
-import {
-  CallProvider,
-  type CallProviderActions,
-} from '@/components/Pages/Assistants/Communication/CallProvider';
+import { CallProviderActions } from '@/components/Pages/Assistants/Communication/CallProvider';
+import { CallProviderGate } from '@/components/Pages/Assistants/Communication/CallProviderGate';
 import { getCurrentUser } from '@/lib/user/user';
 import { updateAssistant } from '@/lib/assistants/assistant';
 import {
@@ -92,7 +90,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
     <div className="h-screen w-full overflow-hidden">
       <Providers>
         <ThemeLoader>
-          <CallProvider callActions={callActions} userMeta={callUserMeta}>
+          <CallProviderGate callActions={callActions} userMeta={callUserMeta}>
             {/* The MFA gate is an async server component, so it must be
                 instantiated here in the server layout and handed to the client
                 chrome as a child — rendering it from inside HomeChrome would make
@@ -102,7 +100,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
                 <NuqsAdapter>{children}</NuqsAdapter>
               </MfaEnforcementGate>
             </HomeChrome>
-          </CallProvider>
+          </CallProviderGate>
           <Toaster richColors position="bottom-right" closeButton />
           <ImpersonationBanner />
           <SelfHostRuntimeBootstrap />

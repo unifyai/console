@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/user/user';
-import { AdminRouteShell } from '@/components/Layout/Shell/AdminRouteShell';
 
+/** Access gate for `/admin/*`; chrome lives in the parent `(settings)` layout. */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) {
@@ -16,5 +16,5 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/assistants');
   }
 
-  return <AdminRouteShell>{children}</AdminRouteShell>;
+  return children;
 }

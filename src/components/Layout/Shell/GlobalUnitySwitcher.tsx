@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
@@ -10,6 +9,7 @@ import { fetchAssistants } from '@/lib/client/assistant';
 import { resolveCanonicalWorkspaceCoordinator } from '@/lib/assistants/coordinatorIdentity';
 import { getCurrentUser } from '@/lib/user/user';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface GlobalUnitySwitcherProps {
@@ -23,7 +23,7 @@ interface GlobalUnitySwitcherProps {
  * the heavy assistants data layer into every route.
  */
 export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
-  const router = useRouter();
+  const { navigateToAssistants } = useAppShellNavigation();
   const { activeWorkspace } = useWorkspace();
   const [coordinator, setCoordinator] = React.useState<Assistant | null>(null);
 
@@ -55,7 +55,7 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
       type="button"
       data-testid="rail-unity-switcher"
       title={collapsed ? name : undefined}
-      onClick={() => router.push('/assistants')}
+      onClick={navigateToAssistants}
       className={cn(
         'flex items-center gap-3 transition-colors',
         collapsed
