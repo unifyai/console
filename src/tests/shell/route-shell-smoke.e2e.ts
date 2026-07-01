@@ -54,8 +54,6 @@ test('/favourites renders inside the rail shell with its section header', async 
   await expect(page.getByRole('heading', { name: 'Favourites' })).toBeVisible();
   // Favourites body streamed in.
   await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 15_000 });
-
-  await page.screenshot({ path: '/tmp/shell-favourites.png', fullPage: false });
 });
 
 test('/interfaces renders inside the rail shell for a Unify member', async ({
@@ -67,6 +65,5 @@ test('/interfaces renders inside the rail shell for a Unify member', async ({
   // Unify members are not redirected to /assistants, and we stay out of /login.
   await expect(page).toHaveURL(/\/interfaces/);
   await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
-
-  await page.screenshot({ path: '/tmp/shell-interfaces.png', fullPage: false });
+  await expect(page.getByTestId('interface-picker-trigger')).toBeVisible({ timeout: 15_000 });
 });
