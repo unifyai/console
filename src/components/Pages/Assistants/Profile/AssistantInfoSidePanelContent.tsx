@@ -42,6 +42,8 @@ export interface AssistantInfoSidePanelContentProps {
   currentUserId?: string | null;
   /** Close the assistant info panel. */
   onClose: () => void;
+  /** Open the edit-profile dialog. Hidden when absent or when editing is not allowed. */
+  onEditProfile?: (assistant: Assistant) => void;
   /** Open the contact manager dialog, optionally on a specific channel tab. */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   /**
@@ -110,6 +112,8 @@ export interface AssistantInfoSidePanelContentProps {
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
   className?: string;
+  /** When true, the header pencil is omitted (e.g. mobile sheet toolbar owns edit). */
+  hideHeaderEdit?: boolean;
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
@@ -142,6 +146,7 @@ export function AssistantInfoSidePanelContent({
       <CoordinatorAssistantInfoSidePanelContent
         assistant={assistant}
         onClose={props.onClose}
+        onEditProfile={props.onEditProfile}
         className={props.className}
         onOpenContactManager={props.onOpenContactManager}
         canWrite={props.canWrite}
@@ -149,6 +154,7 @@ export function AssistantInfoSidePanelContent({
         onStartCall={props.onStartCall}
         isStartCallDisabled={props.isStartCallDisabled}
         startCallTooltip={props.startCallTooltip}
+        hideHeaderEdit={props.hideHeaderEdit}
       />
     );
   }
@@ -161,6 +167,7 @@ type CoordinatorPanelTab = 'onboarding' | 'contact';
 function CoordinatorAssistantInfoSidePanelContent({
   assistant,
   onClose,
+  onEditProfile,
   onOpenContactManager,
   className,
   canWrite = true,
@@ -168,9 +175,11 @@ function CoordinatorAssistantInfoSidePanelContent({
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
+  hideHeaderEdit = false,
 }: {
   assistant: Assistant;
   onClose: () => void;
+  onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   className?: string;
   canWrite?: boolean;
@@ -178,6 +187,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   onStartCall?: AssistantInfoSidePanelContentProps['onStartCall'];
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
+  hideHeaderEdit?: boolean;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
   const taskBeats = useCoordinatorTaskBeats(assistant, { enabled: showOnboardingTab });
@@ -225,6 +235,9 @@ function CoordinatorAssistantInfoSidePanelContent({
         isIdCopied={isIdCopied}
         onCopyId={copyId}
         onClose={onClose}
+        onEdit={
+          !hideHeaderEdit && canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined
+        }
         onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
         isStartCallDisabled={isStartCallDisabled}
         startCallTooltip={startCallTooltip}
@@ -309,6 +322,7 @@ function CoordinatorAssistantInfoSidePanelContent({
 function RegularAssistantInfoSidePanelContent({
   assistant,
   onClose,
+  onEditProfile,
   onOpenContactManager,
   roadmap,
   className,
@@ -317,6 +331,7 @@ function RegularAssistantInfoSidePanelContent({
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
+  hideHeaderEdit = false,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -389,6 +404,11 @@ function RegularAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onClose={onClose}
+          onEdit={
+            !hideHeaderEdit && canWrite && onEditProfile
+              ? () => onEditProfile(assistant)
+              : undefined
+          }
           onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
           isStartCallDisabled={isStartCallDisabled}
           startCallTooltip={startCallTooltip}
@@ -464,6 +484,7 @@ interface IdentityHeaderProps {
   isIdCopied: boolean;
   onCopyId: () => void;
   onClose: () => void;
+  onEdit?: () => void;
   onStartCall?: () => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
@@ -480,6 +501,7 @@ function IdentityHeader({
   isIdCopied,
   onCopyId,
   onClose,
+  onEdit,
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
@@ -556,24 +578,46 @@ function IdentityHeader({
         </button>
       </div>
       <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="-mr-1 -mt-1 h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={onClose}
-              data-testid="assistant-info-close"
-              aria-label="Close assistant info"
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            <p>Close</p>
-          </TooltipContent>
-        </Tooltip>
+        <div className="-mr-1 -mt-1 flex flex-shrink-0 items-center gap-1">
+          {onEdit && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={onEdit}
+                  data-testid="assistant-info-edit-profile"
+                  aria-label="Edit profile"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Edit</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={onClose}
+                data-testid="assistant-info-close"
+                aria-label="Close assistant info"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Close</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </TooltipProvider>
     </div>
   );

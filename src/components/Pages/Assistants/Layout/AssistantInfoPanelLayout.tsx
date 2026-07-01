@@ -16,21 +16,24 @@ import {
 } from '@/lib/assistants/infoPanelVisibility';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
+import { matchesBelowBreakpoint } from '@/constants/breakpoints';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
+import { Sheet, SheetContent } from '@/components/UI/sheet';
+import { Button } from '@/components/UI/button';
+import { Pencil, X } from 'lucide-react';
 
 const INFO_PANEL_OPEN_KEY = 'console:assistants:info-panel-open';
 const INFO_PANEL_WIDTH_KEY = 'console:assistants:info-panel-width';
 const INFO_PANEL_DEFAULT_WIDTH = 360;
 const INFO_PANEL_MIN_WIDTH = 320;
 const INFO_PANEL_MIN_MAIN_WIDTH = 320;
-const MOBILE_INFO_PANEL_MEDIA_QUERY = '(max-width: 639px)';
 
 function clampInfoPanelWidth(width: number, maxWidth = Number.POSITIVE_INFINITY): number {
   return Math.min(maxWidth, Math.max(INFO_PANEL_MIN_WIDTH, Math.round(width)));
 }
 
 function isMobileInfoPanelViewport(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia(MOBILE_INFO_PANEL_MEDIA_QUERY).matches;
+  return matchesBelowBreakpoint('mobile');
 }
 
 function readInfoPanelOpen(): boolean {
@@ -105,6 +108,7 @@ interface AssistantInfoPanelLayoutProps {
   canWrite?: boolean;
   isSpendingBlocked?: boolean;
   spendingBlockedMessage?: string | null;
+  onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   hasUserMessage?: boolean;
   hasHistoricalCall?: boolean;
@@ -131,6 +135,7 @@ export function AssistantInfoPanelLayout({
   canWrite = true,
   isSpendingBlocked = false,
   spendingBlockedMessage,
+  onEditProfile,
   onOpenContactManager,
   hasUserMessage = false,
   hasHistoricalCall = false,
@@ -144,6 +149,7 @@ export function AssistantInfoPanelLayout({
 }: AssistantInfoPanelLayoutProps) {
   const { voiceCalls } = useFeatures();
   const { canOpenAssistantChat } = useAssistantPermissions();
+  const isBelowMobile = useMatchesBelow('mobile');
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
   const infoPanelContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [infoPanelWidth, setInfoPanelWidth] = React.useState(INFO_PANEL_DEFAULT_WIDTH);
@@ -423,49 +429,98 @@ export function AssistantInfoPanelLayout({
     return <div className="flex h-full min-h-0 w-full">{mainContent}</div>;
   }
 
-  return (
-    <div ref={infoPanelContainerRef} className="flex h-full min-h-0 w-full">
-      <div className={cn('flex min-w-0 flex-1 flex-col', isInfoOpen && 'hidden sm:flex')}>
-        {mainContent}
-      </div>
+  const infoPanelBody = (
+    <AssistantInfoSidePanelContent
+      assistant={assistant}
+      currentUserId={currentUserId}
+      onClose={closeInfo}
+      onEditProfile={onEditProfile}
+      onOpenContactManager={onOpenContactManager}
+      roadmap={roadmap}
+      canWrite={canWrite}
+      coordinatorOnboarding={coordinatorOnboarding}
+      onStartCall={onStartCall}
+      isStartCallDisabled={isCallButtonDisabled}
+      startCallTooltip={callButtonTooltip}
+      hideHeaderEdit={isBelowMobile}
+    />
+  );
 
-      {isInfoOpen && (
-        <ChatSidePanel
-          ariaLabel="Assistant info"
-          onClose={closeInfo}
-          style={infoPanelStyle}
-          testId="assistant-info-sheet"
+  return (
+    <div ref={infoPanelContainerRef} className="flex h-full min-h-0 w-full min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">{mainContent}</div>
+
+      {isBelowMobile ? (
+        <Sheet
+          open={isInfoOpen}
+          onOpenChange={(open) => {
+            if (!open) closeInfo();
+          }}
         >
-          <div
-            role="separator"
-            aria-label="Resize assistant info panel"
-            aria-orientation="vertical"
-            aria-valuemin={INFO_PANEL_MIN_WIDTH}
-            aria-valuenow={infoPanelWidth}
-            tabIndex={0}
-            onKeyDown={handleInfoPanelResizeKeyDown}
-            onPointerDown={handleInfoPanelResizeStart}
-            className={cn(
-              'absolute inset-y-0 -left-1 z-20 hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors duration-200 sm:block',
-              'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:content-[""]',
-              'hover:bg-primary/20 focus-visible:bg-primary/20 active:bg-primary/40 focus-visible:outline-none',
-              isResizingInfoPanel && 'bg-primary/40'
-            )}
-            data-testid="assistant-info-panel-resize-handle"
-          />
-          <AssistantInfoSidePanelContent
-            assistant={assistant}
-            currentUserId={currentUserId}
+          <SheetContent
+            side="right"
+            className="flex w-full flex-col overflow-hidden p-0 sm:max-w-md [&>button.absolute]:hidden"
+            data-testid="assistant-info-sheet"
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-2 py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={closeInfo}
+                aria-label="Close profile"
+                data-testid="assistant-info-close"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              {canWrite && onEditProfile ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => onEditProfile(assistant)}
+                  aria-label="Edit profile"
+                  data-testid="assistant-info-edit-profile"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              ) : (
+                <span className="h-8 w-8 shrink-0" aria-hidden="true" />
+              )}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{infoPanelBody}</div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        isInfoOpen && (
+          <ChatSidePanel
+            ariaLabel="Assistant info"
             onClose={closeInfo}
-            onOpenContactManager={onOpenContactManager}
-            roadmap={roadmap}
-            canWrite={canWrite}
-            coordinatorOnboarding={coordinatorOnboarding}
-            onStartCall={onStartCall}
-            isStartCallDisabled={isCallButtonDisabled}
-            startCallTooltip={callButtonTooltip}
-          />
-        </ChatSidePanel>
+            style={infoPanelStyle}
+            testId="assistant-info-sheet"
+          >
+            <div
+              role="separator"
+              aria-label="Resize assistant info panel"
+              aria-orientation="vertical"
+              aria-valuemin={INFO_PANEL_MIN_WIDTH}
+              aria-valuenow={infoPanelWidth}
+              tabIndex={0}
+              onKeyDown={handleInfoPanelResizeKeyDown}
+              onPointerDown={handleInfoPanelResizeStart}
+              className={cn(
+                'absolute inset-y-0 -left-1 z-20 hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors duration-200 sm:block',
+                'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:content-[""]',
+                'hover:bg-primary/20 focus-visible:bg-primary/20 active:bg-primary/40 focus-visible:outline-none',
+                isResizingInfoPanel && 'bg-primary/40'
+              )}
+              data-testid="assistant-info-panel-resize-handle"
+            />
+            {infoPanelBody}
+          </ChatSidePanel>
+        )
       )}
     </div>
   );

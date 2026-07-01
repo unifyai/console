@@ -1031,7 +1031,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
-              className="styled-scrollbar text-body h-12 min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pl-20 pr-14 leading-5"
+              className="styled-scrollbar text-body h-12 min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pl-14 pr-12 leading-5 sm:pl-20 sm:pr-14"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
