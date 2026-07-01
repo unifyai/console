@@ -34,7 +34,7 @@ export function BrandFallback({
                 className="h-28 w-28"
                 color="green"
                 eyes="down"
-                label="Sad Unify fallback illustration"
+                label="Sad teammate fallback illustration"
                 mood="sad"
                 mouthShape="unsure"
                 body="short"

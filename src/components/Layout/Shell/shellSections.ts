@@ -9,8 +9,8 @@ export const SETTINGS_SECTION: SectionDef = {
   kind: 'view',
   desc: 'Your account, contact info, security, organizations, usage and billing.',
   steps: [
-    ['Edit your profile', 'Update your name, timezone and the bio your digital twins reference.'],
-    ['Check usage', 'See your credit consumption broken down by day and digital twin.'],
+    ['Edit your profile', 'Update your name, timezone and the bio your teammates reference.'],
+    ['Check usage', 'See your credit consumption broken down by day and teammate.'],
     ['Manage billing', 'Review your plan, payment method and invoices.'],
   ],
 };
@@ -35,10 +35,10 @@ export const USAGE_SECTION: SectionDef = {
   label: 'Usage',
   Icon: BarChart3,
   kind: 'view',
-  desc: 'Your credit consumption over time, broken down by day and by digital twin.',
+  desc: 'Your credit consumption over time, broken down by day and by teammate.',
   steps: [
     ['Choose a range', 'Scope the chart by date and granularity.'],
-    ['Filter by digital twin', 'See usage for all digital twins or just one.'],
+    ['Filter by teammate', 'See usage for all teammates or just one.'],
     ['Drill into a day', 'Expand a day to see the work that spent the credits.'],
   ],
 };

@@ -73,7 +73,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await navigateForRoadmapTests(page);
 
   const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Digital Twin' })
+    .getByRole('heading', { name: 'Onboard Teammate' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);

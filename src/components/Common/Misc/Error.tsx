@@ -29,10 +29,10 @@ export default function Error({
     <BrandFallback
       actionLabel="Try again"
       apology="Sorry about that. We're working on a fix now."
-      description="The console hit a snag while loading this view. Try again, or head back to the console while Unify resets."
+      description="The console hit a snag while loading this view. Try again, or head back to the console while things reset."
       eyebrow="System hiccup"
       onAction={reset}
-      title="Unify tripped over a loose cable"
+      title="Someone tripped over a loose cable"
     />
   );
 }

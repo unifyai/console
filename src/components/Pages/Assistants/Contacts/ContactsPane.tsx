@@ -198,7 +198,7 @@ export function ContactsPane({
   // dispatch endpoints are available.
   // const notifyChatOnly = useCallback((label: string) => {
   //   toast(`${label} isn’t available from this view yet.`, {
-  //     description: 'Ask your digital twin in chat to reach out to this contact.',
+  //     description: 'Ask your teammate in chat to reach out to this contact.',
   //   });
   // }, []);
 

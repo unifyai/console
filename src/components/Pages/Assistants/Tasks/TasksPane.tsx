@@ -236,7 +236,7 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
           onClose={() => setIsCreating(false)}
           onCreate={() =>
             toast('Task creation isn’t available from this view yet.', {
-              description: 'Ask your digital twin in chat to set up a new task.',
+              description: 'Ask your teammate in chat to set up a new task.',
             })
           }
         />
@@ -272,7 +272,7 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
   // once task lifecycle mutation endpoints exist.
   // const handleAction = (label: string) => {
   //   toast(`${label} isn’t available from this view yet.`, {
-  //     description: 'Manage this task by asking your digital twin in chat.',
+  //     description: 'Manage this task by asking your teammate in chat.',
   //   });
   // };
 

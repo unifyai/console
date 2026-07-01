@@ -536,7 +536,7 @@ export function DocLibraryPane({
           onClose={() => setIsAdding(false)}
           onSave={() =>
             toast(`Saving ${kind} isn’t available from this view yet.`, {
-              description: `Ask your digital twin in chat to add ${kind}.`,
+              description: `Ask your teammate in chat to add ${kind}.`,
             })
           }
         />
