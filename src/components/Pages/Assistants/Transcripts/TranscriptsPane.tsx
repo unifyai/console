@@ -31,6 +31,9 @@ import {
 import type { ContactRow, TranscriptRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { brandAvatarToneFromId } from '@/utils/brand/avatarPalette';
+import { ContactAvatar } from '../Common/ContactAvatar';
+import { contactIsAssistantSelf } from '@/utils/assistants/contactAvatar';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 type TranscriptViewMode = 'threads' | 'feed';
 
@@ -203,12 +206,12 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
   const nameFor = React.useCallback(
     (contactId: number | null): string => {
       if (contactId === null) return 'Unknown';
+      if (contactIsAssistantSelf(assistant, contactId)) {
+        return assistantDisplayName(assistant);
+      }
       const contact = contacts.find((c) => c.contactId === contactId);
       if (contact)
         return [contact.firstName, contact.surname].filter(Boolean).join(' ') || 'Unknown';
-      if (contactId === assistant.selfContactId) {
-        return [assistant.firstName, assistant.surname].filter(Boolean).join(' ') || 'Assistant';
-      }
       return `#${contactId}`;
     },
     [contacts, assistant]
@@ -398,10 +401,9 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
           <div className="px-4 py-3">
             <div className="mx-auto flex max-w-3xl flex-col gap-2">
               {flatMessages.map(({ message, threadSubject, channel: ch }) => {
-                const isAssistant =
-                  message.senderId !== null && message.senderId === assistant.selfContactId;
+                const isAssistant = contactIsAssistantSelf(assistant, message.senderId);
                 const senderName = isAssistant
-                  ? assistant.firstName || 'Assistant'
+                  ? assistantDisplayName(assistant)
                   : nameFor(message.senderId);
                 return (
                   <button
@@ -413,16 +415,15 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
                       setOpenThreadId(threadKeyForRow(message));
                     }}
                   >
-                    <span
-                      className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
-                      style={{
-                        backgroundColor: isAssistant
-                          ? 'var(--primary)'
-                          : toneFor(message.senderId ?? 0),
-                      }}
-                    >
-                      {initialsFor(senderName)}
-                    </span>
+                    <ContactAvatar
+                      assistant={assistant}
+                      contactId={message.senderId}
+                      displayName={senderName}
+                      initials={initialsFor(senderName)}
+                      toneColor={isAssistant ? 'var(--primary)' : toneFor(message.senderId ?? 0)}
+                      className="h-[30px] w-[30px]"
+                      textClassName="text-[11px]"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex flex-wrap items-baseline gap-2">
                         <b className="text-[12px] font-semibold">{senderName}</b>
@@ -552,12 +553,18 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
                           key={id}
                           className="text-caption inline-flex items-center gap-1.5 rounded-full border border-border bg-card-2 py-[3px] pl-[3px] pr-2.5 text-foreground"
                         >
-                          <span
-                            className="grid h-5 w-5 place-items-center rounded-full font-display text-[9px] font-semibold text-primary-foreground"
-                            style={{ backgroundColor: toneFor(id) }}
-                          >
-                            {initialsFor(nameFor(id))}
-                          </span>
+                          <ContactAvatar
+                            assistant={assistant}
+                            contactId={id}
+                            displayName={nameFor(id)}
+                            initials={initialsFor(nameFor(id))}
+                            toneColor={
+                              contactIsAssistantSelf(assistant, id) ? 'var(--primary)' : toneFor(id)
+                            }
+                            className="h-5 w-5"
+                            textClassName="text-[9px]"
+                            shape="circle"
+                          />
                           {nameFor(id)}
                         </span>
                       ))}
@@ -566,16 +573,17 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
 
                   <div className="flex flex-col gap-3 px-3 py-4 sm:px-6 sm:py-5">
                     {activeThread.messages.map((message) => {
-                      const isAssistant =
-                        message.senderId !== null && message.senderId === assistant.selfContactId;
+                      const isAssistant = contactIsAssistantSelf(assistant, message.senderId);
                       const out = message.senderId !== null && !isAssistant;
                       const senderName = isAssistant
-                        ? assistant.firstName || 'Assistant'
+                        ? assistantDisplayName(assistant)
                         : nameFor(message.senderId);
                       const receivers = message.receiverIds ?? [];
                       return (
                         <TranscriptMessageRow
                           key={message.messageId}
+                          assistant={assistant}
+                          contactId={message.senderId}
                           out={out}
                           channelVar={activeThread.channel?.cssVar ?? 'var(--primary)'}
                           senderName={senderName}
@@ -618,6 +626,8 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
 }
 
 function TranscriptMessageRow({
+  assistant,
+  contactId,
   out,
   channelVar,
   senderName,
@@ -626,6 +636,8 @@ function TranscriptMessageRow({
   timeLabel,
   body,
 }: {
+  assistant: Assistant;
+  contactId: number | null;
   out: boolean;
   channelVar: string;
   senderName: string;
@@ -647,12 +659,15 @@ function TranscriptMessageRow({
         out && 'ml-auto flex-row-reverse self-end'
       )}
     >
-      <span
-        className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
-        style={{ backgroundColor: senderTone }}
-      >
-        {initialsFor(senderName)}
-      </span>
+      <ContactAvatar
+        assistant={assistant}
+        contactId={contactId}
+        displayName={senderName}
+        initials={initialsFor(senderName)}
+        toneColor={senderTone}
+        className="h-[30px] w-[30px]"
+        textClassName="text-[11px]"
+      />
       <div
         className={cn(
           'min-w-0 rounded-[13px] border border-border px-3.5 py-2.5 transition-colors',
