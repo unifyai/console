@@ -9,9 +9,45 @@ import {
   SETTINGS_ROUTE_PREFIXES,
 } from '@/lib/navigation/appShellRoutes';
 
+interface AppShellNavigationContextValue {
+  pendingTargetHref: string | null;
+  setPendingTargetHref: (href: string | null) => void;
+}
+
+const AppShellNavigationContext = React.createContext<AppShellNavigationContextValue | null>(null);
+
 /** Strip the query/hash from an href, leaving the pathname. */
 export function pathnameFromHref(href: string): string {
   return href.split('?')[0] ?? href;
+}
+
+export function AppShellNavigationProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? '/assistants';
+  const [pendingTargetHref, setPendingTargetHref] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!pendingTargetHref) return;
+
+    const pendingPathname = pathnameFromHref(pendingTargetHref);
+    if (pathname === pendingPathname || !isAssistantsPath(pathname)) {
+      setPendingTargetHref(null);
+    }
+  }, [pathname, pendingTargetHref]);
+
+  const value = React.useMemo(
+    () => ({ pendingTargetHref, setPendingTargetHref }),
+    [pendingTargetHref]
+  );
+
+  return (
+    <AppShellNavigationContext.Provider value={value}>
+      {children}
+    </AppShellNavigationContext.Provider>
+  );
+}
+
+export function usePendingShellNavigationTarget(): string | null {
+  return React.useContext(AppShellNavigationContext)?.pendingTargetHref ?? null;
 }
 
 /**
@@ -30,16 +66,39 @@ export function pathnameFromHref(href: string): string {
 export function useAppShellNavigation() {
   const router = useRouter();
   const pathname = usePathname() ?? '/assistants';
+  const navigationContext = React.useContext(AppShellNavigationContext);
 
-  const navigateTo = React.useCallback((href: string) => router.push(href), [router]);
+  const navigateTo = React.useCallback(
+    (href: string) => {
+      if (isAssistantsPath(href)) {
+        navigationContext?.setPendingTargetHref(null);
+        if (typeof window !== 'undefined' && isRoutedShellPath(pathname)) {
+          window.history.pushState(null, '', href);
+          return;
+        }
+        router.push(href);
+        return;
+      }
+
+      if (isAssistantsPath(pathname) && isRoutedShellPath(href)) {
+        navigationContext?.setPendingTargetHref(href);
+      } else {
+        navigationContext?.setPendingTargetHref(null);
+      }
+
+      router.push(href);
+    },
+    [navigationContext, pathname, router]
+  );
 
   const navigateToAssistants = React.useCallback(() => {
+    navigationContext?.setPendingTargetHref(null);
     if (typeof window !== 'undefined' && isRoutedShellPath(pathname)) {
       window.history.pushState(null, '', '/assistants');
       return;
     }
     router.push('/assistants');
-  }, [pathname, router]);
+  }, [navigationContext, pathname, router]);
 
   return {
     activeHref: pathname,
