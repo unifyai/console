@@ -3400,9 +3400,11 @@ export function ActionNodeItem({
       {/* Node header */}
       <div
         className={cn(
-          'group flex min-w-0 select-none items-center gap-2 rounded-sm py-0.5 pr-1',
-          depth === 0 ? 'gap-2.5' : 'gap-1.5',
-          'hover:bg-muted/50 transition-colors duration-150',
+          'group flex min-w-0 select-none rounded-sm py-0.5 pr-1 transition-colors duration-150',
+          depth === 0
+            ? 'flex-wrap items-start gap-x-2.5 gap-y-1 sm:flex-nowrap sm:items-center'
+            : 'items-center gap-1.5',
+          'hover:bg-muted/50',
           isExpandable && 'cursor-pointer',
           depth > 0 && 'ml-3'
         )}
@@ -3433,11 +3435,17 @@ export function ActionNodeItem({
               </TooltipContent>
             </Tooltip>
             <span
-              className={cn('min-w-0 flex-1 truncate text-[13px]', getLabelStyles(node.status))}
+              className={cn(
+                'min-w-0 flex-1 text-[13px]',
+                depth === 0
+                  ? 'line-clamp-2 whitespace-normal sm:line-clamp-none sm:truncate'
+                  : 'truncate',
+                getLabelStyles(node.status)
+              )}
             >
               <TruncatedMarkdown content={effectiveLabel} />
             </span>
-            <div className="ml-auto flex shrink-0 items-center gap-2.5">
+            <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
               <RootStatusPill status={node.status} />
               {node.startTime && (
                 <span className="inline-flex items-center gap-1 font-mono text-[11px] tabular-nums text-muted-foreground">

@@ -12,7 +12,7 @@ import {
 import { formatNumber } from './formatNumber';
 import { processContext } from './table/columnOperations';
 import { LogsActions, TableGroupedMetrics } from '@/types/interfaces/grid';
-import { sanitizeKey } from '@/app/(home)/interfaces/utils';
+import { sanitizeKey } from '@/app/(home)/(app-shell)/interfaces/utils';
 import { Row } from '@tanstack/react-table';
 import { maybeConvertRawToGroupedLogs } from './table/grouping';
 import { TreeNode } from '@/types/common';

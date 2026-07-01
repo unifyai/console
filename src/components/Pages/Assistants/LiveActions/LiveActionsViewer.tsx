@@ -48,6 +48,19 @@ export interface LiveActionsViewerProps {
   isPaneVisible?: boolean;
 }
 
+function timeWindowStorageKey(agentId: string): string {
+  return `console:assistants:actions-time-window:${agentId}`;
+}
+
+function readStoredTimeWindow(agentId: string | undefined): string {
+  if (!agentId || typeof window === 'undefined') return DEFAULT_TIME_WINDOW_KEY;
+  try {
+    return sessionStorage.getItem(timeWindowStorageKey(agentId)) ?? DEFAULT_TIME_WINDOW_KEY;
+  } catch {
+    return DEFAULT_TIME_WINDOW_KEY;
+  }
+}
+
 export function LiveActionsViewer({
   assistant,
   actions,
@@ -66,7 +79,9 @@ export function LiveActionsViewer({
     open: false,
     gen: 0,
   });
-  const [timeWindowKey, setTimeWindowKey] = React.useState(DEFAULT_TIME_WINDOW_KEY);
+  const [timeWindowKey, setTimeWindowKey] = React.useState(() =>
+    readStoredTimeWindow(assistant?.agentId)
+  );
 
   // Store expand state before search for restoration
   const preSearchExpandedRef = React.useRef<Set<string> | null>(null);
@@ -203,6 +218,7 @@ export function LiveActionsViewer({
 
   // When the time window preset changes, clear events and re-fetch with the new window.
   const isFirstRenderRef = React.useRef(true);
+  const prevAgentForTimeWindowRef = React.useRef(assistant?.agentId);
   const handleTimeWindowChange = React.useCallback((key: string) => {
     setTimeWindowKey(key);
   }, []);
@@ -210,13 +226,18 @@ export function LiveActionsViewer({
   React.useEffect(() => {
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
+      prevAgentForTimeWindowRef.current = assistant?.agentId;
+      return;
+    }
+    if (prevAgentForTimeWindowRef.current !== assistant?.agentId) {
+      prevAgentForTimeWindowRef.current = assistant?.agentId;
       return;
     }
     suppressAutoExpandRef.current = true;
     setExpandedNodeIds(new Set());
     refresh(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeWindowKey]);
+  }, [timeWindowKey, assistant?.agentId]);
 
   // Manual refresh handler (polls from Orchestra on demand).
   // Mirrors the historic-pull behaviour: nodes start collapsed and
@@ -306,15 +327,26 @@ export function LiveActionsViewer({
     setSectionToggleSignal((prev) => ({ open: true, gen: prev.gen + 1 }));
   }, [isPaneVisible, roots]);
 
-  // Reset state when assistant changes
+  // Reset search/expand UI when assistant changes; time window restores from session storage.
   React.useEffect(() => {
     setSearchTerm('');
     setExpandedNodeIds(new Set());
     setLastUpdated(null);
     preSearchExpandedRef.current = null;
     prevRootIdsRef.current = new Set();
-    setTimeWindowKey(DEFAULT_TIME_WINDOW_KEY);
+    suppressAutoExpandRef.current = true;
+    pendingAutoExpandRef.current.clear();
+    setTimeWindowKey(readStoredTimeWindow(assistant?.agentId));
   }, [assistant?.agentId]);
+
+  React.useEffect(() => {
+    if (!assistant?.agentId) return;
+    try {
+      sessionStorage.setItem(timeWindowStorageKey(assistant.agentId), timeWindowKey);
+    } catch {
+      /* optional persistence */
+    }
+  }, [assistant?.agentId, timeWindowKey]);
 
   // ==========================================================================
   // Render
@@ -323,7 +355,7 @@ export function LiveActionsViewer({
   return (
     <div
       ref={containerRef}
-      className={cn('flex h-full flex-col bg-transparent', className)}
+      className={cn('flex h-full min-h-0 min-w-0 flex-col bg-transparent', className)}
       data-testid="live-actions-viewer"
     >
       {/* Header - always shown when assistant is selected */}

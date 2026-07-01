@@ -355,7 +355,7 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await expectCoordinatorChatOpen(page, coordinator.agentId);
   await openAssistantInfoPanel(page);
   await expect(page.getByTestId('assistant-info-tab-onboarding')).toContainText('Onboarding');
-  await expect(page.getByTestId('assistant-info-tab-contact')).toContainText('Contact info');
+  await expect(page.getByTestId('assistant-info-tab-profile')).toContainText('Profile');
 });
 
 test('organization admin cannot access another user coordinator in org workspace', async ({

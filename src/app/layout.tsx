@@ -8,6 +8,7 @@ import '@fortawesome/fontawesome-svg-core/styles.css';
 import 'yet-another-react-lightbox/styles.css';
 import { brandFontVariables } from '@/styles/fonts';
 import { LandingEventBeacon } from '@/components/Integrations/LandingEventBeacon';
+import { ChunkLoadReloadBootstrap } from '@/components/Layout/ChunkLoadReloadBootstrap';
 
 export const metadata: Metadata = {
   title: {
@@ -86,6 +87,7 @@ try {
           />
         ) : null}
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ChunkLoadReloadBootstrap />
           {children}
           <LandingEventBeacon />
         </ThemeProvider>

@@ -793,7 +793,11 @@ export function useAssistantProfileChat(
         });
         setInputValue('');
 
-        setIsAssistantReplying(true);
+        // Hold the "Typing…" bubble back briefly so a fast reply doesn't
+        // produce a jarring flash of the indicator before the message lands.
+        typingDelayTimerRef.current = setTimeout(() => {
+          setIsAssistantReplying(true);
+        }, 5000);
 
         const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
         const payload: BroadcastMessagePayload = {

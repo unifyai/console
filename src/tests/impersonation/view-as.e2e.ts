@@ -113,8 +113,8 @@ test.afterAll(() => {
 test('Unify member can view as another user and return', async ({ adminPage: page }) => {
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
 
-  // Open the profile menu and start impersonation.
-  await page.getByTestId('profile-dropdown-trigger').click();
+  // Open the rail account menu and start impersonation.
+  await page.getByTestId('rail-account-trigger').click();
   await page.getByTestId('view-as-user-menu-item').click();
 
   const dialog = page.getByTestId('impersonate-dialog');

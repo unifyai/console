@@ -22,7 +22,6 @@ import { listAssistants } from '@/lib/assistants/assistant';
 import { getMembersAction } from '@/lib/orchestra/api/organization';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
 import { getServerFeatures } from '@/lib/features/server';
-import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
 
 export const metadata: Metadata = {
   title: 'Usage',
@@ -52,11 +51,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   // No billing feature (self-host / external-auth / no Stripe) → usage off.
   // `features.billing` already accounts for these via the credential authority.
   if (!(await getServerFeatures()).billing) {
-    return (
-      <ShellSectionPage sectionId="usage">
-        <BillingUnavailable />
-      </ShellSectionPage>
-    );
+    return <BillingUnavailable />;
   }
 
   const { activeOrganization, isUnifyMember } = resolveWorkspaceContext(user);
@@ -69,28 +64,22 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   const orgId = activeOrganization?.id ?? null;
 
   if (activeOrganization?.freeTrial && !isUnifyMember) {
-    return (
-      <ShellSectionPage sectionId="usage">
-        <FreeTrialUsageLock />
-      </ShellSectionPage>
-    );
+    return <FreeTrialUsageLock />;
   }
 
   // Extract initial assistant filter from URL query params
   const initialAssistantId = typeof params.assistant === 'string' ? params.assistant : undefined;
 
   return (
-    <ShellSectionPage sectionId="usage" fill>
-      <Suspense fallback={<SectionBodySkeleton />}>
-        <UsageData
-          userId={user.id}
-          isOrgContext={isOrgContext}
-          isAdmin={isAdmin}
-          orgId={orgId}
-          initialAssistantId={initialAssistantId}
-        />
-      </Suspense>
-    </ShellSectionPage>
+    <Suspense fallback={<SectionBodySkeleton />}>
+      <UsageData
+        userId={user.id}
+        isOrgContext={isOrgContext}
+        isAdmin={isAdmin}
+        orgId={orgId}
+        initialAssistantId={initialAssistantId}
+      />
+    </Suspense>
   );
 };
 

@@ -476,7 +476,7 @@ export function AssistantList({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>Onboard new digital twin</p>
+                      <p>Onboard new teammate</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

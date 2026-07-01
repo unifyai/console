@@ -1,4 +1,4 @@
-import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { SupportedLanguage } from '@/types/assistants/cartesia';
 
 export const allCountryNames: string[] = [
   'Afghanistan',

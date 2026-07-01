@@ -50,13 +50,13 @@ export function AssistantFilter({
   // Get the display text for the current selection
   const displayText = React.useMemo(() => {
     if (value === 'all') {
-      return 'All Droids';
+      return 'All Teammates';
     }
     const assistant = assistants.find((a) => a.agentId === value);
     if (assistant) {
       return assistantDisplayName(assistant);
     }
-    return 'All Droids';
+    return 'All Teammates';
   }, [value, assistants]);
 
   return (
@@ -66,7 +66,7 @@ export function AssistantFilter({
         <span className="flex-1 truncate text-left">{displayText}</span>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">All Droids</SelectItem>
+        <SelectItem value="all">All Teammates</SelectItem>
         {assistants.map((assistant) => (
           <SelectItem key={assistant.agentId} value={assistant.agentId}>
             {assistantDisplayName(assistant)}

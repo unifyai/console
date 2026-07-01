@@ -127,3 +127,24 @@ test('collapsing the rail persists across reloads', async ({ authedPage: page })
   await expect(railAfter).toBeVisible({ timeout: 15_000 });
   expect((await railAfter.boundingBox())?.width ?? 999).toBeLessThan(120);
 });
+
+test('mobile viewport exposes rail navigation via the menu toggle', async ({
+  authedPage: page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+
+  deleteAllAssistantsForUser(user.id);
+  createAssistant({ userId: user.id, firstName: 'Mobile', surname: 'Shell' });
+
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  await expect(page.getByTestId('rail-mobile-toggle')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-rail')).toHaveCount(0);
+
+  await page.getByTestId('rail-mobile-toggle').click();
+  const rail = page.getByTestId('assistant-rail');
+  await expect(rail).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('rail-section-chat')).toBeVisible();
+  await expect(page.getByTestId('chat-search-trigger')).toBeVisible();
+});

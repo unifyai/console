@@ -12,7 +12,7 @@ import {
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
-import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { Gender, SupportedLanguage } from '@/types/assistants/cartesia';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import {
   resolveCoordinatorAbout,

@@ -3,7 +3,6 @@
 import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import TopNav from '@/components/Layout/TopBar/TopNav';
-import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 import { MockModeIndicator } from '@/components/Simulation/MockModeIndicator';
 import { Loader } from '@/components/Common/Loader';
 
@@ -39,25 +38,10 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
     (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
   );
 
-  if (assistantsShell) {
+  if (assistantsShell || homeShell) {
     return (
       <>
-        <Suspense fallback={shellFallback}>
-          <main className="relative h-screen overflow-hidden bg-background">{children}</main>
-        </Suspense>
-        <MockModeIndicator />
-      </>
-    );
-  }
-
-  if (homeShell) {
-    return (
-      <>
-        <Suspense fallback={shellFallback}>
-          <main className="relative h-screen overflow-hidden bg-background">
-            <HomeShell>{children}</HomeShell>
-          </main>
-        </Suspense>
+        <main className="relative h-screen overflow-hidden bg-background">{children}</main>
         <MockModeIndicator />
       </>
     );

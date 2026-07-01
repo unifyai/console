@@ -1,7 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
 
 const STORAGE_PREFIX = 'console:split-pane:';
 const DEFAULT_WIDTH = 288;
@@ -19,6 +21,13 @@ interface SplitPaneLayoutProps {
   defaultWidth?: number;
   minWidth?: number;
   maxWidth?: number;
+  /** Below `md`, stack panes instead of side-by-side. */
+  mobileMode?: 'stack' | 'none';
+  /** When stacked, the detail (right) pane is visible. */
+  detailOpen?: boolean;
+  onDetailClose?: () => void;
+  mobileBackLabel?: string;
+  mobileBackTestId?: string;
 }
 
 function readStoredWidth(paneId: string, fallback: number): number {
@@ -30,7 +39,8 @@ function readStoredWidth(paneId: string, fallback: number): number {
 
 /**
  * Two-pane layout with a draggable vertical divider. Persists the left pane
- * width in localStorage keyed by `paneId`.
+ * width in localStorage keyed by `paneId`. Below `md`, `mobileMode="stack"`
+ * shows one pane at a time with an optional back affordance on the detail view.
  */
 export function SplitPaneLayout({
   paneId,
@@ -42,7 +52,13 @@ export function SplitPaneLayout({
   defaultWidth = DEFAULT_WIDTH,
   minWidth = MIN_WIDTH,
   maxWidth = MAX_WIDTH,
+  mobileMode = 'none',
+  detailOpen = false,
+  onDetailClose,
+  mobileBackLabel = 'Back',
+  mobileBackTestId,
 }: SplitPaneLayoutProps) {
+  const isStacked = useMatchesBelow('tablet') && mobileMode === 'stack';
   const [leftWidth, setLeftWidth] = React.useState(() => readStoredWidth(paneId, defaultWidth));
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = React.useState(false);
@@ -90,8 +106,43 @@ export function SplitPaneLayout({
     [clampWidth, leftWidth, paneId]
   );
 
+  if (isStacked) {
+    return (
+      <div
+        ref={containerRef}
+        className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', className)}
+      >
+        {detailOpen ? (
+          <div
+            className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', rightClassName)}
+          >
+            {onDetailClose && (
+              <div className="flex shrink-0 items-center border-b border-border bg-card px-3 py-2">
+                <button
+                  type="button"
+                  onClick={onDetailClose}
+                  className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+                  data-testid={mobileBackTestId ?? `${paneId}-mobile-back`}
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  {mobileBackLabel}
+                </button>
+              </div>
+            )}
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{right}</div>
+          </div>
+        ) : (
+          <div className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', leftClassName)}>{left}</div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div ref={containerRef} className={cn('flex min-h-0 flex-1 overflow-hidden', className)}>
+    <div
+      ref={containerRef}
+      className={cn('flex min-h-0 min-w-0 flex-1 overflow-hidden', className)}
+    >
       <div
         className={cn('shrink-0 overflow-hidden border-r border-border', leftClassName)}
         style={{ width: leftWidth }}

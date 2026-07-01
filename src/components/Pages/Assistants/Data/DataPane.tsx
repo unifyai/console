@@ -3,6 +3,7 @@
 import * as React from 'react';
 import {
   ChevronRight,
+  ArrowLeft,
   Database,
   Folder,
   PanelLeftClose,
@@ -19,6 +20,7 @@ import {
   writeTabDataCache,
 } from '@/lib/assistants/tabDataCache';
 import { TabFooter } from '../Common/TabFooter';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -216,6 +218,14 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
   const [isLoadingLeaf, setIsLoadingLeaf] = React.useState(false);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const isStackedLayout = useMatchesBelow('tablet');
+  const [mobileShowTree, setMobileShowTree] = React.useState(true);
+
+  React.useEffect(() => {
+    if (isStackedLayout) {
+      setSidebarOpen(false);
+    }
+  }, [isStackedLayout]);
 
   const fetchFieldColumns = React.useCallback(async (context: string): Promise<string[]> => {
     const params = new URLSearchParams({
@@ -310,6 +320,9 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
       setSelected(context);
       setLeaf(null);
       setIsLoadingLeaf(true);
+      if (isStackedLayout) {
+        setMobileShowTree(false);
+      }
       try {
         const [fieldColumns, page] = await Promise.all([
           fetchFieldColumns(context),
@@ -323,7 +336,7 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
         setIsLoadingLeaf(false);
       }
     },
-    [fetchFieldColumns, fetchLeafPage, columnsFor]
+    [fetchFieldColumns, fetchLeafPage, columnsFor, isStackedLayout]
   );
 
   const loadMore = React.useCallback(async () => {
@@ -376,14 +389,14 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
       ) : (
         <>
           <div className="flex min-h-0 flex-1 overflow-hidden">
-            {sidebarOpen && (
-              <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                  <div className="text-title flex items-center gap-2 text-foreground">
-                    <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                    Data layer
-                  </div>
-                  <div className="flex items-center gap-0.5">
+            {isStackedLayout ? (
+              mobileShowTree || !selected ? (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
+                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                    <div className="text-title flex items-center gap-2 text-foreground">
+                      <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                      Data layer
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -395,65 +408,38 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
                     >
                       <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setSidebarOpen(false)}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      aria-label="Collapse data layer sidebar"
-                      data-testid="data-sidebar-collapse"
-                    >
-                      <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
                   </div>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-                  {topNodes.length === 0 ? (
-                    <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
-                  ) : (
-                    topNodes.map((node) => (
-                      <TreeRow
-                        key={node.name}
-                        node={node}
-                        depth={0}
-                        expanded={expanded}
-                        toggle={toggle}
-                        selected={selected}
-                        onSelect={(context) => void loadLeaf(context)}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              {!sidebarOpen && (
-                <div className="flex shrink-0 items-center border-b border-border px-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setSidebarOpen(true)}
-                    className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
-                    data-testid="data-sidebar-expand"
-                  >
-                    <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                    Data layer
-                  </button>
-                </div>
-              )}
-              {!selected ? (
-                <div className="flex h-full items-center justify-center p-8 text-center">
-                  <div className="max-w-sm">
-                    <Table2
-                      className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <p className="text-body-muted">
-                      Select a table from the directory to browse its rows.
-                    </p>
+                  <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
+                    {topNodes.length === 0 ? (
+                      <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
+                    ) : (
+                      topNodes.map((node) => (
+                        <TreeRow
+                          key={node.name}
+                          node={node}
+                          depth={0}
+                          expanded={expanded}
+                          toggle={toggle}
+                          selected={selected}
+                          onSelect={(context) => void loadLeaf(context)}
+                        />
+                      ))
+                    )}
                   </div>
                 </div>
               ) : (
-                <>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                  <div className="flex shrink-0 items-center border-b border-border bg-card px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setMobileShowTree(true)}
+                      className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+                      data-testid="data-mobile-back"
+                    >
+                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                      Data layer
+                    </button>
+                  </div>
                   <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -508,9 +494,147 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
                     isLoadingMore={isLoadingMore}
                     onLoadMore={() => void loadMore()}
                   />
-                </>
-              )}
-            </div>
+                </div>
+              )
+            ) : (
+              <>
+                {sidebarOpen && (
+                  <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
+                    <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                      <div className="text-title flex items-center gap-2 text-foreground">
+                        <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                        Data layer
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            invalidateTabDataCache(treeCacheKey);
+                            void loadTree();
+                          }}
+                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          aria-label="Refresh data contexts"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSidebarOpen(false)}
+                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          aria-label="Collapse data layer sidebar"
+                          data-testid="data-sidebar-collapse"
+                        >
+                          <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
+                      {topNodes.length === 0 ? (
+                        <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
+                      ) : (
+                        topNodes.map((node) => (
+                          <TreeRow
+                            key={node.name}
+                            node={node}
+                            depth={0}
+                            expanded={expanded}
+                            toggle={toggle}
+                            selected={selected}
+                            onSelect={(context) => void loadLeaf(context)}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                  {!sidebarOpen && (
+                    <div className="flex shrink-0 items-center border-b border-border px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setSidebarOpen(true)}
+                        className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+                        data-testid="data-sidebar-expand"
+                      >
+                        <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                        Data layer
+                      </button>
+                    </div>
+                  )}
+                  {!selected ? (
+                    <div className="flex h-full items-center justify-center p-8 text-center">
+                      <div className="max-w-sm">
+                        <Table2
+                          className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <p className="text-body-muted">
+                          Select a table from the directory to browse its rows.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Table2
+                              className="h-4 w-4 shrink-0 text-muted-foreground"
+                              aria-hidden="true"
+                            />
+                            <h3 className="text-title truncate text-foreground">
+                              {selectedTableName ?? selectedDisplayPath}
+                            </h3>
+                          </div>
+                          {selectedPathPrefix && (
+                            <p className="text-caption mt-0.5 truncate text-muted-foreground">
+                              {selectedPathPrefix}
+                            </p>
+                          )}
+                        </div>
+                        {leaf && (
+                          <dl className="flex shrink-0 flex-wrap gap-x-4 gap-y-1">
+                            <div className="flex flex-col">
+                              <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                                Rows
+                              </dt>
+                              <dd className="text-code font-semibold text-foreground">
+                                {leaf.count.toLocaleString()}
+                              </dd>
+                            </div>
+                            <div className="flex flex-col">
+                              <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                                Loaded
+                              </dt>
+                              <dd className="text-code font-semibold text-foreground">
+                                {leaf.rows.length.toLocaleString()}
+                              </dd>
+                            </div>
+                            <div className="flex flex-col">
+                              <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                                Columns
+                              </dt>
+                              <dd className="text-code font-semibold text-foreground">
+                                {leaf.columns.length}
+                              </dd>
+                            </div>
+                          </dl>
+                        )}
+                      </div>
+                      <DataLeafTable
+                        rows={leaf?.rows ?? []}
+                        columns={leaf?.columns ?? []}
+                        totalCount={leaf?.count ?? 0}
+                        isLoading={isLoadingLeaf}
+                        isLoadingMore={isLoadingMore}
+                        onLoadMore={() => void loadMore()}
+                      />
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <TabFooter

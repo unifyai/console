@@ -121,10 +121,10 @@ export function AssistantHire({
   };
 
   const hireButtonLabel = () => {
-    if (isHireSubmitting) return 'Onboarding Digital Twin...';
+    if (isHireSubmitting) return 'Onboarding Teammate...';
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
-    return 'Onboard Digital Twin';
+    return 'Onboard Teammate';
   };
 
   return (
@@ -153,9 +153,9 @@ export function AssistantHire({
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
               <span className="text-caption uppercase tracking-[0.08em] text-muted-foreground">
-                Onboard a digital twin
+                Onboard a teammate
               </span>
-              <DialogTitle className="text-h3">Onboard Digital Twin</DialogTitle>
+              <DialogTitle className="text-h3">Onboard Teammate</DialogTitle>
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
               {onRandomize && (
@@ -166,7 +166,7 @@ export function AssistantHire({
                   className="h-8 gap-1.5"
                   onClick={onRandomize}
                   disabled={isOverallDialogBusy}
-                  aria-label="Randomize digital twin profile"
+                  aria-label="Randomize teammate profile"
                 >
                   <Shuffle className="h-3.5 w-3.5" />
                   Randomize

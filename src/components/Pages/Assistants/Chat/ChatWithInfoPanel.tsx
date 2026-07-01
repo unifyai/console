@@ -11,6 +11,7 @@ import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import type { ChatDraftSeed } from '@/components/Pages/Assistants/Layout/AssistantInfoPanelLayout';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
 
 /**
  * Chat tab body: hosts the conversation panel and the chat-scoped toolbar.
@@ -88,6 +89,7 @@ export function ChatWithInfoPanel({
 }: ChatWithInfoPanelProps) {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const isInThisCall = activeCallAssistantId === assistant.agentId;
+  const isBelowCompact = useMatchesBelow('compact');
 
   const chatPanel = (
     <AssistantProfileChatPanel
@@ -206,14 +208,31 @@ export function ChatWithInfoPanel({
           </div>
           <div className="flex min-h-0 flex-1 flex-col">
             {renderDockedCall ? (
-              <>
-                <div className="min-h-0 flex-1 border-b" data-testid="assistant-call-docked-region">
-                  {renderDockedCall()}
-                </div>
-                <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
-                  {chatPanel}
-                </div>
-              </>
+              isBelowCompact ? (
+                <>
+                  <div
+                    className="flex min-h-[40vh] shrink-0 flex-col border-b"
+                    data-testid="assistant-call-docked-region"
+                  >
+                    {renderDockedCall()}
+                  </div>
+                  <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
+                    {chatPanel}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    className="min-h-0 flex-1 border-b"
+                    data-testid="assistant-call-docked-region"
+                  >
+                    {renderDockedCall()}
+                  </div>
+                  <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
+                    {chatPanel}
+                  </div>
+                </>
+              )
             ) : (
               chatPanel
             )}

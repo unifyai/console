@@ -171,7 +171,7 @@ export function LiveActionsBody({
         )}
         data-testid="live-actions-no-assistant"
       >
-        <p className="cursor-default text-center">Select a droid to watch live actions.</p>
+        <p className="cursor-default text-center">Select a teammate to watch live actions.</p>
       </div>
     );
   }
@@ -237,7 +237,7 @@ export function LiveActionsBody({
   // Action tree
   return (
     <div
-      className={cn('relative flex-1 overflow-hidden', className)}
+      className={cn('relative min-h-0 min-w-0 flex-1 overflow-hidden', className)}
       data-testid="live-actions-tree-container"
     >
       {/* Loading more indicator at top */}

@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings,
   ShieldCheck,
@@ -11,6 +10,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Loader2,
+  UserSearch,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,8 @@ import {
 import { getAnySessionContactIdForUser } from '@/hooks/Assistants/useContactIdPrefetch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { ReferralPromoNavButton } from '@/components/Layout/TopBar/ReferralPromoButton';
+import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
+import { useAppShellNavigation, pathnameFromHref } from '@/lib/navigation/AppShellRouter';
 import { RailNavButton } from './RailNavButton';
 
 async function resolveStorageUrl(gsUrl: string): Promise<string> {
@@ -100,8 +102,8 @@ interface RailFootProps {
  * workspace switcher and sign out, and the collapse-to-dock control.
  */
 export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const { navigateTo, activeHref } = useAppShellNavigation();
+  const activePath = pathnameFromHref(activeHref);
   const {
     user,
     workspaces,
@@ -111,8 +113,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     isWorkspaceSwitchable,
     isSwitchingWorkspace,
     isUnifyAdmin,
+    isUnifyMember,
   } = useWorkspace();
 
+  const [showImpersonateDialog, setShowImpersonateDialog] = React.useState(false);
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const [ownerContactId, setOwnerContactId] = React.useState<number | null>(null);
 
@@ -188,8 +192,8 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
           Icon={ShieldCheck}
           label="Admin"
           collapsed={collapsed}
-          active={pathname?.startsWith('/admin')}
-          onClick={() => router.push('/admin')}
+          active={activePath.startsWith('/admin')}
+          onClick={() => navigateTo('/admin')}
           testId="rail-nav-admin"
         />
       )}
@@ -197,8 +201,8 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         Icon={Settings}
         label="Settings"
         collapsed={collapsed}
-        active={pathname?.startsWith('/account')}
-        onClick={() => router.push('/account')}
+        active={activePath === '/account' || activePath.startsWith('/account?')}
+        onClick={() => navigateTo('/account')}
         testId="rail-nav-settings"
       />
 
@@ -289,6 +293,22 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
             </>
           )}
 
+          {isUnifyMember && (
+            <>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowImpersonateDialog(true);
+                }}
+                className="cursor-pointer items-center"
+                data-testid="view-as-user-menu-item"
+              >
+                <UserSearch className="mr-2 h-4 w-4" />
+                <span>View as user</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
@@ -301,6 +321,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {isUnifyMember && (
+        <ImpersonateDialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog} />
+      )}
 
       <TooltipProvider delayDuration={100}>
         <Tooltip>

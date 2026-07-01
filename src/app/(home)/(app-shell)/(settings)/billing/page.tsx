@@ -10,7 +10,6 @@ import * as BillingLib from '@/lib/billing/billing';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
 import { getServerFeatures } from '@/lib/features/server';
-import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
 
 export const metadata: Metadata = {
   title: 'Billing',
@@ -26,11 +25,9 @@ const BillingPage: React.FC = async () => {
   // `features.billing` already accounts for these via the credential authority.
   if (!(await getServerFeatures()).billing) {
     return (
-      <ShellSectionPage sectionId="billing">
-        <Suspense fallback={<SkeletonLoader />}>
-          <BillingUnavailable />
-        </Suspense>
-      </ShellSectionPage>
+      <Suspense fallback={<SkeletonLoader />}>
+        <BillingUnavailable />
+      </Suspense>
     );
   }
 
@@ -54,11 +51,7 @@ const BillingPage: React.FC = async () => {
   }
 
   if (activeOrganization?.freeTrial && !isUnifyMember) {
-    return (
-      <ShellSectionPage sectionId="billing">
-        <FreeTrialBillingLock />
-      </ShellSectionPage>
-    );
+    return <FreeTrialBillingLock />;
   }
 
   const billingActions: BillingActions = {
@@ -86,11 +79,9 @@ const BillingPage: React.FC = async () => {
   };
 
   return (
-    <ShellSectionPage sectionId="billing">
-      <Suspense fallback={<SkeletonLoader />}>
-        <Main actions={billingActions} orgContext={orgContext} />
-      </Suspense>
-    </ShellSectionPage>
+    <Suspense fallback={<SkeletonLoader />}>
+      <Main actions={billingActions} orgContext={orgContext} />
+    </Suspense>
   );
 };
 

@@ -51,12 +51,12 @@ interface AssistantSwitcherProps {
 export function AssistantSwitcher({ activeUnity, listProps, collapsed }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
 
-  const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a digital twin';
+  const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a teammate';
   const unitySub = activeUnity
     ? activeUnity.isCoordinator
       ? null
       : activeUnity.jobTitle?.trim() || 'Digital twin'
-    : 'No digital twin selected';
+    : 'No teammate selected';
   const activeUnityStatus = activeUnity
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;

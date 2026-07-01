@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   User as UserIcon,
   Contact,
@@ -14,10 +14,22 @@ import {
 } from 'lucide-react';
 import { TabHeader } from '@/components/Pages/Assistants/Rail/TabHeader';
 import { RailNavButton } from '@/components/Pages/Assistants/Rail/RailNavButton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
 import { ADMIN_NAV_ITEMS, isAdminNavActive } from './adminNav';
 import { useFeatures, useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
+import { HomeShellRailToggle } from './HomeShell';
+import { useSettingsNavigation } from './SettingsNavigationContext';
+import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
+import { accountTabHref, parseAccountTab } from '@/lib/navigation/settingsAccountTab';
 
 /**
  * Account sub-rail entries. Each maps to an in-page panel on `/account`, driven
@@ -58,6 +70,12 @@ interface SettingsShellProps {
   fill?: boolean;
 }
 
+function accountTabFromHref(href: string): SettingsAccountId | null {
+  if (!href.startsWith('/account')) return null;
+  const query = href.includes('?') ? href.slice(href.indexOf('?') + 1) : '';
+  return parseAccountTab(new URLSearchParams(query).get('tab'));
+}
+
 /**
  * The shared settings two-pane shell: a brand section header above a persistent
  * vertical sub-rail beside the active surface. Settings-family routes
@@ -70,43 +88,117 @@ export function SettingsShell({
   headerRight,
   fill = false,
 }: SettingsShellProps) {
-  const router = useRouter();
+  const { navigateTo } = useAppShellNavigation();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { accountTab, setAccountTab } = useSettingsNavigation();
   const { billing: billingEnabled } = useFeatures();
   const { isSelfHost } = useEnvironment();
   const { isUnifyAdmin } = useWorkspace();
 
   const onAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
   const onAccount = pathname === '/account';
-  const accountTab = onAccount ? (searchParams.get('tab') ?? 'profile') : null;
 
   const section = onAdmin ? SHELL_SECTIONS.admin : SHELL_SECTIONS[sectionId];
 
-  const workspaceLinks: WorkspaceLink[] = [
-    {
-      id: 'organizations',
-      label: 'Organizations',
-      Icon: Building,
-      href: '/organizations',
-      show: !isSelfHost,
-    },
-    { id: 'usage', label: 'Usage', Icon: BarChart3, href: '/usage', show: billingEnabled },
-    { id: 'billing', label: 'Billing', Icon: CreditCard, href: '/billing', show: billingEnabled },
-    { id: 'admin', label: 'Admin', Icon: ShieldCheck, href: '/admin', show: isUnifyAdmin },
-  ];
+  const workspaceLinks = React.useMemo<WorkspaceLink[]>(
+    () => [
+      {
+        id: 'organizations',
+        label: 'Organizations',
+        Icon: Building,
+        href: '/organizations',
+        show: !isSelfHost,
+      },
+      { id: 'usage', label: 'Usage', Icon: BarChart3, href: '/usage', show: billingEnabled },
+      { id: 'billing', label: 'Billing', Icon: CreditCard, href: '/billing', show: billingEnabled },
+      { id: 'admin', label: 'Admin', Icon: ShieldCheck, href: '/admin', show: isUnifyAdmin },
+    ],
+    [billingEnabled, isSelfHost, isUnifyAdmin]
+  );
 
   const isWorkspaceActive = (href: string) => {
     if (href === '/admin') return onAdmin;
     return !onAccount && (pathname === href || pathname.startsWith(`${href}/`));
   };
 
+  const navigateAccountTab = React.useCallback(
+    (tab: SettingsAccountId) => {
+      if (onAccount) {
+        setAccountTab(tab);
+        return;
+      }
+      navigateTo(accountTabHref(tab));
+    },
+    [onAccount, navigateTo, setAccountTab]
+  );
+
+  const handleMobileNavChange = React.useCallback(
+    (href: string) => {
+      const tab = accountTabFromHref(href);
+      if (tab !== null && onAccount) {
+        setAccountTab(tab);
+        return;
+      }
+      navigateTo(href);
+    },
+    [onAccount, navigateTo, setAccountTab]
+  );
+
+  const isBelowTablet = useMatchesBelow('tablet');
+
+  const mobileNavItems = React.useMemo(() => {
+    const items: { label: string; href: string }[] = [];
+    if (onAdmin) {
+      items.push({ label: 'Settings', href: '/account' });
+      ADMIN_NAV_ITEMS.forEach((item) => items.push({ label: item.label, href: item.href }));
+    } else {
+      SETTINGS_ACCOUNT_ITEMS.forEach((item) =>
+        items.push({ label: item.label, href: accountTabHref(item.id) })
+      );
+    }
+    workspaceLinks
+      .filter((link) => link.show)
+      .forEach((link) => items.push({ label: link.label, href: link.href }));
+    return items;
+  }, [onAdmin, workspaceLinks]);
+
+  const mobileNavValue = onAccount ? accountTabHref(accountTab) : pathname;
+
+  const settingsHeaderLeading = <HomeShellRailToggle />;
+
+  const settingsHeaderRight = (
+    <>
+      {isBelowTablet ? (
+        <Select value={mobileNavValue} onValueChange={handleMobileNavChange}>
+          <SelectTrigger
+            className="h-8 w-[9rem] cursor-pointer bg-background px-2 text-xs shadow-none sm:w-[11rem]"
+            data-testid="settings-nav-mobile"
+            aria-label="Settings navigation"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent
+            align="end"
+            className="z-[80] w-[var(--radix-select-trigger-width)] border-border bg-popover shadow-lg"
+          >
+            {mobileNavItems.map((item) => (
+              <SelectItem key={item.href} value={item.href} className="cursor-pointer text-xs">
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+      {headerRight}
+    </>
+  );
+
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <TabHeader section={section} right={headerRight} />
+      <TabHeader section={section} leading={settingsHeaderLeading} right={settingsHeaderRight} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
-          className="flex w-[230px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border px-2.5 py-3"
+          className="hidden w-[230px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border px-2.5 py-3 lg:flex"
           data-testid="settings-subrail"
         >
           {onAdmin ? (
@@ -118,7 +210,7 @@ export function SettingsShell({
                 Icon={Settings}
                 label="Settings"
                 active={false}
-                onClick={() => router.push('/account')}
+                onClick={() => navigateTo('/account')}
                 testId="settings-back-account"
               />
               <div className="px-3 pb-1.5 pt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -130,7 +222,7 @@ export function SettingsShell({
                   Icon={item.Icon}
                   label={item.label}
                   active={isAdminNavActive(pathname, item.href)}
-                  onClick={() => router.push(item.href)}
+                  onClick={() => navigateTo(item.href)}
                   testId={`admin-nav-${item.id}`}
                 />
               ))}
@@ -146,7 +238,7 @@ export function SettingsShell({
                   Icon={item.Icon}
                   label={item.label}
                   active={onAccount && accountTab === item.id}
-                  onClick={() => router.push(`/account?tab=${item.id}`)}
+                  onClick={() => navigateAccountTab(item.id)}
                   testId={`settings-nav-${item.id}`}
                 />
               ))}
@@ -164,7 +256,7 @@ export function SettingsShell({
                 Icon={link.Icon}
                 label={link.label}
                 active={isWorkspaceActive(link.href)}
-                onClick={() => router.push(link.href)}
+                onClick={() => navigateTo(link.href)}
                 testId={`settings-link-${link.id}`}
               />
             ))}

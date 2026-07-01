@@ -96,10 +96,12 @@ export function useAssistantContactManager({
   const [isLoadingFeatures, setIsLoadingFeatures] = React.useState(false);
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+  const grantedFeaturesRequestRef = React.useRef(0);
 
-  // Determined after granted-features fetch; both false while loading.
+  const grantedFeaturesResolved = grantedFeatures !== null || !isLoadingFeatures;
   const isByodEmail = !!assistant.email && !!grantedFeatures?.provider;
-  const isPlatformEmail = !!assistant.email && !isByodEmail && !isLoadingFeatures;
+  const isPlatformEmail =
+    !!assistant.email && !isByodEmail && grantedFeaturesResolved && !grantedFeatures?.provider;
 
   // ---------------------------------------------------------------------------
   // Reset form when dialog opens with new assistant data
@@ -247,12 +249,17 @@ export function useAssistantContactManager({
   // Refetch the assistant's granted features (BYOD provider, scopes, and the
   // connected account email). The response determines whether the email is
   // BYOD (provider non-null) or platform, and drives the feature checklist and
-  // file picker.
+  // file picker. In-flight requests are keyed so overlapping fetches (e.g.
+  // OAuth-complete refetch while a prior response is still pending) cannot
+  // clear the loading flag early or apply stale results out of order.
   const refetchGrantedFeatures = React.useCallback(async () => {
     if (!assistant.email) return;
+    const requestId = ++grantedFeaturesRequestRef.current;
     setIsLoadingFeatures(true);
     try {
       const result = await assistantActions.contact.getGrantedFeatures(assistant.agentId);
+      if (requestId !== grantedFeaturesRequestRef.current) return;
+
       if ('detail' in result) {
         console.warn(
           '[useAssistantContactManager] Failed to fetch granted features:',
@@ -264,16 +271,28 @@ export function useAssistantContactManager({
         setSelectedFeatures(feats.features);
       }
     } catch (error) {
+      if (requestId !== grantedFeaturesRequestRef.current) return;
       console.warn('[useAssistantContactManager] Error fetching granted features:', error);
     } finally {
-      setIsLoadingFeatures(false);
+      if (requestId === grantedFeaturesRequestRef.current) {
+        setIsLoadingFeatures(false);
+      }
     }
   }, [assistant.email, assistant.agentId, assistantActions.contact]);
+
+  // Drop any cached granted-features snapshot when switching assistants while
+  // the dialog stays open.
+  React.useEffect(() => {
+    setGrantedFeatures(null);
+  }, [assistant.agentId]);
 
   // Fetch granted features when the dialog opens and an email exists.
   React.useEffect(() => {
     if (!isOpen || !assistant.email) return;
     void refetchGrantedFeatures();
+    return () => {
+      grantedFeaturesRequestRef.current += 1;
+    };
   }, [isOpen, assistant.email, refetchGrantedFeatures]);
 
   // Refetch on OAuth completion so a freshly connected workspace reflects in
@@ -281,6 +300,7 @@ export function useAssistantContactManager({
   // is the only durable refresh signal for a Coordinator, whose own mailbox
   // stays platform-managed — no BYOD email contact is created, so
   // ``assistant.email`` never changes to re-trigger the open effect above.
+  // Background refetch: callers keep showing the last snapshot while this runs.
   React.useEffect(() => {
     if (!isOpen) return;
     return subscribeOAuthComplete(() => {

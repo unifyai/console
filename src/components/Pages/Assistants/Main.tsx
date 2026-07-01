@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
+import dynamic from 'next/dynamic';
 import {
   RightPaneContainer,
   DEFAULT_RIGHT_PANE_STATE,
@@ -24,8 +25,23 @@ import {
 } from '@/types/assistants/assistant';
 import { ContactType, type OAuthProvider } from '@/types/assistants/contact';
 import { toast } from 'sonner';
-import { AssistantHire } from './Hire/AssistantHire';
-import { AssistantEdit } from './Edit/AssistantEdit';
+import { Loader } from '@/components/Common/Loader';
+
+const AssistantHire = dynamic(
+  () => import('./Hire/AssistantHire').then((m) => ({ default: m.AssistantHire })),
+  { loading: () => <Loader size={48} /> }
+);
+const AssistantEdit = dynamic(
+  () => import('./Edit/AssistantEdit').then((m) => ({ default: m.AssistantEdit })),
+  { loading: () => <Loader size={48} /> }
+);
+const CoordinatorOnboarding = dynamic(
+  () =>
+    import('./Coordinator/CoordinatorOnboarding').then((m) => ({
+      default: m.CoordinatorOnboarding,
+    })),
+  { loading: () => <Loader size={48} /> }
+);
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
@@ -44,10 +60,16 @@ import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistant
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useQuery } from '@tanstack/react-query';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
+import { isAssistantsPath } from '@/lib/navigation/appShellRoutes';
+import { usePendingShellNavigationTarget } from '@/lib/navigation/AppShellRouter';
 import { cn } from '@/lib/utils';
-import { Loader } from '@/components/Common/Loader';
+import { maxWidthMediaQuery } from '@/constants/breakpoints';
+import { useBreakpoint } from '@/hooks/Common/useMobile';
+import { Button } from '@/components/UI/button';
+import { Sheet, SheetContent } from '@/components/UI/sheet';
+import { Menu } from 'lucide-react';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import {
   type CoordinatorWorkspaceScope,
@@ -59,7 +81,6 @@ import {
   CoordinatorOnboardingProvider,
   type CoordinatorOnboardingContextValue,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
-import { CoordinatorOnboarding } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboarding';
 import {
   hasOutstandingCoordinatorOnboarding,
   type ChecklistAction,
@@ -156,7 +177,14 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 
 export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const routePathname = usePathname();
+  const pendingShellNavigationTarget = usePendingShellNavigationTarget();
+  // `Main` is mounted persistently by the app shell and only hidden when the
+  // user is on another surface (settings/admin/etc). It must not write to the
+  // URL while hidden, or its `?profile=` sync would yank navigation back to
+  // `/assistants`. All URL writes target `/assistants` and are gated on this.
+  const isActiveSurface = isAssistantsPath(routePathname) && pendingShellNavigationTarget === null;
+  const pathname = '/assistants';
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const onboardingFocusParam = searchParams.get('onboarding');
@@ -181,6 +209,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const syncProfileQueryParam = React.useCallback(
     (assistantId: string | null) => {
       if (typeof window === 'undefined') return;
+      // Only the visible assistants surface owns the URL. When hidden behind a
+      // settings/admin route, skip the write so navigation is not hijacked.
+      if (!isActiveSurface) return;
 
       const currentProfile = searchParams.get('profile');
       if ((assistantId ?? null) === (currentProfile ?? null)) return;
@@ -193,13 +224,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       }
 
       const nextQuery = nextParams.toString();
-      const nextUrl =
-        nextQuery.length > 0
-          ? `${window.location.pathname}?${nextQuery}`
-          : window.location.pathname;
+      const nextUrl = nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname;
       router.replace(nextUrl, { scroll: false });
     },
-    [router, searchParams]
+    [isActiveSurface, router, searchParams]
   );
 
   // --- UI Panel Management ---
@@ -254,7 +282,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       if (!stored) return;
       const parsed = JSON.parse(stored) as Partial<RightPaneState> | null;
       if (!parsed || typeof parsed !== 'object') return;
-      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      const isMobile = window.matchMedia(maxWidthMediaQuery('mobile')).matches;
       // Migrate legacy tab ids that no longer map to a right-pane tab:
       //  - 'secrets' was renamed to 'integrations' when the per-assistant
       //    Integrations tab landed.
@@ -292,7 +320,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Collapse to primary-only on viewport shrink to mobile so a stored
   // split doesn't suddenly look broken when the user resizes their window.
   React.useEffect(() => {
-    const mql = window.matchMedia('(max-width: 767px)');
+    const mql = window.matchMedia(maxWidthMediaQuery('mobile'));
     const handler = (e: MediaQueryListEvent) => {
       if (e.matches) {
         setPaneState((prev) => (prev.secondary ? { ...prev, secondary: null } : prev));
@@ -321,21 +349,31 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const activeSectionId = activeBrainSectionId ?? paneState.primary.tab;
   const activeSectionDef = SECTION_BY_ID[activeSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
 
+  const { isBelowMobile, isBelowTablet } = useBreakpoint();
+  const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
   const [railCollapsed, setRailCollapsed] = React.useState(false);
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
       if (stored !== null) {
         setRailCollapsed(stored === '1');
-      } else if (window.matchMedia('(max-width: 1023px)').matches) {
-        // No saved preference yet: dock the rail on narrow screens so the
-        // section host keeps usable width.
+      } else if (window.matchMedia(maxWidthMediaQuery('tablet')).matches) {
         setRailCollapsed(true);
       }
     } catch {
       /* localStorage unavailable — keep expanded */
     }
   }, []);
+  React.useEffect(() => {
+    if (isBelowTablet) {
+      setRailCollapsed(true);
+    }
+  }, [isBelowTablet]);
+  React.useEffect(() => {
+    if (!isBelowMobile) {
+      setMobileRailOpen(false);
+    }
+  }, [isBelowMobile]);
   const handleRailCollapsedChange = React.useCallback((collapsed: boolean) => {
     setRailCollapsed(collapsed);
     try {
@@ -703,6 +741,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         coordinatorOnboardingState === null &&
         isCoordinatorOnboardingStateLoading));
 
+  const assistantsBootstrappedRef = React.useRef(false);
+  if (!isCoordinatorOnboardingResolvePending) {
+    assistantsBootstrappedRef.current = true;
+  }
+  const showWorkspaceBootstrapLoader =
+    isCoordinatorOnboardingResolvePending && !assistantsBootstrappedRef.current;
+
   React.useEffect(() => {
     debugConsole('coordinator-onboarding', 'gate.evaluate', {
       canonicalCoordinatorId,
@@ -843,15 +888,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       requestCoordinatorOnboardingFocusLayout();
     }
 
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete('onboarding');
-    const nextQuery = nextParams.toString();
-    router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
-      scroll: false,
-    });
+    if (isActiveSurface) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete('onboarding');
+      const nextQuery = nextParams.toString();
+      router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
+        scroll: false,
+      });
+    }
   }, [
     canonicalCoordinatorId,
     handleShowProfile,
+    isActiveSurface,
     isLoadingAssistants,
     onboardingFocusParam,
     pathname,
@@ -1794,6 +1842,52 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the graph-owned event for a Tasks-phase beat. Clicking the row
+  // (no ``chipId``) asks Twin to open a freeform conversation about that kind
+  // of standing work; clicking one of its example chips (``chipId`` set) asks
+  // Twin to set that specific task up. Mirrors the reference-quiz trigger path
+  // but without a paired reply — beat completion is derived server-side from
+  // the resulting Tasks row. The request is deduped per (step, chip) so a
+  // double-click can't fire two task-creation events.
+  const handleCoordinatorDispatchTaskBeat = React.useCallback(
+    (stepId: string, chipId?: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      const requestKey = chipId ? `${stepId}:${chipId}` : stepId;
+      if (!shouldDispatchStepRequest(requestKey)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      markStepEngaged(stepId);
+      markStepRequested(requestKey);
+      void (async () => {
+        try {
+          const event = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step,
+            chipId
+          );
+          if (!event) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error('[Coordinator onboarding] Failed to dispatch task beat event:', error);
+          toast.error('Could not start this task. Please try again.');
+        }
+      })();
+    },
+    [
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
+    ]
+  );
+
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
     handleOpenUserSettings('contact-info');
@@ -1906,8 +2000,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         : undefined,
       onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
       onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
-      onLaunchMission: () => handleCoordinatorOpenPaneTab('tasks', 'launch-mission'),
-      onArmTripwire: () => handleCoordinatorOpenPaneTab('tasks', 'arm-tripwire'),
+      onCreateScheduledTask: () => handleCoordinatorDispatchTaskBeat('create-scheduled-task'),
+      onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
+      onSelectTaskChip: (stepId: string, chipId: string) =>
+        handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -1941,6 +2037,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
+    handleCoordinatorDispatchTaskBeat,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
@@ -2225,7 +2322,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // The setup roadmap is the *owner's* checklist — the contact
   // details, integrations, install steps etc. all belong to whoever
   // hired the assistant. Org admins / collaborators viewing a
-  // teammate's assistant get the bare Contact Info layout instead;
+  // teammate's assistant get the bare Profile layout instead;
   // they have no actionable steps to tick off here.
   const isAssistantOwner =
     !!profileAssistant && !!currentUserId && profileAssistant.userId === currentUserId;
@@ -2437,24 +2534,63 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           billingMode={billingMode}
         />
 
-        {isCoordinatorOnboardingResolvePending ? (
+        {showWorkspaceBootstrapLoader ? (
           <div className="flex min-h-0 flex-1 items-center justify-center bg-background">
             <Loader size={64} label="Loading workspace" />
           </div>
         ) : (
           <div className="relative flex min-h-0 flex-1 overflow-hidden">
-            <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
-              <AssistantRail
-                activeUnity={profileAssistant}
-                listProps={railListProps}
-                activeSection={activeSectionId}
-                onSelectSection={handleSelectSection}
-                collapsed={railCollapsed}
-                onCollapsedChange={handleRailCollapsedChange}
-              />
+            <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+              {isBelowMobile ? (
+                <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
+                  <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+                    <AssistantRail
+                      activeUnity={profileAssistant}
+                      listProps={railListProps}
+                      activeSection={activeSectionId}
+                      onSelectSection={(section) => {
+                        handleSelectSection(section);
+                        setMobileRailOpen(false);
+                      }}
+                      collapsed={false}
+                      onCollapsedChange={(next) => {
+                        if (next) {
+                          setMobileRailOpen(false);
+                          return;
+                        }
+                        handleRailCollapsedChange(false);
+                      }}
+                    />
+                  </SheetContent>
+                </Sheet>
+              ) : (
+                <AssistantRail
+                  activeUnity={profileAssistant}
+                  listProps={railListProps}
+                  activeSection={activeSectionId}
+                  onSelectSection={handleSelectSection}
+                  collapsed={railCollapsed}
+                  onCollapsedChange={handleRailCollapsedChange}
+                />
+              )}
 
               <SectionHost
                 section={activeSectionDef}
+                headerLeading={
+                  isBelowMobile ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      aria-label="Open navigation"
+                      data-testid="rail-mobile-toggle"
+                      onClick={() => setMobileRailOpen(true)}
+                    >
+                      <Menu className="h-4 w-4" />
+                    </Button>
+                  ) : undefined
+                }
                 renderView={() => (
                   <AssistantInfoPanelLayout
                     assistant={profileAssistant}
@@ -2468,6 +2604,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     isSpendingBlocked={spendingGateStatus.isBlocked}
                     spendingBlockedMessage={spendingGateStatus.blockedMessage}
                     onOpenContactManager={handleOpenContactManager}
+                    onEditProfile={profileCanWrite ? handleOpenEditDialog : undefined}
+                    onOpenWorkspaceManager={
+                      profileCanWrite ? handleOpenWorkspaceManager : undefined
+                    }
+                    onConnectDesktop={isAssistantOwner ? handleShowInstallInstructions : undefined}
                     hasUserMessage={profiledHasUserMessage}
                     hasHistoricalCall={profiledHasHistoricalCall}
                     hasUserPhoneNumber={hasUserPhoneNumber}
@@ -2506,6 +2647,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           chatStreamActivitySignal={profileChatActivitySignal}
                           paneState={paneState}
                           onPaneStateChange={setPaneState}
+                          workspacePaneObscured={activeBrainSectionId !== null}
                           infoPanel={infoPanel}
                           coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                           renderDockedCall={
@@ -2571,30 +2713,30 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       );
 
                       const showBrainHost =
-                        activeSectionDef.kind === 'brain-view' && profileAssistant;
+                        activeSectionDef.kind === 'brain-view' && profileAssistant != null;
 
-                      if (showBrainHost) {
-                        return (
-                          <div className="relative h-full min-h-0">
-                            <div
-                              className={cn(
-                                'h-full min-h-0',
-                                'pointer-events-none absolute inset-0 hidden'
-                              )}
-                              aria-hidden
-                            >
-                              {rightPane}
-                            </div>
-                            <BrainSectionsHost
-                              assistant={profileAssistant}
-                              activeSectionId={activeSectionDef.id}
-                              onManageContacts={() => handleOpenContactManager(profileAssistant)}
-                            />
+                      return (
+                        <div className="relative h-full min-h-0 w-full">
+                          <div
+                            className={cn(
+                              'h-full min-h-0 w-full',
+                              showBrainHost && 'pointer-events-none absolute inset-0 z-0 hidden'
+                            )}
+                            aria-hidden={showBrainHost ? true : undefined}
+                          >
+                            {rightPane}
                           </div>
-                        );
-                      }
-
-                      return rightPane;
+                          {showBrainHost ? (
+                            <div className="relative z-10 h-full min-h-0 w-full">
+                              <BrainSectionsHost
+                                assistant={profileAssistant}
+                                activeSectionId={activeSectionDef.id}
+                                onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      );
                     }}
                   </AssistantInfoPanelLayout>
                 )}

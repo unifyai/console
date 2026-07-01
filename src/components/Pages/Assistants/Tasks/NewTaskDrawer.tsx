@@ -87,7 +87,7 @@ export function NewTaskDrawer({ open, onClose, onCreate }: NewTaskDrawerProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Describe the workflow in plain English — your digital twin turns it into runnable steps."
+              placeholder="Describe the workflow in plain English — your teammate turns it into runnable steps."
               className="w-full resize-none rounded-md border bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
               data-testid="new-task-description"
             />

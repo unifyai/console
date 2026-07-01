@@ -1,7 +1,7 @@
 import { countryToLangMap } from '@/constants/assistants/countries';
 import voice_presets from '@/constants/assistants/voice_presets';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-js/api';
+import { SupportedLanguage, Gender as CartesiaGender } from '@/types/assistants/cartesia';
 import { Voice } from '@/types/assistants/assistant';
 import {
   applyApprovedCharacterVoiceMetadata,

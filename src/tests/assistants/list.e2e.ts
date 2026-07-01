@@ -60,7 +60,7 @@ test('the Onboard button opens the hire dialog', async ({ authedPage: page }) =>
 
   const dialog = page.locator('[role="dialog"]');
   await expect(dialog).toBeVisible({ timeout: 10_000 });
-  await expect(dialog.getByRole('heading', { name: 'Onboard Digital Twin' })).toBeVisible({
+  await expect(dialog.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
     timeout: 5_000,
   });
 });
@@ -136,7 +136,7 @@ test.fixme('rapid select/deselect settles on the final click and does not snap b
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
   const chatTab = page.getByTestId('right-pane-tab-chat');
-  const emptyState = page.locator('text=Select a droid to watch live actions.');
+  const emptyState = page.locator('text=Select a teammate to watch live actions.');
 
   // Normalise to a known deselected starting point.
   if (await chatTab.isVisible({ timeout: 1_000 }).catch(() => false)) {

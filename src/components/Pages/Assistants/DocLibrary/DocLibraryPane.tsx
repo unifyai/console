@@ -21,6 +21,7 @@ import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
 // TODO(wire-backend): restore once guidance/knowledge creation is wired.
 // import { DocAddDrawer } from './DocAddDrawer';
 import type { DocLibraryKind } from './docLibraryKind';
@@ -205,6 +206,7 @@ export function DocLibraryPane({
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const isStackedLayout = useMatchesBelow('tablet');
   // TODO(wire-backend): restore when guidance/knowledge creation is wired.
   // const [isAdding, setIsAdding] = useState(false);
 
@@ -259,8 +261,10 @@ export function DocLibraryPane({
 
   const active = useMemo(() => {
     if (filtered.length === 0) return null;
-    return filtered.find((doc) => doc.id === selectedId) ?? filtered[0];
-  }, [filtered, selectedId]);
+    const picked = selectedId ? filtered.find((doc) => doc.id === selectedId) : null;
+    if (isStackedLayout) return picked;
+    return picked ?? filtered[0];
+  }, [filtered, selectedId, isStackedLayout]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -336,6 +340,11 @@ export function DocLibraryPane({
       <SplitPaneLayout
         paneId={`doc-library-${kind}`}
         defaultWidth={288}
+        mobileMode="stack"
+        detailOpen={isStackedLayout ? selectedId !== null && active !== null : true}
+        onDetailClose={() => setSelectedId(null)}
+        mobileBackLabel="Documents"
+        mobileBackTestId="doc-library-mobile-back"
         left={
           <div className="flex h-full flex-col" data-testid="doc-list">
             {isLoading && docs.length === 0 ? (
@@ -527,7 +536,7 @@ export function DocLibraryPane({
           onClose={() => setIsAdding(false)}
           onSave={() =>
             toast(`Saving ${kind} isn’t available from this view yet.`, {
-              description: `Ask your digital twin in chat to add ${kind}.`,
+              description: `Ask your teammate in chat to add ${kind}.`,
             })
           }
         />

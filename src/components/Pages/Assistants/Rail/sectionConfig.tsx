@@ -47,14 +47,14 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: MessageSquare,
     kind: 'view',
     tab: 'chat',
-    desc: 'Talk to your digital twin — messages, voice notes, files, and screen share in one thread.',
+    desc: 'Talk to your teammate — messages, voice notes, files, and screen share in one thread.',
     steps: [
       ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],
       [
         'Attach files',
         'Drop documents, images, or screenshots into the composer for extra context.',
       ],
-      ['Share your screen', 'Start screen share so your digital twin can follow along live.'],
+      ['Share your screen', 'Start screen share so your teammate can follow along live.'],
     ],
   },
   {
@@ -63,7 +63,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: Activity,
     kind: 'view',
     tab: 'actions',
-    desc: 'Every request your digital twin worked on in a time window — expand any one to see how it thought.',
+    desc: 'Every request your teammate worked on in a time window — expand any one to see how it thought.',
     steps: [
       [
         'Pick a time window',
@@ -82,12 +82,9 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: LayoutDashboard,
     kind: 'view',
     tab: 'dashboards',
-    desc: 'Live tiles and reports your digital twin builds for you, on request.',
+    desc: 'Live tiles and reports your teammate builds for you, on request.',
     steps: [
-      [
-        'Switch dashboard',
-        'Use the picker to jump between dashboards saved for this digital twin.',
-      ],
+      ['Switch dashboard', 'Use the picker to jump between dashboards saved for this teammate.'],
       ['Search tiles', 'Find a tile by title when a dashboard grows large.'],
       ['Open or pop out a tile', 'View a tile inline, or open it in its own tab for more space.'],
     ],
@@ -111,10 +108,10 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: Plug2,
     kind: 'view',
     tab: 'integrations',
-    desc: 'Connect the apps and tools your digital twin can act through — mail, calendar, CRM, and more.',
+    desc: 'Connect the apps and tools your teammate can act through — mail, calendar, CRM, and more.',
     steps: [
       ['Browse the catalog', 'Search or filter by category to find an app.'],
-      ['Review permissions', 'Open a card to see exactly what the digital twin can access.'],
+      ['Review permissions', 'Open a card to see exactly what the teammate can access.'],
       ['Connect an app', 'Authorize with OAuth or paste an API key where supported.'],
     ],
   },
@@ -126,7 +123,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Contacts',
     Icon: Contact,
     kind: 'brain-view',
-    desc: 'People your digital twin remembers, with the context it keeps on each.',
+    desc: 'People your teammate remembers, with the context it keeps on each.',
     steps: [
       ['Browse the directory', 'Scroll the card grid or search by name, email, or tag.'],
       ['Open a contact', 'Click any card to read full details in the drawer.'],
@@ -153,7 +150,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Knowledge',
     Icon: BookOpen,
     kind: 'brain-view',
-    desc: 'Durable facts and rules your digital twin relies on — rich documents rendered on the right.',
+    desc: 'Durable facts and rules your teammate relies on — rich documents rendered on the right.',
     steps: [
       ['Open a rule', 'Select an entry from the list to read the rendered document.'],
       ['Filter by scope or tag', 'Use the filter menu to group related knowledge.'],
@@ -180,7 +177,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Guidance',
     Icon: Compass,
     kind: 'brain-view',
-    desc: 'Playbooks that shape how your digital twin behaves — rich documents rendered on the right.',
+    desc: 'Playbooks that shape how your teammate behaves — rich documents rendered on the right.',
     steps: [
       ['Open a playbook', 'Select an entry from the list to read the rendered document.'],
       ['Filter by scope or tag', 'Use the filter menu to group related playbooks.'],
@@ -192,7 +189,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',
-    desc: 'Everything your digital twin has ingested — browse nested tables like a directory and open any to view rows.',
+    desc: 'Everything your teammate has ingested — browse nested tables like a directory and open any to view rows.',
     steps: [
       ['Open a folder', 'Drill into nested tables like a file directory.'],
       ['Open a table', 'View its schema and rows at the leaf.'],
@@ -207,5 +204,5 @@ export const SECTION_BY_ID: Record<string, SectionDef> = Object.fromEntries(
   ALL_SECTIONS.map((s) => [s.id, s])
 );
 
-/** The section shown on first load and after picking a fresh digital twin. */
+/** The section shown on first load and after picking a fresh teammate. */
 export const DEFAULT_SECTION_ID = 'chat';

@@ -491,13 +491,13 @@ export async function skipWorkspaceSetupIfPrompted(page: Page) {
 }
 
 /**
- * Click the "Onboard Digital Twin" button in the hire dialog.
+ * Click the "Onboard Teammate" button in the hire dialog.
  * Scrolls the button into view first since the dialog content may be tall, and
  * ticks the workspace "Skip" first so the flow isn't blocked on workspace setup.
  */
 export async function clickHireButton(page: Page) {
   await skipWorkspaceSetupIfPrompted(page);
-  const hireBtn = page.getByRole('button', { name: 'Onboard Digital Twin', exact: true });
+  const hireBtn = page.getByRole('button', { name: 'Onboard Teammate', exact: true });
   await hireBtn.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await hireBtn.click();

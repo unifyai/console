@@ -27,8 +27,12 @@ export function replyStepForCoordinatorTriggerStep(
 
 export async function dispatchCoordinatorOnboardingStepEvent(
   assistantId: string | number,
-  step: OnboardingStep
+  step: OnboardingStep,
+  chipId?: string
 ): Promise<OnboardingEventSpec | null> {
+  // The row itself must carry an event (its graph-owned trigger). A chip click
+  // reuses the owning row's event as the guard, but Orchestra resolves the
+  // chip-specific event server-side from ``chipId``.
   if (!step.event) return null;
 
   const response = await fetch('/api/coordinator-onboarding-step-event', {
@@ -37,6 +41,7 @@ export async function dispatchCoordinatorOnboardingStepEvent(
     body: JSON.stringify({
       coordinatorId: String(assistantId),
       stepId: step.id,
+      ...(chipId ? { chipId } : {}),
     }),
   });
 

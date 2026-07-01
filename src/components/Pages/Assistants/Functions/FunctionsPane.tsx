@@ -170,7 +170,7 @@ function CopySignatureButton({ skill }: { skill: FunctionSkill }) {
 //       <div className="text-body-muted bg-muted/40 flex items-start gap-2 rounded-lg border p-3 text-sm">
 //         <Play className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
 //         <span>
-//           Running functions directly from this view isn&apos;t available yet. Ask your digital twin
+//           Running functions directly from this view isn&apos;t available yet. Ask your teammate
 //           in chat to run <span className="font-mono">{skill.name}</span> for you.
 //         </span>
 //       </div>
@@ -363,7 +363,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
                     size="sm"
                     onClick={() =>
                       toast('Running functions isn’t available from this view yet.', {
-                        description: 'Ask your digital twin in chat to run this function.',
+                        description: 'Ask your teammate in chat to run this function.',
                       })
                     }
                     data-testid="function-run"

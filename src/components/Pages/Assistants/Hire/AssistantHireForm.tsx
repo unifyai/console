@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { Gender, SupportedLanguage } from '@/types/assistants/cartesia';
 import {
   Select,
   SelectContent,
@@ -65,7 +65,7 @@ import {
   getRotatingBotViewBox,
 } from '@unity/brand/components';
 
-const staticSkillsText = `The bio doesn't influence the digital twin's abilities. All digital twins come with the same foundational skills and can specialize in whichever area you want them to.`;
+const staticSkillsText = `The bio doesn't influence the teammate's abilities. All teammates come with the same foundational skills and can specialize in whichever area you want them to.`;
 const UNITY_PREVIEW_SIZE = 120;
 const UNITY_PREVIEW_REST_SIZE = 152;
 const UNITY_PREVIEW_REST_SCALE = UNITY_PREVIEW_REST_SIZE / UNITY_PREVIEW_SIZE;
@@ -442,7 +442,7 @@ export function HireForm({
   const workspaceAssistantName =
     typeof firstName === 'string' && firstName.trim().length > 0
       ? firstName.trim()
-      : 'this digital twin';
+      : 'this teammate';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const unityControlTop = React.useMemo(() => {
     const form = getUnityBodyForm(selectedUnityBody);
@@ -611,9 +611,9 @@ export function HireForm({
                                   className="text-caption max-w-xs"
                                 >
                                   <p>
-                                    Optional short label to remember what this digital twin is for
-                                    (e.g. &quot;Growth marketing&quot;, &quot;QA engineer&quot;).
-                                    Shown in the digital twins list hover card.
+                                    Optional short label to remember what this teammate is for (e.g.
+                                    &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
+                                    the teammates list hover card.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -745,7 +745,7 @@ export function HireForm({
 
                                 <AppearanceControlTooltip label="Outfit" side="left">
                                   <Button
-                                    aria-label="Previous droid outfit"
+                                    aria-label="Previous teammate outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -767,7 +767,7 @@ export function HireForm({
                                 </AppearanceControlTooltip>
                                 <AppearanceControlTooltip label="Outfit" side="right">
                                   <Button
-                                    aria-label="Next droid outfit"
+                                    aria-label="Next teammate outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -896,7 +896,7 @@ export function HireForm({
                               <div className="flex items-center gap-2">
                                 <AppearanceControlTooltip label="Color" side="left">
                                   <Button
-                                    aria-label="Previous droid color"
+                                    aria-label="Previous teammate color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -912,7 +912,7 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
                                 <div
-                                  aria-label="Droid color"
+                                  aria-label="Teammate color"
                                   className="flex items-center gap-1.5 px-1 py-1"
                                   role="group"
                                 >
@@ -928,7 +928,7 @@ export function HireForm({
                                             aria-current={isSelected ? 'true' : undefined}
                                             aria-label={
                                               isSelected
-                                                ? `Current droid color: ${color}`
+                                                ? `Current teammate color: ${color}`
                                                 : `Select ${color}`
                                             }
                                             className={cn(
@@ -969,7 +969,7 @@ export function HireForm({
                                 </div>
                                 <AppearanceControlTooltip label="Color" side="right">
                                   <Button
-                                    aria-label="Next droid color"
+                                    aria-label="Next teammate color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -988,7 +988,7 @@ export function HireForm({
 
                               <div className="flex items-center justify-center">
                                 <Button
-                                  aria-label="Randomize droid appearance"
+                                  aria-label="Randomize teammate appearance"
                                   type="button"
                                   variant="outline"
                                   size="sm"

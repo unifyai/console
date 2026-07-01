@@ -2,16 +2,17 @@
  * Sources the live task data the Coordinator onboarding "Tasks" beats need.
  *
  * Two beats sit in the Delegate phase:
- *   - "Launch a mission" (scheduled boomerang) — surfaces a countdown to the
- *     nearest upcoming scheduled task so the ~minute wait before the
- *     assistant reports back reads as a launch beat rather than dead air.
- *   - "Arm a tripwire" (event-triggered) — surfaces the armed task's id so
- *     the checklist can offer a deterministic "Test it" control that fires
- *     the trigger on demand.
+ *   - "Create a scheduled task" (scheduled boomerang) — surfaces a countdown
+ *     to the nearest upcoming scheduled task so the ~minute wait before the
+ *     assistant reports back reads as progress rather than dead air.
+ *   - "Create a triggerable task" (event-triggered) — surfaces the armed
+ *     task's id so the checklist can offer a deterministic "Test it" control
+ *     that fires the trigger on demand.
  *
  * Beat *completion* is derived server-side by Orchestra (a schedule-bearing
- * task exists → launch-mission; a trigger-bearing task exists → arm-tripwire)
- * and flows back through the Coordinator state read, so this hook only
+ * task exists → create-scheduled-task; a trigger-bearing task exists →
+ * create-triggerable-task) and flows back through the Coordinator state read,
+ * so this hook only
  * provides the interactive affordances. It polls task data on a short
  * interval while active so a freshly-created task lights up its beat without
  * a manual refresh.
@@ -54,11 +55,11 @@ function readTaskDueAt(row: TaskRow): string | null {
 
 export interface CoordinatorTaskBeats {
   /** Id of an armed (trigger-only) task, or null when none exists yet. */
-  armedTripwireTaskId: number | null;
+  armedTriggerableTaskId: number | null;
   /** Nearest upcoming scheduled task's due time (ISO), or null when none. */
-  nextMissionDueAt: string | null;
-  /** Deterministically fire the armed tripwire, then refresh task data. */
-  testTripwire: (taskId: number) => Promise<void>;
+  nextScheduledTaskDueAt: string | null;
+  /** Deterministically fire the armed triggerable task, then refresh task data. */
+  testTriggerableTask: (taskId: number) => Promise<void>;
 }
 
 export function useCoordinatorTaskBeats(
@@ -77,12 +78,12 @@ export function useCoordinatorTaskBeats(
     return () => clearInterval(interval);
   }, [enabled, refetch]);
 
-  const armedTripwireTaskId = React.useMemo(() => {
+  const armedTriggerableTaskId = React.useMemo(() => {
     const match = tasks.rows.find((row) => hasTriggerShape(row) && !hasScheduleShape(row));
     return match ? match.taskId : null;
   }, [tasks.rows]);
 
-  const nextMissionDueAt = React.useMemo(() => {
+  const nextScheduledTaskDueAt = React.useMemo(() => {
     const now = Date.now();
     let best: { at: string; ms: number } | null = null;
     for (const row of tasks.rows) {
@@ -96,7 +97,7 @@ export function useCoordinatorTaskBeats(
     return best ? best.at : null;
   }, [tasks.rows]);
 
-  const testTripwire = React.useCallback(
+  const testTriggerableTask = React.useCallback(
     async (taskId: number) => {
       await triggerTask(taskId);
       refetch();
@@ -104,5 +105,5 @@ export function useCoordinatorTaskBeats(
     [refetch]
   );
 
-  return { armedTripwireTaskId, nextMissionDueAt, testTripwire };
+  return { armedTriggerableTaskId, nextScheduledTaskDueAt, testTriggerableTask };
 }

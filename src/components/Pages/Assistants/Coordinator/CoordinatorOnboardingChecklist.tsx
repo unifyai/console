@@ -73,8 +73,8 @@ export type ChecklistAction =
   | 'trigger-workspace-tasks'
   | 'connect-apps'
   | 'act'
-  | 'launch-mission'
-  | 'arm-tripwire';
+  | 'create-scheduled-task'
+  | 'create-triggerable-task';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -134,8 +134,8 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'workspace-tasks': 'trigger-workspace-tasks',
   apps: 'connect-apps',
   act: 'act',
-  'launch-mission': 'launch-mission',
-  'arm-tripwire': 'arm-tripwire',
+  'create-scheduled-task': 'create-scheduled-task',
+  'create-triggerable-task': 'create-triggerable-task',
 };
 
 const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
@@ -158,6 +158,8 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-calendar': 'Summarizing...',
   'trigger-workspace-contacts': 'Summarizing...',
   'trigger-workspace-tasks': 'Summarizing...',
+  'create-scheduled-task': 'Starting...',
+  'create-triggerable-task': 'Starting...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -550,24 +552,29 @@ export interface CoordinatorOnboardingChecklistProps {
    * degrades to a static entry. */
   onActNow?: () => void;
   /** Opens the Tasks pane in the current surface. Hung off
-   * "Launch a mission" — the user schedules a task and watches me
+   * "Create a scheduled task" — the user schedules a task and watches me
    * report back. Unset means the row degrades to a static entry. */
-  onLaunchMission?: () => void;
+  onCreateScheduledTask?: () => void;
   /** Opens the Tasks pane in the current surface. Hung off
-   * "Arm a tripwire" — the user arms an event-triggered task. Unset
-   * means the row degrades to a static entry. */
-  onArmTripwire?: () => void;
-  /** Deterministically fire the armed tripwire task by id — powers the
-   * inline "Test it" affordance under the ``arm-tripwire`` row. Unset
-   * (or a null ``armedTripwireTaskId``) hides the affordance. */
-  onTestTripwire?: (taskId: number) => void;
+   * "Create a triggerable task" — the user arms an event-triggered task.
+   * Unset means the row degrades to a static entry. */
+  onCreateTriggerableTask?: () => void;
+  /** Dispatch the event for one Tasks-phase example chip so Twin sets that
+   * specific task up straight away. ``stepId`` is the owning beat row id
+   * (``create-scheduled-task`` / ``create-triggerable-task``); ``chipId`` the
+   * chip's id. Unset leaves the chips as read-only inspiration. */
+  onSelectTaskChip?: (stepId: string, chipId: string) => void;
+  /** Deterministically fire the armed triggerable task by id — powers the
+   * inline "Test it" affordance under the ``create-triggerable-task`` row.
+   * Unset (or a null ``armedTriggerableTaskId``) hides the affordance. */
+  onTestTriggerableTask?: (taskId: number) => void;
   /** Task id of an armed (triggerable) task the user just created, used
    * to target the "Test it" affordance. Null until one exists. */
-  armedTripwireTaskId?: number | null;
+  armedTriggerableTaskId?: number | null;
   /** Absolute ISO due time of the nearest upcoming scheduled task, used
-   * to render the "Launch a mission" countdown. Null when none is
+   * to render the "Create a scheduled task" countdown. Null when none is
    * pending. */
-  nextMissionDueAt?: string | null;
+  nextScheduledTaskDueAt?: string | null;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
@@ -588,11 +595,12 @@ export function CoordinatorOnboardingChecklist({
   onConnectWorkspace,
   onConnectApps,
   onActNow,
-  onLaunchMission,
-  onArmTripwire,
-  onTestTripwire,
-  armedTripwireTaskId = null,
-  nextMissionDueAt = null,
+  onCreateScheduledTask,
+  onCreateTriggerableTask,
+  onSelectTaskChip,
+  onTestTriggerableTask,
+  armedTriggerableTaskId = null,
+  nextScheduledTaskDueAt = null,
   onSkipSection,
   onUnskipSection,
   isOnCall = false,
@@ -666,8 +674,8 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'trigger-workspace-tasks') onTriggerReferenceStep?.('workspace-tasks');
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
-      else if (action === 'launch-mission') onLaunchMission?.();
-      else if (action === 'arm-tripwire') onArmTripwire?.();
+      else if (action === 'create-scheduled-task') onCreateScheduledTask?.();
+      else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
     },
     [
       onStartOnboardingStep,
@@ -679,8 +687,8 @@ export function CoordinatorOnboardingChecklist({
       onConnectWorkspace,
       onConnectApps,
       onActNow,
-      onLaunchMission,
-      onArmTripwire,
+      onCreateScheduledTask,
+      onCreateTriggerableTask,
     ]
   );
 
@@ -717,6 +725,22 @@ export function CoordinatorOnboardingChecklist({
       handleAction(item.action);
     },
     [handleAction, triggerActionFeedback]
+  );
+
+  // Tasks-beat chips dispatch straight through ``onSelectTaskChip`` rather than
+  // ``handleChecklistRowAction``, so wrap the parent handler to surface the same
+  // transient row feedback the reference-quiz rows show on click. Stays
+  // undefined when no handler is wired so the ``chipsClickable`` gate keeps the
+  // chips read-only.
+  const handleSelectTaskChip = React.useMemo(
+    () =>
+      onSelectTaskChip
+        ? (stepId: string, chipId: string) => {
+            triggerActionFeedback(stepId, 'Setting up...');
+            onSelectTaskChip(stepId, chipId);
+          }
+        : undefined,
+    [onSelectTaskChip, triggerActionFeedback]
   );
 
   // An action is reachable when the parent has wired the
@@ -775,8 +799,8 @@ export function CoordinatorOnboardingChecklist({
       }
       if (action === 'connect-apps') return !!onConnectApps;
       if (action === 'act') return !!onActNow;
-      if (action === 'launch-mission') return !!onLaunchMission;
-      if (action === 'arm-tripwire') return !!onArmTripwire;
+      if (action === 'create-scheduled-task') return !!onCreateScheduledTask;
+      if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
       return false;
     },
     [
@@ -789,8 +813,8 @@ export function CoordinatorOnboardingChecklist({
       onConnectWorkspace,
       onConnectApps,
       onActNow,
-      onLaunchMission,
-      onArmTripwire,
+      onCreateScheduledTask,
+      onCreateTriggerableTask,
     ]
   );
 
@@ -1071,9 +1095,10 @@ export function CoordinatorOnboardingChecklist({
                                 onBlockedStepClick={triggerBlockedFeedback}
                                 isOnCall={isOnCall}
                                 onResetStepProgress={resetStepProgress}
-                                onTestTripwire={onTestTripwire}
-                                armedTripwireTaskId={armedTripwireTaskId}
-                                nextMissionDueAt={nextMissionDueAt}
+                                onTestTriggerableTask={onTestTriggerableTask}
+                                armedTriggerableTaskId={armedTriggerableTaskId}
+                                nextScheduledTaskDueAt={nextScheduledTaskDueAt}
+                                onSelectTaskChip={handleSelectTaskChip}
                               />
                             ))}
                           </CommunicationSubgroup>
@@ -1097,9 +1122,10 @@ export function CoordinatorOnboardingChecklist({
                             onBlockedStepClick={triggerBlockedFeedback}
                             isOnCall={isOnCall}
                             onResetStepProgress={resetStepProgress}
-                            onTestTripwire={onTestTripwire}
-                            armedTripwireTaskId={armedTripwireTaskId}
-                            nextMissionDueAt={nextMissionDueAt}
+                            onTestTriggerableTask={onTestTriggerableTask}
+                            armedTriggerableTaskId={armedTriggerableTaskId}
+                            nextScheduledTaskDueAt={nextScheduledTaskDueAt}
+                            onSelectTaskChip={handleSelectTaskChip}
                           />
                         ))}
                   </ul>
@@ -1254,12 +1280,14 @@ interface ChecklistRowProps {
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
   onResetStepProgress?: (stepIds: readonly string[], resetStepId?: string) => void;
-  /** Deterministic tripwire fire — powers the "Test it" affordance. */
-  onTestTripwire?: (taskId: number) => void;
-  /** Armed tripwire task id, or null when none exists yet. */
-  armedTripwireTaskId?: number | null;
+  /** Deterministic triggerable-task fire — powers the "Test it" affordance. */
+  onTestTriggerableTask?: (taskId: number) => void;
+  /** Armed triggerable task id, or null when none exists yet. */
+  armedTriggerableTaskId?: number | null;
   /** Nearest upcoming scheduled task due time (ISO), for the countdown. */
-  nextMissionDueAt?: string | null;
+  nextScheduledTaskDueAt?: string | null;
+  /** Dispatch a Tasks-phase chip event. Unset leaves chips read-only. */
+  onSelectTaskChip?: (stepId: string, chipId: string) => void;
 }
 
 function ChecklistRow({
@@ -1277,9 +1305,10 @@ function ChecklistRow({
   onBlockedStepClick,
   isOnCall,
   onResetStepProgress,
-  onTestTripwire,
-  armedTripwireTaskId = null,
-  nextMissionDueAt = null,
+  onTestTriggerableTask,
+  armedTriggerableTaskId = null,
+  nextScheduledTaskDueAt = null,
+  onSelectTaskChip,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
@@ -1512,36 +1541,37 @@ function ChecklistRow({
     );
   }
 
-  // Read-only suggestion chips under the ``act`` / ``schedule``
-  // rows — each row shows the set that matches what completes it
-  // (point-in-time prompts for ``act``, scheduled/event prompts for
-  // ``schedule``). Rendered only while the row is still pending; hidden
-  // rows never reach this component. We intentionally don't wire
-  // any click behaviour: the chips are non-interactive copy. Same
-  // chip reads the same in chat and call surfaces — keeping them
-  // inert avoids bifurcating semantics across the two transports
-  // (chat could seed an input, call has nothing to seed) and avoids
-  // the user accidentally firing a multi-sentence prompt
-  // mid-voice-turn.
-  // Suggestion chips come from the server render (sourced from the
-  // canonical graph). The chat/call split lives in the data: ``act``
-  // carries distinct sets, the Tasks beats carry their own, and every
-  // other step carries none — so an empty list naturally means "no
-  // chips here".
+  // Suggestion chips under the ``act`` / Tasks-beat rows — each row shows the
+  // set that matches what completes it (point-in-time prompts for ``act``,
+  // scheduled/event prompts for the Tasks beats). Rendered only while the row
+  // is still pending; hidden rows never reach this component.
+  //
+  // The Tasks beats (``create-scheduled-task`` / ``create-triggerable-task``)
+  // wire an ``onSelectTaskChip`` handler: clicking a chip dispatches a system
+  // event that asks Twin to set up that specific task. ``act`` and every other
+  // step pass no handler, so their chips stay read-only inspiration.
+  //
+  // Suggestion chips come from the server render (sourced from the canonical
+  // graph). The chat/call split lives in the data: ``act`` carries distinct
+  // sets, the Tasks beats carry their own, and every other step carries none —
+  // so an empty list naturally means "no chips here".
   const suggestionsForItem = isOnCall ? item.chipsCall : item.chipsChat;
   const showSuggestions =
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
+  const chipsClickable =
+    !!onSelectTaskChip &&
+    (item.id === 'create-scheduled-task' || item.id === 'create-triggerable-task');
 
   // Beat-specific affordances that sit under their row while it's the
-  // active step: a launch countdown once a mission is scheduled, and a
-  // deterministic "Test it" control once a tripwire is armed.
-  const showMissionCountdown =
-    item.id === 'launch-mission' && item.status === 'pending' && !!nextMissionDueAt;
-  const showTripwireTest =
-    item.id === 'arm-tripwire' &&
+  // active step: a countdown once a scheduled task is set, and a
+  // deterministic "Test it" control once a triggerable task is armed.
+  const showScheduledTaskCountdown =
+    item.id === 'create-scheduled-task' && item.status === 'pending' && !!nextScheduledTaskDueAt;
+  const showTriggerableTaskTest =
+    item.id === 'create-triggerable-task' &&
     item.status === 'pending' &&
-    !!onTestTripwire &&
-    armedTripwireTaskId != null;
+    !!onTestTriggerableTask &&
+    armedTriggerableTaskId != null;
 
   return (
     <li className="flex flex-col gap-2">
@@ -1549,40 +1579,56 @@ function ChecklistRow({
       {showSuggestions && suggestionsForItem ? (
         <ul
           className={cn('ml-6 flex flex-wrap gap-1.5', dimClassName)}
-          aria-label="Suggested workflows to try"
+          aria-label={chipsClickable ? 'Example tasks to set up' : 'Suggested workflows to try'}
           data-testid="coordinator-onboarding-suggestions"
         >
           {suggestionsForItem.map((workflow) => (
-            <li
-              key={workflow.id}
-              className={cn(
-                'inline-flex select-none items-center rounded-full',
-                'bg-muted/40 px-2 py-0.5',
-                'text-caption text-muted-foreground'
+            <li key={workflow.id}>
+              {chipsClickable ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectTaskChip?.(item.id, workflow.id)}
+                  className={cn(
+                    'inline-flex items-center rounded-full text-left',
+                    'bg-muted/40 px-2 py-0.5 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    'text-caption text-muted-foreground transition-colors hover:text-foreground'
+                  )}
+                  data-testid={`coordinator-onboarding-suggestion-${workflow.id}`}
+                >
+                  {workflow.label}
+                </button>
+              ) : (
+                <span
+                  className={cn(
+                    'inline-flex select-none items-center rounded-full',
+                    'bg-muted/40 px-2 py-0.5',
+                    'text-caption text-muted-foreground'
+                  )}
+                  data-testid={`coordinator-onboarding-suggestion-${workflow.id}`}
+                >
+                  {workflow.label}
+                </span>
               )}
-              data-testid={`coordinator-onboarding-suggestion-${workflow.id}`}
-            >
-              {workflow.label}
             </li>
           ))}
         </ul>
       ) : null}
-      {showMissionCountdown && nextMissionDueAt ? (
+      {showScheduledTaskCountdown && nextScheduledTaskDueAt ? (
         <div className="ml-6">
-          <MissionCountdown dueAt={nextMissionDueAt} />
+          <ScheduledTaskCountdown dueAt={nextScheduledTaskDueAt} />
         </div>
       ) : null}
-      {showTripwireTest && armedTripwireTaskId != null && onTestTripwire ? (
+      {showTriggerableTaskTest && armedTriggerableTaskId != null && onTestTriggerableTask ? (
         <div className="ml-6">
           <button
             type="button"
-            onClick={() => onTestTripwire(armedTripwireTaskId)}
+            onClick={() => onTestTriggerableTask(armedTriggerableTaskId)}
             className={cn(
               'text-caption rounded-control inline-flex items-center gap-1.5 px-2 py-1 font-medium',
               'bg-primary/10 hover:bg-primary/20 text-primary',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             )}
-            data-testid="coordinator-onboarding-test-tripwire"
+            data-testid="coordinator-onboarding-test-triggerable-task"
           >
             Test it
           </button>
@@ -1606,9 +1652,10 @@ function ChecklistRow({
               onBlockedStepClick={onBlockedStepClick}
               isOnCall={isOnCall}
               onResetStepProgress={onResetStepProgress}
-              onTestTripwire={onTestTripwire}
-              armedTripwireTaskId={armedTripwireTaskId}
-              nextMissionDueAt={nextMissionDueAt}
+              onTestTriggerableTask={onTestTriggerableTask}
+              armedTriggerableTaskId={armedTriggerableTaskId}
+              nextScheduledTaskDueAt={nextScheduledTaskDueAt}
+              onSelectTaskChip={onSelectTaskChip}
             />
           ))}
         </ul>
@@ -1618,13 +1665,13 @@ function ChecklistRow({
 }
 
 /**
- * Live countdown to the nearest scheduled mission's due time. Frames the
- * ~minute wait before the assistant reports back as a mission launch beat
+ * Live countdown to the nearest scheduled task's due time. Frames the
+ * ~minute wait before the assistant reports back
  * ("reaching you in 00:47") rather than dead air. Counts down to zero and
- * then flips to a launched state; the row itself lands once the scheduled
+ * then flips to a started state; the row itself lands once the scheduled
  * Task Run actually appears.
  */
-function MissionCountdown({ dueAt }: { dueAt: string }) {
+function ScheduledTaskCountdown({ dueAt }: { dueAt: string }) {
   const targetMs = React.useMemo(() => {
     const parsed = Date.parse(dueAt);
     return Number.isNaN(parsed) ? null : parsed;
@@ -1646,16 +1693,16 @@ function MissionCountdown({ dueAt }: { dueAt: string }) {
   const totalSeconds = Math.ceil(remainingMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  const launched = totalSeconds <= 0;
+  const started = totalSeconds <= 0;
 
   return (
     <span
       className="text-caption inline-flex items-center gap-1.5 text-muted-foreground"
-      data-testid="coordinator-onboarding-mission-countdown"
-      data-launched={launched ? 'true' : undefined}
+      data-testid="coordinator-onboarding-scheduled-task-countdown"
+      data-started={started ? 'true' : undefined}
     >
-      {launched
-        ? 'Mission launched — reaching out now…'
+      {started
+        ? 'Task started — reaching out now…'
         : `Reaching you in ${minutes}:${String(seconds).padStart(2, '0')}`}
     </span>
   );

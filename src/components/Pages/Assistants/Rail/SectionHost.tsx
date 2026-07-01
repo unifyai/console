@@ -8,6 +8,8 @@ interface SectionHostProps {
   /** Renders the existing right-pane view for a `view` section. Skipped for
    *  `placeholder` sections so the heavy view never mounts behind the panel. */
   renderView: () => React.ReactNode;
+  headerLeading?: React.ReactNode;
+  headerRight?: React.ReactNode;
 }
 
 /**
@@ -16,10 +18,10 @@ interface SectionHostProps {
  * for net-new Brain sections. The right-pane strip is suppressed by the caller
  * because the rail owns primary navigation.
  */
-export function SectionHost({ section, renderView }: SectionHostProps) {
+export function SectionHost({ section, renderView, headerLeading, headerRight }: SectionHostProps) {
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <TabHeader section={section} />
+      <TabHeader section={section} leading={headerLeading} right={headerRight} />
       <div className="min-h-0 flex-1 overflow-hidden">
         {section.kind === 'placeholder' ? <SectionPlaceholder section={section} /> : renderView()}
       </div>

@@ -2,7 +2,6 @@ import React from 'react';
 import Script from 'next/script';
 import { SessionProvider } from './SessionProvider';
 import QueryProvider from './QueryProvider';
-import { NextUIProvider } from '@nextui-org/react';
 import { SidebarProvider } from '@/components/UI/sidebar';
 import { WorkspaceProvider } from './WorkspaceProvider';
 import { EnvironmentProvider } from './EnvironmentProvider';
@@ -27,7 +26,7 @@ export default async function Providers({ children }: { children: React.ReactNod
 
   return (
     <>
-      <NextUIProvider className="flex h-full flex-1 flex-col">
+      <div className="flex h-full flex-1 flex-col">
         <SidebarProvider>
           <SessionProvider>
             <EnvironmentProvider config={envConfig}>
@@ -40,7 +39,7 @@ export default async function Providers({ children }: { children: React.ReactNod
             </EnvironmentProvider>
           </SessionProvider>
         </SidebarProvider>
-      </NextUIProvider>
+      </div>
       {/* GTM temporarily disabled - was interfering with SPA navigation
       <Script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX" />
       <Script id="ganalytics">{`

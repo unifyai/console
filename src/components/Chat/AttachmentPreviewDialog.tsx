@@ -20,9 +20,6 @@ import {
   getSignedUrl,
   fetchGcsContent,
 } from './attachmentUtils';
-import mammoth from 'mammoth';
-import ExcelJS from 'exceljs';
-import { pptxToHtml } from '@jvmr/pptx-to-html';
 import { Badge } from '@/components/UI/badge';
 import type { Attachment, AttachmentType } from '@/types/assistants/chat';
 
@@ -36,11 +33,14 @@ const PREVIEWABLE_TYPES = new Set<AttachmentType>([
   'powerpoint',
 ]);
 
-function worksheetToHtml(ws: ExcelJS.Worksheet): string {
+function worksheetToHtml(ws: {
+  eachRow: (callback: (row: { values: unknown[] | Record<string, unknown> }) => void) => void;
+}): string {
   const rows: string[] = [];
   ws.eachRow((row) => {
-    const cells = (row.values as ExcelJS.CellValue[])
-      .slice(1) // ExcelJS rows are 1-indexed; index 0 is empty
+    const values = row.values;
+    const cells = (Array.isArray(values) ? values : Object.values(values))
+      .slice(1)
       .map((v) => `<td>${v != null ? String(v) : ''}</td>`)
       .join('');
     rows.push(`<tr>${cells}</tr>`);
@@ -127,6 +127,7 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
           return;
         }
 
+        const { default: mammoth } = await import('mammoth');
         const result = await mammoth.convertToHtml({ arrayBuffer });
         if (!cancelled) setState({ status: 'html', content: result.value });
         return;
@@ -144,6 +145,7 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
           return;
         }
 
+        const { default: ExcelJS } = await import('exceljs');
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(arrayBuffer);
         const sheets: ExcelSheet[] = workbook.worksheets.map((ws) => ({
@@ -173,6 +175,7 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
           return;
         }
 
+        const { pptxToHtml } = await import('@jvmr/pptx-to-html');
         const slides = await pptxToHtml(arrayBuffer);
         if (!cancelled) setState({ status: 'slides', slides });
         return;

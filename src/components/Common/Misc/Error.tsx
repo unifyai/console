@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { tryReloadForChunkLoadError } from '@/utils/chunkLoadReload';
 import { BrandFallback } from './BrandFallback';
 
 export default function Error({
@@ -11,6 +12,10 @@ export default function Error({
   reset: () => void;
 }) {
   React.useEffect(() => {
+    if (tryReloadForChunkLoadError(error)) {
+      return;
+    }
+
     void fetch('/api/client-errors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -29,10 +34,10 @@ export default function Error({
     <BrandFallback
       actionLabel="Try again"
       apology="Sorry about that. We're working on a fix now."
-      description="The console hit a snag while loading this view. Try again, or head back to the console while Unify resets."
+      description="The console hit a snag while loading this view. Try again, or head back to the console while things reset."
       eyebrow="System hiccup"
       onAction={reset}
-      title="Unify tripped over a loose cable"
+      title="Someone tripped over a loose cable"
     />
   );
 }
