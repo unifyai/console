@@ -30,6 +30,8 @@ import {
   clearUserWhatsappNumber,
   ensureProjectSync,
   dbExecBlock,
+  openContactManagerFromList,
+  openWorkspaceManagerFromList,
 } from './helpers';
 
 const user = createTestUser({ name: 'Contact', lastName: 'Tester', credits: 50_000 });
@@ -111,24 +113,7 @@ async function openContactManager(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  // Open the dropdown menu on the list item
-  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  // Click "Contact Details" in the dropdown
-  const contactsItem = page.getByTestId('menu-update-contacts');
-  await expect(contactsItem).toBeVisible({ timeout: 5_000 });
-  await contactsItem.click();
-  await page.waitForTimeout(1_000);
-
-  await expect(page.locator('text=Update Contact')).toBeVisible({ timeout: 5_000 });
+  await openContactManagerFromList(page, targetAssistant.agentId);
 }
 
 async function openWorkspaceManager(
@@ -138,23 +123,7 @@ async function openWorkspaceManager(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  const workspaceItem = page.getByTestId('menu-update-workspace');
-  await expect(workspaceItem).toBeVisible({ timeout: 5_000 });
-  await workspaceItem.click();
-
-  await expect(page.getByRole('dialog').getByText('Workspace', { exact: true })).toBeVisible({
-    timeout: 5_000,
-  });
+  await openWorkspaceManagerFromList(page, targetAssistant.agentId);
 }
 
 test('adding a phone contact persists it to the database', async ({ authedPage: page }) => {

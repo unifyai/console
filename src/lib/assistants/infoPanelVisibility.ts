@@ -12,6 +12,19 @@ export interface AssistantInfoPanelToggleRequestDetail {
   assistantId: string;
 }
 
+let pendingInfoPanelOpenAssistantId: string | null = null;
+
+/** Opens the info panel once the requested assistant becomes active. */
+export function requestAssistantInfoPanelOpenAfterSelect(assistantId: string): void {
+  pendingInfoPanelOpenAssistantId = assistantId;
+}
+
+export function consumePendingInfoPanelOpen(assistantId: string): boolean {
+  if (pendingInfoPanelOpenAssistantId !== assistantId) return false;
+  pendingInfoPanelOpenAssistantId = null;
+  return true;
+}
+
 declare global {
   interface Window {
     __consoleAssistantInfoPanelVisibility?: AssistantInfoPanelVisibilityDetail;

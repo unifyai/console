@@ -10,7 +10,6 @@ import {
   UsersRound,
 } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
-import type { ContactType } from '@/types/assistants/contact';
 import { AssistantListItem } from './AssistantListItem';
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
@@ -87,24 +86,8 @@ interface AssistantListProps {
   error: string | null;
   profileAssistantId: string | null;
   onShowProfile: (id: string) => void;
+  onToggleAssistantInfo: (assistantId: string) => void;
   onOpenHireDialog: () => void;
-  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
-  onOpenWorkspaceManager: (assistant: Assistant) => void;
-  onEditAssistant: (assistant: Assistant) => void;
-  /** Opens the desktop linker for an assistant. Surfaced as a row
-   *  dropdown entry only for assistants the current user owns. */
-  onConnectDesktop?: (assistant: Assistant) => void;
-  onEndContract?: (assistant: Assistant) => Promise<void>;
-  canEndContract?: (assistant: Assistant) => boolean;
-  /**
-   * Predicate gating the row dropdown's "Profile" / "Contact Details"
-   * edit entries. When it returns `false` for an assistant the menu
-   * items are hidden entirely (rather than disabled) so non-write
-   * viewers don't see edit affordances they can't act on. Defaults
-   * to "always allowed" to preserve back-compat for callers that
-   * pre-date the gating.
-   */
-  canEditAssistant?: (assistant: Assistant) => boolean;
   isFolded: boolean;
   activeCallAssistantId: string | null;
   /** Whether the current user can hire new assistants (org Owner in org context, anyone in personal workspace) */
@@ -128,14 +111,8 @@ export function AssistantList({
   error,
   profileAssistantId,
   onShowProfile,
+  onToggleAssistantInfo,
   onOpenHireDialog,
-  onOpenContactManager,
-  onOpenWorkspaceManager,
-  onEditAssistant,
-  onConnectDesktop,
-  onEndContract,
-  canEndContract,
-  canEditAssistant,
   isFolded,
   activeCallAssistantId,
   canHire = true,
@@ -257,14 +234,7 @@ export function AssistantList({
           status={assistantStatuses.get(entry.assistant.agentId) || null}
           isSelected={profileAssistantId === entry.assistant.agentId}
           onShowProfile={onShowProfile}
-          onOpenContactManager={onOpenContactManager}
-          onOpenWorkspaceManager={onOpenWorkspaceManager}
-          onEditAssistant={onEditAssistant}
-          onConnectDesktop={
-            currentUserId && entry.assistant.userId === currentUserId ? onConnectDesktop : undefined
-          }
-          onEndContract={canEndContract?.(entry.assistant) ? onEndContract : undefined}
-          canEdit={canEditAssistant ? canEditAssistant(entry.assistant) : true}
+          onToggleAssistantInfo={onToggleAssistantInfo}
           isFolded={isFolded}
           isCallActive={activeCallAssistantId === entry.assistant.agentId}
           unreadCount={unreadCounts?.[entry.assistant.agentId] ?? 0}
@@ -278,16 +248,9 @@ export function AssistantList({
     [
       activeCallAssistantId,
       assistantStatuses,
-      canEditAssistant,
-      canEndContract,
-      currentUserId,
       isFolded,
-      onConnectDesktop,
-      onEditAssistant,
-      onEndContract,
-      onOpenContactManager,
-      onOpenWorkspaceManager,
       onShowProfile,
+      onToggleAssistantInfo,
       profileAssistantId,
       unreadCounts,
     ]

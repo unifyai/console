@@ -1,8 +1,8 @@
 /**
  * Assistant Profile E2E — verify that clicking an assistant in the list
  * selects it and shows the Chat tab with the assistant name header, that
- * the deep link via ?profile=<agentId> works, and that the dropdown menu
- * shows key options.
+ * the deep link via ?profile=<agentId> works, and that the list unfold
+ * control opens the assistant info panel.
  *
  * Run: npx playwright test src/tests/assistants/profile.e2e.ts
  */
@@ -20,6 +20,7 @@ import {
   getAssistantFromDb,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  openAssistantInfoPanelFromList,
 } from './helpers';
 
 const user = createTestUser({ name: 'ProfileE2E', lastName: 'Tester', credits: 50_000 });
@@ -80,26 +81,17 @@ test('deep link ?profile=agentId opens the correct assistant profile', async ({
   await expect(page.locator(`text=${db.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
-test('assistant list item dropdown menu has edit and contacts options', async ({
-  authedPage: page,
-}) => {
+test('assistant list item unfold control opens the info panel', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  // The list (and its per-row kebab menu) lives in the switcher popover now.
   await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
-  // Open the dropdown menu
-  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  // Verify both remaining menu items are visible — secrets has moved to
-  // a dedicated tab in the right-hand pane.
-  await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('menu-update-contacts')).toBeVisible({ timeout: 5_000 });
+  await openAssistantInfoPanelFromList(page, assistant.agentId);
+  await expect(page.getByTestId('assistant-info-edit-profile')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('assistant-info-edit-contact-section')).toBeVisible({
+    timeout: 5_000,
+  });
 });

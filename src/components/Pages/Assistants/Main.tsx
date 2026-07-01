@@ -45,6 +45,10 @@ const CoordinatorOnboarding = dynamic(
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import {
+  requestAssistantInfoPanelOpenAfterSelect,
+  requestAssistantInfoPanelToggle,
+} from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
@@ -258,6 +262,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleShowProfile(assistantId);
     },
     [handleProfileClose, handleShowProfile, profileAssistantId]
+  );
+  const handleToggleAssistantInfo = React.useCallback(
+    (assistantId: string) => {
+      if (profileAssistantId !== assistantId) {
+        requestAssistantInfoPanelOpenAfterSelect(assistantId);
+        handleShowProfile(assistantId);
+        return;
+      }
+      requestAssistantInfoPanelToggle({ assistantId });
+    },
+    [handleShowProfile, profileAssistantId]
   );
 
   // Right-pane state (primary tab, optional secondary tab for split-view,
@@ -2489,13 +2504,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     error: assistantError,
     profileAssistantId,
     onShowProfile: handleAssistantListSelect,
+    onToggleAssistantInfo: handleToggleAssistantInfo,
     onOpenHireDialog: handleOpenHireDialog,
-    onOpenContactManager: handleOpenContactManager,
-    onOpenWorkspaceManager: handleOpenWorkspaceManager,
-    onEditAssistant: handleOpenEditDialog,
-    onConnectDesktop: handleShowInstallInstructions,
-    onEndContract: onDeleteAssistantSubmit,
-    canEndContract,
     isFolded: false,
     activeCallAssistantId: activeCallId,
     canHire,

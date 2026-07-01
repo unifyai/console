@@ -15,6 +15,7 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openUnitySwitcher,
+  openEditDialogFromList,
   getAssistantCount,
   assistantExistsInDb,
   deleteAllAssistantsForUser,
@@ -45,26 +46,7 @@ async function openEditDialogForAssistant(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  // Open the dropdown menu on the list item
-  const menuBtn = page.getByTestId(`assistant-menu-${agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  // Click "Profile" in the dropdown
-  const editItem = page.getByTestId('menu-edit-profile');
-  await expect(editItem).toBeVisible({ timeout: 5_000 });
-  await editItem.click();
-  await page.waitForTimeout(1_500);
-
-  await expect(page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE })).toBeVisible({
-    timeout: 10_000,
-  });
+  await openEditDialogFromList(page, agentId);
 }
 
 test('deleting an assistant removes it from the list and the database', async ({

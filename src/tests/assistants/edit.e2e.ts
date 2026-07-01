@@ -19,6 +19,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   openUnitySwitcher,
+  openEditDialogFromList,
 } from './helpers';
 import {
   approvedCharacterVoiceMetadata,
@@ -44,7 +45,7 @@ test.afterAll(() => {
 });
 
 /**
- * Open the edit dialog for the seeded assistant via the list item dropdown menu.
+ * Open the edit dialog for the seeded assistant via the list info panel.
  */
 async function openEditDialog(
   page: import('@playwright/test').Page,
@@ -53,27 +54,7 @@ async function openEditDialog(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  // Open the dropdown menu on the list item
-  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  // Click "Profile" in the dropdown
-  const editItem = page.getByTestId('menu-edit-profile');
-  await expect(editItem).toBeVisible({ timeout: 5_000 });
-  await editItem.click();
-  await page.waitForTimeout(1_500);
-
-  // Verify the edit dialog opened
-  await expect(page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE })).toBeVisible({
-    timeout: 10_000,
-  });
+  await openEditDialogFromList(page, targetAssistant.agentId);
 }
 
 test('updating the first name and surname via the edit dialog persists to DB', async ({

@@ -22,6 +22,7 @@ import {
   ensureProjectSync,
   navigateToAssistants,
   openAssistantInfoPanel,
+  openEditDialogFromList,
   openUnitySwitcher,
 } from './helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
@@ -114,14 +115,6 @@ async function loginAndSaveWorkspaceState(
   await ctx.storageState({ path: stateFile });
   await ctx.close();
   return stateFile;
-}
-
-async function openAssistantMenu(page: Page, agentId: number) {
-  await openUnitySwitcher(page);
-  const row = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(row).toBeVisible({ timeout: 15_000 });
-  await row.hover();
-  await page.getByTestId(`assistant-menu-${agentId}`).click();
 }
 
 async function expectCoordinatorChatOpen(page: Page, agentId: number) {
@@ -338,19 +331,18 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await expect(coordinatorRow).toContainText('T-W1N');
   await expect(coordinatorRow.getByLabel('T-W1N')).toBeVisible();
 
-  await openAssistantMenu(page, coordinator.agentId);
-  await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);
-  await page.getByTestId('menu-edit-profile').click();
+  await openEditDialogFromList(page, coordinator.agentId);
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('button', { name: /^End contract$/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close Edit Dialog' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  await openAssistantMenu(page, regularAssistant.agentId);
-  await expect(page.getByTestId('menu-end-contract')).toBeVisible({
+  await openEditDialogFromList(page, regularAssistant.agentId);
+  await expect(page.getByRole('button', { name: /^End contract$/ })).toBeVisible({
     timeout: 5_000,
   });
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await expectCoordinatorChatOpen(page, coordinator.agentId);
   await openAssistantInfoPanel(page);
@@ -386,14 +378,14 @@ test('organization member cannot access another user coordinator in org workspac
   await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
   await openUnitySwitcher(page);
   await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).hover();
-  const memberMenuTrigger = page.getByTestId(`assistant-menu-${regularAssistant.agentId}`);
-  const hasMenuTrigger = (await memberMenuTrigger.count()) > 0;
-  if (hasMenuTrigger) {
-    await openAssistantMenu(page, regularAssistant.agentId);
-    await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);
+  const infoToggle = page.getByTestId(`assistant-info-toggle-${regularAssistant.agentId}`);
+  const hasInfoToggle = (await infoToggle.count()) > 0;
+  if (hasInfoToggle) {
+    await openEditDialogFromList(page, regularAssistant.agentId);
+    await expect(page.getByRole('button', { name: /^End contract$/ })).toHaveCount(0);
     await page.keyboard.press('Escape');
   } else {
-    await expect(memberMenuTrigger).toHaveCount(0);
+    await expect(infoToggle).toHaveCount(0);
   }
 });
 
@@ -408,8 +400,8 @@ test('personal workspace shows the personal Coordinator surface', async ({
     timeout: 15_000,
   });
   await expectCoordinatorChatOpen(page, personalCoordinator.agentId);
-  await openAssistantMenu(page, personalCoordinator.agentId);
-  await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);
+  await openEditDialogFromList(page, personalCoordinator.agentId);
+  await expect(page.getByRole('button', { name: /^End contract$/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
 
   const coordinatorCount = dbExec(

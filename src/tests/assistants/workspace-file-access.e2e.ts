@@ -20,6 +20,7 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openUnitySwitcher,
+  openWorkspaceManagerFromList,
   ensureProjectSync,
   cleanupUser,
   dbExec,
@@ -58,23 +59,7 @@ async function openWorkspaceManager(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  const workspaceItem = page.getByTestId('menu-update-workspace');
-  await expect(workspaceItem).toBeVisible({ timeout: 5_000 });
-  await workspaceItem.click();
-
-  await expect(page.getByRole('dialog').getByText('Workspace', { exact: true })).toBeVisible({
-    timeout: 5_000,
-  });
+  await openWorkspaceManagerFromList(page, assistant.agentId);
 }
 
 test('the file-access picker renders for a Drive-connected assistant', async ({

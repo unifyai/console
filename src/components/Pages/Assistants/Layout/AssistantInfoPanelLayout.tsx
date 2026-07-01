@@ -11,6 +11,7 @@ import {
 } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
 import {
   ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT,
+  consumePendingInfoPanelOpen,
   publishAssistantInfoPanelVisibility,
   type AssistantInfoPanelToggleRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
@@ -269,12 +270,18 @@ export function AssistantInfoPanelLayout({
       return;
     }
 
+    if (consumePendingInfoPanelOpen(assistant.agentId)) {
+      setIsInfoOpenAndPersist(true);
+      return;
+    }
+
     setIsInfoOpen(readInfoPanelOpen());
   }, [
     assistant?.agentId,
     assistant?.isCoordinator,
     hasIncompleteOnboarding,
     infoPanelFocusLayoutRequest,
+    setIsInfoOpenAndPersist,
   ]);
 
   React.useLayoutEffect(() => {

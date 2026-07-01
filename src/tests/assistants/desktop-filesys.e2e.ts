@@ -32,6 +32,7 @@ import {
   deleteUserDesktopsForUser,
   getLinkFilesysState,
   ensureProjectSync,
+  openDesktopLinkerFromList,
 } from './helpers';
 
 const user = createTestUser({ name: 'Filesys', lastName: 'Consent', credits: 50_000 });
@@ -56,16 +57,11 @@ async function navigateForLinker(page: Page) {
   await page.waitForTimeout(2_000);
 }
 
-/** Open the desktop linker from the assistant row's overflow ("⋯") menu. */
+/** Open the desktop linker from the assistant row info panel. */
 async function openDesktopLinker(page: Page, agentId: number) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 20_000 });
-  await listItem.hover();
-
-  await page.getByTestId(`assistant-menu-${agentId}`).click();
-  await page.getByTestId('menu-connect-desktop').click();
-
-  await expect(page.getByRole('dialog')).toContainText('Link User Desktop', { timeout: 5_000 });
+  await openDesktopLinkerFromList(page, agentId);
 }
 
 test('toggling filesystem access drives consent flag and per-link SFTP key', async ({
