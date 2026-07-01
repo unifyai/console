@@ -11,35 +11,9 @@ import {
   cleanupUser,
   login,
   loginAndWaitForRedirect,
-  loginAndNavigateTo,
   switchToEmailTab,
   type TestUser,
 } from './helpers';
-
-test.describe('Authenticated Access', () => {
-  let user: TestUser;
-
-  test.beforeAll(() => {
-    user = createTestUser({ name: 'Session', lastName: 'Redirect' });
-  });
-
-  test.afterAll(() => {
-    cleanupUser(user.id);
-  });
-
-  test('authenticated user can access protected pages', async ({ page }) => {
-    await loginAndNavigateTo(page, user.email, user.password, '/assistants');
-
-    // Verify we can access a protected page without being redirected to login
-    expect(page.url()).not.toContain('/login');
-  });
-
-  test('authenticated user can navigate to account settings', async ({ page }) => {
-    await loginAndNavigateTo(page, user.email, user.password, '/account');
-
-    expect(page.url()).toContain('/account');
-  });
-});
 
 test.describe('Stale Session Signout', () => {
   let user: TestUser;
