@@ -2,8 +2,13 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { Menu } from 'lucide-react';
 import { AppRail, RAIL_COLLAPSED_STORAGE_KEY } from './AppRail';
 import { GlobalUnitySwitcher } from './GlobalUnitySwitcher';
+import { MobileShellRailProvider, useMobileShellRail } from './MobileShellRailContext';
+import { useBreakpoint } from '@/hooks/Common/useMobile';
+import { Sheet, SheetContent } from '@/components/UI/sheet';
+import { Button } from '@/components/UI/button';
 
 interface HomeShellProps {
   children: React.ReactNode;
@@ -17,30 +22,98 @@ interface HomeShellProps {
  */
 export function HomeShell({ children }: HomeShellProps) {
   const router = useRouter();
+  const { isBelowMobile, isBelowTablet } = useBreakpoint();
   const [collapsed, setCollapsed] = React.useState(false);
+  const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
 
   React.useEffect(() => {
     const stored = window.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
-    if (stored != null) setCollapsed(stored === '1');
-  }, []);
+    if (stored != null) {
+      setCollapsed(stored === '1');
+    } else if (isBelowTablet) {
+      setCollapsed(true);
+    }
+  }, [isBelowTablet]);
+
+  React.useEffect(() => {
+    if (isBelowTablet) {
+      setCollapsed(true);
+    }
+  }, [isBelowTablet]);
+
+  React.useEffect(() => {
+    if (!isBelowMobile) {
+      setMobileRailOpen(false);
+    }
+  }, [isBelowMobile]);
 
   const handleCollapsedChange = React.useCallback((next: boolean) => {
     setCollapsed(next);
     window.localStorage.setItem(RAIL_COLLAPSED_STORAGE_KEY, next ? '1' : '0');
   }, []);
 
+  const handleSelectSection = React.useCallback(() => {
+    router.push('/assistants');
+    setMobileRailOpen(false);
+  }, [router]);
+
+  const rail = (
+    <AppRail
+      switcher={<GlobalUnitySwitcher collapsed={isBelowMobile ? false : collapsed} />}
+      activeSection={null}
+      onSelectSection={handleSelectSection}
+      collapsed={isBelowMobile ? false : collapsed}
+      onCollapsedChange={(next) => {
+        if (isBelowMobile && next) {
+          setMobileRailOpen(false);
+          return;
+        }
+        handleCollapsedChange(next);
+      }}
+    />
+  );
+
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
-      <AppRail
-        switcher={<GlobalUnitySwitcher collapsed={collapsed} />}
-        activeSection={null}
-        onSelectSection={() => router.push('/assistants')}
-        collapsed={collapsed}
-        onCollapsedChange={handleCollapsedChange}
-      />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-        {children}
+    <MobileShellRailProvider
+      value={{
+        isBelowMobile,
+        openMobileRail: () => setMobileRailOpen(true),
+      }}
+    >
+      <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
+        {isBelowMobile ? (
+          <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
+            <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+              {rail}
+            </SheetContent>
+          </Sheet>
+        ) : (
+          rail
+        )}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+          {children}
+        </div>
       </div>
-    </div>
+    </MobileShellRailProvider>
+  );
+}
+
+/** Header control for opening the app rail on narrow settings-family routes. */
+export function HomeShellRailToggle({ className }: { className?: string }) {
+  const mobileRail = useMobileShellRail();
+  if (!mobileRail?.isBelowMobile) return null;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className={className ?? 'h-8 w-8 shrink-0'}
+      aria-label="Open navigation"
+      data-testid="rail-mobile-toggle"
+      onClick={mobileRail.openMobileRail}
+    >
+      <Menu className="h-4 w-4" />
+    </Button>
   );
 }

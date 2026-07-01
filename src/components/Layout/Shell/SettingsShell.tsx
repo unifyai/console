@@ -18,6 +18,8 @@ import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
 import { ADMIN_NAV_ITEMS, isAdminNavActive } from './adminNav';
 import { useFeatures, useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useMatchesBelow } from '@/hooks/Common/useMobile';
+import { HomeShellRailToggle } from './HomeShell';
 
 /**
  * Account sub-rail entries. Each maps to an in-page panel on `/account`, driven
@@ -83,30 +85,76 @@ export function SettingsShell({
 
   const section = onAdmin ? SHELL_SECTIONS.admin : SHELL_SECTIONS[sectionId];
 
-  const workspaceLinks: WorkspaceLink[] = [
-    {
-      id: 'organizations',
-      label: 'Organizations',
-      Icon: Building,
-      href: '/organizations',
-      show: !isSelfHost,
-    },
-    { id: 'usage', label: 'Usage', Icon: BarChart3, href: '/usage', show: billingEnabled },
-    { id: 'billing', label: 'Billing', Icon: CreditCard, href: '/billing', show: billingEnabled },
-    { id: 'admin', label: 'Admin', Icon: ShieldCheck, href: '/admin', show: isUnifyAdmin },
-  ];
+  const workspaceLinks = React.useMemo<WorkspaceLink[]>(
+    () => [
+      {
+        id: 'organizations',
+        label: 'Organizations',
+        Icon: Building,
+        href: '/organizations',
+        show: !isSelfHost,
+      },
+      { id: 'usage', label: 'Usage', Icon: BarChart3, href: '/usage', show: billingEnabled },
+      { id: 'billing', label: 'Billing', Icon: CreditCard, href: '/billing', show: billingEnabled },
+      { id: 'admin', label: 'Admin', Icon: ShieldCheck, href: '/admin', show: isUnifyAdmin },
+    ],
+    [billingEnabled, isSelfHost, isUnifyAdmin]
+  );
 
   const isWorkspaceActive = (href: string) => {
     if (href === '/admin') return onAdmin;
     return !onAccount && (pathname === href || pathname.startsWith(`${href}/`));
   };
 
+  const isBelowTablet = useMatchesBelow('tablet');
+
+  const mobileNavItems = React.useMemo(() => {
+    const items: { label: string; href: string }[] = [];
+    if (onAdmin) {
+      items.push({ label: 'Settings', href: '/account' });
+      ADMIN_NAV_ITEMS.forEach((item) => items.push({ label: item.label, href: item.href }));
+    } else {
+      SETTINGS_ACCOUNT_ITEMS.forEach((item) =>
+        items.push({ label: item.label, href: `/account?tab=${item.id}` })
+      );
+    }
+    workspaceLinks
+      .filter((link) => link.show)
+      .forEach((link) => items.push({ label: link.label, href: link.href }));
+    return items;
+  }, [onAdmin, workspaceLinks]);
+
+  const mobileNavValue = onAccount ? `/account?tab=${accountTab}` : pathname;
+
+  const settingsHeaderLeading = <HomeShellRailToggle />;
+
+  const settingsHeaderRight = (
+    <>
+      {isBelowTablet ? (
+        <select
+          value={mobileNavValue}
+          onChange={(e) => router.push(e.target.value)}
+          className="h-8 max-w-[9rem] shrink-0 rounded-md border border-border bg-transparent px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring sm:max-w-[11rem]"
+          data-testid="settings-nav-mobile"
+          aria-label="Settings navigation"
+        >
+          {mobileNavItems.map((item) => (
+            <option key={item.href} value={item.href}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {headerRight}
+    </>
+  );
+
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <TabHeader section={section} right={headerRight} />
+      <TabHeader section={section} leading={settingsHeaderLeading} right={settingsHeaderRight} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
-          className="flex w-[230px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border px-2.5 py-3"
+          className="hidden w-[230px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border px-2.5 py-3 lg:flex"
           data-testid="settings-subrail"
         >
           {onAdmin ? (
