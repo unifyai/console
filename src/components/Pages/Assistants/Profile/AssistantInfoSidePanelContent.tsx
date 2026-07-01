@@ -39,6 +39,8 @@ import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/Coordinator
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBeats';
+import { approvedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
+import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -127,6 +129,9 @@ export interface AssistantInfoSidePanelContentProps {
 
 const COORDINATOR_COPY_RESET_MS = 2000;
 const CONTACT_COPY_RESET_MS = 2000;
+
+/** User-facing role for T-W1N. The internal job title ("Coordinator") is never surfaced. */
+const COORDINATOR_ROLE_DISPLAY = 'Your digital twin';
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -236,7 +241,6 @@ function CoordinatorAssistantInfoSidePanelContent({
         name="T-W1N"
         photoSrc={undefined}
         initials="M"
-        summary="Your digital twin"
         visibilityLabel={
           <span className="inline-flex items-center gap-1">
             Only you
@@ -500,7 +504,6 @@ interface IdentityHeaderProps {
   photoSrc: string | undefined;
   initials: string;
   supervisorName?: string;
-  summary?: React.ReactNode;
   visibilityLabel: React.ReactNode;
   isIdCopied: boolean;
   onCopyId: () => void;
@@ -517,7 +520,6 @@ function IdentityHeader({
   photoSrc,
   initials,
   supervisorName,
-  summary,
   visibilityLabel,
   isIdCopied,
   onCopyId,
@@ -566,12 +568,7 @@ function IdentityHeader({
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}
         </div>
-        {summary ? (
-          <div className={metadataRowClass}>
-            <span className="opacity-70">Role:</span>
-            <span className="truncate">{summary}</span>
-          </div>
-        ) : supervisorName ? (
+        {supervisorName ? (
           <div className={metadataRowClass}>
             <span className="opacity-70">Supervisor:</span>
             <span className="truncate">{supervisorName}</span>
@@ -661,16 +658,71 @@ const DESKTOP_OS_LABELS: Record<string, string> = {
 
 type WorkspaceProviderKind = 'google' | 'microsoft';
 
-function getProfileStatusDescription(assistant: Assistant): string {
-  const jobTitle = assistant.jobTitle?.trim();
-  if (jobTitle) return jobTitle;
+function getVoiceName(assistant: Assistant): string | null {
+  const voiceId = assistant.voiceId?.trim();
+  if (!voiceId) return null;
+  return approvedCharacterVoiceMetadata[voiceId]?.name ?? null;
+}
+
+function getTimezoneLabel(assistant: Assistant): string | null {
+  const timezone = assistant.timezone?.trim();
+  if (!timezone) return null;
+  if (!timezone.includes('/')) return timezone;
+  const offset = getTimezoneOffsetInMinutes(timezone);
+  const city = timezone.split('/').pop()?.replace(/_/g, ' ') ?? timezone;
+  return `(UTC${formatOffset(offset)}) ${city}`;
+}
+
+interface ProfileSummaryRow {
+  label: string;
+  value: string;
+  clamp?: boolean;
+}
+
+function getProfileSummaryRows(assistant: Assistant): ProfileSummaryRow[] {
+  const rows: ProfileSummaryRow[] = [];
+
+  // T-W1N's stored job title ("Coordinator") is a purely internal term; users
+  // only ever see it framed as the user's digital twin.
+  const role = assistant.isCoordinator
+    ? COORDINATOR_ROLE_DISPLAY
+    : assistant.jobTitle?.trim() || null;
+  if (role) rows.push({ label: 'Role', value: role });
 
   const about = assistant.about?.trim();
-  if (about) {
-    return about.length > 96 ? `${about.slice(0, 93)}…` : about;
+  if (about) rows.push({ label: 'About', value: about, clamp: true });
+
+  const timezone = getTimezoneLabel(assistant);
+  if (timezone) rows.push({ label: 'Timezone', value: timezone });
+
+  const voice = getVoiceName(assistant);
+  if (voice) rows.push({ label: 'Voice', value: voice });
+
+  return rows;
+}
+
+function ProfileSummary({ assistant }: { assistant: Assistant }) {
+  const rows = getProfileSummaryRows(assistant);
+
+  if (rows.length === 0) {
+    return <span>No profile details yet</span>;
   }
 
-  return 'No job title set';
+  return (
+    <div
+      className="grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-2 gap-y-1"
+      data-testid="assistant-info-profile-summary"
+    >
+      {rows.map((row) => (
+        <React.Fragment key={row.label}>
+          <span className="opacity-70">{row.label}:</span>
+          <span className={cn('min-w-0', row.clamp ? 'line-clamp-2' : 'truncate')}>
+            {row.value}
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
 }
 
 function getWorkspaceProviderKind(assistant: Assistant): WorkspaceProviderKind | null {
@@ -732,7 +784,8 @@ function ProfileSectionsPanel({
     <section className="flex flex-col gap-4" data-testid="assistant-info-profile-sections">
       <ProfileSectionRow
         title="Profile"
-        description={getProfileStatusDescription(assistant)}
+        description={<ProfileSummary assistant={assistant} />}
+        descriptionClassName="mt-0.5"
         canEdit={canWrite && !!onEditProfile}
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
