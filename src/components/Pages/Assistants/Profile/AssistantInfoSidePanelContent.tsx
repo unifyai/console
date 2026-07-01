@@ -104,8 +104,13 @@ export interface AssistantInfoSidePanelContentProps {
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
-    onLaunchMission?: () => void;
-    onArmTripwire?: () => void;
+    onCreateScheduledTask?: () => void;
+    onCreateTriggerableTask?: () => void;
+    /** Dispatch the event for one Tasks-phase example chip so Twin sets
+     * that specific task up. ``stepId`` is the owning beat row
+     * (``create-scheduled-task`` / ``create-triggerable-task``); ``chipId``
+     * the chip's id. */
+    onSelectTaskChip?: (stepId: string, chipId: string) => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -292,11 +297,12 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                 onConnectApps={coordinatorOnboarding.onConnectApps}
                 onActNow={coordinatorOnboarding.onActNow}
-                onLaunchMission={coordinatorOnboarding.onLaunchMission}
-                onArmTripwire={coordinatorOnboarding.onArmTripwire}
-                onTestTripwire={taskBeats.testTripwire}
-                armedTripwireTaskId={taskBeats.armedTripwireTaskId}
-                nextMissionDueAt={taskBeats.nextMissionDueAt}
+                onCreateScheduledTask={coordinatorOnboarding.onCreateScheduledTask}
+                onCreateTriggerableTask={coordinatorOnboarding.onCreateTriggerableTask}
+                onSelectTaskChip={coordinatorOnboarding.onSelectTaskChip}
+                onTestTriggerableTask={taskBeats.testTriggerableTask}
+                armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
+                nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}
                 onSkipSection={coordinatorOnboarding.onSkipSection}
                 onUnskipSection={coordinatorOnboarding.onUnskipSection}
                 isOnCall={coordinatorOnboarding.isOnCall}

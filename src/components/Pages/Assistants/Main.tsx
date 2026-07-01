@@ -1842,6 +1842,52 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the graph-owned event for a Tasks-phase beat. Clicking the row
+  // (no ``chipId``) asks Twin to open a freeform conversation about that kind
+  // of standing work; clicking one of its example chips (``chipId`` set) asks
+  // Twin to set that specific task up. Mirrors the reference-quiz trigger path
+  // but without a paired reply — beat completion is derived server-side from
+  // the resulting Tasks row. The request is deduped per (step, chip) so a
+  // double-click can't fire two task-creation events.
+  const handleCoordinatorDispatchTaskBeat = React.useCallback(
+    (stepId: string, chipId?: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      const requestKey = chipId ? `${stepId}:${chipId}` : stepId;
+      if (!shouldDispatchStepRequest(requestKey)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      markStepEngaged(stepId);
+      markStepRequested(requestKey);
+      void (async () => {
+        try {
+          const event = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step,
+            chipId
+          );
+          if (!event) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error('[Coordinator onboarding] Failed to dispatch task beat event:', error);
+          toast.error('Could not start this task. Please try again.');
+        }
+      })();
+    },
+    [
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
+    ]
+  );
+
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
     handleOpenUserSettings('contact-info');
@@ -1954,8 +2000,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         : undefined,
       onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
       onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
-      onLaunchMission: () => handleCoordinatorOpenPaneTab('tasks', 'launch-mission'),
-      onArmTripwire: () => handleCoordinatorOpenPaneTab('tasks', 'arm-tripwire'),
+      onCreateScheduledTask: () => handleCoordinatorDispatchTaskBeat('create-scheduled-task'),
+      onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
+      onSelectTaskChip: (stepId: string, chipId: string) =>
+        handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -1989,6 +2037,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
+    handleCoordinatorDispatchTaskBeat,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,

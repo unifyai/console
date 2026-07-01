@@ -9,8 +9,8 @@
  * ``task_trigger`` system event to the assistant runtime — bypassing the
  * inbound-event semantic-judgement path so the task fires reliably.
  *
- * Used by the Coordinator onboarding "tripwire" step so the user can watch
- * a triggered task fire immediately after arming it. The trigger stays armed
+ * Used by the Coordinator onboarding "triggerable task" step so the user can
+ * watch a triggered task fire immediately after arming it. The trigger stays armed
  * afterwards (the runtime re-arms triggerable tasks), so it also fires for
  * the real inbound event later.
  *
