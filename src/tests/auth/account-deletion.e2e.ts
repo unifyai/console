@@ -24,8 +24,8 @@ test.describe('Account Deletion', () => {
     const userCount = dbExec(`SELECT count(*) FROM "user" WHERE id = '${user.id}'`);
     expect(userCount).toBe('0');
 
-    await page.goto('/assistants');
-    await page.waitForURL(/\/login/, { timeout: 15_000 });
+    await page.goto('/assistants', { waitUntil: 'commit' });
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
   });
 
   test('can cancel account deletion without effect', async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe('Account Deletion', () => {
       expect(userCount).toBe('1');
 
       await page.goto('/assistants');
-      await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
     } finally {
       cleanupUser(user.id);
     }

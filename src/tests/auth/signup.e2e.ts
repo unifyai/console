@@ -18,6 +18,7 @@ import {
   uniqueEmail,
   dbExec,
 } from './helpers';
+import { deferCoordinatorForUser } from '../helpers/coordinator';
 
 // =============================================================================
 // Registration
@@ -251,11 +252,18 @@ test.describe('Onboarding', () => {
     );
     expect(managedOrgTeamCount).toBe('0');
 
-    await expect(page.getByRole('button', { name: /T-W1N.*Coordinator/ })).toBeVisible({
-      timeout: 15000,
+    const apiKey = dbExec(
+      `SELECT key FROM api_key WHERE user_id = '${userId}' AND organization_id IS NULL LIMIT 1`
+    );
+    await deferCoordinatorForUser(userId, apiKey);
+    await page.reload();
+    await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({
+      timeout: 15_000,
     });
     await expect(page.getByRole('textbox', { name: 'Search conversation' })).toBeVisible({
-      timeout: 15000,
+      timeout: 15_000,
     });
   });
 

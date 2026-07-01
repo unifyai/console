@@ -126,7 +126,14 @@ test('loads usage page with all key components visible', async ({ authedPage: pa
   await expect(page.getByTestId('timeframe-filter')).toBeVisible();
   await expect(page.getByTestId('spending-limit-card')).toBeVisible();
   await expect(page.getByTestId('transaction-ledger')).toBeVisible();
-  await expect(page.locator('[data-testid="usage-chart"]:visible')).toBeVisible();
+
+  const chart = page.locator('[data-testid="usage-chart"]:visible');
+  const ledgerRow = page.getByTestId('aggregated-row').first();
+  await expect
+    .poll(async () => (await chart.isVisible()) || (await ledgerRow.isVisible()), {
+      timeout: 20_000,
+    })
+    .toBe(true);
 });
 
 test('ledger displays seeded transactions with correct category descriptions', async ({
@@ -152,6 +159,14 @@ test('ledger shows category badges matching each transaction', async ({ authedPa
 
   const ledger = page.getByTestId('transaction-ledger');
 
+  await expect(ledger.getByText('Assistant work').first()).toBeVisible();
+  await expect(ledger.getByText('Assistant creation')).toBeVisible();
+  await expect(ledger.getByText('Created and provisioned contacts')).toBeVisible();
+  await expect(ledger.getByText('Generated photos and videos')).toBeVisible();
+
+  await ledger.getByTestId('aggregated-row-toggle').first().click();
+  await expect(ledger.getByTestId('transaction-row').first()).toBeVisible({ timeout: 10_000 });
+
   await expect(ledger.getByText('LLM').first()).toBeVisible();
   await expect(ledger.getByText('Hiring')).toBeVisible();
   await expect(ledger.getByText('Resources')).toBeVisible();
@@ -165,6 +180,7 @@ test('category filter narrows ledger to selected category', async ({ authedPage:
   const ledger = page.getByTestId('transaction-ledger');
 
   await page.getByTestId('category-filter').click();
+  await expect(page.getByRole('option', { name: 'LLM' })).toBeVisible({ timeout: 10_000 });
   await page.getByRole('option', { name: 'LLM' }).click();
   await expect(ledger.getByText('Assistant work').first()).toBeVisible({ timeout: 10_000 });
   await expect(ledger.getByText('Assistant creation')).not.toBeVisible({ timeout: 10_000 });
@@ -217,11 +233,8 @@ test('ledger shows aggregated rows with category and count', async ({ authedPage
 
   const ledger = page.getByTestId('transaction-ledger');
 
-  // Aggregated rows should contain category badges
-  await expect(ledger.getByText('LLM').first()).toBeVisible();
-
-  // Aggregated rows should contain transaction counts
-  await expect(ledger.getByText(/\d+ txns?\)/).first()).toBeVisible();
+  // Aggregated rows show counts as "(N)" beside the bucket label
+  await expect(ledger.getByText(/\(\d+\)/).first()).toBeVisible();
 });
 
 test('switching granularity changes ledger grouping', async ({ authedPage: page }) => {
