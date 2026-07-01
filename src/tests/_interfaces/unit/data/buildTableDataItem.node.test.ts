@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { server } from '../../mocks/server';
+import { server } from '@/tests/server';
 import {
   fetchAndBuildTableDataItem,
   getTotalCountFromLogsResponse,
@@ -53,8 +53,7 @@ const dummyLogsActions: LogsActions = {
 } as unknown as LogsActions;
 
 describe('buildTableDataItem helpers', () => {
-  // TODO: Fix - requires proper MSW setup for relative URL interception in Node.js
-  it.skip('fetchAndBuildTableDataItem builds a coherent TableDataItem for ungrouped logs', async () => {
+  it('fetchAndBuildTableDataItem builds a coherent TableDataItem for ungrouped logs', async () => {
     const tile: TileData = {
       id: 'tile-1',
       name: 'Table Tile',
@@ -145,8 +144,7 @@ describe('buildTableDataItem helpers', () => {
     expect(getTotalCountFromLogsResponse(response)).toBe(5);
   });
 
-  // TODO: Fix - requires proper MSW setup for relative URL interception in Node.js
-  it.skip('fetchAndBuildTableDataItem builds a coherent TableDataItem for grouped logs via GroupedLogPropsRaw', async () => {
+  it('fetchAndBuildTableDataItem builds a coherent TableDataItem for grouped logs via GroupedLogPropsRaw', async () => {
     const tile: TileData = {
       id: 'tile-grouped',
       name: 'Grouped Table Tile',
