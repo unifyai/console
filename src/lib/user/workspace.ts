@@ -1,7 +1,8 @@
 import type { User, UserOrganization, UserWorkspace } from '@/types/user';
 
 type WorkspaceResolvedUser =
-  | Pick<User, 'apiKey' | 'organizations' | 'name' | 'personalWorkspaceDisabled'>
+  | (Pick<User, 'apiKey' | 'organizations' | 'name' | 'personalWorkspaceDisabled'> &
+      Partial<Pick<User, 'image'>>)
   | null
   | undefined;
 
@@ -40,6 +41,7 @@ export function resolveWorkspaceContext(user: WorkspaceResolvedUser): ResolvedWo
         id: activeOrganization.id.toString(),
         name: activeOrganization.name,
         type: 'organization',
+        ...(activeOrganization.image ? { image: activeOrganization.image } : {}),
       }
     : personalWorkspaceDisabled
       ? null
@@ -47,6 +49,7 @@ export function resolveWorkspaceContext(user: WorkspaceResolvedUser): ResolvedWo
           id: 'personal',
           name: user.name ?? 'Personal',
           type: 'personal',
+          ...(user.image ? { image: user.image } : {}),
         };
 
   return {

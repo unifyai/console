@@ -46,7 +46,14 @@ export function WorkspaceProvider({
 
     const list: UserWorkspace[] = user.personalWorkspaceDisabled
       ? []
-      : [{ id: 'personal', name: userFullName(user) || 'Personal', type: 'personal' }];
+      : [
+          {
+            id: 'personal',
+            name: userFullName(user) || 'Personal',
+            type: 'personal',
+            image: user.image,
+          },
+        ];
 
     if (user.organizations && user.organizations.length > 0) {
       user.organizations.forEach((org) => {
@@ -54,6 +61,7 @@ export function WorkspaceProvider({
           id: org.id.toString(),
           name: org.name,
           type: 'organization',
+          image: org.image ?? null,
         });
       });
     }

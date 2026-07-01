@@ -56,6 +56,7 @@ export interface UserWorkspace {
   id: string;
   name: string;
   type: 'personal' | 'organization';
+  image?: string | null;
 }
 
 export interface UserUpdateRequest {
