@@ -71,7 +71,7 @@ async function openAssistantProfile(page: import('@playwright/test').Page, agent
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await selectAssistantInList(page, agentId);
-  await page.waitForTimeout(1_000);
+  await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 15_000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -242,21 +242,12 @@ test('communication dialog shows control buttons when connected', async ({ authe
       },
       { timeout: 30_000 }
     )
-    .not.toBe('pending');
-  const connected = await hangUp.isVisible().catch(() => false);
-  if (!connected) {
-    await expect(failureToast).toBeVisible();
-    return;
-  }
+    .toBe('connected');
 
-  // Verify expected control buttons exist
   await expect(hangUp).toBeVisible({ timeout: 10_000 });
 
-  // Chat and settings toggle buttons
   const chatToggle = page.getByRole('button', { name: 'Toggle chat' });
-  const chatVisible = await chatToggle.isVisible({ timeout: 2_000 }).catch(() => false);
-  if (!chatVisible) return;
-  await expect(chatToggle).toBeVisible();
+  await expect(chatToggle).toBeVisible({ timeout: 10_000 });
 
   const settingsToggle = page.getByRole('button', { name: 'Toggle settings' });
   await expect(settingsToggle).toBeVisible({ timeout: 10_000 });

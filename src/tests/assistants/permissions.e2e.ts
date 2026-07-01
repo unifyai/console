@@ -100,10 +100,8 @@ async function loginAndSaveOrgState(
     });
   }, orgId);
 
-  // Reload to pick up the workspace switch
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await page.reload();
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
 
   await ctx.storageState({ path: stateFile });
   await ctx.close();
@@ -170,8 +168,7 @@ test.afterAll(() => {
 
 async function navigateToAssistants(page: Page) {
   await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
 }
 
 async function closeHireDialogIfOpen(page: Page) {
@@ -195,7 +192,7 @@ async function closeHireDialogIfOpen(page: Page) {
 async function openEditViaInfoPanel(page: Page, agentId: number) {
   await openUnitySwitcher(page);
   await openEditDialogFromList(page, agentId);
-  await page.waitForTimeout(500);
+  await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 10_000 });
 }
 
 /**
@@ -203,14 +200,11 @@ async function openEditViaInfoPanel(page: Page, agentId: number) {
  */
 async function openSecretsTab(page: Page, agentId: number) {
   await page.goto(`/assistants?profile=${agentId}`);
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
-  await page.waitForTimeout(1_500);
 
   await openRailSection(page, 'integrations');
-  await page.waitForTimeout(1_000);
 
-  await expect(page.getByTestId('integrations-pane')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integrations-pane')).toBeVisible({ timeout: 10_000 });
 }
 
 // =============================================================================
@@ -265,8 +259,9 @@ test('member cannot see the "New" hire button in the assistant list', async ({
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
 
-  // Wait for the page to render (assistant list should load)
-  await page.waitForTimeout(3_000);
+  await expect(page.getByTestId(`assistant-list-item-${ownerAssistant.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
 
   // The hire ("Onboard") affordance is permission-gated and must NOT render
   // for members — neither the labelled button nor its folded icon variant.

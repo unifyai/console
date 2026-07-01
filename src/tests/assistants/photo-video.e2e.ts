@@ -52,7 +52,7 @@ test('generating a photo and hiring saves the photo URL to the database', async 
   await page.waitForTimeout(2_000);
 
   const dialogVisible = await page
-    .locator('text=Hire Assistant')
+    .getByRole('heading', { name: 'Onboard Teammate' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);

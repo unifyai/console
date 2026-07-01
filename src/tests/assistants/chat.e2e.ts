@@ -361,8 +361,6 @@ test('sending multiple messages in succession preserves order', async ({ authedP
   for (const msg of messages) {
     await textarea.fill(msg);
     await textarea.press('Enter');
-    // Small wait between sends to allow optimistic insert
-    await page.waitForTimeout(500);
   }
 
   // Wait for all three messages to appear
@@ -430,21 +428,13 @@ test('chat shows empty area for a new assistant with no history', async ({ authe
   const listItem = page.getByTestId(`assistant-list-item-${freshAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
-  await page.waitForTimeout(2_000);
-
-  // Chat area should be visible
-  const chatArea = page.getByTestId('chat-scroll-area');
-  await expect(chatArea).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 15_000 });
 
   // Wait for textarea to be enabled (chat loaded with no messages)
   const textarea = page.locator('textarea');
   await expect(textarea).toBeEnabled({ timeout: 20_000 });
 
-  // No message bubbles should be present
-  const messageBubbles = page.locator('[data-testid="message-bubble"]');
-  await page.waitForTimeout(2_000);
-  const count = await messageBubbles.count();
-  expect(count).toBe(0);
+  await expect(page.locator('[data-testid="message-bubble"]')).toHaveCount(0, { timeout: 5_000 });
 });
 
 test('assistant response seeded as transcript appears via polling', async ({

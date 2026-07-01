@@ -87,38 +87,6 @@ test('hiring an assistant persists it to the database and shows it in the list',
   expect(dbAssistant.voiceId).toBeTruthy();
 });
 
-test('the hired assistant is visible in the DB with correct fields', async ({
-  authedPage: page,
-}) => {
-  // Relies on the assistant created by the previous test
-  const agentIds = getAssistantAgentIds(user.id);
-  expect(agentIds.length).toBeGreaterThan(0);
-  const agentId = agentIds[agentIds.length - 1];
-
-  // Verify DB fields
-  const dbAssistant = getAssistantFromDb(agentId);
-  expect(dbAssistant.firstName).toBeTruthy();
-  expect(dbAssistant.surname).toBeTruthy();
-  expect(dbAssistant.voiceId).toBeTruthy();
-
-  // Verify the assistant appears in the list UI
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  // Click the assistant to select it and view the Chat tab
-  await listItem.click();
-  await page.waitForTimeout(1_000);
-
-  // Profile panel should show the assistant's name
-  await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
-    timeout: 5_000,
-  });
-});
-
 test('hiring persists name, about and voice to DB and leaves age/nationality null', async ({
   authedPage: page,
 }) => {
