@@ -836,7 +836,13 @@ export function HireForm({
                             )}
 
                             {lockAppearanceControls ? (
-                              <span className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40">
+                              <button
+                                aria-label="Preview selected voice"
+                                className="relative z-0 flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
+                                disabled={isSubmitting}
+                                onClick={playSelectedVoicePreview}
+                                type="button"
+                              >
                                 <span
                                   className="block h-full w-full transition-transform duration-300 ease-out"
                                   style={{ transform: `scale(${UNITY_PREVIEW_REST_SCALE})` }}
@@ -852,7 +858,7 @@ export function HireForm({
                                     label="T-W1N avatar"
                                   />
                                 </span>
-                              </span>
+                              </button>
                             ) : (
                               <button
                                 aria-label="Preview selected voice"
