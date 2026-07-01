@@ -9,7 +9,7 @@ import {
 import { LogsActions } from '@/types/interfaces/grid';
 import { processContext } from '@/utils/interfaces/table/columnOperations';
 import { convertMetricsToLogs, replaceParamsIndicesWithValues } from '@/utils/interfaces/common';
-import { sanitizeKey } from '@/app/(home)/interfaces/utils';
+import { sanitizeKey } from '@/app/(home)/(app-shell)/interfaces/utils';
 import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
 
 /**

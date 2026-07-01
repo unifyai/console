@@ -2,7 +2,7 @@
 
 import { requireUserApiKey } from '@/lib/server-action-session';
 import { LogFieldsProps, LogItemProps, GetLogsParameters } from '@/types/interfaces/logs';
-import { sanitizeKey } from '../../app/(home)/interfaces/utils';
+import { sanitizeKey } from '../../app/(home)/(app-shell)/interfaces/utils';
 import { ResponseProps } from '@/types/common';
 import { SyncableLogEntry } from '@/types/assistants/contact-sync';
 import { maybeSyncContactFields } from './contact-sync';
