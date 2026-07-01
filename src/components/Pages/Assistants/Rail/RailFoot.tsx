@@ -11,6 +11,7 @@ import {
   PanelLeftOpen,
   Loader2,
   UserSearch,
+  RotateCcw,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import {
   profileAvatarTone,
   profileInitials,
@@ -34,6 +36,7 @@ import { getAnySessionContactIdForUser } from '@/hooks/Assistants/useContactIdPr
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { ReferralPromoNavButton } from '@/components/Layout/TopBar/ReferralPromoButton';
 import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
+import AccountResetDialog from '@/components/Layout/TopBar/AccountResetDialog';
 import { useAppShellNavigation, pathnameFromHref } from '@/lib/navigation/AppShellRouter';
 import { RailNavButton } from './RailNavButton';
 
@@ -115,8 +118,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     isUnifyAdmin,
     isUnifyMember,
   } = useWorkspace();
+  const { accountReset: accountResetEnabled } = useFeatures();
 
   const [showImpersonateDialog, setShowImpersonateDialog] = React.useState(false);
+  const [showAccountResetConfirm, setShowAccountResetConfirm] = React.useState(false);
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const [ownerContactId, setOwnerContactId] = React.useState<number | null>(null);
 
@@ -309,6 +314,22 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
               <DropdownMenuSeparator />
             </>
           )}
+          {accountResetEnabled && isUnifyMember && (
+            <>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowAccountResetConfirm(true);
+                }}
+                className="cursor-pointer items-center"
+                data-testid="reset-account-menu-item"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                <span>Reset account</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
@@ -325,6 +346,11 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
       {isUnifyMember && (
         <ImpersonateDialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog} />
       )}
+
+      <AccountResetDialog
+        open={showAccountResetConfirm}
+        onOpenChange={setShowAccountResetConfirm}
+      />
 
       <TooltipProvider delayDuration={100}>
         <Tooltip>
