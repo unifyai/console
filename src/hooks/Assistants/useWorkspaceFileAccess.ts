@@ -282,6 +282,7 @@ export function useWorkspaceFileAccess({
   const isDirty = React.useMemo(() => {
     return JSON.stringify({ defaultAllow, map: decisions }) !== savedSnapshot;
   }, [defaultAllow, decisions, savedSnapshot]);
+  const explicitDecisionCount = React.useMemo(() => Object.keys(decisions).length, [decisions]);
 
   const save = React.useCallback(async () => {
     if (!provider || isSaving) return;
@@ -326,6 +327,7 @@ export function useWorkspaceFileAccess({
     selectAll,
     deselectAll,
     isDirty,
+    explicitDecisionCount,
     save,
     keyOf,
   };
