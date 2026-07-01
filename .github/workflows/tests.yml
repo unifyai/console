@@ -25,6 +25,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
         run: |
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "run_tests=true" >> "$GITHUB_OUTPUT"
@@ -44,6 +45,12 @@ jobs:
           fi
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            if [[ "$PR_BASE" == "main" || "$PR_BASE" == "staging" ]]; then
+              echo "run_tests=true" >> "$GITHUB_OUTPUT"
+              echo "Tests triggered by PR targeting ${PR_BASE}"
+              exit 0
+            fi
+
             if [[ "$PR_TITLE" == *"[run-tests]"* ]]; then
               echo "run_tests=true" >> "$GITHUB_OUTPUT"
               echo "Tests triggered by PR title containing [run-tests]"
@@ -132,6 +139,15 @@ jobs:
             --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
+
+          npx playwright test \
+            src/tests/assistants/shell.e2e.ts \
+            -g "the rail renders with the brand" \
+            --reporter=list --max-failures=1 2>&1 | tee -a test-output.log
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            EXIT_CODE=${PIPESTATUS[0]}
+          fi
           if [ $EXIT_CODE -ne 0 ]; then
             echo "::error::Smoke E2E tests failed"
           fi
