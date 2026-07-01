@@ -35,6 +35,7 @@ import {
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
+import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBeats';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -97,7 +98,8 @@ export interface AssistantInfoSidePanelContentProps {
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
-    onScheduleTask?: () => void;
+    onLaunchMission?: () => void;
+    onArmTripwire?: () => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -178,6 +180,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   startCallTooltip?: string;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
+  const taskBeats = useCoordinatorTaskBeats(assistant, { enabled: showOnboardingTab });
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
@@ -270,7 +273,11 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                 onConnectApps={coordinatorOnboarding.onConnectApps}
                 onActNow={coordinatorOnboarding.onActNow}
-                onScheduleTask={coordinatorOnboarding.onScheduleTask}
+                onLaunchMission={coordinatorOnboarding.onLaunchMission}
+                onArmTripwire={coordinatorOnboarding.onArmTripwire}
+                onTestTripwire={taskBeats.testTripwire}
+                armedTripwireTaskId={taskBeats.armedTripwireTaskId}
+                nextMissionDueAt={taskBeats.nextMissionDueAt}
                 onSkipSection={coordinatorOnboarding.onSkipSection}
                 onUnskipSection={coordinatorOnboarding.onUnskipSection}
                 isOnCall={coordinatorOnboarding.isOnCall}

@@ -225,13 +225,6 @@ export function RightPaneContainer({
           assistant={assistant}
           ownerId={assistant.userId}
           assistantId={assistant.agentId}
-          onTasksCountChange={
-            coordinatorOnboarding?.onStepComplete
-              ? (count) => {
-                  if (count > 0) coordinatorOnboarding.onStepComplete?.('schedule');
-                }
-              : undefined
-          }
         />
       </TabsContent>
 
