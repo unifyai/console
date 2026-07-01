@@ -13,8 +13,8 @@ interface SectionHostProps {
 }
 
 /**
- * Hosts the active rail section: a brand header (icon/title/description + guided
- * steps) above either an existing right-pane view or a "coming soon" placeholder
+ * Hosts the active rail section: a brand header (icon/title + info popover) above
+ * either an existing right-pane view or a "coming soon" placeholder
  * for net-new Brain sections. The right-pane strip is suppressed by the caller
  * because the rail owns primary navigation.
  */

@@ -31,7 +31,7 @@ export interface SectionDef {
   id: string;
   label: string;
   Icon: LucideIcon;
-  /** One-line description shown under the title in the section header. */
+  /** Description shown in the header info popover. */
   desc: string;
   /** Guided "things to try" steps surfaced in the header info popover. */
   steps: ReadonlyArray<readonly [string, string]>;
