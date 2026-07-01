@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Copy, Check, Pencil, Lock, X } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock, X } from 'lucide-react';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
@@ -24,6 +24,8 @@ const PANEL_TAB_TRIGGER_CLASS = [
   'data-[state=active]:border-primary data-[state=active]:bg-transparent',
   'data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none',
 ].join(' ');
+import { WhatsApp } from '@mui/icons-material';
+import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
@@ -119,6 +121,7 @@ export interface AssistantInfoSidePanelContentProps {
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
+const CONTACT_COPY_RESET_MS = 2000;
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -698,22 +701,6 @@ function getWorkspaceStatusDescription(assistant: Assistant): {
   return { text: 'No workspace connected yet', provider: null };
 }
 
-function formatContactChannelList(channels: string[]): string {
-  if (channels.length === 0) return 'No contact channels configured';
-  if (channels.length === 1) return `${channels[0]} configured`;
-  if (channels.length === 2) return `${channels[0]} and ${channels[1]} configured`;
-  return `${channels.slice(0, -1).join(', ')}, and ${channels.at(-1)} configured`;
-}
-
-function getContactDetailsStatusDescription(assistant: Assistant): string {
-  const channels: string[] = [];
-  if (assistant.phone?.trim()) channels.push('Phone');
-  if (assistant.email?.trim()) channels.push('Email');
-  if (assistant.assistantWhatsappNumber?.trim()) channels.push('WhatsApp');
-  if (assistant.assistantDiscordBotId?.trim()) channels.push('Discord');
-  return formatContactChannelList(channels);
-}
-
 function getDesktopStatusDescription(assistant: Assistant): string {
   if (assistant.userDesktopUrl?.trim()) {
     const os = assistant.userDesktopMode
@@ -764,8 +751,15 @@ function ProfileSectionsPanel({
       />
       <ProfileSectionRow
         title="Contact Details"
-        description={getContactDetailsStatusDescription(assistant)}
-        canEdit={canWrite && !assistant.isCoordinator && !!onOpenContactManager}
+        description={
+          <ContactDetailsGrid
+            assistant={assistant}
+            onOpenContactManager={onOpenContactManager}
+            canWrite={canWrite}
+          />
+        }
+        descriptionClassName="mt-0.5"
+        canEdit={canWrite && !!onOpenContactManager}
         onEdit={() => onOpenContactManager(assistant)}
         editTestId="assistant-info-edit-contact-section"
         editAriaLabel="Edit contact details"
@@ -805,6 +799,7 @@ function WorkspaceStatusDescription({
 interface ProfileSectionRowProps {
   title: string;
   description: React.ReactNode;
+  descriptionClassName?: string;
   canEdit: boolean;
   onEdit?: () => void;
   editTestId: string;
@@ -814,6 +809,7 @@ interface ProfileSectionRowProps {
 function ProfileSectionRow({
   title,
   description,
+  descriptionClassName,
   canEdit,
   onEdit,
   editTestId,
@@ -838,7 +834,126 @@ function ProfileSectionRow({
           </Button>
         )}
       </div>
-      <div className="text-caption text-muted-foreground">{description}</div>
+      <div className={cn('text-caption text-muted-foreground', descriptionClassName)}>
+        {description}
+      </div>
+    </div>
+  );
+}
+
+interface ContactDetailsGridProps {
+  assistant: Assistant;
+  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  canWrite: boolean;
+}
+
+function ContactDetailsGrid({
+  assistant,
+  onOpenContactManager,
+  canWrite,
+}: ContactDetailsGridProps) {
+  const canManuallyManage = !assistant.isCoordinator;
+
+  return (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5" data-testid="assistant-info-contact-grid">
+      <ContactRow
+        icon={<Phone className="h-3.5 w-3.5" aria-hidden="true" />}
+        label="Phone"
+        value={assistant.phone}
+        canWrite={canWrite && canManuallyManage}
+        onAdd={() => onOpenContactManager(assistant, 'phone')}
+      />
+      <ContactRow
+        icon={<Mail className="h-3.5 w-3.5" aria-hidden="true" />}
+        label="Email"
+        value={assistant.email}
+        canWrite={canWrite && canManuallyManage}
+        onAdd={() => onOpenContactManager(assistant, 'email')}
+      />
+      <ContactRow
+        icon={<WhatsApp sx={{ fontSize: '14px', flexShrink: 0 }} aria-hidden="true" />}
+        label="WhatsApp"
+        value={assistant.assistantWhatsappNumber}
+        canWrite={canWrite && canManuallyManage}
+        onAdd={() => onOpenContactManager(assistant, 'whatsapp')}
+      />
+      <ContactRow
+        icon={<FaDiscord className="h-3.5 w-3.5" aria-hidden="true" />}
+        label="Discord"
+        value={assistant.assistantDiscordBotId}
+        canWrite={canWrite && canManuallyManage}
+        onAdd={() => onOpenContactManager(assistant, 'discord')}
+      />
+    </div>
+  );
+}
+
+interface ContactRowProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null | undefined;
+  onAdd: () => void;
+  canWrite: boolean;
+}
+
+function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
+  const [isCopied, setIsCopied] = React.useState(false);
+  const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contactValue = value?.trim() ?? '';
+  const isSet = contactValue !== '';
+
+  React.useEffect(
+    () => () => {
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    },
+    []
+  );
+
+  const copyValue = () => {
+    void navigator.clipboard.writeText(contactValue);
+    setIsCopied(true);
+    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    copyResetTimerRef.current = setTimeout(() => {
+      copyResetTimerRef.current = null;
+      setIsCopied(false);
+    }, CONTACT_COPY_RESET_MS);
+  };
+
+  return (
+    <div className="flex min-w-0 items-center gap-2 text-sm">
+      <span className="text-muted-foreground" aria-hidden="true">
+        {icon}
+      </span>
+      {isSet ? (
+        <button
+          type="button"
+          className="group/contact flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left text-foreground"
+          onClick={copyValue}
+          aria-label={`Copy ${label.toLowerCase()}`}
+        >
+          <span className="min-w-0 truncate">{contactValue}</span>
+          <Check
+            className={cn(
+              'h-3 w-3 flex-shrink-0 text-[color:var(--status-success)] transition-opacity',
+              isCopied ? 'opacity-100' : 'opacity-0'
+            )}
+            aria-hidden="true"
+          />
+        </button>
+      ) : canWrite ? (
+        <Button
+          type="button"
+          variant="link"
+          className="text-link h-auto p-0 text-sm font-normal"
+          onClick={onAdd}
+        >
+          Add {label.toLowerCase()}
+        </Button>
+      ) : (
+        <span className="text-muted-foreground" aria-label={`${label} not set`}>
+          —
+        </span>
+      )}
     </div>
   );
 }
