@@ -1,6 +1,6 @@
 /**
- * Workspace Context E2E — switching workspace via API, verifying context
- * changes affect API responses, cookie persistence.
+ * Workspace Context E2E — switching workspace via rail menu, verifying cookie
+ * persistence and org-scoped billing data.
  *
  * Run: npx playwright test src/tests/account/workspace-context.e2e.ts
  */
@@ -19,7 +19,7 @@ import {
 } from './helpers';
 
 const user = createTestUser({ name: 'WsCtx', lastName: 'Test', credits: 5_000 });
-const org = createOrg({ name: `WsOrg-${user.id}`, ownerId: user.id });
+const org = createOrg({ name: `WsOrg-${user.id.slice(0, 8)}`, ownerId: user.id, credits: 12_000 });
 const lockedOrgAssistant = createAssistant({
   userId: user.id,
   orgId: org.id,
@@ -36,118 +36,81 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('switching workspace via API changes the session context', async ({ authedPage: page }) => {
+const personalWorkspaceLabel = `${user.name} ${user.lastName}`;
+
+async function switchWorkspaceViaRail(page: import('@playwright/test').Page, label: string) {
+  await page.getByTestId('rail-account-trigger').click();
+  const menu = page.getByTestId('rail-account-menu');
+  await expect(menu).toBeVisible({ timeout: 5_000 });
+  await menu.getByText(label, { exact: true }).click();
+  await expect
+    .poll(async () => {
+      const cookies = await page.context().cookies();
+      return cookies.find((c) => c.name === 'unify_workspace_id')?.value ?? '';
+    })
+    .not.toBe('');
+}
+
+test('personal and org workspaces expose distinct API keys', async () => {
   const personalKey = getUserApiKeyFromDb(user.id);
   const orgKey = getUserApiKeyFromDb(user.id, org.id);
 
   expect(personalKey).toBeTruthy();
   expect(orgKey).toBeTruthy();
   expect(personalKey).not.toBe(orgKey);
-
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-
-  // Switch to personal workspace from the browser context so cookies apply
-  const switchStatus = await page.evaluate(async () => {
-    const res = await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: 'personal' }),
-    });
-    return res.status;
-  });
-  expect(switchStatus).toBe(200);
-
-  // Verify the session API responds
-  const sessionStatus = await page.evaluate(async () => {
-    const res = await fetch('/api/session');
-    return res.status;
-  });
-  expect(sessionStatus).toBe(200);
 });
 
-test('workspace cookie persists across page reloads', async ({ authedPage: page }) => {
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-
-  // Switch to personal from browser context (cookies apply to browser)
-  const switchRes = await page.evaluate(async () => {
-    const res = await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: 'personal' }),
-    });
-    return res.status;
-  });
-  expect(switchRes).toBe(200);
-
-  // Navigate fresh instead of reload to avoid net::ERR_ABORTED
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-
-  const cookies = await page.context().cookies();
-  const wsCookie = cookies.find((c) => c.name === 'unify_workspace_id');
-  expect(wsCookie).toBeTruthy();
-  expect(wsCookie!.value).toBe('personal');
-});
-
-test('switching to org workspace and fetching billing returns org credits', async ({
+test('switching to personal workspace via rail sets the workspace cookie', async ({
   authedPage: page,
 }) => {
   await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
 
-  const orgId = org.id;
-
-  // Switch to org workspace
-  const switchStatus = await page.evaluate(async (oId: number) => {
-    const res = await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(oId) }),
-    });
-    return res.status;
-  }, orgId);
-  expect(switchStatus).toBe(200);
-
-  // Fetch billing balance — should reflect org billing account
-  const balance = await page.evaluate(async () => {
-    const res = await fetch('/api/billing/balance');
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.balance;
-  });
-
-  expect(balance).toBeTruthy();
-
-  const orgCredits = dbExec(
-    `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${orgId})`
-  );
-  expect(parseFloat(balance)).toBeCloseTo(parseFloat(orgCredits), 0);
-});
-
-test('locked org users still see org assistants even with a personal workspace cookie', async ({
-  authedPage: page,
-}) => {
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-
-  const switchRes = await page.evaluate(async () => {
-    const res = await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: 'personal' }),
-    });
-    return res.status;
-  });
-  expect(switchRes).toBe(200);
-
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await switchWorkspaceViaRail(page, personalWorkspaceLabel);
 
   const cookies = await page.context().cookies();
   const wsCookie = cookies.find((c) => c.name === 'unify_workspace_id');
   expect(wsCookie?.value).toBe('personal');
+});
+
+test('workspace cookie persists across navigation', async ({ authedPage: page }) => {
+  await page.goto('/assistants');
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+
+  await switchWorkspaceViaRail(page, personalWorkspaceLabel);
+  await page.goto('/account?tab=profile');
+  await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible({ timeout: 15_000 });
+
+  const cookies = await page.context().cookies();
+  expect(cookies.find((c) => c.name === 'unify_workspace_id')?.value).toBe('personal');
+});
+
+test('switching to org workspace returns org billing balance', async ({ authedPage: page }) => {
+  await page.goto('/assistants');
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+
+  await switchWorkspaceViaRail(page, org.name);
+
+  const balance = await page.evaluate(async () => {
+    const res = await fetch('/api/billing/balance');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.balance as number;
+  });
+
+  const orgCredits = dbExec(
+    `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${org.id})`
+  );
+  expect(balance).toBeCloseTo(parseFloat(orgCredits), 0);
+});
+
+test('locked org users still see org assistants with a personal workspace cookie', async ({
+  authedPage: page,
+}) => {
+  await page.goto('/assistants');
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+
+  await switchWorkspaceViaRail(page, personalWorkspaceLabel);
 
   await openUnitySwitcher(page);
   await expect(

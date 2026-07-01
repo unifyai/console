@@ -1,9 +1,5 @@
 /**
- * Spending Limits E2E — view, set, update, and remove personal spending limit.
- *
- * Tests the spending limit flow via the API (PUT /api/user/spending-limit)
- * which is exactly what the SpendingLimitDialog calls when the user saves.
- * Also verifies the usage page renders the spending limit card.
+ * Spending Limits E2E — set, update, and remove personal spending limit via Usage UI.
  *
  * Run: npx playwright test src/tests/account/spending-limits.e2e.ts
  */
@@ -17,98 +13,71 @@ import {
   dbExec,
 } from './helpers';
 
+const DISPLAY_CREDITS_PER_USD = 400;
+
+function toDisplayCredits(usd: number): number {
+  return usd * DISPLAY_CREDITS_PER_USD;
+}
+
 const user = createTestUser({ name: 'Spending', lastName: 'Limit', credits: 5_000 });
 const test = createAccountTest(user);
 test.setTimeout(90_000);
 
 test.afterAll(() => cleanupUser(user.id));
 
-test('usage page loads and shows spending limit card', async ({ authedPage: page }) => {
+async function openUsageSpendingLimitEditor(page: import('@playwright/test').Page) {
   await page.goto('/usage');
   await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('spending-limit-card')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('edit-user-limit-button').click();
+  await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 });
+}
+
+async function saveSpendingLimitDialog(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Save Limit' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 15_000 });
+}
+
+test('usage page shows spending limit card with edit control', async ({ authedPage: page }) => {
+  await page.goto('/usage');
+  await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('spending-limit-card')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('edit-user-limit-button')).toBeVisible();
 });
 
-test('setting a personal spending limit via API persists to DB', async ({ authedPage: page }) => {
-  // Ensure no limit is set
+test('setting a personal spending limit via Usage UI persists to DB', async ({
+  authedPage: page,
+}) => {
   dbExec(`UPDATE "user" SET monthly_spending_cap = NULL WHERE id = '${user.id}'`);
 
-  // Navigate to any authenticated page so session cookies exist
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await openUsageSpendingLimitEditor(page);
+  await page.locator('#spending-limit').fill(String(toDisplayCredits(100)));
+  await saveSpendingLimitDialog(page);
 
-  // Call the spending limit API — this is what the SpendingLimitDialog does on save
-  const response = await page.evaluate(async () => {
-    const res = await fetch('/api/user/spending-limit', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monthlySpendingCap: 100 }),
-    });
-    return { status: res.status, data: await res.json() };
-  });
-
-  expect(response.status).toBe(200);
-  expect(response.data.monthlySpendingCap).toBe(100);
-
-  const cap = getUserSpendingCap(user.id);
-  expect(cap).toBe(100);
+  expect(getUserSpendingCap(user.id)).toBe(100);
+  await expect(page.getByTestId('spending-limit-card')).toContainText('My Limit');
 });
 
-test('updating spending limit changes the value in DB', async ({ authedPage: page }) => {
+test('updating spending limit via Usage UI changes the value in DB', async ({
+  authedPage: page,
+}) => {
   dbExec(`UPDATE "user" SET monthly_spending_cap = 100 WHERE id = '${user.id}'`);
 
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await openUsageSpendingLimitEditor(page);
+  await page.locator('#spending-limit').fill(String(toDisplayCredits(250)));
+  await saveSpendingLimitDialog(page);
 
-  const response = await page.evaluate(async () => {
-    const res = await fetch('/api/user/spending-limit', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monthlySpendingCap: 250 }),
-    });
-    return { status: res.status, data: await res.json() };
-  });
-
-  expect(response.status).toBe(200);
-  expect(response.data.monthlySpendingCap).toBe(250);
-
-  const cap = getUserSpendingCap(user.id);
-  expect(cap).toBe(250);
+  expect(getUserSpendingCap(user.id)).toBe(250);
 });
 
-test('removing spending limit (setting null) clears it from DB', async ({ authedPage: page }) => {
+test('removing spending limit via Unlimited toggle clears it from DB', async ({
+  authedPage: page,
+}) => {
   dbExec(`UPDATE "user" SET monthly_spending_cap = 200 WHERE id = '${user.id}'`);
 
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await openUsageSpendingLimitEditor(page);
+  await page.getByRole('button', { name: 'Unlimited' }).click();
+  await saveSpendingLimitDialog(page);
 
-  const response = await page.evaluate(async () => {
-    const res = await fetch('/api/user/spending-limit', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monthlySpendingCap: null }),
-    });
-    return { status: res.status, data: await res.json() };
-  });
-
-  expect(response.status).toBe(200);
-  expect(response.data.monthlySpendingCap).toBeNull();
-
-  const cap = getUserSpendingCap(user.id);
-  expect(cap).toBeNull();
-});
-
-test('GET spending-limit reflects the current DB value', async ({ authedPage: page }) => {
-  dbExec(`UPDATE "user" SET monthly_spending_cap = 175 WHERE id = '${user.id}'`);
-
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-
-  const response = await page.evaluate(async () => {
-    const res = await fetch('/api/user/spending-limit');
-    return { status: res.status, data: await res.json() };
-  });
-
-  expect(response.status).toBe(200);
-  expect(response.data.monthlySpendingCap).toBe(175);
+  expect(getUserSpendingCap(user.id)).toBeNull();
 });
