@@ -65,7 +65,6 @@ const nextConfig = {
   },
   output: 'standalone',
   experimental: {
-    instrumentationHook: true,
     serverMinification: false,
     serverActions: {
       allowedOrigins: Array.from(new Set(serverActionAllowedOrigins)),
