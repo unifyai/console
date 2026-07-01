@@ -18,7 +18,7 @@ const AppShellNavigationContext = React.createContext<AppShellNavigationContextV
 
 /** Strip the query/hash from an href, leaving the pathname. */
 export function pathnameFromHref(href: string): string {
-  return href.split('?')[0] ?? href;
+  return href.split(/[?#]/)[0] ?? href;
 }
 
 export function AppShellNavigationProvider({ children }: { children: React.ReactNode }) {
@@ -70,7 +70,9 @@ export function useAppShellNavigation() {
 
   const navigateTo = React.useCallback(
     (href: string) => {
-      if (isAssistantsPath(href)) {
+      const targetPathname = pathnameFromHref(href);
+
+      if (isAssistantsPath(targetPathname)) {
         navigationContext?.setPendingTargetHref(null);
         if (typeof window !== 'undefined' && isRoutedShellPath(pathname)) {
           window.history.pushState(null, '', href);
@@ -80,7 +82,7 @@ export function useAppShellNavigation() {
         return;
       }
 
-      if (isAssistantsPath(pathname) && isRoutedShellPath(href)) {
+      if (isAssistantsPath(pathname) && isRoutedShellPath(targetPathname)) {
         navigationContext?.setPendingTargetHref(href);
       } else {
         navigationContext?.setPendingTargetHref(null);

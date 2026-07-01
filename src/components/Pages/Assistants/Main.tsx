@@ -63,6 +63,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, usePathname } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { isAssistantsPath } from '@/lib/navigation/appShellRoutes';
+import { usePendingShellNavigationTarget } from '@/lib/navigation/AppShellRouter';
 import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
@@ -177,11 +178,12 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
   const routePathname = usePathname();
+  const pendingShellNavigationTarget = usePendingShellNavigationTarget();
   // `Main` is mounted persistently by the app shell and only hidden when the
   // user is on another surface (settings/admin/etc). It must not write to the
   // URL while hidden, or its `?profile=` sync would yank navigation back to
   // `/assistants`. All URL writes target `/assistants` and are gated on this.
-  const isActiveSurface = isAssistantsPath(routePathname);
+  const isActiveSurface = isAssistantsPath(routePathname) && pendingShellNavigationTarget === null;
   const pathname = '/assistants';
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
