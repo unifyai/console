@@ -10,6 +10,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Loader2,
+  UserSearch,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ import {
 import { getAnySessionContactIdForUser } from '@/hooks/Assistants/useContactIdPrefetch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { ReferralPromoNavButton } from '@/components/Layout/TopBar/ReferralPromoButton';
+import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
 import { useAppShellNavigation, pathnameFromHref } from '@/lib/navigation/AppShellRouter';
 import { RailNavButton } from './RailNavButton';
 
@@ -111,8 +113,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     isWorkspaceSwitchable,
     isSwitchingWorkspace,
     isUnifyAdmin,
+    isUnifyMember,
   } = useWorkspace();
 
+  const [showImpersonateDialog, setShowImpersonateDialog] = React.useState(false);
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const [ownerContactId, setOwnerContactId] = React.useState<number | null>(null);
 
@@ -289,6 +293,22 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
             </>
           )}
 
+          {isUnifyMember && (
+            <>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowImpersonateDialog(true);
+                }}
+                className="cursor-pointer items-center"
+                data-testid="view-as-user-menu-item"
+              >
+                <UserSearch className="mr-2 h-4 w-4" />
+                <span>View as user</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
@@ -301,6 +321,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {isUnifyMember && (
+        <ImpersonateDialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog} />
+      )}
 
       <TooltipProvider delayDuration={100}>
         <Tooltip>
