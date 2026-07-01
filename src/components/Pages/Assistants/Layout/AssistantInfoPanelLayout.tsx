@@ -110,6 +110,8 @@ interface AssistantInfoPanelLayoutProps {
   spendingBlockedMessage?: string | null;
   onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onConnectDesktop?: (assistant: Assistant) => void;
   hasUserMessage?: boolean;
   hasHistoricalCall?: boolean;
   hasUserPhoneNumber?: boolean;
@@ -137,6 +139,8 @@ export function AssistantInfoPanelLayout({
   spendingBlockedMessage,
   onEditProfile,
   onOpenContactManager,
+  onOpenWorkspaceManager,
+  onConnectDesktop,
   hasUserMessage = false,
   hasHistoricalCall = false,
   hasUserPhoneNumber = false,
@@ -436,6 +440,8 @@ export function AssistantInfoPanelLayout({
       onClose={closeInfo}
       onEditProfile={onEditProfile}
       onOpenContactManager={onOpenContactManager}
+      onOpenWorkspaceManager={onOpenWorkspaceManager}
+      onConnectDesktop={onConnectDesktop}
       roadmap={roadmap}
       canWrite={canWrite}
       coordinatorOnboarding={coordinatorOnboarding}

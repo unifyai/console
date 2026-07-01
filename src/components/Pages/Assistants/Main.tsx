@@ -2273,7 +2273,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // The setup roadmap is the *owner's* checklist — the contact
   // details, integrations, install steps etc. all belong to whoever
   // hired the assistant. Org admins / collaborators viewing a
-  // teammate's assistant get the bare Contact Info layout instead;
+  // teammate's assistant get the bare Profile layout instead;
   // they have no actionable steps to tick off here.
   const isAssistantOwner =
     !!profileAssistant && !!currentUserId && profileAssistant.userId === currentUserId;
@@ -2555,6 +2555,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     isSpendingBlocked={spendingGateStatus.isBlocked}
                     spendingBlockedMessage={spendingGateStatus.blockedMessage}
                     onOpenContactManager={handleOpenContactManager}
+                    onEditProfile={profileCanWrite ? handleOpenEditDialog : undefined}
+                    onOpenWorkspaceManager={
+                      profileCanWrite ? handleOpenWorkspaceManager : undefined
+                    }
+                    onConnectDesktop={isAssistantOwner ? handleShowInstallInstructions : undefined}
                     hasUserMessage={profiledHasUserMessage}
                     hasHistoricalCall={profiledHasHistoricalCall}
                     hasUserPhoneNumber={hasUserPhoneNumber}

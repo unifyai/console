@@ -119,9 +119,9 @@ test('post-hire roadmap renders Onboarding + Contact tabs, groups accordion, and
   await ensureInfoPanelOpen(page);
 
   const onboardingTab = page.getByTestId('assistant-info-tab-onboarding');
-  const contactTab = page.getByTestId('assistant-info-tab-contact');
+  const profileTab = page.getByTestId('assistant-info-tab-profile');
   await expect(onboardingTab).toBeVisible({ timeout: 5_000 });
-  await expect(contactTab).toBeVisible();
+  await expect(profileTab).toBeVisible();
 
   // Active tab on first render should be Onboarding (no progress yet).
   const roadmap = page.getByTestId('assistant-setup-roadmap');

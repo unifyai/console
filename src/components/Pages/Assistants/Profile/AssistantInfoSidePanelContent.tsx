@@ -1,11 +1,14 @@
 import * as React from 'react';
+import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock, X } from 'lucide-react';
+import { Copy, Check, Pencil, Lock, X } from 'lucide-react';
+import GoogleIcon from '@/public/icons/google-icon.png';
+import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -21,8 +24,6 @@ const PANEL_TAB_TRIGGER_CLASS = [
   'data-[state=active]:border-primary data-[state=active]:bg-transparent',
   'data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none',
 ].join(' ');
-import { WhatsApp } from '@mui/icons-material';
-import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
@@ -46,12 +47,13 @@ export interface AssistantInfoSidePanelContentProps {
   onEditProfile?: (assistant: Assistant) => void;
   /** Open the contact manager dialog, optionally on a specific channel tab. */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  /** Open the workspace manager dialog. */
+  onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  /** Open the desktop linker dialog. Owner-only; omit for non-owners. */
+  onConnectDesktop?: (assistant: Assistant) => void;
   /**
    * Whether the viewer can edit this assistant. Drives the visibility
-   * of every edit affordance the panel surfaces:
-   *   - the Contact Info section's "Edit" button
-   *   - per-channel "Add phone / email / …" inline CTAs (read-only
-   *     viewers see a quiet "—" placeholder instead)
+   * of every edit affordance the panel surfaces in the Profile tab.
    * Defaults to `true` so existing callers (where the panel was
    * always editable) keep their behavior; non-write surfaces should
    * pass `false` explicitly.
@@ -117,7 +119,6 @@ export interface AssistantInfoSidePanelContentProps {
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
-const CONTACT_COPY_RESET_MS = 2000;
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -128,14 +129,10 @@ const CONTACT_COPY_RESET_MS = 2000;
  *      Tapping the header itself does nothing; interactions stay attached
  *      to explicit controls.
  *   2. A tabbed body. While onboarding is in progress we render two
- *      tabs (Onboarding / Contact Info); the moment every onboarding
- *      step resolves we drop the tab strip entirely and show Contact
- *      Info inline. This is the "panel progressively settles into its
- *      standard shape" arc.
- *
- * The "Profile" section from the previous design was removed — its
- * data (job title, about) is editable through the Edit dialog and
- * doesn't need a static panel section to live in.
+ *      tabs (Onboarding / Profile); the moment every onboarding step
+ *      resolves we drop the tab strip entirely and show Profile inline.
+ *      This is the "panel progressively settles into its standard shape"
+ *      arc.
  */
 export function AssistantInfoSidePanelContent({
   assistant,
@@ -149,6 +146,8 @@ export function AssistantInfoSidePanelContent({
         onEditProfile={props.onEditProfile}
         className={props.className}
         onOpenContactManager={props.onOpenContactManager}
+        onOpenWorkspaceManager={props.onOpenWorkspaceManager}
+        onConnectDesktop={props.onConnectDesktop}
         canWrite={props.canWrite}
         coordinatorOnboarding={props.coordinatorOnboarding}
         onStartCall={props.onStartCall}
@@ -162,13 +161,15 @@ export function AssistantInfoSidePanelContent({
   return <RegularAssistantInfoSidePanelContent assistant={assistant} {...props} />;
 }
 
-type CoordinatorPanelTab = 'onboarding' | 'contact';
+type CoordinatorPanelTab = 'onboarding' | 'profile';
 
 function CoordinatorAssistantInfoSidePanelContent({
   assistant,
   onClose,
   onEditProfile,
   onOpenContactManager,
+  onOpenWorkspaceManager,
+  onConnectDesktop,
   className,
   canWrite = true,
   coordinatorOnboarding,
@@ -181,6 +182,8 @@ function CoordinatorAssistantInfoSidePanelContent({
   onClose: () => void;
   onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onConnectDesktop?: (assistant: Assistant) => void;
   className?: string;
   canWrite?: boolean;
   coordinatorOnboarding?: AssistantInfoSidePanelContentProps['coordinatorOnboarding'];
@@ -194,10 +197,10 @@ function CoordinatorAssistantInfoSidePanelContent({
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
-    showOnboardingTab ? 'onboarding' : 'contact'
+    showOnboardingTab ? 'onboarding' : 'profile'
   );
   React.useEffect(() => {
-    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('contact');
+    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
   }, [showOnboardingTab, activeTab]);
 
   const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -264,11 +267,11 @@ function CoordinatorAssistantInfoSidePanelContent({
               Onboarding
             </TabsTrigger>
             <TabsTrigger
-              value="contact"
-              data-testid="assistant-info-tab-contact"
+              value="profile"
+              data-testid="assistant-info-tab-profile"
               className={PANEL_TAB_TRIGGER_CLASS}
             >
-              Contact info
+              Profile
             </TabsTrigger>
           </TabsList>
           {coordinatorOnboarding && (
@@ -297,20 +300,25 @@ function CoordinatorAssistantInfoSidePanelContent({
               />
             </TabsContent>
           )}
-          <TabsContent value="contact" className="mt-0">
-            <ContactInfoGrid
+          <TabsContent value="profile" className="mt-0">
+            <ProfileSectionsPanel
               assistant={assistant}
+              onEditProfile={onEditProfile}
               onOpenContactManager={onOpenContactManager}
+              onOpenWorkspaceManager={onOpenWorkspaceManager}
+              onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
-              showTitle={false}
             />
           </TabsContent>
         </Tabs>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
-          <ContactInfoGrid
+          <ProfileSectionsPanel
             assistant={assistant}
+            onEditProfile={onEditProfile}
             onOpenContactManager={onOpenContactManager}
+            onOpenWorkspaceManager={onOpenWorkspaceManager}
+            onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
           />
         </ScrollArea>
@@ -324,6 +332,8 @@ function RegularAssistantInfoSidePanelContent({
   onClose,
   onEditProfile,
   onOpenContactManager,
+  onOpenWorkspaceManager,
+  onConnectDesktop,
   roadmap,
   className,
   canWrite = true,
@@ -354,15 +364,15 @@ function RegularAssistantInfoSidePanelContent({
   const onboardingState = useAssistantOnboardingState(assistant, derivationContext);
   const showOnboardingTab = !!roadmap && onboardingState.shouldShowRoadmap;
 
-  // Controlled tab state so we can auto-switch to Contact Info the
-  // moment Onboarding completes (otherwise the user would see an
-  // empty body until they manually clicked the surviving tab).
-  const [activeTab, setActiveTab] = React.useState<'onboarding' | 'contact'>(
-    showOnboardingTab ? 'onboarding' : 'contact'
+  // Controlled tab state so we can auto-switch to Profile the moment
+  // Onboarding completes (otherwise the user would see an empty body
+  // until they manually clicked the surviving tab).
+  const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile'>(
+    showOnboardingTab ? 'onboarding' : 'profile'
   );
   React.useEffect(() => {
-    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('contact');
-    if (showOnboardingTab && activeTab === 'contact' && onboardingState.resolvedSteps === 0) {
+    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
+    if (showOnboardingTab && activeTab === 'profile' && onboardingState.resolvedSteps === 0) {
       // Re-entering an assistant that was never started — land on
       // onboarding by default (only when no progress has happened
       // yet, so we don't second-guess the user's last selection).
@@ -383,12 +393,14 @@ function RegularAssistantInfoSidePanelContent({
     setTimeout(() => setIsIdCopied(false), 2000);
   };
 
-  const contactInfoBody = (showTitle = true) => (
-    <ContactInfoGrid
+  const profileBody = () => (
+    <ProfileSectionsPanel
       assistant={assistant}
+      onEditProfile={onEditProfile}
       onOpenContactManager={onOpenContactManager}
+      onOpenWorkspaceManager={onOpenWorkspaceManager}
+      onConnectDesktop={onConnectDesktop}
       canWrite={canWrite}
-      showTitle={showTitle}
     />
   );
 
@@ -417,7 +429,7 @@ function RegularAssistantInfoSidePanelContent({
         {showOnboardingTab && roadmap ? (
           <Tabs
             value={activeTab}
-            onValueChange={(v) => setActiveTab(v as 'onboarding' | 'contact')}
+            onValueChange={(v) => setActiveTab(v as 'onboarding' | 'profile')}
             className="flex flex-col gap-3"
           >
             {/* Tab strip — underlined style mirroring the right pane.
@@ -439,11 +451,11 @@ function RegularAssistantInfoSidePanelContent({
                 </span>
               </TabsTrigger>
               <TabsTrigger
-                value="contact"
-                data-testid="assistant-info-tab-contact"
+                value="profile"
+                data-testid="assistant-info-tab-profile"
                 className={PANEL_TAB_TRIGGER_CLASS}
               >
-                Contact info
+                Profile
               </TabsTrigger>
             </TabsList>
             <TabsContent value="onboarding" className="mt-0">
@@ -458,12 +470,12 @@ function RegularAssistantInfoSidePanelContent({
                 userPhoneNumber={roadmap.userPhoneNumber}
               />
             </TabsContent>
-            <TabsContent value="contact" className="mt-0">
-              {contactInfoBody(false)}
+            <TabsContent value="profile" className="mt-0">
+              {profileBody()}
             </TabsContent>
           </Tabs>
         ) : (
-          contactInfoBody()
+          profileBody()
         )}
       </div>
     </ScrollArea>
@@ -623,168 +635,210 @@ function IdentityHeader({
   );
 }
 
-interface ContactInfoGridProps {
+interface ProfileSectionsPanelProps {
   assistant: Assistant;
+  onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
-  /** When false, the grid renders read-only — no Edit button, no per-channel Add CTAs. */
+  onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onConnectDesktop?: (assistant: Assistant) => void;
   canWrite: boolean;
-  /** Tab labels already provide the section title. */
-  showTitle?: boolean;
 }
 
-/**
- * Two-column contact grid. Mirrors what used to live inside the
- * deprecated "Contacts" section, just lifted into its own block so
- * the same UI is shared between the tabbed and tabless states.
- *
- * For viewers without write permission (e.g. org members looking at
- * a teammate's assistant) the section flips to a strictly read-only
- * presentation: the section's "Edit" button disappears and unset
- * channels render a neutral "—" placeholder instead of an actionable
- * "Add …" link. Hiding the affordances entirely is preferable to
- * disabling them — a disabled Add link would just invite confusion
- * about why the action isn't allowed.
- */
-function ContactInfoGrid({
+const DESKTOP_OS_LABELS: Record<string, string> = {
+  macos: 'macOS',
+  windows: 'Windows',
+  ubuntu: 'Ubuntu',
+};
+
+type WorkspaceProviderKind = 'google' | 'microsoft';
+
+function getProfileStatusDescription(assistant: Assistant): string {
+  const jobTitle = assistant.jobTitle?.trim();
+  if (jobTitle) return jobTitle;
+
+  const about = assistant.about?.trim();
+  if (about) {
+    return about.length > 96 ? `${about.slice(0, 93)}…` : about;
+  }
+
+  return 'No job title set';
+}
+
+function getWorkspaceProviderKind(assistant: Assistant): WorkspaceProviderKind | null {
+  const provider = assistant.emailProvider?.trim().toLowerCase();
+  if (provider === 'google_workspace' || provider === 'google') return 'google';
+  if (provider === 'microsoft_365' || provider === 'microsoft') return 'microsoft';
+  return null;
+}
+
+function getWorkspaceStatusDescription(assistant: Assistant): {
+  text: string;
+  provider: WorkspaceProviderKind | null;
+} {
+  const providerKind = getWorkspaceProviderKind(assistant);
+  if (providerKind === 'google') {
+    return { text: 'Google Workspace connected', provider: 'google' };
+  }
+  if (providerKind === 'microsoft') {
+    return { text: 'Microsoft 365 connected', provider: 'microsoft' };
+  }
+
+  if (assistant.isCoordinator && assistant.email?.trim()) {
+    return { text: 'T-W1N email configured', provider: null };
+  }
+
+  if (assistant.email?.trim() && assistant.emailProvisionedBy === 'platform') {
+    return { text: 'Platform email configured', provider: null };
+  }
+
+  if (assistant.email?.trim()) {
+    return { text: 'Email configured', provider: null };
+  }
+
+  return { text: 'No workspace connected yet', provider: null };
+}
+
+function formatContactChannelList(channels: string[]): string {
+  if (channels.length === 0) return 'No contact channels configured';
+  if (channels.length === 1) return `${channels[0]} configured`;
+  if (channels.length === 2) return `${channels[0]} and ${channels[1]} configured`;
+  return `${channels.slice(0, -1).join(', ')}, and ${channels.at(-1)} configured`;
+}
+
+function getContactDetailsStatusDescription(assistant: Assistant): string {
+  const channels: string[] = [];
+  if (assistant.phone?.trim()) channels.push('Phone');
+  if (assistant.email?.trim()) channels.push('Email');
+  if (assistant.assistantWhatsappNumber?.trim()) channels.push('WhatsApp');
+  if (assistant.assistantDiscordBotId?.trim()) channels.push('Discord');
+  return formatContactChannelList(channels);
+}
+
+function getDesktopStatusDescription(assistant: Assistant): string {
+  if (assistant.userDesktopUrl?.trim()) {
+    const os = assistant.userDesktopMode
+      ? (DESKTOP_OS_LABELS[assistant.userDesktopMode] ?? assistant.userDesktopMode)
+      : 'Desktop';
+    return `${os} desktop connected`;
+  }
+  return 'No desktop connected yet';
+}
+
+function ProfileSectionsPanel({
   assistant,
+  onEditProfile,
   onOpenContactManager,
+  onOpenWorkspaceManager,
+  onConnectDesktop,
   canWrite,
-  showTitle = true,
-}: ContactInfoGridProps) {
-  // Coordinator contacts are platform-managed, so the per-channel manual "Add"
-  // CTAs don't apply — the platform provisions (and the backend rejects manual
-  // creation).
-  const canManuallyManage = !assistant.isCoordinator;
-  const canOpenContactManager = canWrite && canManuallyManage;
+}: ProfileSectionsPanelProps) {
+  const workspaceStatus = getWorkspaceStatusDescription(assistant);
+  const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
+
   return (
-    <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
-      {(showTitle || canOpenContactManager) && (
-        <div
-          className={cn(
-            'flex items-center pb-1.5',
-            showTitle ? 'justify-between border-b' : 'justify-end'
-          )}
-        >
-          {showTitle && <h3 className="text-label text-semibold">Contact info</h3>}
-          {canOpenContactManager && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-caption -mr-2 h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
-              onClick={() => onOpenContactManager(assistant)}
-              data-testid="assistant-info-manage-contacts"
-              aria-label="Manage contact details"
-            >
-              <Pencil className="h-3 w-3" />
-              <span>Edit</span>
-            </Button>
-          )}
-        </div>
+    <section className="flex flex-col gap-4" data-testid="assistant-info-profile-sections">
+      <ProfileSectionRow
+        title="Profile"
+        description={getProfileStatusDescription(assistant)}
+        canEdit={canWrite && !!onEditProfile}
+        onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
+        editTestId="assistant-info-edit-profile-section"
+        editAriaLabel="Edit profile"
+      />
+      <ProfileSectionRow
+        title="Workspace"
+        description={
+          workspaceStatus.provider ? (
+            <WorkspaceStatusDescription
+              text={workspaceStatus.text}
+              provider={workspaceStatus.provider}
+            />
+          ) : (
+            workspaceStatus.text
+          )
+        }
+        canEdit={canWrite && !!onOpenWorkspaceManager}
+        onEdit={onOpenWorkspaceManager ? () => onOpenWorkspaceManager(assistant) : undefined}
+        editTestId="assistant-info-edit-workspace-section"
+        editAriaLabel="Edit workspace"
+      />
+      <ProfileSectionRow
+        title="Contact Details"
+        description={getContactDetailsStatusDescription(assistant)}
+        canEdit={canWrite && !assistant.isCoordinator && !!onOpenContactManager}
+        onEdit={() => onOpenContactManager(assistant)}
+        editTestId="assistant-info-edit-contact-section"
+        editAriaLabel="Edit contact details"
+      />
+      {showDesktopSection && (
+        <ProfileSectionRow
+          title="Desktop"
+          description={getDesktopStatusDescription(assistant)}
+          canEdit={canWrite && !!onConnectDesktop}
+          onEdit={onConnectDesktop ? () => onConnectDesktop(assistant) : undefined}
+          editTestId="assistant-info-edit-desktop-section"
+          editAriaLabel="Connect desktop"
+        />
       )}
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
-        <ContactRow
-          icon={<Phone className="h-3.5 w-3.5" aria-hidden="true" />}
-          label="Phone"
-          value={assistant.phone}
-          canWrite={canWrite && canManuallyManage}
-          onAdd={() => onOpenContactManager(assistant, 'phone')}
-        />
-        <ContactRow
-          icon={<Mail className="h-3.5 w-3.5" aria-hidden="true" />}
-          label="Email"
-          value={assistant.email}
-          canWrite={canWrite && canManuallyManage}
-          onAdd={() => onOpenContactManager(assistant, 'email')}
-        />
-        <ContactRow
-          icon={<WhatsApp sx={{ fontSize: '14px', flexShrink: 0 }} aria-hidden="true" />}
-          label="WhatsApp"
-          value={assistant.assistantWhatsappNumber}
-          canWrite={canWrite && canManuallyManage}
-          onAdd={() => onOpenContactManager(assistant, 'whatsapp')}
-        />
-        <ContactRow
-          icon={<FaDiscord className="h-3.5 w-3.5" aria-hidden="true" />}
-          label="Discord"
-          value={assistant.assistantDiscordBotId}
-          canWrite={canWrite && canManuallyManage}
-          onAdd={() => onOpenContactManager(assistant, 'discord')}
-        />
-      </div>
     </section>
   );
 }
 
-interface ContactRowProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string | null | undefined;
-  onAdd: () => void;
-  canWrite: boolean;
-}
-
-function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
-  const [isCopied, setIsCopied] = React.useState(false);
-  const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const contactValue = value?.trim() ?? '';
-  const isSet = contactValue !== '';
-
-  React.useEffect(
-    () => () => {
-      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
-    },
-    []
-  );
-
-  const copyValue = () => {
-    void navigator.clipboard.writeText(contactValue);
-    setIsCopied(true);
-    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
-    copyResetTimerRef.current = setTimeout(() => {
-      copyResetTimerRef.current = null;
-      setIsCopied(false);
-    }, CONTACT_COPY_RESET_MS);
-  };
+function WorkspaceStatusDescription({
+  text,
+  provider,
+}: {
+  text: string;
+  provider: WorkspaceProviderKind;
+}) {
+  const iconSrc = provider === 'google' ? GoogleIcon : MicrosoftIcon;
+  const iconAlt = provider === 'google' ? 'Google Workspace logo' : 'Microsoft 365 logo';
 
   return (
-    <div className="flex min-w-0 items-center gap-2 text-sm">
-      <span className="text-muted-foreground" aria-hidden="true">
-        {icon}
-      </span>
-      {isSet ? (
-        <button
-          type="button"
-          className="group/contact flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left text-foreground"
-          onClick={copyValue}
-          aria-label={`Copy ${label.toLowerCase()}`}
-        >
-          <span className="min-w-0 truncate">{contactValue}</span>
-          <Check
-            className={cn(
-              'h-3 w-3 flex-shrink-0 text-[color:var(--status-success)] transition-opacity',
-              isCopied ? 'opacity-100' : 'opacity-0'
-            )}
-            aria-hidden="true"
-          />
-        </button>
-      ) : canWrite ? (
-        <Button
-          type="button"
-          variant="link"
-          className="text-link h-auto p-0 text-sm font-normal"
-          onClick={onAdd}
-        >
-          Add {label.toLowerCase()}
-        </Button>
-      ) : (
-        // Read-only viewers: neutral em-dash placeholder, no
-        // affordance, with an aria-label so AT users still hear
-        // which channel is empty.
-        <span className="text-muted-foreground" aria-label={`${label} not set`}>
-          —
-        </span>
-      )}
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <Image src={iconSrc} alt={iconAlt} width={16} height={16} className="h-4 w-4 shrink-0" />
+      <span className="truncate">{text}</span>
+    </span>
+  );
+}
+
+interface ProfileSectionRowProps {
+  title: string;
+  description: React.ReactNode;
+  canEdit: boolean;
+  onEdit?: () => void;
+  editTestId: string;
+  editAriaLabel: string;
+}
+
+function ProfileSectionRow({
+  title,
+  description,
+  canEdit,
+  onEdit,
+  editTestId,
+  editAriaLabel,
+}: ProfileSectionRowProps) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-border pb-3 last:border-b-0 last:pb-0">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-label text-semibold">{title}</h3>
+        {canEdit && onEdit && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-caption -mr-2 h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+            data-testid={editTestId}
+            aria-label={editAriaLabel}
+          >
+            <Pencil className="h-3 w-3" />
+            <span>Edit</span>
+          </Button>
+        )}
+      </div>
+      <div className="text-caption text-muted-foreground">{description}</div>
     </div>
   );
 }
