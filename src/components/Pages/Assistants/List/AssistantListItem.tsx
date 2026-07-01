@@ -26,6 +26,7 @@ import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
+import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -117,7 +118,6 @@ export function AssistantListItem({
   // A `appearance://` photo encodes the unity appearance — render the SVG
   // unity; otherwise fall back to the photo URL (or initials).
   const creatureAppearance = parseCreatureSentinel(photoSrc);
-  const isOnline = status?.running === true;
   const canEndContract = !!onEndContract && !isCoordinator;
 
   const renderPhotoAvatar = (className: string) =>
@@ -162,15 +162,7 @@ export function AssistantListItem({
         ) : (
           renderPhotoAvatar('h-9 w-9')
         )}
-        {status !== null && (
-          <span
-            role="status"
-            className={cn(
-              'absolute bottom-1 right-1 block h-2 w-2 rounded-full ring-2 ring-background',
-              isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
-            )}
-          />
-        )}
+        <AssistantPresenceIndicator status={status} />
         {isCallActive && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
@@ -211,16 +203,10 @@ export function AssistantListItem({
           ) : (
             renderPhotoAvatar('h-9 w-9 flex-shrink-0')
           )}
-          {status !== null && (
-            <span
-              role="status"
-              data-testid={`status-indicator-${assistant.agentId}`}
-              className={cn(
-                'absolute bottom-1 right-1 block h-2 w-2 rounded-full ring-2 ring-background',
-                isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
-              )}
-            />
-          )}
+          <AssistantPresenceIndicator
+            status={status}
+            testId={`status-indicator-${assistant.agentId}`}
+          />
         </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
