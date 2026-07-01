@@ -208,6 +208,26 @@ const ProfileContactRequiredNotice: React.FC<{
   </div>
 );
 
+/**
+ * One stacked contact-channel section (icon + label header, then content),
+ * mirroring the user account contact form's layout so the two read alike.
+ * ``data-contact-section`` lets deep links scroll their channel into view.
+ */
+const ContactSection: React.FC<{
+  type: ContactManagerTab;
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}> = ({ type, icon, label, children }) => (
+  <section data-contact-section={type}>
+    <div className="mb-3 flex items-center gap-2">
+      {icon}
+      <Label>{label}</Label>
+    </div>
+    <div className="space-y-3">{children}</div>
+  </section>
+);
+
 // ---------------------------------------------------------------------------
 // BYOD provider picker cards
 // ---------------------------------------------------------------------------
@@ -338,15 +358,13 @@ export function AssistantContactManager({
   const {
     // Self-contained form methods from the hook
     contactFormMethods,
-    activeTab,
-    setActiveTab,
     availablePhoneCountries,
     isLoadingPhoneCountries,
-    creationCost,
-    monthlyCost,
-    isCreateButtonDisabled,
-    showCreateButton,
-    showDeleteButton,
+    getCreationCost,
+    getMonthlyCost,
+    isCreateDisabledFor,
+    showCreateFor,
+    showDeleteFor,
     confirmDelete,
     setConfirmDelete,
     isDeleting,
@@ -380,41 +398,45 @@ export function AssistantContactManager({
 
   const rhfPhoneCountry = useWatch({ control, name: 'phoneCountry' });
 
-  // Slack is a display/routing-only entry — it has no per-assistant
-  // contact row, cost, or create/delete flow — so it lives outside the
-  // contact hook's `activeTab` (which is typed to billable `ContactType`s).
-  // We overlay a widened local tab and forward only real contact types
-  // back to the hook so its footer/cost logic stays consistent.
+  // Slack is a display/routing-only entry — it has no per-assistant contact
+  // row, cost, or create/delete flow — so its section manages its own
+  // connect/disconnect and never calls the hook's create/delete helpers (which
+  // are typed to billable `ContactType`s).
   const slackAvailable = !!assistantActions.slack && !!slackOwner;
 
   // Channel availability is reported by Orchestra (which probes the comms layer
   // for the underlying provider credentials). A deployment without Twilio
-  // configured can't provision those channels, so we hide their tabs rather
+  // configured can't provision those channels, so we hide their sections rather
   // than letting a user reach a CTA that would fail at runtime. Email stays
   // visible (it's BYOD workspace OAuth, gated inside the Workspace modal), and
   // Discord stays visible so users can always install the assistant's bot.
   const { contactPhone, contactWhatsapp } = useFeatures();
 
-  const [selectedTab, setSelectedTab] = React.useState<ContactManagerTab>(initialTab ?? activeTab);
-  React.useEffect(() => {
-    if (isOpen && initialTab) setSelectedTab(initialTab);
-  }, [isOpen, initialTab]);
+  // Tracks which contact type's Create is in flight so only its button spins
+  // (the hook exposes a single submitting flag shared across sections).
+  const [creatingType, setCreatingType] = React.useState<ContactType | null>(null);
 
-  // If the active/requested tab points at a channel that isn't available on
-  // this deployment, fall back to email so the picker never shows a blank tab.
-  React.useEffect(() => {
-    const unavailable =
-      (selectedTab === 'phone' && !contactPhone) ||
-      (selectedTab === 'whatsapp' && !contactWhatsapp);
-    if (unavailable) {
-      setSelectedTab('email');
-      setActiveTab('email');
+  const handleCreate = async (type: ContactType) => {
+    setCreatingType(type);
+    try {
+      await submitContact(type);
+    } finally {
+      setCreatingType(null);
     }
-  }, [selectedTab, contactPhone, contactWhatsapp, setActiveTab]);
-  const handleTabChange = (value: ContactManagerTab) => {
-    setSelectedTab(value);
-    if (value !== 'slack') setActiveTab(value);
   };
+
+  // Deep links (e.g. the info panel's "Add phone") pass an ``initialTab``; scroll
+  // that section into view once the sections render rather than selecting a tab.
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!isOpen || !initialTab) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const section = container.querySelector(`[data-contact-section="${initialTab}"]`);
+    if (section) {
+      requestAnimationFrame(() => section.scrollIntoView({ block: 'start' }));
+    }
+  }, [isOpen, initialTab]);
 
   const handleDialogClose = (open: boolean) => {
     if (!isBusy && !open) {
@@ -499,86 +521,61 @@ export function AssistantContactManager({
   };
 
   // -------------------------------------------------------------------------
-  // Footer logic
+  // Per-section create / delete actions
   // -------------------------------------------------------------------------
 
-  const renderFooter = () => {
-    // Slack is display/routing-only: connect/disconnect live inside the
-    // Slack tab itself, so there's no shared dialog footer for it.
-    if (selectedTab === 'slack') return null;
+  // Slack manages its own connect/disconnect inline, and email provisioning is
+  // BYOD-only (handled by the Workspace modal), so those types render no action
+  // here. Phone/WhatsApp/Discord expose Create (with cost) or Delete inline.
+  const renderContactActions = (type: ContactType) => {
+    if (!canWrite) return null;
 
-    // Confirm delete (platform contact)
-    if (confirmDelete) {
+    if (showDeleteFor(type)) {
       return (
-        <div className="flex w-full items-center justify-end gap-2">
-          <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={isDeleting}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={handleProceedDelete} disabled={isDeleting}>
-            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Proceed
-          </Button>
-        </div>
-      );
-    }
-
-    // BYOD confirm-disconnect / connect / update-features actions live
-    // in the Workspace modal now — the Email tab is display-only.
-    if (
-      assistant.isCoordinator &&
-      (selectedTab === 'email' || selectedTab === 'phone' || selectedTab === 'whatsapp')
-    ) {
-      return null;
-    }
-
-    // Delete button for platform email or other contacts
-    if (showDeleteButton && canWrite) {
-      return (
-        <div className="flex w-full items-center justify-end">
+        <div className="flex justify-end">
           <Button
             variant="destructive"
-            onClick={() => setConfirmDelete(activeTab as any)}
+            size="sm"
+            onClick={() => setConfirmDelete(type)}
             disabled={isBusy}
           >
+            <Trash2 className="mr-2 h-3.5 w-3.5" />
             Delete
           </Button>
         </div>
       );
     }
 
-    // Create button (platform provisioning for non-BYOD email + other contact types)
-    if (showCreateButton && canWrite && activeTab !== 'email') {
+    if (showCreateFor(type)) {
+      const creationCost = getCreationCost(type);
+      const monthlyCost = getMonthlyCost(type);
       return (
-        <div className="flex w-full flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <CostDisplay creationCost={creationCost} monthlyCost={monthlyCost} />
-            <BillableActionGuard
-              creditsRequired={
-                creationCost !== null && creationCost > 0
-                  ? creationCost
-                  : monthlyCost !== null && monthlyCost > 0
-                    ? monthlyCost
-                    : 0
-              }
-              onAddPaymentMethod={onAddPaymentMethod}
-              tooltipMessage={
-                monthlyCost !== null && monthlyCost > 0
-                  ? `This will deduct ${monthlyCost.toFixed(2)} credits/month from your wallet.`
-                  : undefined
-              }
-            >
-              <Button onClick={submitContact} disabled={isCreateButtonDisabled || isBusy}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create
-              </Button>
-            </BillableActionGuard>
-          </div>
+        <div className="flex items-center justify-between gap-3">
+          <CostDisplay creationCost={creationCost} monthlyCost={monthlyCost} />
+          <BillableActionGuard
+            creditsRequired={
+              creationCost !== null && creationCost > 0
+                ? creationCost
+                : monthlyCost !== null && monthlyCost > 0
+                  ? monthlyCost
+                  : 0
+            }
+            onAddPaymentMethod={onAddPaymentMethod}
+            tooltipMessage={
+              monthlyCost !== null && monthlyCost > 0
+                ? `This will deduct ${monthlyCost.toFixed(2)} credits/month from your wallet.`
+                : undefined
+            }
+          >
+            <Button onClick={() => void handleCreate(type)} disabled={isCreateDisabledFor(type)}>
+              {creatingType === type && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create
+            </Button>
+          </BillableActionGuard>
         </div>
       );
     }
 
-    // Email tab no longer has a Create footer — platform-issued mailbox
-    // provisioning is hidden, and BYOD uses the inline Connect button.
     return null;
   };
 
@@ -596,62 +593,51 @@ export function AssistantContactManager({
           </DialogHeader>
 
           {confirmDelete ? (
-            <div className="py-8 text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-              <h3 className="text-h2 mt-4">Are you sure?</h3>
-              <p className="text-body-muted mx-auto mt-2 max-w-sm">
-                Deleting the {confirmDelete} contact method is irreversible. You can add a new one
-                again at any time.
-              </p>
-            </div>
+            <>
+              <div className="py-8 text-center">
+                <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+                <h3 className="text-h2 mt-4">Are you sure?</h3>
+                <p className="text-body-muted mx-auto mt-2 max-w-sm">
+                  Deleting the {confirmDelete} contact method is irreversible. You can add a new one
+                  again at any time.
+                </p>
+              </div>
+              <DialogFooter>
+                <div className="flex w-full items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirmDelete(null)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button variant="destructive" onClick={handleProceedDelete} disabled={isDeleting}>
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Proceed
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
           ) : (
-            <div className="w-full pt-4">
-              <Select
-                value={selectedTab}
-                onValueChange={(value) => handleTabChange(value as ContactManagerTab)}
+            <div
+              ref={scrollContainerRef}
+              className="-mr-2 max-h-[60vh] space-y-6 overflow-y-auto pr-2 pt-2"
+            >
+              <ContactSection
+                type="email"
+                icon={<Mail className="h-4 w-4 text-muted-foreground" />}
+                label="Email"
               >
-                <SelectTrigger data-testid="contact-type-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">
-                    <span className="flex items-center">
-                      <Mail className="mr-2 h-4 w-4" /> Email
-                    </span>
-                  </SelectItem>
-                  {contactPhone && (
-                    <SelectItem value="phone">
-                      <span className="flex items-center">
-                        <Phone className="mr-2 h-4 w-4" /> Phone
-                      </span>
-                    </SelectItem>
-                  )}
-                  {contactWhatsapp && (
-                    <SelectItem value="whatsapp">
-                      <span className="flex items-center">
-                        <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
-                      </span>
-                    </SelectItem>
-                  )}
-                  <SelectItem value="discord">
-                    <span className="flex items-center">
-                      <FaDiscord className="mr-2 h-4 w-4" /> Discord
-                    </span>
-                  </SelectItem>
-                  {slackAvailable && (
-                    <SelectItem value="slack">
-                      <span className="flex items-center">
-                        <Slack className="mr-2 h-4 w-4" /> Slack
-                      </span>
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+                {renderEmailTab()}
+                {renderContactActions('email')}
+              </ContactSection>
 
-              <div className="max-h-[60vh] overflow-y-auto py-4 pt-8">
-                {selectedTab === 'email' && renderEmailTab()}
-
-                {selectedTab === 'phone' && (
+              {contactPhone && (
+                <ContactSection
+                  type="phone"
+                  icon={<Phone className="h-4 w-4 text-muted-foreground" />}
+                  label="Phone"
+                >
                   <PhoneTabContent
                     assistant={assistant}
                     canWrite={canWrite}
@@ -664,25 +650,44 @@ export function AssistantContactManager({
                     availablePhoneCountries={availablePhoneCountries}
                     userPhoneNumber={userPhoneNumber}
                   />
-                )}
+                  {renderContactActions('phone')}
+                </ContactSection>
+              )}
 
-                {selectedTab === 'whatsapp' && (
+              {contactWhatsapp && (
+                <ContactSection
+                  type="whatsapp"
+                  icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
+                  label="WhatsApp"
+                >
                   <WhatsAppTabContent
                     assistant={assistant}
                     canWrite={canWrite}
                     userWhatsappNumber={userWhatsappNumber}
                   />
-                )}
+                  {renderContactActions('whatsapp')}
+                </ContactSection>
+              )}
 
-                {selectedTab === 'discord' && (
-                  <DiscordTabContent
-                    assistant={assistant}
-                    canWrite={canWrite}
-                    userDiscordId={userDiscordId}
-                  />
-                )}
+              <ContactSection
+                type="discord"
+                icon={<FaDiscord className="h-4 w-4 text-muted-foreground" />}
+                label="Discord"
+              >
+                <DiscordTabContent
+                  assistant={assistant}
+                  canWrite={canWrite}
+                  userDiscordId={userDiscordId}
+                />
+                {renderContactActions('discord')}
+              </ContactSection>
 
-                {selectedTab === 'slack' && slackOwner && assistantActions.slack && (
+              {slackAvailable && slackOwner && assistantActions.slack && (
+                <ContactSection
+                  type="slack"
+                  icon={<Slack className="h-4 w-4 text-muted-foreground" />}
+                  label="Slack"
+                >
                   <SlackTabContent
                     assistant={assistant}
                     owner={slackOwner}
@@ -690,12 +695,10 @@ export function AssistantContactManager({
                     initialInstall={slackInitialInstall}
                     actions={assistantActions.slack}
                   />
-                )}
-              </div>
+                </ContactSection>
+              )}
             </div>
           )}
-
-          <DialogFooter>{renderFooter()}</DialogFooter>
         </FormProvider>
       </DialogContent>
     </Dialog>
