@@ -9,7 +9,7 @@ import {
   VoiceDesignGeneratePreviewsAPIResponse,
   VoiceDesignCreateFromPreviewRequest,
 } from '@/types/assistants/assistant';
-import { Gender as CartesiaGender, SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { Gender as CartesiaGender, SupportedLanguage } from '@/types/assistants/cartesia';
 import { arrayBufferToBase64 } from '@/utils/assistants/voice-utils';
 import { formatFastApiError, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';

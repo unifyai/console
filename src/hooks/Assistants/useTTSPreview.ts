@@ -2,7 +2,7 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { VoiceOption, AssistantActions, GenerateSpeechPayload } from '@/types/assistants/assistant';
 import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
-import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { SupportedLanguage } from '@/types/assistants/cartesia';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // Helper to convert Base64 to Uint8Array

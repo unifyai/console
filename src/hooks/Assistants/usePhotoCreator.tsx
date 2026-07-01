@@ -11,7 +11,7 @@ import {
   VoiceOption,
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
-import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { SupportedLanguage } from '@/types/assistants/cartesia';
 import { getAudioDuration, getRandomSampleLine } from '@/utils/assistants/voice-utils';
 import { Button } from '@/components/UI/button';
 import { MIN_TTS_PROMPT_LENGTH } from '@/constants/assistants/settings';

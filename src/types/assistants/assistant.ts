@@ -1,6 +1,6 @@
 import { ResponseProps } from '../common';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
-import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/cartesia-js/api'; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
+import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@/types/assistants/cartesia';
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import type { SlackInstallActions } from '../slack/install';

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { VoiceOption, Voice, AssistantActions } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
-import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-js/api';
+import { SupportedLanguage, Gender as CartesiaGender } from '@/types/assistants/cartesia';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { fetchVoices } from '@/lib/client/voice';
