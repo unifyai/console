@@ -150,7 +150,7 @@ function PermissionList({
                 'max-w-full overflow-hidden truncate whitespace-nowrap rounded-full border px-2.5 py-1 font-mono text-xs leading-4 transition',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'bg-muted/40 hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                  : 'bg-muted/40 text-muted-foreground hover:border-primary-tint-50 hover:text-foreground'
               )}
               onClick={() => onToggleScope(scope.id)}
               aria-pressed={selected}
@@ -865,7 +865,7 @@ export function ProviderIntegrationDetailSheet({
                           <Badge
                             key={label}
                             variant="outline"
-                            className="border-primary/20 bg-primary/5 rounded-full text-foreground"
+                            className="rounded-full border-primary-tint-20 bg-primary-tint-5 text-foreground"
                           >
                             {label}
                           </Badge>

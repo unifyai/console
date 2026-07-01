@@ -457,7 +457,7 @@ function RegularAssistantInfoSidePanelContent({
               >
                 Onboarding
                 <span
-                  className="text-label bg-primary/15 ml-1.5 rounded-full px-1.5 py-0.5 text-primary"
+                  className="text-label ml-1.5 rounded-full bg-primary-tint-15 px-1.5 py-0.5 text-primary"
                   data-testid="assistant-info-tab-onboarding-counter"
                 >
                   {onboardingState.totalSteps - onboardingState.resolvedSteps}

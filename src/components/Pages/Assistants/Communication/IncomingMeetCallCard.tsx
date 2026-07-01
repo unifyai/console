@@ -27,7 +27,7 @@ export function IncomingMeetCallCard({
       className="fixed bottom-6 right-6 z-50 w-80 rounded-xl border bg-background p-4 shadow-lg"
     >
       <div className="flex items-center gap-3">
-        <span className="bg-primary/10 relative flex h-10 w-10 items-center justify-center rounded-full text-primary">
+        <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-primary-tint-10 text-primary">
           <Phone className="h-5 w-5 animate-pulse" />
         </span>
         <div className="min-w-0">

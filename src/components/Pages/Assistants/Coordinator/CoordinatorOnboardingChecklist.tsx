@@ -952,7 +952,7 @@ export function CoordinatorOnboardingChecklist({
                 onClick={resumeOnboarding}
                 className={cn(
                   'rounded-control font-medium text-primary',
-                  'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                  'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
                 )}
               >
                 resume
@@ -970,7 +970,7 @@ export function CoordinatorOnboardingChecklist({
               onClick={resumeOnboarding}
               className={cn(
                 'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
-                'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
               )}
               data-testid="coordinator-onboarding-resume"
             >
@@ -1006,7 +1006,7 @@ export function CoordinatorOnboardingChecklist({
                 onClick={reactivateOnboarding}
                 className={cn(
                   'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
-                  'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                  'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
                 )}
                 data-testid="coordinator-onboarding-reactivate"
               >
@@ -1625,7 +1625,7 @@ function ChecklistRow({
             onClick={() => onTestTriggerableTask(armedTriggerableTaskId)}
             className={cn(
               'text-caption rounded-control inline-flex items-center gap-1.5 px-2 py-1 font-medium',
-              'bg-primary/10 hover:bg-primary/20 text-primary',
+              'bg-primary-tint-10 text-primary hover:bg-primary-tint-20',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             )}
             data-testid="coordinator-onboarding-test-triggerable-task"

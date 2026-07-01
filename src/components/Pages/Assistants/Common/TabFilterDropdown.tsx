@@ -53,7 +53,7 @@ export function TabFilterDropdown({
           <ListFilter className="h-3.5 w-3.5" />
           Filter
           {count > 0 && (
-            <span className="bg-primary/15 ml-0.5 rounded-full px-1.5 text-[10px] font-semibold text-primary">
+            <span className="ml-0.5 rounded-full bg-primary-tint-15 px-1.5 text-[10px] font-semibold text-primary">
               {count}
             </span>
           )}

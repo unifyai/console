@@ -184,7 +184,7 @@ export function InlineEmbedPreview({ embed, onExpand, className }: InlineEmbedPr
         className
       )}
     >
-      <div className="bg-primary/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary-tint-10">
         <Icon className="h-5 w-5 text-primary" />
       </div>
 

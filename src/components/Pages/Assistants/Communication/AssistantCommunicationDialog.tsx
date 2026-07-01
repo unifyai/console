@@ -510,7 +510,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
               onMouseDown={handleSidePanelResizeStart}
-              className="hover:bg-primary/20 active:bg-primary/40 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
+              className="h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200 hover:bg-primary-tint-20 active:bg-primary-tint-40"
               style={{ zIndex: 20 }}
             />,
             <motion.div

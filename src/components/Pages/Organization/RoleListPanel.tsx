@@ -223,10 +223,8 @@ const RoleListPanel = ({
 export default RoleListPanel;
 
 // Use raw `<div>` with `bg-muted` (proven pattern from `BrainTable`)
-// instead of the global `<Skeleton>` component; the latter applies
-// `bg-primary/10`, an opacity-modified CSS variable that silently
-// no-ops in our theme (vars are raw hex, not HSL channels), making the
-// placeholder invisible.
+// instead of the global `<Skeleton>` component when a muted placeholder
+// is needed without the shimmer treatment.
 function SkeletonBar({ className }: { className?: string }) {
   return <div className={`animate-pulse rounded-md bg-muted ${className ?? ''}`} />;
 }

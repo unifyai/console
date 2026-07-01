@@ -84,11 +84,8 @@ const SecuritySettingsPanel = ({
   };
 
   if (isLoading) {
-    // Use raw `<div>` with `bg-muted` (proven pattern from
-    // `BrainTable`) instead of the global `<Skeleton>` component;
-    // `<Skeleton>` applies `bg-primary/10`, an opacity-modified CSS
-    // variable that silently no-ops in our theme (vars are raw hex,
-    // not HSL channels), making placeholders invisible.
+    // Use raw `<div>` with `bg-muted` (proven pattern from `BrainTable`)
+    // instead of the global `<Skeleton>` shimmer.
     const bar = 'animate-pulse rounded-md bg-muted';
     return (
       <div className="flex flex-col gap-4" data-testid="security-settings-panel-loading">

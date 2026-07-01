@@ -158,7 +158,7 @@ export function SplitPaneLayout({
         className={cn(
           'group relative z-10 w-1 shrink-0 cursor-col-resize bg-transparent',
           'before:absolute before:inset-y-0 before:-left-1 before:w-3',
-          isResizing ? 'bg-primary/30' : 'hover:bg-primary/20'
+          isResizing ? 'bg-primary-tint-30' : 'hover:bg-primary-tint-20'
         )}
       />
 

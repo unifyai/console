@@ -526,8 +526,8 @@ export function AssistantInfoPanelLayout({
               className={cn(
                 'absolute inset-y-0 -left-1 z-20 hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors duration-200 sm:block',
                 'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:content-[""]',
-                'hover:bg-primary/20 focus-visible:bg-primary/20 active:bg-primary/40 focus-visible:outline-none',
-                isResizingInfoPanel && 'bg-primary/40'
+                'hover:bg-primary-tint-20 focus-visible:bg-primary-tint-20 focus-visible:outline-none active:bg-primary-tint-40',
+                isResizingInfoPanel && 'bg-primary-tint-40'
               )}
               data-testid="assistant-info-panel-resize-handle"
             />

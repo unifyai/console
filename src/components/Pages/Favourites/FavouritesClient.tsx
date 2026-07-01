@@ -352,7 +352,7 @@ export default function FavouritesClient({
       <div
         ref={setNodeRef as any}
         style={style}
-        className={`bg-background/60 hover:border-primary/40 group grid grid-cols-4 items-center gap-4 rounded-lg border border-border p-2 transition-colors hover:bg-[var(--surface-hover)] ${isDragging ? 'opacity-50' : ''}`}
+        className={`bg-background/60 group grid grid-cols-4 items-center gap-4 rounded-lg border border-border p-2 transition-colors hover:border-primary-tint-40 hover:bg-[var(--surface-hover)] ${isDragging ? 'opacity-50' : ''}`}
       >
         <div
           className="flex cursor-grab justify-center text-muted-foreground"
@@ -494,7 +494,7 @@ export default function FavouritesClient({
       )}
 
       {isChanged && (
-        <Alert className="bg-primary/10 border-primary/20 shadow-md duration-500 animate-in fade-in-0 slide-in-from-bottom-5">
+        <Alert className="border-primary-tint-20 bg-primary-tint-10 shadow-md duration-500 animate-in fade-in-0 slide-in-from-bottom-5">
           <Check className="h-4 w-4 text-primary" />
           <AlertTitle>Changes Detected</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
@@ -573,8 +573,8 @@ export default function FavouritesClient({
                           className={cn(
                             'flex items-center gap-3 rounded-lg border p-3 transition-colors',
                             isChecked
-                              ? 'border-primary/40 bg-accent-soft'
-                              : 'bg-background/60 hover:border-primary/40 border-border hover:bg-[var(--surface-hover)]'
+                              ? 'border-primary-tint-40 bg-accent-soft'
+                              : 'bg-background/60 border-border hover:border-primary-tint-40 hover:bg-[var(--surface-hover)]'
                           )}
                         >
                           <Checkbox
@@ -651,7 +651,7 @@ export default function FavouritesClient({
                 disabled={isSaving || !isChanged}
                 size="lg"
                 className={cn(
-                  'hover:bg-primary/90 bg-primary text-primary-foreground shadow-md transition-all',
+                  'bg-primary text-primary-foreground shadow-md transition-all hover:opacity-90',
                   isChanged ? 'animate-pulse-gentle' : ''
                 )}
               >
@@ -678,7 +678,7 @@ export default function FavouritesClient({
             onClick={saveFavourites}
             disabled={isSaving}
             size="lg"
-            className="hover:bg-primary/90 animate-pulse-gentle bg-primary text-primary-foreground shadow-lg"
+            className="animate-pulse-gentle bg-primary text-primary-foreground shadow-lg hover:opacity-90"
           >
             {isSaving ? (
               <>

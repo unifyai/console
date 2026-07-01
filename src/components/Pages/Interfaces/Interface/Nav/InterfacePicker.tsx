@@ -104,7 +104,7 @@ export function InterfacePicker({
           variant="outline"
           role="combobox"
           aria-expanded={isOpen}
-          className="bg-background/60 hover:border-primary/50 h-9 min-w-0 flex-1 justify-between rounded-lg border-border shadow-sm hover:bg-accent-soft"
+          className="bg-background/60 h-9 min-w-0 flex-1 justify-between rounded-lg border-border shadow-sm hover:border-primary-tint-50 hover:bg-accent-soft"
           data-testid="interface-picker-trigger"
         >
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">

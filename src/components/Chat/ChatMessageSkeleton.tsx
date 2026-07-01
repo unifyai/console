@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
  * Shown while transcript history is being fetched, giving
  * users an immediate sense of the chat layout.
  *
- * Uses bg-muted instead of the default Skeleton's bg-primary/10
+ * Uses bg-muted instead of the default Skeleton's bg-primary-tint-10
  * because the primary color at 10% opacity is nearly invisible
  * against the chat background in both light and dark themes.
  */

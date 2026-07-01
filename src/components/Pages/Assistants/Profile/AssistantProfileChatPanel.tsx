@@ -924,7 +924,7 @@ export function AssistantProfileChatPanel({
         >
           {/* Drag-and-drop overlay */}
           {isDragActive && (
-            <div className="bg-primary/10 absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary">
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary-tint-10">
               <span className="font-medium text-primary">Drop files here</span>
             </div>
           )}

@@ -150,7 +150,7 @@ function TreeRow({
         className={cn(
           'flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
           isSelected
-            ? 'bg-primary/10 text-primary'
+            ? 'bg-primary-tint-10 text-primary'
             : 'text-foreground hover:bg-muted hover:text-foreground'
         )}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}

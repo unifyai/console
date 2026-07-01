@@ -254,7 +254,9 @@ function ChatMessageBubbleImpl({
           <div
             className={cn(
               'break-words rounded-lg p-2.5 font-sans text-sm leading-snug',
-              isProfile ? 'border-primary/30 border bg-accent-soft text-foreground' : 'bg-accent'
+              isProfile
+                ? 'border border-primary-tint-30 bg-accent-soft text-foreground'
+                : 'bg-accent'
             )}
           >
             {bubbleContent()}
@@ -297,7 +299,7 @@ function ChatMessageBubbleImpl({
                   className={cn(
                     'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
                     audioState === 'playing'
-                      ? 'hover:text-primary/80 text-primary'
+                      ? 'text-primary hover:text-primary-tint-80'
                       : 'text-muted-foreground/50 hover:text-muted-foreground'
                   )}
                 >

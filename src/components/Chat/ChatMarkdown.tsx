@@ -47,7 +47,7 @@ const chatMarkdownComponents = {
   ol: ({ children }: any) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
   li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
   blockquote: ({ children }: any) => (
-    <blockquote className="border-primary/40 bg-muted/30 my-2.5 rounded-r border-l-2 py-1 pl-4 pr-2 italic">
+    <blockquote className="bg-muted/30 my-2.5 rounded-r border-l-2 border-primary-tint-40 py-1 pl-4 pr-2 italic">
       {children}
     </blockquote>
   ),

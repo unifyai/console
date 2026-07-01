@@ -262,7 +262,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
               {filtered.map((skill) => (
                 <button
                   key={`${skill.isPrimitive ? 'p' : 'l'}-${skill.functionId ?? skill.name}`}
-                  className="hover:border-primary/40 hover:bg-muted/40 flex min-h-[168px] w-full min-w-[16rem] flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors"
+                  className="hover:bg-muted/40 flex min-h-[168px] w-full min-w-[16rem] flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors hover:border-primary-tint-40"
                   onClick={() => {
                     setSelected(skill);
                   }}

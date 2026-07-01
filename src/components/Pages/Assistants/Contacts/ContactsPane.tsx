@@ -116,7 +116,9 @@ function ContactDetail({ card }: { card: ContactCard }) {
         <span
           className={cn(
             'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
-            card.shouldRespond ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+            card.shouldRespond
+              ? 'bg-primary-tint-10 text-primary'
+              : 'bg-muted text-muted-foreground'
           )}
         >
           <RespondDot on={card.shouldRespond} />
@@ -279,7 +281,7 @@ export function ContactsPane({
               {filtered.map((card) => (
                 <button
                   key={`${card.contactId ?? card.fullName}`}
-                  className="hover:border-primary/40 hover:bg-muted/40 flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-colors"
+                  className="hover:bg-muted/40 flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary-tint-40"
                   onClick={() => setSelected(card)}
                   data-testid={`contact-card-${card.contactId ?? card.fullName}`}
                 >

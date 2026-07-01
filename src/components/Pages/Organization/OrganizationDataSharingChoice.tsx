@@ -84,8 +84,8 @@ const OrganizationDataSharingChoice = ({
                 if (!disabled) onChange(option.value);
               }}
               className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
-                checked ? 'bg-primary/5 border-primary ring-1 ring-primary' : 'border-border'
-              } ${disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary/50 hover:bg-muted/50'}`}
+                checked ? 'border-primary bg-primary-tint-5 ring-1 ring-primary' : 'border-border'
+              } ${disabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-muted/50 hover:border-primary-tint-50'}`}
               data-testid={id}
             >
               <RadioGroupItem

@@ -583,7 +583,7 @@ const NodeIconBox = React.forwardRef<
       }}
       className={cn(
         'grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg border border-transparent',
-        status === 'running' && 'ring-primary/25 ring-2',
+        status === 'running' && 'ring-2 ring-primary-tint-25',
         className
       )}
       style={{ backgroundColor: tone.bg, color: tone.fg }}
@@ -1768,7 +1768,7 @@ function ToolLoopMessage({
         >
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-primary/70 shrink-0">
+              <span className="shrink-0 text-primary-tint-70">
                 <ArrowRight className="h-2.5 w-2.5" />
               </span>
             </TooltipTrigger>
@@ -2640,7 +2640,7 @@ function RootStatusPill({ status }: { status: ActionNode['status'] }) {
     status === 'running'
       ? {
           label: 'Running',
-          cls: 'border border-primary/50 bg-primary/10 text-primary',
+          cls: 'border border-primary-tint-50 bg-primary-tint-10 text-primary',
           dot: true,
         }
       : status === 'error'

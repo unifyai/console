@@ -200,7 +200,10 @@ const ProfileContactRequiredNotice: React.FC<{
   <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
     <p className="text-body text-muted-foreground">
       {message}{' '}
-      <a href="/account?tab=contact-info" className="hover:text-primary/80 text-primary underline">
+      <a
+        href="/account?tab=contact-info"
+        className="text-primary underline hover:text-primary-tint-80"
+      >
         {linkLabel}
       </a>{' '}
       {suffix}
@@ -317,7 +320,7 @@ export const FeatureChecklist: React.FC<{
           key={feature}
           className={cn(
             'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors',
-            isChecked ? 'border-primary/30 bg-primary/5' : 'border-border',
+            isChecked ? 'border-primary-tint-30 bg-primary-tint-5' : 'border-border',
             (isRequired || disabled) && 'cursor-default opacity-70'
           )}
         >
@@ -928,7 +931,7 @@ const DiscordTabContent: React.FC<{
             href="https://discord.gg/kRtBDmBA"
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-primary/80 text-primary underline"
+            className="text-primary underline hover:text-primary-tint-80"
           >
             Unify server
           </a>{' '}

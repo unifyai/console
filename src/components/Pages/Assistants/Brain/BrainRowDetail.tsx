@@ -210,7 +210,7 @@ export function BrainRowDetail({ row, context, taskView, title, onClose }: Brain
         {isDesktop && (
           <div
             onMouseDown={handleDragStart}
-            className="hover:bg-primary/30 active:bg-primary/50 absolute left-0 top-0 z-[60] h-full w-2 cursor-col-resize transition-colors"
+            className="absolute left-0 top-0 z-[60] h-full w-2 cursor-col-resize transition-colors hover:bg-primary-tint-30 active:bg-primary-tint-50"
           />
         )}
 

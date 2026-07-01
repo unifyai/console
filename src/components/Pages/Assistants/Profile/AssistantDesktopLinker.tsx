@@ -439,8 +439,8 @@ export function AssistantDesktopLinker({
                       className={cn(
                         'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 transition-colors',
                         isCurrentlyLinked
-                          ? 'border-primary/40 bg-primary/5'
-                          : 'hover:border-primary/30 border-border hover:bg-accent'
+                          ? 'border-primary-tint-40 bg-primary-tint-5'
+                          : 'border-border hover:border-primary-tint-30 hover:bg-accent'
                       )}
                     >
                       <button
@@ -554,7 +554,7 @@ export function AssistantDesktopLinker({
                 size="sm"
                 className={cn(
                   'flex-1 gap-1.5',
-                  selectedOs === os && 'border-primary/40 bg-primary/5 text-primary'
+                  selectedOs === os && 'border-primary-tint-40 bg-primary-tint-5 text-primary'
                 )}
                 onClick={() => setSelectedOs(os)}
               >

@@ -58,6 +58,7 @@ module.exports = {
             50: 'var(--primary-tint-50)',
             60: 'var(--primary-tint-60)',
             70: 'var(--primary-tint-70)',
+            80: 'var(--primary-tint-80)',
             90: 'var(--primary-tint-90)',
           },
         },

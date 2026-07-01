@@ -151,7 +151,7 @@ const PlotAxis = ({
                             <AccordionTrigger
                               className={`justify-start rounded px-2 py-1 hover:no-underline ${
                                 selection === axisProperty
-                                  ? 'bg-primary/10 text-primary' // Highlight if this column is selected
+                                  ? 'bg-primary-tint-10 text-primary' // Highlight if this column is selected
                                   : 'hover:bg-muted'
                               }`}
                               disabled={loading || !interactive}

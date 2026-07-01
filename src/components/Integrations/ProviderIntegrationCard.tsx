@@ -43,7 +43,7 @@ export function ProviderIntegrationCard({
     <Card
       role="button"
       tabIndex={0}
-      className="hover:border-primary/40 group relative min-h-[214px] cursor-pointer overflow-hidden shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      className="group relative min-h-[214px] cursor-pointer overflow-hidden shadow-sm transition hover:-translate-y-0.5 hover:border-primary-tint-40 hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       onClick={() => onOpen(item)}
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -52,7 +52,7 @@ export function ProviderIntegrationCard({
       }}
       data-testid={`provider-integration-card-${item.canonicalSlug}`}
     >
-      <div className="bg-primary/60 absolute inset-x-0 top-0 h-1 opacity-70" />
+      <div className="absolute inset-x-0 top-0 h-1 bg-primary-tint-60 opacity-70" />
       <CardContent className="flex h-full flex-col p-4 pt-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -83,7 +83,7 @@ export function ProviderIntegrationCard({
             <Badge
               key={label}
               variant="outline"
-              className="border-primary/20 bg-primary/5 rounded-full text-foreground"
+              className="rounded-full border-primary-tint-20 bg-primary-tint-5 text-foreground"
             >
               {label}
             </Badge>

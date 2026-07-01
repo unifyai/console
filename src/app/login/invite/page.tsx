@@ -35,7 +35,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
         <p className="text-body text-muted-foreground">The invitation link is missing a token.</p>
         <Link
           href="/"
-          className="text-body hover:bg-primary/90 mt-2 rounded-md bg-primary px-4 py-2 text-primary-foreground"
+          className="text-body mt-2 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:opacity-90"
         >
           Go Home
         </Link>

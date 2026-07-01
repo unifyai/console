@@ -525,7 +525,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                 <h2 className="text-h2 mb-4">Contact Info</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="flex items-center gap-3 rounded-md border p-3">
-                    <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-tint-10">
                       <Phone className="h-5 w-5 text-primary" />
                     </div>
                     <div>
@@ -535,7 +535,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                   </div>
                   {selectedDemo.email && (
                     <div className="flex items-center gap-3 rounded-md border p-3">
-                      <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-tint-10">
                         <Mail className="h-5 w-5 text-primary" />
                       </div>
                       <div>
