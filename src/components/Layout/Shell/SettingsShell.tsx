@@ -14,6 +14,13 @@ import {
 } from 'lucide-react';
 import { TabHeader } from '@/components/Pages/Assistants/Rail/TabHeader';
 import { RailNavButton } from '@/components/Pages/Assistants/Rail/RailNavButton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
 import { ADMIN_NAV_ITEMS, isAdminNavActive } from './adminNav';
 import { useFeatures, useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
@@ -162,19 +169,25 @@ export function SettingsShell({
   const settingsHeaderRight = (
     <>
       {isBelowTablet ? (
-        <select
-          value={mobileNavValue}
-          onChange={(e) => handleMobileNavChange(e.target.value)}
-          className="h-8 max-w-[9rem] shrink-0 rounded-md border border-border bg-transparent px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring sm:max-w-[11rem]"
-          data-testid="settings-nav-mobile"
-          aria-label="Settings navigation"
-        >
-          {mobileNavItems.map((item) => (
-            <option key={item.href} value={item.href}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+        <Select value={mobileNavValue} onValueChange={handleMobileNavChange}>
+          <SelectTrigger
+            className="h-8 w-[9rem] cursor-pointer bg-background px-2 text-xs shadow-none sm:w-[11rem]"
+            data-testid="settings-nav-mobile"
+            aria-label="Settings navigation"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent
+            align="end"
+            className="z-[80] w-[var(--radix-select-trigger-width)] border-border bg-popover shadow-lg"
+          >
+            {mobileNavItems.map((item) => (
+              <SelectItem key={item.href} value={item.href} className="cursor-pointer text-xs">
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : null}
       {headerRight}
     </>
