@@ -9,7 +9,11 @@ import {
   AssistantInfoSidePanelContent,
   type AssistantInfoSidePanelContentProps,
 } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
-import { publishAssistantInfoPanelVisibility } from '@/lib/assistants/infoPanelVisibility';
+import {
+  ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT,
+  publishAssistantInfoPanelVisibility,
+  type AssistantInfoPanelToggleRequestDetail,
+} from '@/lib/assistants/infoPanelVisibility';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 
@@ -181,6 +185,22 @@ export function AssistantInfoPanelLayout({
     },
     [getInfoPanelMaxWidth]
   );
+
+  React.useEffect(() => {
+    const assistantId = assistant?.agentId;
+    if (!assistantId) return;
+    const onToggleRequest = (event: Event) => {
+      const detail = (event as CustomEvent<AssistantInfoPanelToggleRequestDetail>).detail;
+      if (detail.assistantId !== assistantId) return;
+      event.preventDefault();
+      setIsInfoOpenAndPersist(!isInfoOpen);
+    };
+
+    window.addEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, onToggleRequest);
+    return () => {
+      window.removeEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, onToggleRequest);
+    };
+  }, [assistant?.agentId, isInfoOpen, setIsInfoOpenAndPersist]);
 
   const seedChatDraft = React.useCallback(
     (text: string) => {

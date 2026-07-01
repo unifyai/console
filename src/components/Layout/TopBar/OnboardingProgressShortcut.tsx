@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import {
   ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
   readAssistantInfoPanelVisibility,
+  requestAssistantInfoPanelToggle,
   type AssistantInfoPanelVisibilityDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 
@@ -134,11 +135,20 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
 
   const openOnboarding = React.useCallback(() => {
     if (!coordinatorId) return;
+    const currentVisibility = readAssistantInfoPanelVisibility();
+    const canToggleCurrentPanel =
+      isOnAssistantsPage &&
+      currentVisibility?.assistantId === coordinatorId &&
+      currentVisibility.isCoordinatorOnboarding;
+    if (canToggleCurrentPanel && requestAssistantInfoPanelToggle({ assistantId: coordinatorId })) {
+      return;
+    }
+
     const action = isShortcutActive ? 'close' : 'open';
     router.push(
       `/assistants?profile=${encodeURIComponent(coordinatorId)}&onboarding=${action}:${Date.now()}`
     );
-  }, [coordinatorId, isShortcutActive, router]);
+  }, [coordinatorId, isOnAssistantsPage, isShortcutActive, router]);
 
   if (!showOnboardingShortcut) return null;
 
