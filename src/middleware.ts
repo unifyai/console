@@ -8,6 +8,32 @@ import { resolveAuthMode } from '@/lib/environment/environment';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 const ENFORCE_ACCOUNT_ONBOARDING = false;
+const CONSOLE_SESSION_MARKER_COOKIE = 'unify_console_session';
+const CONSOLE_SESSION_MARKER_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
+function consoleSessionMarkerDomain(hostname: string): string | undefined {
+  const configured = process.env.LANDING_AUTH_COOKIE_DOMAIN?.trim();
+  if (configured) return configured;
+  if (hostname === 'console.unify.ai') return '.unify.ai';
+  if (hostname.endsWith('.unify.ai')) return '.unify.ai';
+  return undefined;
+}
+
+function withConsoleSessionMarker(
+  response: NextResponse,
+  request: NextRequestWithAuth,
+  authenticated: boolean
+) {
+  const domain = consoleSessionMarkerDomain(request.nextUrl.hostname);
+  response.cookies.set(CONSOLE_SESSION_MARKER_COOKIE, authenticated ? '1' : '', {
+    ...(domain ? { domain } : {}),
+    maxAge: authenticated ? CONSOLE_SESSION_MARKER_MAX_AGE_SECONDS : 0,
+    path: '/',
+    sameSite: 'lax',
+    secure: request.nextUrl.protocol === 'https:',
+  });
+  return response;
+}
 
 /**
  * Carry a credit-grant `?token=` param through internal redirects
@@ -116,7 +142,7 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     loginUrl.searchParams.set('error', 'StagingRestricted');
     const response = NextResponse.redirect(loginUrl);
     response.cookies.set(cookieName, '', { path: '/', maxAge: 0 });
-    return response;
+    return withConsoleSessionMarker(response, request, false);
   }
 
   if (token?.mfaPending) {
@@ -151,7 +177,12 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     }
   }
 
-  return withAuth({ pages: authOptions.pages, secret: process.env.JWT_SECRET })(request, event);
+  const response =
+    ((await withAuth({ pages: authOptions.pages, secret: process.env.JWT_SECRET })(
+      request,
+      event
+    )) as NextResponse | undefined) ?? NextResponse.next();
+  return withConsoleSessionMarker(response, request, Boolean(token));
 }
 
 export const config = {
