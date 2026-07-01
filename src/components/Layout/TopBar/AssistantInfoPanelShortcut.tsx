@@ -14,7 +14,7 @@ import {
 } from '@/lib/assistants/infoPanelVisibility';
 
 /** Toggles the assistants info side panel from the top navbar. */
-export function AssistantInfoPanelShortcut() {
+export function AssistantInfoPanelShortcut({ buttonClassName }: { buttonClassName?: string }) {
   const pathname = usePathname();
   const isOnAssistantsPage = pathname === '/assistants' || pathname.startsWith('/assistants/');
   const [visibility, setVisibility] = React.useState<AssistantInfoPanelVisibilityDetail | null>(
@@ -55,7 +55,8 @@ export function AssistantInfoPanelShortcut() {
               type="button"
               variant={isOpen ? 'primary' : 'ghost'}
               className={cn(
-                'rounded-control relative h-6 w-6 p-0 text-muted-foreground',
+                'rounded-control relative p-0 text-muted-foreground',
+                buttonClassName ?? 'h-6 w-6',
                 !isOpen && 'hover:text-foreground'
               )}
               onClick={toggle}

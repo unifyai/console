@@ -6,9 +6,11 @@ import {
   useCoordinatorOnboardingShortcutVisible,
 } from '@/components/Layout/TopBar/OnboardingProgressShortcut';
 
+import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
+
 /** Top-nav slot for assistants info panel access: onboarding progress when active, otherwise profile toggle. */
 export function AssistantsNavPanelShortcut() {
   const showOnboardingShortcut = useCoordinatorOnboardingShortcutVisible();
   if (showOnboardingShortcut) return <OnboardingProgressShortcut />;
-  return <AssistantInfoPanelShortcut />;
+  return <AssistantInfoPanelShortcut buttonClassName={tabToolbarIconButtonClass} />;
 }
