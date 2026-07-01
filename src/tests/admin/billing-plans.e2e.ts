@@ -3,7 +3,7 @@
  *
  * Smoke-tests the admin pages added for managed-billing:
  *   - /admin                — landing tile grid links to the new pages.
- *   - /admin/billing-plans  — create + see + deprecate a BESPOKE template
+ *   - /admin/plans          — create + see + deprecate a BESPOKE template
  *                             (incl. picking an FX policy on multi-currency).
  *   - /admin/organizations  — pick an org, see the Plan card, assign the
  *                             template just created, see the Stripe-customer
@@ -33,7 +33,7 @@ import { loginAndWaitForRedirect } from '../auth/helpers';
 // ---------------------------------------------------------------------------
 
 // Admin user belongs to an org literally named "Unify" with the Owner role
-// — that's what `app/(home)/admin/layout.tsx` checks.
+// — that's what the `/admin` route layout checks.
 const adminUser = createTestUser({ name: 'Admin', lastName: 'Operator' });
 const unifyOrg = createOrg({ name: 'Unify', ownerId: adminUser.id });
 
@@ -144,11 +144,11 @@ test('admin landing lists the managed-billing tools', async ({ adminPage: page }
 });
 
 // =============================================================================
-// /admin/billing-plans — create + deprecate template
+// /admin/plans — create + deprecate template
 // =============================================================================
 
 test('billing plans page creates a BESPOKE template and lists it', async ({ adminPage: page }) => {
-  await page.goto('/admin/billing-plans');
+  await page.goto('/admin/plans');
 
   await expect(page.getByRole('heading', { name: /Admin · Billing Plans/i })).toBeVisible({
     timeout: 15_000,

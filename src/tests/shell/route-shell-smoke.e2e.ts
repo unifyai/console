@@ -1,10 +1,10 @@
 /**
- * Shell-host smoke for the routes migrated into the shared rail shell in
- * Phase 4f–4g: `/favourites` (ShellSectionPage) and `/interfaces` (rail-chrome
- * only). Verifies the persistent rail renders beside each route body and that
- * the route is reachable inside the shell (no redirect to /login or the error
- * boundary). The user is seeded into a `Unify` org so `/interfaces` (gated to
- * Unify members) is accessible.
+ * Shell-host smoke for routed app-shell surfaces: `/favourites`
+ * (ShellSectionPage) and `/interfaces` (rail chrome only). Verifies the
+ * persistent rail renders beside each route body and that the route is reachable
+ * inside the shell (no redirect to /login or the error boundary). The user is
+ * seeded into a `Unify` org so `/interfaces` (gated to Unify members) is
+ * accessible.
  *
  * Run: npx playwright test src/tests/shell/route-shell-smoke.e2e.ts
  */
