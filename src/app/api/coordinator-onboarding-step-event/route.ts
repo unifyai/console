@@ -12,11 +12,13 @@ import { badRequest, getApiKeyFromRequest, unauthorized } from '../_utils/auth';
 interface OnboardingStepEventRequest {
   coordinatorId?: unknown;
   stepId?: unknown;
+  chipId?: unknown;
 }
 
 interface OnboardingStepEventInfo {
   coordinatorId?: string;
   stepId?: string;
+  chipId?: string;
   emitted?: boolean;
 }
 
@@ -55,6 +57,10 @@ export async function POST(request: NextRequest) {
   }
 
   const stepId = body.stepId.trim();
+  const chipId =
+    typeof body.chipId === 'string' && body.chipId.trim().length > 0
+      ? body.chipId.trim()
+      : undefined;
   const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
   try {
@@ -66,7 +72,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ step_id: stepId }),
+        body: JSON.stringify({ step_id: stepId, ...(chipId ? { chip_id: chipId } : {}) }),
       }
     );
 
@@ -83,6 +89,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       coordinatorId: info?.coordinatorId ?? String(coordinatorId),
       stepId: info?.stepId ?? stepId,
+      chipId: info?.chipId ?? chipId,
       emitted: Boolean(info?.emitted),
     });
   } catch (error) {
