@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { BrandStatusCard } from '@/components/Brand';
+import { Loader } from '@/components/Common/Loader';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import {
   AUTH_POPUP_ERROR_MESSAGE,
@@ -52,7 +53,7 @@ function PopupComplete() {
         eyebrow="Auth"
         title={canClose ? 'Sign in complete' : 'Taking you to Unify...'}
         description={canClose ? 'You can close this window.' : 'Please wait a moment.'}
-        icon={<LoadingElement />}
+        icon={<Loader size={24} />}
       />
     </main>
   );
