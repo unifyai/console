@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock, X } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock, X, ChevronRight } from 'lucide-react';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
@@ -837,7 +837,7 @@ function ProfileSectionsPanel({
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
 
   return (
-    <section className="flex flex-col gap-1" data-testid="assistant-info-profile-sections">
+    <section className="flex flex-col gap-2" data-testid="assistant-info-profile-sections">
       <ProfileSectionTile
         title="Profile"
         description={<ProfileSummary assistant={assistant} />}
@@ -952,9 +952,10 @@ function ProfileSectionTile({
   return (
     <div
       className={cn(
-        'flex flex-col gap-1 rounded-lg px-3 py-2.5 transition-colors',
-        isInteractive &&
-          'hover:bg-muted/50 active:bg-muted/70 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+        'group/tile flex flex-col gap-1 rounded-lg border px-3 py-2.5 transition-[background-color,border-color,box-shadow]',
+        isInteractive
+          ? 'cursor-pointer border-border bg-card shadow-sm hover:border-primary-tint-40 hover:bg-[var(--surface-hover)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:border-primary-tint-50 active:bg-secondary'
+          : 'border-border/70 bg-card/60'
       )}
       data-testid={editTestId}
       role={useTileButtonSemantics ? 'button' : undefined}
@@ -963,7 +964,15 @@ function ProfileSectionTile({
       onClick={isInteractive ? activate : undefined}
       onKeyDown={handleKeyDown}
     >
-      <h3 className="text-label text-semibold">{title}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-label text-semibold">{title}</h3>
+        {isInteractive && (
+          <ChevronRight
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70 transition-[opacity,transform] group-focus-within/tile:opacity-100 group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"
+            aria-hidden="true"
+          />
+        )}
+      </div>
       <div className={cn('text-caption text-muted-foreground', descriptionClassName)}>
         {description}
       </div>
@@ -1057,7 +1066,7 @@ function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
       {isSet ? (
         <button
           type="button"
-          className="group/contact hover:bg-muted/60 -mx-1 flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md px-1 text-left text-foreground transition-colors"
+          className="group/contact -mx-1 flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md border border-transparent px-1.5 py-0.5 text-left text-foreground transition-[background-color,border-color] hover:border-border hover:bg-[var(--surface-hover)]"
           onClick={(event) => {
             event.stopPropagation();
             copyValue();
