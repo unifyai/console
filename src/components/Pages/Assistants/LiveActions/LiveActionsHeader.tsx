@@ -143,7 +143,7 @@ export function LiveActionsHeader({
               data-testid="live-actions-time-window"
             >
               <Clock className="h-3.5 w-3.5" />
-              <span>{activePreset?.shortLabel ?? timeWindowKey}</span>
+              <span className="hidden sm:inline">{activePreset?.shortLabel ?? timeWindowKey}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-48 p-1">

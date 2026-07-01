@@ -246,7 +246,7 @@ export function IntegrationGalleryShell({
               {showCombinedPinned ? (
                 pinnedItems.length > 0 && (
                   <section className="space-y-3" data-testid="connected-integrations-section">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3 sm:items-center">
                       <div>
                         <h3 className="text-title text-base">Connected apps</h3>
                         <p className="text-caption">
@@ -289,7 +289,7 @@ export function IntegrationGalleryShell({
                 <>
                   {hasConnectedSection && (
                     <section className="space-y-3" data-testid="connected-integrations-section">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3 sm:items-center">
                         <div>
                           <h3 className="text-title text-base">Connected apps</h3>
                           <p className="text-caption">Apps ready for your assistant to use.</p>
@@ -320,7 +320,7 @@ export function IntegrationGalleryShell({
                       className="space-y-3"
                       data-testid="needs-attention-integrations-section"
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3 sm:items-center">
                         <div>
                           <h3 className="text-title text-base">Needs attention</h3>
                           <p className="text-caption">
@@ -352,7 +352,7 @@ export function IntegrationGalleryShell({
 
               {hasBrowsableSection && (
                 <section className="space-y-3" data-testid="available-integrations-section">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3 sm:items-center">
                     <div>
                       <h3 className="text-title text-base">Available apps</h3>
                       <p className="text-caption">
@@ -362,7 +362,7 @@ export function IntegrationGalleryShell({
                     </div>
                     <Badge
                       variant="outline"
-                      className="rounded-full bg-background text-muted-foreground"
+                      className="h-auto shrink-0 self-center whitespace-nowrap rounded-full bg-background text-muted-foreground"
                     >
                       {totalAvailableCount} available
                     </Badge>

@@ -933,7 +933,10 @@ export function ProviderIntegrationDetailSheet({
                             Review what this app may read or change before connecting.
                           </p>
                         </div>
-                        <Badge variant="outline" className="rounded-full text-muted-foreground">
+                        <Badge
+                          variant="outline"
+                          className="h-auto shrink-0 self-center whitespace-nowrap rounded-full text-muted-foreground"
+                        >
                           {displayItem.scopes.length} scopes
                         </Badge>
                       </div>
