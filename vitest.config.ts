@@ -47,6 +47,7 @@ const vitestConfig = async () => {
       alias: {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         '@': path.resolve(__dirname, './src'),
+        'server-only': path.resolve(__dirname, './src/tests/mocks/server-only.ts'),
       },
     },
     // Define process.env for browser tests (Next.js components use this)

@@ -73,7 +73,7 @@ describe('local gateway script wrappers', () => {
     expect(script).toContain('gateway-doctor');
     expect(script).toContain('gateway-urls');
     expect(script).toContain('args=(setup');
-    expect(script).toContain('-m unity.gateway doctor');
-    expect(script).toContain('-m unity.gateway urls');
+    expect(script).toContain('-m unify.gateway doctor');
+    expect(script).toContain('-m unify.gateway urls');
   });
 });

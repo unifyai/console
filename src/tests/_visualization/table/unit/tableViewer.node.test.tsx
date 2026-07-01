@@ -475,16 +475,14 @@ describe('TableViewer - ViewPane Integration', () => {
   it('opens ViewPane when clicking on a table row', () => {
     render(<TableViewer {...defaultProps} />);
 
-    // Click on a data row
     const rows = screen.getAllByRole('row');
-    // First row is header, data rows start from index 1
     const dataRow = rows[1];
-    if (dataRow) {
-      fireEvent.click(dataRow);
+    expect(dataRow).toBeTruthy();
+    const rowNumberCell = dataRow!.querySelector('td');
+    expect(rowNumberCell).toBeTruthy();
+    fireEvent.mouseDown(rowNumberCell!);
 
-      // The ViewPane should open, showing field entries for the clicked row
-      expect(screen.getByText(/field/i)).toBeInTheDocument();
-    }
+    expect(screen.getByText(/4 fields/)).toBeInTheDocument();
   });
 
   it('closes ViewPane when close button is clicked', async () => {
