@@ -125,10 +125,59 @@ export interface AssistantInfoSidePanelContentProps {
   className?: string;
   /** When true, the header pencil is omitted (e.g. mobile sheet toolbar owns edit). */
   hideHeaderEdit?: boolean;
+  /** Registers the header "show profile" action for surfaces that host the panel chrome separately (mobile sheet toolbar). */
+  onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
 const CONTACT_COPY_RESET_MS = 2000;
+const PROFILE_TAB_SHIMMER_MS = 1400;
+
+type CoordinatorPanelTab = 'onboarding' | 'profile';
+
+function useProfileTabHeaderFocus(
+  showProfileTab: boolean,
+  activeTab: CoordinatorPanelTab,
+  setActiveTab: React.Dispatch<React.SetStateAction<CoordinatorPanelTab>>
+) {
+  const [profileTabShimmer, setProfileTabShimmer] = React.useState(false);
+  const shimmerTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(
+    () => () => {
+      if (shimmerTimerRef.current) clearTimeout(shimmerTimerRef.current);
+    },
+    []
+  );
+
+  const focusProfileTabFromHeader = React.useCallback(() => {
+    if (!showProfileTab) return;
+    if (activeTab === 'profile') {
+      setProfileTabShimmer(true);
+      if (shimmerTimerRef.current) clearTimeout(shimmerTimerRef.current);
+      shimmerTimerRef.current = setTimeout(() => {
+        shimmerTimerRef.current = null;
+        setProfileTabShimmer(false);
+      }, PROFILE_TAB_SHIMMER_MS);
+      return;
+    }
+    setActiveTab('profile');
+  }, [activeTab, setActiveTab, showProfileTab]);
+
+  return { profileTabShimmer, focusProfileTabFromHeader };
+}
+
+function ProfileTabTrigger({ shimmer = false }: { shimmer?: boolean }) {
+  return (
+    <TabsTrigger
+      value="profile"
+      data-testid="assistant-info-tab-profile"
+      className={PANEL_TAB_TRIGGER_CLASS}
+    >
+      <span className={cn(shimmer && 'animate-shimmer')}>Profile</span>
+    </TabsTrigger>
+  );
+}
 
 /** User-facing role for T-W1N. The internal job title ("Coordinator") is never surfaced. */
 const COORDINATOR_ROLE_DISPLAY = 'Your digital twin';
@@ -149,6 +198,7 @@ const COORDINATOR_ROLE_DISPLAY = 'Your digital twin';
  */
 export function AssistantInfoSidePanelContent({
   assistant,
+  onRegisterFocusProfileTab,
   ...props
 }: AssistantInfoSidePanelContentProps) {
   if (assistant.isCoordinator === true) {
@@ -167,14 +217,19 @@ export function AssistantInfoSidePanelContent({
         isStartCallDisabled={props.isStartCallDisabled}
         startCallTooltip={props.startCallTooltip}
         hideHeaderEdit={props.hideHeaderEdit}
+        onRegisterFocusProfileTab={onRegisterFocusProfileTab}
       />
     );
   }
 
-  return <RegularAssistantInfoSidePanelContent assistant={assistant} {...props} />;
+  return (
+    <RegularAssistantInfoSidePanelContent
+      assistant={assistant}
+      onRegisterFocusProfileTab={onRegisterFocusProfileTab}
+      {...props}
+    />
+  );
 }
-
-type CoordinatorPanelTab = 'onboarding' | 'profile';
 
 function CoordinatorAssistantInfoSidePanelContent({
   assistant,
@@ -190,6 +245,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isStartCallDisabled,
   startCallTooltip,
   hideHeaderEdit = false,
+  onRegisterFocusProfileTab,
 }: {
   assistant: Assistant;
   onClose: () => void;
@@ -204,6 +260,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
   hideHeaderEdit?: boolean;
+  onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
   const taskBeats = useCoordinatorTaskBeats(assistant, { enabled: showOnboardingTab });
@@ -212,6 +269,14 @@ function CoordinatorAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
+  const { profileTabShimmer, focusProfileTabFromHeader } = useProfileTabHeaderFocus(
+    showOnboardingTab,
+    activeTab,
+    setActiveTab
+  );
+  React.useEffect(() => {
+    onRegisterFocusProfileTab?.(focusProfileTabFromHeader);
+  }, [focusProfileTabFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
     if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
   }, [showOnboardingTab, activeTab]);
@@ -250,9 +315,7 @@ function CoordinatorAssistantInfoSidePanelContent({
         isIdCopied={isIdCopied}
         onCopyId={copyId}
         onClose={onClose}
-        onEdit={
-          !hideHeaderEdit && canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined
-        }
+        onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileTabFromHeader : undefined}
         onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
         isStartCallDisabled={isStartCallDisabled}
         startCallTooltip={startCallTooltip}
@@ -278,13 +341,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             >
               Onboarding
             </TabsTrigger>
-            <TabsTrigger
-              value="profile"
-              data-testid="assistant-info-tab-profile"
-              className={PANEL_TAB_TRIGGER_CLASS}
-            >
-              Profile
-            </TabsTrigger>
+            <ProfileTabTrigger shimmer={profileTabShimmer} />
           </TabsList>
           {coordinatorOnboarding && (
             <TabsContent
@@ -355,6 +412,7 @@ function RegularAssistantInfoSidePanelContent({
   isStartCallDisabled,
   startCallTooltip,
   hideHeaderEdit = false,
+  onRegisterFocusProfileTab,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -383,6 +441,14 @@ function RegularAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile'>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
+  const { profileTabShimmer, focusProfileTabFromHeader } = useProfileTabHeaderFocus(
+    showOnboardingTab,
+    activeTab,
+    setActiveTab
+  );
+  React.useEffect(() => {
+    onRegisterFocusProfileTab?.(focusProfileTabFromHeader);
+  }, [focusProfileTabFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
     if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
     if (showOnboardingTab && activeTab === 'profile' && onboardingState.resolvedSteps === 0) {
@@ -429,11 +495,7 @@ function RegularAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onClose={onClose}
-          onEdit={
-            !hideHeaderEdit && canWrite && onEditProfile
-              ? () => onEditProfile(assistant)
-              : undefined
-          }
+          onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileTabFromHeader : undefined}
           onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
           isStartCallDisabled={isStartCallDisabled}
           startCallTooltip={startCallTooltip}
@@ -463,13 +525,7 @@ function RegularAssistantInfoSidePanelContent({
                   {onboardingState.totalSteps - onboardingState.resolvedSteps}
                 </span>
               </TabsTrigger>
-              <TabsTrigger
-                value="profile"
-                data-testid="assistant-info-tab-profile"
-                className={PANEL_TAB_TRIGGER_CLASS}
-              >
-                Profile
-              </TabsTrigger>
+              <ProfileTabTrigger shimmer={profileTabShimmer} />
             </TabsList>
             <TabsContent value="onboarding" className="mt-0">
               <AssistantSetupRoadmap
@@ -508,7 +564,7 @@ interface IdentityHeaderProps {
   isIdCopied: boolean;
   onCopyId: () => void;
   onClose: () => void;
-  onEdit?: () => void;
+  onFocusProfileTab?: () => void;
   onStartCall?: () => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
@@ -524,7 +580,7 @@ function IdentityHeader({
   isIdCopied,
   onCopyId,
   onClose,
-  onEdit,
+  onFocusProfileTab,
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
@@ -597,7 +653,7 @@ function IdentityHeader({
       </div>
       <TooltipProvider delayDuration={100}>
         <div className="-mr-1 -mt-1 flex flex-shrink-0 items-center gap-1">
-          {onEdit && (
+          {onFocusProfileTab && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -605,15 +661,15 @@ function IdentityHeader({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={onEdit}
+                  onClick={onFocusProfileTab}
                   data-testid="assistant-info-edit-profile"
-                  aria-label="Edit profile"
+                  aria-label="Show profile tab"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">
-                <p>Edit</p>
+                <p>Profile</p>
               </TooltipContent>
             </Tooltip>
           )}

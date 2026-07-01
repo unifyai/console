@@ -531,10 +531,11 @@ async function openAssistantInfoProfileTab(page: Page) {
   }
 }
 
-/** Open the edit dialog from a list row via the info panel header edit control. */
+/** Open the edit dialog from a list row via the info panel Profile section edit control. */
 export async function openEditDialogFromList(page: Page, agentId: number | string) {
   await openAssistantInfoPanelFromList(page, agentId);
-  await page.getByTestId('assistant-info-edit-profile').click();
+  await openAssistantInfoProfileTab(page);
+  await page.getByTestId('assistant-info-edit-profile-section').click();
   await expect(page.locator('[role="dialog"]').filter({ hasText: /^Edit / })).toBeVisible({
     timeout: 10_000,
   });

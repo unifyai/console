@@ -163,6 +163,7 @@ export function AssistantInfoPanelLayout({
   const draftNonceRef = React.useRef(0);
   const seededInfoFocusLayoutRequestRef = React.useRef(0);
   const initializedForRef = React.useRef<string | null>(null);
+  const focusProfileTabRef = React.useRef<(() => void) | null>(null);
 
   React.useEffect(() => {
     setInfoPanelWidth(readInfoPanelWidth());
@@ -456,6 +457,9 @@ export function AssistantInfoPanelLayout({
       isStartCallDisabled={isCallButtonDisabled}
       startCallTooltip={callButtonTooltip}
       hideHeaderEdit={isBelowMobile}
+      onRegisterFocusProfileTab={(focusProfileTab) => {
+        focusProfileTabRef.current = focusProfileTab;
+      }}
     />
   );
 
@@ -487,14 +491,14 @@ export function AssistantInfoPanelLayout({
               >
                 <X className="h-4 w-4" />
               </Button>
-              {canWrite && onEditProfile ? (
+              {canWrite ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={() => onEditProfile(assistant)}
-                  aria-label="Edit profile"
+                  onClick={() => focusProfileTabRef.current?.()}
+                  aria-label="Show profile tab"
                   data-testid="assistant-info-edit-profile"
                 >
                   <Pencil className="h-4 w-4" />

@@ -91,6 +91,8 @@ test('assistant list item unfold control opens the info panel', async ({ authedP
 
   await openAssistantInfoPanelFromList(page, assistant.agentId);
   await expect(page.getByTestId('assistant-info-edit-profile')).toBeVisible({ timeout: 5_000 });
+  await page.getByTestId('assistant-info-edit-profile').click();
+  await expect(page.locator('[role="dialog"]').filter({ hasText: /^Edit / })).toHaveCount(0);
   await expect(page.getByTestId('assistant-info-edit-contact-section')).toBeVisible({
     timeout: 5_000,
   });
