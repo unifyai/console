@@ -16,6 +16,7 @@ import { Textarea } from '@/components/UI/textarea';
 import { toast } from 'sonner';
 import { useSupportTicket } from '@/hooks/Support/useSupportTicket';
 import { submitSupportTicket } from '@/lib/support/ticket';
+import { cn } from '@/lib/utils';
 
 const MAX_DESCRIPTION_LENGTH = 2000;
 
@@ -38,7 +39,7 @@ function HelpSquareIcon({ className }: { className?: string }) {
   );
 }
 
-export default function SupportTicketDialog() {
+export default function SupportTicketDialog({ triggerClassName }: { triggerClassName?: string }) {
   const {
     isOpen,
     isCapturing,
@@ -79,7 +80,11 @@ export default function SupportTicketDialog() {
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              className="rounded-control relative h-6 w-6 p-0"
+              size="icon"
+              className={cn(
+                'rounded-control relative text-muted-foreground',
+                triggerClassName ?? 'h-6 w-6 p-0'
+              )}
               onClick={openDialog}
               disabled={isCapturing}
               data-testid="support-ticket-trigger"
@@ -87,7 +92,7 @@ export default function SupportTicketDialog() {
               {isCapturing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <HelpSquareIcon className="h-[17px] w-[17px] translate-y-px" />
+                <HelpSquareIcon className="h-4 w-4" />
               )}
             </Button>
           </TooltipTrigger>

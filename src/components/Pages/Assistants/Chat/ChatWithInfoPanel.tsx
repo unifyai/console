@@ -10,6 +10,7 @@ import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
 import type { ChatDraftSeed } from '@/components/Pages/Assistants/Layout/AssistantInfoPanelLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 
@@ -153,7 +154,7 @@ export function ChatWithInfoPanel({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className={tabToolbarIconButtonClass}
                         onClick={onStartAudioCall}
                         disabled={isCallButtonDisabled}
                         data-testid="call-audio-button"
@@ -179,7 +180,7 @@ export function ChatWithInfoPanel({
                         type="button"
                         variant={isInfoOpen ? 'primary' : 'ghost'}
                         size="icon"
-                        className="h-7 w-7"
+                        className={tabToolbarIconButtonClass}
                         onClick={onToggleInfo}
                         data-testid="assistant-info-button"
                         aria-label={isInfoOpen ? 'Hide profile' : 'Show profile'}

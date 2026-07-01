@@ -24,7 +24,7 @@ export function TabHeader({ section, leading, right }: TabHeaderProps) {
   const { Icon } = section;
 
   return (
-    <div className="relative flex shrink-0 flex-nowrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:gap-3 sm:px-[22px]">
+    <div className="relative flex shrink-0 flex-nowrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:gap-3">
       <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-hidden sm:gap-3">
         {leading}
         <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2.5 overflow-hidden sm:gap-3">

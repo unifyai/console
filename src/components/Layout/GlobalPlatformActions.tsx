@@ -3,11 +3,13 @@
 import * as React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 import { ReferralPromoButton } from '@/components/Layout/TopBar/ReferralPromoButton';
 import { OnboardingProgressShortcut } from '@/components/Layout/TopBar/OnboardingProgressShortcut';
+import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
 
 /** Workspace-level quick actions shared across section and internal route headers. */
 export function GlobalPlatformActions() {
@@ -20,22 +22,18 @@ export function GlobalPlatformActions() {
     <TooltipProvider delayDuration={150}>
       <div className="flex items-center gap-0.5">
         <OnboardingProgressShortcut />
-        <ReferralPromoButton />
-        <SupportTicketDialog />
+        <ReferralPromoButton iconButtonClassName={tabToolbarIconButtonClass} />
+        <SupportTicketDialog triggerClassName={tabToolbarIconButtonClass} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground"
+              className={cn(tabToolbarIconButtonClass, 'text-muted-foreground')}
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {mounted && isDark ? (
-                <Sun className="h-[18px] w-[18px]" />
-              ) : (
-                <Moon className="h-[18px] w-[18px]" />
-              )}
+              {mounted && isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">

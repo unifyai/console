@@ -5,6 +5,9 @@ import { RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 
+/** Ghost icon buttons shared by section toolbars and the platform actions cluster. */
+export const tabToolbarIconButtonClass = 'h-7 w-7 shrink-0';
+
 /**
  * Standardized second-row toolbar shared by every assistant tab.
  *
@@ -144,7 +147,7 @@ export function TabToolbar({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className={tabToolbarIconButtonClass}
           onClick={onRefresh}
           disabled={isRefreshing}
           title={refreshTitle}
