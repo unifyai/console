@@ -62,8 +62,7 @@ src/tests/
     chat.e2e.ts           Chat messaging + attachment tests
     edit.e2e.ts           Edit assistant profile tests
     delete.e2e.ts         Delete assistant tests
-    list.e2e.ts           Assistant list display tests
-    profile.e2e.ts        Profile panel tests
+    list.e2e.ts           Assistant list, deep link, menu tests
     call.e2e.ts           Voice/video call tests (dev-stubbed LiveKit)
     permissions.e2e.ts    Org role permission boundary tests
     contacts.e2e.ts       Contact management tests
@@ -131,7 +130,15 @@ npx playwright test src/tests/assistants/ --ui
 
 ## CI Pipeline
 
-E2E tests run in GitHub Actions via `.github/workflows/tests.yml`. The pipeline is triggered by `[run-tests]` in the commit message or PR title, or by `workflow_dispatch`.
+E2E tests run in GitHub Actions via `.github/workflows/tests.yml` in three tiers:
+
+| Tier           | Trigger                                                  | Jobs                                                                    |
+| -------------- | -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Push Gate**  | Every branch push (no marker)                            | `login.e2e.ts`, `route-shell-smoke.e2e.ts`, `push-gate.e2e.ts`          |
+| **PR Gate**    | PRs targeting `staging` / `main`                         | Curated Assistants, Account, Billing, Auth, Shell & Admin specs         |
+| **Exhaustive** | `[run-tests]` in commit/PR title, or `workflow_dispatch` | Full Playwright matrix (incl. admin + impersonation) + Vitest node/real |
+
+Spec lists live in `scripts/ci-playwright-tiers.sh`. See `src/tests/TEST_INVENTORY.md` for the keep/cut rationale.
 
 ### How CI works
 
@@ -187,4 +194,4 @@ To test full round-trip chat locally, use `./scripts/local.sh start --chat`.
 
 ## Coverage Status
 
-The `_interfaces` and `_visualization` test suites have not been converted to E2E and are excluded from CI.
+Vitest suites under `_interfaces` and `_visualization` run in the **Exhaustive** tier only (`npm run test:node`, `npm run test:real`). See `src/tests/TEST_INVENTORY.md`.
