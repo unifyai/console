@@ -147,12 +147,14 @@ export function AssistantWorkspaceManager({
       );
     }
 
-    // Read-only viewer
+    // Read-only viewer. For a BYOD connection the meaningful address is the
+    // connected workspace account, not the assistant's managed mailbox.
     if (!canWrite) {
-      if (assistant.email) {
+      const connectedEmail = grantedFeatures?.connectedAccountEmail ?? assistant.email;
+      if (connectedEmail) {
         return (
           <div className="space-y-2">
-            <DisplayContactField label="Connected Email" value={assistant.email} />
+            <DisplayContactField label="Connected Email" value={connectedEmail} />
             {assistant.emailProvider && <ProviderBadge provider={assistant.emailProvider} />}
           </div>
         );
@@ -189,7 +191,17 @@ export function AssistantWorkspaceManager({
                 'Connected'}
             </Badge>
           </div>
-          <DisplayContactField label="" value={assistant.email!} />
+          <DisplayContactField
+            label=""
+            value={grantedFeatures?.connectedAccountEmail ?? assistant.email!}
+          />
+          {!!grantedFeatures?.connectedAccountEmail &&
+            grantedFeatures.connectedAccountEmail !== assistant.email && (
+              <p className="text-caption text-muted-foreground">
+                {assistantName}&apos;s own mailbox stays {assistant.email}; the connected account
+                above is used when acting on your workspace.
+              </p>
+            )}
 
           {isLoadingFeatures ? (
             <div className="flex items-center gap-2 py-2 text-muted-foreground">
