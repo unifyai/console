@@ -14,7 +14,7 @@ COPY package.json .npmrc yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 # The brand system is consumed as a local file: dependency from the in-repo
 # `branding` submodule, so its source must be present before installing.
 COPY branding ./branding
-RUN npm i -g npm@11.17.0 undici@6.27.0 && \
+RUN npm i -g npm@11.18.0 undici@6.27.0 && \
   rm -rf /usr/local/lib/node_modules/npm/node_modules/undici && \
   ln -s /usr/local/lib/node_modules/undici /usr/local/lib/node_modules/npm/node_modules/undici
 RUN --mount=type=cache,id=console-npm,target=/root/.npm,sharing=locked \
