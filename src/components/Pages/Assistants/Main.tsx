@@ -252,17 +252,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     clearPanelProfileAssistant();
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
-  const handleAssistantListSelect = React.useCallback(
-    (assistantId: string) => {
-      if (assistantId === profileAssistantId) {
-        handleProfileClose();
-        return;
-      }
-
-      handleShowProfile(assistantId);
-    },
-    [handleProfileClose, handleShowProfile, profileAssistantId]
-  );
   const handleToggleAssistantInfo = React.useCallback(
     (assistantId: string) => {
       if (profileAssistantId !== assistantId) {
@@ -431,6 +420,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [assistants, coordinatorWorkspace, currentUserId]
   );
   const canonicalCoordinatorId = canonicalCoordinator?.agentId ?? null;
+
+  const handleAssistantListSelect = React.useCallback(
+    (assistantId: string) => {
+      if (assistantId === profileAssistantId) {
+        if (canonicalCoordinatorId && assistantId !== canonicalCoordinatorId) {
+          handleShowProfile(canonicalCoordinatorId);
+        }
+        return;
+      }
+
+      handleShowProfile(assistantId);
+    },
+    [canonicalCoordinatorId, handleShowProfile, profileAssistantId]
+  );
 
   // Coordinator onboarding intro gate: on a fresh ``onboarding`` visit
   // (``mode === 'onboarding'`` and the intro hasn't been watched yet) we
@@ -2190,7 +2193,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const onDeleteAssistantSubmit = async (assistant: Assistant) => {
     const success = await deleteAssistant(assistant);
     if (success) {
-      handleProfileClose();
+      if (assistant.agentId === profileAssistantId) {
+        if (canonicalCoordinatorId) {
+          handleShowProfile(canonicalCoordinatorId);
+        } else {
+          handleProfileClose();
+        }
+      }
     } else {
       throw new Error('Deletion failed in hook.');
     }
