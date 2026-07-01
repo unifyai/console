@@ -138,7 +138,15 @@ export function AssistantWorkspaceManager({
   // ---- body --------------------------------------------------------------
 
   const renderBody = () => {
-    if (assistant.email && isLoadingFeatures) {
+    // Block only the first fetch for non-coordinator assistants that already
+    // have a mailbox — we need granted-features to distinguish platform vs
+    // BYOD. Coordinators always carry a platform mailbox but connect a
+    // separate workspace account, so show the provider picker immediately and
+    // refresh in the background (including after OAuth completes).
+    const showBlockingLoader =
+      assistant.email && isLoadingFeatures && !grantedFeatures && !assistant.isCoordinator;
+
+    if (showBlockingLoader) {
       return (
         <div className="flex items-center justify-center py-8 text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -203,12 +211,7 @@ export function AssistantWorkspaceManager({
               </p>
             )}
 
-          {isLoadingFeatures ? (
-            <div className="flex items-center gap-2 py-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-caption">Loading features...</span>
-            </div>
-          ) : availableFeaturesForByod.length > 0 ? (
+          {availableFeaturesForByod.length > 0 ? (
             <div className="space-y-2">
               <Label>Features</Label>
               <FeatureChecklist
@@ -217,6 +220,11 @@ export function AssistantWorkspaceManager({
                 required={requiredFeaturesForByod}
                 onToggle={toggleFeature}
               />
+            </div>
+          ) : isLoadingFeatures ? (
+            <div className="flex items-center gap-2 py-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-caption">Loading features...</span>
             </div>
           ) : null}
 
@@ -247,6 +255,12 @@ export function AssistantWorkspaceManager({
     // it's disabled with an explanatory tooltip rather than hidden.
     return (
       <div className="space-y-6">
+        {isLoadingFeatures && !grantedFeatures && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-caption">Checking for an existing connection...</span>
+          </div>
+        )}
         <div className="space-y-3">
           <div className="flex gap-2">
             <ByodProviderCard
