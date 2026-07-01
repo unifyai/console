@@ -22,6 +22,7 @@ import {
   cleanupUser,
   createBillingTest,
   skipIfManualTopupBilling,
+  subscribeUserToTier,
 } from './helpers';
 
 const user = createTestUser({ name: 'Subscribe', lastName: 'Test', credits: 50 });
@@ -117,9 +118,21 @@ test('unsubscribed account shows trial credits + choose-a-plan CTA', async ({
   authedPage: page,
 }) => {
   await skipIfManualTopupBilling(test, page);
-  await page.waitForSelector('[data-testid="choose-plan-card"]', { timeout: 15_000 });
+  await page.goto('/billing');
+  await expect(page.getByTestId('choose-plan-card')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('tier-select-trigger')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('subscribe-plan-cta')).toHaveText(/subscribe/i, {
     timeout: 10_000,
   });
+});
+
+test('subscribed account shows current tier and allowance meter', async ({ authedPage: page }) => {
+  await skipIfManualTopupBilling(test, page);
+  subscribeUserToTier(user.id, { tierName: 'tier_50', credits: 42 });
+
+  await page.goto('/billing');
+  await expect(page.getByTestId('plans-section')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('current-tier-name')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('credits-remaining')).toBeVisible();
+  await expect(page.getByTestId('choose-plan-card')).toHaveCount(0);
 });

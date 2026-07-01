@@ -15,6 +15,7 @@ import {
   setMeteredPlan,
   clearMeteredPlan,
   waitForAssistantsReady,
+  expectOnboardButtonDisabled,
   expectOnboardButtonEnabled,
   type TestUser,
 } from './helpers';
@@ -33,13 +34,8 @@ noCreditTest.afterAll(() => {
   cleanupUser(noCreditUser.id);
 });
 
-noCreditTest('disabled buttons appear when user has no credits', async ({ authedPage: page }) => {
-  await page.goto('/assistants');
-  await waitForAssistantsReady(page);
-
-  const disabledBtns = page.locator('button[disabled]');
-  const count = await disabledBtns.count();
-  expect(count).toBeGreaterThan(0);
+noCreditTest('blocks the onboard CTA when user has no credits', async ({ authedPage: page }) => {
+  await expectOnboardButtonDisabled(page);
 });
 
 // ---------------------------------------------------------------------------

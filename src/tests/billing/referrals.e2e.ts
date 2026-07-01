@@ -185,8 +185,9 @@ test('referrer dashboard reflects a rewarded referral', async ({ authedPage: pag
 
   const section = page.getByTestId('referrals-section');
   await expect(section).toBeVisible({ timeout: 15_000 });
-  // The reward stat surfaces the seeded earnings.
-  await expect(section).toContainText(/refer/i);
+  await page.getByTestId('referrals-open-button').click();
+  await expect(page.getByTestId('referrals-rewarded')).toContainText('1', { timeout: 10_000 });
+  await expect(page.getByTestId('referrals-earned')).toContainText('5,000', { timeout: 10_000 });
 });
 
 // ---------------------------------------------------------------------------

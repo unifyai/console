@@ -162,36 +162,25 @@ test('category filter narrows ledger to selected category', async ({ authedPage:
   await page.goto('/usage');
   await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
 
-  // Open category dropdown and select "LLM"
+  const ledger = page.getByTestId('transaction-ledger');
+
   await page.getByTestId('category-filter').click();
   await page.getByRole('option', { name: 'LLM' }).click();
+  await expect(ledger.getByText('Assistant work').first()).toBeVisible({ timeout: 10_000 });
+  await expect(ledger.getByText('Assistant creation')).not.toBeVisible({ timeout: 10_000 });
+  await expect(ledger.getByText('Generated photos and videos')).not.toBeVisible({
+    timeout: 5_000,
+  });
 
-  // Wait for the ledger to re-render
-  await page.waitForTimeout(1500);
-
-  const ledger = page.getByTestId('transaction-ledger');
-  await expect(ledger.getByText('Assistant work').first()).toBeVisible();
-
-  // Non-LLM rows should not be visible
-  await expect(ledger.getByText('Assistant creation')).not.toBeVisible();
-  await expect(ledger.getByText('Generated photos and videos')).not.toBeVisible();
-
-  // Switch to "Hiring" category
   await page.getByTestId('category-filter').click();
   await page.getByRole('option', { name: 'Hiring' }).click();
-  await page.waitForTimeout(1500);
+  await expect(ledger.getByText('Assistant creation')).toBeVisible({ timeout: 10_000 });
+  await expect(ledger.getByText('Assistant work')).not.toBeVisible({ timeout: 10_000 });
 
-  await expect(ledger.getByText('Assistant creation')).toBeVisible();
-  await expect(ledger.getByText('Assistant work')).not.toBeVisible();
-
-  // Reset to "All Spending"
   await page.getByTestId('category-filter').click();
   await page.getByRole('option', { name: 'All Spending' }).click();
-  await page.waitForTimeout(1500);
-
-  // All categories visible again
-  await expect(ledger.getByText('Assistant work').first()).toBeVisible();
-  await expect(ledger.getByText('Assistant creation')).toBeVisible();
+  await expect(ledger.getByText('Assistant work').first()).toBeVisible({ timeout: 10_000 });
+  await expect(ledger.getByText('Assistant creation')).toBeVisible({ timeout: 10_000 });
 });
 
 test('granularity filter changes chart and ledger without errors', async ({ authedPage: page }) => {
@@ -207,18 +196,15 @@ test('granularity filter changes chart and ledger without errors', async ({ auth
   // Switch to Monthly
   await granFilter.click();
   await page.getByRole('option', { name: 'Monthly' }).click();
-  await page.waitForTimeout(1500);
 
-  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 10_000 });
   await expect(page.locator('[data-testid="usage-chart"]:visible')).toBeVisible();
   await expect(ledger).toBeVisible();
 
-  // Switch to Daily
   await granFilter.click();
   await page.getByRole('option', { name: 'Daily' }).click();
-  await page.waitForTimeout(1500);
 
-  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 10_000 });
   await expect(ledger).toBeVisible();
 });
 
@@ -249,22 +235,18 @@ test('switching granularity changes ledger grouping', async ({ authedPage: page 
   // Switch to Monthly — should show month-level labels (e.g. "April 2026")
   await granFilter.click();
   await page.getByRole('option', { name: 'Monthly' }).click();
-  await page.waitForTimeout(1500);
 
   const monthlyRows = ledger.getByTestId('aggregated-row');
   await expect(monthlyRows.first()).toBeVisible({ timeout: 10_000 });
   const monthlyCount = await monthlyRows.count();
 
-  // Switch to Hourly — should produce more rows (finer granularity)
   await granFilter.click();
   await page.getByRole('option', { name: 'Hourly' }).click();
-  await page.waitForTimeout(1500);
 
   const hourlyRows = ledger.getByTestId('aggregated-row');
   await expect(hourlyRows.first()).toBeVisible({ timeout: 10_000 });
   const hourlyCount = await hourlyRows.count();
 
-  // Finer granularity should produce at least as many rows
   expect(hourlyCount).toBeGreaterThanOrEqual(monthlyCount);
 });
 

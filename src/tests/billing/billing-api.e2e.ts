@@ -37,6 +37,23 @@ test('returns balance for authenticated user', async ({ authedPage: page }) => {
   expect(response.data.accountStatus).toBe('ACTIVE');
 });
 
+test('balance UI matches the balance API for authenticated user', async ({ authedPage: page }) => {
+  setUserCredits(user.id, 1_234);
+  await page.goto('/billing');
+  await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
+
+  const response = await page.evaluate(async () => {
+    const res = await fetch('/api/billing/balance');
+    return { status: res.status, data: await res.json() };
+  });
+
+  expect(response.status).toBe(200);
+  expect(parseFloat(response.data.balance)).toBeCloseTo(1_234, 0);
+  await expect(page.getByText('493,600 credits')).toBeVisible({ timeout: 10_000 });
+
+  setUserCredits(user.id, 4_200);
+});
+
 test('balance reflects DB credits accurately', async ({ authedPage: page }) => {
   setUserCredits(user.id, 1_234);
   await page.goto('/billing');

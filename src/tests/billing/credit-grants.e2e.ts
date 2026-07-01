@@ -22,6 +22,7 @@ const user = createTestUser({ name: 'Grant', lastName: 'Main', credits: 100 });
 const secondUser = createTestUser({ name: 'Grant', lastName: 'Second', credits: 100 });
 
 const validToken = createCreditGrantLink({ credits: 50 });
+const uiClaimToken = createCreditGrantLink({ credits: 25 });
 const doubleToken = createCreditGrantLink({ credits: 30 });
 const maxToken = createCreditGrantLink({ credits: 20, maxClaims: 1 });
 
@@ -31,10 +32,38 @@ test.afterAll(() => {
   clearUserGrantClaims(user.id);
   clearUserGrantClaims(secondUser.id);
   deleteCreditGrantLink(validToken);
+  deleteCreditGrantLink(uiClaimToken);
   deleteCreditGrantLink(doubleToken);
   deleteCreditGrantLink(maxToken);
   cleanupUser(user.id);
   cleanupUser(secondUser.id);
+});
+
+// ---------------------------------------------------------------------------
+// UI claim flow (?token= on assistants)
+// ---------------------------------------------------------------------------
+
+test('?token= on assistants auto-claims credits and shows success toast', async ({
+  authedPage: page,
+}) => {
+  const creditsBefore = parseFloat(
+    dbExec(
+      `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${user.id}')`
+    )
+  );
+
+  await page.goto(`/assistants?token=${uiClaimToken}`);
+
+  await expect(
+    page.locator('[data-sonner-toast]').filter({ hasText: /credits claimed/i })
+  ).toBeVisible({ timeout: 15_000 });
+
+  const creditsAfter = parseFloat(
+    dbExec(
+      `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${user.id}')`
+    )
+  );
+  expect(creditsAfter).toBeGreaterThanOrEqual(creditsBefore + 25);
 });
 
 // ---------------------------------------------------------------------------

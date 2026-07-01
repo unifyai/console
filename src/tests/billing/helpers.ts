@@ -93,15 +93,29 @@ export async function waitForUsageReady(page: Page) {
   await expect(page.getByTestId('usage-filters-bar')).toBeVisible({ timeout: 15_000 });
 }
 
-/** Assert the rail onboard CTA is enabled (canonical billable action on /assistants). */
-export async function expectOnboardButtonEnabled(page: Page) {
-  await waitForAssistantsReady(page);
+async function openUnitySwitcherPopover(page: Page) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (!(await popover.isVisible({ timeout: 500 }).catch(() => false))) {
     await page.getByTestId('rail-unity-switcher').click();
   }
   await expect(popover).toBeVisible({ timeout: 5_000 });
+}
+
+/** Assert the rail onboard CTA is enabled (canonical billable action on /assistants). */
+export async function expectOnboardButtonEnabled(page: Page) {
+  await waitForAssistantsReady(page);
+  await openUnitySwitcherPopover(page);
   await expect(page.getByTestId('assistant-onboard-button')).toBeEnabled({ timeout: 10_000 });
+}
+
+/** Assert the rail onboard CTA is blocked when credits are exhausted. */
+export async function expectOnboardButtonDisabled(page: Page) {
+  await waitForAssistantsReady(page);
+  await openUnitySwitcherPopover(page);
+  await expect(page.getByTestId('assistant-onboard-button')).toBeDisabled({ timeout: 10_000 });
+  await expect(page.locator('[data-testid="billable-action-guard"]')).toBeVisible({
+    timeout: 5_000,
+  });
 }
 
 // =============================================================================

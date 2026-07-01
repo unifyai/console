@@ -5,13 +5,7 @@
  */
 
 import { test as unauthTest, expect } from '@playwright/test';
-import {
-  createTestUser,
-  cleanupUser,
-  getBillingAccountId,
-  createBillingTest,
-  type TestUser,
-} from './helpers';
+import { createTestUser, cleanupUser, getBillingAccountId, createBillingTest } from './helpers';
 
 const user = createTestUser({ name: 'SSE', lastName: 'Events', credits: 5_000 });
 const billingAccountId = getBillingAccountId(user.id);
@@ -19,11 +13,9 @@ const test = createBillingTest(user);
 
 test.afterAll(() => cleanupUser(user.id));
 
-// ---------------------------------------------------------------------------
-// SSE Stream
-// ---------------------------------------------------------------------------
-
-test('SSE stream endpoint is accessible for authenticated users', async ({ authedPage: page }) => {
+test('SSE stream endpoint returns event-stream for authenticated users', async ({
+  authedPage: page,
+}) => {
   await page.goto('/assistants');
 
   const response = await page.evaluate(async () => {
@@ -44,10 +36,80 @@ test('SSE stream endpoint is accessible for authenticated users', async ({ authe
     }
   });
 
-  expect([200, 404]).toContain(response.status);
-  if (response.status === 200) {
-    expect(response.contentType).toContain('text/event-stream');
+  expect(response.status).toBe(200);
+  expect(response.contentType).toContain('text/event-stream');
+});
+
+test('push endpoint delivers events to the SSE stream in local dev', async ({
+  authedPage: page,
+}, testInfo) => {
+  await page.goto('/assistants');
+
+  const result = await page.evaluate(
+    async ({ baId }) => {
+      return new Promise<{ pushStatus: number; gotEvent: boolean; eventType?: string }>(
+        (resolve) => {
+          const es = new EventSource('/api/billing/events/stream');
+          let settled = false;
+
+          const finish = (payload: {
+            pushStatus: number;
+            gotEvent: boolean;
+            eventType?: string;
+          }) => {
+            if (settled) return;
+            settled = true;
+            es.close();
+            resolve(payload);
+          };
+
+          const timeoutId = setTimeout(() => finish({ pushStatus: 0, gotEvent: false }), 12_000);
+
+          es.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.event_type === 'credits_restored') {
+                clearTimeout(timeoutId);
+                finish({ pushStatus: 200, gotEvent: true, eventType: data.event_type });
+              }
+            } catch {
+              /* ignore malformed frames */
+            }
+          };
+
+          es.onerror = () => {
+            clearTimeout(timeoutId);
+            finish({ pushStatus: 0, gotEvent: false });
+          };
+
+          window.setTimeout(async () => {
+            const res = await fetch('/api/billing/events/push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                billing_account_id: baId,
+                event_type: 'credits_restored',
+                balance: 100,
+              }),
+            });
+            if (res.status === 403) {
+              clearTimeout(timeoutId);
+              finish({ pushStatus: 403, gotEvent: false });
+            }
+          }, 750);
+        }
+      );
+    },
+    { baId: billingAccountId }
+  );
+
+  if (result.pushStatus === 403) {
+    testInfo.skip(true, 'Local event bus unavailable (COMMS_SERVICE_ACCOUNT_CREDENTIALS set).');
   }
+
+  expect(result.pushStatus).toBe(200);
+  expect(result.gotEvent).toBe(true);
+  expect(result.eventType).toBe('credits_restored');
 });
 
 unauthTest('SSE stream is unauthorized for unauthenticated requests', async ({ page }) => {
@@ -71,37 +133,7 @@ unauthTest('SSE stream is unauthorized for unauthenticated requests', async ({ p
   expect(response.status).toBe(401);
 });
 
-// ---------------------------------------------------------------------------
-// Push Endpoint (local dev only)
-// ---------------------------------------------------------------------------
-
-unauthTest('push endpoint accepts billing events', async ({ page }) => {
-  await page.goto('/login');
-
-  const response = await page.evaluate(
-    async ({ baId }) => {
-      const res = await fetch('/api/billing/events/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          billing_account_id: baId,
-          event_type: 'credits_restored',
-          balance: 100,
-        }),
-      });
-      return { status: res.status, data: await res.json() };
-    },
-    { baId: billingAccountId }
-  );
-
-  if (response.status === 200) {
-    expect(response.data.ok).toBe(true);
-  } else {
-    expect(response.status).toBe(403);
-  }
-});
-
-unauthTest('push endpoint requires billing_account_id', async ({ page }) => {
+unauthTest('push endpoint requires billing_account_id in local dev', async ({ page }, testInfo) => {
   await page.goto('/login');
 
   const response = await page.evaluate(async () => {
@@ -116,5 +148,10 @@ unauthTest('push endpoint requires billing_account_id', async ({ page }) => {
     return { status: res.status, data: await res.json() };
   });
 
-  expect([400, 403]).toContain(response.status);
+  if (response.status === 403) {
+    testInfo.skip(true, 'Local event bus unavailable (COMMS_SERVICE_ACCOUNT_CREDENTIALS set).');
+  }
+
+  expect(response.status).toBe(400);
+  expect(response.data.detail).toMatch(/billing_account_id/i);
 });
