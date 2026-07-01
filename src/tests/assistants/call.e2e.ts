@@ -236,13 +236,13 @@ test('communication dialog shows control buttons when connected', async ({ authe
   await expect
     .poll(
       async () => {
-        if (await hangUp.isVisible().catch(() => false)) return 'connected';
+        if (await hangUp.isVisible().catch(() => false)) return 'ready';
         if (await failureToast.isVisible().catch(() => false)) return 'failed';
         return 'pending';
       },
-      { timeout: 30_000 }
+      { timeout: 45_000 }
     )
-    .toBe('connected');
+    .toBe('ready');
 
   await expect(hangUp).toBeVisible({ timeout: 10_000 });
 

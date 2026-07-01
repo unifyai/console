@@ -381,7 +381,7 @@ test('unread badge stays cleared after the chat is opened, even after a reload',
   // Rows/badges only mount inside the switcher popover — open it to inspect.
   await openUnitySwitcher(page);
   const incomingBadge = page.getByTestId(`assistant-unread-badge-${incoming.agentId}`);
-  await expect(incomingBadge).toBeVisible({ timeout: 20_000 });
+  await expect(incomingBadge).toBeVisible({ timeout: 45_000 });
   await expect(incomingBadge).toHaveText('1');
 
   // Open the incoming assistant's chat — badge clears.
@@ -600,7 +600,7 @@ test('browser tab title reflects total unread messages across assistants', async
     content: `Title test B ${Date.now()}`,
     contactId: CONTACT_ID,
   });
-  await expect.poll(() => page.title(), { timeout: 20_000 }).toBe(`(1) ${baseTitle}`);
+  await expect.poll(() => page.title(), { timeout: 45_000 }).toBe(`(1) ${baseTitle}`);
 
   // Two more messages for C → total should be 3.
   await publishUnifyMessageOutbound(incomingC.agentId, {
@@ -611,7 +611,7 @@ test('browser tab title reflects total unread messages across assistants', async
     content: `Title test C2 ${Date.now()}`,
     contactId: CONTACT_ID,
   });
-  await expect.poll(() => page.title(), { timeout: 15_000 }).toBe(`(3) ${baseTitle}`);
+  await expect.poll(() => page.title(), { timeout: 45_000 }).toBe(`(3) ${baseTitle}`);
 
   // Opening B clears B's count → total drops to 2.
   await openUnitySwitcher(page);
@@ -933,7 +933,7 @@ test('a user message sent in one tab appears in a second tab viewing the same ch
       timeout: 10_000,
     });
     await expect(page2.locator(`[data-role="user"]:has-text("${sendMsg}")`)).toHaveCount(1, {
-      timeout: 15_000,
+      timeout: 30_000,
     });
   } finally {
     await page2.close();

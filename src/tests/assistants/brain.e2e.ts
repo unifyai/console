@@ -524,7 +524,7 @@ test('Transcripts: search filters the thread list', async ({ authedPage: page })
   await openTranscriptsSection(page, dataAssistant.agentId);
 
   await expect(
-    page.getByTestId('transcripts-reader').getByText('What is the status of the project?')
+    page.getByTestId('transcripts-reader').getByText('What is the status of the project?').first()
   ).toBeVisible({ timeout: 10_000 });
 
   await page.getByTestId('transcripts-search').fill('schedule');
@@ -534,7 +534,7 @@ test('Transcripts: search filters the thread list', async ({ authedPage: page })
 
   await page.getByRole('button', { name: 'Clear search' }).click();
   await expect(
-    page.getByTestId('transcripts-reader').getByText('What is the status of the project?')
+    page.getByTestId('transcripts-reader').getByText('What is the status of the project?').first()
   ).toBeVisible({ timeout: 10_000 });
 });
 

@@ -35,8 +35,11 @@ import {
 
 const user = createTestUser({ name: 'Contact', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
-setUserPhoneNumber(user.id, '+15551234567');
-setUserWhatsappNumber(user.id, '+15559876543');
+const userPhoneSuffix = user.id.replace(/\D/g, '').slice(-7).padStart(7, '0');
+const userPhone = `+1555${userPhoneSuffix}`;
+const userWhatsapp = `+1556${userPhoneSuffix}`;
+setUserPhoneNumber(user.id, userPhone);
+setUserWhatsappNumber(user.id, userWhatsapp);
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
 
