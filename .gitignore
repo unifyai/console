@@ -19,6 +19,7 @@ src/tests/**/generated/
 
 # next.js
 .next/
+.next-stale-*/
 /out/
 
 # production
