@@ -1579,7 +1579,7 @@ function ChecklistRow({
             onClick={() => onTestTripwire(armedTripwireTaskId)}
             className={cn(
               'text-caption rounded-control inline-flex items-center gap-1.5 px-2 py-1 font-medium',
-              'bg-primary/10 text-primary hover:bg-primary/20',
+              'bg-primary/10 hover:bg-primary/20 text-primary',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             )}
             data-testid="coordinator-onboarding-test-tripwire"

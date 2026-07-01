@@ -19,7 +19,7 @@
 
 import * as React from 'react';
 import type { Assistant } from '@/types/assistants/assistant';
-import type { TaskRow } from '@/types/assistants/memory';
+import type { TaskRow } from '@/types/assistants/brain';
 import { useTasksData } from '@/hooks/Assistants/useTasksData';
 import { triggerTask } from '@/lib/assistants/taskTrigger';
 
@@ -28,17 +28,21 @@ const REFRESH_INTERVAL_MS = 4000;
 function hasScheduleShape(row: TaskRow): boolean {
   const schedule = row.schedule;
   if (schedule && typeof schedule === 'object' && Object.keys(schedule).length > 0) return true;
-  return String(row.triggerType ?? '')
-    .trim()
-    .toLowerCase() === 'scheduled';
+  return (
+    String(row.triggerType ?? '')
+      .trim()
+      .toLowerCase() === 'scheduled'
+  );
 }
 
 function hasTriggerShape(row: TaskRow): boolean {
   const trigger = row.trigger;
   if (trigger && typeof trigger === 'object' && Object.keys(trigger).length > 0) return true;
-  return String(row.triggerType ?? '')
-    .trim()
-    .toLowerCase() === 'triggered';
+  return (
+    String(row.triggerType ?? '')
+      .trim()
+      .toLowerCase() === 'triggered'
+  );
 }
 
 function readTaskDueAt(row: TaskRow): string | null {
