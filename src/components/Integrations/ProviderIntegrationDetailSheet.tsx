@@ -970,7 +970,10 @@ export function ProviderIntegrationDetailSheet({
                       renderAccountSection('account')}
 
                     {displayItem.requiresCustomOauth && !isConnectedApp && !isNativeApp && (
-                      <Alert className="bg-muted/20" data-testid="integration-requires-custom-oauth">
+                      <Alert
+                        className="bg-muted/20"
+                        data-testid="integration-requires-custom-oauth"
+                      >
                         <AlertTitle>Custom OAuth app required</AlertTitle>
                         <AlertDescription>
                           {displayItem.displayName} has no managed credentials, so it can only be

@@ -19,8 +19,7 @@ import type { IntegrationGalleryItem } from '@/types/integrations';
  * its authorized redirect URI in the provider's developer portal. Kept in sync
  * with ``ComposioProviderAdapter.default_oauth_callback_url`` in Orchestra.
  */
-const COMPOSIO_OAUTH_CALLBACK_URL =
-  'https://backend.composio.dev/api/v3.1/toolkits/auth/callback';
+const COMPOSIO_OAUTH_CALLBACK_URL = 'https://backend.composio.dev/api/v3.1/toolkits/auth/callback';
 
 function toolkitSlugFor(item: IntegrationGalleryItem): string {
   return String(item.sourceMetadata?.providerAppId || item.canonicalSlug || '').trim();
@@ -32,9 +31,7 @@ function matchesToolkitSlug(
   canonicalSlug: string
 ): boolean {
   const configSlug = config.toolkitSlug.toUpperCase();
-  return (
-    configSlug === toolkitSlug.toUpperCase() || configSlug === canonicalSlug.toUpperCase()
-  );
+  return configSlug === toolkitSlug.toUpperCase() || configSlug === canonicalSlug.toUpperCase();
 }
 
 /**
@@ -136,7 +133,9 @@ export function ProviderCustomOAuthSection({
       setExisting(null);
       setSavedAt(null);
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Failed to remove custom OAuth.');
+      setError(
+        removeError instanceof Error ? removeError.message : 'Failed to remove custom OAuth.'
+      );
     } finally {
       setRemoving(false);
     }
@@ -173,7 +172,7 @@ export function ProviderCustomOAuthSection({
       )}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-caption">
+        <div className="text-caption flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading…
         </div>
       ) : existing ? (
@@ -198,7 +197,11 @@ export function ProviderCustomOAuthSection({
               onClick={() => void handleRemove()}
               data-testid="provider-custom-oauth-remove"
             >
-              {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {removing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
               Remove
             </Button>
           </div>
@@ -248,7 +251,8 @@ export function ProviderCustomOAuthSection({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="custom-oauth-scopes">
-              Scopes <span className="text-muted-foreground">(optional, space or comma separated)</span>
+              Scopes{' '}
+              <span className="text-muted-foreground">(optional, space or comma separated)</span>
             </Label>
             <Input
               id="custom-oauth-scopes"
