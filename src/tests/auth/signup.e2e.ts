@@ -18,7 +18,7 @@ import {
   uniqueEmail,
   dbExec,
 } from './helpers';
-import { deferCoordinatorForUser } from '../helpers/coordinator';
+import { deferCoordinatorForUser, dismissCoordinatorOnboardingIfOpen } from '../helpers/coordinator';
 
 // =============================================================================
 // Registration
@@ -244,6 +244,7 @@ test.describe('Onboarding', () => {
     await page.evaluate(() => {
       window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
     });
+    await page.reload({ waitUntil: 'domcontentloaded' });
 
     await page.waitForURL(/\/assistants/, { timeout: 15_000 });
     expect(new URL(page.url()).searchParams.has('openHire')).toBe(false);
@@ -267,6 +268,11 @@ test.describe('Onboarding', () => {
     expect(managedOrgTeamCount).toBe('0');
 
     await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
+    await dismissCoordinatorOnboardingIfOpen(page);
+    await page.getByTestId('rail-unity-switcher').click();
+    await expect(page.getByTestId('rail-unity-switcher-popover')).toBeVisible({
+      timeout: 5_000,
+    });
 
     await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({
       timeout: 15_000,

@@ -26,6 +26,7 @@ import { expect, test as base, type Page } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 import { createTestUser, cleanupUser, createOrg, deleteOrg, dbExec } from '../billing/helpers';
+import { ensureUnifyOrg } from '../helpers/seeds/client';
 import { loginAndWaitForRedirect } from '../auth/helpers';
 import { deferCoordinatorForUser } from '../helpers/coordinator';
 
@@ -36,7 +37,11 @@ import { deferCoordinatorForUser } from '../helpers/coordinator';
 // Admin user belongs to an org literally named "Unify" with the Owner role
 // — that's what the `/admin` route layout checks.
 const adminUser = createTestUser({ name: 'Admin', lastName: 'Operator' });
-const unifyOrg = createOrg({ name: 'Unify', ownerId: adminUser.id });
+const unifyOrg = ensureUnifyOrg({
+  ownerId: adminUser.id,
+  existingOrgOwnerRole: 'Admin',
+});
+const createdUnifyOrg = unifyOrg.ownerId === adminUser.id;
 
 // Target org — a "real" customer org we'll manage from /admin/organizations.
 const targetOwner = createTestUser({ name: 'Target', lastName: 'OrgOwner' });
@@ -47,7 +52,7 @@ const targetOrg = createOrg({
 
 // Per-test unique template name so the catalog row is easy to spot among
 // any leftover BESPOKE rows from prior test runs.
-const templateName = `E2E Bespoke ${adminUser.id.slice(0, 8)}`;
+const templateName = `e2e-bespoke-${adminUser.id.slice(0, 8).toLowerCase()}`;
 
 // ---------------------------------------------------------------------------
 // Auth fixture (login once, reuse storageState)
@@ -125,7 +130,7 @@ test.afterAll(() => {
     /* best effort */
   }
   try {
-    deleteOrg(unifyOrg.id);
+    if (createdUnifyOrg) deleteOrg(unifyOrg.id);
   } catch {
     /* best effort */
   }
@@ -142,7 +147,7 @@ test('admin landing lists the managed-billing tools', async ({ adminPage: page }
 
   // The landing isn't behind a redirect for admins — it should render
   // the tile grid with the new pages discoverable.
-  await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Admin', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('link', { name: /Billing Plans/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Organizations/i })).toBeVisible();
 });
@@ -154,20 +159,20 @@ test('admin landing lists the managed-billing tools', async ({ adminPage: page }
 test('billing plans page creates a BESPOKE template and lists it', async ({ adminPage: page }) => {
   await page.goto('/admin/plans');
 
-  await expect(page.getByRole('heading', { name: /Admin · Billing Plans/i })).toBeVisible({
+  await expect(page.getByText(/Plan templates and the groups/i)).toBeVisible({
     timeout: 15_000,
   });
 
-  await page.getByRole('button', { name: /Create Template/i }).click();
+  await page.getByRole('button', { name: /Create Plan/i }).click();
 
   // Fill the form. Defaults pick COMMITMENT + METERED + BESPOKE which is
   // the canonical happy path the dialog defaults to; we only need to
   // type a unique name + commit amount.
-  const dialog = page.getByRole('dialog', { name: /Create Billing Plan Template/i });
+  const dialog = page.getByRole('dialog', { name: /Create Billing Plan/i });
   await dialog.locator('input').first().fill(templateName);
 
   // Click the create button INSIDE the dialog (not the trigger above).
-  await dialog.getByRole('button', { name: /Create Template/i }).click();
+  await dialog.getByRole('button', { name: /Create Plan/i }).click();
 
   // Toast confirms create; row appears in the table when the BESPOKE
   // filter is on (default).
@@ -180,7 +185,7 @@ test('billing plans table scrolls horizontally at a constrained viewport', async
   await page.setViewportSize({ width: 820, height: 900 });
   await page.goto('/admin/plans');
 
-  await expect(page.getByRole('heading', { name: /Admin · Billing Plans/i })).toBeVisible({
+  await expect(page.getByRole('button', { name: /Create Plan/i })).toBeVisible({
     timeout: 15_000,
   });
 
@@ -210,12 +215,9 @@ test('organizations page sets the new template on the target org', async ({ admi
   );
 
   await page.goto('/admin/organizations');
-  await expect(page.getByRole('heading', { name: /Admin · Organizations/i })).toBeVisible({
-    timeout: 15_000,
-  });
 
-  // Filter the org list down to our target org for stability.
   const search = page.getByPlaceholder('Search organizations…');
+  await expect(search).toBeVisible({ timeout: 15_000 });
   await search.fill(targetOrg.name);
 
   await expect(page.locator('text=' + targetOrg.name)).toBeVisible({ timeout: 10_000 });

@@ -106,11 +106,17 @@ export async function loginAndWaitForRedirect(
 ) {
   await fillLoginForm(page, email, password);
   if (!page.url().includes('/login')) return;
+  const loginFormHidden = page
+    .getByTestId('email-login-form')
+    .waitFor({ state: 'hidden', timeout });
   await Promise.all([
-    page.waitForURL((url) => url.pathname !== '/login', {
-      timeout,
-      waitUntil: 'domcontentloaded',
-    }),
+    Promise.race([
+      page.waitForURL((url) => url.pathname !== '/login', {
+        timeout,
+        waitUntil: 'domcontentloaded',
+      }),
+      loginFormHidden,
+    ]),
     page.getByTestId('email-submit-btn').click(),
   ]);
 }

@@ -705,9 +705,14 @@ DECLARE
 BEGIN
   SELECT id INTO _role_id FROM role WHERE name = '${opts.role}' AND is_system_role = true LIMIT 1;
 
-  INSERT INTO organization_member (organization_id, user_id, role_id)
-  VALUES (${opts.orgId}, '${opts.userId}', _role_id)
-  ON CONFLICT (organization_id, user_id) DO UPDATE SET role_id = EXCLUDED.role_id;
+  UPDATE organization_member
+  SET role_id = _role_id
+  WHERE organization_id = ${opts.orgId} AND user_id = '${opts.userId}';
+
+  IF NOT FOUND THEN
+    INSERT INTO organization_member (organization_id, user_id, role_id)
+    VALUES (${opts.orgId}, '${opts.userId}', _role_id);
+  END IF;
 
   INSERT INTO api_key (user_id, organization_id, key, name)
   VALUES ('${opts.userId}', ${opts.orgId}, '${orgApiKey}', 'Member Key')

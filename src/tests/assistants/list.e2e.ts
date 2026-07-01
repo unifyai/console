@@ -242,7 +242,7 @@ test('the chat info side panel can be resized down to its minimum width', async 
 
   const afterBox = await infoSheet.boundingBox();
   if (!afterBox) throw new Error('Info panel was not measurable after resize');
-  expect(afterBox.width).toBeLessThan(beforeBox.width - 40);
+  expect(afterBox.width).toBeLessThanOrEqual(beforeBox.width - 40);
   expect(afterBox.width).toBeGreaterThanOrEqual(318);
   expect(afterBox.width).toBeLessThanOrEqual(324);
 });

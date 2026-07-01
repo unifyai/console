@@ -743,7 +743,7 @@ test('typing indicator from a recent send only shows in the chat where the messa
   });
 
   // Wait long enough for the typing indicator to appear in the sender's chat.
-  const typingInSender = chatArea.locator('text=Typing');
+  const typingInSender = chatArea.getByText('Typing', { exact: true });
   await expect(typingInSender).toBeVisible({ timeout: 15_000 });
 
   // Switch to the other assistant — its chat must not show "Typing".
@@ -754,7 +754,9 @@ test('typing indicator from a recent send only shows in the chat where the messa
 
   // Give the panel a beat to settle into the new assistant's state.
   await page.waitForTimeout(1_500);
-  await expect(page.getByTestId('chat-scroll-area').locator('text=Typing')).toHaveCount(0);
+  await expect(
+    page.getByTestId('chat-scroll-area').getByText('Typing', { exact: true })
+  ).toHaveCount(0);
 });
 
 // --- T4: many assistants, messages for any get badges (sharding stress) -----

@@ -275,6 +275,11 @@ export async function navigateToAssistants(page: Page) {
   await page.goto('/assistants');
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(2_000);
+  const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
+  if (await pickChat.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await pickChat.click();
+    await page.waitForTimeout(1_000);
+  }
   await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -388,8 +393,16 @@ export async function openAccordionSection(
   // Try aria-label trigger first (hire/edit forms use these)
   let trigger = page.locator(`[aria-label="${section} trigger"]`);
   if (!(await trigger.isVisible({ timeout: 1_000 }).catch(() => false))) {
-    // Fall back to accordion trigger containing the section text
-    trigger = page.locator(`button[data-state]:has-text("${labels[section]}")`).first();
+    const formRoot = page
+      .getByRole('dialog')
+      .filter({ has: page.getByText(/Hire|Edit|Profile|Photo|Voice/) })
+      .last();
+    // Fall back to an exact section heading inside the form so shell buttons
+    // like the account/workspace trigger are never treated as accordion rows.
+    trigger = formRoot
+      .locator('button[data-state]')
+      .filter({ has: page.getByRole('heading', { name: labels[section], exact: true }) })
+      .first();
   }
   if (!(await trigger.isVisible({ timeout: 1_000 }).catch(() => false))) {
     return;
