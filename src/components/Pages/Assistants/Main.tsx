@@ -29,7 +29,7 @@ import { Loader } from '@/components/Common/Loader';
 
 const AssistantHire = dynamic(
   () => import('./Hire/AssistantHire').then((m) => ({ default: m.AssistantHire })),
-  { loading: () => <Loader size={48} /> }
+  { loading: () => null }
 );
 const AssistantEdit = dynamic(
   () => import('./Edit/AssistantEdit').then((m) => ({ default: m.AssistantEdit })),
@@ -40,7 +40,7 @@ const CoordinatorOnboarding = dynamic(
     import('./Coordinator/CoordinatorOnboarding').then((m) => ({
       default: m.CoordinatorOnboarding,
     })),
-  { loading: () => <Loader size={48} /> }
+  { loading: () => null }
 );
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
