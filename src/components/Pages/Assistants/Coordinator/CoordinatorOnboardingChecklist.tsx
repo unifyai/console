@@ -71,6 +71,7 @@ export type ChecklistAction =
   | 'trigger-workspace-calendar'
   | 'trigger-workspace-contacts'
   | 'trigger-workspace-tasks'
+  | 'trigger-workspace-teams'
   | 'connect-apps'
   | 'act'
   | 'create-scheduled-task'
@@ -132,6 +133,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'workspace-calendar': 'trigger-workspace-calendar',
   'workspace-contacts': 'trigger-workspace-contacts',
   'workspace-tasks': 'trigger-workspace-tasks',
+  'workspace-teams': 'trigger-workspace-teams',
   apps: 'connect-apps',
   act: 'act',
   'create-scheduled-task': 'create-scheduled-task',
@@ -158,6 +160,7 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-calendar': 'Summarizing...',
   'trigger-workspace-contacts': 'Summarizing...',
   'trigger-workspace-tasks': 'Summarizing...',
+  'trigger-workspace-teams': 'Summarizing...',
   'create-scheduled-task': 'Starting...',
   'create-triggerable-task': 'Starting...',
 };
@@ -672,6 +675,7 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'trigger-workspace-contacts')
         onTriggerReferenceStep?.('workspace-contacts');
       else if (action === 'trigger-workspace-tasks') onTriggerReferenceStep?.('workspace-tasks');
+      else if (action === 'trigger-workspace-teams') onTriggerReferenceStep?.('workspace-teams');
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
       else if (action === 'create-scheduled-task') onCreateScheduledTask?.();
@@ -793,7 +797,8 @@ export function CoordinatorOnboardingChecklist({
         action === 'trigger-workspace-drive' ||
         action === 'trigger-workspace-calendar' ||
         action === 'trigger-workspace-contacts' ||
-        action === 'trigger-workspace-tasks'
+        action === 'trigger-workspace-tasks' ||
+        action === 'trigger-workspace-teams'
       ) {
         return !!onTriggerReferenceStep && !!onConnectWorkspace;
       }
