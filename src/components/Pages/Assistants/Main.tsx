@@ -138,6 +138,7 @@ import {
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
+const COORDINATOR_ONBOARDING_IDLE_POLL_MS = 30_000;
 const COORDINATOR_ONBOARDING_STEP_RETRY_MS = 30_000;
 type ContactManagerInitialTab = ContactType | 'slack';
 
@@ -1047,12 +1048,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [chatActivityCounters, setChatActivityCounters] = React.useState<Record<string, number>>(
     {}
   );
-  const handleChatActivity = React.useCallback((assistantId: string) => {
-    setChatActivityCounters((prev) => ({
-      ...prev,
-      [assistantId]: (prev[assistantId] ?? 0) + 1,
-    }));
-  }, []);
+  const handleChatActivity = React.useCallback(
+    (assistantId: string) => {
+      setChatActivityCounters((prev) => ({
+        ...prev,
+        [assistantId]: (prev[assistantId] ?? 0) + 1,
+      }));
+      if (canonicalCoordinatorId !== null && assistantId === String(canonicalCoordinatorId)) {
+        void refetchCoordinatorOnboardingState();
+      }
+    },
+    [canonicalCoordinatorId, refetchCoordinatorOnboardingState]
+  );
 
   // `ackMessage` is returned by `useAssistantChatStream` below, but we need
   // to reference it from inside `handleChatStreamMessage`, which is passed
@@ -2158,6 +2165,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     hasAccessibleCoordinatorOnboardingTargets,
     refetchCoordinatorOnboardingState,
   ]);
+  React.useEffect(() => {
+    if (!isCanonicalCoordinatorOwned || !ENABLE_COORDINATOR_ONBOARDING) {
+      return;
+    }
+    const handle = window.setInterval(() => {
+      void refetchCoordinatorOnboardingState();
+    }, COORDINATOR_ONBOARDING_IDLE_POLL_MS);
+    return () => window.clearInterval(handle);
+  }, [isCanonicalCoordinatorOwned, refetchCoordinatorOnboardingState]);
   React.useEffect(() => {
     if (!activeCoordinatorOnboardingStep) return;
     if (

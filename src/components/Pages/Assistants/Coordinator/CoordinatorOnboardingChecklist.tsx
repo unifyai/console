@@ -941,7 +941,8 @@ export function CoordinatorOnboardingChecklist({
       >
         <div className="rounded-control bg-muted/40 px-2.5 py-2">
           <p className="text-body-sm text-muted-foreground">
-            Onboarding is paused. You can return to the setup checklist anytime.
+            Onboarding is paused. You can return to the setup checklist anytime (here or by asking
+            T-W1N to resume setup after confirming).
           </p>
         </div>
         <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
