@@ -77,6 +77,7 @@ export interface OnboardingStep {
   nudgeVoice?: string;
   phaseId?: string | null;
   canSkip: boolean;
+  manuallyCompleted?: boolean;
   description: string;
   estimatedTime: string;
   flowNote?: string;
@@ -274,6 +275,7 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
         ? (status as OnboardingStepStatus)
         : 'locked',
     canSkip: (r.canSkip ?? r.can_skip) === true,
+    manuallyCompleted: (r.manuallyCompleted ?? r.manually_completed) === true,
     description: typeof r.description === 'string' ? r.description : '',
     estimatedTime: typeof estimatedTime === 'string' ? estimatedTime : '',
     chipsChat: normalizeChips(r.chipsChat ?? r.chips_chat),
