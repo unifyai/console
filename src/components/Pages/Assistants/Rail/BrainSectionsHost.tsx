@@ -36,6 +36,7 @@ interface BrainSectionsHostProps {
   assistant: Assistant;
   activeSectionId: string;
   onManageContacts: () => void;
+  isActiveSurface?: boolean;
 }
 
 function BrainPaneFallback() {
@@ -51,6 +52,7 @@ export function BrainSectionsHost({
   assistant,
   activeSectionId,
   onManageContacts,
+  isActiveSurface = true,
 }: BrainSectionsHostProps) {
   const brainProps = {
     assistant,
@@ -77,12 +79,12 @@ export function BrainSectionsHost({
     });
   }, [activeSectionId]);
 
-  const renderPane = (sectionId: BrainSectionId) => {
+  const renderPane = (sectionId: BrainSectionId, sectionActive: boolean) => {
     switch (sectionId) {
       case 'contacts':
         return <ContactsPane {...brainProps} onManageContacts={onManageContacts} />;
       case 'functions':
-        return <FunctionsPane {...brainProps} />;
+        return <FunctionsPane {...brainProps} isActiveSurface={sectionActive && isActiveSurface} />;
       case 'guidance':
         return <DocLibraryPane {...brainProps} kind="guidance" />;
       case 'knowledge':
@@ -111,7 +113,7 @@ export function BrainSectionsHost({
           >
             {isMounted ? (
               <React.Suspense fallback={<BrainPaneFallback />}>
-                {renderPane(sectionId)}
+                {renderPane(sectionId, isActive)}
               </React.Suspense>
             ) : null}
           </div>

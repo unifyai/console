@@ -2810,6 +2810,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                 assistant={profileAssistant}
                                 activeSectionId={activeSectionDef.id}
                                 onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                                isActiveSurface={isActiveSurface}
                               />
                             </div>
                           ) : null}
