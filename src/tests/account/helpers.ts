@@ -62,6 +62,25 @@ export async function navigateToAppShellRoute(
   await dismissCoordinatorOnboardingIfOpen(page);
 }
 
+export async function switchWorkspaceViaApi(
+  page: Page,
+  workspaceId: string | number,
+  opts: { userId: string; apiKey: string }
+) {
+  await page.evaluate(async (wsId) => {
+    const res = await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(wsId) }),
+    });
+    if (!res.ok) throw new Error('Failed to switch workspace');
+  }, workspaceId);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
+}
+
 // =============================================================================
 // Shared Auth — storageState
 // =============================================================================

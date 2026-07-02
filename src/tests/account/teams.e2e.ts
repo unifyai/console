@@ -20,6 +20,7 @@ import {
   getTeamByName,
   getTeamMemberCount,
   navigateToAppShellRoute,
+  switchWorkspaceViaApi,
 } from './helpers';
 import { deferCoordinatorOnboarding, getCoordinatorAgentId } from '../helpers/coordinator';
 
@@ -32,6 +33,15 @@ const test = createAccountTest(owner);
 test.setTimeout(90_000);
 
 const ownerShellOpts = { userId: owner.id, apiKey: owner.apiKey };
+
+async function openOrgTeamsTab(page: import('@playwright/test').Page) {
+  await switchWorkspaceViaApi(page, org.id, ownerShellOpts);
+  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
+  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Create new team' })).toBeVisible({
+    timeout: 15_000,
+  });
+}
 
 const sharingOwner = createTestUser({ name: 'SharingOwner', lastName: 'Test', credits: 5_000 });
 const sharingMember = createTestUser({ name: 'SharingMember', lastName: 'Test', credits: 5_000 });
@@ -96,8 +106,7 @@ creationTest.afterAll(() => {
 test('creating a team via UI adds it to the database', async ({ authedPage: page }) => {
   const teamName = `Team${Date.now()}`;
 
-  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
+  await openOrgTeamsTab(page);
 
   // Open create team dialog
   await page.getByRole('button', { name: 'Create new team' }).click();
@@ -133,8 +142,7 @@ test('adding a member to a team via UI creates a team_member record', async ({
   const teamId = getTeamByName(org.id, teamName)!;
   expect(getTeamMemberCount(teamId)).toBe(0);
 
-  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
+  await openOrgTeamsTab(page);
 
   // Open row menu for the team
   const teamRow = page.locator('tr').filter({ hasText: teamName });
@@ -178,8 +186,7 @@ test('removing a member from a team via UI removes the team_member record', asyn
   );
   expect(getTeamMemberCount(teamId)).toBe(1);
 
-  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
+  await openOrgTeamsTab(page);
 
   // Open row menu for the team
   const teamRow = page.locator('tr').filter({ hasText: teamName });
@@ -215,8 +222,7 @@ test('deleting a team via UI removes it from the database', async ({ authedPage:
   );
   expect(getTeamByName(org.id, teamName)).toBeTruthy();
 
-  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
+  await openOrgTeamsTab(page);
 
   // Open row menu for the team
   const teamRow = page.locator('tr').filter({ hasText: teamName });
@@ -236,6 +242,7 @@ test('deleting a team via UI removes it from the database', async ({ authedPage:
 sharingTest(
   'org-wide sharing toggle manages the Org team lifecycle',
   async ({ authedPage: page }) => {
+    await switchWorkspaceViaApi(page, sharingOrg.id, sharingShellOpts);
     await navigateToAppShellRoute(page, '/organizations?tab=teams', sharingShellOpts);
     await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
