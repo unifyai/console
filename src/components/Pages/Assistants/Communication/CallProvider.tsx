@@ -138,6 +138,7 @@ export function CallProvider({
               userImage={userMeta.image}
               isWaitingForAssistant={call.isWaitingForAssistant}
               isAssistantPreparing={call.isAssistantPreparing}
+              activeOpeningConfig={call.activeOpeningConfig}
               waitingMessage={call.waitingMessage}
               isCallConnected={call.isConnected}
               connectionError={call.connectionError}

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import { Assistant, AssistantActions, CallOpeningConfig } from '@/types/assistants/assistant';
 import { AssistantCommunicationHeader } from './AssistantCommunicationHeader';
 import { AssistantCommunicationMainView } from './AssistantCommunicationMainView';
 import { AssistantCommunicationUserView } from './AssistantCommunicationUserView';
@@ -42,6 +42,61 @@ export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'act
 // Once the droid stops speaking, it holds eye contact for this long before it
 // turns to its laptop to get to work.
 const SILENCE_TO_LAPTOP_MS = 5_000;
+const COORDINATOR_RECORDED_INTRO_SILENCE_MS = 1_500;
+
+function isCoordinatorRecordedIntroOpening(openingConfig: CallOpeningConfig | undefined): boolean {
+  if (openingConfig?.mode !== 'recorded') return false;
+  return (
+    openingConfig.recordingAsset === 'coordinator_onboarding_intro' ||
+    openingConfig.source === 'coordinator_onboarding_intro'
+  );
+}
+
+/**
+ * Tracks the coordinator's pre-recorded onboarding intro played through LiveKit.
+ * The droid should stay camera-facing for the full segment, including the
+ * prepare-to-speak window before the first clip and brief gaps between clips.
+ */
+function useCoordinatorRecordedIntroSpeechActive(
+  isAssistantSpeaking: boolean,
+  isAssistantPreparing: boolean,
+  openingConfig: CallOpeningConfig | undefined
+): boolean {
+  const isRecordedIntro = isCoordinatorRecordedIntroOpening(openingConfig);
+  const openingKey = openingConfig
+    ? `${openingConfig.mode}:${openingConfig.recordingAsset ?? ''}:${openingConfig.source ?? ''}`
+    : '';
+  const [seenSpeakingSinceReady, setSeenSpeakingSinceReady] = React.useState(false);
+  const [introComplete, setIntroComplete] = React.useState(false);
+
+  React.useEffect(() => {
+    setSeenSpeakingSinceReady(false);
+    setIntroComplete(false);
+  }, [openingKey]);
+
+  React.useEffect(() => {
+    if (!isRecordedIntro || introComplete || isAssistantPreparing) return;
+    if (isAssistantSpeaking) setSeenSpeakingSinceReady(true);
+  }, [isRecordedIntro, introComplete, isAssistantPreparing, isAssistantSpeaking]);
+
+  React.useEffect(() => {
+    if (!isRecordedIntro || introComplete || !seenSpeakingSinceReady) return;
+    if (isAssistantSpeaking || isAssistantPreparing) return;
+    const timer = window.setTimeout(
+      () => setIntroComplete(true),
+      COORDINATOR_RECORDED_INTRO_SILENCE_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    isRecordedIntro,
+    introComplete,
+    seenSpeakingSinceReady,
+    isAssistantSpeaking,
+    isAssistantPreparing,
+  ]);
+
+  return isRecordedIntro && !introComplete;
+}
 
 /**
  * Computes the call-window droid's "working on a laptop" pose. Returns `true`
@@ -53,20 +108,27 @@ const SILENCE_TO_LAPTOP_MS = 5_000;
  * simply because the conversation has gone quiet — it stays there for the rest
  * of the call. Nothing ever turns it back to face the camera: the turn is a
  * one-way latch.
+ *
+ * The coordinator onboarding intro (precomputed audio outside LiveKit, or the
+ * recorded LiveKit opening configured for fresh onboarding) counts as a
+ * speaking turn for pose purposes so the droid stays camera-facing for the
+ * full intro segment.
  */
 function useWorkingPose(
   isSpeaking: boolean,
   lastCommsActivityAt: number | null,
-  hasActiveAction: boolean
+  hasActiveAction: boolean,
+  isIntroSpeechActive: boolean
 ): boolean {
   const [onLaptop, setOnLaptop] = React.useState(false);
+  const facesCamera = isSpeaking || isIntroSpeechActive;
 
   // Silence while the droid still faces the camera → turn to the laptop.
   React.useEffect(() => {
-    if (isSpeaking || onLaptop) return;
+    if (facesCamera || onLaptop) return;
     const timer = window.setTimeout(() => setOnLaptop(true), SILENCE_TO_LAPTOP_MS);
     return () => window.clearTimeout(timer);
-  }, [isSpeaking, onLaptop]);
+  }, [facesCamera, onLaptop]);
 
   // A fresh comms event or a newly in-flight action → turn to the laptop now,
   // unless the droid is still speaking its opening turn (it answers facing the
@@ -80,8 +142,8 @@ function useWorkingPose(
     const actionStarted = hasActiveAction && !prevActiveRef.current;
     prevCommsAtRef.current = lastCommsActivityAt;
     prevActiveRef.current = hasActiveAction;
-    if (!isSpeaking && (commsArrived || actionStarted)) setOnLaptop(true);
-  }, [lastCommsActivityAt, hasActiveAction, isSpeaking]);
+    if (!facesCamera && (commsArrived || actionStarted)) setOnLaptop(true);
+  }, [lastCommsActivityAt, hasActiveAction, facesCamera]);
 
   return onLaptop;
 }
@@ -114,6 +176,7 @@ interface AssistantCommunicationDialogContentProps {
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
   isAssistantPreparing: boolean;
+  activeOpeningConfig?: CallOpeningConfig;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -159,6 +222,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   userImage,
   isWaitingForAssistant,
   isAssistantPreparing,
+  activeOpeningConfig,
   waitingMessage,
   connectionError,
   onRetry,
@@ -315,7 +379,19 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     assistantActions.actions ?? { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     { enabled: isCallConnected }
   );
-  const isActing = useWorkingPose(isAssistantSpeaking, lastCommsActivityAt, hasActiveAction);
+  const isIntroAudioPlaying = useIsCoordinatorIntroAudioPlaying();
+  const isRecordedIntroSpeechActive = useCoordinatorRecordedIntroSpeechActive(
+    isAssistantSpeaking,
+    isAssistantPreparing,
+    activeOpeningConfig
+  );
+  const isIntroSpeechActive = isIntroAudioPlaying || isRecordedIntroSpeechActive;
+  const isActing = useWorkingPose(
+    isAssistantSpeaking,
+    lastCommsActivityAt,
+    hasActiveAction,
+    isIntroSpeechActive
+  );
 
   React.useEffect(() => {
     if (!isCallConnected) return;
@@ -660,6 +736,7 @@ interface AssistantCommunicationDialogProps {
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
   isAssistantPreparing: boolean;
+  activeOpeningConfig?: CallOpeningConfig;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -730,6 +807,7 @@ export function AssistantCommunicationDialog({
   userImage,
   isWaitingForAssistant,
   isAssistantPreparing,
+  activeOpeningConfig,
   waitingMessage,
   connectionError,
   onRetry,
@@ -970,6 +1048,7 @@ export function AssistantCommunicationDialog({
           userImage={userImage}
           isWaitingForAssistant={isWaitingForAssistant}
           isAssistantPreparing={isAssistantPreparing}
+          activeOpeningConfig={activeOpeningConfig}
           waitingMessage={waitingMessage}
           connectionError={connectionError}
           onRetry={onRetry}
@@ -1086,6 +1165,7 @@ export function AssistantCommunicationDialog({
             userImage={userImage}
             isWaitingForAssistant={isWaitingForAssistant}
             isAssistantPreparing={isAssistantPreparing}
+            activeOpeningConfig={activeOpeningConfig}
             waitingMessage={waitingMessage}
             connectionError={connectionError}
             onRetry={onRetry}

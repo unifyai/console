@@ -10,6 +10,8 @@
  *  - A non-unify comms event turns the droid to its laptop, and it STAYS there.
  *  - With no events, the droid turns to its laptop after the silence window and
  *    stays.
+ *  - During the coordinator onboarding intro (precomputed audio), the droid
+ *    stays camera-facing for the full intro segment.
  *
  * Local mode: LiveKit creds are absent so the call hook reports connected
  * immediately; Pub/Sub creds are absent so actions flow through the in-memory
