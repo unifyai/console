@@ -20,6 +20,7 @@ import {
 } from './helpers';
 import {
   deferCoordinatorForUser,
+  deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
 
@@ -271,6 +272,7 @@ test.describe('Onboarding', () => {
     expect(managedOrgTeamCount).toBe('0');
 
     await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
+    await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
     await dismissCoordinatorOnboardingIfOpen(page);
     await page.getByTestId('rail-unity-switcher').click();
     await expect(page.getByTestId('rail-unity-switcher-popover')).toBeVisible({

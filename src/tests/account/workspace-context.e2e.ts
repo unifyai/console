@@ -18,7 +18,12 @@ import {
   dbExec,
   navigateToAppShellRoute,
 } from './helpers';
-import { deferCoordinatorOnboarding, getCoordinatorAgentId } from '../helpers/coordinator';
+import {
+  deferCoordinatorOnboarding,
+  deferCoordinatorAfterAssistantsLoad,
+  dismissCoordinatorOnboardingIfOpen,
+  getCoordinatorAgentId,
+} from '../helpers/coordinator';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
 
 const user = createTestUser({ name: 'WsCtx', lastName: 'Test', credits: 5_000 });
@@ -52,6 +57,8 @@ test.afterAll(() => {
 const personalWorkspaceLabel = `${user.name} ${user.lastName}`;
 
 async function switchWorkspaceViaRail(page: import('@playwright/test').Page, label: string) {
+  await deferCoordinatorAfterAssistantsLoad(page, user.id, user.apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
   await page.getByTestId('rail-account-trigger').click();
   const menu = page.getByTestId('rail-account-menu');
   await expect(menu).toBeVisible({ timeout: 5_000 });
