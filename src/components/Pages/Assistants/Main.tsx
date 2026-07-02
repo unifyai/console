@@ -2403,6 +2403,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     const FLAG_KEY = 'console:assistants:user-settings-opened-at';
     const TTL_MS = 10 * 60 * 1000;
     const onFocus = () => {
+      // Main stays mounted (hidden) on admin/settings routes — skip refresh
+      // there so router.refresh() does not re-stream the active page.
+      if (!isActiveSurface) return;
       let openedAt: number | null = null;
       try {
         const raw = window.localStorage.getItem(FLAG_KEY);
@@ -2421,7 +2424,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [router]);
+  }, [isActiveSurface, router]);
 
   // A provider OAuth flow (workspace BYOD, integrations) runs in a separate
   // tab that bounces through ``/oauth/complete`` and broadcasts when it's
