@@ -109,15 +109,20 @@ const VerificationField = ({
               Remove
             </Button>
           </>
+        ) : state.isVerifying ? (
+          !isFlowActive && (
+            <Button type="button" variant="outline" className="h-9" disabled>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sending...
+            </Button>
+          )
         ) : (
           <Button
             type="button"
             variant="outline"
             className="h-9"
-            onClick={() => (state.isVerifying ? onCancel() : onVerify(false))}
-            disabled={
-              state.isVerifying ? state.isSaving || state.verificationConfirmed : !isValidFormat
-            }
+            onClick={() => onVerify(false)}
+            disabled={!isValidFormat}
           >
             Verify
           </Button>
@@ -302,6 +307,10 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     ) => {
       if (isRetry && state.cooldown > 0) {
         toast.info(`Please wait ${state.cooldown}s before retrying.`);
+        return;
+      }
+
+      if (!isRetry && state.isVerifying) {
         return;
       }
 

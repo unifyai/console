@@ -211,6 +211,36 @@ test('removing a saved number clears it from the database eagerly', async ({
   }
 });
 
+test('clicking Verify again while the code section is open does not collapse it', async ({
+  authedPage: page,
+}) => {
+  await page.goto('/account?tab=contact-info');
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+  await page.route('**/api/profile/phone/send-verification', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ expiresInSeconds: 300 }),
+    })
+  );
+
+  const phoneInput = page.locator('#phone-number-input');
+  await expect(phoneInput).toBeVisible({ timeout: 15_000 });
+  await phoneInput.fill('5551234567');
+
+  const verifyBtn = page.getByRole('button', { name: 'Verify' }).first();
+  await verifyBtn.click();
+
+  const codeInput = page.getByPlaceholder('Enter verification code...');
+  await expect(codeInput).toBeVisible({ timeout: 10_000 });
+  await expect(verifyBtn).toHaveCount(0);
+
+  await codeInput.click();
+  await expect(codeInput).toBeVisible();
+  await expect(page.getByRole('button', { name: /Resend/ })).toBeVisible();
+});
+
 test('a saved E.164 number is split back into country + national parts', async ({
   authedPage: page,
 }) => {
