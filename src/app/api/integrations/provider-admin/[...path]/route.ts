@@ -32,7 +32,12 @@ async function proxy(request: NextRequest, context: RouteContext) {
 
   const response = await fetch(target, init);
   const text = await response.text();
-  return new NextResponse(text, {
+  // Null-body statuses (204/205/304) must not carry a body — passing even an
+  // empty string to the Response constructor throws a TypeError, which would
+  // turn a successful upstream 204 (e.g. DELETE custom-auth) into a proxy 500.
+  const isNullBodyStatus =
+    response.status === 204 || response.status === 205 || response.status === 304;
+  return new NextResponse(isNullBodyStatus || text === '' ? null : text, {
     status: response.status,
     headers: {
       'Content-Type': response.headers.get('Content-Type') || 'application/json',
