@@ -115,6 +115,11 @@ export interface Assistant {
   // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
   emailProvider?: string | null;
+  // The OAuth-connected workspace provider, derived server-side from the
+  // granted-scopes secrets. Distinct from `emailProvider` (the mailbox's own
+  // tenant): a Coordinator keeps a platform Google mailbox while connecting a
+  // Microsoft workspace. Null when no workspace OAuth grant is present.
+  workspaceProvider?: 'google' | 'microsoft' | null;
   emailProvisionedBy?: 'platform' | 'user' | null;
   phone: string | null;
   assistantWhatsappNumber: string | null;

@@ -809,9 +809,13 @@ function ProfileSummary({ assistant }: { assistant: Assistant }) {
 }
 
 function getWorkspaceProviderKind(assistant: Assistant): WorkspaceProviderKind | null {
-  const provider = assistant.emailProvider?.trim().toLowerCase();
-  if (provider === 'google_workspace' || provider === 'google') return 'google';
-  if (provider === 'microsoft_365' || provider === 'microsoft') return 'microsoft';
+  // The connected-workspace provider is the OAuth grant (`workspaceProvider`),
+  // not the mailbox tenant (`emailProvider`). A Coordinator keeps a platform
+  // Google mailbox while connecting a Microsoft workspace, so keying off
+  // `emailProvider` here would disagree with the workspace dialog.
+  const provider = assistant.workspaceProvider?.trim().toLowerCase();
+  if (provider === 'google') return 'google';
+  if (provider === 'microsoft') return 'microsoft';
   return null;
 }
 
