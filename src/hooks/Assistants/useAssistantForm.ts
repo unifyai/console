@@ -18,7 +18,10 @@ import {
   resolveCoordinatorAbout,
   resolveCoordinatorJobTitle,
 } from '@/constants/assistants/coordinator_profile';
-import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
+import {
+  getCoordinatorDefaultVoice,
+  getDefaultVoiceForProvider,
+} from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,6 +49,22 @@ export function useAssistantForm(
   const editMediaRefreshRequestIdRef = React.useRef(0);
 
   const defaultVoice = getDefaultVoiceForProvider();
+  const coordinatorDefaultVoice = getCoordinatorDefaultVoice();
+
+  const resolveFormVoice = React.useCallback(
+    (assistant: Assistant) => {
+      const fallback = assistant.isCoordinator ? coordinatorDefaultVoice : defaultVoice;
+      return {
+        voiceId: assistant.voiceId || fallback.voiceId,
+        voiceName: fallback.name,
+        voiceDescription: fallback.description,
+        voiceLanguage: fallback.language as SupportedLanguage,
+        voiceGender: fallback.gender as Gender,
+        voiceProvider: assistant.voiceProvider || fallback.provider || PRIMARY_VOICE_PROVIDER,
+      };
+    },
+    [coordinatorDefaultVoice, defaultVoice]
+  );
 
   const [editingAssistant, setEditingAssistant] = React.useState<Assistant | null>(null);
 
@@ -383,6 +402,8 @@ export function useAssistantForm(
       const initialVideoPreviewUrl =
         assistant.signedProfileVideoUrl || (shouldRefreshVideoPreview ? null : videoRefreshPath);
 
+      const resolvedVoice = resolveFormVoice(assistant);
+
       reset({
         ...getValues(),
 
@@ -406,13 +427,16 @@ export function useAssistantForm(
         videoFile: null,
 
         // Voice
-        voiceId: assistant.voiceId || undefined,
-        voiceName: assistantVoiceDetails?.name,
-        voiceDescription: assistantVoiceDetails?.description,
-        voiceGender: assistantVoiceDetails?.gender,
-        voiceLanguage: assistantVoiceDetails?.language,
+        voiceId: resolvedVoice.voiceId,
+        voiceName: assistantVoiceDetails?.name || resolvedVoice.voiceName,
+        voiceDescription: assistantVoiceDetails?.description || resolvedVoice.voiceDescription,
+        voiceLanguage:
+          (assistantVoiceDetails?.language as SupportedLanguage | undefined) ||
+          resolvedVoice.voiceLanguage,
+        voiceGender:
+          (assistantVoiceDetails?.gender as Gender | undefined) || resolvedVoice.voiceGender,
         voiceProvider:
-          assistant.voiceProvider || assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
+          assistant.voiceProvider || assistantVoiceDetails?.provider || resolvedVoice.voiceProvider,
         voiceExists: !!assistantVoiceDetails,
 
         // Setup
@@ -454,7 +478,7 @@ export function useAssistantForm(
         }
       })();
     },
-    [reset, getValues, registeredVoices, setValue]
+    [reset, getValues, registeredVoices, setValue, resolveFormVoice]
   );
 
   const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
