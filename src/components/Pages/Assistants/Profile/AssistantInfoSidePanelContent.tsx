@@ -143,11 +143,21 @@ function nudgeElement(element: HTMLElement | null) {
   element.classList.add('animate-nudge');
 }
 
+function shimmerProfileSectionTiles(section: HTMLElement | null) {
+  if (!section) return;
+  section.querySelectorAll<HTMLElement>('[data-profile-section-tile]').forEach((tile) => {
+    tile.classList.remove('animate-tile-shimmer');
+    void tile.offsetWidth;
+    tile.classList.add('animate-tile-shimmer');
+  });
+}
+
 function useProfileTabHeaderFocus(
   showProfileTab: boolean,
   activeTab: CoordinatorPanelTab,
   setActiveTab: React.Dispatch<React.SetStateAction<CoordinatorPanelTab>>,
-  profileTabTriggerRef: React.MutableRefObject<HTMLButtonElement | null>
+  profileTabTriggerRef: React.MutableRefObject<HTMLButtonElement | null>,
+  profileSectionsRef: React.MutableRefObject<HTMLElement | null>
 ) {
   const focusProfileFromHeader = React.useCallback(() => {
     if (showProfileTab && activeTab !== 'profile') {
@@ -156,8 +166,9 @@ function useProfileTabHeaderFocus(
     }
     if (showProfileTab) {
       nudgeElement(profileTabTriggerRef.current);
+      shimmerProfileSectionTiles(profileSectionsRef.current);
     }
-  }, [activeTab, profileTabTriggerRef, setActiveTab, showProfileTab]);
+  }, [activeTab, profileSectionsRef, profileTabTriggerRef, setActiveTab, showProfileTab]);
 
   return focusProfileFromHeader;
 }
@@ -269,11 +280,13 @@ function CoordinatorAssistantInfoSidePanelContent({
     showOnboardingTab ? 'onboarding' : 'profile'
   );
   const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const profileSectionsRef = React.useRef<HTMLElement>(null);
   const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
     setActiveTab,
-    profileTabTriggerRef
+    profileTabTriggerRef,
+    profileSectionsRef
   );
   React.useEffect(() => {
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
@@ -380,6 +393,7 @@ function CoordinatorAssistantInfoSidePanelContent({
               onOpenWorkspaceManager={onOpenWorkspaceManager}
               onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
+              sectionsRef={profileSectionsRef}
             />
           </TabsContent>
         </Tabs>
@@ -393,6 +407,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             onOpenWorkspaceManager={onOpenWorkspaceManager}
             onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
+            sectionsRef={profileSectionsRef}
           />
         </ScrollArea>
       )}
@@ -446,11 +461,13 @@ function RegularAssistantInfoSidePanelContent({
     showOnboardingTab ? 'onboarding' : 'profile'
   );
   const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const profileSectionsRef = React.useRef<HTMLElement>(null);
   const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
     setActiveTab,
-    profileTabTriggerRef
+    profileTabTriggerRef,
+    profileSectionsRef
   );
   React.useEffect(() => {
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
@@ -487,6 +504,7 @@ function RegularAssistantInfoSidePanelContent({
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
       canWrite={canWrite}
+      sectionsRef={profileSectionsRef}
     />
   );
 
@@ -712,6 +730,7 @@ interface ProfileSectionsPanelProps {
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   canWrite: boolean;
+  sectionsRef?: React.MutableRefObject<HTMLElement | null>;
 }
 
 const DESKTOP_OS_LABELS: Record<string, string> = {
@@ -841,12 +860,17 @@ function ProfileSectionsPanel({
   onOpenWorkspaceManager,
   onConnectDesktop,
   canWrite,
+  sectionsRef,
 }: ProfileSectionsPanelProps) {
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
 
   return (
-    <section className="flex flex-col gap-2" data-testid="assistant-info-profile-sections">
+    <section
+      ref={sectionsRef}
+      className="flex flex-col gap-2"
+      data-testid="assistant-info-profile-sections"
+    >
       <ProfileSectionTile
         title="Profile"
         description={<ProfileSummary assistant={assistant} />}
@@ -964,11 +988,12 @@ function ProfileSectionTile({
   return (
     <div
       className={cn(
-        'group/tile flex flex-col gap-1 rounded-lg border px-3 py-2.5 transition-[background-color,border-color,box-shadow]',
+        'profile-section-tile group/tile flex flex-col gap-1 rounded-lg border px-3 py-2.5 transition-[background-color,border-color,box-shadow]',
         isInteractive
           ? 'cursor-pointer border-border bg-card shadow-sm hover:border-primary-tint-40 hover:bg-[var(--surface-hover)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:border-primary-tint-50 active:bg-secondary'
           : 'border-border/70 bg-card/60'
       )}
+      data-profile-section-tile
       data-testid={editTestId}
       role={useTileButtonSemantics ? 'button' : undefined}
       tabIndex={useTileButtonSemantics ? 0 : undefined}
