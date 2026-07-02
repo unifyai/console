@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { TabToolbar } from '@/components/Pages/Assistants/Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '@/components/Pages/Assistants/Common/TabSegmentGroup';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { ProviderIntegrationCard } from './ProviderIntegrationCard';
 import { IntegrationGalleryVirtualGrid } from './IntegrationGalleryVirtualGrid';
 import { integrationTypeFilterValue, integrationTypeLabel } from './integrationType';
@@ -136,6 +137,20 @@ export function IntegrationGalleryShell({
     },
     [filters, onFiltersChange]
   );
+  const {
+    draft: searchDraft,
+    setDraft: setSearchDraft,
+    clear: clearSearchDraft,
+  } = useTabSearchCommit(filters.query);
+
+  const submitSearch = React.useCallback(() => {
+    setFilters((current) => ({ ...current, query: searchDraft.trim() }));
+  }, [searchDraft, setFilters]);
+
+  const clearSearch = React.useCallback(() => {
+    clearSearchDraft();
+    setFilters((current) => ({ ...current, query: '' }));
+  }, [clearSearchDraft, setFilters]);
   const filteredItems = React.useMemo(
     () => items.filter((item) => matchesFilters(item, filters)),
     [filters, items]
@@ -210,10 +225,13 @@ export function IntegrationGalleryShell({
             </TabSegmentGroup>
           </div>
         }
-        searchValue={filters.query}
-        onSearchChange={(query) => setFilters((current) => ({ ...current, query }))}
+        searchValue={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={submitSearch}
+        onSearchClear={clearSearch}
         searchPlaceholder={tabSearchPlaceholder('integrations')}
         searchTestId="integration-gallery-search"
+        searchClearTestId="integration-gallery-search-clear"
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
         refreshTitle="Refresh integrations"
