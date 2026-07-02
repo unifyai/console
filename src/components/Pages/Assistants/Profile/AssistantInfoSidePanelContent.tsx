@@ -147,22 +147,25 @@ function useProfileTabHeaderFocus(
   showProfileTab: boolean,
   activeTab: CoordinatorPanelTab,
   setActiveTab: React.Dispatch<React.SetStateAction<CoordinatorPanelTab>>,
-  profileSectionTitleRef: React.MutableRefObject<HTMLHeadingElement | null>
+  profileTabTriggerRef: React.MutableRefObject<HTMLButtonElement | null>
 ) {
   const focusProfileFromHeader = React.useCallback(() => {
     if (showProfileTab && activeTab !== 'profile') {
       setActiveTab('profile');
       return;
     }
-    nudgeElement(profileSectionTitleRef.current);
-  }, [activeTab, profileSectionTitleRef, setActiveTab, showProfileTab]);
+    if (showProfileTab) {
+      nudgeElement(profileTabTriggerRef.current);
+    }
+  }, [activeTab, profileTabTriggerRef, setActiveTab, showProfileTab]);
 
   return focusProfileFromHeader;
 }
 
-function ProfileTabTrigger() {
+function ProfileTabTrigger({ triggerRef }: { triggerRef?: React.Ref<HTMLButtonElement> }) {
   return (
     <TabsTrigger
+      ref={triggerRef}
       value="profile"
       data-testid="assistant-info-tab-profile"
       className={PANEL_TAB_TRIGGER_CLASS}
@@ -265,12 +268,12 @@ function CoordinatorAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
-  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
   const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
     setActiveTab,
-    profileSectionTitleRef
+    profileTabTriggerRef
   );
   React.useEffect(() => {
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
@@ -339,7 +342,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             >
               Onboarding
             </TabsTrigger>
-            <ProfileTabTrigger />
+            <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
           </TabsList>
           {coordinatorOnboarding && (
             <TabsContent
@@ -377,7 +380,6 @@ function CoordinatorAssistantInfoSidePanelContent({
               onOpenWorkspaceManager={onOpenWorkspaceManager}
               onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
-              profileSectionTitleRef={profileSectionTitleRef}
             />
           </TabsContent>
         </Tabs>
@@ -391,7 +393,6 @@ function CoordinatorAssistantInfoSidePanelContent({
             onOpenWorkspaceManager={onOpenWorkspaceManager}
             onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
-            profileSectionTitleRef={profileSectionTitleRef}
           />
         </ScrollArea>
       )}
@@ -444,12 +445,12 @@ function RegularAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile'>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
-  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
   const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
     setActiveTab,
-    profileSectionTitleRef
+    profileTabTriggerRef
   );
   React.useEffect(() => {
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
@@ -486,7 +487,6 @@ function RegularAssistantInfoSidePanelContent({
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
       canWrite={canWrite}
-      profileSectionTitleRef={profileSectionTitleRef}
     />
   );
 
@@ -532,7 +532,7 @@ function RegularAssistantInfoSidePanelContent({
                   {onboardingState.totalSteps - onboardingState.resolvedSteps}
                 </span>
               </TabsTrigger>
-              <ProfileTabTrigger />
+              <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
             </TabsList>
             <TabsContent value="onboarding" className="mt-0">
               <AssistantSetupRoadmap
@@ -712,7 +712,6 @@ interface ProfileSectionsPanelProps {
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   canWrite: boolean;
-  profileSectionTitleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
 }
 
 const DESKTOP_OS_LABELS: Record<string, string> = {
@@ -842,7 +841,6 @@ function ProfileSectionsPanel({
   onOpenWorkspaceManager,
   onConnectDesktop,
   canWrite,
-  profileSectionTitleRef,
 }: ProfileSectionsPanelProps) {
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
@@ -858,7 +856,6 @@ function ProfileSectionsPanel({
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
-        titleRef={profileSectionTitleRef}
       />
       <ProfileSectionTile
         title="Workspace"
@@ -934,7 +931,6 @@ interface ProfileSectionTileProps {
   onEdit?: () => void;
   editTestId: string;
   editAriaLabel: string;
-  titleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
   /** When true, the tile stays mouse-clickable but omits button semantics (nested controls own keyboard/a11y). */
   suppressTileButtonSemantics?: boolean;
 }
@@ -948,17 +944,8 @@ function ProfileSectionTile({
   onEdit,
   editTestId,
   editAriaLabel,
-  titleRef,
   suppressTileButtonSemantics = false,
 }: ProfileSectionTileProps) {
-  const assignTitleRef = React.useCallback(
-    (element: HTMLHeadingElement | null) => {
-      if (titleRef) {
-        titleRef.current = element;
-      }
-    },
-    [titleRef]
-  );
   const isInteractive = canEdit && !!onEdit;
   const useTileButtonSemantics = isInteractive && !suppressTileButtonSemantics;
 
@@ -992,7 +979,6 @@ function ProfileSectionTile({
     >
       <div className="flex items-start justify-between gap-2">
         <h3
-          ref={titleRef ? assignTitleRef : undefined}
           className="text-label text-semibold"
           data-testid={title === 'Profile' ? 'assistant-info-profile-section-title' : undefined}
         >
