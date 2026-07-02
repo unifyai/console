@@ -386,11 +386,10 @@ test('call persists as a floating window across page navigation and redocks on r
   await expect(header).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 10_000 });
 
-  // Navigate to /account via client-side nav (the profile dropdown link). A
-  // full page load would tear down the (home) layout and kill the call, so the
-  // test must exercise real SPA navigation.
-  await page.getByTestId('profile-dropdown-trigger').click();
-  await page.getByRole('menuitem', { name: 'Account' }).click();
+  // Navigate to /account via client-side nav. A full page load would tear down
+  // the (home) layout and kill the call, so the test must exercise real SPA
+  // navigation.
+  await page.getByTestId('rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
 
   // The call survives the page change as a floating window: the call header and
@@ -401,9 +400,9 @@ test('call persists as a floating window across page navigation and redocks on r
   await expect(page.getByTestId('assistant-call-docked')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Toggle chat' })).toHaveCount(0);
 
-  // Returning to /assistants (via the logo, which client-redirects through "/")
-  // automatically redocks the call into its chat slot.
-  await page.getByRole('link', { name: 'Unify Console' }).click();
+  // Returning to /assistants via the platform home control automatically
+  // redocks the call into its chat slot.
+  await page.getByTestId('platform-home-button').click();
   await expect(page).toHaveURL(/\/assistants/, { timeout: 15_000 });
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 20_000 });
   await expect(header).toBeVisible({ timeout: 10_000 });

@@ -17,6 +17,7 @@ interface AssistantRailProps {
   onSelectSection: (section: SectionDef) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  onBrandClick?: () => void;
 }
 
 /**
@@ -30,6 +31,7 @@ export function AssistantRail({
   onSelectSection,
   collapsed,
   onCollapsedChange,
+  onBrandClick,
 }: AssistantRailProps) {
   return (
     <AppRail
@@ -37,6 +39,7 @@ export function AssistantRail({
       onSelectSection={onSelectSection}
       collapsed={collapsed}
       onCollapsedChange={onCollapsedChange}
+      onBrandClick={onBrandClick}
       switcher={
         <AssistantSwitcher activeUnity={activeUnity} listProps={listProps} collapsed={collapsed} />
       }

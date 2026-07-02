@@ -9,6 +9,7 @@ import { useBreakpoint } from '@/hooks/Common/useMobile';
 import { Sheet, SheetContent } from '@/components/UI/sheet';
 import { Button } from '@/components/UI/button';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
+import { requestPlatformHomeNavigation } from '@/lib/navigation/platformHome';
 
 interface HomeShellProps {
   children: React.ReactNode;
@@ -59,12 +60,17 @@ export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) 
     setMobileRailOpen(false);
   }, [navigateToAssistants]);
 
+  const handleBrandClick = React.useCallback(() => {
+    requestPlatformHomeNavigation();
+  }, []);
+
   const rail = (
     <AppRail
       switcher={<GlobalUnitySwitcher collapsed={isBelowMobile ? false : collapsed} />}
       activeSection={null}
       onSelectSection={handleSelectSection}
       collapsed={isBelowMobile ? false : collapsed}
+      onBrandClick={handleBrandClick}
       onCollapsedChange={(next) => {
         if (isBelowMobile && next) {
           setMobileRailOpen(false);

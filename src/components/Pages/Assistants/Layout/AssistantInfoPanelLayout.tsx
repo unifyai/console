@@ -10,9 +10,11 @@ import {
   type AssistantInfoSidePanelContentProps,
 } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
 import {
+  ASSISTANT_INFO_PANEL_OPEN_REQUEST_EVENT,
   ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT,
   consumePendingInfoPanelOpen,
   publishAssistantInfoPanelVisibility,
+  type AssistantInfoPanelOpenRequestDetail,
   type AssistantInfoPanelToggleRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import type { Assistant } from '@/types/assistants/assistant';
@@ -207,10 +209,17 @@ export function AssistantInfoPanelLayout({
       event.preventDefault();
       setIsInfoOpenAndPersist(!isInfoOpen);
     };
+    const onOpenRequest = (event: Event) => {
+      const detail = (event as CustomEvent<AssistantInfoPanelOpenRequestDetail>).detail;
+      if (detail.assistantId !== assistantId) return;
+      setIsInfoOpenAndPersist(true);
+    };
 
     window.addEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, onToggleRequest);
+    window.addEventListener(ASSISTANT_INFO_PANEL_OPEN_REQUEST_EVENT, onOpenRequest);
     return () => {
       window.removeEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, onToggleRequest);
+      window.removeEventListener(ASSISTANT_INFO_PANEL_OPEN_REQUEST_EVENT, onOpenRequest);
     };
   }, [assistant?.agentId, isInfoOpen, setIsInfoOpenAndPersist]);
 

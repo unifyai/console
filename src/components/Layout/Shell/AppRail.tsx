@@ -23,6 +23,7 @@ interface AppRailProps {
   onSelectSection: (section: SectionDef) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  onBrandClick?: () => void;
 }
 
 /**
@@ -37,6 +38,7 @@ export function AppRail({
   onSelectSection,
   collapsed,
   onCollapsedChange,
+  onBrandClick,
 }: AppRailProps) {
   const renderSection = (s: SectionDef) => (
     <RailNavButton
@@ -65,10 +67,21 @@ export function AppRail({
           collapsed ? 'justify-center px-0' : 'px-[18px]'
         )}
       >
-        <UnifyBlockMark />
-        {!collapsed && (
-          <span className="font-display text-[18px] font-semibold tracking-tight">Unify</span>
-        )}
+        <button
+          type="button"
+          onClick={onBrandClick}
+          aria-label="Unify Console home"
+          data-testid="platform-home-button"
+          className={cn(
+            'flex items-center gap-2 rounded-md text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            collapsed ? 'justify-center' : 'min-w-0'
+          )}
+        >
+          <UnifyBlockMark />
+          {!collapsed && (
+            <span className="font-display text-[18px] font-semibold tracking-tight">Unify</span>
+          )}
+        </button>
       </div>
 
       {switcher}

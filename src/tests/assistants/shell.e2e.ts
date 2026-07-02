@@ -148,3 +148,34 @@ test('mobile viewport exposes rail navigation via the menu toggle', async ({
   await expect(page.getByTestId('rail-section-chat')).toBeVisible();
   await expect(page.getByTestId('chat-search-trigger')).toBeVisible();
 });
+
+test('the brand control returns to Chat with T-W1N and Assistant info open', async ({
+  authedPage: page,
+}) => {
+  deleteAllAssistantsForUser(user.id);
+  const unity = createAssistant({ userId: user.id, firstName: 'Away', surname: 'Teammate' });
+
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  await openUnitySwitcher(page);
+  await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+
+  await openRailSection(page, 'tasks');
+  await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
+
+  const infoClose = page.getByTestId('assistant-info-close');
+  if (await infoClose.isVisible().catch(() => false)) {
+    await infoClose.click();
+    await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0, { timeout: 5_000 });
+  }
+
+  await page.getByTestId('platform-home-button').click();
+
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page', {
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N');
+  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 10_000 });
+});

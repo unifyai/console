@@ -47,6 +47,7 @@ import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
+  requestAssistantInfoPanelOpen,
   requestAssistantInfoPanelOpenAfterSelect,
   requestAssistantInfoPanelToggle,
 } from '@/lib/assistants/infoPanelVisibility';
@@ -68,7 +69,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, usePathname } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { isAssistantsPath } from '@/lib/navigation/appShellRoutes';
-import { usePendingShellNavigationTarget } from '@/lib/navigation/AppShellRouter';
+import {
+  usePendingShellNavigationTarget,
+  useAppShellNavigation,
+} from '@/lib/navigation/AppShellRouter';
+import {
+  PLATFORM_HOME_NAVIGATION_EVENT,
+  requestPlatformHomeNavigation,
+} from '@/lib/navigation/platformHome';
 import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
@@ -183,6 +191,7 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
   const routePathname = usePathname();
+  const { navigateToAssistants } = useAppShellNavigation();
   const pendingShellNavigationTarget = usePendingShellNavigationTarget();
   // `Main` is mounted persistently by the app shell and only hidden when the
   // user is on another surface (settings/admin/etc). It must not write to the
@@ -2525,6 +2534,49 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     );
   }, []);
 
+  const goToPlatformHome = React.useCallback(() => {
+    navigateToAssistants();
+    setMobileRailOpen(false);
+    setActiveBrainSectionId(null);
+    setPaneState((prev) => ({
+      ...prev,
+      primary: { tab: 'chat' },
+      secondary: null,
+    }));
+
+    if (!canonicalCoordinatorId) {
+      clearPanelProfileAssistant();
+      if (isActiveSurface) {
+        router.replace(pathname, { scroll: false });
+      }
+      return;
+    }
+
+    requestAssistantInfoPanelOpen(canonicalCoordinatorId);
+    setPanelProfileAssistant(canonicalCoordinatorId);
+    router.replace(`${pathname}?profile=${encodeURIComponent(canonicalCoordinatorId)}`, {
+      scroll: false,
+    });
+  }, [
+    canonicalCoordinatorId,
+    clearPanelProfileAssistant,
+    isActiveSurface,
+    navigateToAssistants,
+    pathname,
+    router,
+    setPanelProfileAssistant,
+  ]);
+
+  React.useEffect(() => {
+    const onPlatformHome = () => {
+      goToPlatformHome();
+    };
+    window.addEventListener(PLATFORM_HOME_NAVIGATION_EVENT, onPlatformHome);
+    return () => {
+      window.removeEventListener(PLATFORM_HOME_NAVIGATION_EVENT, onPlatformHome);
+    };
+  }, [goToPlatformHome]);
+
   // The full prop bag the rail forwards to the embedded `AssistantList` (the
   // unity switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
   // popover list always renders expanded.
@@ -2590,6 +2642,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       activeUnity={profileAssistant}
                       listProps={railListProps}
                       activeSection={activeSectionId}
+                      onBrandClick={requestPlatformHomeNavigation}
                       onSelectSection={(section) => {
                         handleSelectSection(section);
                         setMobileRailOpen(false);
@@ -2610,6 +2663,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   activeUnity={profileAssistant}
                   listProps={railListProps}
                   activeSection={activeSectionId}
+                  onBrandClick={requestPlatformHomeNavigation}
                   onSelectSection={handleSelectSection}
                   collapsed={railCollapsed}
                   onCollapsedChange={handleRailCollapsedChange}
