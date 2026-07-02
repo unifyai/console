@@ -158,7 +158,7 @@ test('shared-root chat history merges root-local identities and paginates', asyn
   const chatOrg = createOrg({ name: `ChatSharedOrg_${Date.now()}`, ownerId: user.id });
   ensureProjectSync(chatOrg.ownerOrgApiKey);
   await switchWorkspace(page, chatOrg.id);
-  await page.goto('/assistants');
+  await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
   const sharedAssistant = createAssistant({

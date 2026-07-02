@@ -12,8 +12,10 @@ import os from 'os';
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
 import { orchestraFetch as _orchestraFetch } from '../helpers/seeds/client';
 import {
+  deferCoordinatorAfterAssistantsLoad,
   deferCoordinatorForUser,
   deferCoordinatorOnboarding,
+  dismissCoordinatorOnboardingIfOpen,
   getCoordinatorAgentId,
 } from '../helpers/coordinator';
 
@@ -40,8 +42,10 @@ export {
   ensureProjectSync,
 } from '../helpers/seeds/client';
 export {
+  deferCoordinatorAfterAssistantsLoad,
   deferCoordinatorForUser,
   deferCoordinatorOnboarding,
+  dismissCoordinatorOnboardingIfOpen,
   getCoordinatorAgentId,
 } from '../helpers/coordinator';
 export type {
@@ -203,9 +207,9 @@ export async function loginAndSaveOrgState(
     });
   }, orgId);
 
-  await page.goto('/assistants');
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await dismissCoordinatorOnboardingIfOpen(page);
 
   await page.close();
   await ctx.storageState({ path: stateFile });
@@ -236,6 +240,16 @@ export function createAssistantTest(user: {
         // onboarding once up front before the first authenticated page loads.
         await deferCoordinatorForUser(user.id, user.apiKey);
         authFile = await loginAndSaveState(browser, user.email, user.password);
+        const warmCtx = await browser.newContext({
+          storageState: authFile,
+          permissions: ['clipboard-read', 'clipboard-write'],
+        });
+        const warmPage = await warmCtx.newPage();
+        await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
+        await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
+        await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await warmCtx.storageState({ path: authFile });
+        await warmCtx.close();
       }
       const ctx = await browser.newContext({
         storageState: authFile,
@@ -272,14 +286,9 @@ export async function navigateToAssistants(page: Page) {
       /* private mode — ignore */
     }
   });
-  await page.goto('/assistants');
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
-  const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
-  if (await pickChat.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await pickChat.click();
-    await page.waitForTimeout(1_000);
-  }
+  await dismissCoordinatorOnboardingIfOpen(page);
   await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -329,11 +338,7 @@ export async function closeHireDialogIfOpen(page: Page) {
 export async function openUnitySwitcher(page: Page) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
-  const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
-  if (await pickChat.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await pickChat.click();
-    await page.waitForTimeout(500);
-  }
+  await dismissCoordinatorOnboardingIfOpen(page);
   const switcher = page.getByTestId('rail-unity-switcher');
   await expect(switcher).toBeVisible({ timeout: 10_000 });
   await switcher.click();

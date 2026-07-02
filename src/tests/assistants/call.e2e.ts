@@ -297,9 +297,7 @@ test('call button is disabled when credits are exhausted', async ({ authedPage: 
   setUserCredits(user.id, -1);
 
   // Use a fresh navigation (not a reload) so there's no stale react-query cache
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await selectAssistantInList(page, assistant.agentId);
   await page.waitForTimeout(2_000);
