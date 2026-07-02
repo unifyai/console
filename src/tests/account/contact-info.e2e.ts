@@ -225,18 +225,15 @@ test('clicking Verify again while the code section is open does not collapse it'
     })
   );
 
-  const phoneSection = page
-    .locator('text=Phone number')
-    .locator('xpath=ancestor::div[contains(@class,"rounded-lg")]');
-  const phoneInput = phoneSection.locator('#phone-number-input');
+  const phoneInput = page.locator('#phone-number-input');
   await expect(phoneInput).toBeVisible({ timeout: 15_000 });
   await phoneInput.fill('5551234567');
 
-  await phoneSection.getByRole('button', { name: 'Verify' }).click();
+  await page.getByRole('button', { name: 'Verify' }).first().click();
 
   const codeInput = page.getByPlaceholder('Enter verification code...');
   await expect(codeInput).toBeVisible({ timeout: 10_000 });
-  const resendBtn = phoneSection.getByRole('button', { name: /Resend/ });
+  const resendBtn = page.getByRole('button', { name: /Resend/ });
   await expect(resendBtn).toBeVisible();
 
   await resendBtn.click();

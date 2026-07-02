@@ -40,6 +40,29 @@ export type { SeededOrg } from '../helpers/seeds/types';
 export { login, loginAndNavigateTo, switchToEmailTab };
 
 // =============================================================================
+// App-shell navigation (assistants rail + coordinator overlay)
+// =============================================================================
+
+export async function navigateToAppShellRoute(
+  page: Page,
+  path: string,
+  opts: { userId: string; apiKey: string }
+) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('referral-banner-dismissed', '1');
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
+}
+
+// =============================================================================
 // Shared Auth — storageState
 // =============================================================================
 
@@ -103,6 +126,14 @@ export function createAccountTest(user: {
         });
         const warmCtx = await browser.newContext({ storageState: authFile });
         const warmPage = await warmCtx.newPage();
+        await warmPage.addInitScript(() => {
+          try {
+            window.localStorage.setItem('referral-banner-dismissed', '1');
+            window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+          } catch {
+            /* private mode — ignore */
+          }
+        });
         await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
         await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
         await dismissCoordinatorOnboardingIfOpen(warmPage);

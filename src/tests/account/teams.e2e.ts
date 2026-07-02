@@ -19,7 +19,9 @@ import {
   dbExec,
   getTeamByName,
   getTeamMemberCount,
+  navigateToAppShellRoute,
 } from './helpers';
+import { deferCoordinatorOnboarding, getCoordinatorAgentId } from '../helpers/coordinator';
 
 const owner = createTestUser({ name: 'TeamOwner', lastName: 'Test', credits: 5_000 });
 const member = createTestUser({ name: 'TeamMember', lastName: 'Test', credits: 5_000 });
@@ -28,6 +30,8 @@ addMember({ orgId: org.id, userId: member.id, role: 'Member' });
 
 const test = createAccountTest(owner);
 test.setTimeout(90_000);
+
+const ownerShellOpts = { userId: owner.id, apiKey: owner.apiKey };
 
 const sharingOwner = createTestUser({ name: 'SharingOwner', lastName: 'Test', credits: 5_000 });
 const sharingMember = createTestUser({ name: 'SharingMember', lastName: 'Test', credits: 5_000 });
@@ -43,10 +47,34 @@ const sharingAssistant = createAssistant({
 const sharingTest = createAccountTest(sharingOwner);
 sharingTest.setTimeout(90_000);
 
+const sharingShellOpts = { userId: sharingOwner.id, apiKey: sharingOwner.apiKey };
+
 const creationUser = createTestUser({ name: 'CreateOrgSharing', lastName: 'Test', credits: 5_000 });
 const creationTest = createAccountTest(creationUser);
 creationTest.setTimeout(90_000);
+const creationShellOpts = { userId: creationUser.id, apiKey: creationUser.apiKey };
 let createdDialogOrgId: number | null = null;
+
+test.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(owner.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(owner.apiKey, coordinatorId);
+  }
+});
+
+sharingTest.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(sharingOwner.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(sharingOwner.apiKey, coordinatorId);
+  }
+});
+
+creationTest.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(creationUser.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(creationUser.apiKey, coordinatorId);
+  }
+});
 
 test.afterAll(() => {
   deleteOrg(org.id);
@@ -68,8 +96,7 @@ creationTest.afterAll(() => {
 test('creating a team via UI adds it to the database', async ({ authedPage: page }) => {
   const teamName = `Team${Date.now()}`;
 
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
   await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
   // Open create team dialog
@@ -106,8 +133,7 @@ test('adding a member to a team via UI creates a team_member record', async ({
   const teamId = getTeamByName(org.id, teamName)!;
   expect(getTeamMemberCount(teamId)).toBe(0);
 
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
   await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
   // Open row menu for the team
@@ -152,8 +178,7 @@ test('removing a member from a team via UI removes the team_member record', asyn
   );
   expect(getTeamMemberCount(teamId)).toBe(1);
 
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
   await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
   // Open row menu for the team
@@ -190,8 +215,7 @@ test('deleting a team via UI removes it from the database', async ({ authedPage:
   );
   expect(getTeamByName(org.id, teamName)).toBeTruthy();
 
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
   await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
   // Open row menu for the team
@@ -212,8 +236,7 @@ test('deleting a team via UI removes it from the database', async ({ authedPage:
 sharingTest(
   'org-wide sharing toggle manages the Org team lifecycle',
   async ({ authedPage: page }) => {
-    await page.goto('/organizations?tab=teams');
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await navigateToAppShellRoute(page, '/organizations?tab=teams', sharingShellOpts);
     await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
     await page.getByTestId('org-sharing-toggle').click();
@@ -263,8 +286,7 @@ creationTest(
   async ({ authedPage: page }) => {
     const orgName = `DialogSharedOrg${Date.now()}`;
 
-    await page.goto('/organizations');
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await navigateToAppShellRoute(page, '/organizations', creationShellOpts);
     await page.getByRole('button', { name: 'Create organization' }).click();
 
     const dialog = page.getByRole('dialog');
