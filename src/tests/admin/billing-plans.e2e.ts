@@ -257,5 +257,5 @@ test('organizations page sets the new template on the target org', async ({ admi
   // to show the new template name. A "Return to default plan" affordance
   // appears now that the account is on a non-default plan.
   await expect(page.locator(`text=${templateName}`)).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: /Return to default plan/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Change plan/i })).toBeVisible();
 });

@@ -21,6 +21,7 @@ import path from 'path';
 import os from 'os';
 import { createTestUser, cleanupUser, loginAndWaitForRedirect } from '../auth/helpers';
 import { createAssistant, ensureUnifyOrg, deleteOrg } from '../helpers/seeds/client';
+import { openUnitySwitcher } from '../assistants/helpers';
 import {
   deferCoordinatorAfterAssistantsLoad,
   deferCoordinatorForUser,
@@ -137,9 +138,13 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   });
   await deferCoordinatorAfterAssistantsLoad(page, targetUser.id, targetUser.apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('Solo', {
-    timeout: 30_000,
-  });
+  await openUnitySwitcher(page, { userId: targetUser.id, apiKey: targetUser.apiKey });
+  await expect(page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`)).toContainText(
+    'Solo',
+    {
+      timeout: 30_000,
+    }
+  );
   await expect(page.getByTestId('impersonation-banner')).toBeVisible();
 
   // Return to the original admin session.
