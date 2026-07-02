@@ -17,19 +17,28 @@ import {
   deleteOrg,
   dbExec,
   createAssistantTest,
+  addMember,
 } from '../assistants/helpers';
 
 const user = createTestUser({ name: 'ShellRoutes', lastName: 'Smoke', credits: 50_000 });
-// The `organization.name` column is globally unique; clear any `Unify` org left
-// behind by an earlier run before seeding a fresh one for this user.
-dbExec("DELETE FROM organization WHERE name = 'Unify';");
-const unifyOrg = createOrg({ ownerId: user.id, name: 'Unify', credits: 50_000 });
+const existingUnifyOrgId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
+let unifyOrg: { id: number };
+let createdUnifyOrg = false;
+if (existingUnifyOrgId) {
+  unifyOrg = { id: parseInt(existingUnifyOrgId, 10) };
+  addMember({ orgId: unifyOrg.id, userId: user.id, role: 'Member' });
+} else {
+  unifyOrg = createOrg({ ownerId: user.id, name: 'Unify', credits: 50_000 });
+  createdUnifyOrg = true;
+}
 
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
 
 test.afterAll(() => {
-  deleteOrg(unifyOrg.id);
+  if (createdUnifyOrg) {
+    deleteOrg(unifyOrg.id);
+  }
   cleanupUser(user.id);
 });
 

@@ -24,6 +24,8 @@ import {
   closeHireDialogIfOpen,
   openRailSection,
   selectAssistantInList,
+  addMember,
+  dbExec,
 } from '../assistants/helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
 
@@ -34,7 +36,17 @@ ensureProjectSync(shellUser.apiKey);
 const shellTest = createAssistantTest(shellUser);
 
 const adminUser = createTestUser({ name: 'ShellAdmin', lastName: 'Operator' });
-const unifyOrg = createOrg({ name: 'Unify', ownerId: adminUser.id });
+
+const existingUnifyOrgId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
+let unifyOrg: { id: number };
+let createdUnifyOrg = false;
+if (existingUnifyOrgId) {
+  unifyOrg = { id: parseInt(existingUnifyOrgId, 10) };
+  addMember({ orgId: unifyOrg.id, userId: adminUser.id, role: 'Owner' });
+} else {
+  unifyOrg = createOrg({ name: 'Unify', ownerId: adminUser.id });
+  createdUnifyOrg = true;
+}
 
 let adminAuthFile: string | undefined;
 
@@ -162,10 +174,12 @@ shellTest.afterAll(() => {
 });
 
 adminTest.afterAll(() => {
-  try {
-    deleteOrg(unifyOrg.id);
-  } catch {
-    /* best effort */
+  if (createdUnifyOrg) {
+    try {
+      deleteOrg(unifyOrg.id);
+    } catch {
+      /* best effort */
+    }
   }
   cleanupUser(adminUser.id);
 });
