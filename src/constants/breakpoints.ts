@@ -6,6 +6,8 @@ export const BREAKPOINTS = {
   mobile: 768,
   /** Below `lg` — docked rail, narrower split panes. */
   tablet: 1024,
+  /** Below this width the assistants shell stacks split panes and uses an overlay info panel. */
+  shellCompact: 1280,
 } as const;
 
 export type BreakpointKey = keyof typeof BREAKPOINTS;

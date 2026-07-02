@@ -195,7 +195,9 @@ export function BrainRowDetail({ row, context, taskView, title, onClose }: Brain
       <SheetContent
         ref={contentRef}
         side="right"
-        className={isDesktop ? 'flex !max-w-none flex-col' : 'flex w-full flex-col'}
+        className={
+          isDesktop ? 'flex !max-w-none flex-col' : 'flex w-full max-w-[min(100vw,42rem)] flex-col'
+        }
         style={
           isDesktop
             ? { width, minWidth: MIN_WIDTH, ...(isResizing ? { transition: 'none' } : {}) }

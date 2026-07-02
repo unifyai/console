@@ -4,6 +4,7 @@ import * as React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
+import type { BreakpointKey } from '@/constants/breakpoints';
 
 const STORAGE_PREFIX = 'console:split-pane:';
 const DEFAULT_WIDTH = 288;
@@ -23,6 +24,8 @@ interface SplitPaneLayoutProps {
   maxWidth?: number;
   /** Below `md`, stack panes instead of side-by-side. */
   mobileMode?: 'stack' | 'none';
+  /** Breakpoint below which stacked mode activates when `mobileMode="stack"`. */
+  stackBelow?: BreakpointKey;
   /** When stacked, the detail (right) pane is visible. */
   detailOpen?: boolean;
   onDetailClose?: () => void;
@@ -53,12 +56,13 @@ export function SplitPaneLayout({
   minWidth = MIN_WIDTH,
   maxWidth = MAX_WIDTH,
   mobileMode = 'none',
+  stackBelow = 'tablet',
   detailOpen = false,
   onDetailClose,
   mobileBackLabel = 'Back',
   mobileBackTestId,
 }: SplitPaneLayoutProps) {
-  const isStacked = useMatchesBelow('tablet') && mobileMode === 'stack';
+  const isStacked = useMatchesBelow(stackBelow as BreakpointKey) && mobileMode === 'stack';
   const [leftWidth, setLeftWidth] = React.useState(() => readStoredWidth(paneId, defaultWidth));
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = React.useState(false);

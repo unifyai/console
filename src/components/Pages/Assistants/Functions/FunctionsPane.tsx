@@ -45,9 +45,9 @@ interface FunctionsPaneProps {
 
 const KINDS: FunctionKindFilter[] = ['All', 'Learned', 'Primitives'];
 
-/** Responsive grid: up to four fixed-width cards per row (no shrinking below card min). */
+/** Responsive grid: auto-fit cards so they never overlap in narrow split panes. */
 const FUNCTIONS_GRID_CLASS =
-  'box-border grid w-full min-w-0 max-w-full grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+  'box-border grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-4 p-4';
 
 function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
   return (
@@ -262,7 +262,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
               {filtered.map((skill) => (
                 <button
                   key={`${skill.isPrimitive ? 'p' : 'l'}-${skill.functionId ?? skill.name}`}
-                  className="hover:bg-muted/40 flex min-h-[168px] w-full min-w-[16rem] flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors hover:border-primary-tint-40"
+                  className="hover:bg-muted/40 flex min-h-[168px] w-full min-w-0 flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors hover:border-primary-tint-40"
                   onClick={() => {
                     setSelected(skill);
                   }}
@@ -317,7 +317,11 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
           if (!open) setSelected(null);
         }}
       >
-        <SheetContent side="right" className="flex w-full flex-col" data-testid="function-detail">
+        <SheetContent
+          side="right"
+          className="flex w-full max-w-[min(100vw,42rem)] flex-col"
+          data-testid="function-detail"
+        >
           <SheetHeader className="shrink-0 space-y-2">
             <div>
               <SheetTitle className="break-all font-mono text-[15px]">{selected?.name}</SheetTitle>

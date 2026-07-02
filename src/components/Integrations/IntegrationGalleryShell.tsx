@@ -272,7 +272,7 @@ export function IntegrationGalleryShell({
                         )}
                       </div>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
                       {pinnedItems.map((item) => (
                         <ProviderIntegrationCard
                           key={`${item.source}:${item.id}`}
@@ -301,7 +301,7 @@ export function IntegrationGalleryShell({
                           {connectedItems.length} connected
                         </Badge>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
                         {connectedItems.map((item) => (
                           <ProviderIntegrationCard
                             key={`${item.source}:${item.id}`}
@@ -334,7 +334,7 @@ export function IntegrationGalleryShell({
                           {needsAttentionItems.length} need attention
                         </Badge>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
                         {needsAttentionItems.map((item) => (
                           <ProviderIntegrationCard
                             key={`${item.source}:${item.id}`}

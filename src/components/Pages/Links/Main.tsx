@@ -58,7 +58,7 @@ export default function Main({ adminCreditGrantActions }: MainProps) {
             <AlertDescription>{linksError}</AlertDescription>
           </Alert>
         )}
-        <div className="min-h-0 flex-1 p-4">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-auto p-4">
           {' '}
           {/* Container for TableVirtuoso height */}
           <OneTimeLinkTable

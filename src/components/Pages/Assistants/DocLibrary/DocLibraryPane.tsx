@@ -206,7 +206,7 @@ export function DocLibraryPane({
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const isStackedLayout = useMatchesBelow('tablet');
+  const isStackedLayout = useMatchesBelow('shellCompact');
   // TODO(wire-backend): restore when guidance/knowledge creation is wired.
   // const [isAdding, setIsAdding] = useState(false);
 
@@ -296,7 +296,7 @@ export function DocLibraryPane({
   }
 
   return (
-    <div className="flex h-full flex-col" data-testid="doc-library-pane" data-kind={kind}>
+    <div className="flex h-full min-w-0 flex-col" data-testid="doc-library-pane" data-kind={kind}>
       <TabToolbar
         testId="doc-header"
         searchValue={query}
@@ -341,12 +341,13 @@ export function DocLibraryPane({
         paneId={`doc-library-${kind}`}
         defaultWidth={288}
         mobileMode="stack"
+        stackBelow="shellCompact"
         detailOpen={isStackedLayout ? selectedId !== null && active !== null : true}
         onDetailClose={() => setSelectedId(null)}
         mobileBackLabel="Documents"
         mobileBackTestId="doc-library-mobile-back"
         left={
-          <div className="flex h-full flex-col" data-testid="doc-list">
+          <div className="flex h-full min-w-0 flex-col" data-testid="doc-list">
             {isLoading && docs.length === 0 ? (
               <div className="flex flex-col gap-1.5 p-2" data-testid="doc-list-skeleton">
                 {Array.from({ length: 7 }).map((_, i) => (
@@ -442,8 +443,8 @@ export function DocLibraryPane({
                 <SkeletonText lines={6} />
               </div>
             ) : active ? (
-              <ScrollArea className="h-full">
-                <div className="w-full px-6 pb-5 pt-3">
+              <ScrollArea className="h-full min-w-0">
+                <div className="w-full min-w-0 px-6 pb-5 pt-3">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {active.scope && (
                       <span className="rounded-full bg-[color:var(--status-info-bg)] px-2 py-0.5 text-[10.5px] font-semibold text-[color:var(--status-info)]">

@@ -17,6 +17,13 @@ import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { ChatMarkdown } from '@/components/Chat/ChatMarkdown';
 import { ScrollArea } from '@/components/UI/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
@@ -187,7 +194,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
   const [isLoading, setIsLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [openThreadId, setOpenThreadId] = React.useState<string | number | null>(null);
-  const isStackedLayout = useMatchesBelow('tablet');
+  const isStackedLayout = useMatchesBelow('shellCompact');
 
   const load = React.useCallback(async () => {
     const cacheKey = `${ownerId}:${assistantId}:transcripts`;
@@ -368,21 +375,24 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
               ))}
             </TabSegmentGroup>
             {isStackedLayout ? (
-              <select
-                value={channel}
-                onChange={(e) => setChannel(e.target.value)}
-                className="h-7 max-w-[9rem] shrink-0 rounded-md border border-border bg-transparent px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                data-testid="transcripts-channel-select"
-                aria-label="Filter by channel"
-              >
-                <option value="all">All ({channelCounts.all})</option>
-                {CHANNELS.map((channelDef) => (
-                  <option key={channelDef.id} value={channelDef.id}>
-                    {channelDef.label}
-                    {channelCounts[channelDef.id] ? ` (${channelCounts[channelDef.id]})` : ''}
-                  </option>
-                ))}
-              </select>
+              <Select value={channel} onValueChange={setChannel}>
+                <SelectTrigger
+                  className="h-7 w-[9.5rem] shrink-0"
+                  data-testid="transcripts-channel-select"
+                  aria-label="Filter by channel"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="all">All ({channelCounts.all})</SelectItem>
+                  {CHANNELS.map((channelDef) => (
+                    <SelectItem key={channelDef.id} value={channelDef.id}>
+                      {channelDef.label}
+                      {channelCounts[channelDef.id] ? ` (${channelCounts[channelDef.id]})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <TabSegmentGroup testId="transcripts-channel-seg" className="hidden md:flex">
                 <TabSegment
@@ -472,6 +482,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
           paneId="transcripts-threads"
           defaultWidth={320}
           mobileMode="stack"
+          stackBelow="shellCompact"
           detailOpen={openThreadId !== null && activeThread !== null}
           onDetailClose={() => setOpenThreadId(null)}
           mobileBackLabel="Threads"

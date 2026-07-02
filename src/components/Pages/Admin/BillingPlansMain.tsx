@@ -251,6 +251,9 @@ const DEFAULT_FORM: FormState = {
 };
 
 export default function BillingPlansAdminMain({ actions }: Props) {
+  const actionsRef = React.useRef(actions);
+  actionsRef.current = actions;
+
   // ── Catalog state ────────────────────────────────────────────────────
   const [templates, setTemplates] = useState<AdminBillingPlanTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -286,7 +289,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
 
   const fetchGroups = useCallback(async () => {
     setGroupsLoading(true);
-    const listResult = await actions.listGroups({
+    const listResult = await actionsRef.current.listGroups({
       includeInactive: showInactiveGroups,
     });
     if (isError(listResult)) {
@@ -301,13 +304,15 @@ export default function BillingPlansAdminMain({ actions }: Props) {
     // Fan out to load each group's members in parallel; failures are
     // logged but don't block the rest from rendering (the row just
     // shows zero members downstream rather than a stale entry).
-    const detailResults = await Promise.all(summaries.map((g) => actions.getGroup(g.id)));
+    const detailResults = await Promise.all(
+      summaries.map((g) => actionsRef.current.getGroup(g.id))
+    );
     setGroupDetails(detailResults.filter((r) => !isError(r)) as AdminPlanGroupDetail[]);
     setGroupsLoading(false);
-  }, [actions, showInactiveGroups]);
+  }, [showInactiveGroups]);
 
   useEffect(() => {
-    fetchGroups();
+    void fetchGroups();
   }, [fetchGroups]);
 
   // template_id → AdminPlanGroupSummary[] derived from the loaded
@@ -335,7 +340,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
   // Load catalog whenever the filters change.
   const fetchCatalog = useCallback(async () => {
     setIsLoading(true);
-    const result = await actions.listTemplates({
+    const result = await actionsRef.current.listTemplates({
       includeCustom: placement === 'ALL' ? undefined : placement === 'CUSTOM' ? true : false,
       includeInactive: showInactive,
     });
@@ -346,10 +351,10 @@ export default function BillingPlansAdminMain({ actions }: Props) {
       setTemplates(result as AdminBillingPlanTemplate[]);
     }
     setIsLoading(false);
-  }, [actions, placement, showInactive]);
+  }, [placement, showInactive]);
 
   useEffect(() => {
-    fetchCatalog();
+    void fetchCatalog();
   }, [fetchCatalog]);
 
   // Client-side search + group filter (cheap; the catalog is never
@@ -505,20 +510,14 @@ export default function BillingPlansAdminMain({ actions }: Props) {
   return (
     <TooltipProvider delayDuration={150}>
       {/*
-       * Layout note: the Tabs root uses natural document flow rather
-       * than a `flex h-full` cascade. Radix `<Tabs.Content>` renders as
-       * a plain block — nesting it inside a flex column with
-       * `overflow-auto` on the table container left a phantom
-       * intermediate height so the table started scrolling before the
-       * page did, and the (initially empty) Groups tab body floated to
-       * the bottom instead of pinning to the top. Letting the page
-       * scroll as one unit keeps both tabs visually consistent and
-       * removes the double-scrollbar UX.
+       * Admin settings chrome uses `fill` mode (overflow-hidden flex column).
+       * Mirror AdminInvoicesMain: keep filters pinned and let the table body
+       * scroll horizontally inside a bounded column.
        */}
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as 'plans' | 'groups')}
-        className="w-full"
+        className="flex h-full min-h-0 w-full min-w-0 flex-col"
       >
         {/* ── Header ───────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
@@ -541,10 +540,13 @@ export default function BillingPlansAdminMain({ actions }: Props) {
         </div>
 
         {/* ── Plans tab ────────────────────────────────────────────────── */}
-        <TabsContent value="plans" className="focus-visible:ring-0 focus-visible:ring-offset-0">
+        <TabsContent
+          value="plans"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:ring-0 focus-visible:ring-offset-0"
+        >
           {/* Filters (search · placement · group · status · count · create) */}
-          <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-            <div className="relative w-72">
+          <div className="flex min-h-0 min-w-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+            <div className="relative min-w-[12rem] flex-1 basis-48">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
@@ -654,7 +656,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
           </div>
 
           {/* ── Catalog table ────────────────────────────────────────── */}
-          <div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader size={24} />
@@ -666,7 +668,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
                   : `No plans match "${search}".`}
               </div>
             ) : (
-              <Table>
+              <Table className="min-w-[960px]">
                 <TableHeader>
                   <TableRow>
                     {(
