@@ -1,7 +1,7 @@
 /**
  * Rail shell E2E — verifies the /assistants rail shell: the unity switcher
- * popover, Workspace/Brain section navigation, the net-new Brain placeholders,
- * the account menu, and collapse-to-dock persistence.
+ * popover, Workspace/Brain section navigation, the account menu, and
+ * collapse-to-dock persistence.
  *
  * Run: npx playwright test src/tests/assistants/shell.e2e.ts
  */
@@ -26,6 +26,8 @@ const user = createTestUser({ name: 'ShellE2E', lastName: 'Tester', credits: 50_
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
+
+const shellOpts = { userId: user.id, apiKey: user.apiKey };
 
 test.beforeAll(async () => {
   const coordinatorId = getCoordinatorAgentId(user.id);
@@ -58,10 +60,10 @@ test('the unity switcher opens and selecting a unity drives the section host', a
   deleteAllAssistantsForUser(user.id);
   const unity = createAssistant({ userId: user.id, firstName: 'Switchy', surname: 'Pick' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
-  await openUnitySwitcher(page);
+  await openUnitySwitcher(page, shellOpts);
   const row = page.getByTestId(`assistant-list-item-${unity.agentId}`);
   await expect(row).toBeVisible({ timeout: 10_000 });
   await expect(row).toContainText('Switchy');
@@ -78,19 +80,18 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   deleteAllAssistantsForUser(user.id);
   const unity = createAssistant({ userId: user.id, firstName: 'Navvy', surname: 'Sections' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
+  await openUnitySwitcher(page, shellOpts);
   await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
   await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
 
   await openRailSection(page, 'tasks');
   await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
 
-  // The Data Brain section is still a placeholder and renders "coming soon".
   await openRailSection(page, 'data');
   await expect(page.getByTestId('rail-section-data')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByText('Coming soon')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 5_000 });
 });
 
 test('the account menu exposes workspace and sign out', async ({ authedPage: page }) => {
@@ -136,7 +137,7 @@ test('mobile viewport exposes rail navigation via the menu toggle', async ({
   deleteAllAssistantsForUser(user.id);
   createAssistant({ userId: user.id, firstName: 'Mobile', surname: 'Shell' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, { ...shellOpts, skipRailCheck: true });
   await closeHireDialogIfOpen(page);
 
   await expect(page.getByTestId('rail-mobile-toggle')).toBeVisible({ timeout: 15_000 });
@@ -155,10 +156,10 @@ test('the brand control returns to Chat with T-W1N and Assistant info open', asy
   deleteAllAssistantsForUser(user.id);
   const unity = createAssistant({ userId: user.id, firstName: 'Away', surname: 'Teammate' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
-  await openUnitySwitcher(page);
+  await openUnitySwitcher(page, shellOpts);
   await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
   await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
 

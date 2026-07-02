@@ -271,7 +271,10 @@ export function createAssistantTest(user: {
  * Navigate to the assistants page and wait for the page to settle.
  * Waits a beat after networkidle so React effects (auto-open dialog etc.) fire.
  */
-export async function navigateToAssistants(page: Page) {
+export async function navigateToAssistants(
+  page: Page,
+  opts?: { skipRailCheck?: boolean; userId?: string; apiKey?: string }
+) {
   // Suppress the post-hire onboarding wizard for every test that
   // doesn't explicitly opt into it. The wizard is an optional UX step
   // (the user can always skip it), and existing assistant flows assume
@@ -288,8 +291,14 @@ export async function navigateToAssistants(page: Page) {
   });
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await dismissCoordinatorOnboardingIfOpen(page);
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  if (opts?.userId && opts?.apiKey) {
+    await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+  } else {
+    await dismissCoordinatorOnboardingIfOpen(page);
+  }
+  if (!opts?.skipRailCheck) {
+    await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  }
 }
 
 /**
@@ -335,10 +344,14 @@ export async function closeHireDialogIfOpen(page: Page) {
  * Open the rail's unity switcher popover (which hosts the assistant list,
  * search and the Onboard button). Idempotent — returns early if already open.
  */
-export async function openUnitySwitcher(page: Page) {
+export async function openUnitySwitcher(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
-  await dismissCoordinatorOnboardingIfOpen(page);
+  if (opts?.userId && opts?.apiKey) {
+    await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+  } else {
+    await dismissCoordinatorOnboardingIfOpen(page);
+  }
   const switcher = page.getByTestId('rail-unity-switcher');
   await expect(switcher).toBeVisible({ timeout: 10_000 });
   await switcher.click();

@@ -33,6 +33,8 @@ ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
 
+const shellOpts = { userId: user.id, apiKey: user.apiKey };
+
 test.beforeAll(async () => {
   const coordinatorId = getCoordinatorAgentId(user.id);
   if (coordinatorId !== null) {
@@ -132,33 +134,32 @@ test('deep link ?profile=agentId opens the correct assistant', async ({ authedPa
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
-test('assistant list item menu exposes edit profile and contacts', async ({ authedPage: page }) => {
+test('assistant list item info toggle exposes profile and contact sections', async ({
+  authedPage: page,
+}) => {
   deleteAllAssistantsForUser(user.id);
   const seeded = createAssistant({ userId: user.id, firstName: 'Menu', surname: 'Options' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
+  await openUnitySwitcher(page, shellOpts);
 
-  const listItem = page.getByTestId(`assistant-list-item-${seeded.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  const menuBtn = page.getByTestId(`assistant-menu-${seeded.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-
-  await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('menu-update-contacts')).toBeVisible({ timeout: 5_000 });
+  await openAssistantInfoPanelFromList(page, seeded.agentId);
+  await expect(page.getByTestId('assistant-info-edit-profile-section')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.getByTestId('assistant-info-edit-contact-section')).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
 test('assistant list item unfold control opens the info panel', async ({ authedPage: page }) => {
   deleteAllAssistantsForUser(user.id);
   const seeded = createAssistant({ userId: user.id, firstName: 'Unfold', surname: 'Panel' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
+  await openUnitySwitcher(page, shellOpts);
 
   const listItem = page.getByTestId(`assistant-list-item-${seeded.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -184,21 +185,13 @@ test('the chat info side panel can be resized down to its minimum width', async 
     jobTitle: 'QA engineer',
   });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
   await selectAssistantInList(page, titled.agentId);
-
-  // Open the inline info side panel from the top navbar. We can't rely on
-  // the post-hire auto-open path here because this assistant was seeded via
-  // `createAssistant` (no `newlyHiredInfo` in memory).
-  const infoButton = page.getByTestId('assistant-info-button');
-  await expect(infoButton).toBeVisible({ timeout: 10_000 });
+  await openAssistantInfoPanelFromList(page, titled.agentId);
 
   const infoSheet = page.getByTestId('assistant-info-sheet');
-  if (!(await infoSheet.isVisible({ timeout: 1_000 }).catch(() => false))) {
-    await infoButton.click();
-  }
   await expect(infoSheet).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('assistant-info-name')).toContainText('Titled InfoPanel');
 
