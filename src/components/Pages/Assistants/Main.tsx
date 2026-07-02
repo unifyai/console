@@ -25,27 +25,16 @@ import {
 } from '@/types/assistants/assistant';
 import { ContactType, type OAuthProvider } from '@/types/assistants/contact';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
 
 const AssistantHire = dynamic(
   () => import('./Hire/AssistantHire').then((m) => ({ default: m.AssistantHire })),
   { loading: () => null }
 );
-function AssistantEditLoadingOverlay() {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--overlay)] backdrop-blur-sm"
-      aria-busy="true"
-      aria-label="Loading profile editor"
-    >
-      <Loader />
-    </div>
-  );
-}
-
 const AssistantEdit = dynamic(
   () => import('./Edit/AssistantEdit').then((m) => ({ default: m.AssistantEdit })),
-  { loading: () => <AssistantEditLoadingOverlay /> }
+  { loading: () => null }
 );
 const CoordinatorOnboarding = dynamic(
   () =>
@@ -1778,6 +1767,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setIsEditFormReady(false);
   }, []);
 
+  const isEditProfileOpening = Boolean(assistantToEdit && !isEditFormReady);
+
   const handleOpenContactManager = React.useCallback(
     (assistant: Assistant, tab: ContactManagerInitialTab = 'email') => {
       loadAssistantForEdit(assistant);
@@ -2659,6 +2650,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     spendingBlockedMessage={spendingGateStatus.blockedMessage}
                     onOpenContactManager={handleOpenContactManager}
                     onEditProfile={profileCanWrite ? handleOpenEditDialog : undefined}
+                    isEditProfileOpening={isEditProfileOpening}
                     onOpenWorkspaceManager={
                       profileCanWrite ? handleOpenWorkspaceManager : undefined
                     }
@@ -2900,7 +2892,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 />
               ) : (
                 <div className="flex h-full min-h-[40vh] items-center justify-center">
-                  <Loader />
+                  <Loader2
+                    className="h-6 w-6 animate-spin text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
               )}
             </AssistantEdit>

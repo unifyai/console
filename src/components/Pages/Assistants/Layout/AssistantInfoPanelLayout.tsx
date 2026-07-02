@@ -107,6 +107,8 @@ interface AssistantInfoPanelLayoutProps {
   isSpendingBlocked?: boolean;
   spendingBlockedMessage?: string | null;
   onEditProfile?: (assistant: Assistant) => void;
+  /** True while the profile edit dialog is opening for this assistant. */
+  isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
@@ -136,6 +138,7 @@ export function AssistantInfoPanelLayout({
   isSpendingBlocked = false,
   spendingBlockedMessage,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
@@ -437,6 +440,7 @@ export function AssistantInfoPanelLayout({
       currentUserId={currentUserId}
       onClose={closeInfo}
       onEditProfile={onEditProfile}
+      isEditProfileOpening={isEditProfileOpening}
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}

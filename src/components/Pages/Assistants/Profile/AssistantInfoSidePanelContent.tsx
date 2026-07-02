@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock, X, ChevronRight } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock, X, ChevronRight, Loader2 } from 'lucide-react';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
@@ -49,6 +49,8 @@ export interface AssistantInfoSidePanelContentProps {
   onClose: () => void;
   /** Open the edit-profile dialog. Hidden when absent or when editing is not allowed. */
   onEditProfile?: (assistant: Assistant) => void;
+  /** True while the profile edit dialog is opening. */
+  isEditProfileOpening?: boolean;
   /** Open the contact manager dialog, optionally on a specific channel tab. */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   /** Open the workspace manager dialog. */
@@ -198,6 +200,7 @@ export function AssistantInfoSidePanelContent({
         assistant={assistant}
         onClose={props.onClose}
         onEditProfile={props.onEditProfile}
+        isEditProfileOpening={props.isEditProfileOpening}
         className={props.className}
         onOpenContactManager={props.onOpenContactManager}
         onOpenWorkspaceManager={props.onOpenWorkspaceManager}
@@ -226,6 +229,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   assistant,
   onClose,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
@@ -241,6 +245,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   assistant: Assistant;
   onClose: () => void;
   onEditProfile?: (assistant: Assistant) => void;
+  isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
@@ -367,6 +372,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             <ProfileSectionsPanel
               assistant={assistant}
               onEditProfile={onEditProfile}
+              isEditProfileOpening={isEditProfileOpening}
               onOpenContactManager={onOpenContactManager}
               onOpenWorkspaceManager={onOpenWorkspaceManager}
               onConnectDesktop={onConnectDesktop}
@@ -380,6 +386,7 @@ function CoordinatorAssistantInfoSidePanelContent({
           <ProfileSectionsPanel
             assistant={assistant}
             onEditProfile={onEditProfile}
+            isEditProfileOpening={isEditProfileOpening}
             onOpenContactManager={onOpenContactManager}
             onOpenWorkspaceManager={onOpenWorkspaceManager}
             onConnectDesktop={onConnectDesktop}
@@ -396,6 +403,7 @@ function RegularAssistantInfoSidePanelContent({
   assistant,
   onClose,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
@@ -473,6 +481,7 @@ function RegularAssistantInfoSidePanelContent({
     <ProfileSectionsPanel
       assistant={assistant}
       onEditProfile={onEditProfile}
+      isEditProfileOpening={isEditProfileOpening}
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
@@ -698,6 +707,7 @@ function IdentityHeader({
 interface ProfileSectionsPanelProps {
   assistant: Assistant;
   onEditProfile?: (assistant: Assistant) => void;
+  isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
@@ -827,6 +837,7 @@ function getDesktopStatusDescription(assistant: Assistant): string {
 function ProfileSectionsPanel({
   assistant,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
@@ -843,6 +854,7 @@ function ProfileSectionsPanel({
         description={<ProfileSummary assistant={assistant} />}
         descriptionClassName="mt-0.5"
         canEdit={canWrite && !!onEditProfile}
+        isOpening={isEditProfileOpening}
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
@@ -918,6 +930,7 @@ interface ProfileSectionTileProps {
   description: React.ReactNode;
   descriptionClassName?: string;
   canEdit: boolean;
+  isOpening?: boolean;
   onEdit?: () => void;
   editTestId: string;
   editAriaLabel: string;
@@ -931,6 +944,7 @@ function ProfileSectionTile({
   description,
   descriptionClassName,
   canEdit,
+  isOpening = false,
   onEdit,
   editTestId,
   editAriaLabel,
@@ -972,7 +986,8 @@ function ProfileSectionTile({
       role={useTileButtonSemantics ? 'button' : undefined}
       tabIndex={useTileButtonSemantics ? 0 : undefined}
       aria-label={useTileButtonSemantics ? editAriaLabel : undefined}
-      onClick={isInteractive ? activate : undefined}
+      aria-busy={isOpening || undefined}
+      onClick={isInteractive && !isOpening ? activate : undefined}
       onKeyDown={handleKeyDown}
     >
       <div className="flex items-start justify-between gap-2">
@@ -983,11 +998,19 @@ function ProfileSectionTile({
         >
           {title}
         </h3>
-        {isInteractive && (
-          <ChevronRight
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70 transition-[opacity,transform] group-focus-within/tile:opacity-100 group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"
+        {isOpening ? (
+          <Loader2
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground"
+            data-testid="assistant-info-edit-profile-section-loading"
             aria-hidden="true"
           />
+        ) : (
+          isInteractive && (
+            <ChevronRight
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70 transition-[opacity,transform] group-focus-within/tile:opacity-100 group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"
+              aria-hidden="true"
+            />
+          )
         )}
       </div>
       <div className={cn('text-caption text-muted-foreground', descriptionClassName)}>
