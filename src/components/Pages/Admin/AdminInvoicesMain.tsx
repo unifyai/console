@@ -146,6 +146,11 @@ interface AdminInvoicesMainProps {
 }
 
 export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoicesMainProps) {
+  const actionsRef = React.useRef(actions);
+  actionsRef.current = actions;
+  const listTemplatesRef = React.useRef(listTemplates);
+  listTemplatesRef.current = listTemplates;
+
   // --- Filter state -------------------------------------------------------
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
   const [currencyFilter, setCurrencyFilter] = React.useState<string>('ALL');
@@ -166,7 +171,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
   React.useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const result = await listTemplates({
+      const result = await listTemplatesRef.current({
         includeCustom: true,
         includeInactive: true,
       });
@@ -178,7 +183,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
     return () => {
       cancelled = true;
     };
-  }, [listTemplates]);
+  }, []);
 
   // Debounce free-text search so we don't hammer the DB on each
   // keystroke. 300ms matches the UX feel on the Organizations page.
@@ -221,7 +226,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
   const refetch = React.useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await actions.listInvoices(filters);
+    const result = await actionsRef.current.listInvoices(filters);
     if (isErrorResponse(result)) {
       setError(result.detail || 'Failed to load invoices.');
       setData(null);
@@ -232,7 +237,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
       setData(result as AdminInvoiceListResponse);
     }
     setLoading(false);
-  }, [actions, filters]);
+  }, [filters]);
 
   React.useEffect(() => {
     void refetch();
@@ -380,7 +385,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
           {error ? (
             <div className="flex flex-col items-center justify-center gap-3 py-12">
               <AlertCircle className="h-5 w-5 text-destructive" />
@@ -399,7 +404,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
               <p className="text-body-muted">No invoices match the current filters.</p>
             </div>
           ) : (
-            <table className="text-body w-full caption-bottom border-separate border-spacing-0">
+            <table className="text-body w-full min-w-[880px] caption-bottom border-separate border-spacing-0">
               <thead className="bg-muted/40 sticky top-0 z-10">
                 <tr className="text-caption text-left text-muted-foreground">
                   <th className="border-b border-border px-3 py-2 font-medium">Date</th>

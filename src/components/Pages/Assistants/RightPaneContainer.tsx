@@ -104,6 +104,8 @@ interface RightPaneContainerProps {
   renderDockedCall?: () => React.ReactNode;
   /** True while a Brain section overlay hides the workspace pane (Actions SSE stays live). */
   workspacePaneObscured?: boolean;
+  /** False when the assistants surface is hidden behind settings/admin routes. */
+  isActiveSurface?: boolean;
 }
 
 /**
@@ -141,6 +143,7 @@ export function RightPaneContainer({
   coordinatorOnboarding,
   renderDockedCall,
   workspacePaneObscured = false,
+  isActiveSurface = true,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. The Actions body owns the
@@ -226,6 +229,8 @@ export function RightPaneContainer({
           assistant={assistant}
           ownerId={assistant.userId}
           assistantId={assistant.agentId}
+          isVisible={activeTab === 'tasks'}
+          isActiveSurface={isActiveSurface}
         />
       </TabsContent>
 
@@ -253,6 +258,7 @@ export function RightPaneContainer({
           secretActions={assistantActions.secret}
           canWrite={canWrite}
           isVisible={activeTab === 'integrations'}
+          isActiveSurface={isActiveSurface}
           onSecretsCountChange={
             coordinatorOnboarding?.onStepComplete
               ? (count) => {

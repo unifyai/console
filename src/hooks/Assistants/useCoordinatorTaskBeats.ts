@@ -64,19 +64,21 @@ export interface CoordinatorTaskBeats {
 
 export function useCoordinatorTaskBeats(
   assistant: Assistant,
-  { enabled }: { enabled: boolean }
+  { enabled, isActiveSurface = true }: { enabled: boolean; isActiveSurface?: boolean }
 ): CoordinatorTaskBeats {
+  const tasksDataEnabled = enabled && isActiveSurface;
   const { tasks, refetch } = useTasksData({
     assistant,
-    ownerId: enabled ? assistant.userId : '',
-    assistantId: enabled ? assistant.agentId : '',
+    ownerId: assistant.userId,
+    assistantId: assistant.agentId,
+    enabled: tasksDataEnabled,
   });
 
   React.useEffect(() => {
-    if (!enabled) return;
+    if (!tasksDataEnabled) return;
     const interval = setInterval(() => refetch(), REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [enabled, refetch]);
+  }, [tasksDataEnabled, refetch]);
 
   const armedTriggerableTaskId = React.useMemo(() => {
     const match = tasks.rows.find((row) => hasTriggerShape(row) && !hasScheduleShape(row));

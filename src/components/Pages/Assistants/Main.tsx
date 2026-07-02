@@ -2715,6 +2715,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     infoPanelFocusLayoutRequest={profileInfoPanelFocusLayoutRequest}
                     coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                     onOpenChatSection={handleOpenChatSection}
+                    isActiveSurface={isActiveSurface}
                   >
                     {(infoPanel) => {
                       const rightPane = (
@@ -2745,6 +2746,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           paneState={paneState}
                           onPaneStateChange={setPaneState}
                           workspacePaneObscured={activeBrainSectionId !== null}
+                          isActiveSurface={isActiveSurface}
                           infoPanel={infoPanel}
                           coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                           renderDockedCall={

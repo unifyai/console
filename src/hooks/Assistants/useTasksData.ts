@@ -29,6 +29,7 @@ interface UseTasksDataOptions {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  enabled?: boolean;
 }
 
 interface SortState {
@@ -144,6 +145,7 @@ export function useTasksData({
   assistant,
   ownerId,
   assistantId,
+  enabled = true,
 }: UseTasksDataOptions): UseTasksDataResult {
   const [states, setStates] = React.useState<TaskStates>({
     tasks: emptyState(),
@@ -195,7 +197,7 @@ export function useTasksData({
   fetchAllRef.current = fetchAll;
 
   React.useEffect(() => {
-    if (!ownerId || !assistantId) return;
+    if (!enabled || !ownerId || !assistantId) return;
 
     const cached = readTabDataCache<{
       tasks: TaskStates['tasks'];
@@ -214,7 +216,7 @@ export function useTasksData({
     setTaskView('Tasks');
     setHasRunningTaskRun(false);
     void fetchAllRef.current();
-  }, [ownerId, assistantId, cacheKey]);
+  }, [enabled, ownerId, assistantId, cacheKey]);
 
   const sort = React.useCallback(
     async (field: string, direction: 'asc' | 'desc' | null) => {

@@ -121,6 +121,8 @@ export interface AssistantInfoSidePanelContentProps {
      * call- vs chat-flavoured "Ask T-W1N to do something" chips. */
     isOnCall?: boolean;
   };
+  /** When false, suppresses background task polling for coordinator onboarding beats. */
+  isActiveSurface?: boolean;
   onStartCall?: (assistant: Assistant, type: 'audio' | 'video') => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
@@ -225,6 +227,7 @@ export function AssistantInfoSidePanelContent({
         isStartCallDisabled={props.isStartCallDisabled}
         startCallTooltip={props.startCallTooltip}
         hideHeaderEdit={props.hideHeaderEdit}
+        isActiveSurface={props.isActiveSurface}
         onRegisterFocusProfileTab={onRegisterFocusProfileTab}
       />
     );
@@ -255,6 +258,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   startCallTooltip,
   hideHeaderEdit = false,
   onRegisterFocusProfileTab,
+  isActiveSurface = true,
 }: {
   assistant: Assistant;
   onClose: () => void;
@@ -271,9 +275,13 @@ function CoordinatorAssistantInfoSidePanelContent({
   startCallTooltip?: string;
   hideHeaderEdit?: boolean;
   onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
+  isActiveSurface?: boolean;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
-  const taskBeats = useCoordinatorTaskBeats(assistant, { enabled: showOnboardingTab });
+  const taskBeats = useCoordinatorTaskBeats(assistant, {
+    enabled: showOnboardingTab,
+    isActiveSurface,
+  });
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(

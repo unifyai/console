@@ -36,6 +36,7 @@ interface UseProviderIntegrationCatalogOptions {
   query?: string;
   sourceType?: ProviderCatalogSourceType | null;
   statusGroups?: ProviderAppStatusGroup[];
+  enabled?: boolean;
 }
 
 function buildProviderIntegrationCallbackUrl(returnTo: string, assistantId: string): string {
@@ -120,6 +121,7 @@ export function useProviderIntegrationCatalog(
   assistantId: string,
   options: UseProviderIntegrationCatalogOptions = {}
 ) {
+  const enabled = options.enabled ?? true;
   const ownerScope = options.ownerScope ?? 'assistant';
   const query = options.query ?? '';
   const sourceType = options.sourceType ?? null;
@@ -154,7 +156,7 @@ export function useProviderIntegrationCatalog(
   const hasMore = !isMock && hasLoaded && hasMoreServer;
 
   const fetchCatalog = React.useCallback(async () => {
-    if (!assistantId) return;
+    if (!enabled || !assistantId) return;
     const useMock = shouldUseMockProviderIntegrations();
     setIsMock(useMock);
     if (useMock) {
@@ -273,7 +275,7 @@ export function useProviderIntegrationCatalog(
       setIsLoading(false);
       setHasLoaded(true);
     }
-  }, [assistantId, ownerScope, query, sourceType, statusGroups]);
+  }, [assistantId, enabled, ownerScope, query, sourceType, statusGroups]);
 
   const loadMore = React.useCallback(async () => {
     if (!assistantId || isMock || isLoadingMoreRef.current || isLoading || !hasMoreServer) {

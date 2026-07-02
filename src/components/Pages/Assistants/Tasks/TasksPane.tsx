@@ -37,6 +37,8 @@ interface TasksPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  isVisible?: boolean;
+  isActiveSurface?: boolean;
   /**
    * Notifies the parent whenever the pane's task count changes. Used by
    * the Coordinator onboarding flow to auto-mark the "Assign a task" step
@@ -46,9 +48,17 @@ interface TasksPaneProps {
   onTasksCountChange?: (count: number) => void;
 }
 
-export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange }: TasksPaneProps) {
+export function TasksPane({
+  assistant,
+  ownerId,
+  assistantId,
+  isVisible = true,
+  isActiveSurface = true,
+  onTasksCountChange,
+}: TasksPaneProps) {
+  const tasksDataEnabled = isVisible && isActiveSurface;
   const { tasks, taskRuns, hasRunningTaskRun, isLoading, error, search, clearSearch, refetch } =
-    useTasksData({ assistant, ownerId, assistantId });
+    useTasksData({ assistant, ownerId, assistantId, enabled: tasksDataEnabled });
 
   const tasksCount = tasks.count;
   useEffect(() => {
