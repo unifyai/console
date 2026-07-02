@@ -201,6 +201,9 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   const screenShareTracks = useTracks([Track.Source.ScreenShare]);
   const screenShareTrack = screenShareTracks?.[0];
 
+  const desktopActionsRef = React.useRef(assistantActions.desktop);
+  desktopActionsRef.current = assistantActions.desktop;
+
   // Fire system events when user screen share state changes.
   const prevScreenShareEnabledRef = React.useRef(screenShareToggle.enabled);
   React.useEffect(() => {
@@ -209,14 +212,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     prevScreenShareEnabledRef.current = isOn;
     if (wasOn === isOn || !assistant) return;
 
-    assistantActions.desktop
+    desktopActionsRef.current
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
         isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
       )
       .catch(console.error);
-  }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
+  }, [screenShareToggle.enabled, assistant]);
 
   // Fire system events when user webcam state changes.
   const prevCamEnabledRef = React.useRef(camToggle.enabled);
@@ -226,14 +229,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     prevCamEnabledRef.current = isOn;
     if (wasOn === isOn || !assistant) return;
 
-    assistantActions.desktop
+    desktopActionsRef.current
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_webcam_started' : 'user_webcam_stopped',
         isOn ? 'User enabled their webcam' : 'User disabled their webcam'
       )
       .catch(console.error);
-  }, [camToggle.enabled, assistant, assistantActions.desktop]);
+  }, [camToggle.enabled, assistant]);
 
   const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
   const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);

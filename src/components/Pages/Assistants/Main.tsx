@@ -1771,18 +1771,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleOpenContactManager = React.useCallback(
     (assistant: Assistant, tab: ContactManagerInitialTab = 'email') => {
-      loadAssistantForEdit(assistant);
       setContactManagerInitialTab(tab);
       setContactManagerAssistant(assistant);
     },
-    [loadAssistantForEdit]
+    []
   );
 
-  const handleOpenWorkspaceManager = (assistant: Assistant) => {
-    loadAssistantForEdit(assistant);
+  const handleOpenWorkspaceManager = React.useCallback((assistant: Assistant) => {
     setWorkspaceManagerInitialProvider(null);
     setWorkspaceManagerAssistant(assistant);
-  };
+  }, []);
 
   // Handler bag forwarded to the coordinator's assistant info
   // panel "Onboarding" sub-tab. ``connect-workspace`` is kept wired
@@ -2057,10 +2055,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isOnCall:
         !!activeCallAssistant && activeCallAssistant.agentId === canonicalCoordinator.agentId,
     };
-    // ``handleOpenWorkspaceManager`` isn't a useCallback (defined
-    // inline above) so it intentionally isn't in the deps — using
-    // its stable identity across renders would require lifting it
-    // to a ref, which is overkill for this rarely-reactive surface.
+    // ``handleOpenWorkspaceManager`` is stable (useCallback) but omitted from
+    // deps — this surface rarely re-reacts to handler identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isCanonicalCoordinatorOwned,

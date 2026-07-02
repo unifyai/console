@@ -98,6 +98,13 @@ export function useAssistantContactManager({
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
   const grantedFeaturesRequestRef = React.useRef(0);
 
+  // Bootstrap rebuilds ``assistantActions`` on every server render, so the
+  // ``contact`` object identity changes on each ``router.refresh()``. Read
+  // actions through a ref so those churns don't re-trigger the fetches below
+  // and flash loaders / empty states.
+  const contactActionsRef = React.useRef(assistantActions.contact);
+  contactActionsRef.current = assistantActions.contact;
+
   const grantedFeaturesResolved = grantedFeatures !== null || !isLoadingFeatures;
   const isByodEmail = !!assistant.email && !!grantedFeatures?.provider;
   const isPlatformEmail =
@@ -129,7 +136,7 @@ export function useAssistantContactManager({
       setIsLoadingPhoneCountries(true);
       try {
         const [countries, visitorCountry] = await Promise.all([
-          assistantActions.contact.listAvailablePhoneCountries(),
+          contactActionsRef.current.listAvailablePhoneCountries(),
           fetchVisitorCountry(),
         ]);
         if (cancelled) return;
@@ -172,7 +179,7 @@ export function useAssistantContactManager({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, assistantActions.contact, getValues, setValue]);
+  }, [isOpen, getValues, setValue]);
 
   // Fetch social platforms when dialog opens (for WhatsApp cost calculation)
   React.useEffect(() => {
@@ -183,7 +190,7 @@ export function useAssistantContactManager({
     async function loadSocialPlatforms() {
       setIsLoadingSocialPlatforms(true);
       try {
-        const result = await assistantActions.contact.listAvailableSocialPlatforms();
+        const result = await contactActionsRef.current.listAvailableSocialPlatforms();
         if (cancelled) return;
 
         if (Array.isArray(result)) {
@@ -206,7 +213,7 @@ export function useAssistantContactManager({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, assistantActions.contact]);
+  }, [isOpen]);
 
   // Fetch contact costs from the admin billing endpoint when dialog opens
   React.useEffect(() => {
@@ -217,7 +224,7 @@ export function useAssistantContactManager({
     async function loadContactCosts() {
       setIsLoadingContactCosts(true);
       try {
-        const result = await assistantActions.contact.fetchContactCosts();
+        const result = await contactActionsRef.current.fetchContactCosts();
         if (cancelled) return;
 
         if ('detail' in result && typeof (result as ResponseProps).detail === 'string') {
@@ -244,7 +251,7 @@ export function useAssistantContactManager({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, assistantActions.contact]);
+  }, [isOpen]);
 
   // Refetch the assistant's granted features (BYOD provider, scopes, and the
   // connected account email). The response determines whether the email is
@@ -252,33 +259,38 @@ export function useAssistantContactManager({
   // file picker. In-flight requests are keyed so overlapping fetches (e.g.
   // OAuth-complete refetch while a prior response is still pending) cannot
   // clear the loading flag early or apply stale results out of order.
-  const refetchGrantedFeatures = React.useCallback(async () => {
-    if (!assistant.email) return;
-    const requestId = ++grantedFeaturesRequestRef.current;
-    setIsLoadingFeatures(true);
-    try {
-      const result = await assistantActions.contact.getGrantedFeatures(assistant.agentId);
-      if (requestId !== grantedFeaturesRequestRef.current) return;
+  const refetchGrantedFeatures = React.useCallback(
+    async (background = false) => {
+      if (!assistant.email) return;
+      const requestId = ++grantedFeaturesRequestRef.current;
+      if (!background) {
+        setIsLoadingFeatures(true);
+      }
+      try {
+        const result = await contactActionsRef.current.getGrantedFeatures(assistant.agentId);
+        if (requestId !== grantedFeaturesRequestRef.current) return;
 
-      if ('detail' in result) {
-        console.warn(
-          '[useAssistantContactManager] Failed to fetch granted features:',
-          (result as ResponseProps).detail
-        );
-      } else {
-        const feats = result as GrantedFeaturesResponse;
-        setGrantedFeatures(feats);
-        setSelectedFeatures(feats.features);
+        if ('detail' in result) {
+          console.warn(
+            '[useAssistantContactManager] Failed to fetch granted features:',
+            (result as ResponseProps).detail
+          );
+        } else {
+          const feats = result as GrantedFeaturesResponse;
+          setGrantedFeatures(feats);
+          setSelectedFeatures(feats.features);
+        }
+      } catch (error) {
+        if (requestId !== grantedFeaturesRequestRef.current) return;
+        console.warn('[useAssistantContactManager] Error fetching granted features:', error);
+      } finally {
+        if (requestId === grantedFeaturesRequestRef.current && !background) {
+          setIsLoadingFeatures(false);
+        }
       }
-    } catch (error) {
-      if (requestId !== grantedFeaturesRequestRef.current) return;
-      console.warn('[useAssistantContactManager] Error fetching granted features:', error);
-    } finally {
-      if (requestId === grantedFeaturesRequestRef.current) {
-        setIsLoadingFeatures(false);
-      }
-    }
-  }, [assistant.email, assistant.agentId, assistantActions.contact]);
+    },
+    [assistant.email, assistant.agentId]
+  );
 
   // Drop any cached granted-features snapshot when switching assistants while
   // the dialog stays open.
@@ -289,7 +301,7 @@ export function useAssistantContactManager({
   // Fetch granted features when the dialog opens and an email exists.
   React.useEffect(() => {
     if (!isOpen || !assistant.email) return;
-    void refetchGrantedFeatures();
+    void refetchGrantedFeatures(false);
     return () => {
       grantedFeaturesRequestRef.current += 1;
     };
@@ -304,7 +316,7 @@ export function useAssistantContactManager({
   React.useEffect(() => {
     if (!isOpen) return;
     return subscribeOAuthComplete(() => {
-      void refetchGrantedFeatures();
+      void refetchGrantedFeatures(true);
     });
   }, [isOpen, refetchGrantedFeatures]);
 
