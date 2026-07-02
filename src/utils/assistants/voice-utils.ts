@@ -6,6 +6,8 @@ import { Voice } from '@/types/assistants/assistant';
 import {
   applyApprovedCharacterVoiceMetadata,
   approvedCharacterVoiceIds,
+  approvedCharacterVoiceMetadata,
+  coordinatorDefaultVoiceId,
   defaultCharacterVoiceId,
 } from '@/constants/assistants/approved_character_voices';
 
@@ -179,6 +181,24 @@ export const getDefaultVoiceForProvider = () => {
     };
   }
   return applyApprovedCharacterVoiceMetadata(suitableDefault);
+};
+
+export const getCoordinatorDefaultVoice = () => {
+  const metadata = approvedCharacterVoiceMetadata[coordinatorDefaultVoiceId];
+  const preset = (voice_presets as Voice[]).find(
+    (voice) => voice.voiceId === coordinatorDefaultVoiceId && voice.provider === metadata.provider
+  );
+  if (preset) {
+    return applyApprovedCharacterVoiceMetadata(preset);
+  }
+  return applyApprovedCharacterVoiceMetadata({
+    voiceId: coordinatorDefaultVoiceId,
+    name: metadata.name,
+    description: metadata.description,
+    gender: metadata.gender,
+    language: metadata.language,
+    provider: metadata.provider,
+  } as Voice);
 };
 
 export const getAudioDuration = (blob: Blob): Promise<number> => {
