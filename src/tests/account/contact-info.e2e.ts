@@ -214,6 +214,10 @@ test('removing a saved number clears it from the database eagerly', async ({
 test('clicking Verify again while the code section is open does not collapse it', async ({
   authedPage: page,
 }) => {
+  test.setTimeout(90_000);
+  dbExec(`UPDATE "user" SET phone_number = NULL WHERE id = '${user.id}'`);
+
+  await page.clock.install({ time: new Date('2025-01-01T00:00:00Z') });
   await page.goto('/account?tab=contact-info');
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
 
@@ -236,6 +240,8 @@ test('clicking Verify again while the code section is open does not collapse it'
   const resendBtn = page.getByRole('button', { name: /Resend/ });
   await expect(resendBtn).toBeVisible();
 
+  await page.clock.fastForward(61_000);
+  await expect(resendBtn).toBeEnabled({ timeout: 5_000 });
   await resendBtn.click();
   await expect(codeInput).toBeVisible();
   await expect(resendBtn).toBeVisible();

@@ -26,6 +26,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   openAssistantInfoPanelFromList,
+  openAssistantInfoPanel,
 } from './helpers';
 
 const user = createTestUser({ name: 'ListE2E', lastName: 'Tester', credits: 50_000 });
@@ -189,7 +190,7 @@ test('the chat info side panel can be resized down to its minimum width', async 
   await closeHireDialogIfOpen(page);
 
   await selectAssistantInList(page, titled.agentId);
-  await openAssistantInfoPanelFromList(page, titled.agentId);
+  await openAssistantInfoPanel(page);
 
   const infoSheet = page.getByTestId('assistant-info-sheet');
   await expect(infoSheet).toBeVisible({ timeout: 5_000 });
