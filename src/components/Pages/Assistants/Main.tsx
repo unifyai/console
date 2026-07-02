@@ -31,9 +31,21 @@ const AssistantHire = dynamic(
   () => import('./Hire/AssistantHire').then((m) => ({ default: m.AssistantHire })),
   { loading: () => null }
 );
+function AssistantEditLoadingOverlay() {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--overlay)] backdrop-blur-sm"
+      aria-busy="true"
+      aria-label="Loading profile editor"
+    >
+      <Loader />
+    </div>
+  );
+}
+
 const AssistantEdit = dynamic(
   () => import('./Edit/AssistantEdit').then((m) => ({ default: m.AssistantEdit })),
-  { loading: () => null }
+  { loading: () => <AssistantEditLoadingOverlay /> }
 );
 const CoordinatorOnboarding = dynamic(
   () =>
@@ -967,6 +979,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- Dialogs & Forms ---
   const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
   const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
+  const [isEditFormReady, setIsEditFormReady] = React.useState(false);
   const [contactManagerAssistant, setContactManagerAssistant] = React.useState<Assistant | null>(
     null
   );
@@ -1600,6 +1613,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     (updatedPayload?: Partial<AssistantUpdatePayload>) => {
       refreshAssistants(false);
       setAssistantToEdit(null);
+      setIsEditFormReady(false);
       setContactManagerAssistant(null);
       // Note: desktopMode is set at creation time only and cannot be updated,
       // so we no longer show setup instructions on update
@@ -1735,13 +1749,34 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     applyRandomUnityProfile,
   ]);
 
-  const handleOpenEditDialog = React.useCallback(
-    (assistant: Assistant) => {
+  React.useEffect(() => {
+    void import('./Edit/AssistantEdit');
+  }, []);
+
+  React.useEffect(() => {
+    if (!assistantToEdit) {
+      setIsEditFormReady(false);
+      return;
+    }
+
+    const assistant = assistantToEdit;
+    const frame = requestAnimationFrame(() => {
       loadAssistantForEdit(assistant);
-      setAssistantToEdit(assistant);
-    },
-    [loadAssistantForEdit]
-  );
+      setIsEditFormReady(true);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [assistantToEdit, loadAssistantForEdit]);
+
+  const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
+    setIsEditFormReady(false);
+    setAssistantToEdit(assistant);
+  }, []);
+
+  const handleCloseEditDialog = React.useCallback(() => {
+    setAssistantToEdit(null);
+    setIsEditFormReady(false);
+  }, []);
 
   const handleOpenContactManager = React.useCallback(
     (assistant: Assistant, tab: ContactManagerInitialTab = 'email') => {
@@ -2828,7 +2863,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           {assistantToEdit && (
             <AssistantEdit
               isOpen={!!assistantToEdit}
-              onClose={() => setAssistantToEdit(null)}
+              onClose={handleCloseEditDialog}
               assistant={assistantToEdit}
               formMethods={formMethods}
               onSubmit={initiateUpdate}
@@ -2839,29 +2874,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onDeleteAssistant={onDeleteAssistantSubmit}
               canDelete={canEndContract(assistantToEdit)}
             >
-              <HireForm
-                formMethods={formMethods}
-                onSubmit={initiateUpdate}
-                isSubmitting={isFormSubmitting}
-                assistantActions={assistantActions}
-                onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
-                onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
-                allDisplayableVoices={allDisplayableVoices}
-                isLoadingUserVoices={isLoadingUserVoices}
-                fetchUserVoices={fetchUserVoices}
-                handleDeleteVoice={handleDeleteVoice}
-                onNewMediaReady={onNewMediaReady}
-                mode="edit"
-                onAddPaymentMethod={goToBilling}
-                lockIdentityFields={assistantToEdit.isCoordinator}
-                lockAppearanceControls={assistantToEdit.isCoordinator}
-                onWorkspaceProviderSelect={(provider) => {
-                  if (!assistantToEdit) return;
-                  setWorkspaceManagerInitialProvider(provider);
-                  setWorkspaceManagerAssistant(assistantToEdit);
-                  setAssistantToEdit(null);
-                }}
-              />
+              {isEditFormReady ? (
+                <HireForm
+                  formMethods={formMethods}
+                  onSubmit={initiateUpdate}
+                  isSubmitting={isFormSubmitting}
+                  assistantActions={assistantActions}
+                  onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
+                  onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
+                  allDisplayableVoices={allDisplayableVoices}
+                  isLoadingUserVoices={isLoadingUserVoices}
+                  fetchUserVoices={fetchUserVoices}
+                  handleDeleteVoice={handleDeleteVoice}
+                  onNewMediaReady={onNewMediaReady}
+                  mode="edit"
+                  onAddPaymentMethod={goToBilling}
+                  lockIdentityFields={assistantToEdit.isCoordinator}
+                  lockAppearanceControls={assistantToEdit.isCoordinator}
+                  onWorkspaceProviderSelect={(provider) => {
+                    if (!assistantToEdit) return;
+                    setWorkspaceManagerInitialProvider(provider);
+                    setWorkspaceManagerAssistant(assistantToEdit);
+                    handleCloseEditDialog();
+                  }}
+                />
+              ) : (
+                <div className="flex h-full min-h-[40vh] items-center justify-center">
+                  <Loader />
+                </div>
+              )}
             </AssistantEdit>
           )}
           {contactManagerAssistant && (

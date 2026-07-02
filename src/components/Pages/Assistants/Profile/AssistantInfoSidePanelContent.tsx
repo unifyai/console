@@ -363,7 +363,7 @@ function CoordinatorAssistantInfoSidePanelContent({
               />
             </TabsContent>
           )}
-          <TabsContent value="profile" className="mt-0">
+          <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
             <ProfileSectionsPanel
               assistant={assistant}
               onEditProfile={onEditProfile}
@@ -537,7 +537,7 @@ function RegularAssistantInfoSidePanelContent({
                 userPhoneNumber={roadmap.userPhoneNumber}
               />
             </TabsContent>
-            <TabsContent value="profile" className="mt-0">
+            <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
               {profileBody()}
             </TabsContent>
           </Tabs>
