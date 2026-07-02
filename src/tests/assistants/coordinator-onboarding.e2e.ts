@@ -298,6 +298,19 @@ test('checklist allows independent sections to start out of order', async ({
   await expect(page.getByTestId('coordinator-onboarding-blocking-arrow-slack-connect')).toHaveText(
     '← Locked'
   );
+  await selectCoordinatorCommunicationSubgroup(page, 'discord');
+  await expect(page.getByTestId('coordinator-onboarding-item-discord-connect')).toHaveAttribute(
+    'data-status',
+    'locked'
+  );
+  await page.getByTestId('coordinator-onboarding-item-discord-reference').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-discord-reference')).toHaveAttribute(
+    'data-blocked-feedback',
+    'true'
+  );
+  await expect(
+    page.getByTestId('coordinator-onboarding-blocking-arrow-discord-connect')
+  ).toHaveText('← Locked');
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
