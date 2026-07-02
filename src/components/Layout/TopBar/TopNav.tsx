@@ -49,9 +49,10 @@ import { useEnvironment, useFeatures } from '@/components/Pages/Providers/Enviro
 import { UserOrganization } from '@/types/user';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
+import AccountResetDialog from '@/components/Layout/TopBar/AccountResetDialog';
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
-import { OnboardingProgressShortcut } from '@/components/Layout/TopBar/OnboardingProgressShortcut';
+import { AssistantsNavPanelShortcut } from '@/components/Layout/TopBar/AssistantsNavPanelShortcut';
 
 const getInitials = (name: string) =>
   name
@@ -76,7 +77,11 @@ function WorkspaceInitialBadge({ name, size }: { name: string; size: 'sm' | 'md'
 
 export default function TopNav() {
   const pathname = usePathname();
-  const { billing: billingEnabled, support: supportEnabled } = useFeatures();
+  const {
+    billing: billingEnabled,
+    support: supportEnabled,
+    accountReset: accountResetEnabled,
+  } = useFeatures();
   const { isSelfHost } = useEnvironment();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +91,7 @@ export default function TopNav() {
   const [showPersonalWorkspaceConfirm, setShowPersonalWorkspaceConfirm] = useState(false);
   const [showSelfHostResetConfirm, setShowSelfHostResetConfirm] = useState(false);
   const [isSelfHostResetting, setIsSelfHostResetting] = useState(false);
+  const [showAccountResetConfirm, setShowAccountResetConfirm] = useState(false);
   const [workspacePhotos, setWorkspacePhotos] = useState<Record<string, string>>({});
   const [showImpersonateDialog, setShowImpersonateDialog] = useState(false);
 
@@ -455,10 +461,10 @@ export default function TopNav() {
             </Button>
           )/*}
 
+          <AssistantsNavPanelShortcut />
+
           {/* Support Ticket — only when a support delivery channel is configured */}
           {supportEnabled && <SupportTicketDialog />}
-
-          <OnboardingProgressShortcut />
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
@@ -532,6 +538,19 @@ export default function TopNav() {
                 >
                   <UserSearch className="mr-2 h-4 w-4" />
                   <span>View as user</span>
+                </DropdownMenuItem>
+              )}
+              {accountResetEnabled && isUnifyMember && (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setShowAccountResetConfirm(true);
+                  }}
+                  className="text-body flex cursor-pointer items-center hover:text-[color:var(--foreground)]"
+                  data-testid="reset-account-menu-item"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  <span>Reset account</span>
                 </DropdownMenuItem>
               )}
               {isUnifyAdmin && (
@@ -619,6 +638,11 @@ export default function TopNav() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AccountResetDialog
+        open={showAccountResetConfirm}
+        onOpenChange={setShowAccountResetConfirm}
+      />
     </div>
   );
 }

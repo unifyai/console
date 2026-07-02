@@ -337,7 +337,7 @@ export function ChatSearchDialog({
                   className={cn(
                     'w-full rounded-md border px-3 py-2 text-left transition-colors',
                     selectedResultId === result.id
-                      ? 'bg-primary/5 border-primary'
+                      ? 'border-primary bg-primary-tint-5'
                       : 'border-transparent hover:bg-muted'
                   )}
                   data-testid="chat-search-result-item"

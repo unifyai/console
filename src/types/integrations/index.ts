@@ -148,6 +148,9 @@ export interface IntegrationDefinition {
   tools: IntegrationToolPreview[];
   toolCount?: number;
   apiKeySchema?: IntegrationApiKeySchema | null;
+  // OAuth-capable app with no provider-managed credentials: it can only be
+  // connected once an admin registers a custom ("bring your own") OAuth app.
+  requiresCustomOauth?: boolean;
   docsUrl?: string | null;
   connections: IntegrationConnection[];
   staticProvider?: IntegrationProviderConfig;

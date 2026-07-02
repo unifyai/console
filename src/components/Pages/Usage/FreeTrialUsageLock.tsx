@@ -19,7 +19,7 @@ const FreeTrialUsageLock = () => {
                 href={CONTACT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-primary/80 font-medium text-primary underline underline-offset-4"
+                className="font-medium text-primary underline underline-offset-4 hover:text-primary-tint-80"
               >
                 Get in touch
               </a>{' '}

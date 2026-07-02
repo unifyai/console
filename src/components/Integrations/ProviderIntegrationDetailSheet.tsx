@@ -34,6 +34,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { ConnectedAccountsSection } from './ConnectedAccountsSection';
 import { ProviderApiKeyForm } from './ProviderApiKeyForm';
+import { ProviderCustomOAuthSection } from './ProviderCustomOAuthSection';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
 import { integrationAuthLabels } from './integrationType';
 import {
@@ -149,7 +150,7 @@ function PermissionList({
                 'max-w-full overflow-hidden truncate whitespace-nowrap rounded-full border px-2.5 py-1 font-mono text-xs leading-4 transition',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'bg-muted/40 hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                  : 'bg-muted/40 text-muted-foreground hover:border-primary-tint-50 hover:text-foreground'
               )}
               onClick={() => onToggleScope(scope.id)}
               aria-pressed={selected}
@@ -518,6 +519,7 @@ export function ProviderIntegrationDetailSheet({
   onTestConnection,
   onUpdateConnectionLabel,
   isDetailLoading,
+  canManageCustomAuth = false,
 }: {
   item: IntegrationGalleryItem | null;
   open: boolean;
@@ -540,6 +542,13 @@ export function ProviderIntegrationDetailSheet({
     accountLabel: string
   ) => Promise<void> | void;
   isDetailLoading?: boolean;
+  /**
+   * When true, shows an admin surface for configuring a bring-your-own OAuth
+   * app (custom client id/secret) for OAuth-capable provider apps. This is
+   * platform-level configuration, so callers must only enable it for users
+   * allowed to manage integration backends.
+   */
+  canManageCustomAuth?: boolean;
 }) {
   const snapshot = React.useRef<IntegrationGalleryItem | null>(null);
   const [selectedScopeIds, setSelectedScopeIds] = React.useState<string[]>([]);
@@ -856,7 +865,7 @@ export function ProviderIntegrationDetailSheet({
                           <Badge
                             key={label}
                             variant="outline"
-                            className="border-primary/20 bg-primary/5 rounded-full text-foreground"
+                            className="rounded-full border-primary-tint-20 bg-primary-tint-5 text-foreground"
                           >
                             {label}
                           </Badge>
@@ -960,6 +969,22 @@ export function ProviderIntegrationDetailSheet({
                       visibleConnectionCount > 0 &&
                       renderAccountSection('account')}
 
+                    {displayItem.requiresCustomOauth && !isConnectedApp && !isNativeApp && (
+                      <Alert
+                        className="bg-muted/20"
+                        data-testid="integration-requires-custom-oauth"
+                      >
+                        <AlertTitle>Custom OAuth app required</AlertTitle>
+                        <AlertDescription>
+                          {displayItem.displayName} has no managed credentials, so it can only be
+                          connected with your own OAuth app.{' '}
+                          {canManageCustomAuth
+                            ? 'Configure one under "Bring your own OAuth" below before connecting.'
+                            : 'Ask a workspace admin to configure OAuth credentials for it.'}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     {displayItem.apiKeySchema && onApiKeySubmit && (
                       <section className="space-y-3">
                         <h3 className="text-title text-base">Credential</h3>
@@ -969,6 +994,13 @@ export function ProviderIntegrationDetailSheet({
                           onSubmit={(values) => onApiKeySubmit(displayItem, values)}
                         />
                       </section>
+                    )}
+
+                    {canManageCustomAuth && !isNativeApp && (
+                      <ProviderCustomOAuthSection
+                        item={displayItem}
+                        backendId={displayItem.sourceMetadata?.backendId || 'composio'}
+                      />
                     )}
 
                     {displayItem.tools.length > 0 && (

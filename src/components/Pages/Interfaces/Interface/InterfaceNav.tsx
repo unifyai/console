@@ -2133,12 +2133,12 @@ export default function InterfaceNav({
               ref={dragRef}
               onMouseDown={handleMouseDown}
               className={cn(
-                'hover:bg-primary/40 absolute bottom-0 right-0 top-0 z-10 w-1 cursor-ew-resize bg-transparent transition-colors',
+                'absolute bottom-0 right-0 top-0 z-10 w-1 cursor-ew-resize bg-transparent transition-colors hover:bg-primary-tint-40',
                 "after:absolute after:bottom-0 after:top-0 after:content-['']",
                 isCollapsed
                   ? 'after:left-[-2px] after:right-[-6px]'
                   : 'after:left-[-2px] after:right-[-2px]',
-                isDraggingSidebar && 'bg-primary/40'
+                isDraggingSidebar && 'bg-primary-tint-40'
               )}
             />
           )}
@@ -3371,7 +3371,7 @@ export default function InterfaceNav({
                         }
                       }
                     }}
-                    className="text-body file:text-label hover:file:bg-primary/90 block w-full text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-primary-foreground"
+                    className="text-body file:text-label block w-full text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-primary-foreground hover:file:opacity-90"
                   />
                 </div>
               }

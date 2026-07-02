@@ -529,137 +529,169 @@ export function useAssistantContactManager({
    * redirect), not this handler — the create button is hidden on the
    * email tab.
    */
-  const submitContact = React.useCallback(async () => {
-    if (isSubmittingContact) return;
-    if (
-      assistant.isCoordinator &&
-      (activeTab === 'email' || activeTab === 'phone' || activeTab === 'whatsapp')
-    ) {
-      return;
-    }
+  const submitContact = React.useCallback(
+    async (contactType: ContactType) => {
+      if (isSubmittingContact) return;
+      if (
+        assistant.isCoordinator &&
+        (contactType === 'email' || contactType === 'phone' || contactType === 'whatsapp')
+      ) {
+        return;
+      }
 
-    setIsSubmittingContact(true);
-    toastIdRef.current = toast.loading('Creating contact...', { id: toastIdRef.current });
+      setIsSubmittingContact(true);
+      toastIdRef.current = toast.loading('Creating contact...', { id: toastIdRef.current });
 
-    try {
-      const payload: AssistantContactCreatePayload = { contactType: activeTab };
+      try {
+        const payload: AssistantContactCreatePayload = { contactType };
 
-      switch (activeTab) {
-        case 'phone': {
-          const phoneCountry = getValues('phoneCountry');
-          payload.phoneCountry = phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE;
-          break;
+        switch (contactType) {
+          case 'phone': {
+            const phoneCountry = getValues('phoneCountry');
+            payload.phoneCountry = phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE;
+            break;
+          }
+
+          case 'whatsapp':
+          case 'discord':
+            break;
+
+          case 'email':
+            throw new Error('Email contacts are BYOD-only — use the OAuth Connect flow instead.');
         }
 
-        case 'whatsapp':
-        case 'discord':
-          break;
+        const createResult = await assistantActions.contact.create(assistant.agentId, payload);
 
-        case 'email':
-          throw new Error('Email contacts are BYOD-only — use the OAuth Connect flow instead.');
+        if ((createResult as ResponseProps).detail) {
+          throw new Error((createResult as ResponseProps).detail);
+        }
+
+        toast.success('Contact created successfully!', { id: toastIdRef.current });
+        toastIdRef.current = undefined;
+        onSuccess();
+      } catch (error: any) {
+        const errorMessage = error?.message || 'An error occurred while creating contact.';
+        toast.error(errorMessage, { id: toastIdRef.current });
+        toastIdRef.current = undefined;
+      } finally {
+        setIsSubmittingContact(false);
       }
-
-      const createResult = await assistantActions.contact.create(assistant.agentId, payload);
-
-      if ((createResult as ResponseProps).detail) {
-        throw new Error((createResult as ResponseProps).detail);
-      }
-
-      toast.success('Contact created successfully!', { id: toastIdRef.current });
-      toastIdRef.current = undefined;
-      onSuccess();
-    } catch (error: any) {
-      const errorMessage = error?.message || 'An error occurred while creating contact.';
-      toast.error(errorMessage, { id: toastIdRef.current });
-      toastIdRef.current = undefined;
-    } finally {
-      setIsSubmittingContact(false);
-    }
-  }, [
-    isSubmittingContact,
-    activeTab,
-    assistant.isCoordinator,
-    getValues,
-    assistant.agentId,
-    assistantActions.contact,
-    onSuccess,
-  ]);
+    },
+    [
+      isSubmittingContact,
+      assistant.isCoordinator,
+      getValues,
+      assistant.agentId,
+      assistantActions.contact,
+      onSuccess,
+    ]
+  );
 
   // ---------------------------------------------------------------------------
   // Computed values
   // ---------------------------------------------------------------------------
 
   /**
-   * One-time setup cost for the contact type on the active tab.
-   * Returns null when costs haven't been fetched yet so the UI can
-   * show a generic "setup fee applies" message instead of a wrong number.
+   * One-time setup cost for a given contact type. Returns null when costs
+   * haven't been fetched yet so the UI can show a generic "setup fee applies"
+   * message instead of a wrong number.
    *
    * Email is always free: platform-issued mailbox provisioning is no longer
    * offered, and BYOD email never incurs charges (the backend levy filters
    * `provisioned_by == "platform"`).
    */
-  const creationCost = React.useMemo((): number | null => {
-    if (activeTab === 'email') return 0;
-    if (!contactCosts) return null;
-    return contactCosts[activeTab]?.oneTimeCost ?? 0;
-  }, [activeTab, contactCosts]);
+  const getCreationCost = React.useCallback(
+    (type: ContactType): number | null => {
+      if (type === 'email') return 0;
+      if (!contactCosts) return null;
+      return contactCosts[type]?.oneTimeCost ?? 0;
+    },
+    [contactCosts]
+  );
 
   /**
-   * Estimated monthly cost for the contact type on the active tab.
-   * Returns null when costs haven't been fetched yet so the UI can
-   * show a generic "monthly fee applies" message instead of a wrong number.
-   *
-   * Email is always free — see ``creationCost`` above.
+   * Estimated monthly cost for a given contact type. Returns null when costs
+   * haven't been fetched yet so the UI can show a generic "monthly fee applies"
+   * message instead of a wrong number. Email is always free — see
+   * ``getCreationCost`` above.
    */
-  const monthlyCost = React.useMemo((): number | null => {
-    if (activeTab === 'email') return 0;
-    if (!contactCosts) return null;
-    return contactCosts[activeTab]?.monthlyCost ?? 0;
-  }, [activeTab, contactCosts]);
+  const getMonthlyCost = React.useCallback(
+    (type: ContactType): number | null => {
+      if (type === 'email') return 0;
+      if (!contactCosts) return null;
+      return contactCosts[type]?.monthlyCost ?? 0;
+    },
+    [contactCosts]
+  );
 
-  const isCreateButtonDisabled = React.useMemo(() => {
-    if (isSubmittingContact) return true;
-    if (
-      assistant.isCoordinator &&
-      (activeTab === 'email' || activeTab === 'phone' || activeTab === 'whatsapp')
-    ) {
-      return true;
-    }
-
-    switch (activeTab) {
-      case 'phone':
-        return isLoadingPhoneCountries || !userPhoneNumber;
-      case 'whatsapp':
-        return !userWhatsappNumber;
-      case 'discord':
-        return !userDiscordId;
-      // Email tab never shows a Create button — BYOD goes through Connect.
-      case 'email':
-      default:
+  const isCreateDisabledFor = React.useCallback(
+    (type: ContactType): boolean => {
+      if (isSubmittingContact) return true;
+      if (
+        assistant.isCoordinator &&
+        (type === 'email' || type === 'phone' || type === 'whatsapp')
+      ) {
         return true;
-    }
-  }, [
-    isSubmittingContact,
-    assistant.isCoordinator,
-    activeTab,
-    isLoadingPhoneCountries,
-    userPhoneNumber,
-    userWhatsappNumber,
-    userDiscordId,
-  ]);
+      }
 
-  const showCreateButton =
-    !assistant.isCoordinator &&
-    ((activeTab === 'phone' && !assistant.phone) ||
-      (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
-      (activeTab === 'discord' && !assistant.assistantDiscordBotId));
+      switch (type) {
+        case 'phone':
+          return isLoadingPhoneCountries || !userPhoneNumber;
+        case 'whatsapp':
+          return !userWhatsappNumber;
+        case 'discord':
+          return !userDiscordId;
+        // Email never shows a Create button — BYOD goes through Connect.
+        case 'email':
+        default:
+          return true;
+      }
+    },
+    [
+      isSubmittingContact,
+      assistant.isCoordinator,
+      isLoadingPhoneCountries,
+      userPhoneNumber,
+      userWhatsappNumber,
+      userDiscordId,
+    ]
+  );
 
-  const showDeleteButton =
-    !assistant.isCoordinator &&
-    ((activeTab === 'email' && !!isPlatformEmail) ||
-      (activeTab === 'phone' && !!assistant.phone) ||
-      (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
-      (activeTab === 'discord' && !!assistant.assistantDiscordBotId));
+  const showCreateFor = React.useCallback(
+    (type: ContactType): boolean => {
+      if (assistant.isCoordinator) return false;
+      return (
+        (type === 'phone' && !assistant.phone) ||
+        (type === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
+        (type === 'discord' && !assistant.assistantDiscordBotId)
+      );
+    },
+    [
+      assistant.isCoordinator,
+      assistant.phone,
+      assistant.assistantWhatsappNumber,
+      assistant.assistantDiscordBotId,
+    ]
+  );
+
+  const showDeleteFor = React.useCallback(
+    (type: ContactType): boolean => {
+      if (assistant.isCoordinator) return false;
+      return (
+        (type === 'email' && !!isPlatformEmail) ||
+        (type === 'phone' && !!assistant.phone) ||
+        (type === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
+        (type === 'discord' && !!assistant.assistantDiscordBotId)
+      );
+    },
+    [
+      assistant.isCoordinator,
+      assistant.phone,
+      assistant.assistantWhatsappNumber,
+      assistant.assistantDiscordBotId,
+      isPlatformEmail,
+    ]
+  );
 
   return {
     // Form methods for component bindings
@@ -695,12 +727,12 @@ export function useAssistantContactManager({
     // Contact costs (fetched from backend)
     contactCosts,
     isLoadingContactCosts,
-    // Button states & cost info
-    creationCost,
-    monthlyCost,
-    isCreateButtonDisabled,
-    showCreateButton,
-    showDeleteButton,
+    // Per-contact-type button states & cost info
+    getCreationCost,
+    getMonthlyCost,
+    isCreateDisabledFor,
+    showCreateFor,
+    showDeleteFor,
     // Delete confirmation
     confirmDelete,
     setConfirmDelete,

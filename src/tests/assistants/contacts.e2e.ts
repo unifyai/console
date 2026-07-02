@@ -30,6 +30,8 @@ import {
   clearUserWhatsappNumber,
   ensureProjectSync,
   dbExecBlock,
+  openContactManagerFromList,
+  openWorkspaceManagerFromList,
 } from './helpers';
 
 const user = createTestUser({ name: 'Contact', lastName: 'Tester', credits: 50_000 });
@@ -90,18 +92,15 @@ test.afterAll(() => {
 });
 
 /**
- * Select a contact type from the dropdown in the contact manager dialog.
+ * Locate a contact channel's section in the contact manager dialog. Every
+ * channel now renders as a stacked section (no dropdown), so tests scope their
+ * assertions and buttons to the relevant section rather than selecting a tab.
  */
-async function selectContactType(
+function contactSection(
   page: import('@playwright/test').Page,
-  type: 'email' | 'phone' | 'whatsapp'
+  type: 'email' | 'phone' | 'whatsapp' | 'discord' | 'slack'
 ) {
-  const trigger = page.getByTestId('contact-type-select');
-  await trigger.click();
-  await page.waitForTimeout(300);
-  const label = type === 'email' ? 'Email' : type === 'phone' ? 'Phone' : 'WhatsApp';
-  await page.getByRole('option', { name: label }).click();
-  await page.waitForTimeout(300);
+  return page.locator(`[data-contact-section="${type}"]`);
 }
 
 /**
@@ -114,24 +113,7 @@ async function openContactManager(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  // Open the dropdown menu on the list item
-  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  // Click "Contact Details" in the dropdown
-  const contactsItem = page.getByTestId('menu-update-contacts');
-  await expect(contactsItem).toBeVisible({ timeout: 5_000 });
-  await contactsItem.click();
-  await page.waitForTimeout(1_000);
-
-  await expect(page.locator('text=Update Contact')).toBeVisible({ timeout: 5_000 });
+  await openContactManagerFromList(page, targetAssistant.agentId);
 }
 
 async function openWorkspaceManager(
@@ -141,36 +123,19 @@ async function openWorkspaceManager(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  const workspaceItem = page.getByTestId('menu-update-workspace');
-  await expect(workspaceItem).toBeVisible({ timeout: 5_000 });
-  await workspaceItem.click();
-
-  await expect(page.getByRole('dialog').getByText('Workspace', { exact: true })).toBeVisible({
-    timeout: 5_000,
-  });
+  await openWorkspaceManagerFromList(page, targetAssistant.agentId);
 }
 
 test('adding a phone contact persists it to the database', async ({ authedPage: page }) => {
   await openContactManager(page);
 
-  // Switch to Phone via dropdown
-  await selectContactType(page, 'phone');
+  const phone = contactSection(page, 'phone');
 
   // Country selector should be visible with a default
-  const phoneCountry = page.locator('#phoneCountry');
+  const phoneCountry = phone.locator('#phoneCountry');
   await expect(phoneCountry).toBeVisible({ timeout: 5_000 });
 
-  const createBtn = page.getByRole('button', { name: 'Create' });
+  const createBtn = phone.getByRole('button', { name: 'Create' });
   await expect(createBtn).toBeVisible({ timeout: 5_000 });
 
   await Promise.all([
@@ -200,15 +165,14 @@ test('deleting a phone contact removes it from the database', async ({ authedPag
 
   await openContactManager(page);
 
-  // Switch to Phone via dropdown
-  await selectContactType(page, 'phone');
+  const phone = contactSection(page, 'phone');
 
-  await expect(page.getByText('Assistant phone contact is active.')).toBeVisible({
+  await expect(phone.getByText('Assistant phone contact is active.')).toBeVisible({
     timeout: 5_000,
   });
 
   // Delete
-  const deleteBtn = page.getByRole('button', { name: 'Delete' });
+  const deleteBtn = phone.getByRole('button', { name: 'Delete' });
   await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
   await deleteBtn.click();
 
@@ -240,15 +204,15 @@ test('phone create button is disabled when user has no phone number', async ({
   try {
     await openContactManager(page);
 
-    await selectContactType(page, 'phone');
+    const phone = contactSection(page, 'phone');
 
     // Should show the "no phone number" prompt
-    await expect(page.locator('text=No phone number set in your profile')).toBeVisible({
+    await expect(phone.getByText('No phone number set in your profile')).toBeVisible({
       timeout: 5_000,
     });
 
     // Create button should be disabled
-    const createBtn = page.getByRole('button', { name: 'Create' });
+    const createBtn = phone.getByRole('button', { name: 'Create' });
     await expect(createBtn).toBeDisabled({ timeout: 5_000 });
   } finally {
     setUserPhoneNumber(user.id, '+15551234567');
@@ -263,15 +227,15 @@ test('whatsapp create button is disabled when user has no whatsapp number', asyn
   try {
     await openContactManager(page);
 
-    await selectContactType(page, 'whatsapp');
+    const whatsapp = contactSection(page, 'whatsapp');
 
     // Should show the "no WhatsApp number" prompt
-    await expect(page.locator('text=No WhatsApp number set in your profile')).toBeVisible({
+    await expect(whatsapp.getByText('No WhatsApp number set in your profile')).toBeVisible({
       timeout: 5_000,
     });
 
     // Create button should be disabled
-    const createBtn = page.getByRole('button', { name: 'Create' });
+    const createBtn = whatsapp.getByRole('button', { name: 'Create' });
     await expect(createBtn).toBeDisabled({ timeout: 5_000 });
   } finally {
     setUserWhatsappNumber(user.id, '+15559876543');
@@ -285,13 +249,17 @@ test('whatsapp create button is enabled when user has a whatsapp number', async 
 
   await openContactManager(page);
 
-  await selectContactType(page, 'whatsapp');
+  const whatsapp = contactSection(page, 'whatsapp');
 
-  // Should show the WhatsApp number with green check
-  await expect(page.locator('text=+15559876543')).toBeVisible({ timeout: 5_000 });
+  // With a profile WhatsApp number set, the section invites creating the contact.
+  await expect(
+    whatsapp.getByText(
+      'Create a WhatsApp contact to enable WhatsApp messaging with your assistant.'
+    )
+  ).toBeVisible({ timeout: 5_000 });
 
   // Create button should be enabled
-  const createBtn = page.getByRole('button', { name: 'Create' });
+  const createBtn = whatsapp.getByRole('button', { name: 'Create' });
   await expect(createBtn).toBeEnabled({ timeout: 5_000 });
 });
 
@@ -322,17 +290,17 @@ test('T-W1N email tab shows shared T-W1N address as managed routing', async ({
 }) => {
   await openContactManager(page, coordinator);
 
-  await selectContactType(page, 'email');
+  const email = contactSection(page, 'email');
 
-  await expect(page.getByText('T-W1N email is configured.')).toBeVisible({
+  await expect(email.getByText('T-W1N email is configured.')).toBeVisible({
     timeout: 5_000,
   });
   await expect(page.locator('input[value="twin@unify.ai"]')).toHaveCount(0);
   await expect(
-    page.locator('text=Messages to this shared address are routed by verified sender identity')
+    email.getByText('Messages to this shared address are routed by verified sender identity')
   ).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByRole('button', { name: 'Configure' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+  await expect(email.getByRole('button', { name: 'Configure' })).toHaveCount(0);
+  await expect(email.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 
 test('T-W1N workspace modal shows BYOD providers despite shared routing email', async ({
@@ -355,22 +323,22 @@ test('T-W1N phone tab shows shared T-W1N number as managed routing', async ({
 }) => {
   await openContactManager(page, coordinator);
 
-  await selectContactType(page, 'phone');
+  const phone = contactSection(page, 'phone');
 
-  await expect(page.getByText('T-W1N phone is configured.', { exact: true })).toBeVisible({
+  await expect(phone.getByText('T-W1N phone is configured.', { exact: true })).toBeVisible({
     timeout: 5_000,
   });
   await expect(page.locator('input[value="+14155552671"]')).toHaveCount(0);
   await expect(
-    page
+    phone
       .getByText(
         'T-W1N phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
         { exact: true }
       )
       .first()
   ).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+  await expect(phone.getByRole('button', { name: 'Create' })).toHaveCount(0);
+  await expect(phone.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 
 test('email tab shows BYOD provider cards (no platform "or" divider) when no email exists', async ({

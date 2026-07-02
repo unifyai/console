@@ -220,7 +220,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
             className={cn(
               micToggle.buttonProps.className,
               showMutedSpeechCue &&
-                'bg-primary/20 ring-primary/50 hover:bg-primary/30 text-primary ring-1 hover:text-primary'
+                'bg-primary-tint-20 text-primary ring-1 ring-primary-tint-50 hover:bg-primary-tint-30 hover:text-primary'
             )}
             disabled={!isCallConnected || micToggle.buttonProps.disabled}
           >

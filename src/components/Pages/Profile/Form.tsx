@@ -162,7 +162,7 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
             />
           </div>
           <div>
-            <Label>Job Title</Label>
+            <Label>Role</Label>
             <Input
               type="text"
               name="jobTitle"

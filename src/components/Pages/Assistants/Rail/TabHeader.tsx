@@ -15,45 +15,40 @@ interface TabHeaderProps {
 }
 
 /**
- * The section host header: an icon chip, the section title (display font) and a
- * one-line description, with an info button that reveals the section's guided
- * "things to try" steps in a popover. Mirrors the prototype `TabHeader`.
+ * The section host header: an icon chip and section title (display font), with an
+ * info button that reveals the section description and guided "things to try"
+ * steps in a popover.
  */
 export function TabHeader({ section, leading, right }: TabHeaderProps) {
   const [info, setInfo] = React.useState(false);
   const { Icon } = section;
 
   return (
-    <div className="relative flex shrink-0 flex-nowrap items-start justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:gap-3 sm:px-[22px]">
-      <div className="flex min-w-0 flex-1 flex-nowrap items-start gap-2 overflow-hidden sm:gap-3">
+    <div className="relative flex shrink-0 flex-nowrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:gap-3">
+      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-hidden sm:gap-3">
         {leading}
-        <div className="flex min-w-0 flex-1 flex-nowrap items-start gap-2.5 overflow-hidden sm:gap-3">
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2.5 overflow-hidden sm:gap-3">
           <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-accent-soft text-accent-soft-foreground">
             <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
           </span>
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="text-h2 min-w-0 truncate text-foreground">{section.label}</span>
-              <button
-                type="button"
-                onClick={() => setInfo((v) => !v)}
-                aria-label="How to use this tab"
-                aria-expanded={info}
-                className={cn(
-                  'grid h-5 w-5 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                  info && 'bg-accent-soft text-accent-soft-foreground'
-                )}
-              >
-                <Info className="h-[15px] w-[15px]" />
-              </button>
-            </div>
-            <div className="text-caption line-clamp-2 leading-snug md:line-clamp-1">
-              {section.desc}
-            </div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="text-h2 min-w-0 truncate text-foreground">{section.label}</span>
+            <button
+              type="button"
+              onClick={() => setInfo((v) => !v)}
+              aria-label="How to use this tab"
+              aria-expanded={info}
+              className={cn(
+                'grid h-5 w-5 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                info && 'bg-accent-soft text-accent-soft-foreground'
+              )}
+            >
+              <Info className="h-[15px] w-[15px]" />
+            </button>
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2 pt-0.5">
+      <div className="flex shrink-0 items-center gap-2">
         {right}
         <GlobalPlatformActions />
       </div>

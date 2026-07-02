@@ -63,6 +63,7 @@ async function fetchOrchestraAuthority(): Promise<FeatureAuthority> {
         };
     return {
       ...billingAuthority,
+      accountReset: bool('account_reset'),
       workspaceGoogle: bool('workspace_google'),
       workspaceMicrosoft: bool('workspace_microsoft'),
       ...contactAuthority,

@@ -30,6 +30,7 @@ import {
   contactAvatarTone,
   type ContactCard,
 } from '@/utils/assistants/contacts';
+import { ContactAvatar } from '../Common/ContactAvatar';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface ContactsPaneProps {
@@ -49,17 +50,25 @@ function RespondDot({ on }: { on: boolean }) {
   );
 }
 
-function Avatar({ card, size = 'sm' }: { card: ContactCard; size?: 'sm' | 'lg' }) {
+function ContactCardAvatar({
+  card,
+  assistant,
+  size = 'sm',
+}: {
+  card: ContactCard;
+  assistant: Assistant;
+  size?: 'sm' | 'lg';
+}) {
   return (
-    <span
-      className={cn(
-        'grid shrink-0 place-items-center rounded-[9px] font-display font-semibold text-primary-foreground',
-        size === 'lg' ? 'h-12 w-12 text-base' : 'h-9 w-9 text-[13px]'
-      )}
-      style={{ backgroundColor: contactAvatarTone(card.contactId, card.fullName) }}
-    >
-      {card.initials}
-    </span>
+    <ContactAvatar
+      assistant={assistant}
+      contactId={card.contactId}
+      displayName={card.fullName}
+      initials={card.initials}
+      toneColor={contactAvatarTone(card.contactId, card.fullName)}
+      className={size === 'lg' ? 'h-12 w-12' : 'h-9 w-9'}
+      textClassName={size === 'lg' ? 'text-base' : 'text-[13px]'}
+    />
   );
 }
 
@@ -107,7 +116,9 @@ function ContactDetail({ card }: { card: ContactCard }) {
         <span
           className={cn(
             'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
-            card.shouldRespond ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+            card.shouldRespond
+              ? 'bg-primary-tint-10 text-primary'
+              : 'bg-muted text-muted-foreground'
           )}
         >
           <RespondDot on={card.shouldRespond} />
@@ -270,12 +281,12 @@ export function ContactsPane({
               {filtered.map((card) => (
                 <button
                   key={`${card.contactId ?? card.fullName}`}
-                  className="hover:border-primary/40 hover:bg-muted/40 flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-colors"
+                  className="hover:bg-muted/40 flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary-tint-40"
                   onClick={() => setSelected(card)}
                   data-testid={`contact-card-${card.contactId ?? card.fullName}`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Avatar card={card} />
+                    <ContactCardAvatar card={card} assistant={assistant} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
                         <span className="text-title truncate">{card.fullName}</span>
@@ -340,7 +351,7 @@ export function ContactsPane({
         <SheetContent side="right" className="flex w-full flex-col" data-testid="contact-detail">
           <SheetHeader className="shrink-0">
             <div className="flex items-center gap-3">
-              {selected && <Avatar card={selected} size="lg" />}
+              {selected && <ContactCardAvatar card={selected} assistant={assistant} size="lg" />}
               <div className="min-w-0">
                 <SheetTitle className="truncate">{selected?.fullName}</SheetTitle>
                 <SheetDescription className="truncate">

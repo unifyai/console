@@ -5,8 +5,8 @@
  * Verifies:
  *  - Org Owner can see the "New" hire button
  *  - Org Member cannot see the "New" hire button
- *  - Org Owner can open the edit dialog via dropdown and see "End contract"
- *  - Org Member can open the dropdown on another's assistant but edit dialog
+ *  - Org Owner can open the edit dialog via the info panel and see "End contract"
+ *  - Org Member can open the edit dialog on another's assistant but it
  *    does not show "End contract"
  *  - Org Member CAN view secrets but CANNOT add/delete them on another's assistant
  *  - Org Member CAN see and edit their own assistant in the org
@@ -32,7 +32,7 @@ import {
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
-import { openUnitySwitcher, openRailSection } from './helpers';
+import { openUnitySwitcher, openRailSection, openEditDialogFromList } from './helpers';
 
 // =============================================================================
 // Test Users & Org Setup
@@ -190,23 +190,12 @@ async function closeHireDialogIfOpen(page: Page) {
 }
 
 /**
- * Open the dropdown menu on a list item and click "Profile".
+ * Open the edit dialog from a list row via the info panel.
  */
-async function openEditViaDropdown(page: Page, agentId: number) {
+async function openEditViaInfoPanel(page: Page, agentId: number) {
   await openUnitySwitcher(page);
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  const menuBtn = page.getByTestId(`assistant-menu-${agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
+  await openEditDialogFromList(page, agentId);
   await page.waitForTimeout(500);
-
-  const editItem = page.getByTestId('menu-edit-profile');
-  await expect(editItem).toBeVisible({ timeout: 5_000 });
-  await editItem.click();
-  await page.waitForTimeout(1_500);
 }
 
 /**
@@ -238,11 +227,11 @@ test('owner can see the "New" hire button in the assistant list', async ({ owner
   await expect(newBtn).toBeEnabled();
 });
 
-test('owner can open the edit dialog via dropdown menu', async ({ ownerPage: page }) => {
+test('owner can open the edit dialog via info panel', async ({ ownerPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaDropdown(page, ownerAssistant.agentId);
+  await openEditViaInfoPanel(page, ownerAssistant.agentId);
 
   const editDialog = page.locator('[role="dialog"]');
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
@@ -254,7 +243,7 @@ test('owner can access the edit dialog and see the delete button', async ({ owne
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaDropdown(page, ownerAssistant.agentId);
+  await openEditViaInfoPanel(page, ownerAssistant.agentId);
 
   const editDialog = page.locator('[role="dialog"]');
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
@@ -290,7 +279,7 @@ test("member can open edit dialog on owner's assistant but cannot see delete but
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaDropdown(page, ownerAssistant.agentId);
+  await openEditViaInfoPanel(page, ownerAssistant.agentId);
 
   const editDialog = page.locator('[role="dialog"]');
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
@@ -332,8 +321,8 @@ test('member CAN see and edit their own assistant in the org', async ({ memberPa
     await navigateToAssistants(page);
     await closeHireDialogIfOpen(page);
 
-    // Open edit via dropdown on their own assistant
-    await openEditViaDropdown(page, memberAssistant.agentId);
+    // Open edit via info panel on their own assistant
+    await openEditViaInfoPanel(page, memberAssistant.agentId);
 
     const editDialog = page.locator('[role="dialog"]');
     await expect(editDialog).toBeVisible({ timeout: 10_000 });

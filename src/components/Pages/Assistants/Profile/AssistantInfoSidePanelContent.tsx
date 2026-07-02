@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock, X } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock, X, ChevronRight } from 'lucide-react';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
@@ -39,6 +39,8 @@ import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/Coordinator
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBeats';
+import { approvedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
+import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -123,10 +125,53 @@ export interface AssistantInfoSidePanelContentProps {
   className?: string;
   /** When true, the header pencil is omitted (e.g. mobile sheet toolbar owns edit). */
   hideHeaderEdit?: boolean;
+  /** Registers the header "show profile" action for surfaces that host the panel chrome separately (mobile sheet toolbar). */
+  onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
 const CONTACT_COPY_RESET_MS = 2000;
+
+type CoordinatorPanelTab = 'onboarding' | 'profile';
+
+function nudgeElement(element: HTMLElement | null) {
+  if (!element) return;
+  element.classList.remove('animate-nudge');
+  void element.offsetWidth;
+  element.classList.add('animate-nudge');
+}
+
+function useProfileTabHeaderFocus(
+  showProfileTab: boolean,
+  activeTab: CoordinatorPanelTab,
+  setActiveTab: React.Dispatch<React.SetStateAction<CoordinatorPanelTab>>,
+  profileSectionTitleRef: React.MutableRefObject<HTMLHeadingElement | null>
+) {
+  const focusProfileFromHeader = React.useCallback(() => {
+    if (showProfileTab && activeTab !== 'profile') {
+      setActiveTab('profile');
+      return;
+    }
+    nudgeElement(profileSectionTitleRef.current);
+  }, [activeTab, profileSectionTitleRef, setActiveTab, showProfileTab]);
+
+  return focusProfileFromHeader;
+}
+
+function ProfileTabTrigger() {
+  return (
+    <TabsTrigger
+      value="profile"
+      data-testid="assistant-info-tab-profile"
+      className={PANEL_TAB_TRIGGER_CLASS}
+    >
+      Profile
+    </TabsTrigger>
+  );
+}
+
+/** User-facing role for T-W1N. The internal job title ("Coordinator") is never surfaced. */
+const COORDINATOR_ROLE_DISPLAY = 'Your digital twin';
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -144,6 +189,7 @@ const CONTACT_COPY_RESET_MS = 2000;
  */
 export function AssistantInfoSidePanelContent({
   assistant,
+  onRegisterFocusProfileTab,
   ...props
 }: AssistantInfoSidePanelContentProps) {
   if (assistant.isCoordinator === true) {
@@ -162,14 +208,19 @@ export function AssistantInfoSidePanelContent({
         isStartCallDisabled={props.isStartCallDisabled}
         startCallTooltip={props.startCallTooltip}
         hideHeaderEdit={props.hideHeaderEdit}
+        onRegisterFocusProfileTab={onRegisterFocusProfileTab}
       />
     );
   }
 
-  return <RegularAssistantInfoSidePanelContent assistant={assistant} {...props} />;
+  return (
+    <RegularAssistantInfoSidePanelContent
+      assistant={assistant}
+      onRegisterFocusProfileTab={onRegisterFocusProfileTab}
+      {...props}
+    />
+  );
 }
-
-type CoordinatorPanelTab = 'onboarding' | 'profile';
 
 function CoordinatorAssistantInfoSidePanelContent({
   assistant,
@@ -185,6 +236,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isStartCallDisabled,
   startCallTooltip,
   hideHeaderEdit = false,
+  onRegisterFocusProfileTab,
 }: {
   assistant: Assistant;
   onClose: () => void;
@@ -199,6 +251,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
   hideHeaderEdit?: boolean;
+  onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
   const taskBeats = useCoordinatorTaskBeats(assistant, { enabled: showOnboardingTab });
@@ -207,6 +260,16 @@ function CoordinatorAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
+  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const focusProfileFromHeader = useProfileTabHeaderFocus(
+    showOnboardingTab,
+    activeTab,
+    setActiveTab,
+    profileSectionTitleRef
+  );
+  React.useEffect(() => {
+    onRegisterFocusProfileTab?.(focusProfileFromHeader);
+  }, [focusProfileFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
     if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
   }, [showOnboardingTab, activeTab]);
@@ -236,7 +299,6 @@ function CoordinatorAssistantInfoSidePanelContent({
         name="T-W1N"
         photoSrc={undefined}
         initials="M"
-        summary="Your digital twin"
         visibilityLabel={
           <span className="inline-flex items-center gap-1">
             Only you
@@ -246,9 +308,7 @@ function CoordinatorAssistantInfoSidePanelContent({
         isIdCopied={isIdCopied}
         onCopyId={copyId}
         onClose={onClose}
-        onEdit={
-          !hideHeaderEdit && canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined
-        }
+        onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileFromHeader : undefined}
         onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
         isStartCallDisabled={isStartCallDisabled}
         startCallTooltip={startCallTooltip}
@@ -274,13 +334,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             >
               Onboarding
             </TabsTrigger>
-            <TabsTrigger
-              value="profile"
-              data-testid="assistant-info-tab-profile"
-              className={PANEL_TAB_TRIGGER_CLASS}
-            >
-              Profile
-            </TabsTrigger>
+            <ProfileTabTrigger />
           </TabsList>
           {coordinatorOnboarding && (
             <TabsContent
@@ -317,6 +371,7 @@ function CoordinatorAssistantInfoSidePanelContent({
               onOpenWorkspaceManager={onOpenWorkspaceManager}
               onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
+              profileSectionTitleRef={profileSectionTitleRef}
             />
           </TabsContent>
         </Tabs>
@@ -329,6 +384,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             onOpenWorkspaceManager={onOpenWorkspaceManager}
             onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
+            profileSectionTitleRef={profileSectionTitleRef}
           />
         </ScrollArea>
       )}
@@ -351,6 +407,7 @@ function RegularAssistantInfoSidePanelContent({
   isStartCallDisabled,
   startCallTooltip,
   hideHeaderEdit = false,
+  onRegisterFocusProfileTab,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -379,6 +436,16 @@ function RegularAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile'>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
+  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const focusProfileFromHeader = useProfileTabHeaderFocus(
+    showOnboardingTab,
+    activeTab,
+    setActiveTab,
+    profileSectionTitleRef
+  );
+  React.useEffect(() => {
+    onRegisterFocusProfileTab?.(focusProfileFromHeader);
+  }, [focusProfileFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
     if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
     if (showOnboardingTab && activeTab === 'profile' && onboardingState.resolvedSteps === 0) {
@@ -410,6 +477,7 @@ function RegularAssistantInfoSidePanelContent({
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
       canWrite={canWrite}
+      profileSectionTitleRef={profileSectionTitleRef}
     />
   );
 
@@ -425,11 +493,7 @@ function RegularAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onClose={onClose}
-          onEdit={
-            !hideHeaderEdit && canWrite && onEditProfile
-              ? () => onEditProfile(assistant)
-              : undefined
-          }
+          onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileFromHeader : undefined}
           onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
           isStartCallDisabled={isStartCallDisabled}
           startCallTooltip={startCallTooltip}
@@ -453,19 +517,13 @@ function RegularAssistantInfoSidePanelContent({
               >
                 Onboarding
                 <span
-                  className="text-label bg-primary/15 ml-1.5 rounded-full px-1.5 py-0.5 text-primary"
+                  className="text-label ml-1.5 rounded-full bg-primary-tint-15 px-1.5 py-0.5 text-primary"
                   data-testid="assistant-info-tab-onboarding-counter"
                 >
                   {onboardingState.totalSteps - onboardingState.resolvedSteps}
                 </span>
               </TabsTrigger>
-              <TabsTrigger
-                value="profile"
-                data-testid="assistant-info-tab-profile"
-                className={PANEL_TAB_TRIGGER_CLASS}
-              >
-                Profile
-              </TabsTrigger>
+              <ProfileTabTrigger />
             </TabsList>
             <TabsContent value="onboarding" className="mt-0">
               <AssistantSetupRoadmap
@@ -500,12 +558,11 @@ interface IdentityHeaderProps {
   photoSrc: string | undefined;
   initials: string;
   supervisorName?: string;
-  summary?: React.ReactNode;
   visibilityLabel: React.ReactNode;
   isIdCopied: boolean;
   onCopyId: () => void;
   onClose: () => void;
-  onEdit?: () => void;
+  onFocusProfileTab?: () => void;
   onStartCall?: () => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
@@ -517,12 +574,11 @@ function IdentityHeader({
   photoSrc,
   initials,
   supervisorName,
-  summary,
   visibilityLabel,
   isIdCopied,
   onCopyId,
   onClose,
-  onEdit,
+  onFocusProfileTab,
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
@@ -566,12 +622,7 @@ function IdentityHeader({
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}
         </div>
-        {summary ? (
-          <div className={metadataRowClass}>
-            <span className="opacity-70">Role:</span>
-            <span className="truncate">{summary}</span>
-          </div>
-        ) : supervisorName ? (
+        {supervisorName ? (
           <div className={metadataRowClass}>
             <span className="opacity-70">Supervisor:</span>
             <span className="truncate">{supervisorName}</span>
@@ -600,7 +651,7 @@ function IdentityHeader({
       </div>
       <TooltipProvider delayDuration={100}>
         <div className="-mr-1 -mt-1 flex flex-shrink-0 items-center gap-1">
-          {onEdit && (
+          {onFocusProfileTab && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -608,9 +659,9 @@ function IdentityHeader({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={onEdit}
+                  onClick={onFocusProfileTab}
                   data-testid="assistant-info-edit-profile"
-                  aria-label="Edit profile"
+                  aria-label="Edit"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
@@ -651,6 +702,7 @@ interface ProfileSectionsPanelProps {
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   canWrite: boolean;
+  profileSectionTitleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
 }
 
 const DESKTOP_OS_LABELS: Record<string, string> = {
@@ -661,16 +713,71 @@ const DESKTOP_OS_LABELS: Record<string, string> = {
 
 type WorkspaceProviderKind = 'google' | 'microsoft';
 
-function getProfileStatusDescription(assistant: Assistant): string {
-  const jobTitle = assistant.jobTitle?.trim();
-  if (jobTitle) return jobTitle;
+function getVoiceName(assistant: Assistant): string | null {
+  const voiceId = assistant.voiceId?.trim();
+  if (!voiceId) return null;
+  return approvedCharacterVoiceMetadata[voiceId]?.name ?? null;
+}
+
+function getTimezoneLabel(assistant: Assistant): string | null {
+  const timezone = assistant.timezone?.trim();
+  if (!timezone) return null;
+  if (!timezone.includes('/')) return timezone;
+  const offset = getTimezoneOffsetInMinutes(timezone);
+  const city = timezone.split('/').pop()?.replace(/_/g, ' ') ?? timezone;
+  return `(UTC${formatOffset(offset)}) ${city}`;
+}
+
+interface ProfileSummaryRow {
+  label: string;
+  value: string;
+  clamp?: boolean;
+}
+
+function getProfileSummaryRows(assistant: Assistant): ProfileSummaryRow[] {
+  const rows: ProfileSummaryRow[] = [];
+
+  // T-W1N's stored job title ("Coordinator") is a purely internal term; users
+  // only ever see it framed as the user's digital twin.
+  const role = assistant.isCoordinator
+    ? COORDINATOR_ROLE_DISPLAY
+    : assistant.jobTitle?.trim() || null;
+  if (role) rows.push({ label: 'Role', value: role });
 
   const about = assistant.about?.trim();
-  if (about) {
-    return about.length > 96 ? `${about.slice(0, 93)}…` : about;
+  if (about) rows.push({ label: 'About', value: about, clamp: true });
+
+  const timezone = getTimezoneLabel(assistant);
+  if (timezone) rows.push({ label: 'Timezone', value: timezone });
+
+  const voice = getVoiceName(assistant);
+  if (voice) rows.push({ label: 'Voice', value: voice });
+
+  return rows;
+}
+
+function ProfileSummary({ assistant }: { assistant: Assistant }) {
+  const rows = getProfileSummaryRows(assistant);
+
+  if (rows.length === 0) {
+    return <span>No profile details yet</span>;
   }
 
-  return 'No job title set';
+  return (
+    <div
+      className="grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-2 gap-y-1"
+      data-testid="assistant-info-profile-summary"
+    >
+      {rows.map((row) => (
+        <React.Fragment key={row.label}>
+          <span className="opacity-70">{row.label}:</span>
+          <span className={cn('min-w-0', row.clamp ? 'line-clamp-2' : 'truncate')}>
+            {row.value}
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
 }
 
 function getWorkspaceProviderKind(assistant: Assistant): WorkspaceProviderKind | null {
@@ -724,21 +831,24 @@ function ProfileSectionsPanel({
   onOpenWorkspaceManager,
   onConnectDesktop,
   canWrite,
+  profileSectionTitleRef,
 }: ProfileSectionsPanelProps) {
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
 
   return (
-    <section className="flex flex-col gap-4" data-testid="assistant-info-profile-sections">
-      <ProfileSectionRow
+    <section className="flex flex-col gap-2" data-testid="assistant-info-profile-sections">
+      <ProfileSectionTile
         title="Profile"
-        description={getProfileStatusDescription(assistant)}
+        description={<ProfileSummary assistant={assistant} />}
+        descriptionClassName="mt-0.5"
         canEdit={canWrite && !!onEditProfile}
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
+        titleRef={profileSectionTitleRef}
       />
-      <ProfileSectionRow
+      <ProfileSectionTile
         title="Workspace"
         description={
           workspaceStatus.provider ? (
@@ -755,7 +865,7 @@ function ProfileSectionsPanel({
         editTestId="assistant-info-edit-workspace-section"
         editAriaLabel="Edit workspace"
       />
-      <ProfileSectionRow
+      <ProfileSectionTile
         title="Contact Details"
         description={
           <ContactDetailsGrid
@@ -769,9 +879,10 @@ function ProfileSectionsPanel({
         onEdit={() => onOpenContactManager(assistant)}
         editTestId="assistant-info-edit-contact-section"
         editAriaLabel="Edit contact details"
+        suppressTileButtonSemantics
       />
       {showDesktopSection && (
-        <ProfileSectionRow
+        <ProfileSectionTile
           title="Desktop"
           description={getDesktopStatusDescription(assistant)}
           canEdit={canWrite && !!onConnectDesktop}
@@ -802,7 +913,7 @@ function WorkspaceStatusDescription({
   );
 }
 
-interface ProfileSectionRowProps {
+interface ProfileSectionTileProps {
   title: string;
   description: React.ReactNode;
   descriptionClassName?: string;
@@ -810,9 +921,12 @@ interface ProfileSectionRowProps {
   onEdit?: () => void;
   editTestId: string;
   editAriaLabel: string;
+  titleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
+  /** When true, the tile stays mouse-clickable but omits button semantics (nested controls own keyboard/a11y). */
+  suppressTileButtonSemantics?: boolean;
 }
 
-function ProfileSectionRow({
+function ProfileSectionTile({
   title,
   description,
   descriptionClassName,
@@ -820,24 +934,60 @@ function ProfileSectionRow({
   onEdit,
   editTestId,
   editAriaLabel,
-}: ProfileSectionRowProps) {
+  titleRef,
+  suppressTileButtonSemantics = false,
+}: ProfileSectionTileProps) {
+  const assignTitleRef = React.useCallback(
+    (element: HTMLHeadingElement | null) => {
+      if (titleRef) {
+        titleRef.current = element;
+      }
+    },
+    [titleRef]
+  );
+  const isInteractive = canEdit && !!onEdit;
+  const useTileButtonSemantics = isInteractive && !suppressTileButtonSemantics;
+
+  const activate = () => {
+    onEdit?.();
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!useTileButtonSemantics) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      activate();
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-1 border-b border-border pb-3 last:border-b-0 last:pb-0">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-label text-semibold">{title}</h3>
-        {canEdit && onEdit && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-caption -mr-2 h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
-            onClick={onEdit}
-            data-testid={editTestId}
-            aria-label={editAriaLabel}
-          >
-            <Pencil className="h-3 w-3" />
-            <span>Edit</span>
-          </Button>
+    <div
+      className={cn(
+        'group/tile flex flex-col gap-1 rounded-lg border px-3 py-2.5 transition-[background-color,border-color,box-shadow]',
+        isInteractive
+          ? 'cursor-pointer border-border bg-card shadow-sm hover:border-primary-tint-40 hover:bg-[var(--surface-hover)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:border-primary-tint-50 active:bg-secondary'
+          : 'border-border/70 bg-card/60'
+      )}
+      data-testid={editTestId}
+      role={useTileButtonSemantics ? 'button' : undefined}
+      tabIndex={useTileButtonSemantics ? 0 : undefined}
+      aria-label={useTileButtonSemantics ? editAriaLabel : undefined}
+      onClick={isInteractive ? activate : undefined}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3
+          ref={titleRef ? assignTitleRef : undefined}
+          className="text-label text-semibold"
+          data-testid={title === 'Profile' ? 'assistant-info-profile-section-title' : undefined}
+        >
+          {title}
+        </h3>
+        {isInteractive && (
+          <ChevronRight
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70 transition-[opacity,transform] group-focus-within/tile:opacity-100 group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"
+            aria-hidden="true"
+          />
         )}
       </div>
       <div className={cn('text-caption text-muted-foreground', descriptionClassName)}>
@@ -933,8 +1083,11 @@ function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
       {isSet ? (
         <button
           type="button"
-          className="group/contact flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left text-foreground"
-          onClick={copyValue}
+          className="group/contact -mx-1 flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md border border-transparent px-1.5 py-0.5 text-left text-foreground transition-[background-color,border-color] hover:border-border hover:bg-[var(--surface-hover)]"
+          onClick={(event) => {
+            event.stopPropagation();
+            copyValue();
+          }}
           aria-label={`Copy ${label.toLowerCase()}`}
         >
           <span className="min-w-0 truncate">{contactValue}</span>
@@ -951,7 +1104,10 @@ function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
           type="button"
           variant="link"
           className="text-link h-auto p-0 text-sm font-normal"
-          onClick={onAdd}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAdd();
+          }}
         >
           Add {label.toLowerCase()}
         </Button>

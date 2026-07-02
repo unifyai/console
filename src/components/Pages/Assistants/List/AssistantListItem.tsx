@@ -1,61 +1,30 @@
+'use client';
+
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import {
-  PhoneCall,
-  MoreVertical,
-  PenLine,
-  Contact,
-  Briefcase,
-  Trash2,
-  Loader2,
-  AlertTriangle,
-  Monitor,
-} from 'lucide-react';
+import { PhoneCall, PanelRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
-import type { ContactType } from '@/types/assistants/contact';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/UI/dropdown-menu';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from '@/components/UI/alert-dialog';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
+import {
+  ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
+  readAssistantInfoPanelVisibility,
+  type AssistantInfoPanelVisibilityDetail,
+} from '@/lib/assistants/infoPanelVisibility';
 
 interface AssistantListItemProps {
   assistant: Assistant;
   status: AssistantStatus | null;
   isSelected: boolean;
   onShowProfile: (id: string) => void;
-  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
-  onOpenWorkspaceManager: (assistant: Assistant) => void;
-  onEditAssistant: (assistant: Assistant) => void;
-  /** When provided, shows a "Connect your desktop" entry that opens the
-   *  desktop linker. Only passed for assistants the current user owns, so
-   *  the entry's presence is itself the owner gate. */
-  onConnectDesktop?: (assistant: Assistant) => void;
-  onEndContract?: (assistant: Assistant) => Promise<void>;
-  /** When false, the row's "Profile" / "Workspace" / "Contact Details"
-   *  menu entries are hidden — non-write viewers don't get edit
-   *  affordances they can't act on. Defaults to true. */
-  canEdit?: boolean;
+  onToggleAssistantInfo: (assistantId: string) => void;
   isFolded: boolean;
   isCallActive: boolean;
   /**
@@ -73,23 +42,37 @@ export function AssistantListItem({
   status,
   isSelected,
   onShowProfile,
-  onOpenContactManager,
-  onOpenWorkspaceManager,
-  onEditAssistant,
-  onConnectDesktop,
-  onEndContract,
+  onToggleAssistantInfo,
   isFolded,
   isCallActive,
   unreadCount = 0,
-  canEdit = true,
   isPrimary = true,
   alsoInTeamLabels = [],
 }: AssistantListItemProps) {
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
   const totalTeamCount = alsoInTeamLabels.length + 1;
-  const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
-  const [isEndingContract, setIsEndingContract] = React.useState(false);
+  const [infoPanelVisibility, setInfoPanelVisibility] =
+    React.useState<AssistantInfoPanelVisibilityDetail | null>(() =>
+      readAssistantInfoPanelVisibility()
+    );
+
+  React.useEffect(() => {
+    const onVisibilityChange = (event: Event) => {
+      setInfoPanelVisibility(
+        (event as CustomEvent<AssistantInfoPanelVisibilityDetail>).detail ?? null
+      );
+    };
+    window.addEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
+    return () => {
+      window.removeEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
+    };
+  }, []);
+
+  const isInfoOpen =
+    isSelected &&
+    infoPanelVisibility?.assistantId === assistant.agentId &&
+    infoPanelVisibility.isOpen;
 
   const openProfile = () => {
     onShowProfile(assistant.agentId);
@@ -100,25 +83,16 @@ export function AssistantListItem({
     openProfile();
   };
 
-  const handleEndContractConfirm = async () => {
-    if (!onEndContract || isEndingContract) return;
-    setIsEndingContract(true);
-    try {
-      await onEndContract(assistant);
-      setIsEndContractAlertOpen(false);
-    } finally {
-      setIsEndingContract(false);
-    }
+  const handleInfoToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleAssistantInfo(assistant.agentId);
   };
 
   const isCoordinator = assistant.isCoordinator === true;
   const displayName = assistantDisplayName(assistant);
   const subtitle = assistant.jobTitle?.trim() || null;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
-  // A `appearance://` photo encodes the unity appearance — render the SVG
-  // unity; otherwise fall back to the photo URL (or initials).
   const creatureAppearance = parseCreatureSentinel(photoSrc);
-  const canEndContract = !!onEndContract && !isCoordinator;
 
   const renderPhotoAvatar = (className: string) =>
     creatureAppearance ? (
@@ -269,111 +243,31 @@ export function AssistantListItem({
             </Tooltip>
           </TooltipProvider>
         )}
-        {/* Suppress the menu trigger entirely when none of the
-            entries are actionable — a kebab that opens an empty
-            menu just adds noise. With canEdit and onEndContract
-            both gated, a viewer with neither permission gets a
-            cleaner row. */}
-        {(canEdit || canEndContract || !!onConnectDesktop) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                type="button"
+                variant={isInfoOpen ? 'primary' : 'ghost'}
                 size="icon"
                 className={cn(
-                  'h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100',
+                  tabToolbarIconButtonClass,
+                  'opacity-0 transition-opacity group-hover:opacity-100',
                   isSelected && 'opacity-100'
                 )}
-                onClick={(e) => e.stopPropagation()}
-                data-testid={`assistant-menu-${assistant.agentId}`}
+                onClick={handleInfoToggle}
+                aria-label={isInfoOpen ? 'Hide profile' : 'Show profile'}
+                aria-pressed={isInfoOpen}
+                data-testid={`assistant-info-toggle-${assistant.agentId}`}
               >
-                <MoreVertical className="h-4 w-4" />
+                <PanelRight className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" onClick={(e) => e.stopPropagation()}>
-              {canEdit && (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => onEditAssistant(assistant)}
-                    data-testid="menu-edit-profile"
-                  >
-                    <PenLine className="mr-2 h-4 w-4" />
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onOpenWorkspaceManager(assistant)}
-                    data-testid="menu-update-workspace"
-                  >
-                    <Briefcase className="mr-2 h-4 w-4" />
-                    Workspace
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onOpenContactManager(assistant)}
-                    data-testid="menu-update-contacts"
-                  >
-                    <Contact className="mr-2 h-4 w-4" />
-                    Contact Details
-                  </DropdownMenuItem>
-                </>
-              )}
-              {onConnectDesktop && (
-                <DropdownMenuItem
-                  onClick={() => onConnectDesktop(assistant)}
-                  data-testid="menu-connect-desktop"
-                >
-                  <Monitor className="mr-2 h-4 w-4" />
-                  Connect your desktop
-                </DropdownMenuItem>
-              )}
-              {canEndContract && (
-                <>
-                  {(canEdit || !!onConnectDesktop) && <DropdownMenuSeparator />}
-                  <DropdownMenuItem
-                    onClick={() => setIsEndContractAlertOpen(true)}
-                    data-testid="menu-end-contract"
-                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    End contract
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {canEndContract && (
-          <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
-            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-              <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center">
-                  <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
-                  Confirm End Contract
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  You are about to remove{' '}
-                  <strong>
-                    {assistant.firstName} {assistant.surname}
-                  </strong>{' '}
-                  from your team. This action cannot be undone. Are you sure?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isEndingContract}>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleEndContractConfirm}
-                  disabled={isEndingContract}
-                  className={cn(
-                    'hover:bg-destructive/90 bg-destructive',
-                    isEndingContract && 'cursor-not-allowed opacity-70'
-                  )}
-                >
-                  {isEndingContract ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Proceed
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>{isInfoOpen ? 'Hide profile' : 'Show profile'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

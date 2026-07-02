@@ -11,6 +11,7 @@ import {
 } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
 import {
   ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT,
+  consumePendingInfoPanelOpen,
   publishAssistantInfoPanelVisibility,
   type AssistantInfoPanelToggleRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
@@ -87,9 +88,6 @@ export type AssistantInfoPanelCoordinatorOnboarding = NonNullable<
 };
 
 export interface AssistantInfoPanelLayoutContext {
-  isInfoOpen: boolean;
-  toggleInfo: () => void;
-  showOnboardingDot: boolean;
   draftSeed: ChatDraftSeed | null;
   startAudioCall: () => void;
   isCallButtonDisabled: boolean;
@@ -162,6 +160,7 @@ export function AssistantInfoPanelLayout({
   const draftNonceRef = React.useRef(0);
   const seededInfoFocusLayoutRequestRef = React.useRef(0);
   const initializedForRef = React.useRef<string | null>(null);
+  const focusProfileTabRef = React.useRef<(() => void) | null>(null);
 
   React.useEffect(() => {
     setInfoPanelWidth(readInfoPanelWidth());
@@ -269,12 +268,18 @@ export function AssistantInfoPanelLayout({
       return;
     }
 
+    if (consumePendingInfoPanelOpen(assistant.agentId)) {
+      setIsInfoOpenAndPersist(true);
+      return;
+    }
+
     setIsInfoOpen(readInfoPanelOpen());
   }, [
     assistant?.agentId,
     assistant?.isCoordinator,
     hasIncompleteOnboarding,
     infoPanelFocusLayoutRequest,
+    setIsInfoOpenAndPersist,
   ]);
 
   React.useLayoutEffect(() => {
@@ -300,14 +305,23 @@ export function AssistantInfoPanelLayout({
     setInfoPanelWidthWithinBounds,
   ]);
 
+  const showOnboardingDot = hasIncompleteOnboarding && !!onOpenUserSettings;
+
   React.useEffect(() => {
     if (!assistant?.agentId) return;
     publishAssistantInfoPanelVisibility({
       assistantId: assistant.agentId,
       isOpen: isInfoOpen,
       isCoordinatorOnboarding: assistant.isCoordinator === true && hasIncompleteOnboarding,
+      showOnboardingDot,
     });
-  }, [assistant?.agentId, assistant?.isCoordinator, hasIncompleteOnboarding, isInfoOpen]);
+  }, [
+    assistant?.agentId,
+    assistant?.isCoordinator,
+    hasIncompleteOnboarding,
+    isInfoOpen,
+    showOnboardingDot,
+  ]);
 
   const isInThisCall = !!assistant && activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
@@ -329,27 +343,14 @@ export function AssistantInfoPanelLayout({
     onStartCall(assistant, 'audio');
   }, [assistant, onStartCall]);
 
-  const showOnboardingDot = hasIncompleteOnboarding && !!onOpenUserSettings;
-
   const context = React.useMemo<AssistantInfoPanelLayoutContext>(
     () => ({
-      isInfoOpen,
-      toggleInfo,
-      showOnboardingDot,
       draftSeed,
       startAudioCall,
       isCallButtonDisabled,
       callButtonTooltip,
     }),
-    [
-      callButtonTooltip,
-      draftSeed,
-      isCallButtonDisabled,
-      isInfoOpen,
-      showOnboardingDot,
-      startAudioCall,
-      toggleInfo,
-    ]
+    [callButtonTooltip, draftSeed, isCallButtonDisabled, startAudioCall]
   );
 
   const handleInfoPanelResizeKeyDown = React.useCallback(
@@ -419,9 +420,6 @@ export function AssistantInfoPanelLayout({
     assistant && canOpenAssistantChat(assistant)
       ? context
       : {
-          isInfoOpen: false,
-          toggleInfo: noop,
-          showOnboardingDot: false,
           draftSeed,
           startAudioCall: noop,
           isCallButtonDisabled: true,
@@ -449,6 +447,9 @@ export function AssistantInfoPanelLayout({
       isStartCallDisabled={isCallButtonDisabled}
       startCallTooltip={callButtonTooltip}
       hideHeaderEdit={isBelowMobile}
+      onRegisterFocusProfileTab={(focusProfileTab) => {
+        focusProfileTabRef.current = focusProfileTab;
+      }}
     />
   );
 
@@ -480,14 +481,14 @@ export function AssistantInfoPanelLayout({
               >
                 <X className="h-4 w-4" />
               </Button>
-              {canWrite && onEditProfile ? (
+              {canWrite ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={() => onEditProfile(assistant)}
-                  aria-label="Edit profile"
+                  onClick={() => focusProfileTabRef.current?.()}
+                  aria-label="Edit"
                   data-testid="assistant-info-edit-profile"
                 >
                   <Pencil className="h-4 w-4" />
@@ -519,8 +520,8 @@ export function AssistantInfoPanelLayout({
               className={cn(
                 'absolute inset-y-0 -left-1 z-20 hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors duration-200 sm:block',
                 'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:content-[""]',
-                'hover:bg-primary/20 focus-visible:bg-primary/20 active:bg-primary/40 focus-visible:outline-none',
-                isResizingInfoPanel && 'bg-primary/40'
+                'hover:bg-primary-tint-20 focus-visible:bg-primary-tint-20 focus-visible:outline-none active:bg-primary-tint-40',
+                isResizingInfoPanel && 'bg-primary-tint-40'
               )}
               data-testid="assistant-info-panel-resize-handle"
             />

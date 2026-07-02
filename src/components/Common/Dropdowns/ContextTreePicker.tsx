@@ -296,7 +296,7 @@ function TreeRow({
       <div className="relative h-6">
         <button
           type="button"
-          className={`flex h-6 w-full min-w-0 items-center gap-2 rounded px-2 hover:bg-muted ${isSelected ? 'bg-primary/10' : ''}`}
+          className={`flex h-6 w-full min-w-0 items-center gap-2 rounded px-2 hover:bg-muted ${isSelected ? 'bg-primary-tint-10' : ''}`}
           style={{ marginLeft: indent + BULLET_OFFSET }}
           onClick={() => onPick(isSelected ? '' : fullPath)}
         >

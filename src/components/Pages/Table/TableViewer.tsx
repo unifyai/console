@@ -160,7 +160,7 @@ function ColumnResizer({
       onTouchStart={resizeHandler}
       className={cn(
         'absolute right-0 top-0 z-10 w-[5px] cursor-col-resize touch-none select-none transition-colors',
-        isResizing ? 'bg-primary' : 'hover:bg-primary/50'
+        isResizing ? 'bg-primary' : 'hover:bg-primary-tint-50'
       )}
       style={{
         height: tableHeight > 0 ? tableHeight : '100%',
@@ -1383,7 +1383,7 @@ export function TableViewer({
                               .map((header) => (
                                 <TableHead
                                   key={header.id}
-                                  className="hover:bg-primary/10 sticky left-0 z-20 cursor-pointer border-b border-r-2 border-border bg-background text-center text-muted-foreground"
+                                  className="sticky left-0 z-20 cursor-pointer border-b border-r-2 border-border bg-background text-center text-muted-foreground hover:bg-primary-tint-10"
                                   style={{
                                     width: header.getSize(),
                                     minWidth: header.getSize(),
@@ -1457,7 +1457,7 @@ export function TableViewer({
                               }
                               className={cn(
                                 rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/30',
-                                selectedRowIndex === rowIndex && 'bg-primary/5'
+                                selectedRowIndex === rowIndex && 'bg-primary-tint-5'
                               )}
                               style={
                                 isVirtualized
@@ -1493,7 +1493,7 @@ export function TableViewer({
                                             'sticky left-0 z-20 cursor-pointer select-none border-b border-r-2 border-border text-center',
                                             rowFullySelected
                                               ? 'bg-primary text-primary-foreground'
-                                              : 'hover:bg-primary/10 bg-background text-muted-foreground'
+                                              : 'bg-background text-muted-foreground hover:bg-primary-tint-10'
                                           )}
                                           style={{
                                             width: cell.column.getSize(),

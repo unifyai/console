@@ -37,6 +37,11 @@ export interface FeatureAuthority {
    * and gate work, but replenished for free with no Stripe / card.
    */
   manualTopup?: boolean;
+  /**
+   * Staging-only "reset my account" tool reported by Orchestra. Rewinds a
+   * user's personal workspace to its fresh-signup state.
+   */
+  accountReset?: boolean;
   /** Google workspace BYOD connect, reported by Orchestra (OAuth client ID). */
   workspaceGoogle?: boolean;
   /** Microsoft workspace BYOD connect, reported by Orchestra (OAuth client ID). */
@@ -61,6 +66,14 @@ export interface Features {
    * control. Sourced from Orchestra's authority (it owns the deployment mode).
    */
   manualTopup: boolean;
+
+  /**
+   * Staging-only "reset my account" tool for Unify staff. Combined with a
+   * Unify-org membership check at the call site, it gates the profile-menu
+   * control that rewinds a user's personal workspace to its fresh-signup state.
+   * Sourced from Orchestra's authority (it owns the staging/override policy).
+   */
+  accountReset: boolean;
 
   /**
    * Voice calls. Requires the full duplex chain: LiveKit (transport) **and** a
@@ -180,6 +193,10 @@ export function resolveFeatures(
     billing:
       (stripeConfigured || manualTopup) && !environment.isSelfHost && (authority.billing ?? true),
     manualTopup,
+    // Staging-only internal tool: only surfaced when Orchestra (the owner of
+    // the staging/override policy) reports it on. No local env fallback — it
+    // must never appear by accident in a non-staging deployment.
+    accountReset: authority.accountReset ?? false,
     voiceCalls:
       mockSim ||
       localOrchestra ||

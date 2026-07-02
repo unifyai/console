@@ -108,7 +108,7 @@ function PdfFrame({ url }: { url: string }) {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:bg-primary/90 flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-primary-foreground"
+          className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:opacity-90"
         >
           Open PDF in New Tab <ExternalLink className="h-4 w-4" />
         </a>
@@ -260,7 +260,7 @@ export default function PdfView({
     return (
       <button
         onClick={() => openMultiplePdfs(pdfs)}
-        className="bg-primary/10 hover:bg-primary/20 text-body group mt-4 flex items-center gap-2 rounded-md px-3 py-1.5 text-primary transition-colors"
+        className="text-body group mt-4 flex items-center gap-2 rounded-md bg-primary-tint-10 px-3 py-1.5 text-primary transition-colors hover:bg-primary-tint-20"
       >
         <FileText className="h-4 w-4" />
         <span className="group-hover:underline">View all Selected PDFs</span>

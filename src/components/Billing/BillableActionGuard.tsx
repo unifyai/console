@@ -195,7 +195,7 @@ export function BillableActionGuard({
                   href="https://cal.com/danlenton/chat"
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:text-primary/80 inline font-medium text-primary underline underline-offset-2"
+                  className="inline font-medium text-primary underline underline-offset-2 hover:text-primary-tint-80"
                   data-testid="talk-to-us-link"
                 >
                   Talk to us
@@ -204,7 +204,7 @@ export function BillableActionGuard({
                 <button
                   type="button"
                   onClick={goToUpgrade}
-                  className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
+                  className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary-tint-80"
                   data-testid="upgrade-plan-link"
                 >
                   choose a plan
@@ -217,7 +217,7 @@ export function BillableActionGuard({
                 <button
                   type="button"
                   onClick={goToUpgrade}
-                  className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
+                  className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary-tint-80"
                   data-testid="upgrade-plan-link"
                 >
                   {manualTopup ? 'top up your credits' : 'upgrade your plan'}

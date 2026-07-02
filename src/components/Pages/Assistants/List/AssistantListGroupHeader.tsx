@@ -34,7 +34,7 @@ export function AssistantListGroupHeader({
           'border-b px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
         variant === 'group' && 'border-b px-2 py-1.5 text-muted-foreground',
         variant === 'workspace' &&
-          'bg-muted/15 hover:border-primary/30 hover:bg-primary/5 rounded-xl border border-border px-3 py-2.5 text-muted-foreground'
+          'bg-muted/15 rounded-xl border border-border px-3 py-2.5 text-muted-foreground hover:border-primary-tint-30 hover:bg-primary-tint-5'
       )}
       aria-expanded={!isFolded}
       onClick={onToggleFold}
@@ -66,7 +66,7 @@ export function AssistantListGroupHeader({
       <span className="flex shrink-0 items-center gap-1.5">
         {badgeLabel ? (
           <span
-            className="border-primary/20 bg-primary/10 rounded-full border px-2 py-0.5 text-[10px] font-medium text-primary"
+            className="rounded-full border border-primary-tint-20 bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary"
             aria-hidden="true"
           >
             {badgeLabel}

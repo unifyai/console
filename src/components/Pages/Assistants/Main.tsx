@@ -29,22 +29,26 @@ import { Loader } from '@/components/Common/Loader';
 
 const AssistantHire = dynamic(
   () => import('./Hire/AssistantHire').then((m) => ({ default: m.AssistantHire })),
-  { loading: () => <Loader size={48} /> }
+  { loading: () => null }
 );
 const AssistantEdit = dynamic(
   () => import('./Edit/AssistantEdit').then((m) => ({ default: m.AssistantEdit })),
-  { loading: () => <Loader size={48} /> }
+  { loading: () => null }
 );
 const CoordinatorOnboarding = dynamic(
   () =>
     import('./Coordinator/CoordinatorOnboarding').then((m) => ({
       default: m.CoordinatorOnboarding,
     })),
-  { loading: () => <Loader size={48} /> }
+  { loading: () => null }
 );
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import {
+  requestAssistantInfoPanelOpenAfterSelect,
+  requestAssistantInfoPanelToggle,
+} from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
@@ -248,16 +252,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     clearPanelProfileAssistant();
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
-  const handleAssistantListSelect = React.useCallback(
+  const handleToggleAssistantInfo = React.useCallback(
     (assistantId: string) => {
-      if (assistantId === profileAssistantId) {
-        handleProfileClose();
+      if (profileAssistantId !== assistantId) {
+        requestAssistantInfoPanelOpenAfterSelect(assistantId);
+        handleShowProfile(assistantId);
         return;
       }
-
-      handleShowProfile(assistantId);
+      requestAssistantInfoPanelToggle({ assistantId });
     },
-    [handleProfileClose, handleShowProfile, profileAssistantId]
+    [handleShowProfile, profileAssistantId]
   );
 
   // Right-pane state (primary tab, optional secondary tab for split-view,
@@ -416,6 +420,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [assistants, coordinatorWorkspace, currentUserId]
   );
   const canonicalCoordinatorId = canonicalCoordinator?.agentId ?? null;
+
+  const handleAssistantListSelect = React.useCallback(
+    (assistantId: string) => {
+      if (assistantId === profileAssistantId) {
+        if (canonicalCoordinatorId && assistantId !== canonicalCoordinatorId) {
+          handleShowProfile(canonicalCoordinatorId);
+        }
+        return;
+      }
+
+      handleShowProfile(assistantId);
+    },
+    [canonicalCoordinatorId, handleShowProfile, profileAssistantId]
+  );
 
   // Coordinator onboarding intro gate: on a fresh ``onboarding`` visit
   // (``mode === 'onboarding'`` and the intro hasn't been watched yet) we
@@ -2175,7 +2193,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const onDeleteAssistantSubmit = async (assistant: Assistant) => {
     const success = await deleteAssistant(assistant);
     if (success) {
-      handleProfileClose();
+      if (assistant.agentId === profileAssistantId) {
+        if (canonicalCoordinatorId) {
+          handleShowProfile(canonicalCoordinatorId);
+        } else {
+          handleProfileClose();
+        }
+      }
     } else {
       throw new Error('Deletion failed in hook.');
     }
@@ -2489,13 +2513,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     error: assistantError,
     profileAssistantId,
     onShowProfile: handleAssistantListSelect,
+    onToggleAssistantInfo: handleToggleAssistantInfo,
     onOpenHireDialog: handleOpenHireDialog,
-    onOpenContactManager: handleOpenContactManager,
-    onOpenWorkspaceManager: handleOpenWorkspaceManager,
-    onEditAssistant: handleOpenEditDialog,
-    onConnectDesktop: handleShowInstallInstructions,
-    onEndContract: onDeleteAssistantSubmit,
-    canEndContract,
     isFolded: false,
     activeCallAssistantId: activeCallId,
     canHire,

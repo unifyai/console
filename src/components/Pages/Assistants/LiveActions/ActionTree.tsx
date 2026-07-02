@@ -100,7 +100,7 @@ export function ActionTree({
               <div
                 className={cn(
                   'mb-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm transition-colors',
-                  isOpen && node.status === 'running' && 'border-primary/40',
+                  isOpen && node.status === 'running' && 'border-primary-tint-40',
                   isOpen && node.status === 'error' && 'border-destructive/40',
                   !isOpen && 'hover:border-border/80'
                 )}

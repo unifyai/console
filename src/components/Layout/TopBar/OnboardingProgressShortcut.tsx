@@ -85,6 +85,28 @@ function useWorkspaceCoordinatorId(): string | null {
   return coordinatorId;
 }
 
+export function useCoordinatorOnboardingShortcutVisible(): boolean {
+  const pathname = usePathname();
+  const coordinatorId = useWorkspaceCoordinatorId();
+  const { state: coordinatorOnboardingState } = useCoordinatorOnboarding(coordinatorId);
+  const isOnAssistantsPage = pathname === '/assistants' || pathname.startsWith('/assistants/');
+
+  const onboardingProgress = React.useMemo(
+    () => coordinatorOnboardingProgress(coordinatorOnboardingState?.onboarding ?? null),
+    [coordinatorOnboardingState?.onboarding]
+  );
+
+  return (
+    isOnAssistantsPage &&
+    !!coordinatorId &&
+    coordinatorOnboardingState?.mode === 'onboarding' &&
+    coordinatorOnboardingState.onboardingDeferred !== true &&
+    !!coordinatorOnboardingState.onboarding &&
+    onboardingProgress.total > 0 &&
+    onboardingProgress.completed < onboardingProgress.total
+  );
+}
+
 /** Opens the workspace Coordinator onboarding panel when onboarding is in progress. */
 export function OnboardingProgressShortcut({ className }: { className?: string }) {
   const router = useRouter();
@@ -99,13 +121,7 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
     [coordinatorOnboardingState?.onboarding]
   );
 
-  const showOnboardingShortcut =
-    !!coordinatorId &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
-    coordinatorOnboardingState.onboardingDeferred !== true &&
-    !!coordinatorOnboardingState.onboarding &&
-    onboardingProgress.total > 0 &&
-    onboardingProgress.completed < onboardingProgress.total;
+  const showOnboardingShortcut = useCoordinatorOnboardingShortcutVisible();
 
   React.useEffect(() => {
     if (!coordinatorId || !isOnAssistantsPage) {
@@ -159,7 +175,8 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
       className={cn(
         'rounded-control flex h-8 min-w-[7.25rem] translate-y-0.5 flex-col justify-center gap-1 px-2 text-left transition-colors',
         'text-body-muted hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-        isShortcutActive && 'bg-primary/10 ring-primary/40 hover:bg-primary/20 text-primary ring-1',
+        isShortcutActive &&
+          'bg-primary-tint-10 text-primary ring-1 ring-primary-tint-40 hover:bg-primary-tint-20',
         className
       )}
       data-testid="top-nav-onboarding-shortcut"

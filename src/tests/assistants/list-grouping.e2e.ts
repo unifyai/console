@@ -209,7 +209,7 @@ test('typing in the sidebar search filters assistants and hides groups with no m
   await expect(page.getByRole('button', { name: /Patch Beta/ })).toBeVisible({ timeout: 5_000 });
 });
 
-test('kebab menu stays visible while Teams section is expanded', async ({ authedPage: page }) => {
+test('info toggle stays visible while Teams section is expanded', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
@@ -222,38 +222,36 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
   }
   await expect(teamsHeader).toHaveAttribute('aria-expanded', 'true');
 
-  const assertMenuInSidebar = async (agentId: number) => {
+  const assertInfoToggleInSidebar = async (agentId: number) => {
     const row = page.getByTestId(`assistant-list-item-${agentId}`);
     await expect(row).toBeVisible({ timeout: 10_000 });
     await row.hover();
-    const menuTrigger = page.getByTestId(`assistant-menu-${agentId}`);
-    await expect(menuTrigger).toBeVisible({ timeout: 5_000 });
+    const infoToggle = page.getByTestId(`assistant-info-toggle-${agentId}`);
+    await expect(infoToggle).toBeVisible({ timeout: 5_000 });
     await expect
       .poll(async () =>
         page.evaluate((testId) => {
-          const menu = document.querySelector(`[data-testid="${testId}"]`);
+          const toggle = document.querySelector(`[data-testid="${testId}"]`);
           const sidebar = document.querySelector('[data-testid="assistant-list-section-teams"]');
-          if (!menu || !sidebar) return false;
-          const menuRect = menu.getBoundingClientRect();
+          if (!toggle || !sidebar) return false;
+          const toggleRect = toggle.getBoundingClientRect();
           const sidebarRect = sidebar.closest('.relative')?.getBoundingClientRect();
-          if (!sidebarRect || menuRect.width <= 0) return false;
-          return menuRect.right <= sidebarRect.right + 1;
-        }, `assistant-menu-${agentId}`)
+          if (!sidebarRect || toggleRect.width <= 0) return false;
+          return toggleRect.right <= sidebarRect.right + 1;
+        }, `assistant-info-toggle-${agentId}`)
       )
       .toBe(true);
-    await menuTrigger.click();
-    await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
-    await page.keyboard.press('Escape');
-    // The dropdown is a Radix portal that unmounts asynchronously; wait for it
-    // to detach before opening the next row's menu so the testid stays unique.
-    await expect(page.getByTestId('menu-edit-profile')).toHaveCount(0, { timeout: 5_000 });
+    await infoToggle.click();
+    await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 5_000 });
+    await infoToggle.click();
+    await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0, { timeout: 5_000 });
   };
 
-  await assertMenuInSidebar(patchAssistant.agentId);
-  await assertMenuInSidebar(soloAssistant.agentId);
+  await assertInfoToggleInSidebar(patchAssistant.agentId);
+  await assertInfoToggleInSidebar(soloAssistant.agentId);
 });
 
-test('kebab menu stays visible for multi-team assistant rows', async ({ authedPage: page }) => {
+test('info toggle stays visible for multi-team assistant rows', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
@@ -262,18 +260,15 @@ test('kebab menu stays visible for multi-team assistant rows', async ({ authedPa
   await expect(groupedRow).toBeVisible({ timeout: 15_000 });
   await groupedRow.hover();
 
-  // A multi-team assistant lists once per team, so its kebab testid is no
-  // longer page-unique; scope to the primary group row (which carries the
-  // unique list-item testid) to target a single trigger.
-  const menuTrigger = groupedRow.getByTestId(`assistant-menu-${multiAssistant.agentId}`);
-  await expect(menuTrigger).toBeVisible({ timeout: 5_000 });
+  const infoToggle = groupedRow.getByTestId(`assistant-info-toggle-${multiAssistant.agentId}`);
+  await expect(infoToggle).toBeVisible({ timeout: 5_000 });
   await expect(groupedRow.getByText('2 teams')).toBeVisible();
 
-  const menuBox = await menuTrigger.boundingBox();
-  expect(menuBox).not.toBeNull();
-  expect(menuBox!.width).toBeGreaterThan(0);
+  const toggleBox = await infoToggle.boundingBox();
+  expect(toggleBox).not.toBeNull();
+  expect(toggleBox!.width).toBeGreaterThan(0);
 
-  await menuTrigger.click();
-  await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
-  await page.keyboard.press('Escape');
+  await infoToggle.click();
+  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 5_000 });
+  await infoToggle.click();
 });

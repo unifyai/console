@@ -429,7 +429,7 @@ export const PaymentMethodsSection = ({
                           {formatBrand(card.brand)} •••• {card.last4 ?? '????'}
                           {card.isDefault && (
                             <span
-                              className="bg-primary/10 text-label ml-2 rounded-full px-2 py-0.5 text-primary"
+                              className="text-label ml-2 rounded-full bg-primary-tint-10 px-2 py-0.5 text-primary"
                               data-testid="default-badge"
                             >
                               Default

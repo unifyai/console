@@ -466,7 +466,11 @@ export function useProviderIntegrationCatalog(
       } catch (error) {
         pendingTab?.close();
         console.error('Failed to start provider integration connection', error);
-        toast.error('Could not start connection. Please try again.');
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : 'Could not start connection. Please try again.';
+        toast.error(message);
         return null;
       } finally {
         setIsConnecting(null);

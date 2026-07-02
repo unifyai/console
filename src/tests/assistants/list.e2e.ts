@@ -114,14 +114,39 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
+test('clicking the selected teammate selects T-W1N instead of clearing selection', async ({
+  authedPage: page,
+}) => {
+  deleteAllAssistantsForUser(user.id);
+  const coordinatorId = getCoordinatorAgentId(user.id);
+  expect(coordinatorId).not.toBeNull();
+
+  const solo = createAssistant({ userId: user.id, firstName: 'Solo', surname: 'Pick' });
+
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  await openUnitySwitcher(page);
+  await page.getByTestId(`assistant-list-item-${solo.agentId}`).click();
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText('Solo', { timeout: 5_000 });
+
+  await openUnitySwitcher(page);
+  await page.getByTestId(`assistant-list-item-${solo.agentId}`).click();
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N', { timeout: 5_000 });
+  await expect(page).toHaveURL(new RegExp(`profile=${coordinatorId}`));
+
+  await openUnitySwitcher(page);
+  await page.getByTestId(`assistant-list-item-${coordinatorId}`).click();
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N', { timeout: 5_000 });
+  await expect(page).toHaveURL(new RegExp(`profile=${coordinatorId}`));
+});
+
 // RETIRED (Phase 5 — Hire/onboarding): this journey asserts the legacy
 // two-pane model — clicking a selected row to *deselect* it back to a
 // ``right-pane-tab-chat`` / "Select a unity…" empty state. Both are gone: the
-// rail owns section nav (``rail-section-*``) and the workspace auto-selects the
-// personal Coordinator, so a bare list never sits in an empty/deselected state
-// and clicking a row only switches selection. The deselect-to-empty behaviour
-// no longer exists, so the test stays disabled until/unless that interaction is
-// reintroduced under the Coordinator default-selection model.
+// rail owns section nav (``rail-section-*``) and re-clicking a selected row
+// falls back to the workspace Coordinator (T-W1N) instead of clearing selection.
+// The deselect-to-empty behaviour no longer exists.
 test.fixme('rapid select/deselect settles on the final click and does not snap back', async ({
   authedPage: page,
 }) => {
@@ -184,9 +209,9 @@ test('the chat info side panel can be resized down to its minimum width', async 
 
   await selectAssistantInList(page, titled.agentId);
 
-  // Open the inline info side panel from the chat sub-header. We can't
-  // rely on the post-hire auto-open path here because this assistant
-  // was seeded via `createAssistant` (no `newlyHiredInfo` in memory).
+  // Open the inline info side panel from the top navbar. We can't rely on
+  // the post-hire auto-open path here because this assistant was seeded via
+  // `createAssistant` (no `newlyHiredInfo` in memory).
   const infoButton = page.getByTestId('assistant-info-button');
   await expect(infoButton).toBeVisible({ timeout: 10_000 });
 

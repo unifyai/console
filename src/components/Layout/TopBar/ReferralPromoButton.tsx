@@ -7,6 +7,7 @@ import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/UI/tooltip';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { cn } from '@/lib/utils';
 
 const DISMISS_KEY = 'referral-banner-dismissed';
 const PROMO_LABEL = 'Refer a friend to earn $100 in credits';
@@ -48,7 +49,7 @@ function useReferralPromoAccess() {
 }
 
 /** Compact header affordance for the billing referral program. */
-export function ReferralPromoButton() {
+export function ReferralPromoButton({ iconButtonClassName }: { iconButtonClassName?: string }) {
   const canShow = useReferralPromoAccess();
   const { visible, dismiss } = useReferralPromoVisible();
 
@@ -60,12 +61,12 @@ export function ReferralPromoButton() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground"
+          className={cn(iconButtonClassName ?? 'h-8 w-8', 'text-muted-foreground')}
           asChild
           data-testid="referral-promo-button"
         >
           <Link href="/billing" target="_blank" rel="noopener noreferrer">
-            <Gift className="h-[18px] w-[18px]" />
+            <Gift className="h-4 w-4" />
             <span className="sr-only">{PROMO_LABEL}</span>
           </Link>
         </Button>

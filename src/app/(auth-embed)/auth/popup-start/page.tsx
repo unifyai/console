@@ -4,6 +4,7 @@ import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { BrandStatusCard } from '@/components/Brand';
+import { Loader } from '@/components/Common/Loader';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { isAuthPopupProvider, safeAuthPopupCallbackUrl } from '@/lib/auth/popup';
 
@@ -83,7 +84,7 @@ function PopupStart() {
       <BrandStatusCard
         eyebrow="Auth"
         description="Opening secure sign in..."
-        icon={<LoadingElement />}
+        icon={<Loader size={24} />}
       />
     </main>
   );

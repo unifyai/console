@@ -1685,7 +1685,7 @@ const Interface = ({
                                 'bg-background/60 group flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left shadow-sm transition-colors duration-200',
                                 isLoading
                                   ? 'cursor-not-allowed opacity-50'
-                                  : 'hover:border-primary/50 hover:bg-accent-soft'
+                                  : 'hover:border-primary-tint-50 hover:bg-accent-soft'
                               )}
                             >
                               {isLoading ? (
@@ -1774,7 +1774,7 @@ const Interface = ({
                                   'bg-background/60 group flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left shadow-sm transition-colors duration-200',
                                   isDisabled
                                     ? 'cursor-not-allowed opacity-50'
-                                    : 'hover:border-primary/50 hover:bg-accent-soft'
+                                    : 'hover:border-primary-tint-50 hover:bg-accent-soft'
                                 )}
                               >
                                 {isLoading ? (

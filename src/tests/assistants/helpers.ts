@@ -503,39 +503,65 @@ export async function clickHireButton(page: Page) {
   await hireBtn.click();
 }
 
-/** Open the assistant info side panel from the chat toolbar. */
+/** Open the assistant info side panel from the top navbar. */
 export async function openAssistantInfoPanel(page: Page) {
   const btn = page.getByTestId('assistant-info-button');
   await expect(btn).toBeVisible({ timeout: 20_000 });
   await btn.click();
 }
 
-// =============================================================================
-// Contact Manager Helpers
-// =============================================================================
-
-/**
- * Open the contact manager for an assistant via the hover card "Add Email" or "Add Phone" link.
- * Requires the assistant list item to be visible.
- */
-export async function openContactManagerFromList(
-  page: Page,
-  agentId: number,
-  tab: 'email' | 'phone' | 'whatsapp' | 'discord'
-) {
+/** Open the assistant info side panel from a list row's unfold control. */
+export async function openAssistantInfoToggleFromList(page: Page, agentId: number | string) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await listItem.hover();
-  await page.waitForTimeout(500);
+  const toggle = page.getByTestId(`assistant-info-toggle-${agentId}`);
+  await expect(toggle).toBeVisible({ timeout: 5_000 });
+  await toggle.click();
+}
 
-  const labelMap = {
-    email: 'Add Email',
-    phone: 'Add Phone',
-    whatsapp: 'Add WhatsApp',
-    discord: 'Add Discord',
-  };
-  const label = labelMap[tab];
-  await page.getByRole('button', { name: label }).click();
-  await page.waitForTimeout(500);
+export async function openAssistantInfoPanelFromList(page: Page, agentId: number | string) {
+  await openAssistantInfoToggleFromList(page, agentId);
+  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 10_000 });
+}
+
+async function openAssistantInfoProfileTab(page: Page) {
+  const profileTab = page.getByRole('tab', { name: 'Profile' });
+  if (await profileTab.isVisible().catch(() => false)) {
+    await profileTab.click();
+  }
+}
+
+/** Open the edit dialog from a list row via the info panel Profile section edit control. */
+export async function openEditDialogFromList(page: Page, agentId: number | string) {
+  await openAssistantInfoPanelFromList(page, agentId);
+  await openAssistantInfoProfileTab(page);
+  await page.getByTestId('assistant-info-edit-profile-section').click();
+  await expect(page.locator('[role="dialog"]').filter({ hasText: /^Edit / })).toBeVisible({
+    timeout: 10_000,
+  });
+}
+
+export async function openContactManagerFromList(page: Page, agentId: number | string) {
+  await openAssistantInfoPanelFromList(page, agentId);
+  await openAssistantInfoProfileTab(page);
+  await page.getByTestId('assistant-info-edit-contact-section').click();
+  await expect(page.locator('text=Update Contact')).toBeVisible({ timeout: 5_000 });
+}
+
+export async function openWorkspaceManagerFromList(page: Page, agentId: number | string) {
+  await openAssistantInfoPanelFromList(page, agentId);
+  await openAssistantInfoProfileTab(page);
+  await page.getByTestId('assistant-info-edit-workspace-section').click();
+  await expect(page.getByRole('dialog').getByText('Workspace', { exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
+}
+
+export async function openDesktopLinkerFromList(page: Page, agentId: number | string) {
+  await openAssistantInfoPanelFromList(page, agentId);
+  await openAssistantInfoProfileTab(page);
+  await page.getByTestId('assistant-info-edit-desktop-section').click();
+  await expect(page.getByRole('dialog')).toContainText('Link User Desktop', { timeout: 5_000 });
 }
 
 // =============================================================================

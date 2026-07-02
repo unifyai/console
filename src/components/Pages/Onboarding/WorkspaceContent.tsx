@@ -236,13 +236,13 @@ const WorkspaceContent = ({
           disabled={isLoading}
           className={`group flex items-center gap-4 rounded-lg border p-4 text-left transition-all ${
             choice === 'personal'
-              ? 'bg-primary/5 border-primary ring-1 ring-primary'
-              : 'hover:border-primary/50 hover:bg-muted/50 border-border'
+              ? 'border-primary bg-primary-tint-5 ring-1 ring-primary'
+              : 'hover:bg-muted/50 border-border hover:border-primary-tint-50'
           } ${isLoading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} `}
           data-testid="workspace-personal"
         >
           <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${choice === 'personal' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'} `}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${choice === 'personal' ? 'bg-primary-tint-10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'} `}
           >
             <User className="h-5 w-5" />
           </div>
@@ -263,13 +263,13 @@ const WorkspaceContent = ({
           disabled={isLoading}
           className={`group flex items-center gap-4 rounded-lg border p-4 text-left transition-all ${
             choice === 'organization'
-              ? 'bg-primary/5 border-primary ring-1 ring-primary'
-              : 'hover:border-primary/50 hover:bg-muted/50 border-border'
+              ? 'border-primary bg-primary-tint-5 ring-1 ring-primary'
+              : 'hover:bg-muted/50 border-border hover:border-primary-tint-50'
           } ${isLoading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} `}
           data-testid="workspace-organization"
         >
           <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${choice === 'organization' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'} `}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${choice === 'organization' ? 'bg-primary-tint-10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'} `}
           >
             <Users className="h-5 w-5" />
           </div>

@@ -149,7 +149,7 @@ export function AssistantCommunicationControls({
             className={cn(
               micButtonProps.className,
               highlightMutedMic &&
-                'bg-primary/10 ring-primary/40 hover:bg-primary/20 text-primary ring-1 hover:text-primary'
+                'bg-primary-tint-10 text-primary ring-1 ring-primary-tint-40 hover:bg-primary-tint-20 hover:text-primary'
             )}
             disabled={!isConnectionEstablished || micButtonProps.disabled}
             compact={compact}
@@ -186,7 +186,9 @@ export function AssistantCommunicationControls({
             }
             onClick={onToggleScreenShare}
             disabled={isScreenShareToggleDisabled || !isConnectionEstablished}
-            className={cn(isScreenShareOn && 'bg-primary/10 hover:bg-primary/20 text-primary')}
+            className={cn(
+              isScreenShareOn && 'bg-primary-tint-10 text-primary hover:bg-primary-tint-20'
+            )}
             compact={compact}
           >
             {isScreenShareToggleDisabled ? (

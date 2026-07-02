@@ -38,6 +38,7 @@ import {
   getDesktopSftpTunnelId,
   ensureProjectSync,
   openUnitySwitcher,
+  openDesktopLinkerFromList,
 } from './helpers';
 
 const user = createTestUser({ name: 'Desktop', lastName: 'Linker', credits: 50_000 });
@@ -72,13 +73,7 @@ async function openDesktopLinker(page: Page, agentId: number) {
   await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 20_000 });
-  await listItem.hover();
-
-  await page.getByTestId(`assistant-menu-${agentId}`).click();
-  await page.getByTestId('menu-connect-desktop').click();
-
-  await expect(page.getByRole('dialog')).toContainText('Link User Desktop', { timeout: 5_000 });
-  // The full-control disclaimer is always shown when the linker opens.
+  await openDesktopLinkerFromList(page, agentId);
   await expect(page.getByRole('dialog')).toContainText(/see and control that machine/i);
 }
 

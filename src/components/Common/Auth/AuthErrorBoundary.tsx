@@ -109,7 +109,7 @@ export function AuthErrorBoundary({ children }: { children: React.ReactNode }) {
             </button>
             <button
               onClick={handleReLogin}
-              className="hover:bg-primary/90 flex-1 rounded bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors"
+              className="flex-1 rounded bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:opacity-90"
             >
               Log In Again
             </button>

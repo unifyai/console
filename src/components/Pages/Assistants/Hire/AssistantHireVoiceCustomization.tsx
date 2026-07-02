@@ -431,7 +431,7 @@ export function VoiceCustomization({
                     aria-label="Current video source"
                     className={cn(
                       'h-7 w-7 cursor-default',
-                      isSelected ? 'hover:bg-primary/10' : 'hover:bg-muted-foreground/10'
+                      isSelected ? 'hover:bg-primary-tint-10' : 'hover:bg-muted-foreground/10'
                     )}
                     disabled={itemIsDisabled}
                   >

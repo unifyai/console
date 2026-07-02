@@ -3,20 +3,21 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Phone, Search, Loader2, PanelRight } from 'lucide-react';
+import { Phone, Search, Loader2 } from 'lucide-react';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
 import type { ChatDraftSeed } from '@/components/Pages/Assistants/Layout/AssistantInfoPanelLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 
 /**
  * Chat tab body: hosts the conversation panel and the chat-scoped toolbar.
  * The profile/onboarding panel is owned by the surrounding `/assistants`
- * layout so it can stay open while the user visits other rail sections.
+ * layout and toggled from the top navbar.
  */
 export interface ChatWithInfoPanelProps {
   assistant: Assistant;
@@ -42,9 +43,6 @@ export interface ChatWithInfoPanelProps {
   isCallConnected: boolean;
   isConnectingCall: boolean;
 
-  isInfoOpen: boolean;
-  onToggleInfo: () => void;
-  showOnboardingDot: boolean;
   draftSeed: ChatDraftSeed | null;
   onStartAudioCall: () => void;
   isCallButtonDisabled: boolean;
@@ -78,9 +76,6 @@ export function ChatWithInfoPanel({
   activeCallAssistantId,
   isCallConnected,
   isConnectingCall,
-  isInfoOpen,
-  onToggleInfo,
-  showOnboardingDot,
   draftSeed,
   onStartAudioCall,
   isCallButtonDisabled,
@@ -153,7 +148,7 @@ export function ChatWithInfoPanel({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className={tabToolbarIconButtonClass}
                         onClick={onStartAudioCall}
                         disabled={isCallButtonDisabled}
                         data-testid="call-audio-button"
@@ -168,39 +163,6 @@ export function ChatWithInfoPanel({
                   </TooltipTrigger>
                   <TooltipContent side="top">
                     <p>{callButtonTooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="relative">
-                      <Button
-                        type="button"
-                        variant={isInfoOpen ? 'primary' : 'ghost'}
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={onToggleInfo}
-                        data-testid="assistant-info-button"
-                        aria-label={isInfoOpen ? 'Hide profile' : 'Show profile'}
-                        aria-pressed={isInfoOpen}
-                      >
-                        <PanelRight className="h-4 w-4" />
-                      </Button>
-                      {showOnboardingDot && (
-                        <span
-                          data-testid="assistant-info-button-onboarding-dot"
-                          aria-hidden="true"
-                          // Pinned to the corner of the trigger; ring uses the
-                          // chat header's bg so the dot reads as a notch on
-                          // the icon rather than floating in space.
-                          className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background"
-                        />
-                      )}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>{isInfoOpen ? 'Hide profile' : 'Show profile'}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

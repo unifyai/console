@@ -94,7 +94,7 @@ export function ConnectedAccountsSection({
             key={connection.id}
             className={cn(
               'min-w-0 max-w-full overflow-hidden rounded-lg border bg-card p-3',
-              isSelected && 'bg-primary/5 border-primary'
+              isSelected && 'border-primary bg-primary-tint-5'
             )}
             data-testid={`integration-account-card-${connection.id}`}
           >
@@ -190,7 +190,7 @@ export function ConnectedAccountsSection({
               {isSelected && (
                 <Badge
                   variant="outline"
-                  className="border-primary/40 rounded-full text-foreground"
+                  className="rounded-full border-primary-tint-40 text-foreground"
                   data-testid={`integration-account-selected-${connection.id}`}
                 >
                   Permissions account
