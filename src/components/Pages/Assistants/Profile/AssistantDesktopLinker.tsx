@@ -102,6 +102,13 @@ export function AssistantDesktopLinker({
   const [filesysSync, setFilesysSync] = React.useState<boolean>(!!assistant.userDesktopFilesysSync);
   const [isTogglingFilesys, setIsTogglingFilesys] = React.useState(false);
 
+  // Bootstrap rebuilds ``assistantActions`` on every server render, so the
+  // ``desktop`` object identity changes on each ``router.refresh()``. Read
+  // actions through a ref so those churns don't re-trigger the fetch below
+  // and flash the loader / empty-state cycle.
+  const desktopActionsRef = React.useRef(assistantActions.desktop);
+  desktopActionsRef.current = assistantActions.desktop;
+
   // Reflect the link's standing filesystem-access state whenever the dialog
   // (re)opens or the assistant's resolved link changes.
   React.useEffect(() => {
@@ -110,8 +117,10 @@ export function AssistantDesktopLinker({
 
   React.useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
     setIsLoading(true);
-    assistantActions.desktop.listUserDesktops().then((result) => {
+    desktopActionsRef.current.listUserDesktops().then((result) => {
+      if (cancelled) return;
       if (Array.isArray(result)) {
         setDesktops(result);
       } else {
@@ -120,7 +129,10 @@ export function AssistantDesktopLinker({
       }
       setIsLoading(false);
     });
-  }, [isOpen, assistantActions.desktop]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   const assistantIdNum = Number(assistant.agentId);
 
