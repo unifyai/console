@@ -89,8 +89,8 @@ export interface AssistantInfoSidePanelContentProps {
     onSeedChatDraft: (text: string) => void;
   };
   /** Coordinator-specific onboarding wiring. When this assistant is
-   * the canonical workspace Coordinator and ``Coordinator/State.mode
-   * === 'onboarding'``, the info panel surfaces an "Onboarding"
+   * the canonical workspace Coordinator and ``Coordinator/State.onboarding_active``
+   * is true, the info panel surfaces an "Onboarding"
    * sub-tab that renders the gradual-onboarding steps (the same
    * one that lives in ``CoordinatorOnboarding`` while the alternate
    * /assistants shell is mounted). The hook bag carries the action

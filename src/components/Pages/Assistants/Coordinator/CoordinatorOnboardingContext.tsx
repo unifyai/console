@@ -23,7 +23,7 @@
  */
 
 import * as React from 'react';
-import type { CoordinatorMode, OnboardingRender } from '@/lib/assistants/coordinatorState';
+import type { OnboardingRender } from '@/lib/assistants/coordinatorState';
 
 export interface CoordinatorOnboardingContextValue {
   /** Per-session record of which onboarding steps the user has
@@ -67,25 +67,12 @@ export interface CoordinatorOnboardingContextValue {
    * generally only invoke this for the click-but-not-yet-done
    * transition. */
   markStepEngaged: (stepId: string) => void;
-  /** Whether the user has deferred the entire onboarding phase with the
-   * global "do this later" switch. When true the checklist collapses to
-   * a resume affordance and every onboarding nudge is suppressed
-   * (server-side too) without altering per-step state. */
-  onboardingDeferred: boolean;
-  /** Defer the whole onboarding phase so the user can start using the
-   * platform first. No-op when the surface has no state writer. */
-  deferOnboarding: () => void;
-  /** Bring the deferred onboarding flow back, exactly where it was. */
-  resumeOnboarding: () => void;
-  /** Coordinator lifecycle mode. ``'working'`` once onboarding has been
-   * exited (the checklist body is otherwise empty); drives the
-   * reactivate affordance. ``null`` until the state row loads. */
-  mode: CoordinatorMode | null;
-  /** Flip the coordinator back into ``onboarding`` mode (clearing any
-   * deferral) so the checklist repopulates and the Coordinator's nudges
-   * re-engage from wherever the durable domain state leaves off. No-op
-   * when the surface has no state writer. */
-  reactivateOnboarding: () => void;
+  /** Whether onboarding scaffolding is live. When false the checklist
+   * collapses to a return affordance and every onboarding nudge is
+   * suppressed (server-side too) without altering per-step state. */
+  onboardingActive: boolean;
+  /** Pause onboarding so the user can start using the platform first. */
+  setOnboardingActive: (active: boolean) => void;
   /** Server-computed onboarding rendering (steps + statuses + valid next
    * targets). The checklist renders directly from this — availability
    * and ordering are no longer computed client-side. ``null`` outside

@@ -638,13 +638,13 @@ export function getCoordinatorAgentId(userId: string): number | null {
 /**
  * Dismiss the Coordinator onboarding gate for a workspace.
  *
- * A freshly provisioned Coordinator resolves to ``mode: onboarding`` with
- * ``intro_watched: false``, so the assistants page renders the full-screen
+ * A freshly provisioned Coordinator resolves with ``onboarding_active: true``
+ * and ``intro_watched: false``, so the assistants page renders the full-screen
  * onboarding intro overlay (``data-testid="coordinator-onboarding"``,
  * ``absolute inset-0 z-50``) that intercepts every pointer event. Legacy
  * assistant flows (list, chat, profile, hire, …) assume the standard shell,
- * so they defer onboarding up front. Setting ``onboarding_deferred`` clears
- * both the intro overlay and the coordinator focus layout in one shot,
+ * so they pause onboarding up front. Setting ``onboarding_active: false``
+ * clears both the intro overlay and the coordinator focus layout in one shot,
  * leaving the regular two-pane list. Idempotent and one-way sticky for
  * ``intro_watched`` server-side.
  */
@@ -656,12 +656,12 @@ export async function deferCoordinatorOnboarding(
     `/v0/assistant/${coordinatorId}/state`,
     {
       method: 'PATCH',
-      body: JSON.stringify({ intro_watched: true, onboarding_deferred: true }),
+      body: JSON.stringify({ intro_watched: true, onboarding_active: false }),
     },
     apiKey
   );
   if (!res.ok) {
-    throw new Error(`Failed to defer coordinator onboarding: ${res.status}`);
+    throw new Error(`Failed to pause coordinator onboarding: ${res.status}`);
   }
 }
 

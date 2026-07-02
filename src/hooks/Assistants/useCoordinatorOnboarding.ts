@@ -53,9 +53,7 @@ export function useCoordinatorOnboarding(
       const state = await fetchCoordinatorState(coordinatorId);
       debugConsole('coordinator-onboarding', 'state.fetch.success', {
         coordinatorId: String(coordinatorId),
-        mode: state.mode,
-        introWatched: state.introWatched,
-        onboardingDeferred: state.onboardingDeferred,
+        onboardingActive: state.onboardingActive,
         onboardingStep: state.onboardingStep,
         completedStepCount: state.completedStepIds.length,
         skippedStepCount: state.skippedStepIds.length,
@@ -80,9 +78,7 @@ export function useCoordinatorOnboarding(
         queryClient.setQueryData(buildQueryKey(coordinatorId), next);
         debugConsole('coordinator-onboarding', 'state.update.success', {
           coordinatorId: String(coordinatorId),
-          mode: next.mode,
-          introWatched: next.introWatched,
-          onboardingDeferred: next.onboardingDeferred,
+          onboardingActive: next.onboardingActive,
           onboardingStep: next.onboardingStep,
         });
         return next;

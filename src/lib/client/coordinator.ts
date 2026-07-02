@@ -43,7 +43,7 @@ export interface OnboardingSessionStartedResult {
   /**
    * Whether Orchestra actually forwarded the event to Unity.
    *
-   * ``false`` when the Coordinator is no longer in onboarding mode
+   * ``false`` when onboarding is inactive
    * (e.g. the user already skipped onboarding in another tab) — the
    * call is silently dropped server-side and the client doesn't
    * need to do anything special; the chat history will load

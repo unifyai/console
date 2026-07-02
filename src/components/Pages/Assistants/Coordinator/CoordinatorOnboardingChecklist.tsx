@@ -611,11 +611,8 @@ export function CoordinatorOnboardingChecklist({
 }: CoordinatorOnboardingChecklistProps) {
   const ctx = useCoordinatorOnboardingContext();
   const resetStepProgress = ctx?.resetStepProgress;
-  const onboardingDeferred = ctx?.onboardingDeferred ?? false;
-  const deferOnboarding = ctx?.deferOnboarding;
-  const resumeOnboarding = ctx?.resumeOnboarding;
-  const coordinatorMode = ctx?.mode ?? null;
-  const reactivateOnboarding = ctx?.reactivateOnboarding;
+  const onboardingActive = ctx?.onboardingActive ?? false;
+  const setOnboardingActive = ctx?.setOnboardingActive;
   const onboarding = ctx?.onboarding ?? null;
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
@@ -936,50 +933,29 @@ export function CoordinatorOnboardingChecklist({
     });
   }, []);
 
-  // Global "do onboarding later" collapses the whole checklist to a
-  // single resume affordance. The underlying per-step state is
-  // untouched, so resuming brings the user back exactly where they were.
-  // Only relevant while actively onboarding; once the row is in working
-  // mode the reactivate affordance below is the canonical re-entry, so a
-  // stale deferral flag never strands the user on an empty resume panel.
-  if (onboardingDeferred && coordinatorMode === 'onboarding') {
+  if (!onboardingActive) {
     return (
       <div
         className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}
-        data-testid="coordinator-onboarding-deferred"
+        data-testid="coordinator-onboarding-inactive"
       >
         <div className="rounded-control bg-muted/40 px-2.5 py-2">
           <p className="text-body-sm text-muted-foreground">
-            Onboarding paused — you can{' '}
-            {resumeOnboarding ? (
-              <button
-                type="button"
-                onClick={resumeOnboarding}
-                className={cn(
-                  'rounded-control font-medium text-primary',
-                  'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                )}
-              >
-                resume
-              </button>
-            ) : (
-              <span className="font-medium text-primary">resume</span>
-            )}{' '}
-            anytime.
+            Onboarding is paused. You can return to the setup checklist anytime.
           </p>
         </div>
         <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
-          {resumeOnboarding ? (
+          {setOnboardingActive ? (
             <button
               type="button"
-              onClick={resumeOnboarding}
+              onClick={() => setOnboardingActive(true)}
               className={cn(
                 'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
                 'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
               )}
-              data-testid="coordinator-onboarding-resume"
+              data-testid="coordinator-onboarding-return"
             >
-              Resume onboarding
+              Return to onboarding
             </button>
           ) : null}
         </div>
@@ -987,49 +963,12 @@ export function CoordinatorOnboardingChecklist({
     );
   }
 
-  // Working mode: onboarding has been exited, so Orchestra reports no
-  // active render. Rather than an empty tab, offer a single affordance to
-  // re-enter onboarding — flipping the row back to ``onboarding`` mode
-  // repopulates this checklist and re-engages the Coordinator's nudges
-  // from wherever the durable domain state leaves off.
   if (!resolved.length) {
-    if (coordinatorMode === 'working') {
-      return (
-        <div
-          className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}
-          data-testid="coordinator-onboarding-working"
-        >
-          <div className="rounded-control bg-muted/40 px-2.5 py-2">
-            <p className="text-body-sm text-muted-foreground">
-              Onboarding complete. You can revisit the setup checklist anytime.
-            </p>
-          </div>
-          <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
-            {reactivateOnboarding ? (
-              <button
-                type="button"
-                onClick={reactivateOnboarding}
-                className={cn(
-                  'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
-                  'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                )}
-                data-testid="coordinator-onboarding-reactivate"
-              >
-                Reactivate onboarding
-              </button>
-            ) : null}
-          </div>
-        </div>
-      );
-    }
-    // No coordinator state yet (or non-coordinator surface) — the panel
-    // falls back to its other tabs.
     return null;
   }
 
-  // Offer the global defer only while there's still onboarding left to
-  // do — once everything resolves there's nothing to postpone.
-  const canDeferAll = !!deferOnboarding && nextActionableId !== null;
+  // Offer pause only while there's still onboarding left to do.
+  const canPauseAll = !!setOnboardingActive && nextActionableId !== null;
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
       <ScrollArea className="min-h-0 flex-1" viewportTestId="coordinator-onboarding-checklist">
@@ -1141,15 +1080,15 @@ export function CoordinatorOnboardingChecklist({
         </ul>
       </ScrollArea>
       <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
-        {canDeferAll ? (
+        {canPauseAll ? (
           <button
             type="button"
-            onClick={deferOnboarding}
+            onClick={() => setOnboardingActive?.(false)}
             className={cn(
               'text-caption rounded-control whitespace-nowrap px-1.5 py-0.5 text-muted-foreground',
               'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             )}
-            data-testid="coordinator-onboarding-defer-all"
+            data-testid="coordinator-onboarding-pause-all"
           >
             Pause onboarding for now
           </button>

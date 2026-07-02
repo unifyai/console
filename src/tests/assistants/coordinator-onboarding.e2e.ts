@@ -19,9 +19,9 @@
  *     Coordinator/State row, so a reload skips the picker and lands
  *     directly on the regular platform.
  *   - There is no "Skip onboarding" or "Resume onboarding" affordance
- *     anywhere. Once onboarding is exited (``mode === 'working'``) the
- *     checklist body offers a single "Reactivate onboarding" control that
- *     flips the row back to ``onboarding`` and repopulates the checklist.
+ *     anywhere. When onboarding is inactive (``onboarding_active === false``)
+ *     the checklist body offers a single "Return to onboarding" control that
+ *     flips the row back to active and repopulates the checklist.
  *
  * These tests share one workspace coordinator and run serially. Since
  * ``intro_watched`` is one-way sticky on the row, picker-expecting
@@ -144,18 +144,17 @@ async function expectComingSoonVisible(page: Page) {
  *
  * Resolving the picker latches ``intro_watched`` on the latest
  * Coordinator/State row (one-way sticky through the API). The shared test
- * fixture also defers onboarding up front (``onboarding_deferred: true``) so
+ * fixture also pauses onboarding up front (``onboarding_active: false``) so
  * legacy flows get the standard shell; the picker gate in ``Main.tsx`` stays
- * suppressed while that flag is set. Picker-expecting tests therefore reuse a
+ * suppressed while onboarding is inactive. Picker-expecting tests therefore reuse a
  * single coordinator and restore the genuine first-time state on the latest
- * row directly — both ``intro_watched`` and ``onboarding_deferred`` back to
- * false, mode left ``onboarding`` — so the next visit shows the picker exactly
- * like a first-time user.
+ * row directly — ``intro_watched`` back to false and ``onboarding_active``
+ * back to true — so the next visit shows the picker exactly like a first-time user.
  */
 function resetCoordinatorIntroWatched() {
   dbExec(
     `UPDATE log_event SET data = ` +
-      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_deferred}', 'false') ` +
+      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_active}', 'true') ` +
       `WHERE id = (SELECT le.id FROM log_event le ` +
       `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
       `JOIN context c ON c.id = lec.context_id ` +
@@ -185,10 +184,10 @@ function readPersistedOnboardingStep(coordinatorId: string | number): string {
   );
 }
 
-/** Read the latest persisted lifecycle ``mode`` for the user's coordinator. */
-function readPersistedMode(coordinatorId: string | number): string {
+/** Read the latest persisted ``onboarding_active`` flag for the user's coordinator. */
+function readPersistedOnboardingActive(coordinatorId: string | number): string {
   return dbExec(
-    `SELECT le.data->>'mode' FROM log_event le ` +
+    `SELECT le.data->>'onboarding_active' FROM log_event le ` +
       `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
       `JOIN context c ON c.id = lec.context_id ` +
       `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
@@ -733,7 +732,7 @@ test('keeps the onboarding checklist visible while navigating assistant sections
   }
 });
 
-test('working mode offers a reactivate affordance that re-enters onboarding', async ({
+test('inactive onboarding offers a return affordance that re-enters onboarding', async ({
   authedPage: page,
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
@@ -746,31 +745,33 @@ test('working mode offers a reactivate affordance that re-enters onboarding', as
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  // Exit onboarding: flip the Coordinator/State row to working mode.
-  const promote = await orchestraFetch(
+  // Deactivate onboarding.
+  const deactivate = await orchestraFetch(
     `/v0/assistant/${coordinator.agentId}/state`,
-    { method: 'PATCH', body: JSON.stringify({ mode: 'working' }) },
+    { method: 'PATCH', body: JSON.stringify({ onboarding_active: false }) },
     user.apiKey
   );
-  expect(promote.ok).toBeTruthy();
+  expect(deactivate.ok).toBeTruthy();
 
-  // Reload so the client reads the working-mode snapshot, then open the
+  // Reload so the client reads the inactive snapshot, then open the
   // Coordinator's onboarding sub-tab.
   await gotoAssistants(page);
   await openOnboardingChecklist(page);
 
-  // Working mode shows the reactivate affordance instead of the checklist.
-  await expect(page.getByTestId('coordinator-onboarding-working')).toBeVisible({ timeout: 10_000 });
+  // Inactive onboarding shows the return affordance instead of the checklist.
+  await expect(page.getByTestId('coordinator-onboarding-inactive')).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toHaveCount(0);
-  const reactivate = page.getByTestId('coordinator-onboarding-reactivate');
-  await expect(reactivate).toBeVisible();
+  const returnButton = page.getByTestId('coordinator-onboarding-return');
+  await expect(returnButton).toBeVisible();
 
-  // Reactivating flips the row back to onboarding and repopulates the
-  // checklist directly from the server-derived render.
-  await reactivate.click();
+  // Returning flips the row back to active and repopulates the checklist
+  // directly from the server-derived render.
+  await returnButton.click();
   await expect
-    .poll(() => readPersistedMode(coordinator.agentId), { timeout: 10_000 })
-    .toBe('onboarding');
+    .poll(() => readPersistedOnboardingActive(coordinator.agentId), { timeout: 10_000 })
+    .toBe('true');
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
   });

@@ -445,12 +445,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [canonicalCoordinatorId, handleShowProfile, profileAssistantId]
   );
 
-  // Coordinator onboarding intro gate: on a fresh ``onboarding`` visit
-  // (``mode === 'onboarding'`` and the intro hasn't been watched yet) we
-  // overlay the call-vs-chat picker + animated intro on top of the
-  // regular /assistants shell. The layout itself never swaps — once the
-  // overlay dismisses the user is in the full platform with the
-  // onboarding checklist in the Coordinator's "Assistant info" panel.
+  // Coordinator onboarding intro gate: on a fresh visit with active
+  // onboarding and the intro not yet watched we overlay the call-vs-chat
+  // picker on top of the regular /assistants shell. The layout itself
+  // never swaps — once the overlay dismisses the user is in the full
+  // platform with the onboarding checklist in the Coordinator's
+  // "Assistant info" panel.
   //
   // The hook is enabled the moment a canonical coordinator is resolvable
   // — non-owner viewers of an org workspace fall through with
@@ -474,13 +474,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // onboarding surface (intro overlay, focus layout, nudge dot) stands
   // down so the user can use the platform first — mirrored to the
   // Coordinator's prompts server-side. Per-step state is untouched.
-  const isCoordinatorOnboardingDeferred = coordinatorOnboardingState?.onboardingDeferred === true;
+  const isCoordinatorOnboardingActive = coordinatorOnboardingState?.onboardingActive === true;
   const showCoordinatorOnboardingIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
     !coordinatorIntroDismissed &&
-    !isCoordinatorOnboardingDeferred &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
+    isCoordinatorOnboardingActive &&
     coordinatorOnboardingState?.introWatched === false;
   const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
     React.useState(0);
@@ -688,22 +687,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     },
     [updateCoordinatorOnboardingState]
   );
-  // Global defer toggle. Persists to the Coordinator/State row; the
-  // optimistic React Query update in the hook flips the layout instantly,
-  // and Orchestra suppresses every onboarding event the moment it lands.
-  const deferCoordinatorOnboarding = React.useCallback(() => {
-    void updateCoordinatorOnboardingState({ onboardingDeferred: true });
-  }, [updateCoordinatorOnboardingState]);
-  const resumeCoordinatorOnboarding = React.useCallback(() => {
-    void updateCoordinatorOnboardingState({ onboardingDeferred: false });
-  }, [updateCoordinatorOnboardingState]);
-  // Re-enter onboarding from working mode. Flipping ``mode`` back to
-  // ``onboarding`` lets Orchestra re-derive the progress render and the
-  // Coordinator's nudges re-engage; clearing the defer switch alongside
-  // guarantees a clean active flow (a no-op when it wasn't deferred).
-  const reactivateCoordinatorOnboarding = React.useCallback(() => {
-    void updateCoordinatorOnboardingState({ mode: 'onboarding', onboardingDeferred: false });
-  }, [updateCoordinatorOnboardingState]);
+  const setCoordinatorOnboardingActive = React.useCallback(
+    (active: boolean) => {
+      void updateCoordinatorOnboardingState({ onboardingActive: active });
+    },
+    [updateCoordinatorOnboardingState]
+  );
 
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({
@@ -716,11 +705,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepUnskipped,
       engagedStepIds,
       markStepEngaged,
-      onboardingDeferred: isCoordinatorOnboardingDeferred,
-      deferOnboarding: deferCoordinatorOnboarding,
-      resumeOnboarding: resumeCoordinatorOnboarding,
-      mode: coordinatorOnboardingState?.mode ?? null,
-      reactivateOnboarding: reactivateCoordinatorOnboarding,
+      onboardingActive: isCoordinatorOnboardingActive,
+      setOnboardingActive: setCoordinatorOnboardingActive,
       onboarding: coordinatorOnboardingState?.onboarding ?? null,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
@@ -735,11 +721,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepUnskipped,
       engagedStepIds,
       markStepEngaged,
-      isCoordinatorOnboardingDeferred,
-      deferCoordinatorOnboarding,
-      resumeCoordinatorOnboarding,
-      coordinatorOnboardingState?.mode,
-      reactivateCoordinatorOnboarding,
+      isCoordinatorOnboardingActive,
+      setCoordinatorOnboardingActive,
       coordinatorOnboardingState?.onboarding,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
@@ -784,9 +767,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isCanonicalCoordinatorOwned,
       isCoordinatorOnboardingStateLoading,
       hasCoordinatorOnboardingState: coordinatorOnboardingState !== null,
-      mode: coordinatorOnboardingState?.mode ?? null,
-      introWatched: coordinatorOnboardingState?.introWatched ?? null,
-      onboardingDeferred: coordinatorOnboardingState?.onboardingDeferred ?? null,
+      onboardingActive: coordinatorOnboardingState?.onboardingActive ?? null,
       coordinatorIntroDismissed,
       isCoordinatorOnboardingResolvePending,
       showCoordinatorOnboardingIntro,
@@ -1968,18 +1949,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const coordinatorOnboardingOutstanding = React.useMemo(
     () =>
       isCanonicalCoordinatorOwned &&
-      !isCoordinatorOnboardingDeferred &&
+      isCoordinatorOnboardingActive &&
       hasOutstandingCoordinatorOnboarding(coordinatorOnboardingState?.onboarding ?? null),
     [
       isCanonicalCoordinatorOwned,
-      isCoordinatorOnboardingDeferred,
+      isCoordinatorOnboardingActive,
       coordinatorOnboardingState?.onboarding,
     ]
   );
   const canApplyCoordinatorOnboardingFocusLayout =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
+    isCoordinatorOnboardingActive &&
     coordinatorOnboardingOutstanding &&
     !showCoordinatorOnboardingIntro &&
     canonicalCoordinatorId !== null &&
@@ -2101,9 +2082,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     (assistant: Assistant, type: 'video' | 'audio', options?: AssistantCallConnectOptions) => {
       handleShowProfile(assistant.agentId);
       const isFreshOnboardingIntro =
-        coordinatorOnboardingState?.mode === 'onboarding' &&
-        coordinatorOnboardingState?.introWatched === false &&
-        coordinatorOnboardingState?.onboardingDeferred !== true;
+        coordinatorOnboardingState?.onboardingActive === true &&
+        coordinatorOnboardingState?.introWatched === false;
       const openingConfig: CallOpeningConfig = isFreshOnboardingIntro
         ? {
             mode: 'recorded',
@@ -2166,11 +2146,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     clearStepRequests(serverSkippedStepIds);
   }, [clearStepRequests, serverSkippedStepIds, seedStepSkipped]);
   React.useEffect(() => {
-    if (
-      coordinatorOnboardingState?.mode !== 'onboarding' ||
-      isCoordinatorOnboardingDeferred ||
-      !hasAccessibleCoordinatorOnboardingTargets
-    ) {
+    if (!isCoordinatorOnboardingActive || !hasAccessibleCoordinatorOnboardingTargets) {
       return;
     }
     const handle = window.setInterval(() => {
@@ -2178,9 +2154,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }, COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS);
     return () => window.clearInterval(handle);
   }, [
-    coordinatorOnboardingState?.mode,
+    isCoordinatorOnboardingActive,
     hasAccessibleCoordinatorOnboardingTargets,
-    isCoordinatorOnboardingDeferred,
     refetchCoordinatorOnboardingState,
   ]);
   React.useEffect(() => {

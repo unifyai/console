@@ -2,7 +2,7 @@
 
 /**
  * CoordinatorOnboarding — the transient call-vs-chat picker that greets a
- * workspace owner whose Coordinator/State is in ``onboarding`` mode and who
+ * workspace owner whose Coordinator/State has active onboarding and who
  * hasn't yet resolved the picker.
  *
  * It renders as a full-screen overlay on top of the regular ``/assistants``
