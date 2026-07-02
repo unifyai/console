@@ -49,7 +49,6 @@ const targetOrg = createOrg({
   name: `E2E Target ${Date.now()}`,
   ownerId: targetOwner.id,
 });
-const targetStripeCustomerId = `cus_e2e_billing_plans_${targetOrg.id}`;
 
 // Per-test unique template name so the catalog row is easy to spot among
 // any leftover BESPOKE rows from prior test runs.
@@ -94,6 +93,8 @@ const test = base.extend<{ adminPage: Page }>({
     await ctx.close();
   },
 });
+
+test.describe.configure({ mode: 'serial' });
 
 // ---------------------------------------------------------------------------
 // Teardown
@@ -172,6 +173,13 @@ test('billing plans page creates a BESPOKE template and lists it', async ({ admi
   const dialog = page.getByRole('dialog', { name: /Create Billing Plan/i });
   await dialog.locator('input').first().fill(templateName);
 
+  const billingModeSelect = dialog
+    .locator('label')
+    .filter({ hasText: /^Billing Mode$/ })
+    .locator('xpath=following::button[@role="combobox"][1]');
+  await billingModeSelect.click();
+  await page.getByRole('option', { name: /CREDITS — prepaid wallet/ }).click();
+
   // Click the create button INSIDE the dialog (not the trigger above).
   await dialog.getByRole('button', { name: /Create Plan/i }).click();
 
@@ -207,17 +215,7 @@ test('billing plans table scrolls horizontally at a constrained viewport', async
 // =============================================================================
 
 test('organizations page sets the new template on the target org', async ({ adminPage: page }) => {
-  // Pre-seed a Stripe customer id on the target org's BillingAccount.
-  // METERED assignments require one (the implicit
-  // ``auto_create_stripe_customer`` toggle was removed in 2026-05; the
-  // canonical flow is "Provision via the admin UI's Business Profile
-  // → Provision button"). Seeding directly via SQL keeps this test
-  // focused on the plan-assignment surface without coupling it to
-  // the orthogonal Provision UX flow, which has its own tests.
-  dbExec(
-    `UPDATE billing_account SET stripe_customer_id = '${targetStripeCustomerId}' ` +
-      `WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${targetOrg.id})`
-  );
+  test.setTimeout(90_000);
 
   await page.goto('/admin/organizations');
 
@@ -243,17 +241,17 @@ test('organizations page sets the new template on the target org', async ({ admi
   // "Return to default plan" for the cancel flow; match either so
   // the test isn't coupled to which template happens to be picked
   // first.
-  const dialog = page.getByRole('dialog', { name: /^(Change plan|Return to default plan)$/ });
+  const dialog = page.getByRole('dialog', { name: /^Change plan$/ });
   await expect(dialog).toBeVisible();
 
-  // Pick the template we created. The Select shows "Name · Mode · PlanType".
-  await dialog.locator('button[role="combobox"]').click();
-  await page.locator(`text=${templateName}`).first().click();
+  await dialog.getByRole('combobox').click();
+  const templateOption = page.getByRole('option', { name: new RegExp(templateName) });
+  await expect(templateOption).toBeVisible({ timeout: 30_000 });
+  await templateOption.click();
 
-  // No more "Auto-create Stripe Customer" toggle — the seeded
-  // stripe_customer_id above already satisfies the METERED guard,
-  // so the Set button is enabled directly.
-  await dialog.getByRole('button', { name: /^Set$/ }).click();
+  const setButton = dialog.getByRole('button', { name: /^Set$/ });
+  await expect(setButton).toBeEnabled({ timeout: 15_000 });
+  await setButton.click();
 
   // After success the dialog closes and the active plan card refreshes
   // to show the new template name. A "Return to default plan" affordance

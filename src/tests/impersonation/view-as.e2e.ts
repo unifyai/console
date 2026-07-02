@@ -39,7 +39,7 @@ const createdUnifyOrg = unifyOrg.ownerId === adminUser.id;
 
 // Target customer — separate user, personal workspace, one assistant.
 const targetUser = createTestUser({ name: 'Customer', lastName: 'Persona' });
-createAssistant({
+const targetAssistant = createAssistant({
   userId: targetUser.id,
   firstName: 'Solo',
   surname: 'Helper',
@@ -131,8 +131,15 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   await expect(banner).toBeVisible({ timeout: 30_000 });
   await expect(banner).toContainText('Customer');
 
-  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Solo Helper').first()).toBeVisible({ timeout: 30_000 });
+  await deferCoordinatorForUser(targetUser.id, targetUser.apiKey);
+  await page.goto(`/assistants?profile=${targetAssistant.agentId}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await deferCoordinatorAfterAssistantsLoad(page, targetUser.id, targetUser.apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText('Solo', {
+    timeout: 30_000,
+  });
   await expect(page.getByTestId('impersonation-banner')).toBeVisible();
 
   // Return to the original admin session.
@@ -142,5 +149,5 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   // The target's assistant is no longer in view once we are back as the admin.
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('impersonation-banner')).toBeHidden({ timeout: 30_000 });
-  await expect(page.getByText('Solo Helper')).toBeHidden({ timeout: 30_000 });
+  await expect(page.getByTestId('rail-unity-switcher')).not.toContainText('Solo');
 });

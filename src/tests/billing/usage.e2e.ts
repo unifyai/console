@@ -176,7 +176,7 @@ test('assistant filter opens without errors', async ({ authedPage: page }) => {
   await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
 
   await page.getByTestId('assistant-filter').click();
-  await expect(page.getByRole('option', { name: 'All Assistants' })).toBeVisible({
+  await expect(page.getByRole('option', { name: 'All Teammates' })).toBeVisible({
     timeout: 10_000,
   });
   await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
