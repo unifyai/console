@@ -15,7 +15,7 @@ if [ "${#SPECS[@]}" -eq 0 ]; then
 fi
 
 CMD=(npx playwright test "${SPECS[@]}" --reporter=list --max-failures="$MAX_FAILURES")
-if [ -n "$SHARD" ] && [[ "$TIER" != "exhaustive-assistants" ]]; then
+if [ -n "$SHARD" ]; then
   CMD+=(--shard="$SHARD")
 fi
 
