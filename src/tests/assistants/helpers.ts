@@ -374,6 +374,7 @@ export async function openHireDialog(page: Page) {
 export async function selectAssistantInList(page: Page, agentId: number) {
   await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(500);
 }

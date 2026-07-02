@@ -102,7 +102,9 @@ async function openUnitySwitcherPopover(page: Page) {
       await pickChat.click();
       await page.waitForTimeout(500);
     }
-    await page.getByTestId('rail-unity-switcher').click();
+    const switcher = page.getByTestId('rail-unity-switcher');
+    await expect(switcher).toBeVisible({ timeout: 10_000 });
+    await switcher.click({ timeout: 10_000 });
   }
   await expect(popover).toBeVisible({ timeout: 5_000 });
 }

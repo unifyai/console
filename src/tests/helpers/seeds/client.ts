@@ -744,6 +744,8 @@ export interface EnsureUnifyOrgOpts {
  * DELETE-and-recreate this org in individual specs.
  */
 export function ensureUnifyOrg(opts: EnsureUnifyOrgOpts): SeededOrg {
+  ensureSystemRoles();
+
   const existingId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
 
   if (existingId) {

@@ -10,14 +10,31 @@
  */
 
 import { expect } from '@playwright/test';
-import { createTestUser, cleanupUser, createAssistantTest } from '../assistants/helpers';
+import {
+  createTestUser,
+  cleanupUser,
+  createAssistantTest,
+  createAssistant,
+  deferCoordinatorOnboarding,
+  getCoordinatorAgentId,
+  ensureProjectSync,
+} from '../assistants/helpers';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
 
 const user = createTestUser({ name: 'ShellRoutes', lastName: 'Smoke', credits: 50_000 });
 ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
+ensureProjectSync(user.apiKey);
 
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
+
+test.beforeAll(async () => {
+  createAssistant({ userId: user.id, firstName: 'Shell', surname: 'Route' });
+  const coordinatorId = getCoordinatorAgentId(user.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(user.apiKey, coordinatorId);
+  }
+});
 
 test.afterAll(() => {
   cleanupUser(user.id);

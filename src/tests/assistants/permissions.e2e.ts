@@ -19,7 +19,7 @@
  * Run: npx playwright test src/tests/assistants/permissions.e2e.ts
  */
 
-import { test as base, expect, type Page, type Browser } from '@playwright/test';
+import { test as base, expect, type Page, type Browser, type Locator } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 import {
@@ -181,10 +181,12 @@ test.afterAll(() => {
 /**
  * Open the edit dialog from a list row via the info panel.
  */
-async function openEditViaInfoPanel(page: Page, agentId: number) {
+async function openEditViaInfoPanel(page: Page, agentId: number): Promise<Locator> {
   await openUnitySwitcher(page);
   await openEditDialogFromList(page, agentId);
-  await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 10_000 });
+  const editDialog = page.getByRole('dialog', { name: /^Edit / });
+  await expect(editDialog).toBeVisible({ timeout: 10_000 });
+  return editDialog;
 }
 
 /**
@@ -217,9 +219,7 @@ test('owner can open the edit dialog via info panel', async ({ ownerPage: page }
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaInfoPanel(page, ownerAssistant.agentId);
-
-  const editDialog = page.locator('[role="dialog"]');
+  const editDialog = await openEditViaInfoPanel(page, ownerAssistant.agentId);
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
   await page.keyboard.press('Escape');
@@ -229,9 +229,7 @@ test('owner can access the edit dialog and see the delete button', async ({ owne
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaInfoPanel(page, ownerAssistant.agentId);
-
-  const editDialog = page.locator('[role="dialog"]');
+  const editDialog = await openEditViaInfoPanel(page, ownerAssistant.agentId);
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
   const endContractBtn = page.getByRole('button', { name: /end contract/i });
@@ -266,9 +264,7 @@ test("member can open edit dialog on owner's assistant but cannot see delete but
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaInfoPanel(page, ownerAssistant.agentId);
-
-  const editDialog = page.locator('[role="dialog"]');
+  const editDialog = await openEditViaInfoPanel(page, ownerAssistant.agentId);
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
   // The "End contract" button should NOT be visible for members on others' assistants
@@ -308,10 +304,7 @@ test('member CAN see and edit their own assistant in the org', async ({ memberPa
     await navigateToAssistants(page);
     await closeHireDialogIfOpen(page);
 
-    // Open edit via info panel on their own assistant
-    await openEditViaInfoPanel(page, memberAssistant.agentId);
-
-    const editDialog = page.locator('[role="dialog"]');
+    const editDialog = await openEditViaInfoPanel(page, memberAssistant.agentId);
     await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
     await page.keyboard.press('Escape');
