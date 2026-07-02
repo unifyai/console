@@ -49,6 +49,7 @@ const targetOrg = createOrg({
   name: `E2E Target ${Date.now()}`,
   ownerId: targetOwner.id,
 });
+const targetStripeCustomerId = `cus_e2e_billing_plans_${targetOrg.id}`;
 
 // Per-test unique template name so the catalog row is easy to spot among
 // any leftover BESPOKE rows from prior test runs.
@@ -210,7 +211,7 @@ test('organizations page sets the new template on the target org', async ({ admi
   // focused on the plan-assignment surface without coupling it to
   // the orthogonal Provision UX flow, which has its own tests.
   dbExec(
-    `UPDATE billing_account SET stripe_customer_id = 'cus_e2e_billing_plans_seed' ` +
+    `UPDATE billing_account SET stripe_customer_id = '${targetStripeCustomerId}' ` +
       `WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${targetOrg.id})`
   );
 

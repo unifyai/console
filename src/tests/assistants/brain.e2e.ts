@@ -491,12 +491,12 @@ test('Transcripts: displays seeded messages in the threads view', async ({ authe
 
   const reader = page.getByTestId('transcripts-reader');
   await expect(reader).toBeVisible({ timeout: 10_000 });
-  await expect(reader.getByText('Hello, can you help me with my schedule?')).toBeVisible({
-    timeout: 5_000,
-  });
-  await expect(reader.getByText('Of course! Let me check your calendar.')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(
+    reader.getByRole('paragraph').filter({ hasText: 'Hello, can you help me with my schedule?' })
+  ).toBeVisible({ timeout: 5_000 });
+  await expect(
+    reader.getByRole('paragraph').filter({ hasText: 'Of course! Let me check your calendar.' })
+  ).toBeVisible({ timeout: 5_000 });
 
   await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
 });

@@ -24,7 +24,7 @@ test.describe('Account Deletion', () => {
     const userCount = dbExec(`SELECT count(*) FROM "user" WHERE id = '${user.id}'`);
     expect(userCount).toBe('0');
 
-    await page.goto('/assistants', { waitUntil: 'commit' });
+    await page.goto('/assistants', { waitUntil: 'domcontentloaded' }).catch(() => {});
     await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
   });
 

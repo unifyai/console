@@ -55,11 +55,11 @@ EOF
 }
 
 # Explicit shard lists balance runtime — alphabetical Playwright sharding put
-# call/chat-stream/desktop-link on shard 1 and blew the 45m job limit.
+# call/chat-stream/desktop-link on the same shard and blew the job limit.
 exhaustive_assistants_specs() {
   local shard="${1:-}"
   case "$shard" in
-    1/3)
+    1/5)
       cat <<'EOF'
 src/tests/assistants/shell.e2e.ts
 src/tests/assistants/list.e2e.ts
@@ -74,30 +74,38 @@ src/tests/assistants/data-bridge.e2e.ts
 src/tests/assistants/provider-integrations.e2e.ts
 EOF
       ;;
-    2/3)
+    2/5)
       cat <<'EOF'
 src/tests/assistants/chat.e2e.ts
 src/tests/assistants/chat-attachments.e2e.ts
 src/tests/assistants/chat-search.e2e.ts
+src/tests/assistants/embed.e2e.ts
+EOF
+      ;;
+    3/5)
+      cat <<'EOF'
 src/tests/assistants/brain.e2e.ts
 src/tests/assistants/contacts.e2e.ts
 src/tests/assistants/coordinator-sidebar.e2e.ts
-src/tests/assistants/dashboards.e2e.ts
-src/tests/assistants/hire.e2e.ts
-src/tests/assistants/live-actions.e2e.ts
 src/tests/assistants/permissions.e2e.ts
 EOF
       ;;
-    3/3)
+    4/5)
       cat <<'EOF'
 src/tests/assistants/call.e2e.ts
 src/tests/assistants/call-working-pose.e2e.ts
 src/tests/assistants/chat-stream.e2e.ts
 src/tests/assistants/coordinator-onboarding.e2e.ts
+EOF
+      ;;
+    5/5)
+      cat <<'EOF'
 src/tests/assistants/desktop-filesys.e2e.ts
 src/tests/assistants/desktop-link.e2e.ts
+src/tests/assistants/dashboards.e2e.ts
 src/tests/assistants/edit.e2e.ts
-src/tests/assistants/embed.e2e.ts
+src/tests/assistants/hire.e2e.ts
+src/tests/assistants/live-actions.e2e.ts
 EOF
       ;;
     *)

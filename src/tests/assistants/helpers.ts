@@ -329,7 +329,14 @@ export async function closeHireDialogIfOpen(page: Page) {
 export async function openUnitySwitcher(page: Page) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
-  await page.getByTestId('rail-unity-switcher').click();
+  const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
+  if (await pickChat.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await pickChat.click();
+    await page.waitForTimeout(500);
+  }
+  const switcher = page.getByTestId('rail-unity-switcher');
+  await expect(switcher).toBeVisible({ timeout: 10_000 });
+  await switcher.click();
   await expect(popover).toBeVisible({ timeout: 5_000 });
 }
 

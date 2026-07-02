@@ -97,6 +97,11 @@ export async function waitForUsageReady(page: Page) {
 async function openUnitySwitcherPopover(page: Page) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (!(await popover.isVisible({ timeout: 500 }).catch(() => false))) {
+    const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
+    if (await pickChat.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await pickChat.click();
+      await page.waitForTimeout(500);
+    }
     await page.getByTestId('rail-unity-switcher').click();
   }
   await expect(popover).toBeVisible({ timeout: 5_000 });

@@ -604,7 +604,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -660,7 +660,7 @@ jobs:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
       - name: Run Exhaustive Assistants E2E tests
-        run: bash scripts/ci-playwright-run.sh exhaustive-assistants "${{ matrix.shard }}/3"
+        run: bash scripts/ci-playwright-run.sh exhaustive-assistants "${{ matrix.shard }}/5"
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
@@ -695,6 +695,10 @@ jobs:
     name: Exhaustive · Account
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -750,7 +754,7 @@ jobs:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
       - name: Run Exhaustive Account E2E tests
-        run: bash scripts/ci-playwright-run.sh exhaustive-account
+        run: bash scripts/ci-playwright-run.sh exhaustive-account "${{ matrix.shard }}/2"
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
@@ -761,7 +765,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-exhaustive-account
+          name: playwright-report-exhaustive-account-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
 
@@ -769,7 +773,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-logs-exhaustive-account
+          name: test-logs-exhaustive-account-${{ matrix.shard }}
           path: |
             test-output.log
             /tmp/console-build.log

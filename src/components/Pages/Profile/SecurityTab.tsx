@@ -120,6 +120,7 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
           return;
         }
 
+        await signOut({ redirect: false });
         toast.success('Account deleted successfully.');
         router.push('/login?signout=true');
       } catch {
@@ -143,6 +144,7 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
           return false;
         }
 
+        await signOut({ redirect: false });
         toast.success('Account deleted successfully.');
         setShowMfaModal(false);
         router.push('/login?signout=true');
