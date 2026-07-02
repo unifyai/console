@@ -170,6 +170,24 @@ test('billing plans page creates a BESPOKE template and lists it', async ({ admi
   await expect(page.locator('text=' + templateName).first()).toBeVisible({ timeout: 10_000 });
 });
 
+test('billing plans table scrolls horizontally at a constrained viewport', async ({
+  adminPage: page,
+}) => {
+  await page.setViewportSize({ width: 820, height: 900 });
+  await page.goto('/admin/plans');
+
+  await expect(page.getByRole('heading', { name: /Admin · Billing Plans/i })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const table = page.locator('table.min-w-\\[960px\\]').first();
+  await expect(table).toBeVisible({ timeout: 10_000 });
+
+  const scrollWidth = await table.evaluate((el) => el.scrollWidth);
+  const clientWidth = await table.evaluate((el) => el.clientWidth);
+  expect(scrollWidth).toBeGreaterThan(clientWidth);
+});
+
 // =============================================================================
 // /admin/organizations — set the bespoke template on the target org
 // =============================================================================
