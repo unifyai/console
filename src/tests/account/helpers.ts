@@ -15,7 +15,11 @@ import {
   loginAndNavigateTo,
   switchToEmailTab,
 } from '../auth/helpers';
-import { deferCoordinatorForUser } from '../helpers/coordinator';
+import {
+  deferCoordinatorForUser,
+  deferCoordinatorAfterAssistantsLoad,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
 
 export { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -97,6 +101,13 @@ export function createAccountTest(user: {
           userId: user.id,
           apiKey: user.apiKey,
         });
+        const warmCtx = await browser.newContext({ storageState: authFile });
+        const warmPage = await warmCtx.newPage();
+        await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
+        await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
+        await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await warmCtx.storageState({ path: authFile });
+        await warmCtx.close();
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();

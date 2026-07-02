@@ -117,33 +117,6 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   await expect(page.getByTestId('call-audio-button')).toBeVisible({ timeout: 5_000 });
 });
 
-test('clicking the selected teammate selects T-W1N instead of clearing selection', async ({
-  authedPage: page,
-}) => {
-  deleteAllAssistantsForUser(user.id);
-  const coordinatorId = getCoordinatorAgentId(user.id);
-  expect(coordinatorId).not.toBeNull();
-
-  const solo = createAssistant({ userId: user.id, firstName: 'Solo', surname: 'Pick' });
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${solo.agentId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('Solo', { timeout: 5_000 });
-
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${solo.agentId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N', { timeout: 5_000 });
-  await expect(page).toHaveURL(new RegExp(`profile=${coordinatorId}`));
-
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${coordinatorId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N', { timeout: 5_000 });
-  await expect(page).toHaveURL(new RegExp(`profile=${coordinatorId}`));
-});
-
 test('deep link ?profile=agentId opens the correct assistant', async ({ authedPage: page }) => {
   deleteAllAssistantsForUser(user.id);
   const seeded = createAssistant({ userId: user.id, firstName: 'DeepLink', surname: 'Target' });

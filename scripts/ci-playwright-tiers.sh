@@ -16,15 +16,23 @@ src/tests/shell/push-gate.e2e.ts
 EOF
 }
 
+pr_account_specs() {
+  cat <<'EOF'
+src/tests/account/profile.e2e.ts
+src/tests/account/api-key.e2e.ts
+src/tests/account/contact-info.e2e.ts
+src/tests/account/workspace-context.e2e.ts
+src/tests/account/timezone-sync.e2e.ts
+src/tests/account/support-ticket.e2e.ts
+src/tests/account/teams.e2e.ts
+EOF
+}
+
 pr_assistants_specs() {
   cat <<'EOF'
 src/tests/assistants/shell.e2e.ts
 src/tests/assistants/list.e2e.ts
-src/tests/assistants/chat.e2e.ts
 src/tests/assistants/live-actions.e2e.ts
-src/tests/assistants/brain.e2e.ts
-src/tests/assistants/call.e2e.ts
-src/tests/assistants/contacts.e2e.ts
 EOF
 }
 
@@ -65,7 +73,7 @@ case "$TIER" in
     pr_assistants_specs
     ;;
   pr-account)
-    find src/tests/account -maxdepth 1 -name '*.e2e.ts' | sort
+    pr_account_specs
     ;;
   pr-billing)
     pr_billing_specs

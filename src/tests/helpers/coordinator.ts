@@ -63,12 +63,19 @@ export async function deferCoordinatorAfterAssistantsLoad(
   apiKey: string
 ): Promise<void> {
   for (let attempt = 0; attempt < 30; attempt++) {
+    await dismissCoordinatorOnboardingIfOpen(page);
+
     const coordinatorId = getCoordinatorAgentId(userId);
     if (coordinatorId) {
       await deferCoordinatorOnboarding(apiKey, coordinatorId);
-      await page.reload({ waitUntil: 'domcontentloaded' });
+    }
+
+    const overlay = page.getByTestId('coordinator-onboarding');
+    if (!(await overlay.isVisible({ timeout: 500 }).catch(() => false))) {
       return;
     }
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
   }
 }

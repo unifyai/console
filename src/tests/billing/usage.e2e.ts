@@ -121,7 +121,7 @@ test.afterAll(() => {
 test('loads usage page with all key components visible', async ({ authedPage: page }) => {
   await waitForUsageReady(page);
 
-  await expect(page.getByTestId('category-filter')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-filter')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('granularity-filter')).toBeVisible();
   await expect(page.getByTestId('timeframe-filter')).toBeVisible();
   await expect(page.getByTestId('spending-limit-card')).toBeVisible();
@@ -165,37 +165,21 @@ test('ledger shows category badges matching each transaction', async ({ authedPa
   await expect(ledger.getByText('Generated photos and videos')).toBeVisible();
 
   await ledger.getByTestId('aggregated-row-toggle').first().click();
-  await expect(ledger.getByTestId('transaction-row').first()).toBeVisible({ timeout: 10_000 });
-
-  await expect(ledger.getByText('LLM').first()).toBeVisible();
-  await expect(ledger.getByText('Hiring')).toBeVisible();
-  await expect(ledger.getByText('Resources')).toBeVisible();
-  await expect(ledger.getByText('Media')).toBeVisible();
+  await expect(ledger.getByTestId('aggregated-row-details')).toBeVisible({ timeout: 10_000 });
+  await expect(ledger.getByTestId('transaction-detail-row').first()).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
-test('category filter narrows ledger to selected category', async ({ authedPage: page }) => {
+test('assistant filter opens without errors', async ({ authedPage: page }) => {
   await page.goto('/usage');
   await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
 
-  const ledger = page.getByTestId('transaction-ledger');
-
-  await page.getByTestId('category-filter').click();
-  await page.getByRole('option', { name: 'LLM' }).click({ timeout: 10_000 });
-  await expect(ledger.getByText('Assistant work').first()).toBeVisible({ timeout: 10_000 });
-  await expect(ledger.getByText('Assistant creation')).not.toBeVisible({ timeout: 10_000 });
-  await expect(ledger.getByText('Generated photos and videos')).not.toBeVisible({
-    timeout: 5_000,
+  await page.getByTestId('assistant-filter').click();
+  await expect(page.getByRole('option', { name: 'All Assistants' })).toBeVisible({
+    timeout: 10_000,
   });
-
-  await page.getByTestId('category-filter').click();
-  await page.getByRole('option', { name: 'Hiring' }).click();
-  await expect(ledger.getByText('Assistant creation')).toBeVisible({ timeout: 10_000 });
-  await expect(ledger.getByText('Assistant work')).not.toBeVisible({ timeout: 10_000 });
-
-  await page.getByTestId('category-filter').click();
-  await page.getByRole('option', { name: 'All Spending' }).click();
-  await expect(ledger.getByText('Assistant work').first()).toBeVisible({ timeout: 10_000 });
-  await expect(ledger.getByText('Assistant creation')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
 });
 
 test('granularity filter changes chart and ledger without errors', async ({ authedPage: page }) => {

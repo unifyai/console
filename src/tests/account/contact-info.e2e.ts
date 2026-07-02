@@ -225,20 +225,23 @@ test('clicking Verify again while the code section is open does not collapse it'
     })
   );
 
-  const phoneInput = page.locator('#phone-number-input');
+  const phoneSection = page
+    .locator('text=Phone number')
+    .locator('xpath=ancestor::div[contains(@class,"rounded-lg")]');
+  const phoneInput = phoneSection.locator('#phone-number-input');
   await expect(phoneInput).toBeVisible({ timeout: 15_000 });
   await phoneInput.fill('5551234567');
 
-  const verifyBtn = page.getByRole('button', { name: 'Verify' }).first();
-  await verifyBtn.click();
+  await phoneSection.getByRole('button', { name: 'Verify' }).click();
 
   const codeInput = page.getByPlaceholder('Enter verification code...');
   await expect(codeInput).toBeVisible({ timeout: 10_000 });
-  await expect(verifyBtn).toHaveCount(0);
+  const resendBtn = phoneSection.getByRole('button', { name: /Resend/ });
+  await expect(resendBtn).toBeVisible();
 
-  await codeInput.click();
+  await resendBtn.click();
   await expect(codeInput).toBeVisible();
-  await expect(page.getByRole('button', { name: /Resend/ })).toBeVisible();
+  await expect(resendBtn).toBeVisible();
 });
 
 test('a saved E.164 number is split back into country + national parts', async ({

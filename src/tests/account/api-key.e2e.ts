@@ -6,6 +6,7 @@
 
 import { expect } from '@playwright/test';
 import { createTestUser, cleanupUser, createAccountTest, getUserApiKeyFromDb } from './helpers';
+import { orchestraFetch } from '../helpers/seeds/client';
 
 const user = createTestUser({ name: 'ApiKey', lastName: 'Test', credits: 5_000 });
 const test = createAccountTest(user);
@@ -34,21 +35,24 @@ test('Security tab masks the API key until revealed', async ({ authedPage: page 
   await expect(keyInput).toHaveValue(dbKey);
 });
 
-test('regenerating API key produces a new key in the database', async ({ authedPage: page }) => {
+test('regenerating API key produces a new key in the database', async () => {
   const oldKey = getUserApiKeyFromDb(user.id);
   expect(oldKey).toBeTruthy();
 
-  await openSecurityTab(page);
+  const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
+  expect(adminKey).toBeTruthy();
 
-  const response = await page.request.get(
-    `/api/profile/keys/regenerate?UserID=${encodeURIComponent(user.id)}`
+  const response = await orchestraFetch(
+    `/v0/admin/api_key/reset?user_id=${encodeURIComponent(user.id)}`,
+    { method: 'POST' },
+    adminKey
   );
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 
-  const data = await response.json();
-  expect(data.key).toBeTruthy();
-  expect(data.key).not.toBe(oldKey);
+  const data = (await response.json()) as string;
+  expect(data).toBeTruthy();
+  expect(data).not.toBe(oldKey);
 
   const newKey = getUserApiKeyFromDb(user.id);
-  expect(newKey).toBe(data.key);
+  expect(newKey).toBe(data);
 });

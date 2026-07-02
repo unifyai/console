@@ -18,7 +18,10 @@ import {
   uniqueEmail,
   dbExec,
 } from './helpers';
-import { deferCoordinatorForUser, dismissCoordinatorOnboardingIfOpen } from '../helpers/coordinator';
+import {
+  deferCoordinatorForUser,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
 
 // =============================================================================
 // Registration

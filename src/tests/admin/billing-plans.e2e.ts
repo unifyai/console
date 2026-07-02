@@ -193,8 +193,12 @@ test('billing plans table scrolls horizontally at a constrained viewport', async
   const table = page.locator('table.min-w-\\[960px\\]').first();
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const scrollWidth = await table.evaluate((el) => el.scrollWidth);
-  const clientWidth = await table.evaluate((el) => el.clientWidth);
+  const scrollContainer = table
+    .locator('xpath=ancestor::div[contains(@class,"overflow-auto")]')
+    .first();
+  await expect(scrollContainer).toBeVisible();
+  const scrollWidth = await scrollContainer.evaluate((el) => el.scrollWidth);
+  const clientWidth = await scrollContainer.evaluate((el) => el.clientWidth);
   expect(scrollWidth).toBeGreaterThan(clientWidth);
 });
 
@@ -227,11 +231,14 @@ test('organizations page sets the new template on the target org', async ({ admi
     .first()
     .click();
 
-  // The Plan section should render with "default (implicit)".
-  await expect(page.locator('text=default (implicit)')).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page
+      .locator('label')
+      .filter({ hasText: /^Plan$/ })
+      .locator('xpath=following-sibling::p[1]')
+  ).toHaveText('default', { timeout: 15_000 });
 
-  // The single plan-mutation entry point is "Set plan…".
-  await page.getByRole('button', { name: /Set plan/i }).click();
+  await page.getByRole('button', { name: /Change plan/i }).click();
   // Dialog title is "Change plan" for non-default templates and
   // "Return to default plan" for the cancel flow; match either so
   // the test isn't coupled to which template happens to be picked

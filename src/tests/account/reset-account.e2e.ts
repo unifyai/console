@@ -45,6 +45,7 @@ import { createAssistant, addMember, dbExec } from '../helpers/seeds/client';
 // product convention the membership gate keys off). The org name is globally
 // unique, so reuse an existing "Unify" org if present and otherwise create one.
 const staffUser = createTestUser({ name: 'Reset', lastName: 'Victim', credits: 7500 });
+const resetDiscordId = `seed-discord-${staffUser.id.slice(0, 8)}`;
 
 const existingUnifyOrgId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
 let unifyOrgId: number;
@@ -63,7 +64,7 @@ const seededCoordinatorId = staffUser.coordinator?.agentId ?? null;
 createAssistant({ userId: staffUser.id, firstName: 'Hired', surname: 'Helper' });
 dbExec(
   `UPDATE "user" SET phone_number = '+14155550100', whatsapp_number = '+14155550101', ` +
-    `discord_id = 'seed-discord-123' WHERE id = '${staffUser.id}';`
+    `discord_id = '${resetDiscordId}' WHERE id = '${staffUser.id}';`
 );
 
 // ---------------------------------------------------------------------------
