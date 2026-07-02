@@ -62,5 +62,7 @@ test('/interfaces renders inside the rail shell for a Unify member', async ({
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
 
   await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  // Project picker is part of the interfaces nav chrome; interface picker only mounts when
+  // the selected project has at least one interface.
   await expect(page.getByTestId('project-picker-trigger')).toBeVisible({ timeout: 25_000 });
 });
