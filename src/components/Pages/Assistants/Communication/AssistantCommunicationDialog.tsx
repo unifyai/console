@@ -113,15 +113,19 @@ function useCoordinatorRecordedIntroSpeechActive(
  * recorded LiveKit opening configured for fresh onboarding) counts as a
  * speaking turn for pose purposes so the droid stays camera-facing for the
  * full intro segment.
+ *
+ * Until the call is answered (connected and the assistant has joined and is
+ * ready), the droid stays camera-facing — the same gate used for the intro.
  */
 function useWorkingPose(
   isSpeaking: boolean,
   lastCommsActivityAt: number | null,
   hasActiveAction: boolean,
-  isIntroSpeechActive: boolean
+  isIntroSpeechActive: boolean,
+  isCallAnswered: boolean
 ): boolean {
   const [onLaptop, setOnLaptop] = React.useState(false);
-  const facesCamera = isSpeaking || isIntroSpeechActive;
+  const facesCamera = isSpeaking || isIntroSpeechActive || !isCallAnswered;
 
   // Silence while the droid still faces the camera → turn to the laptop.
   React.useEffect(() => {
@@ -386,11 +390,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     activeOpeningConfig
   );
   const isIntroSpeechActive = isIntroAudioPlaying || isRecordedIntroSpeechActive;
+  const isCallAnswered =
+    isCallConnected && !isConnecting && !isWaitingForAssistant && !isAssistantPreparing;
   const isActing = useWorkingPose(
     isAssistantSpeaking,
     lastCommsActivityAt,
     hasActiveAction,
-    isIntroSpeechActive
+    isIntroSpeechActive,
+    isCallAnswered
   );
 
   React.useEffect(() => {

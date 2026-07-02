@@ -12,6 +12,8 @@
  *    stays.
  *  - During the coordinator onboarding intro (precomputed audio), the droid
  *    stays camera-facing for the full intro segment.
+ *  - Before the call is answered (connecting, waiting for the assistant, or
+ *    preparing), the droid stays camera-facing and cannot turn to the laptop.
  *
  * Local mode: LiveKit creds are absent so the call hook reports connected
  * immediately; Pub/Sub creds are absent so actions flow through the in-memory
