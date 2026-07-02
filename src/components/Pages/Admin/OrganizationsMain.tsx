@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { showToast as toast } from '@/components/Common/Toasts/notifications';
 import {
   Search,
   Plus,
@@ -145,38 +146,6 @@ function profileMeetsProvisioningMinimum(profile: AdminBillingProfile): boolean 
 }
 
 // ---------------------------------------------------------------------------
-// Toast-style inline notification (simple, no external dep)
-// ---------------------------------------------------------------------------
-
-function useToast() {
-  const [message, setMessage] = useState<{
-    text: string;
-    type: 'success' | 'error';
-  } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const show = useCallback((text: string, type: 'success' | 'error' = 'success') => {
-    if (timer.current) clearTimeout(timer.current);
-    setMessage({ text, type });
-    timer.current = setTimeout(() => setMessage(null), 4000);
-  }, []);
-
-  const Toast = message ? (
-    <div
-      className={`text-body fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 shadow-lg ${
-        message.type === 'success'
-          ? 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
-          : 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]'
-      }`}
-    >
-      {message.text}
-    </div>
-  ) : null;
-
-  return { show, Toast };
-}
-
-// ---------------------------------------------------------------------------
 // Foldable section
 //
 // Same shape as the helper used in BillingPlansMain so the admin pages
@@ -243,8 +212,6 @@ export default function OrganizationsAdminMain({
   actions,
   planActions,
 }: OrganizationsAdminMainProps) {
-  const { show: toast, Toast } = useToast();
-
   // ── Organization list state ──────────────────────────────────────────
   const [orgs, setOrgs] = useState<AdminOrgListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -321,7 +288,7 @@ export default function OrganizationsAdminMain({
       }
       setIsLoadingOrgs(false);
     },
-    [actions, toast]
+    [actions]
   );
 
   // Initial load
@@ -350,7 +317,7 @@ export default function OrganizationsAdminMain({
       }
       setIsLoadingDetail(false);
     },
-    [actions, toast]
+    [actions]
   );
 
   // ── Fetch invites ────────────────────────────────────────────────────
@@ -1471,8 +1438,6 @@ export default function OrganizationsAdminMain({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {Toast}
     </div>
   );
 }

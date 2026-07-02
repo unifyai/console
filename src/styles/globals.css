@@ -1284,3 +1284,28 @@
 .attachment-spreadsheet tr:hover td {
   background: var(--muted);
 }
+
+/* Sonner typed toasts — close button inherits status foreground */
+[data-sonner-toast][data-type='success'] [data-close-button] {
+  background: var(--status-success-bg);
+  border-color: color-mix(in srgb, var(--status-success) 25%, var(--border));
+  color: var(--status-success);
+}
+
+[data-sonner-toast][data-type='error'] [data-close-button] {
+  background: var(--status-danger-bg);
+  border-color: color-mix(in srgb, var(--status-danger) 25%, var(--border));
+  color: var(--status-danger);
+}
+
+[data-sonner-toast][data-type='info'] [data-close-button] {
+  background: var(--status-info-bg);
+  border-color: color-mix(in srgb, var(--status-info) 25%, var(--border));
+  color: var(--status-info);
+}
+
+[data-sonner-toast][data-type='warning'] [data-close-button] {
+  background: var(--status-warning-bg);
+  border-color: color-mix(in srgb, var(--status-warning) 25%, var(--border));
+  color: var(--status-warning);
+}

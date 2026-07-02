@@ -104,7 +104,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
               </HomeChrome>
             </CallProviderGate>
           </AppShellNavigationProvider>
-          <Toaster richColors position="bottom-right" closeButton />
+          <Toaster position="bottom-right" closeButton />
           <ImpersonationBanner />
           <SelfHostRuntimeBootstrap />
           <TimezoneSync />
