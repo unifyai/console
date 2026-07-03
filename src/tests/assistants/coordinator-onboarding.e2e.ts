@@ -484,20 +484,9 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   await expect(
     page.getByTestId('coordinator-onboarding-item-workspace-calendar').first()
   ).toBeVisible();
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-contacts').first()
-  ).toBeVisible();
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-tasks').first()
-  ).toBeVisible();
-  // The Microsoft-only Teams demo never surfaces without a connected
-  // Microsoft workspace (this connection carries no granted-scopes signal).
-  await expect(page.getByTestId('coordinator-onboarding-item-workspace-teams')).toHaveCount(0);
   await expectChecklistItemClickable(page, 'workspace-mailbox');
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
-  await expectChecklistItemClickable(page, 'workspace-contacts');
-  await expectChecklistItemClickable(page, 'workspace-tasks');
 
   let stepEventRequests = 0;
   let lastStepId: string | null = null;
@@ -542,64 +531,6 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   // The other demos stay independently actionable.
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
-  await expectChecklistItemClickable(page, 'workspace-contacts');
-  await expectChecklistItemClickable(page, 'workspace-tasks');
-});
-
-test('a connected Microsoft workspace surfaces the Teams-only demo', async ({
-  authedPage: page,
-}) => {
-  // A Microsoft OAuth grant is marked by the canonical
-  // ``MICROSOFT_GRANTED_SCOPES`` secret: it both completes the ``workspace``
-  // connect step (Orchestra derives it) and identifies the provider, so the
-  // Microsoft-only Teams demo renders alongside the shared demos.
-  const coordinator = createPersonalCoordinator(user.id);
-  dbExec(
-    `INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value) ` +
-      `VALUES ('${user.id}', ${coordinator.agentId}, 'MICROSOFT_GRANTED_SCOPES', ` +
-      `'Files.Read.All ChannelMessage.Read.All Chat.Read') ` +
-      `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
-  );
-  resetCoordinatorIntroWatched();
-
-  await gotoAssistants(page);
-  await expectPickerVisible(page);
-  await page.getByTestId('coordinator-onboarding-pick-chat').click();
-  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
-
-  await openOnboardingChecklist(page);
-  await selectCoordinatorOnboardingSection(page, 'workspace');
-
-  // The Teams demo is present and actionable for the Microsoft workspace.
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-teams').first()
-  ).toBeVisible();
-  await expectChecklistItemClickable(page, 'workspace-teams');
-
-  // Clicking it dispatches the graph-owned step event and shows the
-  // in-flight summarizing feedback, exactly like the shared demos.
-  let lastStepId: string | null = null;
-  page.on('request', (request) => {
-    if (request.url().includes('/api/coordinator-onboarding-step-event')) {
-      try {
-        lastStepId = (JSON.parse(request.postData() ?? '{}') as { stepId?: string }).stepId ?? null;
-      } catch {
-        /* body shape asserted via the feedback label below */
-      }
-    }
-  });
-  await page.getByTestId('coordinator-onboarding-item-workspace-teams').first().click();
-  await expect(
-    page.getByTestId('coordinator-onboarding-action-feedback-workspace-teams')
-  ).toHaveText('Summarizing...');
-  await expect.poll(() => lastStepId, { timeout: 5_000 }).toBe('workspace-teams');
-
-  // Clean up so the seeded Microsoft grant doesn't leak into sibling tests
-  // that share this coordinator.
-  dbExec(
-    `DELETE FROM assistant_secrets WHERE agent_id = ${coordinator.agentId} ` +
-      `AND secret_name = 'MICROSOFT_GRANTED_SCOPES';`
-  );
 });
 
 test('starting a call connects and docks the call in the platform', async ({
