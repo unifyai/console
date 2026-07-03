@@ -49,12 +49,11 @@ export function compareLogsByTime(
  * Parses a raw ManagerMethod log entry into a structured event.
  * Returns null if the log is missing required fields or has a non-lifecycle phase.
  *
- * Only two phases are accepted:
- * - phase='incoming'  — operation started (creates a tree node)
- * - phase='outgoing'  — operation returned a value (updates a tree node)
- *
- * All other events (phase=null) are discarded. Steering annotations
- * (interject, pause, resume, stop) are now represented as ToolLoop entries.
+ * Only lifecycle phases are accepted:
+ * - phase='incoming'       — operation started (creates a tree node)
+ * - phase='outgoing'       — operation returned a value (updates a tree node)
+ * - phase='awaiting_input' — persist session yielded, waiting for interjection
+ * - phase='resumed'        — persist session resumed after interjection
  */
 export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMethodEvent | null {
   const { entries } = log;
@@ -70,7 +69,12 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     return null;
   }
 
-  if (entries.phase !== 'incoming' && entries.phase !== 'outgoing') {
+  if (
+    entries.phase !== 'incoming' &&
+    entries.phase !== 'outgoing' &&
+    entries.phase !== 'awaiting_input' &&
+    entries.phase !== 'resumed'
+  ) {
     return null;
   }
 
@@ -196,6 +200,24 @@ function isTrivialLoopSignal(content: string | undefined): boolean {
   return trimmed === 'false' || trimmed === 'null';
 }
 
+export function applyAwaitingInputEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
+  if (node.status === 'completed' || node.status === 'error') return;
+  node.status = 'awaiting';
+  node.endTime = undefined;
+  if (event.hierarchyLabel) {
+    node.hierarchyLabel = event.hierarchyLabel;
+  }
+}
+
+export function applyResumedEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
+  if (node.status === 'completed' || node.status === 'error') return;
+  node.status = 'running';
+  node.endTime = undefined;
+  if (event.hierarchyLabel) {
+    node.hierarchyLabel = event.hierarchyLabel;
+  }
+}
+
 /**
  * Applies an outgoing event to a node, updating its status and content.
  *
@@ -217,7 +239,7 @@ function isTrivialLoopSignal(content: string | undefined): boolean {
  *  - Everything else → mark as 'completed'; set content if meaningful
  */
 export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
-  const wasRunning = node.status === 'running';
+  const wasActive = node.status === 'running' || node.status === 'awaiting';
 
   if (event.hierarchyLabel) {
     node.hierarchyLabel = event.hierarchyLabel;
@@ -241,10 +263,46 @@ export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodE
   // data so it can be re-fetched with the complete set.  Preserve
   // liveToolLoopLogs — the UI uses them as a bridge until the lazy-loaded
   // historical data arrives, preventing content from vanishing on completion.
-  if (wasRunning && node.status !== 'running') {
+  if (wasActive && node.status !== 'running' && node.status !== 'awaiting') {
     node.toolLoopSteps = undefined;
     node.isToolLoopLoaded = false;
   }
+}
+
+function applyNodeUpdateEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
+  if (event.phase === 'awaiting_input') {
+    applyAwaitingInputEvent(node, event);
+    return;
+  }
+  if (event.phase === 'resumed') {
+    applyResumedEvent(node, event);
+    return;
+  }
+  applyOutgoingEvent(node, event);
+}
+
+function applyNodeUpdateOrOrphan(
+  event: ParsedManagerMethodEvent,
+  roots: ActionNode[],
+  nodeMap: Map<string, ActionNode>,
+  orphanOutgoing: ParsedManagerMethodEvent[],
+  promotedCallingIds: string[]
+): void {
+  const existingNode = nodeMap.get(event.callingId);
+  if (existingNode) {
+    applyNodeUpdateEvent(existingNode, event);
+    return;
+  }
+
+  const boundaryNode = findBoundaryByHierarchy(roots, event.hierarchy);
+  if (boundaryNode) {
+    promoteBoundaryNode(boundaryNode, event, nodeMap);
+    promotedCallingIds.push(event.callingId);
+    applyNodeUpdateEvent(boundaryNode, event);
+    return;
+  }
+
+  orphanOutgoing.push(event);
 }
 
 /**
@@ -484,27 +542,11 @@ export function buildActionTree(logs: ManagerMethodLog[]): ActionTreeResult {
       const orphanIndex = orphanOutgoing.findIndex((o) => o.callingId === event.callingId);
       if (orphanIndex !== -1) {
         const orphan = orphanOutgoing[orphanIndex];
-        applyOutgoingEvent(node, orphan);
+        applyNodeUpdateEvent(node, orphan);
         orphanOutgoing.splice(orphanIndex, 1);
       }
     } else {
-      // outgoing
-      const existingNode = nodeMap.get(event.callingId);
-      if (existingNode) {
-        applyOutgoingEvent(existingNode, event);
-      } else {
-        // The incoming event might be outside the fetch window, causing
-        // findOrCreateParent to have created a boundary placeholder.
-        // Try to match by hierarchy and promote the boundary.
-        const boundaryNode = findBoundaryByHierarchy(roots, event.hierarchy);
-        if (boundaryNode) {
-          promoteBoundaryNode(boundaryNode, event, nodeMap);
-          promotedCallingIds.push(event.callingId);
-          applyOutgoingEvent(boundaryNode, event);
-        } else {
-          orphanOutgoing.push(event);
-        }
-      }
+      applyNodeUpdateOrOrphan(event, roots, nodeMap, orphanOutgoing, promotedCallingIds);
     }
   }
 
@@ -543,22 +585,7 @@ export function mergeNewEvents(
       const node = createActionNode(event);
       insertNodeAtHierarchy(roots, nodeMap, node);
     } else {
-      // outgoing — Unity sends multiple outgoings per calling_id;
-      // applyOutgoingEvent is safe to call repeatedly (content is only
-      // overwritten when the new value is meaningful).
-      const existingNode = nodeMap.get(event.callingId);
-      if (existingNode) {
-        applyOutgoingEvent(existingNode, event);
-      } else {
-        const boundaryNode = findBoundaryByHierarchy(roots, event.hierarchy);
-        if (boundaryNode) {
-          promoteBoundaryNode(boundaryNode, event, nodeMap);
-          promotedCallingIds.push(event.callingId);
-          applyOutgoingEvent(boundaryNode, event);
-        } else {
-          orphanOutgoing.push(event);
-        }
-      }
+      applyNodeUpdateOrOrphan(event, roots, nodeMap, orphanOutgoing, promotedCallingIds);
     }
   }
 
@@ -722,6 +749,7 @@ export function filterActionTree(
  */
 export interface ActionNodeCounts {
   running: number;
+  awaiting: number;
   completed: number;
   error: number;
 }
@@ -735,6 +763,7 @@ export interface ActionNodeCounts {
 export function countActionNodes(roots: ActionNode[]): ActionNodeCounts {
   const counts: ActionNodeCounts = {
     running: 0,
+    awaiting: 0,
     completed: 0,
     error: 0,
   };
@@ -743,6 +772,9 @@ export function countActionNodes(roots: ActionNode[]): ActionNodeCounts {
     switch (root.status) {
       case 'running':
         counts.running++;
+        break;
+      case 'awaiting':
+        counts.awaiting++;
         break;
       case 'completed':
         counts.completed++;

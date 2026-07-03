@@ -115,6 +115,8 @@ export interface AssistantInfoSidePanelContentProps {
      * (``create-scheduled-task`` / ``create-triggerable-task``); ``chipId``
      * the chip's id. */
     onSelectTaskChip?: (stepId: string, chipId: string) => void;
+    /** Dispatches the Learning tutorial beat event to Unity. */
+    onLearnFromCorrection?: () => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -384,6 +386,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onCreateScheduledTask={coordinatorOnboarding.onCreateScheduledTask}
                 onCreateTriggerableTask={coordinatorOnboarding.onCreateTriggerableTask}
                 onSelectTaskChip={coordinatorOnboarding.onSelectTaskChip}
+                onLearnFromCorrection={coordinatorOnboarding.onLearnFromCorrection}
                 onTestTriggerableTask={taskBeats.testTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}

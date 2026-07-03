@@ -1011,7 +1011,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // assistant in the workspace. Drives (a) unread badges on the list, (b)
   // the currently-open chat panel's message history, (c) the typing
   // indicator via `activityCounters`, and (d) the per-assistant online
-  // status via `markAssistantOnline`.
+  // status via `handleAssistantLiveActivity` (any inbound SSE frame,
+  // including unify_meet_incoming rings, plus call-connect fallbacks).
   //
   // Pairs are assembled from the `resolvedContactIds` state that
   // `useContactIdPrefetch` maintains; as new IDs resolve, React batches the
@@ -1059,6 +1060,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       }
     },
     [canonicalCoordinatorId, refetchCoordinatorOnboardingState]
+  );
+
+  const handleAssistantLiveActivity = React.useCallback(
+    (assistantId: string) => {
+      handleChatActivity(assistantId);
+      markAssistantOnline(assistantId);
+    },
+    [handleChatActivity, markAssistantOnline]
   );
 
   // `ackMessage` is returned by `useAssistantChatStream` below, but we need
@@ -1270,7 +1279,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onChatMessage: handleChatStreamMessage,
       onDesktopReady: handleChatStreamDesktopReady,
       onUnifyMeetIncoming: handleUnifyMeetIncoming,
-      onMessageActivity: handleChatActivity,
+      onMessageActivity: handleAssistantLiveActivity,
     },
     {
       userEmail: userMeta.email ?? undefined,
@@ -1435,11 +1444,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return;
       }
 
+      markAssistantOnline(assistant.agentId);
+
       // Fresh call: stay docked by default.
       redock();
       await startCall(assistant, callType, options);
     },
-    [startCall, redock, activeCallAssistant]
+    [startCall, redock, activeCallAssistant, markAssistantOnline]
   );
 
   const handleHangUp = React.useCallback(async () => {
@@ -1479,6 +1490,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     const timer = setTimeout(() => setIncomingMeetCall(null), 30000);
     return () => clearTimeout(timer);
   }, [incomingMeetCall, activeCallAssistant]);
+
+  React.useEffect(() => {
+    if (!activeCallAssistant || !isCallConnected || isWaitingForAssistant) return;
+    markAssistantOnline(activeCallAssistant.agentId);
+  }, [activeCallAssistant, isCallConnected, isWaitingForAssistant, markAssistantOnline]);
 
   const {
     setPresetAgeFilter,
@@ -1928,6 +1944,47 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the graph-owned event for the Learning tutorial row. Row click
+  // starts the guided expenses-etl demo directly — no chips. Mirrors the Tasks
+  // beat path: Orchestra emits the canonical onboarding event to Unity and the
+  // user stays on the current surface — no pane navigation.
+  const handleCoordinatorDispatchLearningBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error('[Coordinator onboarding] Failed to dispatch learning beat event:', error);
+          toast.error('Could not start this learning exercise. Please try again.');
+        }
+      })();
+    },
+    [
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
+    ]
+  );
+
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
     handleOpenUserSettings('contact-info');
@@ -2044,6 +2101,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
       onSelectTaskChip: (stepId: string, chipId: string) =>
         handleCoordinatorDispatchTaskBeat(stepId, chipId),
+      onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -2076,6 +2134,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
+    handleCoordinatorDispatchLearningBeat,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,

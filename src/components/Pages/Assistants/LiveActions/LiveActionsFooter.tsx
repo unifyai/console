@@ -21,6 +21,8 @@ export interface LiveActionsFooterProps {
   isWorking: boolean;
   /** Count of running nodes */
   runningCount: number;
+  /** Count of persist sessions waiting for input */
+  awaitingCount?: number;
   /** Count of completed nodes */
   completedCount: number;
   /** Timestamp of last data update */
@@ -53,6 +55,7 @@ export function LiveActionsFooter({
   assistantName,
   isWorking,
   runningCount,
+  awaitingCount = 0,
   completedCount,
   lastUpdated,
   connectionStatus = 'idle',
@@ -71,6 +74,7 @@ export function LiveActionsFooter({
   }, []);
 
   const runningText = `${runningCount} running`;
+  const awaitingText = awaitingCount > 0 ? `${awaitingCount} waiting for input` : null;
   const completedText = `${completedCount} completed`;
 
   const lastUpdatedText = lastUpdated
@@ -108,7 +112,8 @@ export function LiveActionsFooter({
             {isMockData && (
               <span className="font-medium text-[color:var(--status-warning)]">(mock) </span>
             )}
-            {runningText}, {completedText}
+            {runningText}
+            {awaitingText ? `, ${awaitingText}` : ''}, {completedText}
           </span>
         </>
       }

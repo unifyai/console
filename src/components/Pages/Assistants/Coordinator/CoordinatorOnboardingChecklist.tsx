@@ -45,6 +45,10 @@ import type {
   OnboardingStepStatus,
 } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
+import {
+  readCoordinatorOnboardingFoldState,
+  writeCoordinatorOnboardingFoldState,
+} from '@/lib/assistants/coordinatorOnboardingFoldState';
 
 export type ChecklistAction =
   | 'trigger-email-reference'
@@ -72,7 +76,8 @@ export type ChecklistAction =
   | 'connect-apps'
   | 'act'
   | 'create-scheduled-task'
-  | 'create-triggerable-task';
+  | 'create-triggerable-task'
+  | 'learn-from-correction';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -132,6 +137,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   act: 'act',
   'create-scheduled-task': 'create-scheduled-task',
   'create-triggerable-task': 'create-triggerable-task',
+  'learn-from-correction': 'learn-from-correction',
 };
 
 const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
@@ -154,6 +160,7 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-calendar': 'Summarizing...',
   'create-scheduled-task': 'Starting...',
   'create-triggerable-task': 'Starting...',
+  'learn-from-correction': 'Starting...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -558,6 +565,9 @@ export interface CoordinatorOnboardingChecklistProps {
    * (``create-scheduled-task`` / ``create-triggerable-task``); ``chipId`` the
    * chip's id. Unset leaves the chips as read-only inspiration. */
   onSelectTaskChip?: (stepId: string, chipId: string) => void;
+  /** Dispatches the Learning tutorial beat event to Unity. Hung off
+   * ``learn-from-correction``. Unset means the row degrades to a static entry. */
+  onLearnFromCorrection?: () => void;
   /** Deterministically fire the armed triggerable task by id — powers the
    * inline "Test it" affordance under the ``create-triggerable-task`` row.
    * Unset (or a null ``armedTriggerableTaskId``) hides the affordance. */
@@ -592,6 +602,7 @@ export function CoordinatorOnboardingChecklist({
   onCreateScheduledTask,
   onCreateTriggerableTask,
   onSelectTaskChip,
+  onLearnFromCorrection,
   onTestTriggerableTask,
   armedTriggerableTaskId = null,
   nextScheduledTaskDueAt = null,
@@ -611,10 +622,15 @@ export function CoordinatorOnboardingChecklist({
   const firstLoginCommunicationEmailOpenRequest = ctx?.firstLoginCommunicationEmailOpenRequest ?? 0;
   const acknowledgeFirstLoginCommunicationEmailOpen =
     ctx?.acknowledgeFirstLoginCommunicationEmailOpen;
-  const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
-  const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(
-    () => new Set()
-  );
+  const storedFoldStateRef = React.useRef(readCoordinatorOnboardingFoldState());
+  const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => {
+    const stored = storedFoldStateRef.current;
+    return stored?.sectionIds.length ? new Set(stored.sectionIds) : new Set();
+  });
+  const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(() => {
+    const stored = storedFoldStateRef.current;
+    return stored?.subgroupIds.length ? new Set(stored.subgroupIds) : new Set();
+  });
   const [blockedFeedback, setBlockedFeedback] = React.useState<{
     stepId: string;
     token: number;
@@ -627,6 +643,7 @@ export function CoordinatorOnboardingChecklist({
     new Map()
   );
   const didInitializeOpenSectionRef = React.useRef(false);
+  const foldStateHydratedRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockedFeedbackTokenRef = React.useRef(0);
 
@@ -664,6 +681,7 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'act') onActNow?.();
       else if (action === 'create-scheduled-task') onCreateScheduledTask?.();
       else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
+      else if (action === 'learn-from-correction') onLearnFromCorrection?.();
     },
     [
       onStartOnboardingStep,
@@ -677,6 +695,7 @@ export function CoordinatorOnboardingChecklist({
       onActNow,
       onCreateScheduledTask,
       onCreateTriggerableTask,
+      onLearnFromCorrection,
     ]
   );
 
@@ -787,6 +806,7 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'act') return !!onActNow;
       if (action === 'create-scheduled-task') return !!onCreateScheduledTask;
       if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
+      if (action === 'learn-from-correction') return !!onLearnFromCorrection;
       return false;
     },
     [
@@ -801,6 +821,7 @@ export function CoordinatorOnboardingChecklist({
       onActNow,
       onCreateScheduledTask,
       onCreateTriggerableTask,
+      onLearnFromCorrection,
     ]
   );
 
@@ -866,12 +887,32 @@ export function CoordinatorOnboardingChecklist({
 
   React.useEffect(() => {
     if (didInitializeOpenSectionRef.current || !resolved.length) return;
-    const defaultSection = nextActionableId
-      ? resolved.find((section) => containsLeafId(section, nextActionableId))
-      : null;
-    setOpenSectionIds(new Set([defaultSection?.id ?? resolved[0].id]));
-    didInitializeOpenSectionRef.current = true;
+    const validSectionIds = new Set(resolved.map((section) => section.id));
+    setOpenSectionIds((current) => {
+      const filtered = new Set(
+        Array.from(current).filter((sectionId) => validSectionIds.has(sectionId))
+      );
+      if (filtered.size > 0) {
+        didInitializeOpenSectionRef.current = true;
+        foldStateHydratedRef.current = true;
+        return filtered.size === current.size ? current : filtered;
+      }
+      const defaultSection = nextActionableId
+        ? resolved.find((section) => containsLeafId(section, nextActionableId))
+        : null;
+      didInitializeOpenSectionRef.current = true;
+      foldStateHydratedRef.current = true;
+      return new Set([defaultSection?.id ?? resolved[0].id]);
+    });
   }, [nextActionableId, resolved]);
+
+  React.useEffect(() => {
+    if (!foldStateHydratedRef.current) return;
+    writeCoordinatorOnboardingFoldState({
+      sectionIds: [...openSectionIds],
+      subgroupIds: [...openSubgroupIds],
+    });
+  }, [openSectionIds, openSubgroupIds]);
 
   const hasVisibleEmailSubgroup = React.useMemo(() => {
     const communicationSection = resolved.find(
@@ -1488,8 +1529,9 @@ function ChecklistRow({
   const showSuggestions =
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
   const chipsClickable =
-    !!onSelectTaskChip &&
-    (item.id === 'create-scheduled-task' || item.id === 'create-triggerable-task');
+    item.id === 'create-scheduled-task' || item.id === 'create-triggerable-task'
+      ? !!onSelectTaskChip
+      : false;
 
   // Beat-specific affordances that sit under their row while it's the
   // active step: a countdown once a scheduled task is set, and a

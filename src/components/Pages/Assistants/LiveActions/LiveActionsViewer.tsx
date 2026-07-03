@@ -406,6 +406,7 @@ export function LiveActionsViewer({
           assistantName={assistant.firstName}
           isWorking={hasActiveAction}
           runningCount={counts.running}
+          awaitingCount={counts.awaiting}
           completedCount={counts.completed}
           lastUpdated={lastUpdated}
           connectionStatus={connectionStatus}

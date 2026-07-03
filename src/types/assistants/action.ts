@@ -12,7 +12,7 @@
 /**
  * Status of an action node in the tree.
  */
-export type ActionNodeStatus = 'running' | 'completed' | 'error';
+export type ActionNodeStatus = 'running' | 'awaiting' | 'completed' | 'error';
 
 /**
  * Type of node in the action tree.
@@ -106,7 +106,7 @@ export interface ActionNode {
 export interface ManagerMethodLogEntries {
   manager: string;
   method: string;
-  phase: 'incoming' | 'outgoing' | null;
+  phase: 'incoming' | 'outgoing' | 'awaiting_input' | 'resumed' | null;
   callingId: string;
   hierarchy: string[];
   hierarchyLabel: string;
@@ -148,7 +148,7 @@ export interface ParsedManagerMethodEvent {
   timestamp: string;
   manager: string;
   method: string;
-  phase: 'incoming' | 'outgoing';
+  phase: 'incoming' | 'outgoing' | 'awaiting_input' | 'resumed';
   callingId: string;
   hierarchy: string[];
   hierarchyLabel: string;
