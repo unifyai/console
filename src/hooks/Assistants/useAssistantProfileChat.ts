@@ -582,6 +582,9 @@ export function useAssistantProfileChat(
         role: incomingMsg.role,
         content: String(incomingMsg.content).slice(0, 40),
       });
+      if (incomingMsg.role === 'assistant') {
+        stopReplying();
+      }
       setChatHistories((prev) => {
         const current = prev[assistantId] || [];
         if (current.some((m) => m.id === messageWithDate.id)) {
@@ -610,7 +613,16 @@ export function useAssistantProfileChat(
     return () => {
       channel.close();
     };
-  }, [assistantId, setChatHistories]);
+  }, [assistantId, setChatHistories, stopReplying]);
+
+  // Clear typing when the thread tail is an assistant message — covers
+  // reconciler merges and any other path that bypasses the SSE activity counter.
+  React.useEffect(() => {
+    if (messages.length === 0) return;
+    if (messages[messages.length - 1].role === 'assistant') {
+      stopReplying();
+    }
+  }, [messages, stopReplying]);
 
   // =========================================================================
   // Chat SSE stream
@@ -681,7 +693,7 @@ export function useAssistantProfileChat(
     const currentAssistant = assistant;
     const currentContactId = contactId;
 
-    clearTimers();
+    stopReplying();
     const generation = ++sendGenerationRef.current;
 
     const messageToSend = inputValue.trim();

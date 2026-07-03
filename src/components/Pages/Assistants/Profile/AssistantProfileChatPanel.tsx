@@ -308,6 +308,11 @@ export function AssistantProfileChatPanel({
     );
   }, [historicalView]);
 
+  const awaitingAssistantReply = React.useMemo(
+    () => messages.length === 0 || messages[messages.length - 1].role === 'user',
+    [messages]
+  );
+
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
   const isAtBottomRef = React.useRef(true);
@@ -865,7 +870,7 @@ export function AssistantProfileChatPanel({
                     </React.Fragment>
                   );
                 })}
-                {(isAssistantReplying || forceTypingIndicator) && (
+                {(forceTypingIndicator || (isAssistantReplying && awaitingAssistantReply)) && (
                   <ChatMessageBubble
                     message=""
                     isUser={false}
