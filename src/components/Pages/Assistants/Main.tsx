@@ -1928,6 +1928,47 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the graph-owned event for the Learning tutorial row. Row click
+  // starts the guided expenses-etl demo directly — no chips. Mirrors the Tasks
+  // beat path: Orchestra emits the canonical onboarding event to Unity and the
+  // user stays on the current surface — no pane navigation.
+  const handleCoordinatorDispatchLearningBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error('[Coordinator onboarding] Failed to dispatch learning beat event:', error);
+          toast.error('Could not start this learning exercise. Please try again.');
+        }
+      })();
+    },
+    [
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
+    ]
+  );
+
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
     handleOpenUserSettings('contact-info');
@@ -2044,6 +2085,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
       onSelectTaskChip: (stepId: string, chipId: string) =>
         handleCoordinatorDispatchTaskBeat(stepId, chipId),
+      onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -2076,6 +2118,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
+    handleCoordinatorDispatchLearningBeat,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
