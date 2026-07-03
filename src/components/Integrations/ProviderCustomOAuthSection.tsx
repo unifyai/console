@@ -110,8 +110,7 @@ export function ProviderCustomOAuthSection({
 
   if (!supportsOAuth || !toolkitSlug) return null;
 
-  const redirectUri =
-    existing?.oauthRedirectUri || oauthCallbackUrl || 'Loading redirect URI…';
+  const redirectUri = existing?.oauthRedirectUri || oauthCallbackUrl || 'Loading redirect URI…';
 
   const canSubmit = clientId.trim().length > 0 && clientSecret.trim().length > 0 && !submitting;
 
