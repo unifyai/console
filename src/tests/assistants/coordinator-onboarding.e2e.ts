@@ -229,6 +229,30 @@ async function seedCoordinatorOutboundTranscript(
   expect(response.ok).toBeTruthy();
 }
 
+/**
+ * Mark an onboarding step complete via the same Orchestra state PATCH the brain
+ * uses (``set_onboarding_task_state`` -> ``onboarding_step_completion``). This is
+ * how workspace demos — multi-part tasks that no longer auto-complete from an
+ * outbound — are finished: the assistant does the whole task, then explicitly
+ * sets the step done.
+ */
+async function markCoordinatorOnboardingStepComplete(
+  coordinatorId: string | number,
+  stepId: string
+) {
+  const response = await orchestraFetch(
+    `/v0/assistant/${coordinatorId}/state`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        onboarding_step_completion: { step_id: stepId, completed: true },
+      }),
+    },
+    user.apiKey
+  );
+  expect(response.ok).toBeTruthy();
+}
+
 test('picker shows on first visit with no skip or resume affordance', async ({
   authedPage: page,
 }) => {
@@ -451,7 +475,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
-test('workspace demos trigger a unify_message summary and complete from the outbound', async ({
+test('workspace demos complete only when the assistant explicitly marks them done', async ({
   authedPage: page,
 }) => {
   // Connecting the workspace email marks the ``workspace`` connect step
@@ -523,21 +547,27 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   expect(lastStepId).toBe('workspace-mailbox');
   await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
 
-  // An untagged unify_message is not proof of the demo.
+  // A workspace demo is a multi-part task: the assistant's summary outbound —
+  // even one tagged for the step — must NOT auto-complete it. Only an explicit
+  // set_onboarding_task_state call does. Seed both the untagged and tagged
+  // summaries and confirm neither flips the row to done.
   await seedCoordinatorOutboundTranscript(
     coordinator.agentId,
     'unify_message',
     'Untagged unify_message — not a workspace demo proof.'
   );
   await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
-
-  // The tagged unify_message summary the assistant delivers completes it.
   await seedCoordinatorOutboundTranscript(
     coordinator.agentId,
     'unify_message',
     "Here's a quick summary of your mailbox.",
     'workspace-mailbox'
   );
+  await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
+
+  // The assistant finishes the whole task and marks the step done via the
+  // Orchestra state PATCH — that is what completes the demo.
+  await markCoordinatorOnboardingStepComplete(coordinator.agentId, 'workspace-mailbox');
   await expect(mailboxRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
 
   // The other demos stay independently actionable.

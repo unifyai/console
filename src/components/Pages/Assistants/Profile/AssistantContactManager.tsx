@@ -310,32 +310,42 @@ export const FeatureChecklist: React.FC<{
   required: string[];
   onToggle: (feature: string) => void;
   disabled?: boolean;
-}> = ({ features, selected, required, onToggle, disabled }) => (
-  <div className="space-y-2">
-    {features.map((feature) => {
-      const isRequired = required.includes(feature);
-      const isChecked = selected.includes(feature);
-      return (
-        <label
-          key={feature}
-          className={cn(
-            'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors',
-            isChecked ? 'border-primary-tint-30 bg-primary-tint-5' : 'border-border',
-            (isRequired || disabled) && 'cursor-default opacity-70'
-          )}
-        >
-          <Checkbox
-            checked={isChecked}
-            onCheckedChange={() => onToggle(feature)}
-            disabled={isRequired || disabled}
-          />
-          <span className="text-body flex-1">{FEATURE_LABELS[feature] ?? feature}</span>
-          {isRequired && <span className="text-caption text-muted-foreground">Required</span>}
-        </label>
-      );
-    })}
-  </div>
-);
+}> = ({ features, selected, required, onToggle, disabled }) => {
+  // Required features surface first (each group keeps its original order) so the
+  // non-negotiable grants are the first thing the user sees.
+  const orderedFeatures = React.useMemo(() => {
+    const req = features.filter((f) => required.includes(f));
+    const opt = features.filter((f) => !required.includes(f));
+    return [...req, ...opt];
+  }, [features, required]);
+
+  return (
+    <div className="space-y-2">
+      {orderedFeatures.map((feature) => {
+        const isRequired = required.includes(feature);
+        const isChecked = selected.includes(feature);
+        return (
+          <label
+            key={feature}
+            className={cn(
+              'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition-colors',
+              isChecked ? 'border-primary-tint-30 bg-primary-tint-5' : 'border-border',
+              (isRequired || disabled) && 'cursor-default opacity-70'
+            )}
+          >
+            <Checkbox
+              checked={isChecked}
+              onCheckedChange={() => onToggle(feature)}
+              disabled={isRequired || disabled}
+            />
+            <span className="text-body flex-1">{FEATURE_LABELS[feature] ?? feature}</span>
+            {isRequired && <span className="text-caption text-muted-foreground">Required</span>}
+          </label>
+        );
+      })}
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Main component

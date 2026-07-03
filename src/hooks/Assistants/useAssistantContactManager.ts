@@ -368,7 +368,16 @@ export function useAssistantContactManager({
 
   const requiredFeaturesForByod = React.useMemo(() => {
     const provider = byodProvider ?? (grantedFeatures?.provider as OAuthProvider | null);
-    return grantedFeatures?.requiredFeatures ?? REQUIRED_FEATURES[provider ?? ''] ?? [];
+    // The granted snapshot is only authoritative for the already-connected
+    // provider. When picking a provider to connect (``byodProvider`` set), or
+    // when the snapshot is the disconnected default (``requiredFeatures: []``),
+    // fall back to the canonical config — ``??`` would otherwise keep an empty
+    // array and drop the required badge / disabled state entirely.
+    const fromGranted =
+      !byodProvider && grantedFeatures?.requiredFeatures?.length
+        ? grantedFeatures.requiredFeatures
+        : undefined;
+    return fromGranted ?? REQUIRED_FEATURES[provider ?? ''] ?? [];
   }, [byodProvider, grantedFeatures]);
 
   const hasFeaturesChanged = React.useMemo(() => {
