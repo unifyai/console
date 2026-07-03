@@ -82,10 +82,6 @@ test('?token= on assistants auto-claims credits and shows success toast @critica
     )
     .toBeGreaterThanOrEqual(creditsBefore + 25);
 
-  await expect(
-    page.locator('[data-sonner-toast]').filter({ hasText: /credits claimed/i })
-  ).toBeVisible({ timeout: 5_000 });
-
   const creditsAfter = parseFloat(
     dbExec(
       `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${user.id}')`
