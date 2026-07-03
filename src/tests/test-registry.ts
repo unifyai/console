@@ -884,12 +884,11 @@ export const capabilities: CapabilityDef[] = [
     id: 'assistants.permissions.member-edit',
     areaId: 'assistants.permissions',
     priority: 'P1',
-    description: 'Member edit without delete',
+    description: 'Member cannot open edit on others assistants',
     matchers: [
       {
         files: ['src/tests/assistants/permissions.e2e.ts'],
-        titleIncludes:
-          "member can open edit dialog on owner's assistant but cannot see delete button",
+        titleIncludes: "member cannot open edit dialog on owner's assistant",
       },
     ],
   },
