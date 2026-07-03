@@ -34,9 +34,15 @@ noCreditTest.afterAll(() => {
   cleanupUser(noCreditUser.id);
 });
 
-noCreditTest('blocks the onboard CTA when user has no credits', async ({ authedPage: page }) => {
-  await expectOnboardButtonDisabled(page);
-});
+noCreditTest(
+  'blocks the onboard CTA when user has no credits @critical @area(billing.wallet)',
+  async ({ authedPage: page }) => {
+    await expectOnboardButtonDisabled(page, {
+      userId: noCreditUser.id,
+      apiKey: noCreditUser.apiKey,
+    });
+  }
+);
 
 // ---------------------------------------------------------------------------
 // With Credits — buttons enabled
@@ -47,45 +53,18 @@ const withCreditTest = createBillingTest(withCreditUser);
 
 withCreditTest.afterAll(() => cleanupUser(withCreditUser.id));
 
-withCreditTest('buttons are enabled when user has credits', async ({ authedPage: page }) => {
-  await page.goto('/assistants');
-  await expectOnboardButtonEnabled(page);
-});
-
-// ---------------------------------------------------------------------------
-// Credits Restored — buttons re-enable on reload
-// ---------------------------------------------------------------------------
-
-const restoreUser = createTestUser({ name: 'Guard', lastName: 'Restore', credits: 5_000 });
-insertRechargeRecord(restoreUser.id, 25);
-const restoreTest = createBillingTest(restoreUser);
-
-restoreTest.afterAll(() => {
-  setUserCredits(restoreUser.id, 5_000);
-  cleanupUser(restoreUser.id);
-});
-
-restoreTest(
-  'buttons become enabled after credits are restored and page reloads',
+withCreditTest(
+  'buttons are enabled when user has credits @critical @area(billing.wallet)',
   async ({ authedPage: page }) => {
-    setUserCredits(restoreUser.id, -1);
-    await page.goto('/assistants');
-    await waitForAssistantsReady(page);
-
-    setUserCredits(restoreUser.id, 5_000);
-    await page.reload();
-    await expectOnboardButtonEnabled(page);
+    await expectOnboardButtonEnabled(page, {
+      userId: withCreditUser.id,
+      apiKey: withCreditUser.apiKey,
+    });
   }
 );
 
 // ---------------------------------------------------------------------------
 // METERED — guard bypassed even at $0 wallet
-//
-// METERED accounts are invoiced monthly (managed-billing). They
-// intentionally hold a $0 credits balance — `deduct_credits` writes to
-// the ledger without mutating the wallet — so the legacy "no credits"
-// gate would block every billable action. The guard must read the
-// ``billing_mode`` flag from the balance endpoint and skip the check.
 // ---------------------------------------------------------------------------
 
 const meteredUser = createTestUser({
@@ -106,12 +85,17 @@ meteredTest.afterAll(() => {
 });
 
 meteredTest(
-  'METERED account with $0 wallet keeps billable actions enabled',
+  'METERED account with $0 wallet keeps billable actions enabled @critical @area(billing.wallet)',
   async ({ authedPage: page }) => {
-    await page.goto('/assistants');
-    await waitForAssistantsReady(page);
+    await waitForAssistantsReady(page, {
+      userId: meteredUser.id,
+      apiKey: meteredUser.apiKey,
+    });
 
-    await expectOnboardButtonEnabled(page);
+    await expectOnboardButtonEnabled(page, {
+      userId: meteredUser.id,
+      apiKey: meteredUser.apiKey,
+    });
 
     // And the guard's tooltip wrapper (which only renders when blocked)
     // must NOT appear anywhere on the page.

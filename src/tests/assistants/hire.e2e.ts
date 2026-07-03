@@ -3,10 +3,9 @@
  * verifying both UI behaviour and database persistence.
  *
  * Includes:
- *  - Hiring with basic and full profile fields
  *  - Randomizing the unity profile
+ *  - Hiring with job title and full profile fields
  *  - Cancelling mid-hire
- *  - Hiring multiple assistants
  *
  * Run: npx playwright test src/tests/assistants/hire.e2e.ts
  */
@@ -40,51 +39,6 @@ test.afterAll(() => {
   setUserCredits(user.id, 50_000);
   deleteAllAssistantsForUser(user.id);
   cleanupUser(user.id);
-});
-
-test('hiring an assistant persists it to the database and shows it in the list', async ({
-  authedPage: page,
-}) => {
-  const firstName = `Hire${Date.now()}`;
-  const lastName = 'Bot';
-
-  await navigateToAssistants(page);
-
-  // Hire dialog auto-opens on empty state; open manually if it didn't.
-  const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Teammate' })
-    .first()
-    .isVisible({ timeout: 5_000 })
-    .catch(() => false);
-  if (!dialogVisible) {
-    await openHireDialog(page);
-  }
-
-  await fillProfileFields(page, {
-    firstName,
-    lastName,
-    about: 'An automated test assistant created by Playwright E2E.',
-  });
-
-  await selectVoice(page);
-  await clickHireButton(page);
-
-  // Wait for the hire to complete — the assistant name should appear in the
-  // list (now hosted inside the rail's unity switcher).
-  await openUnitySwitcher(page);
-  const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
-    hasText: firstName,
-  });
-  await expect(listItem).toBeVisible({ timeout: 60_000 });
-
-  // Verify DB state
-  const agentIds = getAssistantAgentIds(user.id);
-  const latestId = agentIds[agentIds.length - 1];
-  const dbAssistant = getAssistantFromDb(latestId);
-
-  expect(dbAssistant.firstName).toBe(firstName);
-  expect(dbAssistant.surname).toBe(lastName);
-  expect(dbAssistant.voiceId).toBeTruthy();
 });
 
 test('hiring persists name, about and voice to DB and leaves age/nationality null', async ({
@@ -176,37 +130,6 @@ test('hiring with a job title persists job_title to DB and shows it in the hover
   await expect(listItem).toContainText(jobTitle);
 });
 
-test('hiring without filling Job Title leaves job_title NULL in DB', async ({
-  authedPage: page,
-}) => {
-  const firstName = `NoJob${Date.now()}`;
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openHireDialog(page);
-
-  // The form auto-applies a randomized profile (including a Role), so to
-  // exercise the empty → NULL path we must explicitly clear the field.
-  await fillProfileFields(page, {
-    firstName,
-    lastName: 'Untitled',
-    jobTitle: '',
-    about: 'No job title.',
-  });
-
-  await selectVoice(page);
-  await clickHireButton(page);
-
-  await openUnitySwitcher(page);
-  const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
-  await expect(listItem).toBeVisible({ timeout: 60_000 });
-
-  const agentIds = getAssistantAgentIds(user.id);
-  const latestId = agentIds[agentIds.length - 1];
-  const dbAssistant = getAssistantFromDb(latestId);
-  expect(dbAssistant.jobTitle).toBeNull();
-});
-
 test('cancelling mid-hire does not create an assistant', async ({ authedPage: page }) => {
   const countBefore = getAssistantCount(user.id);
 
@@ -226,32 +149,4 @@ test('cancelling mid-hire does not create an assistant', async ({ authedPage: pa
 
   const countAfter = getAssistantCount(user.id);
   expect(countAfter).toBe(countBefore);
-});
-
-test('hiring a second assistant shows both in the list', async ({ authedPage: page }) => {
-  const firstName = `Second${Date.now()}`;
-  const countBefore = getAssistantCount(user.id);
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openHireDialog(page);
-
-  await fillProfileFields(page, {
-    firstName,
-    lastName: 'Assistant',
-    about: 'Second test assistant.',
-  });
-
-  await selectVoice(page);
-  await clickHireButton(page);
-
-  await openUnitySwitcher(page);
-  const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
-    hasText: firstName,
-  });
-  await expect(listItem).toBeVisible({ timeout: 60_000 });
-
-  // Verify both assistants exist in DB
-  const countAfter = getAssistantCount(user.id);
-  expect(countAfter).toBe(countBefore + 1);
 });

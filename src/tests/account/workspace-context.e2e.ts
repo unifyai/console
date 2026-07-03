@@ -57,9 +57,11 @@ test.afterAll(() => {
 const personalWorkspaceLabel = `${user.name} ${user.lastName}`;
 
 async function switchWorkspaceViaRail(page: import('@playwright/test').Page, label: string) {
-  await deferCoordinatorAfterAssistantsLoad(page, user.id, user.apiKey);
+  await navigateToAppShellRoute(page, '/assistants', shellOpts);
   await dismissCoordinatorOnboardingIfOpen(page);
-  await page.getByTestId('rail-account-trigger').click();
+  const accountTrigger = page.getByTestId('rail-account-trigger');
+  await expect(accountTrigger).toBeVisible({ timeout: 15_000 });
+  await accountTrigger.click({ timeout: 15_000 });
   const menu = page.getByTestId('rail-account-menu');
   await expect(menu).toBeVisible({ timeout: 5_000 });
   await menu.getByRole('menuitem', { name: label }).click();
@@ -80,20 +82,9 @@ test('personal and org workspaces expose distinct API keys', async () => {
   expect(personalKey).not.toBe(orgKey);
 });
 
-test('switching to personal workspace via rail sets the workspace cookie', async ({
+test('switching to personal workspace sets a cookie that persists across navigation', async ({
   authedPage: page,
 }) => {
-  await navigateToAppShellRoute(page, '/assistants', shellOpts);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
-
-  await switchWorkspaceViaRail(page, personalWorkspaceLabel);
-
-  const cookies = await page.context().cookies();
-  const wsCookie = cookies.find((c) => c.name === 'unify_workspace_id');
-  expect(wsCookie?.value).toBe('personal');
-});
-
-test('workspace cookie persists across navigation', async ({ authedPage: page }) => {
   await navigateToAppShellRoute(page, '/assistants', shellOpts);
   await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
 
@@ -105,7 +96,9 @@ test('workspace cookie persists across navigation', async ({ authedPage: page })
   expect(cookies.find((c) => c.name === 'unify_workspace_id')?.value).toBe('personal');
 });
 
-test('switching to org workspace returns org billing balance', async ({ authedPage: page }) => {
+test('switching to org workspace returns org billing balance @critical @area(workspace)', async ({
+  authedPage: page,
+}) => {
   await navigateToAppShellRoute(page, '/assistants', shellOpts);
   await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
 

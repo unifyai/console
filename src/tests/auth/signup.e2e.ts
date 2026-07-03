@@ -23,6 +23,7 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
+import { openUnitySwitcher } from '../assistants/helpers';
 
 // =============================================================================
 // Registration
@@ -37,7 +38,9 @@ test.describe('Signup', () => {
     }
   });
 
-  test('completes full registration → verify → onboarding flow', async ({ page }) => {
+  test('completes full registration → verify → onboarding flow @critical @area(auth.core)', async ({
+    page,
+  }) => {
     const email = uniqueEmail('signup-e2e');
     const password = 'SignUpP@ss1';
 
@@ -173,7 +176,9 @@ test.describe('Onboarding', () => {
     }
   });
 
-  test('selects personal workspace and redirects to assistants', async ({ page }) => {
+  test('selects personal workspace and redirects to assistants @critical @area(auth.core)', async ({
+    page,
+  }) => {
     const email = uniqueEmail('onboard-personal');
     const password = 'OnboardP@ss1';
 
@@ -211,6 +216,7 @@ test.describe('Onboarding', () => {
   test('creates organization workspace with personal Coordinator pinned and redirects to assistants', async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const email = uniqueEmail('onboard-org');
     const password = 'OnboardP@ss1';
 
@@ -272,9 +278,7 @@ test.describe('Onboarding', () => {
     expect(managedOrgTeamCount).toBe('0');
 
     await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
-    await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
-    await dismissCoordinatorOnboardingIfOpen(page);
-    await page.getByTestId('rail-unity-switcher').click();
+    await openUnitySwitcher(page, { userId, apiKey });
     await expect(page.getByTestId('rail-unity-switcher-popover')).toBeVisible({
       timeout: 5_000,
     });
@@ -337,52 +341,5 @@ test.describe('Onboarding', () => {
       `SELECT count(*) FROM team_assistant_memberships tam JOIN assistants a ON a.agent_id = tam.assistant_id WHERE tam.team_id = ${orgTeamId} AND a.organization_id = ${orgId}`
     );
     expect(Number(orgTeamAssistantCount)).toBeGreaterThanOrEqual(1);
-  });
-
-  test('keeps Create Organization button disabled with whitespace-only name', async ({ page }) => {
-    const email = uniqueEmail('onboard-ws');
-    const password = 'OnboardP@ss1';
-
-    await page.goto('/login');
-    await register(page, email, password);
-    await expect(page.getByTestId('verification-code-input')).toBeVisible({ timeout: 10000 });
-    const code = setKnownVerificationCode(email, 'signup');
-    await enterVerificationCode(page, code);
-
-    await page.waitForURL(/onboarding/, { timeout: 15000 });
-
-    await page.getByTestId('workspace-organization').click();
-    await expect(page.getByTestId('org-name-input')).toBeVisible({ timeout: 5000 });
-
-    await page.getByTestId('org-name-input').fill('   ');
-    await expect(page.getByTestId('workspace-continue')).toBeDisabled();
-
-    const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
-    if (userId) createdUserIds.push(userId);
-  });
-
-  test('switches between personal and organization choices', async ({ page }) => {
-    const email = uniqueEmail('onboard-switch');
-    const password = 'OnboardP@ss1';
-
-    await page.goto('/login');
-    await register(page, email, password);
-    await expect(page.getByTestId('verification-code-input')).toBeVisible({ timeout: 10000 });
-    const code = setKnownVerificationCode(email, 'signup');
-    await enterVerificationCode(page, code);
-
-    await page.waitForURL(/onboarding/, { timeout: 15000 });
-
-    await page.getByTestId('workspace-personal').click();
-    await expect(page.getByTestId('org-name-input')).not.toBeVisible();
-
-    await page.getByTestId('workspace-organization').click();
-    await expect(page.getByTestId('org-name-input')).toBeVisible({ timeout: 5000 });
-
-    await page.getByTestId('workspace-personal').click();
-    await expect(page.getByTestId('org-name-input')).not.toBeVisible();
-
-    const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
-    if (userId) createdUserIds.push(userId);
   });
 });

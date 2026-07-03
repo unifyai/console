@@ -65,7 +65,7 @@ async function openDesktopLinker(page: Page, agentId: number) {
   await openDesktopLinkerFromList(page, agentId);
 }
 
-test('toggling filesystem access drives consent flag and per-link SFTP key', async ({
+test('toggling filesystem access drives consent flag and per-link SFTP key @critical @area(assistants.data)', async ({
   authedPage: page,
 }) => {
   // Precondition: linked with consent off, so no key has been minted yet.

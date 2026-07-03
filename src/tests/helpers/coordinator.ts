@@ -6,7 +6,7 @@
  * standard shell defer onboarding once before the first authenticated page load.
  */
 
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { dbExec } from './seeds/client';
 
 /** Agent ID of a user's personal (non-org) Coordinator, or null if none. */
@@ -53,31 +53,74 @@ export async function deferCoordinatorForUser(userId: string, apiKey: string): P
   }
 }
 
+async function coordinatorOverlayVisible(page: Page): Promise<boolean> {
+  return page
+    .getByTestId('coordinator-onboarding')
+    .isVisible({ timeout: 500 })
+    .catch(() => false);
+}
+
+async function waitForWorkspaceShell(page: Page): Promise<void> {
+  const path = new URL(page.url()).pathname;
+  const loadingWorkspace = page.getByRole('status', { name: 'Loading workspace' });
+
+  if (!path.startsWith('/assistants')) {
+    if (await loadingWorkspace.isVisible({ timeout: 500 }).catch(() => false)) {
+      await loadingWorkspace.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+    }
+    return;
+  }
+
+  await expect
+    .poll(
+      async () => {
+        if (await coordinatorOverlayVisible(page)) return 'overlay';
+        if (
+          await page
+            .getByTestId('assistant-rail')
+            .first()
+            .isVisible()
+            .catch(() => false)
+        ) {
+          return 'rail';
+        }
+        if (await loadingWorkspace.isVisible().catch(() => false)) {
+          return 'loading';
+        }
+        return 'pending';
+      },
+      { timeout: 30_000 }
+    )
+    .not.toBe('loading');
+}
+
 /**
- * Wait for a personal Coordinator row, defer onboarding, and reload so
- * /assistants renders the standard shell instead of the intro overlay.
+ * Clear the coordinator intro overlay after /assistants (or another app-shell
+ * route) has loaded. Prefer UI dismissal; fall back to a single DB defer +
+ * reload when the overlay persists.
  */
 export async function deferCoordinatorAfterAssistantsLoad(
   page: Page,
   userId: string,
   apiKey: string
 ): Promise<void> {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    await dismissCoordinatorOnboardingIfOpen(page);
+  await waitForWorkspaceShell(page);
+  await dismissCoordinatorOnboardingIfOpen(page);
+  if (!(await coordinatorOverlayVisible(page))) return;
 
-    const coordinatorId = getCoordinatorAgentId(userId);
-    if (coordinatorId) {
-      await deferCoordinatorOnboarding(apiKey, coordinatorId);
-    }
-
-    const overlay = page.getByTestId('coordinator-onboarding');
-    if (!(await overlay.isVisible({ timeout: 500 }).catch(() => false))) {
-      return;
-    }
-
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(500);
+  const coordinatorId = getCoordinatorAgentId(userId);
+  if (coordinatorId) {
+    await deferCoordinatorOnboarding(apiKey, coordinatorId);
   }
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForWorkspaceShell(page);
+  await dismissCoordinatorOnboardingIfOpen(page);
+}
+
+/** Ensure the workspace shell is interactive after navigation (coordinator overlay dismissed). */
+export async function ensureShellReady(page: Page, userId: string, apiKey: string): Promise<void> {
+  await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
 }
 
 /** Pick chat when the coordinator intro overlay blocks shell interactions. */

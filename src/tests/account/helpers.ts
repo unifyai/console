@@ -67,17 +67,14 @@ export async function switchWorkspaceViaApi(
   workspaceId: string | number,
   opts: { userId: string; apiKey: string }
 ) {
-  await page.evaluate(async (wsId) => {
-    const res = await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(wsId) }),
-    });
-    if (!res.ok) throw new Error('Failed to switch workspace');
-  }, workspaceId);
+  const res = await page.request.post('/api/session/workspace', {
+    data: { workspaceId: String(workspaceId) },
+  });
+  if (!res.ok()) {
+    throw new Error(`Failed to switch workspace to ${workspaceId}: ${res.status()}`);
+  }
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
 }
 

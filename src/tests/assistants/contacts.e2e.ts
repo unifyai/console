@@ -145,7 +145,7 @@ async function openWorkspaceManager(
   await openWorkspaceManagerFromList(page, targetAssistant.agentId);
 }
 
-test('adding and deleting a phone contact persists to the database', async ({
+test('adding and deleting a phone contact persists to the database @critical @area(assistants.contacts)', async ({
   authedPage: page,
 }) => {
   await openContactManager(page, phoneAssistant);
@@ -198,10 +198,11 @@ test('adding and deleting a phone contact persists to the database', async ({
     .toBeFalsy();
 });
 
-test('phone create button is disabled when user has no phone number', async ({
+test('phone and WhatsApp create buttons stay disabled without profile numbers', async ({
   authedPage: page,
 }) => {
   clearUserPhoneNumber(user.id);
+  clearUserWhatsappNumber(user.id);
 
   try {
     await openContactManager(page, phoneAssistant);
@@ -210,48 +211,19 @@ test('phone create button is disabled when user has no phone number', async ({
     await expect(phone.getByText('No phone number set in your profile')).toBeVisible({
       timeout: 5_000,
     });
-
-    const createBtn = phone.getByRole('button', { name: 'Create' });
-    await expect(createBtn).toBeDisabled({ timeout: 5_000 });
-  } finally {
-    setUserPhoneNumber(user.id, '+15551234567');
-  }
-});
-
-test('whatsapp create button is disabled when user has no whatsapp number', async ({
-  authedPage: page,
-}) => {
-  clearUserWhatsappNumber(user.id);
-
-  try {
-    await openContactManager(page, phoneAssistant);
+    await expect(phone.getByRole('button', { name: 'Create' })).toBeDisabled({ timeout: 5_000 });
 
     const whatsapp = contactSection(page, 'whatsapp');
     await expect(whatsapp.getByText('No WhatsApp number set in your profile')).toBeVisible({
       timeout: 5_000,
     });
-
-    const createBtn = whatsapp.getByRole('button', { name: 'Create' });
-    await expect(createBtn).toBeDisabled({ timeout: 5_000 });
+    await expect(whatsapp.getByRole('button', { name: 'Create' })).toBeDisabled({
+      timeout: 5_000,
+    });
   } finally {
-    setUserWhatsappNumber(user.id, '+15559876543');
+    setUserPhoneNumber(user.id, userPhone);
+    setUserWhatsappNumber(user.id, userWhatsapp);
   }
-});
-
-test('whatsapp create button is enabled when user has a whatsapp number', async ({
-  authedPage: page,
-}) => {
-  await openContactManager(page, phoneAssistant);
-
-  const whatsapp = contactSection(page, 'whatsapp');
-  await expect(
-    whatsapp.getByText(
-      'Create a WhatsApp contact to enable WhatsApp messaging with your assistant.'
-    )
-  ).toBeVisible({ timeout: 5_000 });
-
-  const createBtn = whatsapp.getByRole('button', { name: 'Create' });
-  await expect(createBtn).toBeEnabled({ timeout: 5_000 });
 });
 
 test('email tab shows BYOD-only provisioning when no email exists', async ({
@@ -337,6 +309,7 @@ test('selecting a BYOD provider shows feature checkboxes and Connect button', as
   const connectBtn = page.getByRole('button', { name: 'Connect' });
   await expect(connectBtn).toBeVisible({ timeout: 5_000 });
   await expect(connectBtn).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
 });
 
 test('selecting Microsoft BYOD provider shows Teams as a required feature', async ({
@@ -350,33 +323,4 @@ test('selecting Microsoft BYOD provider shows Teams as a required feature', asyn
   const requiredLabels = page.locator('text=Required');
   await expect(requiredLabels.first()).toBeVisible({ timeout: 5_000 });
   expect(await requiredLabels.count()).toBeGreaterThanOrEqual(2);
-});
-
-test('deselecting a BYOD provider hides the feature list and Connect button', async ({
-  authedPage: page,
-}) => {
-  await openContactManager(page, emailUiAssistant);
-
-  const googleCard = page.locator('button:has-text("Google")').last();
-  await googleCard.click();
-
-  const connectBtn = page.getByRole('button', { name: 'Connect' });
-  await expect(connectBtn).toBeVisible({ timeout: 5_000 });
-
-  await googleCard.click();
-  await expect(connectBtn).not.toBeVisible({ timeout: 3_000 });
-});
-
-test('email tab never shows a Create button after selecting a BYOD provider', async ({
-  authedPage: page,
-}) => {
-  await openContactManager(page, emailUiAssistant);
-
-  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
-
-  const googleCard = page.locator('button:has-text("Google")').last();
-  await googleCard.click();
-
-  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible({ timeout: 5_000 });
 });

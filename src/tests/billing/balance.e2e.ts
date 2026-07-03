@@ -1,5 +1,5 @@
 /**
- * Balance & Credits E2E — displays balance, refreshes after DB change.
+ * Balance & Credits E2E — UI reflects DB balance and updates after DB change.
  *
  * Run: npx playwright test src/tests/billing/balance.e2e.ts
  */
@@ -23,20 +23,19 @@ function expectedCreditLabel(usd: number): string {
 
 test.afterAll(() => cleanupUser(user.id));
 
-test('shows credit balance on the billing page matching the DB', async ({ authedPage: page }) => {
-  const usd = walletUsd(user.id);
+test('billing page balance matches DB and refreshes after credits change @critical @area(billing.wallet)', async ({
+  authedPage: page,
+}) => {
+  const initialUsd = walletUsd(user.id);
 
   await page.goto('/billing');
   await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(expectedCreditLabel(usd), { exact: false })).toBeVisible({
+  await expect(page.getByText(expectedCreditLabel(initialUsd), { exact: false })).toBeVisible({
     timeout: 10_000,
   });
-});
 
-test('updates balance display after credits change in DB', async ({ authedPage: page }) => {
   setUserCredits(user.id, 99);
-
-  await page.goto('/billing');
+  await page.reload();
   await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('39,600 credits')).toBeVisible({ timeout: 10_000 });
   expect(walletUsd(user.id)).toBe(99);

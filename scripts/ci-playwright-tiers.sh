@@ -22,9 +22,10 @@ src/tests/account/profile.e2e.ts
 src/tests/account/api-key.e2e.ts
 src/tests/account/contact-info.e2e.ts
 src/tests/account/workspace-context.e2e.ts
-src/tests/account/timezone-sync.e2e.ts
-src/tests/account/support-ticket.e2e.ts
 src/tests/account/teams.e2e.ts
+src/tests/account/roles.e2e.ts
+src/tests/account/org-management.e2e.ts
+src/tests/account/spending-limits.e2e.ts
 EOF
 }
 
@@ -33,6 +34,7 @@ pr_assistants_specs() {
 src/tests/assistants/shell.e2e.ts
 src/tests/assistants/list.e2e.ts
 src/tests/assistants/live-actions.e2e.ts
+src/tests/assistants/permissions.e2e.ts
 EOF
 }
 
@@ -40,9 +42,18 @@ pr_billing_specs() {
   cat <<'EOF'
 src/tests/billing/access-control.e2e.ts
 src/tests/billing/balance.e2e.ts
-src/tests/billing/usage.e2e.ts
 src/tests/billing/banners.e2e.ts
 src/tests/billing/billable-action-guard.e2e.ts
+src/tests/billing/subscription-billing.e2e.ts
+src/tests/billing/subscribe.e2e.ts
+src/tests/billing/credit-grants.e2e.ts
+src/tests/billing/referrals.e2e.ts
+src/tests/billing/auto-increment.e2e.ts
+src/tests/billing/metered-billing.e2e.ts
+src/tests/billing/usage.e2e.ts
+src/tests/billing/billing-api.e2e.ts
+src/tests/billing/billing-events.e2e.ts
+src/tests/billing/manual-topup.e2e.ts
 EOF
 }
 

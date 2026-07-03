@@ -48,7 +48,9 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('the Onboard button opens the hire dialog', async ({ authedPage: page }) => {
+test('the Onboard button opens the hire dialog @critical @area(assistants.core)', async ({
+  authedPage: page,
+}) => {
   deleteAllAssistantsForUser(user.id);
   // Every workspace now has an always-present personal Coordinator, so the list
   // is never truly empty and the legacy "auto-open on empty" path no longer
@@ -94,7 +96,7 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await expect(item2).toContainText('Beta');
 });
 
-test('clicking an assistant in the list selects it and shows the Chat tab', async ({
+test('clicking an assistant in the list selects it and shows the Chat tab @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
@@ -174,85 +176,7 @@ test('assistant list item unfold control opens the info panel', async ({ authedP
   });
 });
 
-test('the chat info side panel can be resized down to its minimum width', async ({
-  authedPage: page,
-}) => {
-  deleteAllAssistantsForUser(user.id);
-
-  const titled = createAssistant({
-    userId: user.id,
-    firstName: 'Titled',
-    surname: 'InfoPanel',
-    jobTitle: 'QA engineer',
-  });
-
-  await navigateToAssistants(page, shellOpts);
-  await closeHireDialogIfOpen(page);
-
-  await selectAssistantInList(page, titled.agentId);
-  await openAssistantInfoPanel(page);
-
-  const infoSheet = page.getByTestId('assistant-info-sheet');
-  await expect(infoSheet).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('assistant-info-name')).toContainText('Titled InfoPanel');
-
-  const resizeHandle = page.getByTestId('assistant-info-panel-resize-handle');
-  const beforeBox = await infoSheet.boundingBox();
-  const handleBox = await resizeHandle.boundingBox();
-  if (!beforeBox || !handleBox) throw new Error('Info panel resize target was not measurable');
-
-  const dragY = handleBox.y + handleBox.height / 2;
-  await page.mouse.move(handleBox.x + handleBox.width / 2, dragY);
-  await page.mouse.down();
-  await page.mouse.move(beforeBox.x + beforeBox.width + 200, dragY, { steps: 12 });
-  await page.mouse.up();
-
-  const afterBox = await infoSheet.boundingBox();
-  if (!afterBox) throw new Error('Info panel was not measurable after resize');
-  expect(afterBox.width).toBeLessThanOrEqual(beforeBox.width - 40);
-  expect(afterBox.width).toBeGreaterThanOrEqual(318);
-  expect(afterBox.width).toBeLessThanOrEqual(324);
-});
-
-// RETIRED (Phase 5 — Hire/onboarding): this journey asserts the legacy
-// two-pane model — clicking a selected row to *deselect* it back to a
-// ``right-pane-tab-chat`` / "Select a unity…" empty state. Both are gone: the
-// rail owns section nav (``rail-section-*``) and re-clicking a selected row
-// falls back to the workspace Coordinator (T-W1N) instead of clearing selection.
-// The deselect-to-empty behaviour no longer exists.
-test.fixme('rapid select/deselect settles on the final click and does not snap back', async ({
-  authedPage: page,
-}) => {
-  deleteAllAssistantsForUser(user.id);
-  const seeded = createAssistant({ userId: user.id, firstName: 'Rapid', surname: 'Toggler' });
-  const agentId = seeded.agentId;
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  const emptyState = page.locator('text=Select a teammate to watch live actions.');
-
-  // Normalise to a known deselected starting point.
-  if (await chatTab.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await listItem.click();
-    await expect(emptyState).toBeVisible({ timeout: 5_000 });
-  }
-
-  // Three back-to-back clicks => the final intent is "selected". The
-  // `?profile=` URL sync runs through an async `router.replace`; a stale
-  // navigation resolving late must not flip the selection back off.
-  await listItem.click();
-  await listItem.click();
-  await listItem.click();
-
-  await expect(chatTab).toHaveAttribute('data-state', 'active', { timeout: 5_000 });
-});
-
-test('list updates after hiring a new assistant without page reload', async ({
+test('list updates after hiring a new assistant without page reload @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);

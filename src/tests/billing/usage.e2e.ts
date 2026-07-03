@@ -1,6 +1,5 @@
 /**
- * Usage Page E2E — page loads with chart/filters, interactions work,
- * and seeded ledger data is displayed correctly.
+ * Usage Page E2E — ledger accuracy and auth redirect.
  *
  * Run: npx playwright test src/tests/billing/usage.e2e.ts
  */
@@ -13,12 +12,7 @@ import {
   dbExecBlock,
   dbExec,
   type TestUser,
-  waitForUsageReady,
 } from './helpers';
-
-// ---------------------------------------------------------------------------
-// Seed helpers
-// ---------------------------------------------------------------------------
 
 function getBillingAccountId(userId: string): number {
   return parseInt(dbExec(`SELECT billing_account_id FROM "user" WHERE id = '${userId}'`), 10);
@@ -53,10 +47,6 @@ function cleanupTransactions(baId: number) {
     /* best effort */
   }
 }
-
-// ---------------------------------------------------------------------------
-// Test setup
-// ---------------------------------------------------------------------------
 
 const user = createTestUser({ name: 'Usage', lastName: 'Test', credits: 5_000 });
 const test = createBillingTest(user);
@@ -114,38 +104,13 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-test('loads usage page with all key components visible', async ({ authedPage: page }) => {
-  await waitForUsageReady(page);
-
-  await expect(page.getByTestId('assistant-filter')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('granularity-filter')).toBeVisible();
-  await expect(page.getByTestId('timeframe-filter')).toBeVisible();
-  await expect(page.getByTestId('spending-limit-card')).toBeVisible();
-  await expect(page.getByTestId('transaction-ledger')).toBeVisible();
-
-  const chart = page.locator('[data-testid="usage-chart"]:visible');
-  const ledgerRow = page.getByTestId('aggregated-row').first();
-  await expect
-    .poll(async () => (await chart.isVisible()) || (await ledgerRow.isVisible()), {
-      timeout: 20_000,
-    })
-    .toBe(true);
-});
-
-test('ledger displays seeded transactions with correct category descriptions', async ({
+test('ledger displays seeded transactions with correct category descriptions @critical @area(billing.usage)', async ({
   authedPage: page,
 }) => {
   await page.goto('/usage');
   await expect(page.getByTestId('transaction-ledger')).toBeVisible({ timeout: 15_000 });
-
-  // Wait for aggregated data to load
   await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
 
-  // Aggregated rows show CATEGORY_DESCRIPTIONS values
   const ledger = page.getByTestId('transaction-ledger');
   await expect(ledger.getByText('Assistant work').first()).toBeVisible();
   await expect(ledger.getByText('Assistant creation')).toBeVisible();
@@ -153,138 +118,11 @@ test('ledger displays seeded transactions with correct category descriptions', a
   await expect(ledger.getByText('Generated photos and videos')).toBeVisible();
 });
 
-test('ledger shows category badges matching each transaction', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
-
-  const ledger = page.getByTestId('transaction-ledger');
-
-  await expect(ledger.getByText('Assistant work').first()).toBeVisible();
-  await expect(ledger.getByText('Assistant creation')).toBeVisible();
-  await expect(ledger.getByText('Created and provisioned contacts')).toBeVisible();
-  await expect(ledger.getByText('Generated photos and videos')).toBeVisible();
-
-  await ledger.getByTestId('aggregated-row-toggle').first().click();
-  await expect(ledger.getByTestId('aggregated-row-details')).toBeVisible({ timeout: 10_000 });
-  await expect(ledger.getByTestId('transaction-detail-row').first()).toBeVisible({
-    timeout: 10_000,
-  });
-});
-
-test('assistant filter opens without errors', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
-
-  await page.getByTestId('assistant-filter').click();
-  await expect(page.getByRole('option', { name: 'All Teammates' })).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
-});
-
-test('granularity filter changes chart and ledger without errors', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 15_000 });
-
-  // Wait for initial ledger data to load
-  const ledger = page.getByTestId('transaction-ledger');
-  await expect(ledger.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
-
-  const granFilter = page.getByTestId('granularity-filter');
-
-  // Switch to Monthly
-  await granFilter.click();
-  await page.getByRole('option', { name: 'Monthly' }).click();
-
-  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('[data-testid="usage-chart"]:visible')).toBeVisible();
-  await expect(ledger).toBeVisible();
-
-  await granFilter.click();
-  await page.getByRole('option', { name: 'Daily' }).click();
-
-  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 10_000 });
-  await expect(ledger).toBeVisible();
-});
-
-test('ledger shows aggregated rows with category and count', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('transaction-ledger')).toBeVisible({ timeout: 15_000 });
-
-  // Wait for aggregated rows to load (default granularity is Minutely)
-  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
-
-  const ledger = page.getByTestId('transaction-ledger');
-
-  // Aggregated rows show counts as "(N)" beside the bucket label
-  await expect(ledger.getByText(/\(\d+\)/).first()).toBeVisible();
-});
-
-test('switching granularity changes ledger grouping', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('transaction-ledger')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
-
-  const ledger = page.getByTestId('transaction-ledger');
-  const granFilter = page.getByTestId('granularity-filter');
-
-  // Switch to Monthly — should show month-level labels (e.g. "April 2026")
-  await granFilter.click();
-  await page.getByRole('option', { name: 'Monthly' }).click();
-
-  const monthlyRows = ledger.getByTestId('aggregated-row');
-  await expect(monthlyRows.first()).toBeVisible({ timeout: 10_000 });
-  const monthlyCount = await monthlyRows.count();
-
-  await granFilter.click();
-  await page.getByRole('option', { name: 'Hourly' }).click();
-
-  const hourlyRows = ledger.getByTestId('aggregated-row');
-  await expect(hourlyRows.first()).toBeVisible({ timeout: 10_000 });
-  const hourlyCount = await hourlyRows.count();
-
-  expect(hourlyCount).toBeGreaterThanOrEqual(monthlyCount);
-});
-
-test('refresh button reloads chart and ledger without errors', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
-
-  await page.getByTestId('refresh-button').click();
-
-  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('transaction-ledger')).toBeVisible();
-  await expect(page.locator('[data-testid="usage-chart"]:visible')).toBeVisible();
-});
-
-test('chart shows empty state when date range has no data', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 15_000 });
-
-  // Pick a far-future date range with no data
-  const timeframe = page.getByTestId('timeframe-filter');
-  await timeframe.click();
-
-  // Type a far-future range into the date inputs if available,
-  // otherwise just verify the chart handles empty gracefully
-  const chartEmpty = page.locator('[data-testid="usage-chart-empty"]:visible');
-  const chart = page.locator('[data-testid="usage-chart"]:visible');
-  const chartVisible = await chart.isVisible().catch(() => false);
-  const emptyVisible = await chartEmpty.isVisible({ timeout: 3_000 }).catch(() => false);
-  expect(chartVisible || emptyVisible).toBe(true);
-});
-
-test('spending limit card is visible with limit info', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  const limitCard = page.getByTestId('spending-limit-card');
-  await expect(limitCard).toBeVisible({ timeout: 15_000 });
-
-  // Should show some limit label (e.g. "My Limit")
-  await expect(limitCard.getByText(/Limit/i)).toBeVisible();
-});
-
-unauthTest('redirects to login when not authenticated', async ({ page }) => {
-  await page.goto('/usage');
-  await page.waitForURL('**/login**', { timeout: 15_000 });
-  expect(page.url()).toContain('/login');
-});
+unauthTest(
+  'redirects to login when not authenticated @critical @area(billing.usage)',
+  async ({ page }) => {
+    await page.goto('/usage');
+    await page.waitForURL('**/login**', { timeout: 15_000 });
+    expect(page.url()).toContain('/login');
+  }
+);

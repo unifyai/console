@@ -16,6 +16,7 @@ import {
   deferCoordinatorForUser,
   deferCoordinatorOnboarding,
   dismissCoordinatorOnboardingIfOpen,
+  ensureShellReady,
   getCoordinatorAgentId,
 } from '../helpers/coordinator';
 
@@ -46,6 +47,7 @@ export {
   deferCoordinatorForUser,
   deferCoordinatorOnboarding,
   dismissCoordinatorOnboardingIfOpen,
+  ensureShellReady,
   getCoordinatorAgentId,
 } from '../helpers/coordinator';
 export type {

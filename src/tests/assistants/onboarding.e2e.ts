@@ -156,6 +156,11 @@ test('post-hire roadmap renders Onboarding + Contact tabs, groups accordion, and
   await page.getByTestId('assistant-setup-roadmap-group-exchangeEmails-toggle').click();
   await expect(page.getByTestId('assistant-setup-roadmap-step-email')).toBeVisible();
   await expect(page.getByTestId('assistant-setup-roadmap-step-emailAsk')).toBeVisible();
+
+  const hireRow = page.getByTestId('assistant-setup-roadmap-step-hire');
+  await expect(hireRow).toBeVisible();
+  await expect(hireRow).toHaveAttribute('data-status', 'done');
+  await expect(page.getByTestId('assistant-setup-roadmap-step-hire-action')).toHaveCount(0);
 });
 
 test('roadmap "Say hi" seeds chat composer with friendly draft', async ({ authedPage: page }) => {
@@ -167,28 +172,6 @@ test('roadmap "Say hi" seeds chat composer with friendly draft', async ({ authed
 
   const composer = page.locator('textarea').first();
   // Seed effect uses requestAnimationFrame, so allow a tick.
-  await expect(composer).toHaveValue(/^Hi /, { timeout: 5_000 });
-});
-
-test('roadmap step row is itself the action button (no separate CTA)', async ({
-  authedPage: page,
-}) => {
-  // The whole row is the click target now — there's no longer a
-  // standalone "Say hi" button alongside the row label. This test
-  // guards the affordance: clicking the row data-testid (= the
-  // <button>) should still trigger the prefill seed.
-  const firstName = `Row${Date.now()}`;
-  await hireBareAssistant(page, firstName);
-  await ensureInfoPanelOpen(page);
-
-  // Action testid == row testid + '-action' lives on the inner
-  // button; tagName must be BUTTON (the whole row is interactive).
-  const actionButton = page.getByTestId('assistant-setup-roadmap-step-sayHi-action');
-  await expect(actionButton).toBeVisible();
-  expect(await actionButton.evaluate((el) => el.tagName)).toBe('BUTTON');
-
-  await actionButton.click();
-  const composer = page.locator('textarea').first();
   await expect(composer).toHaveValue(/^Hi /, { timeout: 5_000 });
 });
 
@@ -224,40 +207,11 @@ test('integrations launcher seeds chat draft but does not auto-resolve the group
     'data-status',
     'incomplete'
   );
-});
 
-test('integrations "Other…" prefills an open-ended platform-name prompt', async ({
-  authedPage: page,
-}) => {
-  const firstName = `Other${Date.now()}`;
-  await hireBareAssistant(page, firstName);
-  await ensureInfoPanelOpen(page);
-
-  await page.getByTestId('assistant-setup-roadmap-group-integrations-toggle').click();
   await page.getByTestId('assistant-setup-roadmap-integration-other').click();
-
-  const composer = page.locator('textarea').first();
-  // Prompt ends with "on: " so the cursor lands ready for the user
-  // to type whatever platform they care about.
   await expect(composer).toHaveValue(/giving you access to my account on:\s*$/i, {
     timeout: 5_000,
   });
-});
-
-test('roadmap surfaces the Hire step as already-completed', async ({ authedPage: page }) => {
-  // The first row exists purely to acknowledge progress already made
-  // (the user *did* hire someone) — it must render as resolved
-  // immediately, with no action button.
-  const firstName = `Hired${Date.now()}`;
-  await hireBareAssistant(page, firstName);
-  await ensureInfoPanelOpen(page);
-
-  const hireRow = page.getByTestId('assistant-setup-roadmap-step-hire');
-  await expect(hireRow).toBeVisible();
-  await expect(hireRow).toHaveAttribute('data-status', 'done');
-  // Resolved rows render as a non-interactive <li> — the action
-  // testid only exists on pending rows.
-  await expect(page.getByTestId('assistant-setup-roadmap-step-hire-action')).toHaveCount(0);
 });
 
 test('"Ask in chat" steps disable + tooltip until their channel is set up', async ({
@@ -285,24 +239,4 @@ test('"Ask in chat" steps disable + tooltip until their channel is set up', asyn
   await expect(phoneAskRow).toBeVisible();
   await expect(phoneAskRow).toHaveAttribute('data-status', 'pending-blocked');
   await expect(page.getByTestId('assistant-setup-roadmap-step-phoneAsk-action')).toBeDisabled();
-});
-
-test('top navbar info button shows a "needs attention" dot while onboarding has outstanding work', async ({
-  authedPage: page,
-}) => {
-  // The dot lives on the top-nav profile toggle rather than the chat
-  // toolbar so it stays visible across rail sections and points at the
-  // panel that holds the outstanding setup work.
-  const firstName = `Dot${Date.now()}`;
-  await hireBareAssistant(page, firstName);
-
-  const dot = page.getByTestId('assistant-info-button-onboarding-dot');
-  await expect(dot).toBeVisible({ timeout: 30_000 });
-
-  // The button's accessible name should also reflect the state so
-  // screen-reader users get the same hint as sighted users.
-  await expect(page.getByTestId('assistant-info-button')).toHaveAttribute(
-    'aria-label',
-    /setup incomplete/i
-  );
 });

@@ -132,7 +132,7 @@ function personalAssistantCount(coordinator: boolean): number {
 // Test
 // ---------------------------------------------------------------------------
 
-test('Unify member resets their account back to fresh-signup state', async ({
+test('Unify member resets their account back to fresh-signup state @critical @area(account.reset)', async ({
   authedPage: page,
 }) => {
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });

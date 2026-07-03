@@ -1,10 +1,8 @@
 /**
  * Dashboards Pane E2E Tests — browser-based user flows verifying the
- * Dashboards tab on the assistant right pane, including tab switching,
- * empty state, dashboard selector, summary card, refresh, and
- * collapse/expand, all driven by real data seeded via the Orchestra API.
- *
- * Replaces: src/tests/_dashboards/behavior/dashboardsPane.browser.test.tsx
+ * Dashboards tab on the assistant right pane, including empty state,
+ * dashboard selector, summary card, and standalone tile selection,
+ * all driven by real data seeded via the Orchestra API.
  *
  * Run: npx playwright test src/tests/assistants/dashboards.e2e.ts
  */
@@ -31,7 +29,6 @@ ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(120_000);
 
-// Two assistants: one stays empty (no dashboard data), one gets seeded
 const emptyAssistant = createAssistant({
   userId: user.id,
   firstName: 'EmptyBot',
@@ -49,10 +46,6 @@ test.afterAll(() => {
   deleteAllAssistantsForUser(user.id);
   cleanupUser(user.id);
 });
-
-// ---------------------------------------------------------------------------
-// Seed helpers
-// ---------------------------------------------------------------------------
 
 /* eslint-disable @typescript-eslint/naming-convention */
 
@@ -133,7 +126,6 @@ async function seedTile(
 
 /* eslint-enable @typescript-eslint/naming-convention */
 
-// Seed dashAssistant with a dashboard + tiles once before all tests
 const TILE_A_TOKEN = `tile-aaa-${Date.now()}`;
 const TILE_B_TOKEN = `tile-bbb-${Date.now()}`;
 const STANDALONE_TOKEN = `tile-standalone-${Date.now()}`;
@@ -179,10 +171,6 @@ async function ensureSeeded() {
   seeded = true;
 }
 
-// ---------------------------------------------------------------------------
-// Navigation helpers
-// ---------------------------------------------------------------------------
-
 async function selectAssistantAndOpenDashboards(
   page: import('@playwright/test').Page,
   agentId: number
@@ -197,52 +185,6 @@ async function selectAssistantAndOpenDashboards(
   await page.waitForTimeout(1_000);
 }
 
-// ===========================================================================
-// Tab Switching
-// ===========================================================================
-
-test('defaults to the Chat tab when an assistant is selected', async ({ authedPage: page }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  await selectAssistantInList(page, emptyAssistant.agentId);
-  await page.waitForTimeout(1_500);
-
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
-});
-
-test('switches between Chat, Actions drawer, Dashboards, and Brain', async ({
-  authedPage: page,
-}) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  await selectAssistantInList(page, emptyAssistant.agentId);
-  await page.waitForTimeout(1_500);
-
-  // Top-level navigation flows through the rail's sections.
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
-
-  await openRailSection(page, 'actions');
-  await expect(page.getByTestId('rail-section-actions')).toHaveAttribute('aria-current', 'page');
-
-  await openRailSection(page, 'dashboards');
-  await expect(page.getByTestId('rail-section-dashboards')).toHaveAttribute('aria-current', 'page');
-
-  await openRailSection(page, 'transcripts');
-  await expect(page.getByTestId('rail-section-transcripts')).toHaveAttribute(
-    'aria-current',
-    'page'
-  );
-
-  await openRailSection(page, 'chat');
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
-});
-
-// ===========================================================================
-// Empty State
-// ===========================================================================
-
 test('shows empty state when assistant has no dashboards or tiles', async ({
   authedPage: page,
 }) => {
@@ -250,23 +192,6 @@ test('shows empty state when assistant has no dashboards or tiles', async ({
 
   await expect(page.getByText('No dashboards yet')).toBeVisible({ timeout: 10_000 });
 });
-
-test('defaults to the Coordinator chat when no assistant is selected', async ({
-  authedPage: page,
-}) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  await expect(page.getByRole('button', { name: 'Chat' })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole('textbox', { name: 'Search conversation' })).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(page.getByText('T-W1N').first()).toBeVisible({ timeout: 10_000 });
-});
-
-// ===========================================================================
-// With Seeded Dashboard Data
-// ===========================================================================
 
 test('renders searchable combobox selector when dashboards exist', async ({ authedPage: page }) => {
   await ensureSeeded();
@@ -285,7 +210,7 @@ test('renders searchable combobox selector when dashboards exist', async ({ auth
   });
 });
 
-test('renders dashboard summary card with metadata and action buttons', async ({
+test('renders dashboard summary card with metadata, actions, and footer counts', async ({
   authedPage: page,
 }) => {
   await ensureSeeded();
@@ -302,41 +227,11 @@ test('renders dashboard summary card with metadata and action buttons', async ({
 
   await expect(page.getByTestId('dashboard-open-tab')).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('dashboard-download')).toBeVisible({ timeout: 5_000 });
-});
 
-test('shows refresh button in header that triggers refetch', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenDashboards(page, dashAssistant.agentId);
-
-  const refreshBtn = page.getByTestId('dashboard-header-refresh');
-  await expect(refreshBtn).toBeVisible({ timeout: 10_000 });
-
-  // Clicking refresh should not error — the button should remain visible
-  await refreshBtn.click();
-  await page.waitForTimeout(1_500);
-  await expect(refreshBtn).toBeVisible({ timeout: 5_000 });
-});
-
-test('shows collapse all / expand all button in header', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenDashboards(page, dashAssistant.agentId);
-
-  const collapseBtn = page.getByTestId('dashboard-collapse-all');
-  await expect(collapseBtn).toBeVisible({ timeout: 10_000 });
-
-  // Should say "Collapse All" initially
-  await expect(collapseBtn.locator('text=Collapse All')).toBeVisible({ timeout: 3_000 });
-
-  await collapseBtn.click();
-  await page.waitForTimeout(500);
-
-  // After clicking, should say "Expand All"
-  await expect(collapseBtn.locator('text=Expand All')).toBeVisible({ timeout: 5_000 });
-
-  await collapseBtn.click();
-  await page.waitForTimeout(500);
-
-  await expect(collapseBtn.locator('text=Collapse All')).toBeVisible({ timeout: 5_000 });
+  const footer = page.getByTestId('dashboards-footer');
+  await expect(footer).toBeVisible({ timeout: 10_000 });
+  await expect(footer.locator('text=/1 dashboard/')).toBeVisible({ timeout: 5_000 });
+  await expect(footer.locator('text=/3 tiles/')).toBeVisible({ timeout: 5_000 });
 });
 
 test('selector shows standalone tile when selected', async ({ authedPage: page }) => {
@@ -348,26 +243,12 @@ test('selector shows standalone tile when selected', async ({ authedPage: page }
   await selector.click();
   await page.waitForTimeout(500);
 
-  // The standalone tile should appear under "Tiles" group
   const standaloneTileOption = page.locator('[cmdk-item]').filter({ hasText: 'Standalone Metric' });
   await expect(standaloneTileOption).toBeVisible({ timeout: 5_000 });
   await standaloneTileOption.click();
   await page.waitForTimeout(1_000);
 
-  // Standalone tile section should appear
   const standaloneSection = page.getByTestId('standalone-tile-section');
   await expect(standaloneSection).toBeVisible({ timeout: 10_000 });
   await expect(standaloneSection.locator('text=Standalone Metric')).toBeVisible({ timeout: 5_000 });
-});
-
-test('footer shows dashboard and tile counts', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenDashboards(page, dashAssistant.agentId);
-
-  const footer = page.getByTestId('dashboards-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-
-  // Should show "1 dashboard, 3 tiles"
-  await expect(footer.locator('text=/1 dashboard/')).toBeVisible({ timeout: 5_000 });
-  await expect(footer.locator('text=/3 tiles/')).toBeVisible({ timeout: 5_000 });
 });

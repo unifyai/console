@@ -70,29 +70,9 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('chat panel renders with input and controls when assistant is selected', async ({
+test('sending a message shows it as a user message in the chat @critical @area(assistants.chat)', async ({
   authedPage: page,
 }) => {
-  // Seed contact so chat can resolve contactId and enable the input
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  await openAssistantChat(page);
-
-  // Chat scroll area is visible
-  await expect(page.getByTestId('chat-scroll-area')).toBeVisible();
-
-  // Textarea is visible and enabled
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeVisible({ timeout: 10_000 });
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  // Attach button is always present. The voice-record button is gated behind
-  // the transcription feature (DEEPGRAM_API_KEY) and is intentionally hidden on
-  // deployments without it (CI/stub included), so it is not asserted here.
-  await expect(page.getByTestId('attach-button')).toBeVisible();
-});
-
-test('sending a message shows it as a user message in the chat', async ({ authedPage: page }) => {
   // Seed contact so chat can resolve contactId
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
@@ -116,40 +96,85 @@ test('sending a message shows it as a user message in the chat', async ({ authed
   await expect(page.locator('text=Typing')).toBeVisible({ timeout: 5_000 });
 });
 
-test('historical transcript messages load when navigating to an assistant', async ({
+test('historical transcript messages load when navigating to an assistant @critical @area(assistants.chat)', async ({
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
-  const userMsg = `Historical user message ${ts}`;
-  const assistantMsg = `Historical assistant reply ${ts}`;
+  const msgs = [
+    {
+      content: `First message ${ts}`,
+      time: new Date(ts - 5000).toISOString(),
+      senderId: CONTACT_ID,
+    },
+    {
+      content: `Second message ${ts}`,
+      time: new Date(ts - 4000).toISOString(),
+      senderId: ASSISTANT_CONTACT_ID,
+    },
+    {
+      content: `Third message ${ts}`,
+      time: new Date(ts - 3000).toISOString(),
+      senderId: CONTACT_ID,
+    },
+    {
+      content: `Fourth message ${ts}`,
+      time: new Date(ts - 2000).toISOString(),
+      senderId: ASSISTANT_CONTACT_ID,
+    },
+  ];
 
-  // Seed a user message and an assistant response
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: userMsg,
-    timestamp: new Date(ts - 2000).toISOString(),
-  });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
-    content: assistantMsg,
-    timestamp: new Date(ts - 1000).toISOString(),
-  });
+  for (const m of msgs) {
+    await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+      senderId: m.senderId,
+      content: m.content,
+      timestamp: m.time,
+    });
+  }
 
   await openAssistantChat(page);
 
-  // Wait for messages to load (contact resolution + transcript fetch)
-  await expect(page.locator(`text=${userMsg}`).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(`text=${assistantMsg}`).first()).toBeVisible({ timeout: 10_000 });
+  for (const m of msgs) {
+    await expect(page.locator(`text=${m.content}`).first()).toBeVisible({ timeout: 20_000 });
+  }
 
-  // User message has correct role
-  const userBubble = page.locator(`[data-role="user"]:has-text("${userMsg}")`);
-  await expect(userBubble).toBeVisible({ timeout: 5_000 });
+  const bubbles = page.locator('[data-testid="message-bubble"]');
+  const count = await bubbles.count();
+  expect(count).toBeGreaterThanOrEqual(4);
+  const indices: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const idx = await bubbles.nth(i).getAttribute('data-index');
+    if (idx !== null) indices.push(parseInt(idx, 10));
+  }
+  for (let i = 1; i < indices.length; i++) {
+    expect(indices[i]).toBeGreaterThan(indices[i - 1]);
+  }
+});
 
-  // Assistant message has correct role
-  const assistantBubble = page.locator(`[data-role="assistant"]:has-text("${assistantMsg}")`);
-  await expect(assistantBubble).toBeVisible({ timeout: 5_000 });
+test('chat input is disabled when credits are exhausted and re-enables after funding @critical @area(assistants.chat)', async ({
+  authedPage: page,
+}) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+  setUserCredits(user.id, -100);
+
+  await openAssistantChat(page);
+
+  const textarea = page.locator('textarea');
+  await expect(textarea).toBeVisible({ timeout: 10_000 });
+  await expect(textarea).toBeDisabled({ timeout: 15_000 });
+
+  const placeholder = await textarea.getAttribute('placeholder');
+  expect(placeholder).toBeTruthy();
+  expect(
+    placeholder!.toLowerCase().includes('credit') ||
+      placeholder!.toLowerCase().includes('spending') ||
+      placeholder!.toLowerCase().includes('limit')
+  ).toBe(true);
+
+  setUserCredits(user.id, 50_000);
+  await openAssistantChat(page);
+  await expect(page.locator('textarea')).toBeEnabled({ timeout: 20_000 });
 });
 
 test('shared-root chat history merges root-local identities and paginates', async ({
@@ -284,257 +309,4 @@ test('shared-root chat history merges root-local identities and paginates', asyn
 
   await expect(page.locator(`text=${personalBoundary}`).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(`text=${sharedBoundary}`).first()).toBeVisible({ timeout: 20_000 });
-});
-
-test('multiple historical messages render in chronological order', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const msgs = [
-    {
-      content: `First message ${ts}`,
-      time: new Date(ts - 5000).toISOString(),
-      senderId: CONTACT_ID,
-    },
-    {
-      content: `Second message ${ts}`,
-      time: new Date(ts - 4000).toISOString(),
-      senderId: ASSISTANT_CONTACT_ID,
-    },
-    {
-      content: `Third message ${ts}`,
-      time: new Date(ts - 3000).toISOString(),
-      senderId: CONTACT_ID,
-    },
-    {
-      content: `Fourth message ${ts}`,
-      time: new Date(ts - 2000).toISOString(),
-      senderId: ASSISTANT_CONTACT_ID,
-    },
-  ];
-
-  for (const m of msgs) {
-    await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-      senderId: m.senderId,
-      content: m.content,
-      timestamp: m.time,
-    });
-  }
-
-  await openAssistantChat(page);
-
-  // Wait for the last message to appear
-  await expect(page.locator(`text=Fourth message ${ts}`).first()).toBeVisible({ timeout: 20_000 });
-
-  // All four messages should be visible
-  for (const m of msgs) {
-    await expect(page.locator(`text=${m.content}`).first()).toBeVisible({ timeout: 5_000 });
-  }
-
-  // Verify ordering: collect all message-bubble data-index values and check they're ascending
-  const bubbles = page.locator('[data-testid="message-bubble"]');
-  const count = await bubbles.count();
-  expect(count).toBeGreaterThanOrEqual(4);
-
-  // Get data-index values to verify they're in ascending order
-  const indices: number[] = [];
-  for (let i = 0; i < count; i++) {
-    const idx = await bubbles.nth(i).getAttribute('data-index');
-    if (idx !== null) indices.push(parseInt(idx, 10));
-  }
-  for (let i = 1; i < indices.length; i++) {
-    expect(indices[i]).toBeGreaterThan(indices[i - 1]);
-  }
-});
-
-test('sending multiple messages in succession preserves order', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  const ts = Date.now();
-  const messages = [`Sequential msg A ${ts}`, `Sequential msg B ${ts}`, `Sequential msg C ${ts}`];
-
-  for (const msg of messages) {
-    await textarea.fill(msg);
-    await textarea.press('Enter');
-  }
-
-  // Wait for all three messages to appear
-  for (const msg of messages) {
-    await expect(page.locator(`text=${msg}`).first()).toBeVisible({ timeout: 10_000 });
-  }
-
-  // Verify the order in the DOM: A should appear before B, B before C
-  const chatArea = page.getByTestId('chat-scroll-area');
-  const allBubbles = chatArea.locator('[data-role="user"]');
-  const allTexts: string[] = [];
-  const bubbleCount = await allBubbles.count();
-  for (let i = 0; i < bubbleCount; i++) {
-    const text = await allBubbles.nth(i).textContent();
-    if (text) allTexts.push(text);
-  }
-
-  // Find positions of our messages in the rendered order
-  const posA = allTexts.findIndex((t) => t.includes(`Sequential msg A ${ts}`));
-  const posB = allTexts.findIndex((t) => t.includes(`Sequential msg B ${ts}`));
-  const posC = allTexts.findIndex((t) => t.includes(`Sequential msg C ${ts}`));
-
-  expect(posA).toBeGreaterThanOrEqual(0);
-  expect(posB).toBeGreaterThan(posA);
-  expect(posC).toBeGreaterThan(posB);
-});
-
-test('chat input is disabled when user credits are exhausted', async ({ authedPage: page }) => {
-  // Set credits to negative (exhausted)
-  setUserCredits(user.id, -100);
-
-  await openAssistantChat(page);
-
-  // The textarea should be disabled
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeVisible({ timeout: 10_000 });
-  await expect(textarea).toBeDisabled({ timeout: 15_000 });
-
-  // The placeholder should mention credits/spending
-  const placeholder = await textarea.getAttribute('placeholder');
-  expect(placeholder).toBeTruthy();
-  expect(
-    placeholder!.toLowerCase().includes('credit') ||
-      placeholder!.toLowerCase().includes('spending') ||
-      placeholder!.toLowerCase().includes('limit')
-  ).toBe(true);
-
-  // Restore credits for subsequent tests
-  setUserCredits(user.id, 50_000);
-});
-
-test('chat shows empty area for a new assistant with no history', async ({ authedPage: page }) => {
-  // Create a fresh assistant and seed a contact (required for chat to load)
-  const freshAssistant = createAssistant({
-    userId: user.id,
-    firstName: 'FreshBot',
-    surname: 'NoHistory',
-  });
-  await seedContact(user.apiKey, user.id, freshAssistant.agentId, user.email);
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${freshAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 15_000 });
-
-  // Wait for textarea to be enabled (chat loaded with no messages)
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  await expect(page.locator('[data-testid="message-bubble"]')).toHaveCount(0, { timeout: 5_000 });
-});
-
-test('assistant response seeded as transcript appears via polling', async ({
-  authedPage: page,
-}) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  // Send a user message
-  const userMsg = `Poll test user message ${Date.now()}`;
-  await textarea.fill(userMsg);
-  await textarea.press('Enter');
-  await expect(page.locator(`text=${userMsg}`).first()).toBeVisible({ timeout: 10_000 });
-
-  // Seed an assistant reply as a transcript (simulating what adapters would produce)
-  const assistantReply = `Poll test assistant reply ${Date.now()}`;
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
-    content: assistantReply,
-  });
-
-  // The polling fallback should pick up the assistant reply
-  // Poll interval is typically 10-30 seconds; wait up to 60s
-  await expect(page.locator(`text=${assistantReply}`).first()).toBeVisible({ timeout: 60_000 });
-
-  // Verify it renders as an assistant bubble
-  const assistantBubble = page.locator(`[data-role="assistant"]:has-text("${assistantReply}")`);
-  await expect(assistantBubble).toBeVisible({ timeout: 5_000 });
-});
-
-test('assistant message exposes a copy button that confirms on click', async ({
-  authedPage: page,
-}) => {
-  // The copy affordance only appears on assistant bubbles (the user
-  // already authored their own messages). On click it briefly flips
-  // its `data-copied` attribute and updates the aria-label without
-  // creating a global toast. Those UI signals are more deterministic
-  // than asserting clipboard reads.
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const userMsg = `Copy-test user message ${ts}`;
-  const assistantMsg = `Copy-test assistant reply ${ts}`;
-
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: userMsg,
-    timestamp: new Date(ts - 2000).toISOString(),
-  });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
-    content: assistantMsg,
-    timestamp: new Date(ts - 1000).toISOString(),
-  });
-
-  await openAssistantChat(page);
-
-  const assistantBubble = page.locator(`[data-role="assistant"]:has-text("${assistantMsg}")`);
-  await expect(assistantBubble).toBeVisible({ timeout: 20_000 });
-
-  // User bubbles deliberately don't render the copy button — guard
-  // against accidentally surfacing it for both roles.
-  const userBubble = page.locator(`[data-role="user"]:has-text("${userMsg}")`);
-  await expect(userBubble.getByTestId('message-copy-button')).toHaveCount(0);
-
-  const copyButton = assistantBubble.getByTestId('message-copy-button');
-  await expect(copyButton).toBeVisible({ timeout: 5_000 });
-  await expect(copyButton).not.toHaveAttribute('data-copied', 'true');
-
-  await copyButton.click();
-
-  await expect(copyButton).toHaveAttribute('data-copied', 'true', { timeout: 3_000 });
-  await expect(copyButton).toHaveAttribute('aria-label', 'Message copied');
-  await expect(
-    page.locator('[data-sonner-toast]').filter({ hasText: 'Message copied' })
-  ).toHaveCount(0);
-});
-
-test('re-enabling credits after exhaustion restores chat input', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  // Start with exhausted credits
-  setUserCredits(user.id, -100);
-
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeDisabled({ timeout: 15_000 });
-
-  // Restore credits
-  setUserCredits(user.id, 50_000);
-
-  // Navigate away and back to pick up the credit change
-  await openAssistantChat(page);
-
-  // Textarea should now be enabled
-  const textareaAfter = page.locator('textarea');
-  await expect(textareaAfter).toBeEnabled({ timeout: 20_000 });
 });

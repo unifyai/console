@@ -67,7 +67,7 @@ test.afterAll(() => {
 // Plan card
 // ---------------------------------------------------------------------------
 
-test('shows the METERED plan card with template name and commitment', async ({
+test('shows the METERED plan card and hides self-serve credits UI @critical @area(billing.metered)', async ({
   authedPage: page,
 }) => {
   await page.goto('/billing');
@@ -83,18 +83,7 @@ test('shows the METERED plan card with template name and commitment', async ({
   // `monthly_usage_cap` (the platform never blocks usage based on plan
   // terms; the spending-limit guard layer owns that concern instead).
   await expect(page.getByTestId('plan-billing-mode-badge')).toBeVisible();
-});
 
-// ---------------------------------------------------------------------------
-// CREDITS UI is suppressed
-// ---------------------------------------------------------------------------
-
-test('hides the self-serve credits / subscription UI', async ({ authedPage: page }) => {
-  await page.goto('/billing');
-  await expect(page.getByTestId('metered-plan-section')).toBeVisible({ timeout: 15_000 });
-
-  // The self-serve CREDITS surface (credits/subscription card, plan
-  // picker, auto-increment) must be absent for METERED accounts.
   await expect(page.getByTestId('credits-balance-section')).toHaveCount(0);
   await expect(page.getByTestId('auto-increment-card')).toHaveCount(0);
 });
@@ -103,7 +92,9 @@ test('hides the self-serve credits / subscription UI', async ({ authedPage: page
 // Invoices table
 // ---------------------------------------------------------------------------
 
-test('renders the invoices table with rows ordered newest-first', async ({ authedPage: page }) => {
+test('renders the invoices table with rows ordered newest-first @critical @area(billing.metered)', async ({
+  authedPage: page,
+}) => {
   await page.goto('/billing');
 
   const invoicesSection = page.getByTestId('metered-invoices-section');

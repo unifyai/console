@@ -147,7 +147,7 @@ async function openMockIntegrationsTab(page: Page) {
   await expect(page.getByTestId('integration-gallery')).toBeVisible({ timeout: 10_000 });
 }
 
-test('mock connected-apps page shows dynamic apps, permissions, tools, and connect flow', async ({
+test('mock connected-apps page shows dynamic apps, permissions, tools, and connect flow @critical @area(assistants.integrations)', async ({
   authedPage: page,
 }) => {
   const policyPatchCalls = await installMockPolicyRoutes(page);

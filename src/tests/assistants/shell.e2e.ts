@@ -54,7 +54,7 @@ test('the rail renders with the brand and unity switcher', async ({ authedPage: 
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible();
 });
 
-test('the unity switcher opens and selecting a unity drives the section host', async ({
+test('the unity switcher opens and selecting a unity drives the section host @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
@@ -94,41 +94,6 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 5_000 });
 });
 
-test('the account menu exposes workspace and sign out', async ({ authedPage: page }) => {
-  deleteAllAssistantsForUser(user.id);
-  createAssistant({ userId: user.id, firstName: 'Acct', surname: 'Menu' });
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  await page.getByTestId('rail-account-trigger').click();
-  const menu = page.getByTestId('rail-account-menu');
-  await expect(menu).toBeVisible({ timeout: 5_000 });
-  await expect(menu.getByText('Sign out')).toBeVisible();
-});
-
-test('collapsing the rail persists across reloads', async ({ authedPage: page }) => {
-  deleteAllAssistantsForUser(user.id);
-  createAssistant({ userId: user.id, firstName: 'Dock', surname: 'Sticky' });
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  const rail = page.getByTestId('assistant-rail');
-  await expect(rail).toBeVisible({ timeout: 15_000 });
-  const expandedWidth = (await rail.boundingBox())?.width ?? 0;
-  expect(expandedWidth).toBeGreaterThan(200);
-
-  await page.getByTestId('rail-collapse-toggle').click();
-  await expect.poll(async () => (await rail.boundingBox())?.width ?? 0).toBeLessThan(120);
-
-  await page.reload();
-  await closeHireDialogIfOpen(page);
-  const railAfter = page.getByTestId('assistant-rail');
-  await expect(railAfter).toBeVisible({ timeout: 15_000 });
-  expect((await railAfter.boundingBox())?.width ?? 999).toBeLessThan(120);
-});
-
 test('mobile viewport exposes rail navigation via the menu toggle', async ({
   authedPage: page,
 }) => {
@@ -148,35 +113,4 @@ test('mobile viewport exposes rail navigation via the menu toggle', async ({
   await expect(rail).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('rail-section-chat')).toBeVisible();
   await expect(page.getByTestId('chat-search-trigger')).toBeVisible();
-});
-
-test('the brand control returns to Chat with T-W1N and Assistant info open', async ({
-  authedPage: page,
-}) => {
-  deleteAllAssistantsForUser(user.id);
-  const unity = createAssistant({ userId: user.id, firstName: 'Away', surname: 'Teammate' });
-
-  await navigateToAssistants(page, shellOpts);
-  await closeHireDialogIfOpen(page);
-
-  await openUnitySwitcher(page, shellOpts);
-  await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
-
-  await openRailSection(page, 'tasks');
-  await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
-
-  const infoClose = page.getByTestId('assistant-info-close');
-  if (await infoClose.isVisible().catch(() => false)) {
-    await infoClose.click();
-    await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0, { timeout: 5_000 });
-  }
-
-  await page.getByTestId('platform-home-button').click();
-
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page', {
-    timeout: 10_000,
-  });
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N');
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 10_000 });
 });

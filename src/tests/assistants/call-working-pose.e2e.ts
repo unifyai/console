@@ -114,7 +114,7 @@ async function endCall(page: import('@playwright/test').Page) {
   await expect(page.locator('text=Talk to Worker TestBot')).not.toBeVisible({ timeout: 10_000 });
 }
 
-test('an in-flight act turns the droid to the laptop and it stays there after the act ends', async ({
+test('an in-flight act turns the droid to the laptop and it stays there after the act ends @critical @area(assistants.call-pose)', async ({
   authedPage: page,
 }) => {
   await startCall(page);

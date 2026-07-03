@@ -46,13 +46,31 @@ export {
 export type { SeededOrg } from '../helpers/seeds/types';
 
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
-import { deferCoordinatorForUser } from '../helpers/coordinator';
+import {
+  deferCoordinatorAfterAssistantsLoad,
+  deferCoordinatorForUser,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
 export { login, switchToEmailTab };
 
 /** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
-export async function waitForAssistantsReady(page: Page) {
+export async function waitForAssistantsReady(
+  page: Page,
+  opts?: { userId: string; apiKey: string }
+) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
   await page.goto('/assistants');
   await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  if (opts) {
+    await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+    await dismissCoordinatorOnboardingIfOpen(page);
+  }
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible({ timeout: 10_000 });
 }
 
@@ -94,14 +112,13 @@ export async function waitForUsageReady(page: Page) {
   await expect(page.getByTestId('usage-filters-bar')).toBeVisible({ timeout: 15_000 });
 }
 
-async function openUnitySwitcherPopover(page: Page) {
+async function openUnitySwitcherPopover(page: Page, opts?: { userId: string; apiKey: string }) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (!(await popover.isVisible({ timeout: 500 }).catch(() => false))) {
-    const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
-    if (await pickChat.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      await pickChat.click();
-      await page.waitForTimeout(500);
+    if (opts) {
+      await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
     }
+    await dismissCoordinatorOnboardingIfOpen(page);
     const switcher = page.getByTestId('rail-unity-switcher');
     await expect(switcher).toBeVisible({ timeout: 10_000 });
     await switcher.click({ timeout: 10_000 });
@@ -110,16 +127,22 @@ async function openUnitySwitcherPopover(page: Page) {
 }
 
 /** Assert the rail onboard CTA is enabled (canonical billable action on /assistants). */
-export async function expectOnboardButtonEnabled(page: Page) {
-  await waitForAssistantsReady(page);
-  await openUnitySwitcherPopover(page);
+export async function expectOnboardButtonEnabled(
+  page: Page,
+  opts?: { userId: string; apiKey: string }
+) {
+  await waitForAssistantsReady(page, opts);
+  await openUnitySwitcherPopover(page, opts);
   await expect(page.getByTestId('assistant-onboard-button')).toBeEnabled({ timeout: 10_000 });
 }
 
 /** Assert the rail onboard CTA is blocked when credits are exhausted. */
-export async function expectOnboardButtonDisabled(page: Page) {
-  await waitForAssistantsReady(page);
-  await openUnitySwitcherPopover(page);
+export async function expectOnboardButtonDisabled(
+  page: Page,
+  opts?: { userId: string; apiKey: string }
+) {
+  await waitForAssistantsReady(page, opts);
+  await openUnitySwitcherPopover(page, opts);
   await expect
     .poll(async () => page.locator('[data-testid="billable-action-guard"]').isVisible(), {
       timeout: 20_000,
@@ -233,9 +256,30 @@ export function createBillingTest(
           userId: user.id,
           apiKey: user.apiKey,
         });
+        const warmCtx = await browser.newContext({ storageState: authFile });
+        const warmPage = await warmCtx.newPage();
+        await warmPage.addInitScript(() => {
+          try {
+            window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+          } catch {
+            /* private mode — ignore */
+          }
+        });
+        await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
+        await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
+        await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await warmCtx.storageState({ path: authFile });
+        await warmCtx.close();
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+        } catch {
+          /* private mode — ignore */
+        }
+      });
       if (opts?.skipWhenManualTopup) {
         await waitForBillingReady(page);
         if (await isManualTopupMode(page)) {

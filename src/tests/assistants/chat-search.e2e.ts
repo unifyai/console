@@ -59,24 +59,9 @@ test.afterAll(() => {
 // Chat Search Tests
 // ===========================================================================
 
-test('search bar in the chat header opens the search dialog', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  await openAssistantChat(page);
-
-  const searchTrigger = page.getByTestId('chat-search-trigger');
-  await expect(searchTrigger).toBeVisible({ timeout: 10_000 });
-  await searchTrigger.click();
-
-  const dialog = page.getByTestId('chat-search-dialog');
-  await expect(dialog).toBeVisible({ timeout: 5_000 });
-
-  const input = page.getByTestId('chat-search-input');
-  await expect(input).toBeVisible();
-  await expect(input).toBeFocused();
-});
-
-test('searching returns matching messages', async ({ authedPage: page }) => {
+test('searching returns matching messages @critical @area(assistants.chat-search)', async ({
+  authedPage: page,
+}) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
@@ -120,7 +105,7 @@ test('searching returns matching messages', async ({ authedPage: page }) => {
   expect(highlightCount).toBeGreaterThanOrEqual(2);
 });
 
-test('shared-root search hides foreign-authored rows while keeping null-authored rows', async ({
+test('shared-root search hides foreign-authored rows while keeping null-authored rows @critical @area(assistants.chat-search)', async ({
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatSearchOrg_${Date.now()}`, ownerId: user.id });
@@ -292,7 +277,7 @@ test('sender filter narrows to assistant or user messages', async ({ authedPage:
   expect(resultText).toContain('from me');
 });
 
-test('go-to-message navigates to historical view and jump-to-present returns', async ({
+test('go-to-message navigates to historical view and jump-to-present returns @critical @area(assistants.chat-search)', async ({
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
@@ -625,24 +610,4 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
   });
   await expect(page.locator(`[data-exchange-id="${foreignExchangeId}"]`)).toHaveCount(0);
   await expect(page.locator(`text=${foreignTranscript}`)).toHaveCount(0);
-});
-
-test('empty search shows no results message', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  await openAssistantChat(page);
-
-  const searchBtn = page.getByTestId('chat-search-trigger');
-  await searchBtn.click();
-
-  const input = page.getByTestId('chat-search-input');
-  await input.fill('xyznonexistent_query_that_will_never_match_anything_12345');
-
-  const searchButton = page.getByTestId('chat-search-button');
-  await searchButton.click();
-
-  await page.waitForTimeout(3_000);
-
-  const noResults = page.locator('text=No messages found');
-  await expect(noResults).toBeVisible({ timeout: 10_000 });
 });

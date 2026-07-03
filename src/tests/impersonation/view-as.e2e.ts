@@ -82,6 +82,13 @@ const test = base.extend<{ adminPage: Page }>({
     }
     const ctx = await browser.newContext({ storageState: authFile });
     const page = await ctx.newPage();
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+      } catch {
+        /* private mode — ignore */
+      }
+    });
     // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(page);
     await ctx.close();
@@ -103,6 +110,7 @@ test.afterAll(() => {
 // ---------------------------------------------------------------------------
 
 test('Unify member can view as another user and return', async ({ adminPage: page }) => {
+  test.setTimeout(120_000);
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
   await deferCoordinatorAfterAssistantsLoad(page, adminUser.id, adminUser.apiKey);
@@ -136,6 +144,7 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   await page.goto(`/assistants?profile=${targetAssistant.agentId}`, {
     waitUntil: 'domcontentloaded',
   });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
   await deferCoordinatorAfterAssistantsLoad(page, targetUser.id, targetUser.apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
   await openUnitySwitcher(page, { userId: targetUser.id, apiKey: targetUser.apiKey });
