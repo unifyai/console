@@ -1011,7 +1011,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // assistant in the workspace. Drives (a) unread badges on the list, (b)
   // the currently-open chat panel's message history, (c) the typing
   // indicator via `activityCounters`, and (d) the per-assistant online
-  // status via `markAssistantOnline`.
+  // status via `handleAssistantLiveActivity` (any inbound SSE frame,
+  // including unify_meet_incoming rings, plus call-connect fallbacks).
   //
   // Pairs are assembled from the `resolvedContactIds` state that
   // `useContactIdPrefetch` maintains; as new IDs resolve, React batches the
@@ -1059,6 +1060,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       }
     },
     [canonicalCoordinatorId, refetchCoordinatorOnboardingState]
+  );
+
+  const handleAssistantLiveActivity = React.useCallback(
+    (assistantId: string) => {
+      handleChatActivity(assistantId);
+      markAssistantOnline(assistantId);
+    },
+    [handleChatActivity, markAssistantOnline]
   );
 
   // `ackMessage` is returned by `useAssistantChatStream` below, but we need
@@ -1270,7 +1279,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onChatMessage: handleChatStreamMessage,
       onDesktopReady: handleChatStreamDesktopReady,
       onUnifyMeetIncoming: handleUnifyMeetIncoming,
-      onMessageActivity: handleChatActivity,
+      onMessageActivity: handleAssistantLiveActivity,
     },
     {
       userEmail: userMeta.email ?? undefined,
@@ -1435,11 +1444,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return;
       }
 
+      markAssistantOnline(assistant.agentId);
+
       // Fresh call: stay docked by default.
       redock();
       await startCall(assistant, callType, options);
     },
-    [startCall, redock, activeCallAssistant]
+    [startCall, redock, activeCallAssistant, markAssistantOnline]
   );
 
   const handleHangUp = React.useCallback(async () => {
@@ -1479,6 +1490,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     const timer = setTimeout(() => setIncomingMeetCall(null), 30000);
     return () => clearTimeout(timer);
   }, [incomingMeetCall, activeCallAssistant]);
+
+  React.useEffect(() => {
+    if (!activeCallAssistant || !isCallConnected || isWaitingForAssistant) return;
+    markAssistantOnline(activeCallAssistant.agentId);
+  }, [activeCallAssistant, isCallConnected, isWaitingForAssistant, markAssistantOnline]);
 
   const {
     setPresetAgeFilter,

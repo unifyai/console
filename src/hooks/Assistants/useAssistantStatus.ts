@@ -3,10 +3,13 @@ import { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { fetchAssistantStatus } from '@/lib/client/assistant';
 
 const POLLING_INTERVAL = 60000;
+/** Keep optimistic online through slow backend status polls after live signals. */
+const OPTIMISTIC_ONLINE_GRACE_MS = 30_000;
 
 export function useAssistantStatus(assistants: Assistant[]) {
   const [statuses, setStatuses] = React.useState<Map<string, AssistantStatus | null>>(new Map());
   const pollerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const optimisticOnlineUntilRef = React.useRef<Map<string, number>>(new Map());
 
   const assistantsRef = React.useRef<Assistant[]>(assistants);
   assistantsRef.current = assistants;
@@ -35,9 +38,18 @@ export function useAssistantStatus(assistants: Assistant[]) {
       }))
     );
 
+    const now = Date.now();
     setStatuses((prev) => {
       const newStatuses = new Map(prev);
       results.forEach(({ assistantId, status }) => {
+        const graceUntil = optimisticOnlineUntilRef.current.get(assistantId) ?? 0;
+        if (!status?.running && graceUntil > now) {
+          newStatuses.set(assistantId, {
+            running: true,
+            jobName: status?.jobName ?? prev.get(assistantId)?.jobName ?? null,
+          });
+          return;
+        }
         newStatuses.set(assistantId, status);
       });
       return newStatuses;
@@ -55,6 +67,7 @@ export function useAssistantStatus(assistants: Assistant[]) {
 
   const markOnline = React.useCallback(
     (assistantId: string) => {
+      optimisticOnlineUntilRef.current.set(assistantId, Date.now() + OPTIMISTIC_ONLINE_GRACE_MS);
       setStatuses((prev) => {
         const existing = prev.get(assistantId);
         if (existing?.running) return prev;

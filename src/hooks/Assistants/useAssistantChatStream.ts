@@ -79,9 +79,9 @@ export interface UseAssistantChatStreamCallbacks {
    */
   onUnifyMeetIncoming?: (assistantId: string, eventData: Record<string, unknown>) => void;
   /**
-   * Fires on every inbound SSE message before any filtering. Drives any
-   * "activity" indicators (e.g. clearing typing bubbles) that should react
-   * to all frames for a given assistant, not just the post-filter ones.
+   * Fires on every inbound SSE frame before parsing. Drives activity
+   * indicators (typing bubbles, online presence) that should react to all
+   * assistant-originated frames, not just post-filter chat messages.
    */
   onMessageActivity?: (assistantId: string) => void;
 }
@@ -703,6 +703,8 @@ export function useAssistantChatStream(
           return;
         }
         const myContactId = pair.contactId;
+
+        callbacksRef.current.onMessageActivity?.(assistantId);
 
         // In-chat progress clearing runs in the chat merge callback after a
         // successful assistant message merge — not on every SSE frame.
