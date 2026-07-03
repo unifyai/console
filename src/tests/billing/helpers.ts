@@ -74,10 +74,12 @@ export async function waitForAssistantsReady(
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible({ timeout: 10_000 });
 }
 
-/** Wait until the billing page has loaded its primary credits section. */
+/** Wait until the billing page has loaded (credits self-serve or metered plan layout). */
 export async function waitForBillingReady(page: Page) {
   await page.goto('/billing');
-  await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page.getByTestId('metered-plan-section').or(page.getByTestId('credits-balance-section'))
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 /** Local Orchestra enables manual-top-up mode — credits + top-up only, no Stripe UI. */
@@ -281,12 +283,21 @@ export function createBillingTest(
         }
       });
       if (opts?.skipWhenManualTopup) {
-        await waitForBillingReady(page);
-        if (await isManualTopupMode(page)) {
-          testInfo.skip(
-            true,
-            'Stripe subscription billing UI is unavailable in manual-top-up mode (local Orchestra).'
-          );
+        await page.goto('/billing');
+        const isMetered = await page
+          .getByTestId('metered-plan-section')
+          .isVisible({ timeout: 5_000 })
+          .catch(() => false);
+        if (!isMetered) {
+          await expect(page.getByTestId('credits-balance-section')).toBeVisible({
+            timeout: 15_000,
+          });
+          if (await isManualTopupMode(page)) {
+            testInfo.skip(
+              true,
+              'Stripe subscription billing UI is unavailable in manual-top-up mode (local Orchestra).'
+            );
+          }
         }
       }
       // eslint-disable-next-line react-hooks/rules-of-hooks

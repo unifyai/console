@@ -25,17 +25,26 @@ export async function deferCoordinatorOnboarding(
   apiKey: string,
   coordinatorId: number
 ): Promise<void> {
-  const res = await orchestraFetch(
-    `/v0/assistant/${coordinatorId}/state`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ intro_watched: true, onboarding_active: false }),
-    },
-    apiKey
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to pause coordinator onboarding: ${res.status}`);
+  const payloads = [{ intro_watched: true, onboarding_active: false }, { intro_watched: true }];
+
+  for (const body of payloads) {
+    const res = await orchestraFetch(
+      `/v0/assistant/${coordinatorId}/state`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+      apiKey
+    );
+    if (res.ok) {
+      return;
+    }
+    if (res.status !== 422) {
+      throw new Error(`Failed to pause coordinator onboarding: ${res.status}`);
+    }
   }
+
+  throw new Error('Failed to pause coordinator onboarding: 422');
 }
 
 /** Defer personal Coordinator onboarding when one exists for the user. */

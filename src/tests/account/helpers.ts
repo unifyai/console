@@ -6,7 +6,7 @@
  * once and reuses the session for every test.
  */
 
-import { test as base, type Page, type Browser } from '@playwright/test';
+import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 import {
@@ -62,20 +62,42 @@ export async function navigateToAppShellRoute(
   await dismissCoordinatorOnboardingIfOpen(page);
 }
 
-export async function switchWorkspaceViaApi(
-  page: Page,
-  workspaceId: string | number,
-  opts: { userId: string; apiKey: string }
-) {
+export async function switchWorkspaceViaApi(page: Page, workspaceId: string | number) {
   const res = await page.request.post('/api/session/workspace', {
     data: { workspaceId: String(workspaceId) },
   });
   if (!res.ok()) {
     throw new Error(`Failed to switch workspace to ${workspaceId}: ${res.status()}`);
   }
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect
+    .poll(async () => {
+      const cookies = await page.context().cookies();
+      return cookies.find((c) => c.name === 'unify_workspace_id')?.value ?? '';
+    })
+    .toBe(String(workspaceId));
+}
+
+export type OrgShellOpts = { userId: string; apiKey: string; orgId: number };
+
+/** Switch into an org workspace and open an organizations tab with overlays dismissed. */
+export async function openOrganizationsTab(
+  page: Page,
+  tab: 'members' | 'roles' | 'teams' | 'organization',
+  opts: OrgShellOpts
+) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('referral-banner-dismissed', '1');
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
+  await deferCoordinatorForUser(opts.userId, opts.apiKey);
+  await switchWorkspaceViaApi(page, opts.orgId);
+  await page.goto(`/organizations?tab=${tab}`, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await dismissCoordinatorOnboardingIfOpen(page);
+  await expect(page).toHaveURL(/\/organizations/, { timeout: 15_000 });
 }
 
 // =============================================================================
@@ -158,6 +180,14 @@ export function createAccountTest(user: {
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.setItem('referral-banner-dismissed', '1');
+          window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+        } catch {
+          /* private mode — ignore */
+        }
+      });
       // eslint-disable-next-line react-hooks/rules-of-hooks
       await use(page);
       await ctx.close();
