@@ -456,9 +456,21 @@ test('workspace demos trigger a unify_message summary and complete from the outb
 }) => {
   // Connecting the workspace email marks the ``workspace`` connect step
   // done (Orchestra derives it from the BYOD email contact), which unlocks
-  // the mailbox / drive / calendar demo steps that depend on it.
+  // the mailbox / drive / calendar demo steps that depend on it. The
+  // granted-scopes secret (written by the real OAuth flow) additionally
+  // gates the calendar demo, which only renders once calendar was granted;
+  // seed a grant that includes calendar so all three demos surface.
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  dbExec(
+    `INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value) ` +
+      `VALUES ('${user.id}', ${coordinator.agentId}, 'GOOGLE_GRANTED_SCOPES', ` +
+      `'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events ` +
+      `https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send ` +
+      `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify ` +
+      `https://www.googleapis.com/auth/userinfo.email') ` +
+      `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
+  );
   resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
@@ -531,6 +543,46 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   // The other demos stay independently actionable.
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
+});
+
+test('the calendar demo only renders once the calendar scope is granted', async ({
+  authedPage: page,
+}) => {
+  // A workspace connected without the calendar scope: the drive demo (which
+  // has no scope gate) still surfaces, but the calendar demo stays hidden
+  // until the user grants calendar access.
+  const coordinator = createPersonalCoordinator(user.id);
+  connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  dbExec(
+    `INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value) ` +
+      `VALUES ('${user.id}', ${coordinator.agentId}, 'GOOGLE_GRANTED_SCOPES', ` +
+      `'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send ` +
+      `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify ` +
+      `https://www.googleapis.com/auth/userinfo.email') ` +
+      `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
+  );
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await openUnitySwitcher(page);
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.keyboard.press('Escape');
+
+  await openOnboardingChecklist(page);
+  await selectCoordinatorOnboardingSection(page, 'workspace');
+
+  // Drive still renders; calendar is gated out until calendar is granted.
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-workspace-drive').first()
+  ).toBeVisible();
+  await expectChecklistItemClickable(page, 'workspace-drive');
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace-calendar')).toHaveCount(0);
 });
 
 test('starting a call connects and docks the call in the platform', async ({
