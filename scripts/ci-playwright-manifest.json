@@ -1,0 +1,48 @@
+{
+  "_comment": "Machine-readable CI thresholds for Playwright tiers. Human docs: src/tests/CI_TESTING.md",
+  "pushSampleRate": { "default": 35, "P0": 100, "P1": 50, "P2": 35, "P3": 20 },
+  "prSampleRate": { "default": 65, "P0": 100, "P1": 85, "P2": 65, "P3": 0 },
+  "splitThresholdSeconds": 480,
+  "areas": {
+    "auth": {
+      "weight": "medium",
+      "defaultShards": 2,
+      "timeoutMinutes": 30
+    },
+    "billing": {
+      "weight": "medium",
+      "defaultShards": 3,
+      "timeoutMinutes": 45
+    },
+    "account": {
+      "weight": "slow",
+      "defaultShards": 3,
+      "timeoutMinutes": 45
+    },
+    "assistants": {
+      "weight": "slow",
+      "defaultShards": 5,
+      "timeoutMinutes": 60
+    },
+    "shell": {
+      "weight": "fast",
+      "defaultShards": 1,
+      "timeoutMinutes": 20
+    },
+    "admin": {
+      "weight": "medium",
+      "defaultShards": 1,
+      "timeoutMinutes": 30
+    },
+    "impersonation": {
+      "weight": "slow",
+      "defaultShards": 1,
+      "timeoutMinutes": 30
+    }
+  },
+  "files": {
+    "src/tests/assistants/chat-stream.e2e.ts": { "weight": "slow", "minShards": 2 },
+    "src/tests/billing/subscription-billing.e2e.ts": { "weight": "medium", "minShards": 2 },
+    "src/tests/impersonation/view-as.e2e.ts": { "weight": "slow", "minShards": 1 }
+  }
+}

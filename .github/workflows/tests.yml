@@ -127,6 +127,8 @@ jobs:
         run: bash scripts/ci-playwright-run.sh push-gate
         env:
           CI: true
+          SAMPLE_MODE: push
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 3
           MAX_FAILURES: 1
@@ -209,6 +211,8 @@ jobs:
         run: bash scripts/ci-playwright-run.sh pr-assistants
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 2
           MAX_FAILURES: 10
@@ -299,6 +303,8 @@ jobs:
         run: bash scripts/ci-playwright-run.sh pr-account
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 2
           MAX_FAILURES: 10
@@ -331,6 +337,10 @@ jobs:
     name: PR Gate · Billing
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -386,9 +396,11 @@ jobs:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
       - name: Run PR Gate Billing E2E tests
-        run: bash scripts/ci-playwright-run.sh pr-billing
+        run: bash scripts/ci-playwright-run.sh pr-billing "${{ matrix.shard }}/3"
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 2
           MAX_FAILURES: 10
@@ -479,6 +491,8 @@ jobs:
         run: bash scripts/ci-playwright-run.sh pr-auth
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 2
           MAX_FAILURES: 10
@@ -569,6 +583,8 @@ jobs:
         run: bash scripts/ci-playwright-run.sh pr-shell-admin
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 2
           MAX_FAILURES: 10
