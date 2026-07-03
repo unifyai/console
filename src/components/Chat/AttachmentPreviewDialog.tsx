@@ -21,6 +21,12 @@ import {
   fetchGcsContent,
 } from './attachmentUtils';
 import { Badge } from '@/components/UI/badge';
+import {
+  delimitedSpreadsheetPreview,
+  getSpreadsheetExtension,
+  isDelimitedSpreadsheetExtension,
+  type SpreadsheetPreviewSheet,
+} from './spreadsheetPreviewUtils';
 import type { Attachment, AttachmentType } from '@/types/assistants/chat';
 
 const PREVIEWABLE_TYPES = new Set<AttachmentType>([
@@ -49,10 +55,7 @@ function worksheetToHtml(ws: {
 }
 const TEXT_PREVIEW_MAX_BYTES = 1024 * 1024; // 1MB
 
-interface ExcelSheet {
-  name: string;
-  html: string;
-}
+type ExcelSheet = SpreadsheetPreviewSheet;
 
 type ContentState =
   | { status: 'loading' }
@@ -133,8 +136,15 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
         return;
       }
 
-      // Excel/spreadsheet: parse with SheetJS and convert each sheet to HTML
+      // Excel/spreadsheet: CSV/TSV as text rows; XLSX via ExcelJS
       if (type === 'excel') {
+        const ext = getSpreadsheetExtension(attachment.filename);
+
+        if (attachment.file && attachment.file.size > TEXT_PREVIEW_MAX_BYTES) {
+          setState({ status: 'error', message: 'File too large to preview as spreadsheet' });
+          return;
+        }
+
         let arrayBuffer: ArrayBuffer;
         if (attachment.file) {
           arrayBuffer = await attachment.file.arrayBuffer();
@@ -142,6 +152,16 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
           arrayBuffer = await fetchGcsContent(attachment.gsUrl);
         } else {
           setState({ status: 'unsupported' });
+          return;
+        }
+
+        if (isDelimitedSpreadsheetExtension(ext)) {
+          const preview = delimitedSpreadsheetPreview(arrayBuffer, attachment.filename);
+          if ('error' in preview) {
+            if (!cancelled) setState({ status: 'error', message: preview.error });
+            return;
+          }
+          if (!cancelled) setState({ status: 'excel', sheets: preview.sheets });
           return;
         }
 
@@ -243,6 +263,7 @@ function ExcelViewer({ sheets }: { sheets: ExcelSheet[] }) {
         </div>
       )}
       <div
+        data-testid="attachment-spreadsheet-preview"
         className="styled-scrollbar attachment-spreadsheet min-w-0 flex-1 overflow-auto rounded-md"
         dangerouslySetInnerHTML={{ __html: sheets[activeIndex]?.html ?? '' }}
       />
@@ -423,7 +444,7 @@ export function AttachmentPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl overflow-hidden">
+      <DialogContent className="max-w-4xl overflow-hidden" data-testid="attachment-preview-dialog">
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
             <div className="min-w-0">
