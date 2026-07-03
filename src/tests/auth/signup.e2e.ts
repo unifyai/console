@@ -16,16 +16,14 @@ import {
   register,
   enterVerificationCode,
   registerAndCompleteSignup,
+  registerThroughVerification,
+  ensureWorkspaceOnboardingPage,
   registrationShowsVerificationStep,
   uniqueEmail,
   dbExec,
 } from './helpers';
-import {
-  deferCoordinatorForUser,
-  deferCoordinatorAfterAssistantsLoad,
-  dismissCoordinatorOnboardingIfOpen,
-} from '../helpers/coordinator';
-import { openUnitySwitcher } from '../assistants/helpers';
+import { deferCoordinatorForUser, ensureShellReady } from '../helpers/coordinator';
+import { openUnitySwitcher, closeHireDialogIfOpen } from '../assistants/helpers';
 
 // =============================================================================
 // Registration
@@ -181,11 +179,9 @@ test.describe('Onboarding', () => {
     const password = 'OnboardP@ss1';
 
     await page.goto('/login');
-    await registerAndCompleteSignup(page, email, password);
+    await registerThroughVerification(page, email, password);
+    await ensureWorkspaceOnboardingPage(page);
 
-    await page.waitForURL(/onboarding/, { timeout: 15000 });
-
-    await expect(page.getByTestId('workspace-personal')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('workspace-personal').click();
 
     await expect(page.getByTestId('workspace-continue')).toBeVisible();
@@ -216,11 +212,9 @@ test.describe('Onboarding', () => {
     const password = 'OnboardP@ss1';
 
     await page.goto('/login');
-    await registerAndCompleteSignup(page, email, password);
+    await registerThroughVerification(page, email, password);
+    await ensureWorkspaceOnboardingPage(page);
 
-    await page.waitForURL(/onboarding/, { timeout: 15000 });
-
-    await expect(page.getByTestId('workspace-organization')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('workspace-organization').click();
 
     await expect(page.getByTestId('org-name-input')).toBeVisible({ timeout: 5000 });
@@ -242,11 +236,11 @@ test.describe('Onboarding', () => {
     const apiKey = dbExec(
       `SELECT key FROM api_key WHERE user_id = '${userId}' AND organization_id IS NULL LIMIT 1`
     );
-    await deferCoordinatorForUser(userId, apiKey);
     await page.evaluate(() => {
       window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await ensureShellReady(page, userId, apiKey);
 
     await page.waitForURL(/\/assistants/, { timeout: 15_000 });
     expect(new URL(page.url()).searchParams.has('openHire')).toBe(false);
@@ -270,6 +264,7 @@ test.describe('Onboarding', () => {
     expect(managedOrgTeamCount).toBe('0');
 
     await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
+    await closeHireDialogIfOpen(page);
     await openUnitySwitcher(page, { userId, apiKey });
     await expect(page.getByTestId('rail-unity-switcher-popover')).toBeVisible({
       timeout: 5_000,
@@ -288,9 +283,8 @@ test.describe('Onboarding', () => {
     const password = 'OnboardP@ss1';
 
     await page.goto('/login');
-    await registerAndCompleteSignup(page, email, password);
-
-    await page.waitForURL(/onboarding/, { timeout: 15000 });
+    await registerThroughVerification(page, email, password);
+    await ensureWorkspaceOnboardingPage(page);
 
     await page.getByTestId('workspace-organization').click();
     const orgName = `E2E Shared Org ${Date.now()}`;
