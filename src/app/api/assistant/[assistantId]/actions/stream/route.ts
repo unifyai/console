@@ -36,6 +36,7 @@ import {
 import { isManagerExcluded } from '@/lib/assistants/event-filters';
 import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
+import { encodeOnboardingInvalidationSse } from '@/lib/assistants/onboarding-stream-frame';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,12 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
       const unsubscribe = subscribe(assistantId, (rawEvent) => {
         if (lifecycle.closed) return;
         try {
+          const payload = (rawEvent ?? {}) as Record<string, unknown>;
+          const invalidation = encodeOnboardingInvalidationSse(payload);
+          if (invalidation) {
+            controller.enqueue(encoder.encode(invalidation));
+            return;
+          }
           const event = snakeToCamelObject<Record<string, unknown>>(rawEvent);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         } catch {
@@ -168,6 +175,21 @@ function createPubSubStream(
             };
             try {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
+            } catch {
+              message.nack();
+              return;
+            }
+            message.ack();
+            return;
+          }
+
+          const onboardingInvalidation = encodeOnboardingInvalidationSse(
+            payload,
+            message.publishTime?.toISOString()
+          );
+          if (onboardingInvalidation) {
+            try {
+              controller.enqueue(encoder.encode(onboardingInvalidation));
             } catch {
               message.nack();
               return;

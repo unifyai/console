@@ -12,6 +12,7 @@ import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 // Verification is handled server-side via orchestra endpoints
 import { toast } from 'sonner';
+import { markCoordinatorOnboardingStale } from '@/lib/assistants/coordinatorOnboardingInvalidation';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useAutoSave } from '@/hooks/Account/useAutoSave';
 import { SaveStatus } from './SaveStatus';
@@ -274,7 +275,12 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     async (field: ContactField, value: string, force = false): Promise<boolean> => {
       if (!force && value === savedRef.current[field]) return true;
       const ok = await save({ [field]: value });
-      if (ok) savedRef.current[field] = value;
+      if (ok) {
+        savedRef.current[field] = value;
+        if (field === 'phoneNumber' || field === 'whatsappNumber' || field === 'discordId') {
+          markCoordinatorOnboardingStale();
+        }
+      }
       return ok;
     },
     [save]

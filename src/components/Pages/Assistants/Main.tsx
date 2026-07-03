@@ -90,6 +90,12 @@ import {
 } from '@/lib/assistants/coordinatorIdentity';
 import { debugConsole } from '@/lib/consoleDebug';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
+import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
+import {
+  clearCoordinatorOnboardingStaleFlag,
+  COORDINATOR_ONBOARDING_STALE_EVENT,
+  readCoordinatorOnboardingStaleAt,
+} from '@/lib/assistants/coordinatorOnboardingInvalidation';
 import {
   CoordinatorOnboardingProvider,
   type CoordinatorOnboardingContextValue,
@@ -476,6 +482,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // down so the user can use the platform first — mirrored to the
   // Coordinator's prompts server-side. Per-step state is untouched.
   const isCoordinatorOnboardingActive = coordinatorOnboardingState?.onboardingActive === true;
+  useCoordinatorOnboardingInvalidation(
+    canonicalCoordinator?.agentId ?? null,
+    isCanonicalCoordinatorOwned && isCoordinatorOnboardingActive,
+    refetchCoordinatorOnboardingState
+  );
   const showCoordinatorOnboardingIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
@@ -2452,29 +2463,48 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (typeof window === 'undefined') return;
     const FLAG_KEY = 'console:assistants:user-settings-opened-at';
     const TTL_MS = 10 * 60 * 1000;
-    const onFocus = () => {
-      // Main stays mounted (hidden) on admin/settings routes — skip refresh
-      // there so router.refresh() does not re-stream the active page.
+    const refreshAfterAccountRoundTrip = () => {
       if (!isActiveSurface) return;
       let openedAt: number | null = null;
+      let onboardingStaleAt: number | null = readCoordinatorOnboardingStaleAt();
       try {
         const raw = window.localStorage.getItem(FLAG_KEY);
         openedAt = raw ? Number(raw) : null;
       } catch {
         return;
       }
-      if (!openedAt || Number.isNaN(openedAt)) return;
-      try {
-        window.localStorage.removeItem(FLAG_KEY);
-      } catch {
-        /* ignore */
+      const now = Date.now();
+      const shouldRefreshFromSettings =
+        openedAt !== null && !Number.isNaN(openedAt) && now - openedAt <= TTL_MS;
+      const shouldRefreshFromOnboardingStale =
+        onboardingStaleAt !== null && now - onboardingStaleAt <= TTL_MS;
+      if (!shouldRefreshFromSettings && !shouldRefreshFromOnboardingStale) return;
+      if (shouldRefreshFromSettings) {
+        try {
+          window.localStorage.removeItem(FLAG_KEY);
+        } catch {
+          /* ignore */
+        }
       }
-      if (Date.now() - openedAt > TTL_MS) return;
+      if (shouldRefreshFromOnboardingStale) {
+        clearCoordinatorOnboardingStaleFlag();
+      }
+      void refetchCoordinatorOnboardingState();
       router.refresh();
     };
+    const onFocus = () => {
+      refreshAfterAccountRoundTrip();
+    };
+    const onOnboardingStale = () => {
+      void refetchCoordinatorOnboardingState();
+    };
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [isActiveSurface, router]);
+    window.addEventListener(COORDINATOR_ONBOARDING_STALE_EVENT, onOnboardingStale);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener(COORDINATOR_ONBOARDING_STALE_EVENT, onOnboardingStale);
+    };
+  }, [isActiveSurface, refetchCoordinatorOnboardingState, router]);
 
   // A provider OAuth flow (workspace BYOD, integrations) runs in a separate
   // tab that bounces through ``/oauth/complete`` and broadcasts when it's
