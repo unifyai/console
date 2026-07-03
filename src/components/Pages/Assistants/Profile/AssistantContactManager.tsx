@@ -922,7 +922,7 @@ const DiscordTabContent: React.FC<{
   userDiscordId?: string | null;
 }> = ({ assistant, canWrite, userDiscordId }) => {
   if (assistant.assistantDiscordBotId) {
-    const installUrl = `https://discord.com/oauth2/authorize?client_id=${assistant.assistantDiscordBotId}`;
+    const installUrl = `https://discord.com/oauth2/authorize?client_id=${assistant.assistantDiscordBotId}&scope=bot&permissions=309237763072`;
     return (
       <div className="space-y-3">
         <ContactReadyMessage>Discord bot is configured.</ContactReadyMessage>
