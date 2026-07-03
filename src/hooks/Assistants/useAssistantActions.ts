@@ -492,7 +492,12 @@ export function useAssistantActions(
         }
 
         if (parsed.type === 'ManagerMethod') {
-          if (entries?.phase !== 'incoming' && entries?.phase !== 'outgoing') {
+          if (
+            entries?.phase !== 'incoming' &&
+            entries?.phase !== 'outgoing' &&
+            entries?.phase !== 'awaiting_input' &&
+            entries?.phase !== 'resumed'
+          ) {
             return;
           }
 
