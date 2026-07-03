@@ -11,10 +11,10 @@
  *     drops the user into the regular platform (assistant list +
  *     right pane) with the Coordinator selected and the onboarding
  *     checklist living in its "Assistant info" panel.
- *   - Choosing "Start Call" connects the call directly (a brief
- *     "preparing" loader covers the audio handoff), then lands in the
- *     regular platform with the call docked in the Coordinator's
- *     right pane. There is no animated intro.
+ *   - Choosing "Start Call" dismisses the picker immediately and lands in
+ *     the regular platform with the call docked in the Coordinator's
+ *     right pane; the meet window shows the usual connecting states
+ *     while the call comes up.
  *   - Resolving the picker persists ``intro_watched`` on the
  *     Coordinator/State row, so a reload skips the picker and lands
  *     directly on the regular platform.
@@ -623,14 +623,11 @@ test('starting a call connects and docks the call in the platform @critical @are
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
 
-  // No animated intro: the picker hands straight off to the connecting
-  // call (a brief "preparing" loader covers the audio handoff).
+  // Picker dismisses immediately; the docked meet window handles connecting.
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-
-  // The overlay clears and the real call is docked in the Coordinator's
-  // regular right pane.
-  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
+
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
 
   // Hang up to leave a clean state for subsequent tests.
   await page.getByRole('button', { name: 'End call' }).click();
@@ -647,6 +644,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
 
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);

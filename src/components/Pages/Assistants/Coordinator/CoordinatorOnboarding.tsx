@@ -8,13 +8,12 @@
  * It renders as a full-screen overlay on top of the regular ``/assistants``
  * shell:
  *
- *   - **Picker** (``phase === 'picker'``): a centered call-vs-chat prompt.
- *     Picking chat fires the chat session-start event and dismisses the
- *     overlay immediately, dropping the user into the regular platform with
- *     the Coordinator selected. Picking call advances to audio setup.
- *
- *   - **Preparing** (``phase === 'preparing'``): the live call is connected
- *     and held until T-W1N signals that the opening turn is ready to play.
+ *   - **Picker**: a centered call-vs-chat prompt. Picking chat fires the
+ *     chat session-start event and dismisses the overlay immediately,
+ *     dropping the user into the regular platform with the Coordinator
+ *     selected. Picking call dismisses the overlay immediately too and
+ *     hands off to the docked meet window, which shows the usual
+ *     connecting / waiting states while the call comes up.
  *
  * There is no post-picker shell — the onboarding checklist lives in the
  * Coordinator's "Assistant info" panel on the regular platform once the
@@ -39,12 +38,9 @@ import { debugConsole } from '@/lib/consoleDebug';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
-type OnboardingPhase = 'picker' | 'preparing';
-
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
-  /** Starts the real Coordinator call so the docked call is already live in
-   * the platform when the picker overlay dismisses. */
+  /** Starts the Coordinator call and hands off to the docked meet window. */
   onStartCall: (
     assistant: Assistant,
     callType: 'video' | 'audio',
@@ -68,7 +64,6 @@ export function CoordinatorOnboarding({
   // "Start Call" is shown disabled (with a reason) and chat is the only path.
   const { voiceCalls } = useFeatures();
 
-  const [phase, setPhase] = React.useState<OnboardingPhase>('picker');
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const hasCompletedRef = React.useRef(false);
 
@@ -87,10 +82,9 @@ export function CoordinatorOnboarding({
   React.useEffect(() => {
     debugConsole('coordinator-onboarding', 'overlay.phase', {
       coordinatorId: coordinator.agentId,
-      phase,
       isStartingCall,
     });
-  }, [coordinator.agentId, isStartingCall, phase]);
+  }, [coordinator.agentId, isStartingCall]);
 
   // Fire the picker-resolution event so Unity opens the session with the
   // right kind of message. Best-effort: completion never blocks on it.
@@ -120,21 +114,20 @@ export function CoordinatorOnboarding({
     [coordinator.agentId, onComplete, updateState]
   );
 
-  const handleStartCall = React.useCallback(async () => {
-    if (phase !== 'picker') return;
+  const handleStartCall = React.useCallback(() => {
+    if (isStartingCall || hasCompletedRef.current) return;
     debugConsole('coordinator-onboarding', 'start-call.click', {
       coordinatorId: coordinator.agentId,
     });
-    setPhase('preparing');
     setIsStartingCall(true);
+    notifySessionStarted('call');
 
-    try {
-      await onStartCall(coordinator, 'audio', {
+    void Promise.resolve(
+      onStartCall(coordinator, 'audio', {
         suppressRinging: true,
-        waitForAssistantReady: true,
         startMuted: true,
-      });
-    } catch (error) {
+      })
+    ).catch(async (error: unknown) => {
       debugConsole('coordinator-onboarding', 'start-call.failure', {
         coordinatorId: coordinator.agentId,
         message: error instanceof Error ? error.message : String(error),
@@ -142,37 +135,19 @@ export function CoordinatorOnboarding({
       console.error('[CoordinatorOnboarding] Failed to start the call:', error);
       toast.error('Could not start the call. Please try again.');
       await onDiscardCall();
-      setIsStartingCall(false);
-      setPhase('picker');
-      return;
-    }
-
-    debugConsole('coordinator-onboarding', 'start-call.ready', {
-      coordinatorId: coordinator.agentId,
     });
-    notifySessionStarted('call');
+
     complete('call');
-  }, [complete, coordinator, notifySessionStarted, onDiscardCall, onStartCall, phase]);
+  }, [complete, coordinator, isStartingCall, notifySessionStarted, onDiscardCall, onStartCall]);
 
   const handlePickChat = React.useCallback(() => {
-    if (phase !== 'picker') return;
+    if (hasCompletedRef.current) return;
     debugConsole('coordinator-onboarding', 'pick-chat.click', {
       coordinatorId: coordinator.agentId,
     });
     notifySessionStarted('chat');
     complete('chat');
-  }, [complete, coordinator.agentId, notifySessionStarted, phase]);
-
-  if (phase === 'preparing') {
-    return (
-      <div
-        className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
-        data-testid="coordinator-onboarding"
-      >
-        <CoordinatorOnboardingCallPreparing />
-      </div>
-    );
-  }
+  }, [complete, coordinator.agentId, notifySessionStarted]);
 
   return (
     <div
@@ -186,45 +161,6 @@ export function CoordinatorOnboarding({
         isStartingCall={isStartingCall}
       />
     </div>
-  );
-}
-
-/* ─── Call preparing ──────────────────────────────────────────────────── */
-
-function CoordinatorOnboardingCallPreparing() {
-  const { unityWidth, framePx } = useCoordinatorUnityLayout();
-  const cardOverlapPx = Math.round(unityWidth * 0.22);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
-      className="flex w-full max-w-md flex-col items-center px-6 text-center"
-      data-testid="coordinator-onboarding-call-preparing"
-    >
-      <div className="relative z-10" style={{ width: framePx, height: framePx }}>
-        <SeatedCoordinatorUnity
-          unity={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY}
-          width={unityWidth}
-          isSpeaking={false}
-        />
-      </div>
-      <div
-        className="coordinator-onboarding-card relative flex w-full flex-col items-center gap-4 rounded-2xl border border-border px-8 pb-7 shadow-xl"
-        style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
-      >
-        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary">
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-        </div>
-        <div>
-          <p className="text-h3 font-medium text-card-foreground">Setting up the call</p>
-          <p className="text-body mt-2 text-muted-foreground">
-            T-W1N will introduce himself shortly.
-          </p>
-        </div>
-      </div>
-    </motion.div>
   );
 }
 
