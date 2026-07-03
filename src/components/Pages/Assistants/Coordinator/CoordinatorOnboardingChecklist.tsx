@@ -45,6 +45,10 @@ import type {
   OnboardingStepStatus,
 } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
+import {
+  readCoordinatorOnboardingFoldState,
+  writeCoordinatorOnboardingFoldState,
+} from '@/lib/assistants/coordinatorOnboardingFoldState';
 
 export type ChecklistAction =
   | 'trigger-email-reference'
@@ -618,10 +622,15 @@ export function CoordinatorOnboardingChecklist({
   const firstLoginCommunicationEmailOpenRequest = ctx?.firstLoginCommunicationEmailOpenRequest ?? 0;
   const acknowledgeFirstLoginCommunicationEmailOpen =
     ctx?.acknowledgeFirstLoginCommunicationEmailOpen;
-  const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
-  const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(
-    () => new Set()
-  );
+  const storedFoldStateRef = React.useRef(readCoordinatorOnboardingFoldState());
+  const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => {
+    const stored = storedFoldStateRef.current;
+    return stored?.sectionIds.length ? new Set(stored.sectionIds) : new Set();
+  });
+  const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(() => {
+    const stored = storedFoldStateRef.current;
+    return stored?.subgroupIds.length ? new Set(stored.subgroupIds) : new Set();
+  });
   const [blockedFeedback, setBlockedFeedback] = React.useState<{
     stepId: string;
     token: number;
@@ -634,6 +643,7 @@ export function CoordinatorOnboardingChecklist({
     new Map()
   );
   const didInitializeOpenSectionRef = React.useRef(false);
+  const foldStateHydratedRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockedFeedbackTokenRef = React.useRef(0);
 
@@ -877,12 +887,32 @@ export function CoordinatorOnboardingChecklist({
 
   React.useEffect(() => {
     if (didInitializeOpenSectionRef.current || !resolved.length) return;
-    const defaultSection = nextActionableId
-      ? resolved.find((section) => containsLeafId(section, nextActionableId))
-      : null;
-    setOpenSectionIds(new Set([defaultSection?.id ?? resolved[0].id]));
-    didInitializeOpenSectionRef.current = true;
+    const validSectionIds = new Set(resolved.map((section) => section.id));
+    setOpenSectionIds((current) => {
+      const filtered = new Set(
+        Array.from(current).filter((sectionId) => validSectionIds.has(sectionId))
+      );
+      if (filtered.size > 0) {
+        didInitializeOpenSectionRef.current = true;
+        foldStateHydratedRef.current = true;
+        return filtered.size === current.size ? current : filtered;
+      }
+      const defaultSection = nextActionableId
+        ? resolved.find((section) => containsLeafId(section, nextActionableId))
+        : null;
+      didInitializeOpenSectionRef.current = true;
+      foldStateHydratedRef.current = true;
+      return new Set([defaultSection?.id ?? resolved[0].id]);
+    });
   }, [nextActionableId, resolved]);
+
+  React.useEffect(() => {
+    if (!foldStateHydratedRef.current) return;
+    writeCoordinatorOnboardingFoldState({
+      sectionIds: [...openSectionIds],
+      subgroupIds: [...openSubgroupIds],
+    });
+  }, [openSectionIds, openSubgroupIds]);
 
   const hasVisibleEmailSubgroup = React.useMemo(() => {
     const communicationSection = resolved.find(
