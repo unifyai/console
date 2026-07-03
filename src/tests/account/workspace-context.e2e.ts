@@ -108,13 +108,13 @@ test('switching to org workspace returns org billing balance @push @critical @ar
     const res = await fetch('/api/billing/balance');
     if (!res.ok) return null;
     const data = await res.json();
-    return data.balance as number;
+    return data.balance as string | number;
   });
 
   const orgCredits = dbExec(
     `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${org.id})`
   );
-  expect(balance).toBeCloseTo(parseFloat(orgCredits), 0);
+  expect(parseFloat(String(balance))).toBeCloseTo(parseFloat(orgCredits), 0);
 });
 
 test('locked org users still see org assistants with a personal workspace cookie', async ({
