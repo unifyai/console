@@ -6,8 +6,7 @@
  *  - Org Owner can see the "New" hire button
  *  - Org Member cannot see the "New" hire button
  *  - Org Owner can open the edit dialog via the info panel and see "End contract"
- *  - Org Member can open the edit dialog on another's assistant but it
- *    does not show "End contract"
+ *  - Org Member cannot open the edit dialog on another member's assistant
  *  - Org Member CAN view secrets but CANNOT add/delete them on another's assistant
  *  - Org Member CAN see and edit their own assistant in the org
  *
@@ -32,13 +31,18 @@ import {
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
-import { deferCoordinatorForUser } from '../helpers/coordinator';
+import {
+  deferCoordinatorForUser,
+  deferCoordinatorAfterAssistantsLoad,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
 import {
   navigateToAssistants,
   openUnitySwitcher,
   openRailSection,
   closeHireDialogIfOpen,
   openEditDialogFromList,
+  openAssistantInfoPanelFromList,
 } from './helpers';
 
 // =============================================================================
@@ -104,15 +108,22 @@ async function loginAndSaveOrgState(
   }
 
   // Switch to the org workspace
-  await page.evaluate(async (oid) => {
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(oid) }),
-    });
-  }, orgId);
-
-  await page.reload();
+  await page.request.post('/api/session/workspace', {
+    data: { workspaceId: String(orgId) },
+  });
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+      window.localStorage.setItem('referral-banner-dismissed', '1');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
+  const userId = email === owner.email ? owner.id : member.id;
+  const apiKey = email === owner.email ? owner.apiKey : member.apiKey;
+  await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
   await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
 
   await ctx.storageState({ path: stateFile });
@@ -258,21 +269,22 @@ test('member cannot see the "New" hire button in the assistant list', async ({
   await expect(page.getByTestId('assistant-onboard-button')).toHaveCount(0);
 });
 
-test("member can open edit dialog on owner's assistant but cannot see delete button", async ({
-  memberPage: page,
-}) => {
+test("member cannot open edit dialog on owner's assistant", async ({ memberPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
-  const editDialog = await openEditViaInfoPanel(page, ownerAssistant.agentId);
-  await expect(editDialog).toBeVisible({ timeout: 10_000 });
+  await openAssistantInfoPanelFromList(page, ownerAssistant.agentId);
+  const profileTab = page.getByRole('tab', { name: 'Profile' });
+  if (await profileTab.isVisible().catch(() => false)) {
+    await profileTab.click();
+  }
 
-  // The "End contract" button should NOT be visible for members on others' assistants
-  const endContractBtn = page.getByRole('button', { name: /end contract/i });
-  const isDeleteVisible = await endContractBtn.isVisible({ timeout: 5_000 }).catch(() => false);
-  expect(isDeleteVisible).toBe(false);
-
-  await page.keyboard.press('Escape');
+  const editSection = page.getByTestId('assistant-info-edit-profile-section');
+  await expect(editSection).toBeVisible({ timeout: 10_000 });
+  await expect(editSection).not.toHaveAttribute('role', 'button');
+  await editSection.click();
+  await expect(page.locator('[role="dialog"]').filter({ hasText: /^Edit / })).toHaveCount(0);
 });
 
 test('member can view the integrations tab but cannot add secrets on owner assistant', async ({
