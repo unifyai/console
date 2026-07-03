@@ -21,17 +21,17 @@ const TEST_RE = /(?:^|\n)\s*(?:test|(?:\w+)Test)\(\s*['"`]([^'"`]+)['"`]/g;
 
 function listTestsInFile(
   relativePath: string
-): { file: string; title: string; critical: boolean }[] {
+): { file: string; title: string; critical: boolean; push: boolean }[] {
   const full = path.join(ROOT, relativePath);
   if (!fs.existsSync(full)) return [];
   const content = fs.readFileSync(full, 'utf8');
-  const out: { file: string; title: string; critical: boolean }[] = [];
+  const out: { file: string; title: string; critical: boolean; push: boolean }[] = [];
   let m: RegExpExecArray | null;
   TEST_RE.lastIndex = 0;
   while ((m = TEST_RE.exec(content)) !== null) {
     const title = m[1];
     const tags = parseTestTags(title);
-    out.push({ file: relativePath, title, critical: tags.critical });
+    out.push({ file: relativePath, title, critical: tags.critical, push: tags.push });
   }
   return out;
 }
@@ -57,6 +57,7 @@ if (process.env.LIST_ALL === '1') {
 
 const manifestPath = path.join(ROOT, 'scripts/ci-playwright-manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+  pushGateMaxTests?: number;
   pushSampleRate: Record<string, number>;
   prSampleRate: Record<string, number>;
 };
@@ -81,9 +82,16 @@ function capabilitiesPriority(areaId: string): AreaPriority | undefined {
 for (const spec of specs) {
   if (removedSpecFiles.includes(spec)) continue;
   for (const t of listTestsInFile(spec)) {
+    const tags = parseTestTags(t.title);
+    if (mode === 'push') {
+      if (tags.push) {
+        console.log(`${t.file}|${t.title}`);
+      }
+      continue;
+    }
     const testId = `${t.file}::${t.title}`;
     const rate = sampleRateForTest(t.file, t.title);
-    if (t.critical || !mode || hashSample(seed, testId, rate)) {
+    if (tags.critical || !mode || hashSample(seed, testId, rate)) {
       console.log(`${t.file}|${t.title}`);
     }
   }

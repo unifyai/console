@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
-import { buildOrchestraV0Url } from '../../_utils/orchestra-url';
+import { buildOrchestraV0Url, getComposioOAuthCallbackUrl } from '../../_utils/orchestra-url';
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
@@ -27,7 +27,25 @@ async function proxy(request: NextRequest, context: RouteContext) {
   };
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    init.body = await request.text();
+    let bodyText = await request.text();
+    if (
+      request.method === 'PUT' &&
+      path.length === 3 &&
+      path[0] === 'backends' &&
+      path[2] === 'custom-auth' &&
+      bodyText
+    ) {
+      try {
+        const payload = JSON.parse(bodyText) as Record<string, unknown>;
+        if (!payload.oauth_redirect_uri) {
+          payload.oauth_redirect_uri = getComposioOAuthCallbackUrl();
+          bodyText = JSON.stringify(payload);
+        }
+      } catch {
+        // Pass through malformed bodies unchanged so Orchestra can reject them.
+      }
+    }
+    init.body = bodyText;
   }
 
   const response = await fetch(target, init);

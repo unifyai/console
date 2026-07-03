@@ -70,7 +70,7 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('sending a message shows it as a user message in the chat @critical @area(assistants.chat)', async ({
+test('sending a message shows it as a user message in the chat @push @critical @area(assistants.chat)', async ({
   authedPage: page,
 }) => {
   // Seed contact so chat can resolve contactId

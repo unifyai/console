@@ -4,12 +4,12 @@ Business criticality map for Console E2E. **Area priority sets coverage floors a
 
 ## Priority levels
 
-| Priority | Meaning                                            | CI on PR                                        | Constraint                                                            |
-| -------- | -------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------- |
-| **P0**   | Revenue, auth, access, workspace integrity         | 100% of `@critical` tests (no random exclusion) | No spec file deletes; meet minimum journey floor after per-test sweep |
-| **P1**   | Referrals, grants, metered, org RBAC, usage ledger | ≥85% non-critical sample + all `@critical`      | Keep spec files; floor enforced                                       |
-| **P2**   | Chat, call, dashboards, coordinator                | ~65% non-critical sample                        | Files may merge                                                       |
-| **P3**   | Layout, chrome, deprecated UX                      | Exhaustive or push sample only                  | May drop E2E entirely                                                 |
+| Priority | Meaning                                            | CI on push                             | CI on PR                                        | Constraint                                                            |
+| -------- | -------------------------------------------------- | -------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------- |
+| **P0**   | Revenue, auth, access, workspace integrity         | Subset tagged `@push` (platform entry) | 100% of `@critical` tests (no random exclusion) | No spec file deletes; meet minimum journey floor after per-test sweep |
+| **P1**   | Referrals, grants, metered, org RBAC, usage ledger | —                                      | ≥85% non-critical sample + all `@critical`      | Keep spec files; floor enforced                                       |
+| **P2**   | Chat, call, dashboards, coordinator                | Minimum chat `@push` only where tagged | ~65% non-critical sample                        | Files may merge                                                       |
+| **P3**   | Layout, chrome, deprecated UX                      | —                                      | 0% sample (exhaustive only)                     | May drop E2E entirely                                                 |
 
 Sampling rates and shards: [`scripts/ci-playwright-manifest.json`](../../scripts/ci-playwright-manifest.json). Enforced by [`scripts/check-test-coverage-map.ts`](../../scripts/check-test-coverage-map.ts).
 

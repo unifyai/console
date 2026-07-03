@@ -1,5 +1,6 @@
 {
   "_comment": "Machine-readable CI thresholds for Playwright tiers. Human docs: src/tests/CI_TESTING.md",
+  "pushGateMaxTests": 25,
   "pushSampleRate": { "default": 35, "P0": 100, "P1": 50, "P2": 35, "P3": 20 },
   "prSampleRate": { "default": 65, "P0": 100, "P1": 85, "P2": 65, "P3": 0 },
   "splitThresholdSeconds": 480,

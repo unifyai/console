@@ -19,9 +19,9 @@
  *     Coordinator/State row, so a reload skips the picker and lands
  *     directly on the regular platform.
  *   - There is no "Skip onboarding" or "Resume onboarding" affordance
- *     anywhere. Once onboarding is exited (``mode === 'working'``) the
- *     checklist body offers a single "Reactivate onboarding" control that
- *     flips the row back to ``onboarding`` and repopulates the checklist.
+ *     anywhere. When onboarding is inactive (``onboarding_active === false``)
+ *     the checklist body offers a single "Return to onboarding" control that
+ *     flips the row back to active and repopulates the checklist.
  *
  * These tests share one workspace coordinator and run serially. Since
  * ``intro_watched`` is one-way sticky on the row, picker-expecting
@@ -42,6 +42,7 @@ import {
   deleteAllAssistantsForUser,
   orchestraFetch,
   openAssistantInfoPanel,
+  openRailSection,
   openUnitySwitcher,
 } from './helpers';
 
@@ -141,18 +142,17 @@ async function expectComingSoonVisible(page: Page) {
  *
  * Resolving the picker latches ``intro_watched`` on the latest
  * Coordinator/State row (one-way sticky through the API). The shared test
- * fixture also defers onboarding up front (``onboarding_deferred: true``) so
+ * fixture also pauses onboarding up front (``onboarding_active: false``) so
  * legacy flows get the standard shell; the picker gate in ``Main.tsx`` stays
- * suppressed while that flag is set. Picker-expecting tests therefore reuse a
+ * suppressed while onboarding is inactive. Picker-expecting tests therefore reuse a
  * single coordinator and restore the genuine first-time state on the latest
- * row directly — both ``intro_watched`` and ``onboarding_deferred`` back to
- * false, mode left ``onboarding`` — so the next visit shows the picker exactly
- * like a first-time user.
+ * row directly — ``intro_watched`` back to false and ``onboarding_active``
+ * back to true — so the next visit shows the picker exactly like a first-time user.
  */
 function resetCoordinatorIntroWatched() {
   dbExec(
     `UPDATE log_event SET data = ` +
-      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_deferred}', 'false') ` +
+      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_active}', 'true') ` +
       `WHERE id = (SELECT le.id FROM log_event le ` +
       `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
       `JOIN context c ON c.id = lec.context_id ` +
@@ -182,10 +182,10 @@ function readPersistedOnboardingStep(coordinatorId: string | number): string {
   );
 }
 
-/** Read the latest persisted lifecycle ``mode`` for the user's coordinator. */
-function readPersistedMode(coordinatorId: string | number): string {
+/** Read the latest persisted ``onboarding_active`` flag for the user's coordinator. */
+function readPersistedOnboardingActive(coordinatorId: string | number): string {
   return dbExec(
-    `SELECT le.data->>'mode' FROM log_event le ` +
+    `SELECT le.data->>'onboarding_active' FROM log_event le ` +
       `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
       `JOIN context c ON c.id = lec.context_id ` +
       `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
@@ -220,6 +220,30 @@ async function seedCoordinatorOutboundTranscript(
               : {}),
           },
         ],
+      }),
+    },
+    user.apiKey
+  );
+  expect(response.ok).toBeTruthy();
+}
+
+/**
+ * Mark an onboarding step complete via the same Orchestra state PATCH the brain
+ * uses (``set_onboarding_task_state`` -> ``onboarding_step_completion``). This is
+ * how workspace demos — multi-part tasks that no longer auto-complete from an
+ * outbound — are finished: the assistant does the whole task, then explicitly
+ * sets the step done.
+ */
+async function markCoordinatorOnboardingStepComplete(
+  coordinatorId: string | number,
+  stepId: string
+) {
+  const response = await orchestraFetch(
+    `/v0/assistant/${coordinatorId}/state`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        onboarding_step_completion: { step_id: stepId, completed: true },
       }),
     },
     user.apiKey
@@ -449,14 +473,26 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
-test('workspace demos trigger a unify_message summary and complete from the outbound', async ({
+test('workspace demos complete only when the assistant explicitly marks them done', async ({
   authedPage: page,
 }) => {
   // Connecting the workspace email marks the ``workspace`` connect step
   // done (Orchestra derives it from the BYOD email contact), which unlocks
-  // the mailbox / drive / calendar demo steps that depend on it.
+  // the mailbox / drive / calendar demo steps that depend on it. The
+  // granted-scopes secret (written by the real OAuth flow) additionally
+  // gates the calendar demo, which only renders once calendar was granted;
+  // seed a grant that includes calendar so all three demos surface.
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  dbExec(
+    `INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value) ` +
+      `VALUES ('${user.id}', ${coordinator.agentId}, 'GOOGLE_GRANTED_SCOPES', ` +
+      `'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events ` +
+      `https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send ` +
+      `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify ` +
+      `https://www.googleapis.com/auth/userinfo.email') ` +
+      `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
+  );
   resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
@@ -482,20 +518,9 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   await expect(
     page.getByTestId('coordinator-onboarding-item-workspace-calendar').first()
   ).toBeVisible();
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-contacts').first()
-  ).toBeVisible();
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-tasks').first()
-  ).toBeVisible();
-  // The Microsoft-only Teams demo never surfaces without a connected
-  // Microsoft workspace (this connection carries no granted-scopes signal).
-  await expect(page.getByTestId('coordinator-onboarding-item-workspace-teams')).toHaveCount(0);
   await expectChecklistItemClickable(page, 'workspace-mailbox');
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
-  await expectChecklistItemClickable(page, 'workspace-contacts');
-  await expectChecklistItemClickable(page, 'workspace-tasks');
 
   let stepEventRequests = 0;
   let lastStepId: string | null = null;
@@ -520,42 +545,48 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   expect(lastStepId).toBe('workspace-mailbox');
   await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
 
-  // An untagged unify_message is not proof of the demo.
+  // A workspace demo is a multi-part task: the assistant's summary outbound —
+  // even one tagged for the step — must NOT auto-complete it. Only an explicit
+  // set_onboarding_task_state call does. Seed both the untagged and tagged
+  // summaries and confirm neither flips the row to done.
   await seedCoordinatorOutboundTranscript(
     coordinator.agentId,
     'unify_message',
     'Untagged unify_message — not a workspace demo proof.'
   );
   await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
-
-  // The tagged unify_message summary the assistant delivers completes it.
   await seedCoordinatorOutboundTranscript(
     coordinator.agentId,
     'unify_message',
     "Here's a quick summary of your mailbox.",
     'workspace-mailbox'
   );
+  await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
+
+  // The assistant finishes the whole task and marks the step done via the
+  // Orchestra state PATCH — that is what completes the demo.
+  await markCoordinatorOnboardingStepComplete(coordinator.agentId, 'workspace-mailbox');
   await expect(mailboxRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
 
   // The other demos stay independently actionable.
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
-  await expectChecklistItemClickable(page, 'workspace-contacts');
-  await expectChecklistItemClickable(page, 'workspace-tasks');
 });
 
-test('a connected Microsoft workspace surfaces the Teams-only demo', async ({
+test('the calendar demo only renders once the calendar scope is granted', async ({
   authedPage: page,
 }) => {
-  // A Microsoft OAuth grant is marked by the canonical
-  // ``MICROSOFT_GRANTED_SCOPES`` secret: it both completes the ``workspace``
-  // connect step (Orchestra derives it) and identifies the provider, so the
-  // Microsoft-only Teams demo renders alongside the shared demos.
+  // A workspace connected without the calendar scope: the drive demo (which
+  // has no scope gate) still surfaces, but the calendar demo stays hidden
+  // until the user grants calendar access.
   const coordinator = createPersonalCoordinator(user.id);
+  connectWorkspaceEmail({ assistantId: coordinator.agentId });
   dbExec(
     `INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value) ` +
-      `VALUES ('${user.id}', ${coordinator.agentId}, 'MICROSOFT_GRANTED_SCOPES', ` +
-      `'Files.Read.All ChannelMessage.Read.All Chat.Read') ` +
+      `VALUES ('${user.id}', ${coordinator.agentId}, 'GOOGLE_GRANTED_SCOPES', ` +
+      `'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send ` +
+      `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify ` +
+      `https://www.googleapis.com/auth/userinfo.email') ` +
       `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
   );
   resetCoordinatorIntroWatched();
@@ -565,39 +596,21 @@ test('a connected Microsoft workspace surfaces the Teams-only demo', async ({
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
+  await openUnitySwitcher(page);
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.keyboard.press('Escape');
+
   await openOnboardingChecklist(page);
   await selectCoordinatorOnboardingSection(page, 'workspace');
 
-  // The Teams demo is present and actionable for the Microsoft workspace.
+  // Drive still renders; calendar is gated out until calendar is granted.
   await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-teams').first()
+    page.getByTestId('coordinator-onboarding-item-workspace-drive').first()
   ).toBeVisible();
-  await expectChecklistItemClickable(page, 'workspace-teams');
-
-  // Clicking it dispatches the graph-owned step event and shows the
-  // in-flight summarizing feedback, exactly like the shared demos.
-  let lastStepId: string | null = null;
-  page.on('request', (request) => {
-    if (request.url().includes('/api/coordinator-onboarding-step-event')) {
-      try {
-        lastStepId = (JSON.parse(request.postData() ?? '{}') as { stepId?: string }).stepId ?? null;
-      } catch {
-        /* body shape asserted via the feedback label below */
-      }
-    }
-  });
-  await page.getByTestId('coordinator-onboarding-item-workspace-teams').first().click();
-  await expect(
-    page.getByTestId('coordinator-onboarding-action-feedback-workspace-teams')
-  ).toHaveText('Summarizing...');
-  await expect.poll(() => lastStepId, { timeout: 5_000 }).toBe('workspace-teams');
-
-  // Clean up so the seeded Microsoft grant doesn't leak into sibling tests
-  // that share this coordinator.
-  dbExec(
-    `DELETE FROM assistant_secrets WHERE agent_id = ${coordinator.agentId} ` +
-      `AND secret_name = 'MICROSOFT_GRANTED_SCOPES';`
-  );
+  await expectChecklistItemClickable(page, 'workspace-drive');
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace-calendar')).toHaveCount(0);
 });
 
 test('starting a call connects and docks the call in the platform @critical @area(assistants.coordinator-onboarding)', async ({
@@ -665,7 +678,44 @@ test('resolving the picker persists intro_watched and reload defaults to T-W1N +
   });
 });
 
-test('working mode offers a reactivate affordance that re-enters onboarding', async ({
+test('keeps the onboarding checklist visible while navigating assistant sections', async ({
+  authedPage: page,
+}) => {
+  createPersonalCoordinator(user.id);
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await openOnboardingChecklist(page);
+  await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
+    timeout: 15_000,
+  });
+
+  for (const { section, pane } of [
+    { section: 'actions', pane: 'live-actions-viewer' },
+    { section: 'tasks', pane: 'tasks-pane' },
+    { section: 'integrations', pane: 'integrations-pane' },
+    { section: 'contacts', pane: 'contacts-pane' },
+  ] as const) {
+    await openRailSection(page, section);
+    await expect(page.getByTestId(`rail-section-${section}`)).toHaveAttribute(
+      'aria-current',
+      'page',
+      { timeout: 10_000 }
+    );
+    await expect(page.getByTestId(pane)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
+      timeout: 5_000,
+    });
+  }
+});
+
+test('inactive onboarding offers a return affordance that re-enters onboarding', async ({
   authedPage: page,
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
@@ -678,31 +728,33 @@ test('working mode offers a reactivate affordance that re-enters onboarding', as
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  // Exit onboarding: flip the Coordinator/State row to working mode.
-  const promote = await orchestraFetch(
+  // Deactivate onboarding.
+  const deactivate = await orchestraFetch(
     `/v0/assistant/${coordinator.agentId}/state`,
-    { method: 'PATCH', body: JSON.stringify({ mode: 'working' }) },
+    { method: 'PATCH', body: JSON.stringify({ onboarding_active: false }) },
     user.apiKey
   );
-  expect(promote.ok).toBeTruthy();
+  expect(deactivate.ok).toBeTruthy();
 
-  // Reload so the client reads the working-mode snapshot, then open the
+  // Reload so the client reads the inactive snapshot, then open the
   // Coordinator's onboarding sub-tab.
   await gotoAssistants(page);
   await openOnboardingChecklist(page);
 
-  // Working mode shows the reactivate affordance instead of the checklist.
-  await expect(page.getByTestId('coordinator-onboarding-working')).toBeVisible({ timeout: 10_000 });
+  // Inactive onboarding shows the return affordance instead of the checklist.
+  await expect(page.getByTestId('coordinator-onboarding-inactive')).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toHaveCount(0);
-  const reactivate = page.getByTestId('coordinator-onboarding-reactivate');
-  await expect(reactivate).toBeVisible();
+  const returnButton = page.getByTestId('coordinator-onboarding-return');
+  await expect(returnButton).toBeVisible();
 
-  // Reactivating flips the row back to onboarding and repopulates the
-  // checklist directly from the server-derived render.
-  await reactivate.click();
+  // Returning flips the row back to active and repopulates the checklist
+  // directly from the server-derived render.
+  await returnButton.click();
   await expect
-    .poll(() => readPersistedMode(coordinator.agentId), { timeout: 10_000 })
-    .toBe('onboarding');
+    .poll(() => readPersistedOnboardingActive(coordinator.agentId), { timeout: 10_000 })
+    .toBe('true');
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
   });

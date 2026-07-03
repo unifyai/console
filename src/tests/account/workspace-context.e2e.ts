@@ -96,7 +96,7 @@ test('switching to personal workspace sets a cookie that persists across navigat
   expect(cookies.find((c) => c.name === 'unify_workspace_id')?.value).toBe('personal');
 });
 
-test('switching to org workspace returns org billing balance @critical @area(workspace)', async ({
+test('switching to org workspace returns org billing balance @push @critical @area(workspace)', async ({
   authedPage: page,
 }) => {
   await navigateToAppShellRoute(page, '/assistants', shellOpts);

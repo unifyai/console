@@ -7,7 +7,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
-import { dbExec } from './seeds/client';
+import { dbExec, orchestraFetch } from './seeds/client';
 
 /** Agent ID of a user's personal (non-org) Coordinator, or null if none. */
 export function getCoordinatorAgentId(userId: string): number | null {
@@ -19,30 +19,23 @@ export function getCoordinatorAgentId(userId: string): number | null {
 }
 
 /**
- * Dismiss the Coordinator onboarding gate for a workspace.
- *
- * Setting ``onboarding_deferred`` clears the intro overlay and coordinator
- * focus layout, leaving the regular two-pane list. Idempotent.
+ * Pause Coordinator onboarding so legacy assistant flows can use the standard shell.
  */
 export async function deferCoordinatorOnboarding(
   apiKey: string,
   coordinatorId: number
 ): Promise<void> {
-  void apiKey;
-  const userId = dbExec(
-    `SELECT user_id FROM assistants WHERE agent_id = ${coordinatorId} LIMIT 1;`
+  const res = await orchestraFetch(
+    `/v0/assistant/${coordinatorId}/state`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ intro_watched: true, onboarding_active: false }),
+    },
+    apiKey
   );
-  if (!userId) return;
-
-  dbExec(
-    `UPDATE log_event SET data = ` +
-      `jsonb_set(jsonb_set(COALESCE(data, '{}'::jsonb), '{intro_watched}', 'true'), '{onboarding_deferred}', 'true') ` +
-      `WHERE id = (SELECT le.id FROM log_event le ` +
-      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
-      `JOIN context c ON c.id = lec.context_id ` +
-      `WHERE c.name = '${userId}/${coordinatorId}/Coordinator/State' ` +
-      `ORDER BY le.id DESC LIMIT 1);`
-  );
+  if (!res.ok) {
+    throw new Error(`Failed to pause coordinator onboarding: ${res.status}`);
+  }
 }
 
 /** Defer personal Coordinator onboarding when one exists for the user. */

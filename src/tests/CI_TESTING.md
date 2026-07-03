@@ -21,34 +21,57 @@ P0 means the **area floor** must survive after trimming — not that every test 
 
 ## CI tiers
 
-| Tier           | Trigger                                                  | Spec discovery                                         |
-| -------------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| **Push Gate**  | Every branch push without `[run-tests]`                  | Explicit file list in `scripts/ci-playwright-tiers.sh` |
-| **PR Gate**    | PR to `staging` / `main`                                 | Explicit file lists per job area                       |
-| **Exhaustive** | `[run-tests]` in commit/PR title, or `workflow_dispatch` | `find src/tests/<area>/*.e2e.ts` (auto-discovered)     |
+| Tier           | Trigger                                                       | Spec discovery                                         | Test selection                                    |
+| -------------- | ------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------- |
+| **Push Gate**  | Every branch push without `[run-tests]`                       | Explicit file list in `scripts/ci-playwright-tiers.sh` | **All `@push` tests** (deterministic, every push) |
+| **PR Gate**    | PR to `staging` / `main`                                      | Explicit file lists per job area                       | `@critical` always + priority sampling            |
+| **Exhaustive** | `[run-tests]` in commit/PR title, or `workflow_dispatch` full | `find src/tests/<area>/*.e2e.ts` (auto-discovered)     | Every test in each area                           |
 
 Tier resolution lives in `.github/workflows/tests.yml` (`resolve-tier` job).
 
-## Random sampling (push / PR)
+**Push vs PR:** `@push` = platform-entry blockers (login, shell boot, critical routes, minimum chat/billing). Runs on every branch push. `@critical` = merge-gate importance; PR Gate runs all `@critical` tests in its tier file lists plus sampled non-critical tests. Not every `@critical` test is `@push`.
 
-Push and PR tiers sample **within** explicit file lists — not by dropping files.
+Manual tier override (e.g. PR Gate while a PR has merge conflicts):
+
+```bash
+gh workflow run Tests --ref feature/ci-revamp -f tier=pr
+```
+
+## Push Gate (`@push`)
+
+Push Gate answers: _can a user land on the platform, authenticate, and reach critical pages?_
+
+- Tag keeper tests with `@push @critical @area(...)` in the push-gate spec pool only.
+- `SAMPLE_MODE=push` selects **every `@push` test** — no SHA-based random sampling.
+- Cap enforced by `pushGateMaxTests` in `scripts/ci-playwright-manifest.json` (default 25).
+- `@push` tests must live in files listed by `push_specs()` in `scripts/ci-playwright-tiers.sh`.
+
+## PR Gate sampling
+
+PR Gate samples **within** explicit file lists — not by dropping files.
 
 - **Seed:** `GITHUB_SHA` (reproducible retries on the same commit)
 - **Always run:** every test whose title includes `@critical`
 - **Non-critical:** sampled by area priority using `scripts/ci-playwright-manifest.json`
 
-| Area P | Push non-critical                              | PR non-critical      |
-| ------ | ---------------------------------------------- | -------------------- |
-| P0     | 100% (same as critical set on push file lists) | 100%                 |
-| P1     | ~50%                                           | ~85%                 |
-| P2     | ~35%                                           | ~65%                 |
-| P3     | ~20%                                           | 0% (exhaustive only) |
+| Area P | PR non-critical      |
+| ------ | -------------------- |
+| P0     | 100%                 |
+| P1     | ~85%                 |
+| P2     | ~65%                 |
+| P3     | 0% (exhaustive only) |
 
 Scripts:
 
 - `scripts/ci-playwright-sample.sh` — builds Playwright `--grep` from sampled titles
-- `scripts/ci-playwright-list-tests.ts` — static parse + priority-aware sampling
+- `scripts/ci-playwright-list-tests.ts` — static parse; push mode selects `@push` only
 - `scripts/ci-playwright-run.sh` — runs tier; set `SAMPLE_MODE=push|pr`
+
+## Troubleshooting
+
+- **Push and PR are separate workflow runs.** A push run shows PR Gate jobs as _skipped_ — that is normal. Filter Actions by `event: pull_request` for PR Gate results.
+- **`pull_request` workflows do not run when the PR has merge conflicts** with its base branch. GitHub cannot build `refs/pull/N/merge`. Resolve conflicts with `staging`/`main`, or run `gh workflow run Tests -f tier=pr`.
+- Check PR merge state: `gh pr view <n> --json mergeable,mergeStateStatus`
 
 ## Matrix sharding
 
@@ -62,14 +85,14 @@ Files estimated longer than `splitThresholdSeconds` (480s) may get extra matrix 
 
 ## Threshold reference
 
-| Key                                     | Meaning                   | Default      |
-| --------------------------------------- | ------------------------- | ------------ |
-| `pushSampleRate.default`                | Default push sample %     | 35           |
-| `prSampleRate.default`                  | Default PR sample %       | 65           |
-| `pushSampleRate.P0` / `prSampleRate.P0` | P0 override               | 100          |
-| `splitThresholdSeconds`                 | Split hint for slow files | 480          |
-| `areas.*.defaultShards`                 | Matrix width per area     | see manifest |
-| `areas.*.timeoutMinutes`                | Job timeout hint          | see manifest |
+| Key                      | Meaning                        | Default      |
+| ------------------------ | ------------------------------ | ------------ |
+| `pushGateMaxTests`       | Max `@push` tests in push pool | 25           |
+| `prSampleRate.default`   | Default PR sample %            | 65           |
+| `prSampleRate.P0`        | P0 PR override                 | 100          |
+| `splitThresholdSeconds`  | Split hint for slow files      | 480          |
+| `areas.*.defaultShards`  | Matrix width per area          | see manifest |
+| `areas.*.timeoutMinutes` | Job timeout hint               | see manifest |
 
 ## Local commands
 
@@ -77,8 +100,8 @@ Files estimated longer than `splitThresholdSeconds` (480s) may get extra matrix 
 # Prod stack (required for gate confidence)
 bash scripts/ci-test-setup.sh --no-seed
 
-# Push tier (no sampling)
-bash scripts/ci-playwright-run.sh push-gate
+# Push tier (@push tests only)
+SAMPLE_MODE=push bash scripts/ci-playwright-run.sh push-gate
 
 # PR tier with sampling
 SAMPLE_MODE=pr GITHUB_SHA=$(git rev-parse HEAD) bash scripts/ci-playwright-run.sh pr-billing
@@ -91,7 +114,7 @@ bash scripts/ci-playwright-run.sh exhaustive-assistants 2/5
 
 ```bash
 npm run check:test-coverage   # P0/P1 capability floors via test-registry.ts
-npm run check:test-inventory  # @critical tests registered in coverage map
+npm run check:test-inventory  # @critical + @push pool registered and capped
 ```
 
 CI runs `check:test-coverage` on PRs touching `src/tests/**` (code-quality workflow).

@@ -11,8 +11,15 @@ TIER="${1:-}"
 push_specs() {
   cat <<'EOF'
 src/tests/auth/login.e2e.ts
-src/tests/shell/route-shell-smoke.e2e.ts
+src/tests/auth/session.e2e.ts
 src/tests/shell/push-gate.e2e.ts
+src/tests/shell/route-shell-smoke.e2e.ts
+src/tests/assistants/shell.e2e.ts
+src/tests/assistants/list.e2e.ts
+src/tests/assistants/chat.e2e.ts
+src/tests/billing/billable-action-guard.e2e.ts
+src/tests/billing/access-control.e2e.ts
+src/tests/account/workspace-context.e2e.ts
 EOF
 }
 

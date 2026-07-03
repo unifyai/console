@@ -159,7 +159,6 @@ export function AssistantInfoPanelLayout({
 }: AssistantInfoPanelLayoutProps) {
   const { voiceCalls } = useFeatures();
   const { canOpenAssistantChat } = useAssistantPermissions();
-  const isBelowMobile = useMatchesBelow('mobile');
   const isBelowShellCompact = useMatchesBelow('shellCompact');
   const useOverlayInfoPanel = isBelowShellCompact;
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
@@ -464,7 +463,7 @@ export function AssistantInfoPanelLayout({
       onStartCall={onStartCall}
       isStartCallDisabled={isCallButtonDisabled}
       startCallTooltip={callButtonTooltip}
-      hideHeaderEdit={isBelowMobile}
+      hideHeaderActions={useOverlayInfoPanel}
       isActiveSurface={isActiveSurface}
       onRegisterFocusProfileTab={(focusProfileTab) => {
         focusProfileTabRef.current = focusProfileTab;

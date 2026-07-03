@@ -415,6 +415,42 @@ export const capabilities: CapabilityDef[] = [
     ],
   },
   {
+    id: 'assistants.list.render',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Seeded list renders',
+    matchers: [
+      {
+        files: ['src/tests/assistants/list.e2e.ts'],
+        titleIncludes: 'seeded assistants appear in the list with correct names',
+      },
+    ],
+  },
+  {
+    id: 'shell.route.favourites',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Favourites route in rail shell',
+    matchers: [
+      {
+        files: ['src/tests/shell/route-shell-smoke.e2e.ts'],
+        titleIncludes: '/favourites renders inside the rail shell',
+      },
+    ],
+  },
+  {
+    id: 'shell.route.interfaces',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Interfaces route in rail shell',
+    matchers: [
+      {
+        files: ['src/tests/shell/route-shell-smoke.e2e.ts'],
+        titleIncludes: '/interfaces renders inside the rail shell for a Unify member',
+      },
+    ],
+  },
+  {
     id: 'assistants.list.select',
     areaId: 'assistants.core',
     priority: 'P0',
@@ -423,6 +459,43 @@ export const capabilities: CapabilityDef[] = [
       {
         files: ['src/tests/assistants/list.e2e.ts'],
         titleIncludes: 'clicking an assistant in the list selects it',
+      },
+    ],
+  },
+  {
+    id: 'assistants.chat.send',
+    areaId: 'assistants.chat',
+    priority: 'P2',
+    description: 'Send chat message',
+    matchers: [
+      {
+        files: ['src/tests/assistants/chat.e2e.ts'],
+        titleIncludes: 'sending a message shows it as a user message in the chat',
+      },
+    ],
+  },
+  {
+    id: 'assistants.chat.historical',
+    areaId: 'assistants.chat',
+    priority: 'P2',
+    description: 'Load historical transcript',
+    matchers: [
+      {
+        files: ['src/tests/assistants/chat.e2e.ts'],
+        titleIncludes: 'historical transcript messages load when navigating to an assistant',
+      },
+    ],
+  },
+  {
+    id: 'assistants.chat.credits',
+    areaId: 'assistants.chat',
+    priority: 'P2',
+    description: 'Chat input credit guard',
+    matchers: [
+      {
+        files: ['src/tests/assistants/chat.e2e.ts'],
+        titleIncludes:
+          'chat input is disabled when credits are exhausted and re-enables after funding',
       },
     ],
   },
@@ -850,8 +923,13 @@ export function defaultPriorityForSpec(specPath: string): AreaPriority {
   return 'P3';
 }
 
-export function parseTestTags(title: string): { critical: boolean; areaId?: string } {
+export function parseTestTags(title: string): {
+  critical: boolean;
+  push: boolean;
+  areaId?: string;
+} {
   const critical = title.includes('@critical');
+  const push = title.includes('@push');
   const areaMatch = title.match(/@area\(([^)]+)\)/);
-  return { critical, areaId: areaMatch?.[1] };
+  return { critical, push, areaId: areaMatch?.[1] };
 }

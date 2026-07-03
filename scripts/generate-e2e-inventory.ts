@@ -33,8 +33,8 @@ const list = execSync(`LIST_ALL=1 npx tsx scripts/ci-playwright-list-tests.ts ${
 });
 
 console.log('# Generated E2E Test Inventory\n');
-console.log('| Spec | Test | @critical | Default P |');
-console.log('|------|------|-----------|-----------|');
+console.log('| Spec | Test | @push | @critical | Default P |');
+console.log('|------|------|-------|-----------|-----------|');
 
 for (const line of list.trim().split('\n')) {
   if (!line) continue;
@@ -42,8 +42,11 @@ for (const line of list.trim().split('\n')) {
   const tags = parseTestTags(title);
   const p = defaultPriorityForSpec(file);
   const clean = title
+    .replace(/@push/g, '')
     .replace(/@critical/g, '')
     .replace(/@area\([^)]*\)/g, '')
     .trim();
-  console.log(`| \`${file}\` | ${clean} | ${criticalFlag === '1' ? 'yes' : 'no'} | ${p} |`);
+  console.log(
+    `| \`${file}\` | ${clean} | ${tags.push ? 'yes' : 'no'} | ${criticalFlag === '1' ? 'yes' : 'no'} | ${p} |`
+  );
 }

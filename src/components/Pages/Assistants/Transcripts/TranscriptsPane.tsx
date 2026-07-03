@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
+import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
@@ -188,7 +189,13 @@ async function fetchRows<T>(context: string): Promise<T[]> {
 export function TranscriptsPane({ assistant, ownerId, assistantId }: TranscriptsPaneProps) {
   const [viewMode, setViewMode] = React.useState<TranscriptViewMode>('threads');
   const [channel, setChannel] = React.useState<string>('all');
-  const [search, setSearch] = React.useState('');
+  const {
+    draft: searchDraft,
+    setDraft: setSearchDraft,
+    committed: searchQuery,
+    submit: submitSearch,
+    clear: clearSearch,
+  } = useTabSearchCommit();
   const [transcripts, setTranscripts] = React.useState<TranscriptRow[]>([]);
   const [contacts, setContacts] = React.useState<ContactRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -294,15 +301,15 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       (a, b) =>
         new Date(b.last.timestamp ?? 0).getTime() - new Date(a.last.timestamp ?? 0).getTime()
     );
-    if (!search.trim()) return built;
-    const needle = search.trim().toLowerCase();
+    if (!searchQuery.trim()) return built;
+    const needle = searchQuery.trim().toLowerCase();
     return built.filter((thread) => {
       if (thread.subject.toLowerCase().includes(needle)) return true;
       if (thread.participantIds.some((id) => nameFor(id).toLowerCase().includes(needle)))
         return true;
       return thread.messages.some((m) => (m.content ?? '').toLowerCase().includes(needle));
     });
-  }, [sortedAsc, search, nameFor]);
+  }, [sortedAsc, searchQuery, nameFor]);
 
   // Keep a valid selection as filters/search change.
   React.useEffect(() => {
@@ -349,10 +356,13 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
     >
       {/* Toolbar: channel segments + search + refresh */}
       <TabToolbar
-        searchValue={search}
-        onSearchChange={setSearch}
+        searchValue={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={submitSearch}
+        onSearchClear={clearSearch}
         searchPlaceholder={tabSearchPlaceholder('transcripts')}
         searchTestId="transcripts-search"
+        searchClearTestId="transcripts-search-clear"
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
         refreshTitle="Refresh transcripts"

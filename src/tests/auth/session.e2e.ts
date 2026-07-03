@@ -24,7 +24,7 @@ test.describe('Stale Session Signout', () => {
     cleanupUser(user.id);
   });
 
-  test('clears session and shows login form when signout=true with active session @critical @area(auth.core)', async ({
+  test('clears session and shows login form when signout=true with active session @push @critical @area(auth.core)', async ({
     page,
   }) => {
     await page.goto('/login');

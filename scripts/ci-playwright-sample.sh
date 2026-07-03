@@ -31,7 +31,7 @@ fi
 mapfile -t TITLES < <(echo "$LIST" | cut -d'|' -f2 | sort -u)
 GREP_PARTS=()
 for title in "${TITLES[@]}"; do
-  clean=$(echo "$title" | sed -E 's/@critical//g; s/@area\([^)]*\)//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  clean=$(echo "$title" | sed -E 's/@push//g; s/@critical//g; s/@area\([^)]*\)//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   if [ -n "$clean" ]; then
     esc=$(printf '%s' "$clean" | sed 's/[][\\^$.*+?{}|()]/\\&/g')
     GREP_PARTS+=("$esc")

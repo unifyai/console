@@ -54,7 +54,7 @@ test('the rail renders with the brand and unity switcher', async ({ authedPage: 
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible();
 });
 
-test('the unity switcher opens and selecting a unity drives the section host @critical @area(assistants.core)', async ({
+test('the unity switcher opens and selecting a unity drives the section host @push @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);

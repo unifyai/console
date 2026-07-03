@@ -12,14 +12,12 @@
  * be invoked through React's internal mechanism, which prevents
  * abuse by external scripts.
  *
- * Schema note: ``Coordinator/State`` uses the vocabulary
- * ``onboarding`` / ``working`` for ``mode``.
+ * Schema note: ``Coordinator/State`` uses ``onboarding_active`` as the
+ * single gate for onboarding scaffolding.
  */
 
 import { getCurrentUser } from '@/lib/user/user';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
-
-export type CoordinatorMode = 'onboarding' | 'working';
 
 export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked' | 'coming_soon';
 
@@ -79,6 +77,7 @@ export interface OnboardingStep {
   nudgeVoice?: string;
   phaseId?: string | null;
   canSkip: boolean;
+  manuallyCompleted?: boolean;
   description: string;
   estimatedTime: string;
   flowNote?: string;
@@ -107,8 +106,8 @@ export interface OnboardingNextTarget {
  * Precomputed, depends_on-aware onboarding picture from Orchestra. The
  * single source of truth for the checklist UI and both Unity brains:
  * statuses and valid next targets are computed server-side so nothing
- * downstream re-derives ordering. Present only while actively
- * onboarding; ``null`` once complete, working, or deferred.
+ * downstream re-derives ordering. Present only while ``onboarding_active``;
+ * ``null`` when onboarding is inactive.
  */
 export interface OnboardingRender {
   activeStepId: string | null;
@@ -120,7 +119,12 @@ export interface OnboardingRender {
 
 export interface CoordinatorStateSnapshot {
   coordinatorId: number;
-  mode: CoordinatorMode;
+  /**
+   * Whether onboarding scaffolding is live (checklist render, nudges,
+   * milestone events). When false, onboarding is paused or finished but
+   * per-step state is preserved for later return.
+   */
+  onboardingActive: boolean;
   /** Persisted resume step. The call-vs-chat picker is *not* persisted. */
   onboardingStep: string | null;
   startedAt: string | null;
@@ -130,8 +134,8 @@ export interface CoordinatorStateSnapshot {
    * from durable domain state (workspace email contact, integration
    * secrets, action history, Tasks rows). Authoritative across
    * sessions — steps completed last week surface here even though no
-   * transition event fired this session. Always empty outside
-   * onboarding mode, where derivation is skipped server-side.
+   * transition event fired this session. Always empty when onboarding
+   * is inactive, where derivation is skipped server-side.
    */
   completedStepIds: string[];
   skippedStepIds: string[];
@@ -144,30 +148,20 @@ export interface CoordinatorStateSnapshot {
    */
   introWatched: boolean;
   /**
-   * Global "do onboarding later" switch. When true the user has chosen
-   * to start using the platform before finishing onboarding: the
-   * Coordinator suppresses every onboarding nudge/opener (server-side
-   * too) and the checklist collapses to a resume affordance, all
-   * without touching per-step completed/skipped state. Freely
-   * reversible — flipping it back resumes the flow untouched.
-   */
-  onboardingDeferred: boolean;
-  /**
    * Server-computed onboarding rendering (steps + statuses + valid next
-   * targets). ``null`` outside active onboarding (complete, working, or
-   * deferred). Drives the checklist directly — the client no longer
-   * computes step availability.
+   * targets). ``null`` when ``onboarding_active`` is false. Drives the
+   * checklist directly — the client no longer computes step availability.
    */
   onboarding: OnboardingRender | null;
   /**
    * Self-contained orientation briefing composed server-side from the
-   * onboarding graph. Empty outside active onboarding.
+   * onboarding graph. Empty when onboarding is inactive.
    */
   voiceIntroBriefing: string;
 }
 
 export interface CoordinatorStatePatch {
-  mode?: CoordinatorMode;
+  onboardingActive?: boolean;
   onboardingStep?: string;
   clearOnboardingStep?: boolean;
   skipOnboardingStep?: string;
@@ -176,11 +170,6 @@ export interface CoordinatorStatePatch {
   skipOnboardingPhase?: string;
   unskipOnboardingPhase?: string;
   introWatched?: boolean;
-  onboardingDeferred?: boolean;
-}
-
-function normalizeMode(value: unknown): CoordinatorMode {
-  return value === 'working' ? 'working' : 'onboarding';
 }
 
 function normalizeStep(value: unknown): string | null {
@@ -286,6 +275,7 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
         ? (status as OnboardingStepStatus)
         : 'locked',
     canSkip: (r.canSkip ?? r.can_skip) === true,
+    manuallyCompleted: (r.manuallyCompleted ?? r.manually_completed) === true,
     description: typeof r.description === 'string' ? r.description : '',
     estimatedTime: typeof estimatedTime === 'string' ? estimatedTime : '',
     chipsChat: normalizeChips(r.chipsChat ?? r.chips_chat),
@@ -340,7 +330,7 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
   const record = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   return {
     coordinatorId,
-    mode: normalizeMode(record.mode),
+    onboardingActive: (record.onboardingActive ?? record.onboarding_active) !== false,
     onboardingStep: normalizeStep(record.onboardingStep ?? record.onboarding_step),
     startedAt: normalizeString(record.startedAt ?? record.started_at),
     endedAt: normalizeString(record.endedAt ?? record.ended_at),
@@ -348,7 +338,6 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     skippedStepIds: normalizeStepIds(record.skippedStepIds ?? record.skipped_step_ids),
     skippedPhaseIds: normalizeStepIds(record.skippedPhaseIds ?? record.skipped_phase_ids),
     introWatched: (record.introWatched ?? record.intro_watched) === true,
-    onboardingDeferred: (record.onboardingDeferred ?? record.onboarding_deferred) === true,
     onboarding: normalizeOnboardingRender(record.onboarding),
     voiceIntroBriefing:
       normalizeString(record.voiceIntroBriefing ?? record.voice_intro_briefing) ?? '',
@@ -379,7 +368,7 @@ export async function fetchCoordinatorState(
   return normalizeSnapshot(numericId, info);
 }
 
-/** Patch the Coordinator/State snapshot (mode and/or onboarding step). */
+/** Patch the Coordinator/State snapshot (onboarding_active and/or step fields). */
 export async function updateCoordinatorState(
   coordinatorId: number | string,
   patch: CoordinatorStatePatch
@@ -391,7 +380,7 @@ export async function updateCoordinatorState(
   const numericId = parseCoordinatorId(coordinatorId);
 
   const body: Record<string, unknown> = {};
-  if (patch.mode !== undefined) body.mode = patch.mode;
+  if (patch.onboardingActive !== undefined) body.onboardingActive = patch.onboardingActive;
   if (patch.onboardingStep !== undefined) body.onboardingStep = patch.onboardingStep;
   if (patch.clearOnboardingStep) body.clearOnboardingStep = true;
   if (patch.skipOnboardingStep !== undefined) body.skipOnboardingStep = patch.skipOnboardingStep;
@@ -402,7 +391,6 @@ export async function updateCoordinatorState(
   if (patch.unskipOnboardingPhase !== undefined)
     body.unskipOnboardingPhase = patch.unskipOnboardingPhase;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
-  if (patch.onboardingDeferred !== undefined) body.onboardingDeferred = patch.onboardingDeferred;
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.patch(`/assistant/${numericId}/state`, body);

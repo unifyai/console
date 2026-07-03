@@ -99,8 +99,7 @@ export function useCoordinatorOnboardingShortcutVisible(): boolean {
   return (
     isOnAssistantsPage &&
     !!coordinatorId &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
-    coordinatorOnboardingState.onboardingDeferred !== true &&
+    coordinatorOnboardingState?.onboardingActive === true &&
     !!coordinatorOnboardingState.onboarding &&
     onboardingProgress.total > 0 &&
     onboardingProgress.completed < onboardingProgress.total

@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import { cn } from '@/lib/utils';
 import { useBrainData } from '@/hooks/Assistants/useBrainData';
+import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { formatTimestamp } from '@/utils/assistants/brain';
 import { SkeletonText } from '@/components/Common/Loaders/Skeletons';
 import { Skeleton } from '@/components/UI/skeleton';
@@ -203,7 +204,13 @@ export function DocLibraryPane({
   const LibraryIcon = meta.icon;
 
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [query, setQuery] = useState('');
+  const {
+    draft: searchDraft,
+    setDraft: setSearchDraft,
+    committed: searchQuery,
+    submit: submitSearch,
+    clear: clearSearch,
+  } = useTabSearchCommit();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const isStackedLayout = useMatchesBelow('shellCompact');
@@ -247,7 +254,7 @@ export function DocLibraryPane({
   );
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
     return docs.filter((doc) => {
       if (q && !(doc.title + ' ' + doc.body).toLowerCase().includes(q)) return false;
       if (selectedScopes.size > 0 && !(doc.scope && selectedScopes.has(doc.scope))) return false;
@@ -255,7 +262,7 @@ export function DocLibraryPane({
         return false;
       return true;
     });
-  }, [docs, query, selectedScopes, selectedTags]);
+  }, [docs, searchQuery, selectedScopes, selectedTags]);
 
   const filteredGroups = useMemo(() => groupByCalendarDay(filtered), [filtered]);
 
@@ -299,8 +306,10 @@ export function DocLibraryPane({
     <div className="flex h-full min-w-0 flex-col" data-testid="doc-library-pane" data-kind={kind}>
       <TabToolbar
         testId="doc-header"
-        searchValue={query}
-        onSearchChange={setQuery}
+        searchValue={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={submitSearch}
+        onSearchClear={clearSearch}
         searchPlaceholder={tabSearchPlaceholder(kind)}
         searchTestId="doc-search"
         searchClearTestId="doc-search-clear"

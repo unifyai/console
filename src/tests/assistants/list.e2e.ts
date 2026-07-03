@@ -48,7 +48,7 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('the Onboard button opens the hire dialog @critical @area(assistants.core)', async ({
+test('the Onboard button opens the hire dialog @push @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
@@ -71,7 +71,9 @@ test('the Onboard button opens the hire dialog @critical @area(assistants.core)'
   });
 });
 
-test('seeded assistants appear in the list with correct names', async ({ authedPage: page }) => {
+test('seeded assistants appear in the list with correct names @push @critical @area(assistants.core)', async ({
+  authedPage: page,
+}) => {
   deleteAllAssistantsForUser(user.id);
 
   const a1 = createAssistant({ userId: user.id, firstName: 'Alpha', surname: 'ListTest' });

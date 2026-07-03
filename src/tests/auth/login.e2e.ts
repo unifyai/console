@@ -35,7 +35,7 @@ test.describe('Email Login', () => {
     }
   });
 
-  test('completes login with valid credentials and redirects @critical @area(auth.core)', async ({
+  test('completes login with valid credentials and redirects @push @critical @area(auth.core)', async ({
     page,
   }) => {
     await page.goto('/login');

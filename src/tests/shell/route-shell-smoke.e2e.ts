@@ -47,7 +47,7 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('/favourites renders inside the rail shell with its section header', async ({
+test('/favourites renders inside the rail shell with its section header @push @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   await gotoAppShellRoute(page, '/favourites');
@@ -60,7 +60,7 @@ test('/favourites renders inside the rail shell with its section header', async 
   await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 15_000 });
 });
 
-test('/interfaces renders inside the rail shell for a Unify member', async ({
+test('/interfaces renders inside the rail shell for a Unify member @push @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   await gotoAppShellRoute(page, '/interfaces');

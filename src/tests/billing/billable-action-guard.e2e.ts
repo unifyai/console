@@ -54,7 +54,7 @@ const withCreditTest = createBillingTest(withCreditUser);
 withCreditTest.afterAll(() => cleanupUser(withCreditUser.id));
 
 withCreditTest(
-  'buttons are enabled when user has credits @critical @area(billing.wallet)',
+  'buttons are enabled when user has credits @push @critical @area(billing.wallet)',
   async ({ authedPage: page }) => {
     await expectOnboardButtonEnabled(page, {
       userId: withCreditUser.id,

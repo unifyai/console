@@ -36,7 +36,9 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('the assistants rail renders with brand and unity switcher', async ({ authedPage: page }) => {
+test('the assistants rail renders with brand and unity switcher @push @critical @area(assistants.core)', async ({
+  authedPage: page,
+}) => {
   deleteAllAssistantsForUser(user.id);
   createAssistant({ userId: user.id, firstName: 'Push', surname: 'Gate' });
 

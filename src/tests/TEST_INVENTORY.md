@@ -4,15 +4,24 @@ Per-test audit log for area-first CI. See [CI_TESTING.md](./CI_TESTING.md) and [
 
 **Full per-test rows:** [TEST_INVENTORY.generated.md](./TEST_INVENTORY.generated.md) (regenerate with `npx tsx scripts/generate-e2e-inventory.ts`).
 
-Legend: **keep** · **delete** · **@critical** = always runs on PR/push sampling
+Legend: **keep** · **delete** · **`@push`** = runs every branch push · **`@critical`** = always runs on PR Gate sampling
 
 ## Push Gate (`push-gate`)
 
-| File                             | Tier | Verdict | Notes                          |
-| -------------------------------- | ---- | ------- | ------------------------------ |
-| `auth/login.e2e.ts`              | push | keep    | 4 @critical auth.core journeys |
-| `shell/route-shell-smoke.e2e.ts` | push | keep    | Route shell smoke              |
-| `shell/push-gate.e2e.ts`         | push | keep    | Rail + switcher @critical      |
+Platform-entry blockers: login → shell → routes → list → chat → billing guard. All `@push` tests run on every push (~13 tests).
+
+| File                                   | Tier | Verdict | Notes                                 |
+| -------------------------------------- | ---- | ------- | ------------------------------------- |
+| `auth/login.e2e.ts`                    | push | keep    | 1 `@push` valid login                 |
+| `auth/session.e2e.ts`                  | push | keep    | 1 `@push` stale session signout       |
+| `shell/push-gate.e2e.ts`               | push | keep    | Rail + switcher `@push`               |
+| `shell/route-shell-smoke.e2e.ts`       | push | keep    | `/favourites` + `/interfaces` `@push` |
+| `assistants/shell.e2e.ts`              | push | keep    | Unity switcher `@push`                |
+| `assistants/list.e2e.ts`               | push | keep    | Onboard + seeded list `@push`         |
+| `assistants/chat.e2e.ts`               | push | keep    | Send message `@push`                  |
+| `billing/billable-action-guard.e2e.ts` | push | keep    | Enabled with credits `@push`          |
+| `billing/access-control.e2e.ts`        | push | keep    | Billing page sections `@push`         |
+| `account/workspace-context.e2e.ts`     | push | keep    | Org workspace balance `@push`         |
 
 ## PR Gate — Billing (`pr-billing`, 14 files, 3 shards)
 
