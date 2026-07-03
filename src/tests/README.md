@@ -133,13 +133,22 @@ npx playwright test src/tests/assistants/ --ui
 
 E2E tests run in GitHub Actions via `.github/workflows/tests.yml` in three tiers:
 
-| Tier           | Trigger                                                  | Jobs                                                                    |
-| -------------- | -------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Push Gate**  | Every branch push (no marker)                            | `login.e2e.ts`, `route-shell-smoke.e2e.ts`, `push-gate.e2e.ts`          |
-| **PR Gate**    | PRs targeting `staging` / `main`                         | Curated Assistants, Account, Billing, Auth, Shell & Admin specs         |
-| **Exhaustive** | `[run-tests]` in commit/PR title, or `workflow_dispatch` | Full Playwright matrix (incl. admin + impersonation) + Vitest node/real |
+| Tier           | Trigger                                                  | Jobs                                                                |
+| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Push Gate**  | Every branch push (no marker)                            | Sampled smoke: login, route-shell, push-gate                        |
+| **PR Gate**    | PRs targeting `staging` / `main`                         | Curated Assistants, Account, Billing (sharded), Auth, Shell & Admin |
+| **Exhaustive** | `[run-tests]` in commit/PR title, or `workflow_dispatch` | Full Playwright matrix + Vitest node/real                           |
 
-Spec lists live in `scripts/ci-playwright-tiers.sh`. See `src/tests/TEST_INVENTORY.md` for the keep/cut rationale.
+## CI architecture (read before changing tests)
+
+- **[CI_TESTING.md](./CI_TESTING.md)** — tiers, sampling, sharding, thresholds
+- **[AREA_PRIORITY.md](./AREA_PRIORITY.md)** — P0–P3 areas and coverage floors
+- **[ADDING_E2E_TESTS.md](./ADDING_E2E_TESTS.md)** — checklist for new/changed E2E tests
+- **[TEST_COVERAGE_MAP.md](./TEST_COVERAGE_MAP.md)** — capability registry (enforced)
+- **[TEST_INVENTORY.md](./TEST_INVENTORY.md)** — per-test audit log
+- **Manifest:** [`scripts/ci-playwright-manifest.json`](../../scripts/ci-playwright-manifest.json)
+
+Spec lists for push/PR live in `scripts/ci-playwright-tiers.sh`. Exhaustive tiers auto-discover via `find`.
 
 ### How CI works
 

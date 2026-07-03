@@ -1,117 +1,102 @@
 # Console Test Inventory
 
-Per-file audit for Phase 9. Classifications: **keep**, **rewrite**, **delete**. CI tiers: **push**, **pr**, **full**.
+Per-test audit log for area-first CI. See [CI_TESTING.md](./CI_TESTING.md) and [AREA_PRIORITY.md](./AREA_PRIORITY.md).
 
-Legend: ✅ keep · 🔧 rewritten this sweep · 🗑 deleted
+**Full per-test rows:** [TEST_INVENTORY.generated.md](./TEST_INVENTORY.generated.md) (regenerate with `npx tsx scripts/generate-e2e-inventory.ts`).
 
-## Push Gate
+Legend: **keep** · **delete** · **@critical** = always runs on PR/push sampling
 
-| File                             | Tier | Status                            |
-| -------------------------------- | ---- | --------------------------------- |
-| `auth/login.e2e.ts`              | push | ✅                                |
-| `shell/route-shell-smoke.e2e.ts` | push | 🔧 removed screenshots            |
-| `shell/push-gate.e2e.ts`         | push | 🔧 extracted from shell `-g` hack |
+## Push Gate (`push-gate`)
 
-## Assistants (29 E2E)
+| File                             | Tier | Verdict | Notes                          |
+| -------------------------------- | ---- | ------- | ------------------------------ |
+| `auth/login.e2e.ts`              | push | keep    | 4 @critical auth.core journeys |
+| `shell/route-shell-smoke.e2e.ts` | push | keep    | Route shell smoke              |
+| `shell/push-gate.e2e.ts`         | push | keep    | Rail + switcher @critical      |
 
-| File                            | Tier    | Status | Notes                                            |
-| ------------------------------- | ------- | ------ | ------------------------------------------------ |
-| `shell.e2e.ts`                  | push/pr | ✅     | Rail, sections, mobile, collapse                 |
-| `list.e2e.ts`                   | push/pr | 🔧     | Absorbed profile.e2e deep-link + menu tests      |
-| `delete.e2e.ts`                 | full    | ✅     | Destructive-path smoke                           |
-| `contacts.e2e.ts`               | pr      | 🔧     | Deterministic assistants, no conditional skips   |
-| `chat.e2e.ts`                   | full    | 🔧     | Removed fixed sleeps; stable chat-area waits     |
-| `chat-stream.e2e.ts`            | full    | ✅     | Long-pole Pub/Sub suite (timing tied to stream)  |
-| `chat-search.e2e.ts`            | full    | ✅     | Search dialog + shared-root                      |
-| `chat-attachments.e2e.ts`       | pr      | ✅     | Attachment guards + spending gate                |
-| `live-actions.e2e.ts`           | pr/full | ✅     | Historical + live push                           |
-| `brain.e2e.ts`                  | pr/full | ✅     | Rail brain sections                              |
-| `call.e2e.ts`                   | pr/full | 🔧     | Strict connected-state asserts; no early pass    |
-| `call-working-pose.e2e.ts`      | pr      | ✅     | Pose state machine                               |
-| `voice.e2e.ts`                  | full    | 🔧     | Stable `voice-option-*` + exact DB voice_id      |
-| `hire.e2e.ts`                   | full    | 🔧     | Removed cross-test-dependent case                |
-| `edit.e2e.ts`                   | pr/full | ✅     | Profile + voice DB persistence                   |
-| `onboarding.e2e.ts`             | full    | ✅     | Roadmap + step gating                            |
-| `coordinator-onboarding.e2e.ts` | full    | ✅     | Serial coordinator picker lifecycle              |
-| `coordinator-sidebar.e2e.ts`    | full    | ✅     | Role + pinned ordering                           |
-| `list-grouping.e2e.ts`          | full    | ✅     | Team grouping semantics                          |
-| `permissions.e2e.ts`            | full    | 🔧     | Rail-visible waits; removed dialog sleeps        |
-| `dashboards.e2e.ts`             | full    | ✅     | Seeded dashboard tiles                           |
-| `tasks.e2e.ts`                  | full    | ✅     | Task cards + filters                             |
-| `provider-integrations.e2e.ts`  | full    | 🔧     | Profile deep-link; no onboarding bypass branches |
-| `workspace-file-access.e2e.ts`  | pr      | ✅     | Filesystem policy DB check                       |
-| `desktop-link.e2e.ts`           | pr/full | ✅     | Desktop link lifecycle                           |
-| `desktop-filesys.e2e.ts`        | pr      | ✅     | Filesystem consent                               |
-| `photo-video.e2e.ts`            | full    | 🔧     | Stale `Hire Assistant` → `Onboard Teammate`      |
-| `embed.e2e.ts`                  | full    | ✅     | Embed parsing/rendering                          |
-| `data-bridge.e2e.ts`            | full    | ✅     | Bridge routing contract                          |
-| `profile.e2e.ts`                | —       | 🗑     | Duplicative with list/shell — merged into list   |
+## PR Gate — Billing (`pr-billing`, 14 files, 3 shards)
 
-## Billing (14 E2E)
+| File                           | Area                   | Verdict | @critical keepers                                   |
+| ------------------------------ | ---------------------- | ------- | --------------------------------------------------- |
+| `access-control.e2e.ts`        | billing.access         | keep    | redirect + page sections                            |
+| `balance.e2e.ts`               | billing.wallet         | merged  | 1 UI↔DB + reload @critical                          |
+| `banners.e2e.ts`               | billing.wallet         | merged  | 3 tests: OOC threshold + metered bypass + suspended |
+| `billable-action-guard.e2e.ts` | billing.wallet         | keep    | block / enable / metered bypass                     |
+| `subscription-billing.e2e.ts`  | billing.subscription   | trimmed | monthly, tier change, cancel, PAST_DUE @critical    |
+| `subscribe.e2e.ts`             | billing.subscription   | keep    | 1 subscribed UI @critical                           |
+| `credit-grants.e2e.ts`         | billing.credit-grants  | trimmed | 4 @critical (API 401/404 deleted)                   |
+| `referrals.e2e.ts`             | billing.referrals      | trimmed | 5 UI journeys; auth-401 API test deleted            |
+| `auto-increment.e2e.ts`        | billing.auto-increment | trimmed | 1 toggle↔API @critical                              |
+| `metered-billing.e2e.ts`       | billing.metered        | merged  | plan card + hide credits merged; 3 tests            |
+| `usage.e2e.ts`                 | billing.usage          | trimmed | ledger + auth redirect only                         |
+| `billing-api.e2e.ts`           | billing.api-parity     | keep    | 1–2 parity tests                                    |
+| `billing-events.e2e.ts`        | billing.events         | keep    | SSE roundtrip                                       |
+| `manual-topup.e2e.ts`          | billing.manual-topup   | keep    | env-gated skip OK                                   |
 
-| File                           | Tier | Status | Notes                              |
-| ------------------------------ | ---- | ------ | ---------------------------------- |
-| `access-control.e2e.ts`        | pr   | ✅     | Auth redirect + page load          |
-| `balance.e2e.ts`               | pr   | 🔧     | Exact UI↔DB credit label           |
-| `usage.e2e.ts`                 | pr   | 🔧     | Ledger/chart visibility waits      |
-| `banners.e2e.ts`               | pr   | ✅     | Zero/negative/metered banners      |
-| `billable-action-guard.e2e.ts` | pr   | 🔧     | Targets onboard CTA + guard testid |
-| `subscription-billing.e2e.ts`  | full | ✅     | Self-serve lifecycle               |
-| `metered-billing.e2e.ts`       | full | ✅     | METERED mode UI                    |
-| `manual-topup.e2e.ts`          | full | ✅     | Mode-gated (env skip intentional)  |
-| `subscribe.e2e.ts`             | full | 🔧     | API contract + subscribed UI meter |
-| `billing-api.e2e.ts`           | full | 🔧     | Balance API↔UI parity test         |
-| `referrals.e2e.ts`             | full | 🔧     | Dashboard rewarded/earned stats    |
-| `profile.e2e.ts`               | full | 🔧     | `billing-profile-section` testids  |
-| `credit-grants.e2e.ts`         | full | 🔧     | API + `?token=` UI claim journey   |
-| `billing-events.e2e.ts`        | full | 🔧     | Strict SSE + push roundtrip        |
-| `auto-increment.e2e.ts`        | full | 🔧     | Subscribed toggle UI + API sync    |
+## PR Gate — Account (`pr-account`)
 
-## Auth (9 E2E)
+| File                       | Area                        | Verdict | Notes                                                 |
+| -------------------------- | --------------------------- | ------- | ----------------------------------------------------- |
+| `profile.e2e.ts`           | account.profile             | keep    | auto-save                                             |
+| `api-key.e2e.ts`           | account.security            | keep    | mask + regenerate                                     |
+| `contact-info.e2e.ts`      | account.contact             | keep    | E.164                                                 |
+| `workspace-context.e2e.ts` | workspace                   | merged  | API keys + org balance @critical; cookie tests merged |
+| `teams.e2e.ts`             | workspace                   | merged  | 1 CRUD lifecycle @critical + sharing tests            |
+| `roles.e2e.ts`             | account.org                 | keep    | role lifecycle                                        |
+| `org-management.e2e.ts`    | account.org                 | keep    | members + settings                                    |
+| `spending-limits.e2e.ts`   | assistants.billing-adjacent | keep    | limit editor                                          |
 
-| File                         | Tier    | Status | Notes                         |
-| ---------------------------- | ------- | ------ | ----------------------------- |
-| `login.e2e.ts`               | push/pr | ✅     | Core auth gate                |
-| `signup.e2e.ts`              | pr      | ✅     | Full signup + DB invariants   |
-| `session.e2e.ts`             | pr      | 🔧     | Removed login-duplicate block |
-| `password-management.e2e.ts` | pr      | ✅     | Change + forced re-auth       |
-| `mfa-login.e2e.ts`           | pr      | ✅     | Recovery skip env-gated       |
-| `mfa-profile.e2e.ts`         | pr      | ✅     | Setup/disable/regenerate      |
-| `invite.e2e.ts`              | full    | ✅     | Invite acceptance             |
-| `forgot-password.e2e.ts`     | full    | ✅     | Reset flow                    |
-| `account-deletion.e2e.ts`    | full    | 🔧     | Session invalidation + rail   |
+**Removed from PR:** `timezone-sync` only (P3)
 
-## Account (11 E2E)
+## PR Gate — Assistants (`pr-assistants`)
 
-| File                       | Tier | Status | Notes                               |
-| -------------------------- | ---- | ------ | ----------------------------------- |
-| `profile.e2e.ts`           | pr   | ✅     | Auto-save + reload                  |
-| `contact-info.e2e.ts`      | pr   | ✅     | E.164 + hydration                   |
-| `api-key.e2e.ts`           | pr   | 🔧     | Masked key + reveal; regenerate API |
-| `teams.e2e.ts`             | pr   | ✅     | Team CRUD                           |
-| `roles.e2e.ts`             | pr   | ✅     | Role lifecycle                      |
-| `org-management.e2e.ts`    | pr   | ✅     | Members + settings                  |
-| `support-ticket.e2e.ts`    | pr   | ✅     | Dialog lifecycle                    |
-| `timezone-sync.e2e.ts`     | pr   | ✅     | Context sync semantics              |
-| `spending-limits.e2e.ts`   | pr   | 🔧     | Usage UI limit editor               |
-| `workspace-context.e2e.ts` | pr   | 🔧     | Rail workspace switch + org balance |
+| File                  | Area                    | Verdict | Notes                                                      |
+| --------------------- | ----------------------- | ------- | ---------------------------------------------------------- |
+| `shell.e2e.ts`        | assistants.core         | trimmed | rail + switcher @critical; account menu + collapse deleted |
+| `list.e2e.ts`         | assistants.core         | trimmed | 3 @critical                                                |
+| `live-actions.e2e.ts` | assistants.live-actions | trimmed | historical + live @critical                                |
+| `permissions.e2e.ts`  | assistants.permissions  | keep    | RBAC boundaries                                            |
 
-## Shell / Admin / Impersonation
+## PR Gate — Auth (`pr-auth`)
 
-| File                             | Tier    | Status |
-| -------------------------------- | ------- | ------ |
-| `shell/route-shell-smoke.e2e.ts` | push/pr | 🔧     |
-| `shell/push-gate.e2e.ts`         | push    | 🔧     |
-| `admin/billing-plans.e2e.ts`     | pr/full | ✅     |
-| `impersonation/view-as.e2e.ts`   | pr/full | ✅     |
+All auth PR specs kept; login trimmed to 4 @critical; signup trimmed (whitespace/switch deleted).
 
-## Vitest (Exhaustive only)
+## PR Gate — Shell & Admin (`pr-shell-admin`)
 
-| Area                                    | Status | Notes                       |
-| --------------------------------------- | ------ | --------------------------- |
-| `_interfaces/**`                        | full   | 🔧 MSW via `@/tests/server` |
-| `_visualization/**`                     | full   | Matrix/real suites          |
-| `helpers/**/*.node.test.ts`             | full   | ✅ casing, chunkLoadReload  |
-| `features/resolveFeatures.node.test.ts` | full   | ✅                          |
-| `account/workspace.node.test.ts`        | full   | ✅                          |
-| `assistants/*.node.test.ts`             | full   | ✅ route/proxy contracts    |
+| File                             | Verdict |
+| -------------------------------- | ------- |
+| `shell/route-shell-smoke.e2e.ts` | keep    |
+| `admin/billing-plans.e2e.ts`     | keep    |
+| `impersonation/view-as.e2e.ts`   | keep    |
+
+## Exhaustive-only (P1/P2 — kept, not on PR lists)
+
+Medium–high priority specs retained for full `[run-tests]` matrix:
+
+| File                                        | Area priority | Notes                                                     |
+| ------------------------------------------- | ------------- | --------------------------------------------------------- |
+| `account/support-ticket.e2e.ts`             | P1            | Support dialog lifecycle                                  |
+| `account/reset-account.e2e.ts`              | P1            | Reset flow (env-gated)                                    |
+| `assistants/chat-search.e2e.ts`             | P2            | Search + shared-root                                      |
+| `assistants/brain.e2e.ts`                   | P2            | Rail brain sections                                       |
+| `assistants/call-working-pose.e2e.ts`       | P2            | In-call pose states                                       |
+| `assistants/coordinator-sidebar.e2e.ts`     | P2            | Coordinator sidebar ordering                              |
+| `assistants/desktop-filesys.e2e.ts`         | P2            | Filesystem consent                                        |
+| `assistants/chat.e2e.ts`                    | P2            | 4 tests: send, history+order, shared-root, credits guard  |
+| `assistants/chat-stream.e2e.ts`             | P2            | 9 tests (was 14): unread badge merged, tab title deleted  |
+| `assistants/data-bridge.e2e.ts`             | P2            | 6 tests (was 15): routing merged, proxy-400 batch deleted |
+| `assistants/contacts.e2e.ts`                | P2            | 8 tests (was 12)                                          |
+| `assistants/call.e2e.ts`                    | P2            | 8 tests (was 13)                                          |
+| `assistants/tasks.e2e.ts`                   | P2            | 8 tests (was 13)                                          |
+| `assistants/hire.e2e.ts`                    | P2            | 4 tests (was 7)                                           |
+| `assistants/embed.e2e.ts`                   | P2            | 4 tests: merged URL types, expand @critical               |
+| `assistants/provider-integrations.e2e.ts`   | P1            | Provider integrations                                     |
+| `assistants/workspace-provider-card.e2e.ts` | P1            | Workspace provider card                                   |
+
+## P3 deleted
+
+`timezone-sync`, `list-grouping`, `photo-video`, `responsive-drawer-layout`
+
+## Exhaustive discovery
+
+All remaining `src/tests/**/*.e2e.ts` files auto-discovered by `find` in exhaustive tiers.

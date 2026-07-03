@@ -35,7 +35,9 @@
     "check:colors": "npx tsx scripts/check-colors.ts",
     "check:colors:all": "npx tsx scripts/check-colors.ts",
     "check:styles": "npm run check:fonts && npm run check:colors",
-    "check:styles:all": "npm run check:fonts:all && npm run check:colors:all"
+    "check:styles:all": "npm run check:fonts:all && npm run check:colors:all",
+    "check:test-coverage": "tsx scripts/check-test-coverage-map.ts",
+    "check:test-inventory": "tsx scripts/check-test-inventory-sync.ts"
   },
   "lint-staged": {
     "package.json": "prettier --write",
