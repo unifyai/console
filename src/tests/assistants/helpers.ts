@@ -350,7 +350,7 @@ export async function openUnitySwitcher(page: Page, opts?: { userId?: string; ap
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
   if (opts?.userId && opts?.apiKey) {
-    await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+    await ensureShellReady(page, opts.userId, opts.apiKey);
   } else {
     await dismissCoordinatorOnboardingIfOpen(page);
   }

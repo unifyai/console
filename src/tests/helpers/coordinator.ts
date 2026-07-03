@@ -120,20 +120,45 @@ export async function deferCoordinatorAfterAssistantsLoad(
   await dismissCoordinatorOnboardingIfOpen(page);
 }
 
-/** Ensure the workspace shell is interactive after navigation (coordinator overlay dismissed). */
-export async function ensureShellReady(page: Page, userId: string, apiKey: string): Promise<void> {
-  await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
-}
-
 /** Pick chat when the coordinator intro overlay blocks shell interactions. */
 export async function dismissCoordinatorOnboardingIfOpen(page: Page): Promise<void> {
-  const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
-  if (!(await pickChat.isVisible({ timeout: 10_000 }).catch(() => false))) {
-    return;
+  await expect
+    .poll(
+      async () => {
+        const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
+        if (await pickChat.isVisible().catch(() => false)) {
+          await pickChat.click();
+          await page
+            .getByTestId('coordinator-onboarding')
+            .waitFor({ state: 'hidden', timeout: 15_000 })
+            .catch(() => {});
+          return 'dismissed';
+        }
+        if (!(await coordinatorOverlayVisible(page))) {
+          return 'clear';
+        }
+        return 'blocking';
+      },
+      { timeout: 20_000 }
+    )
+    .not.toBe('blocking');
+
+  const closeShortcut = page.getByRole('button', { name: /Close onboarding/i });
+  if (await closeShortcut.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await closeShortcut.click({ timeout: 5_000 }).catch(() => {});
   }
-  await pickChat.click();
-  await page
-    .getByTestId('coordinator-onboarding')
-    .waitFor({ state: 'hidden', timeout: 15_000 })
-    .catch(() => {});
+
+  const closeInfo = page.getByRole('button', { name: 'Close assistant info' });
+  if (await closeInfo.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await closeInfo.click({ timeout: 5_000 }).catch(() => {});
+  }
+}
+
+/** Ensure the workspace shell is interactive after navigation (coordinator overlay dismissed). */
+export async function ensureShellReady(page: Page, userId: string, apiKey: string): Promise<void> {
+  await deferCoordinatorForUser(userId, apiKey);
+  await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
+  await expect
+    .poll(async () => !(await coordinatorOverlayVisible(page)), { timeout: 30_000 })
+    .toBe(true);
 }
