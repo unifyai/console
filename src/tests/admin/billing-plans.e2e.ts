@@ -217,6 +217,19 @@ test('billing plans table scrolls horizontally at a constrained viewport', async
 test('organizations page sets the new template on the target org', async ({ adminPage: page }) => {
   test.setTimeout(90_000);
 
+  // PR sampling may run this spec without the create-template test in the
+  // same worker — seed the row directly so the combobox always has a match.
+  dbExec(
+    `INSERT INTO billing_plan_template (
+      name, display_name, billing_mode, commit_amount, currency,
+      collection_method, base_pricing_factor, overage_pricing_factor,
+      is_custom, is_active
+    ) VALUES (
+      '${templateName}', '${templateName}', 'CREDITS', NULL, 'USD',
+      'AUTO_CARD', 1.0, 1.0, true, true
+    ) ON CONFLICT (name) DO NOTHING`
+  );
+
   await page.goto('/admin/organizations');
 
   const search = page.getByPlaceholder('Search organizations…');
