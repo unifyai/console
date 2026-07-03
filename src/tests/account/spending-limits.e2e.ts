@@ -11,6 +11,7 @@ import {
   createAccountTest,
   getUserSpendingCap,
   dbExec,
+  navigateToAppShellRoute,
 } from './helpers';
 
 const DISPLAY_CREDITS_PER_USD = 400;
@@ -23,11 +24,17 @@ const user = createTestUser({ name: 'Spending', lastName: 'Limit', credits: 5_00
 const test = createAccountTest(user);
 test.setTimeout(90_000);
 
+const shellOpts = { userId: user.id, apiKey: user.apiKey };
+
 test.afterAll(() => cleanupUser(user.id));
 
-async function openUsageSpendingLimitEditor(page: import('@playwright/test').Page) {
-  await page.goto('/usage');
+async function openUsagePage(page: import('@playwright/test').Page) {
+  await navigateToAppShellRoute(page, '/usage', shellOpts);
   await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 30_000 });
+}
+
+async function openUsageSpendingLimitEditor(page: import('@playwright/test').Page) {
+  await openUsagePage(page);
   await expect(page.getByTestId('spending-limit-card')).toBeVisible({ timeout: 15_000 });
   await page.getByTestId('edit-user-limit-button').click();
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 });
@@ -39,8 +46,7 @@ async function saveSpendingLimitDialog(page: import('@playwright/test').Page) {
 }
 
 test('usage page shows spending limit card with edit control', async ({ authedPage: page }) => {
-  await page.goto('/usage');
-  await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 30_000 });
+  await openUsagePage(page);
   await expect(page.getByTestId('spending-limit-card')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('edit-user-limit-button')).toBeVisible();
 });

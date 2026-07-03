@@ -16,6 +16,11 @@ import {
   loginAndSaveState,
   dbExec,
 } from './helpers';
+import {
+  deferCoordinatorAfterAssistantsLoad,
+  dismissCoordinatorOnboardingIfOpen,
+  deferCoordinatorForUser,
+} from '../helpers/coordinator';
 
 const user = createTestUser({ name: 'Grant', lastName: 'Main', credits: 100 });
 const secondUser = createTestUser({ name: 'Grant', lastName: 'Second', credits: 100 });
@@ -51,11 +56,35 @@ test('?token= on assistants auto-claims credits and shows success toast @critica
     )
   );
 
-  await page.goto(`/assistants?token=${uiClaimToken}`);
+  await deferCoordinatorForUser(user.id, user.apiKey);
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+      window.localStorage.setItem('referral-banner-dismissed', '1');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
+  await page.goto(`/assistants?token=${uiClaimToken}`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await deferCoordinatorAfterAssistantsLoad(page, user.id, user.apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
+
+  await expect
+    .poll(
+      () =>
+        parseFloat(
+          dbExec(
+            `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${user.id}')`
+          )
+        ),
+      { timeout: 20_000 }
+    )
+    .toBeGreaterThanOrEqual(creditsBefore + 25);
 
   await expect(
     page.locator('[data-sonner-toast]').filter({ hasText: /credits claimed/i })
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible({ timeout: 5_000 });
 
   const creditsAfter = parseFloat(
     dbExec(

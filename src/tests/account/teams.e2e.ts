@@ -19,8 +19,8 @@ import {
   dbExec,
   getTeamByName,
   getTeamMemberCount,
+  openOrganizationsTab,
   navigateToAppShellRoute,
-  switchWorkspaceViaApi,
 } from './helpers';
 import { deferCoordinatorOnboarding, getCoordinatorAgentId } from '../helpers/coordinator';
 
@@ -32,18 +32,10 @@ addMember({ orgId: org.id, userId: member.id, role: 'Member' });
 const test = createAccountTest(owner);
 test.setTimeout(90_000);
 
-const ownerShellOpts = { userId: owner.id, apiKey: owner.apiKey };
+const ownerShellOpts = { userId: owner.id, apiKey: owner.apiKey, orgId: org.id };
 
 async function openOrgTeamsTab(page: import('@playwright/test').Page) {
-  await switchWorkspaceViaApi(page, org.id, ownerShellOpts);
-  await expect
-    .poll(async () => {
-      const cookies = await page.context().cookies();
-      return cookies.find((c) => c.name === 'unify_workspace_id')?.value ?? '';
-    })
-    .toBe(String(org.id));
-  await navigateToAppShellRoute(page, '/organizations?tab=teams', ownerShellOpts);
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
+  await openOrganizationsTab(page, 'teams', ownerShellOpts);
   await expect(page.getByRole('button', { name: 'Create new team' })).toBeVisible({
     timeout: 15_000,
   });
@@ -63,7 +55,11 @@ const sharingAssistant = createAssistant({
 const sharingTest = createAccountTest(sharingOwner);
 sharingTest.setTimeout(90_000);
 
-const sharingShellOpts = { userId: sharingOwner.id, apiKey: sharingOwner.apiKey };
+const sharingShellOpts = {
+  userId: sharingOwner.id,
+  apiKey: sharingOwner.apiKey,
+  orgId: sharingOrg.id,
+};
 
 const creationUser = createTestUser({ name: 'CreateOrgSharing', lastName: 'Test', credits: 5_000 });
 const creationTest = createAccountTest(creationUser);
@@ -162,8 +158,7 @@ test('team lifecycle via UI creates, adds a member, removes a member, and delete
 sharingTest(
   'org-wide sharing toggle manages the Org team lifecycle',
   async ({ authedPage: page }) => {
-    await switchWorkspaceViaApi(page, sharingOrg.id, sharingShellOpts);
-    await navigateToAppShellRoute(page, '/organizations?tab=teams', sharingShellOpts);
+    await openOrganizationsTab(page, 'teams', sharingShellOpts);
     await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
     await page.getByTestId('org-sharing-toggle').click();
