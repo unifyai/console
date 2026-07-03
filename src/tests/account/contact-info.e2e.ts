@@ -214,6 +214,9 @@ test('removing a saved number clears it from the database eagerly', async ({
 test('clicking Verify again while the code section is open does not collapse it', async ({
   authedPage: page,
 }) => {
+  test.setTimeout(120_000);
+  dbExec(`UPDATE "user" SET phone_number = NULL WHERE id = '${user.id}'`);
+
   await page.goto('/account?tab=contact-info');
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
 
@@ -229,16 +232,17 @@ test('clicking Verify again while the code section is open does not collapse it'
   await expect(phoneInput).toBeVisible({ timeout: 15_000 });
   await phoneInput.fill('5551234567');
 
-  const verifyBtn = page.getByRole('button', { name: 'Verify' }).first();
-  await verifyBtn.click();
+  await page.getByRole('button', { name: 'Verify' }).first().click();
 
   const codeInput = page.getByPlaceholder('Enter verification code...');
   await expect(codeInput).toBeVisible({ timeout: 10_000 });
-  await expect(verifyBtn).toHaveCount(0);
+  const resendBtn = page.getByRole('button', { name: /Resend/ });
+  await expect(resendBtn).toBeVisible();
 
-  await codeInput.click();
+  await expect(resendBtn).toBeEnabled({ timeout: 65_000 });
+  await resendBtn.click();
   await expect(codeInput).toBeVisible();
-  await expect(page.getByRole('button', { name: /Resend/ })).toBeVisible();
+  await expect(resendBtn).toBeVisible();
 });
 
 test('a saved E.164 number is split back into country + national parts', async ({

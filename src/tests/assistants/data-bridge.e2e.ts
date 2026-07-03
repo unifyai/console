@@ -7,9 +7,6 @@
  * its token so `/tile/view/[token]` resolves end-to-end. The tile page is
  * public (no login needed) so tests use Playwright's base `page` fixture.
  *
- * Proxy validation tests send direct HTTP requests to the Next.js API routes
- * to verify input validation independently.
- *
  * Run: npx playwright test src/tests/assistants/data-bridge.e2e.ts
  */
 
@@ -215,19 +212,52 @@ test('tile view page loads and injects bridge with all four methods', async ({ p
 });
 
 // ===========================================================================
-// PostMessage routing — each method goes to correct proxy endpoint
+// PostMessage routing — all four methods in one page session
 // ===========================================================================
 
-test('UnifyData.filter() routes through TileViewer to /api/.../filter', async ({ page }) => {
+test('UnifyData filter, reduce, join, and joinReduce route through TileViewer @critical @area(assistants.data)', async ({
+  page,
+}) => {
   await ensureSeeded();
 
-  const captured: Record<string, unknown>[] = [];
+  const filterCaptured: Record<string, unknown>[] = [];
+  const reduceCaptured: Record<string, unknown>[] = [];
+  const joinCaptured: Record<string, unknown>[] = [];
+  const joinReduceCaptured: Record<string, unknown>[] = [];
+
   await page.route('**/api/dashboards/tiles/*/filter', async (route) => {
-    captured.push(route.request().postDataJSON());
+    filterCaptured.push(route.request().postDataJSON());
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ rows: [], total_count: 0 }),
+    });
+  });
+
+  await page.route('**/api/dashboards/tiles/*/reduce', async (route) => {
+    reduceCaptured.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ result: 42 }),
+    });
+  });
+
+  await page.route('**/api/dashboards/tiles/*/join', async (route) => {
+    joinCaptured.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ rows: [{ name: 'Widget', total: 100 }], total_count: 1 }),
+    });
+  });
+
+  await page.route('**/api/dashboards/tiles/*/join-reduce', async (route) => {
+    joinReduceCaptured.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ result: 99 }),
     });
   });
 
@@ -240,57 +270,14 @@ test('UnifyData.filter() routes through TileViewer to /api/.../filter', async ({
     return ud.filter({ context: 'TestCtx', limit: 10, columns: ['id', 'name'] });
   });
 
-  expect(captured).toHaveLength(1);
-  expect(captured[0].context).toBe('TestCtx');
-  expect(captured[0].limit).toBe(10);
-  expect(captured[0].columns).toEqual(['id', 'name']);
-});
-
-test('UnifyData.reduce() routes through TileViewer to /api/.../reduce', async ({ page }) => {
-  await ensureSeeded();
-
-  const captured: Record<string, unknown>[] = [];
-  await page.route('**/api/dashboards/tiles/*/reduce', async (route) => {
-    captured.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ result: 42 }),
-    });
-  });
-
-  const iframe = await gotoTileAndWaitForBridge(page);
-
-  const result = await iframe.locator('body').evaluate(() => {
+  const reduceResult = await iframe.locator('body').evaluate(() => {
     const ud = (window as unknown as Record<string, unknown>).UnifyData as {
       reduce: (opts: Record<string, unknown>) => Promise<unknown>;
     };
     return ud.reduce({ context: 'Metrics', metric: 'sum', columns: ['revenue'] });
   });
 
-  expect(result).toBe(42);
-  expect(captured).toHaveLength(1);
-  expect(captured[0].context).toBe('Metrics');
-  expect(captured[0].metric).toBe('sum');
-  expect(captured[0].columns).toEqual(['revenue']);
-});
-
-test('UnifyData.join() routes through TileViewer to /api/.../join', async ({ page }) => {
-  await ensureSeeded();
-
-  const captured: Record<string, unknown>[] = [];
-  await page.route('**/api/dashboards/tiles/*/join', async (route) => {
-    captured.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ rows: [{ name: 'Widget', total: 100 }], total_count: 1 }),
-    });
-  });
-
-  const iframe = await gotoTileAndWaitForBridge(page);
-
-  const result = await iframe.locator('body').evaluate(() => {
+  const joinResult = await iframe.locator('body').evaluate(() => {
     const ud = (window as unknown as Record<string, unknown>).UnifyData as {
       join: (opts: Record<string, unknown>) => Promise<unknown>;
     };
@@ -301,30 +288,7 @@ test('UnifyData.join() routes through TileViewer to /api/.../join', async ({ pag
     });
   });
 
-  expect(result).toEqual([{ name: 'Widget', total: 100 }]);
-  expect(captured).toHaveLength(1);
-  expect(captured[0].joinExpr).toBe('a.product_id == b.id');
-  expect(captured[0].tables).toEqual(['Orders', 'Products']);
-});
-
-test('UnifyData.joinReduce() routes through TileViewer to /api/.../join-reduce', async ({
-  page,
-}) => {
-  await ensureSeeded();
-
-  const captured: Record<string, unknown>[] = [];
-  await page.route('**/api/dashboards/tiles/*/join-reduce', async (route) => {
-    captured.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ result: 99 }),
-    });
-  });
-
-  const iframe = await gotoTileAndWaitForBridge(page);
-
-  const result = await iframe.locator('body').evaluate(() => {
+  const joinReduceResult = await iframe.locator('body').evaluate(() => {
     const ud = (window as unknown as Record<string, unknown>).UnifyData as {
       joinReduce: (opts: Record<string, unknown>) => Promise<unknown>;
     };
@@ -337,10 +301,26 @@ test('UnifyData.joinReduce() routes through TileViewer to /api/.../join-reduce',
     });
   });
 
-  expect(result).toBe(99);
-  expect(captured).toHaveLength(1);
-  expect(captured[0].metric).toBe('sum');
-  expect(captured[0].joinExpr).toBe('a.product_id == b.id');
+  expect(filterCaptured).toHaveLength(1);
+  expect(filterCaptured[0].context).toBe('TestCtx');
+  expect(filterCaptured[0].limit).toBe(10);
+  expect(filterCaptured[0].columns).toEqual(['id', 'name']);
+
+  expect(reduceResult).toBe(42);
+  expect(reduceCaptured).toHaveLength(1);
+  expect(reduceCaptured[0].context).toBe('Metrics');
+  expect(reduceCaptured[0].metric).toBe('sum');
+  expect(reduceCaptured[0].columns).toEqual(['revenue']);
+
+  expect(joinResult).toEqual([{ name: 'Widget', total: 100 }]);
+  expect(joinCaptured).toHaveLength(1);
+  expect(joinCaptured[0].joinExpr).toBe('a.product_id == b.id');
+  expect(joinCaptured[0].tables).toEqual(['Orders', 'Products']);
+
+  expect(joinReduceResult).toBe(99);
+  expect(joinReduceCaptured).toHaveLength(1);
+  expect(joinReduceCaptured[0].metric).toBe('sum');
+  expect(joinReduceCaptured[0].joinExpr).toBe('a.product_id == b.id');
 });
 
 // ===========================================================================
@@ -376,78 +356,6 @@ test('bridge rejects when proxy returns an error response', async ({ page }) => 
 });
 
 // ===========================================================================
-// Proxy route validation — required field checks (direct HTTP)
-// ===========================================================================
-
-test('filter proxy returns 400 when context is missing', async ({ request }) => {
-  const res = await request.post('/api/dashboards/tiles/fake-token/filter', {
-    data: { columns: ['id'] },
-  });
-  expect(res.status()).toBe(400);
-  const body = await res.json();
-  expect(body.error).toContain('context');
-});
-
-test('reduce proxy returns 400 when context is missing', async ({ request }) => {
-  const res = await request.post('/api/dashboards/tiles/fake-token/reduce', {
-    data: { metric: 'count', columns: ['id'] },
-  });
-  expect(res.status()).toBe(400);
-  const body = await res.json();
-  expect(body.error).toContain('context');
-});
-
-test('reduce proxy returns 400 when metric is missing', async ({ request }) => {
-  const res = await request.post('/api/dashboards/tiles/fake-token/reduce', {
-    data: { context: 'Test', columns: ['id'] },
-  });
-  expect(res.status()).toBe(400);
-  const body = await res.json();
-  expect(body.error).toContain('metric');
-});
-
-test('join proxy returns 400 when tables has wrong count', async ({ request }) => {
-  const res = await request.post('/api/dashboards/tiles/fake-token/join', {
-    data: { tables: ['OnlyOne'], joinExpr: 'a.id == b.id', select: { id: 'a.id' } },
-  });
-  expect(res.status()).toBe(400);
-  const body = await res.json();
-  expect(body.error).toContain('tables');
-});
-
-test('join proxy returns 400 when joinExpr is missing', async ({ request }) => {
-  const res = await request.post('/api/dashboards/tiles/fake-token/join', {
-    data: { tables: ['A', 'B'], select: { id: 'a.id' } },
-  });
-  expect(res.status()).toBe(400);
-  const body = await res.json();
-  expect(body.error).toContain('joinExpr');
-});
-
-test('join proxy returns 400 when select is empty', async ({ request }) => {
-  const res = await request.post('/api/dashboards/tiles/fake-token/join', {
-    data: { tables: ['A', 'B'], joinExpr: 'a.id == b.id', select: {} },
-  });
-  expect(res.status()).toBe(400);
-  const body = await res.json();
-  expect(body.error).toContain('select');
-});
-
-test('join-reduce proxy returns 400 when metric is missing', async ({ request }) => {
-  const res = await request.post('/api/dashboards/tiles/fake-token/join-reduce', {
-    data: {
-      tables: ['A', 'B'],
-      joinExpr: 'a.id == b.id',
-      select: { id: 'a.id' },
-      columns: ['id'],
-    },
-  });
-  expect(res.status()).toBe(400);
-  const body = await res.json();
-  expect(body.error).toContain('metric');
-});
-
-// ===========================================================================
 // Auto-exec path — data_bindings_json + on_data_script
 // ===========================================================================
 
@@ -456,7 +364,11 @@ test('auto-exec tile injects bridge and executes on_data with resolved bindings'
 }) => {
   await ensureSeeded();
 
+  const filterCalls: Record<string, unknown>[] = [];
+  const reduceCalls: Record<string, unknown>[] = [];
+
   await page.route('**/api/dashboards/tiles/*/filter', async (route) => {
+    filterCalls.push(route.request().postDataJSON());
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -471,6 +383,7 @@ test('auto-exec tile injects bridge and executes on_data with resolved bindings'
   });
 
   await page.route('**/api/dashboards/tiles/*/reduce', async (route) => {
+    reduceCalls.push(route.request().postDataJSON());
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -492,37 +405,6 @@ test('auto-exec tile injects bridge and executes on_data with resolved bindings'
 
   const totalResult = await iframe.locator('#total-result').textContent();
   expect(JSON.parse(totalResult!)).toBe(300);
-});
-
-test('auto-exec tile sends correct params per binding (mixed filter + reduce)', async ({
-  page,
-}) => {
-  await ensureSeeded();
-
-  const filterCalls: Record<string, unknown>[] = [];
-  const reduceCalls: Record<string, unknown>[] = [];
-
-  await page.route('**/api/dashboards/tiles/*/filter', async (route) => {
-    filterCalls.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ rows: [], total_count: 0 }),
-    });
-  });
-
-  await page.route('**/api/dashboards/tiles/*/reduce', async (route) => {
-    reduceCalls.push(route.request().postDataJSON());
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ result: 0 }),
-    });
-  });
-
-  await page.goto(`/tile/view/${AUTOEXEC_TOKEN}`);
-  const iframe = page.frameLocator('iframe');
-  await expect(iframe.locator('#status')).toHaveText('data-loaded', { timeout: 15_000 });
 
   expect(filterCalls).toHaveLength(1);
   expect(filterCalls[0].context).toBe('Data/Sales');

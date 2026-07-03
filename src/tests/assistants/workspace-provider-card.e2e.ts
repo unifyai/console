@@ -48,7 +48,7 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('workspace card shows the connected Microsoft provider, not the Google mailbox', async ({
+test('workspace card shows the connected Microsoft provider, not the Google mailbox @critical @area(assistants.integrations)', async ({
   authedPage: page,
 }) => {
   await openAssistantInfoPanelFromList(page, assistant.agentId);

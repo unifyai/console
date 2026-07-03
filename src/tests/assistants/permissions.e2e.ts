@@ -6,8 +6,7 @@
  *  - Org Owner can see the "New" hire button
  *  - Org Member cannot see the "New" hire button
  *  - Org Owner can open the edit dialog via the info panel and see "End contract"
- *  - Org Member can open the edit dialog on another's assistant but it
- *    does not show "End contract"
+ *  - Org Member cannot open the edit dialog on another member's assistant
  *  - Org Member CAN view secrets but CANNOT add/delete them on another's assistant
  *  - Org Member CAN see and edit their own assistant in the org
  *
@@ -19,7 +18,7 @@
  * Run: npx playwright test src/tests/assistants/permissions.e2e.ts
  */
 
-import { test as base, expect, type Page, type Browser } from '@playwright/test';
+import { test as base, expect, type Page, type Browser, type Locator } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 import {
@@ -32,7 +31,19 @@ import {
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
-import { openUnitySwitcher, openRailSection, openEditDialogFromList } from './helpers';
+import {
+  deferCoordinatorForUser,
+  deferCoordinatorAfterAssistantsLoad,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
+import {
+  navigateToAssistants,
+  openUnitySwitcher,
+  openRailSection,
+  closeHireDialogIfOpen,
+  openEditDialogFromList,
+  openAssistantInfoPanelFromList,
+} from './helpers';
 
 // =============================================================================
 // Test Users & Org Setup
@@ -71,6 +82,11 @@ async function loginAndSaveOrgState(
   await page.goto('/login');
   await loginAndWaitForRedirect(page, email, password, 45_000);
 
+  await deferCoordinatorForUser(
+    email === owner.email ? owner.id : member.id,
+    email === owner.email ? owner.apiKey : member.apiKey
+  );
+
   // Handle onboarding
   if (page.url().includes('/login/onboarding')) {
     // For org members, autoComplete might kick in. Wait for redirect.
@@ -92,18 +108,23 @@ async function loginAndSaveOrgState(
   }
 
   // Switch to the org workspace
-  await page.evaluate(async (oid) => {
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(oid) }),
-    });
-  }, orgId);
-
-  // Reload to pick up the workspace switch
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await page.request.post('/api/session/workspace', {
+    data: { workspaceId: String(orgId) },
+  });
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+      window.localStorage.setItem('referral-banner-dismissed', '1');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
+  const userId = email === owner.email ? owner.id : member.id;
+  const apiKey = email === owner.email ? owner.apiKey : member.apiKey;
+  await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
 
   await ctx.storageState({ path: stateFile });
   await ctx.close();
@@ -168,34 +189,15 @@ test.afterAll(() => {
 // Helpers
 // =============================================================================
 
-async function navigateToAssistants(page: Page) {
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
-}
-
-async function closeHireDialogIfOpen(page: Page) {
-  const dialog = page.locator('[role="dialog"]');
-  if (await dialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
-    if (await dialog.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      const closeBtn = page.getByRole('button', { name: /close/i }).first();
-      if (await closeBtn.isVisible({ timeout: 1_000 }).catch(() => false)) {
-        await closeBtn.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  }
-}
-
 /**
  * Open the edit dialog from a list row via the info panel.
  */
-async function openEditViaInfoPanel(page: Page, agentId: number) {
+async function openEditViaInfoPanel(page: Page, agentId: number): Promise<Locator> {
   await openUnitySwitcher(page);
   await openEditDialogFromList(page, agentId);
-  await page.waitForTimeout(500);
+  const editDialog = page.getByRole('dialog', { name: /^Edit / });
+  await expect(editDialog).toBeVisible({ timeout: 10_000 });
+  return editDialog;
 }
 
 /**
@@ -203,14 +205,11 @@ async function openEditViaInfoPanel(page: Page, agentId: number) {
  */
 async function openSecretsTab(page: Page, agentId: number) {
   await page.goto(`/assistants?profile=${agentId}`);
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
-  await page.waitForTimeout(1_500);
 
   await openRailSection(page, 'integrations');
-  await page.waitForTimeout(1_000);
 
-  await expect(page.getByTestId('integrations-pane')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integrations-pane')).toBeVisible({ timeout: 10_000 });
 }
 
 // =============================================================================
@@ -231,9 +230,7 @@ test('owner can open the edit dialog via info panel', async ({ ownerPage: page }
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaInfoPanel(page, ownerAssistant.agentId);
-
-  const editDialog = page.locator('[role="dialog"]');
+  const editDialog = await openEditViaInfoPanel(page, ownerAssistant.agentId);
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
   await page.keyboard.press('Escape');
@@ -243,9 +240,7 @@ test('owner can access the edit dialog and see the delete button', async ({ owne
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openEditViaInfoPanel(page, ownerAssistant.agentId);
-
-  const editDialog = page.locator('[role="dialog"]');
+  const editDialog = await openEditViaInfoPanel(page, ownerAssistant.agentId);
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
   const endContractBtn = page.getByRole('button', { name: /end contract/i });
@@ -265,48 +260,43 @@ test('member cannot see the "New" hire button in the assistant list', async ({
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
 
-  // Wait for the page to render (assistant list should load)
-  await page.waitForTimeout(3_000);
+  await expect(page.getByTestId(`assistant-list-item-${ownerAssistant.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
 
   // The hire ("Onboard") affordance is permission-gated and must NOT render
   // for members — neither the labelled button nor its folded icon variant.
   await expect(page.getByTestId('assistant-onboard-button')).toHaveCount(0);
 });
 
-test("member can open edit dialog on owner's assistant but cannot see delete button", async ({
-  memberPage: page,
-}) => {
+test("member cannot open edit dialog on owner's assistant", async ({ memberPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
-  await openEditViaInfoPanel(page, ownerAssistant.agentId);
+  await openAssistantInfoPanelFromList(page, ownerAssistant.agentId);
+  const profileTab = page.getByRole('tab', { name: 'Profile' });
+  if (await profileTab.isVisible().catch(() => false)) {
+    await profileTab.click();
+  }
 
-  const editDialog = page.locator('[role="dialog"]');
-  await expect(editDialog).toBeVisible({ timeout: 10_000 });
-
-  // The "End contract" button should NOT be visible for members on others' assistants
-  const endContractBtn = page.getByRole('button', { name: /end contract/i });
-  const isDeleteVisible = await endContractBtn.isVisible({ timeout: 5_000 }).catch(() => false);
-  expect(isDeleteVisible).toBe(false);
-
-  await page.keyboard.press('Escape');
+  const editSection = page.getByTestId('assistant-info-edit-profile-section');
+  await expect(editSection).toBeVisible({ timeout: 10_000 });
+  await expect(editSection).not.toHaveAttribute('role', 'button');
+  await editSection.click();
+  await expect(page.locator('[role="dialog"]').filter({ hasText: /^Edit / })).toHaveCount(0);
 });
 
-test('member can view the secrets tab but cannot add secrets on owner assistant', async ({
+test('member can view the integrations tab but cannot add secrets on owner assistant', async ({
   memberPage: page,
 }) => {
   await openSecretsTab(page, ownerAssistant.agentId);
 
-  // The read-only primitives are present…
-  await expect(page.getByTestId('secrets-search')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integrations-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('integration-gallery-search')).toBeVisible({ timeout: 5_000 });
 
-  // …but the write-action affordances must NOT be. The "Add new" dropdown
-  // and "Upload" button are gated on `canWrite`, and every row/folder
-  // 3-dots menu is too.
-  await expect(page.getByTestId('secrets-new-button')).toHaveCount(0);
-  await expect(page.getByTestId('secrets-upload-button')).toHaveCount(0);
-  await expect(page.locator('[data-testid^="secrets-row-menu-"]')).toHaveCount(0);
-  await expect(page.locator('[data-testid^="secrets-folder-menu-"]')).toHaveCount(0);
+  // Write affordances are gated on `canWrite` for the selected assistant.
+  await expect(page.getByTestId('integrations-add-new-trigger')).toHaveCount(0);
 });
 
 test('member CAN see and edit their own assistant in the org', async ({ memberPage: page }) => {
@@ -321,10 +311,7 @@ test('member CAN see and edit their own assistant in the org', async ({ memberPa
     await navigateToAssistants(page);
     await closeHireDialogIfOpen(page);
 
-    // Open edit via info panel on their own assistant
-    await openEditViaInfoPanel(page, memberAssistant.agentId);
-
-    const editDialog = page.locator('[role="dialog"]');
+    const editDialog = await openEditViaInfoPanel(page, memberAssistant.agentId);
     await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
     await page.keyboard.press('Escape');

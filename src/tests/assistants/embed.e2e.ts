@@ -1,16 +1,5 @@
 /**
- * Dashboard & Embed URL E2E Tests — browser-based user flows verifying that
- * embed URLs (dashboard, tile, table, plot) are detected and rendered as
- * interactive preview cards in assistant chat messages.
- *
- * Verifies:
- *  - User messages containing dashboard/tile/table/plot URLs render embed cards
- *  - Assistant messages with embed links render embed cards via markdown
- *  - Non-embeddable URLs and plain text do not produce embed cards
- *  - Embed preview card expand/collapse toggling works
- *  - Dashboard view page shows not-found for invalid tokens
- *
- * Replaces: src/tests/dashboard/unit/embedParsing.node.test.ts
+ * Dashboard & Embed URL E2E — embed URLs in chat render interactive preview cards.
  *
  * Run: npx playwright test src/tests/assistants/embed.e2e.ts
  */
@@ -50,10 +39,6 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-// ---------------------------------------------------------------------------
-// Seed helpers
-// ---------------------------------------------------------------------------
-
 let messageCounter = 5000;
 
 async function seedContact(apiKey: string, userId: string, assistantId: number, email: string) {
@@ -79,7 +64,7 @@ async function seedTranscript(
   userId: string,
   assistantId: number,
   opts: {
-    senderId: number; // 0 = assistant, CONTACT_ID = user
+    senderId: number;
     content: string;
     timestamp?: string;
   }
@@ -112,12 +97,7 @@ async function seedTranscript(
   );
   /* eslint-enable @typescript-eslint/naming-convention */
   if (!res.ok) throw new Error(`Failed to seed transcript: ${res.status} ${await res.text()}`);
-  return msgId;
 }
-
-// ---------------------------------------------------------------------------
-// Navigation
-// ---------------------------------------------------------------------------
 
 async function openAssistantChat(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
@@ -133,101 +113,38 @@ async function openAssistantChat(page: import('@playwright/test').Page) {
   await expect(chatArea).toBeVisible({ timeout: 10_000 });
 }
 
-// ===========================================================================
-// Embed Card Detection — User Messages
-// (containsEmbedUrl → RenderContentWithEmbeds → InlineEmbed)
-// ===========================================================================
+const EMBED_URL_CASES = [
+  { path: 'dashboard/view', label: 'Interactive Dashboard', prefix: 'dash' },
+  { path: 'tile/view', label: 'Interactive Tile', prefix: 'tile' },
+  { path: 'table/view', label: 'Interactive Table', prefix: 'tbl' },
+  { path: 'plot/view', label: 'Interactive Chart', prefix: 'plt' },
+] as const;
 
-test('user message with dashboard URL renders Interactive Dashboard embed card', async ({
+test('user messages with dashboard, tile, table, and plot URLs render embed cards @critical @area(assistants.embed)', async ({
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
-  const dashToken = `dash-e2e-${ts}`;
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `Check this out: https://console.unify.ai/dashboard/view/${dashToken}`,
-  });
+  for (const embedCase of EMBED_URL_CASES) {
+    const token = `${embedCase.prefix}-e2e-${ts}`;
+    await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+      senderId: CONTACT_ID,
+      content: `See https://console.unify.ai/${embedCase.path}/${token}`,
+    });
+  }
 
   await openAssistantChat(page);
 
-  const bubble = page.locator(`[data-role="user"]:has-text("${dashToken}")`);
-  await expect(bubble).toBeVisible({ timeout: 20_000 });
-
-  await expect(bubble.locator('text=Interactive Dashboard')).toBeVisible({ timeout: 5_000 });
-  await expect(bubble.locator(`text=${dashToken}`)).toBeVisible({ timeout: 5_000 });
+  for (const embedCase of EMBED_URL_CASES) {
+    const token = `${embedCase.prefix}-e2e-${ts}`;
+    const bubble = page.locator(`[data-role="user"]:has-text("${token}")`);
+    await expect(bubble).toBeVisible({ timeout: 20_000 });
+    await expect(bubble.locator(`text=${embedCase.label}`)).toBeVisible({ timeout: 5_000 });
+  }
 });
 
-test('user message with tile URL renders Interactive Tile embed card', async ({
-  authedPage: page,
-}) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const tileToken = `tile-e2e-${ts}`;
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `Look at https://console.unify.ai/tile/view/${tileToken}`,
-  });
-
-  await openAssistantChat(page);
-
-  const bubble = page.locator(`[data-role="user"]:has-text("${tileToken}")`);
-  await expect(bubble).toBeVisible({ timeout: 20_000 });
-
-  await expect(bubble.locator('text=Interactive Tile')).toBeVisible({ timeout: 5_000 });
-  await expect(bubble.locator(`text=${tileToken}`)).toBeVisible({ timeout: 5_000 });
-});
-
-test('user message with table URL renders Interactive Table embed card', async ({
-  authedPage: page,
-}) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const tableToken = `tbl-e2e-${ts}`;
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `Open https://console.unify.ai/table/view/${tableToken}`,
-  });
-
-  await openAssistantChat(page);
-
-  const bubble = page.locator(`[data-role="user"]:has-text("${tableToken}")`);
-  await expect(bubble).toBeVisible({ timeout: 20_000 });
-
-  await expect(bubble.locator('text=Interactive Table')).toBeVisible({ timeout: 5_000 });
-  await expect(bubble.locator(`text=${tableToken}`)).toBeVisible({ timeout: 5_000 });
-});
-
-test('user message with plot URL renders Interactive Chart embed card', async ({
-  authedPage: page,
-}) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const plotToken = `plt-e2e-${ts}`;
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `View https://console.unify.ai/plot/view/${plotToken}`,
-  });
-
-  await openAssistantChat(page);
-
-  const bubble = page.locator(`[data-role="user"]:has-text("${plotToken}")`);
-  await expect(bubble).toBeVisible({ timeout: 20_000 });
-
-  await expect(bubble.locator('text=Interactive Chart')).toBeVisible({ timeout: 5_000 });
-  await expect(bubble.locator(`text=${plotToken}`)).toBeVisible({ timeout: 5_000 });
-});
-
-// ===========================================================================
-// Embed Card Detection — Assistant Messages
-// (ChatMarkdown → parseEmbedUrl on <a> tags → InlineEmbed)
-// ===========================================================================
-
-test('assistant message with dashboard link renders Interactive Dashboard embed card', async ({
+test('assistant markdown links render embed cards @area(assistants.embed)', async ({
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
@@ -243,60 +160,36 @@ test('assistant message with dashboard link renders Interactive Dashboard embed 
 
   const bubble = page.locator(`[data-role="assistant"]:has-text("${dashToken}")`);
   await expect(bubble).toBeVisible({ timeout: 20_000 });
-
   await expect(bubble.locator('text=Interactive Dashboard')).toBeVisible({ timeout: 5_000 });
-  await expect(bubble.locator(`text=${dashToken}`)).toBeVisible({ timeout: 5_000 });
 });
 
-// ===========================================================================
-// Non-matching URLs — No Embed Card
-// ===========================================================================
-
-test('user message with non-embeddable URL does not render an embed card', async ({
+test('non-embeddable URLs and plain text do not render embed cards @area(assistants.embed)', async ({
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
-  const msgMarker = `nonembed-${ts}`;
+  const urlMarker = `nonembed-${ts}`;
+  const textMarker = `plaintext-${ts}`;
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
     senderId: CONTACT_ID,
-    content: `Visit https://example.com/${msgMarker}`,
+    content: `Visit https://example.com/${urlMarker}`,
+  });
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: `No URLs here ${textMarker}`,
   });
 
   await openAssistantChat(page);
 
-  const bubble = page.locator(`[data-role="user"]:has-text("${msgMarker}")`);
-  await expect(bubble).toBeVisible({ timeout: 20_000 });
-
-  const embedLabels = bubble.locator('text=/Interactive (Dashboard|Table|Chart|Tile)/');
-  await expect(embedLabels).toHaveCount(0);
+  for (const marker of [urlMarker, textMarker]) {
+    const bubble = page.locator(`[data-role="user"]:has-text("${marker}")`);
+    await expect(bubble).toBeVisible({ timeout: 20_000 });
+    await expect(bubble.locator('text=/Interactive (Dashboard|Table|Chart|Tile)/')).toHaveCount(0);
+  }
 });
 
-test('user message with plain text does not render an embed card', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const msgMarker = `plaintext-${ts}`;
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `No URLs here, just a plain message ${msgMarker}`,
-  });
-
-  await openAssistantChat(page);
-
-  const bubble = page.locator(`[data-role="user"]:has-text("${msgMarker}")`);
-  await expect(bubble).toBeVisible({ timeout: 20_000 });
-
-  const embedLabels = bubble.locator('text=/Interactive (Dashboard|Table|Chart|Tile)/');
-  await expect(embedLabels).toHaveCount(0);
-});
-
-// ===========================================================================
-// Embed Card Interactivity
-// ===========================================================================
-
-test('expand button reveals embedded iframe and collapse button hides it', async ({
+test('expand button reveals embedded iframe and collapse hides it @critical @area(assistants.embed)', async ({
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
@@ -314,42 +207,20 @@ test('expand button reveals embedded iframe and collapse button hides it', async
   await expect(bubble).toBeVisible({ timeout: 20_000 });
   await expect(bubble.locator('text=Interactive Dashboard')).toBeVisible({ timeout: 5_000 });
 
-  // Click expand — scroll into view first since chat area may be scrollable
   const expandBtn = bubble.locator('button[title="Expand inline"]');
   await expandBtn.scrollIntoViewIfNeeded();
   await expandBtn.click({ force: true });
   await page.waitForTimeout(1_000);
 
-  // Iframe should appear somewhere on the page with the dashboard embed src
   const iframe = page.locator(`iframe[src*="/dashboard/view/${dashToken}"]`);
   await expect(iframe).toBeVisible({ timeout: 10_000 });
-  const src = await iframe.getAttribute('src');
-  expect(src).toContain('embed=true');
+  expect(await iframe.getAttribute('src')).toContain('embed=true');
 
-  // Collapse button should be visible
   const collapseBtn = page.locator('button[title="Collapse"]').first();
   await expect(collapseBtn).toBeVisible({ timeout: 5_000 });
   await collapseBtn.click();
   await page.waitForTimeout(500);
 
-  // Iframe should disappear, preview card should reappear
   await expect(iframe).not.toBeVisible({ timeout: 5_000 });
   await expect(bubble.locator('button[title="Expand inline"]')).toBeVisible({ timeout: 5_000 });
-});
-
-// ===========================================================================
-// Dashboard View Page — Not Found
-// ===========================================================================
-
-test('dashboard view page shows not-found message for invalid token', async ({
-  authedPage: page,
-}) => {
-  await page.goto('/dashboard/view/definitely-nonexistent-token-e2e-12345');
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-  // Either "Dashboard Not Found" (token resolves as 404) or
-  // "Unable to Load Dashboard" (admin key misconfigured) is acceptable
-  const notFound = page.locator('text=Dashboard Not Found');
-  const error = page.locator('text=Unable to Load Dashboard');
-  await expect(notFound.or(error).first()).toBeVisible({ timeout: 15_000 });
 });

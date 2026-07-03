@@ -17,13 +17,24 @@ import {
   deleteOrg,
   dbExec,
   getCustomRoleByName,
+  openOrganizationsTab,
 } from './helpers';
+import { deferCoordinatorOnboarding, getCoordinatorAgentId } from '../helpers/coordinator';
 
 const owner = createTestUser({ name: 'RoleOwner', lastName: 'Test', credits: 5_000 });
 const org = createOrg({ name: `RoleOrg${Date.now()}`, ownerId: owner.id });
 
 const test = createAccountTest(owner);
 test.setTimeout(90_000);
+
+const ownerShellOpts = { userId: owner.id, apiKey: owner.apiKey, orgId: org.id };
+
+test.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(owner.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(owner.apiKey, coordinatorId);
+  }
+});
 
 test.afterAll(() => {
   deleteOrg(org.id);
@@ -33,42 +44,32 @@ test.afterAll(() => {
 test('creating a custom role via UI persists it in the database', async ({ authedPage: page }) => {
   const roleName = `CustomRole${Date.now()}`;
 
-  await page.goto('/organizations?tab=roles');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await openOrganizationsTab(page, 'roles', ownerShellOpts);
   await expect(page.getByTestId('role-list-panel')).toBeVisible({ timeout: 15_000 });
 
-  // Open create role dialog
   await page.getByRole('button', { name: 'Create new role' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-  // Fill role name
   await dialog.getByPlaceholder('Role Name').fill(roleName);
 
-  // Check the first permission checkbox if available (Radix uses role="checkbox")
   const firstCheckbox = dialog.getByRole('checkbox').first();
   if (await firstCheckbox.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await firstCheckbox.click();
   }
 
-  // Submit
   await dialog.getByRole('button', { name: 'Create' }).click();
-
-  // Wait for dialog to close
   await expect(dialog).not.toBeVisible({ timeout: 10_000 });
 
-  // Verify DB
   const roleId = getCustomRoleByName(org.id, roleName);
   expect(roleId).toBeTruthy();
 
-  // Verify role appears in the list
   await expect(page.locator(`text=${roleName}`)).toBeVisible({ timeout: 10_000 });
 });
 
 test('managing permissions on a custom role via UI persists changes', async ({
   authedPage: page,
 }) => {
-  // Seed a custom role with no permissions (setup)
   const roleName = `PermRole${Date.now()}`;
   dbExec(
     `INSERT INTO role (name, description, organization_id, is_system_role) ` +
@@ -82,23 +83,18 @@ test('managing permissions on a custom role via UI persists changes', async ({
     10
   );
 
-  await page.goto('/organizations?tab=roles');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await openOrganizationsTab(page, 'roles', ownerShellOpts);
   await expect(page.getByTestId('role-list-panel')).toBeVisible({ timeout: 15_000 });
 
-  // Open row menu for the role
   const roleRow = page.locator('tr').filter({ hasText: roleName });
   await expect(roleRow).toBeVisible({ timeout: 10_000 });
   await roleRow.getByRole('button', { name: 'More role' }).click();
 
-  // Click "Manage Permissions"
   await page.getByRole('menuitem', { name: 'Manage Permissions' }).click();
 
-  // Dialog opens with a permission select and an "Add" button
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-  // Select a permission from the dropdown
   const selectTrigger = dialog.locator('[role="combobox"]');
   await expect(selectTrigger).toBeVisible({ timeout: 5_000 });
   await selectTrigger.click();
@@ -107,13 +103,9 @@ test('managing permissions on a custom role via UI persists changes', async ({
   await expect(firstOption).toBeVisible({ timeout: 5_000 });
   await firstOption.click();
 
-  // Click "Add"
   await dialog.getByRole('button', { name: 'Add' }).click();
-
-  // Wait for the API call to complete
   await page.waitForTimeout(2_000);
 
-  // Verify DB — permission count should have increased
   const permCountAfter = parseInt(
     dbExec(`SELECT count(*) FROM role_permission WHERE role_id = ${roleId}`),
     10
@@ -122,7 +114,6 @@ test('managing permissions on a custom role via UI persists changes', async ({
 });
 
 test('deleting a custom role via UI removes it from the database', async ({ authedPage: page }) => {
-  // Seed a custom role (setup)
   const roleName = `DelRole${Date.now()}`;
   dbExec(
     `INSERT INTO role (name, description, organization_id, is_system_role) ` +
@@ -130,21 +121,15 @@ test('deleting a custom role via UI removes it from the database', async ({ auth
   );
   expect(getCustomRoleByName(org.id, roleName)).toBeTruthy();
 
-  await page.goto('/organizations?tab=roles');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await openOrganizationsTab(page, 'roles', ownerShellOpts);
   await expect(page.getByTestId('role-list-panel')).toBeVisible({ timeout: 15_000 });
 
-  // Open row menu for the role
   const roleRow = page.locator('tr').filter({ hasText: roleName });
   await expect(roleRow).toBeVisible({ timeout: 10_000 });
   await roleRow.getByRole('button', { name: 'More role' }).click();
 
-  // Click "Delete Role" (no confirmation dialog — immediate action)
   await page.getByRole('menuitem', { name: 'Delete Role' }).click();
-
-  // Wait for role to disappear from the list
   await expect(roleRow).not.toBeVisible({ timeout: 10_000 });
 
-  // Verify DB
   expect(getCustomRoleByName(org.id, roleName)).toBeFalsy();
 });

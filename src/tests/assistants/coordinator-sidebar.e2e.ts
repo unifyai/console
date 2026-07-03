@@ -320,7 +320,7 @@ test.afterAll(() => {
   }
 });
 
-test('owner sees the Coordinator pinned with workspace chrome and no contract teardown', async ({
+test('owner sees the Coordinator pinned with workspace chrome and no contract teardown @critical @area(assistants.coordinator)', async ({
   ownerPage: page,
 }) => {
   await navigateToAssistants(page);
@@ -350,46 +350,24 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await expect(page.getByTestId('assistant-info-tab-profile')).toContainText('Profile');
 });
 
-test('organization admin cannot access another user coordinator in org workspace', async ({
-  adminPage: page,
+test('organization admin and member cannot access another user coordinator in org workspace @critical @area(assistants.coordinator)', async ({
+  adminPage,
+  memberPage,
 }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
-  await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
-    timeout: 15_000,
-  });
-  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
-  await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-});
-
-test('organization member cannot access another user coordinator in org workspace', async ({
-  memberPage: page,
-}) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
-  await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
-    timeout: 15_000,
-  });
-  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
-  await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).hover();
-  const infoToggle = page.getByTestId(`assistant-info-toggle-${regularAssistant.agentId}`);
-  const hasInfoToggle = (await infoToggle.count()) > 0;
-  if (hasInfoToggle) {
-    await openEditDialogFromList(page, regularAssistant.agentId);
-    await expect(page.getByRole('button', { name: /^End contract$/ })).toHaveCount(0);
-    await page.keyboard.press('Escape');
-  } else {
-    await expect(infoToggle).toHaveCount(0);
+  for (const page of [adminPage, memberPage]) {
+    await navigateToAssistants(page);
+    await closeHireDialogIfOpen(page);
+    await openUnitySwitcher(page);
+    await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
+    await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
+    await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
   }
 });
 
-test('personal workspace shows the personal Coordinator surface', async ({
+test('personal workspace shows the personal Coordinator surface @critical @area(assistants.coordinator)', async ({
   personalPage: page,
 }) => {
   await navigateToAssistants(page);

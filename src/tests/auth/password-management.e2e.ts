@@ -50,13 +50,13 @@ test.describe('Change Password', () => {
     );
     expect(changedAt).toBe('t');
 
-    // The session should be invalidated — navigate away and verify we're forced to re-login
-    await page.goto('/assistants');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
+    // The session should be invalidated — protected routes redirect to login.
+    await page.goto('/assistants', { waitUntil: 'commit' });
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
 
-    // Wait for any signout processing to complete before trying to login
+    await page.goto('/login');
     await page.waitForURL((url) => url.pathname === '/login' && !url.searchParams.has('signout'), {
-      timeout: 15000,
+      timeout: 15_000,
     });
 
     await loginAndWaitForRedirect(page, user.email, newPassword, 20_000);

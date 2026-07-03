@@ -11,6 +11,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
+import { setKnownVerificationCode } from '../helpers/e2e-helpers';
 
 export {
   createTestUser,
@@ -106,11 +107,17 @@ export async function loginAndWaitForRedirect(
 ) {
   await fillLoginForm(page, email, password);
   if (!page.url().includes('/login')) return;
+  const loginFormHidden = page
+    .getByTestId('email-login-form')
+    .waitFor({ state: 'hidden', timeout });
   await Promise.all([
-    page.waitForURL((url) => url.pathname !== '/login', {
-      timeout,
-      waitUntil: 'domcontentloaded',
-    }),
+    Promise.race([
+      page.waitForURL((url) => url.pathname !== '/login', {
+        timeout,
+        waitUntil: 'domcontentloaded',
+      }),
+      loginFormHidden,
+    ]),
     page.getByTestId('email-submit-btn').click(),
   ]);
 }
@@ -142,6 +149,145 @@ export async function enterVerificationCode(page: Page, code: string) {
   for (let i = 0; i < 6; i++) {
     await page.getByTestId(`code-digit-${i}`).fill(code[i]);
   }
+}
+
+/**
+ * Submit registration and reach post-auth state. Handles both Orchestra paths:
+ * email verification UI, or auto-verify + redirect when verification is skipped.
+ */
+export async function registerAndCompleteSignup(
+  page: Page,
+  email: string,
+  password: string
+): Promise<'verified' | 'auto'> {
+  await register(page, email, password);
+
+  await expect
+    .poll(
+      async () => {
+        const url = page.url();
+        if (/onboarding|\/assistants/.test(url)) return 'done';
+        if (
+          await page
+            .getByTestId('verification-code-input')
+            .isVisible()
+            .catch(() => false)
+        ) {
+          return 'verify';
+        }
+        if (
+          await page
+            .getByTestId('email-auth-error')
+            .isVisible()
+            .catch(() => false)
+        ) {
+          return 'error';
+        }
+        return 'pending';
+      },
+      { timeout: 20_000 }
+    )
+    .not.toBe('pending');
+
+  if (
+    await page
+      .getByTestId('email-auth-error')
+      .isVisible()
+      .catch(() => false)
+  ) {
+    const message = await page.getByTestId('email-auth-error').textContent();
+    throw new Error(`Registration failed: ${message ?? 'unknown error'}`);
+  }
+
+  if (
+    await page
+      .getByTestId('verification-code-input')
+      .isVisible()
+      .catch(() => false)
+  ) {
+    const code = setKnownVerificationCode(email, 'signup');
+    await enterVerificationCode(page, code);
+    await page.waitForURL(/onboarding|\/assistants/, { timeout: 20_000 });
+    return 'verified';
+  }
+
+  return 'auto';
+}
+
+/**
+ * Complete email registration through verification, without assuming a
+ * particular post-auth landing page (onboarding vs assistants).
+ */
+export async function registerThroughVerification(
+  page: Page,
+  email: string,
+  password: string
+): Promise<void> {
+  await register(page, email, password);
+
+  await expect
+    .poll(
+      async () => {
+        const url = page.url();
+        if (/onboarding|\/assistants/.test(url)) return 'done';
+        if (
+          await page
+            .getByTestId('verification-code-input')
+            .isVisible()
+            .catch(() => false)
+        ) {
+          return 'verify';
+        }
+        if (
+          await page
+            .getByTestId('email-auth-error')
+            .isVisible()
+            .catch(() => false)
+        ) {
+          return 'error';
+        }
+        return 'pending';
+      },
+      { timeout: 20_000 }
+    )
+    .not.toBe('pending');
+
+  if (
+    await page
+      .getByTestId('email-auth-error')
+      .isVisible()
+      .catch(() => false)
+  ) {
+    const message = await page.getByTestId('email-auth-error').textContent();
+    throw new Error(`Registration failed: ${message ?? 'unknown error'}`);
+  }
+
+  if (
+    await page
+      .getByTestId('verification-code-input')
+      .isVisible()
+      .catch(() => false)
+  ) {
+    const code = setKnownVerificationCode(email, 'signup');
+    await enterVerificationCode(page, code);
+    await page.waitForURL(/onboarding|\/assistants/, { timeout: 20_000 });
+  }
+}
+
+/** Open workspace onboarding when middleware does not auto-redirect there. */
+export async function ensureWorkspaceOnboardingPage(page: Page): Promise<void> {
+  if (!page.url().includes('/login/onboarding')) {
+    await page.goto('/login/onboarding', { waitUntil: 'domcontentloaded' });
+  }
+  await expect(page.getByTestId('workspace-personal')).toBeVisible({ timeout: 15_000 });
+}
+
+/** Whether the registration flow landed on the email verification step. */
+export async function registrationShowsVerificationStep(page: Page): Promise<boolean> {
+  return page
+    .getByTestId('verification-code-input')
+    .isVisible({ timeout: 10_000 })
+    .catch(() => false);
 }
 
 /** Enter a 6-digit TOTP code (auto-submits on 6th digit). */

@@ -120,6 +120,7 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
           return;
         }
 
+        await signOut({ redirect: false });
         toast.success('Account deleted successfully.');
         router.push('/login?signout=true');
       } catch {
@@ -143,6 +144,7 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
           return false;
         }
 
+        await signOut({ redirect: false });
         toast.success('Account deleted successfully.');
         setShowMfaModal(false);
         router.push('/login?signout=true');
@@ -307,7 +309,13 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
               setCredentials((prev) => (prev ? { ...prev, hasEmailAccount: true } : prev));
               setShowPasswordModal(false);
             }}
-            onSuccess={() => setShowPasswordModal(false)}
+            onSuccess={async () => {
+              setShowPasswordModal(false);
+              if (hasEmailAccount) {
+                await signOut({ redirect: false });
+                router.push('/login?signout=true');
+              }
+            }}
           />
         </DialogContent>
       </Dialog>

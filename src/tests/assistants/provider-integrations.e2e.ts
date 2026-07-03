@@ -138,41 +138,16 @@ async function openMockIntegrationsTab(page: Page) {
     window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
   });
   await page.goto(`/assistants?profile=${assistant.agentId}`);
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
-  const hasOnboardingSkip = await page
-    .waitForFunction(
-      () =>
-        Array.from(document.querySelectorAll('button')).some((candidate) =>
-          candidate.textContent?.includes('rather text')
-        ),
-      undefined,
-      { timeout: 10_000 }
-    )
-    .then(() => true)
-    .catch(() => false);
-  if (hasOnboardingSkip) {
-    await page.evaluate(() => {
-      const button = Array.from(document.querySelectorAll('button')).find((candidate) =>
-        candidate.textContent?.includes('rather text')
-      );
-      button?.click();
-    });
-  }
-  const skipChecklist = page.getByRole('button', { name: /skip onboarding/i });
-  if (await skipChecklist.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await skipChecklist.click();
-  }
-  await page.waitForTimeout(1_500);
 
   await openRailSection(page, 'integrations');
 
   const pane = page.getByTestId('integrations-pane');
-  await expect(pane).toBeVisible({ timeout: 5_000 });
+  await expect(pane).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('integration-gallery')).toBeVisible({ timeout: 10_000 });
 }
 
-test('mock connected-apps page shows dynamic apps, permissions, tools, and connect flow', async ({
+test('mock connected-apps page shows dynamic apps, permissions, tools, and connect flow @critical @area(assistants.integrations)', async ({
   authedPage: page,
 }) => {
   const policyPatchCalls = await installMockPolicyRoutes(page);

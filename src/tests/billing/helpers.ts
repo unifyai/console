@@ -46,19 +46,40 @@ export {
 export type { SeededOrg } from '../helpers/seeds/types';
 
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import {
+  deferCoordinatorAfterAssistantsLoad,
+  deferCoordinatorForUser,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
 export { login, switchToEmailTab };
 
 /** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
-export async function waitForAssistantsReady(page: Page) {
+export async function waitForAssistantsReady(
+  page: Page,
+  opts?: { userId: string; apiKey: string }
+) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
   await page.goto('/assistants');
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  if (opts) {
+    await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+    await dismissCoordinatorOnboardingIfOpen(page);
+  }
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible({ timeout: 10_000 });
 }
 
-/** Wait until the billing page has loaded its primary credits section. */
+/** Wait until the billing page has loaded (credits self-serve or metered plan layout). */
 export async function waitForBillingReady(page: Page) {
   await page.goto('/billing');
-  await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page.getByTestId('metered-plan-section').or(page.getByTestId('credits-balance-section'))
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 /** Local Orchestra enables manual-top-up mode — credits + top-up only, no Stripe UI. */
@@ -93,15 +114,46 @@ export async function waitForUsageReady(page: Page) {
   await expect(page.getByTestId('usage-filters-bar')).toBeVisible({ timeout: 15_000 });
 }
 
-/** Assert the rail onboard CTA is enabled (canonical billable action on /assistants). */
-export async function expectOnboardButtonEnabled(page: Page) {
-  await waitForAssistantsReady(page);
+async function openUnitySwitcherPopover(page: Page, opts?: { userId: string; apiKey: string }) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (!(await popover.isVisible({ timeout: 500 }).catch(() => false))) {
-    await page.getByTestId('rail-unity-switcher').click();
+    if (opts) {
+      await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+    }
+    await dismissCoordinatorOnboardingIfOpen(page);
+    const switcher = page.getByTestId('rail-unity-switcher');
+    await expect(switcher).toBeVisible({ timeout: 10_000 });
+    await switcher.click({ timeout: 10_000 });
   }
   await expect(popover).toBeVisible({ timeout: 5_000 });
+}
+
+/** Assert the rail onboard CTA is enabled (canonical billable action on /assistants). */
+export async function expectOnboardButtonEnabled(
+  page: Page,
+  opts?: { userId: string; apiKey: string }
+) {
+  await waitForAssistantsReady(page, opts);
+  await openUnitySwitcherPopover(page, opts);
   await expect(page.getByTestId('assistant-onboard-button')).toBeEnabled({ timeout: 10_000 });
+}
+
+/** Assert the rail onboard CTA is blocked when credits are exhausted. */
+export async function expectOnboardButtonDisabled(
+  page: Page,
+  opts?: { userId: string; apiKey: string }
+) {
+  await waitForAssistantsReady(page, opts);
+  await openUnitySwitcherPopover(page, opts);
+  await expect
+    .poll(async () => page.locator('[data-testid="billable-action-guard"]').isVisible(), {
+      timeout: 20_000,
+    })
+    .toBe(true);
+  await expect(page.getByTestId('assistant-onboard-button')).toBeDisabled({ timeout: 10_000 });
+  await expect(page.locator('[data-testid="billable-action-guard"]')).toBeVisible({
+    timeout: 5_000,
+  });
 }
 
 // =============================================================================
@@ -124,8 +176,12 @@ export async function expectOnboardButtonEnabled(page: Page) {
 export async function loginAndSaveState(
   browser: Browser,
   email: string,
-  password: string
+  password: string,
+  opts?: { userId?: string; apiKey?: string }
 ): Promise<string> {
+  if (opts?.userId && opts?.apiKey) {
+    await deferCoordinatorForUser(opts.userId, opts.apiKey);
+  }
   const stateFile = path.join(os.tmpdir(), `pw-billing-${email.replace(/[^a-z0-9]/gi, '-')}.json`);
 
   const ctx = await browser.newContext();
@@ -189,7 +245,7 @@ export async function loginAndNavigateTo(
  * For unauthenticated tests, use the built-in `page` fixture (fresh context).
  */
 export function createBillingTest(
-  user: { email: string; password: string },
+  user: { id: string; email: string; password: string; apiKey: string },
   opts?: { skipWhenManualTopup?: boolean }
 ) {
   let authFile: string | undefined;
@@ -198,17 +254,50 @@ export function createBillingTest(
     authedPage: async ({ browser }, use, testInfo) => {
       if (!authFile) {
         testInfo.setTimeout(testInfo.timeout + 30_000);
-        authFile = await loginAndSaveState(browser, user.email, user.password);
+        authFile = await loginAndSaveState(browser, user.email, user.password, {
+          userId: user.id,
+          apiKey: user.apiKey,
+        });
+        const warmCtx = await browser.newContext({ storageState: authFile });
+        const warmPage = await warmCtx.newPage();
+        await warmPage.addInitScript(() => {
+          try {
+            window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+          } catch {
+            /* private mode — ignore */
+          }
+        });
+        await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
+        await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
+        await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await warmCtx.storageState({ path: authFile });
+        await warmCtx.close();
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+        } catch {
+          /* private mode — ignore */
+        }
+      });
       if (opts?.skipWhenManualTopup) {
-        await waitForBillingReady(page);
-        if (await isManualTopupMode(page)) {
-          testInfo.skip(
-            true,
-            'Stripe subscription billing UI is unavailable in manual-top-up mode (local Orchestra).'
-          );
+        await page.goto('/billing');
+        const isMetered = await page
+          .getByTestId('metered-plan-section')
+          .isVisible({ timeout: 5_000 })
+          .catch(() => false);
+        if (!isMetered) {
+          await expect(page.getByTestId('credits-balance-section')).toBeVisible({
+            timeout: 15_000,
+          });
+          if (await isManualTopupMode(page)) {
+            testInfo.skip(
+              true,
+              'Stripe subscription billing UI is unavailable in manual-top-up mode (local Orchestra).'
+            );
+          }
         }
       }
       // eslint-disable-next-line react-hooks/rules-of-hooks

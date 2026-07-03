@@ -19,7 +19,10 @@ import {
   dbExec,
   getTeamByName,
   getTeamMemberCount,
+  openOrganizationsTab,
+  navigateToAppShellRoute,
 } from './helpers';
+import { deferCoordinatorOnboarding, getCoordinatorAgentId } from '../helpers/coordinator';
 
 const owner = createTestUser({ name: 'TeamOwner', lastName: 'Test', credits: 5_000 });
 const member = createTestUser({ name: 'TeamMember', lastName: 'Test', credits: 5_000 });
@@ -28,6 +31,15 @@ addMember({ orgId: org.id, userId: member.id, role: 'Member' });
 
 const test = createAccountTest(owner);
 test.setTimeout(90_000);
+
+const ownerShellOpts = { userId: owner.id, apiKey: owner.apiKey, orgId: org.id };
+
+async function openOrgTeamsTab(page: import('@playwright/test').Page) {
+  await openOrganizationsTab(page, 'teams', ownerShellOpts);
+  await expect(page.getByRole('button', { name: 'Create new team' })).toBeVisible({
+    timeout: 15_000,
+  });
+}
 
 const sharingOwner = createTestUser({ name: 'SharingOwner', lastName: 'Test', credits: 5_000 });
 const sharingMember = createTestUser({ name: 'SharingMember', lastName: 'Test', credits: 5_000 });
@@ -43,10 +55,38 @@ const sharingAssistant = createAssistant({
 const sharingTest = createAccountTest(sharingOwner);
 sharingTest.setTimeout(90_000);
 
+const sharingShellOpts = {
+  userId: sharingOwner.id,
+  apiKey: sharingOwner.apiKey,
+  orgId: sharingOrg.id,
+};
+
 const creationUser = createTestUser({ name: 'CreateOrgSharing', lastName: 'Test', credits: 5_000 });
 const creationTest = createAccountTest(creationUser);
 creationTest.setTimeout(90_000);
+const creationShellOpts = { userId: creationUser.id, apiKey: creationUser.apiKey };
 let createdDialogOrgId: number | null = null;
+
+test.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(owner.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(owner.apiKey, coordinatorId);
+  }
+});
+
+sharingTest.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(sharingOwner.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(sharingOwner.apiKey, coordinatorId);
+  }
+});
+
+creationTest.beforeAll(async () => {
+  const coordinatorId = getCoordinatorAgentId(creationUser.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(creationUser.apiKey, coordinatorId);
+  }
+});
 
 test.afterAll(() => {
   deleteOrg(org.id);
@@ -65,155 +105,60 @@ creationTest.afterAll(() => {
   cleanupUser(creationUser.id);
 });
 
-test('creating a team via UI adds it to the database', async ({ authedPage: page }) => {
-  const teamName = `Team${Date.now()}`;
-
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
-
-  // Open create team dialog
-  await page.getByRole('button', { name: 'Create new team' }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible({ timeout: 5_000 });
-
-  // Fill team name
-  await dialog.getByPlaceholder('Team Name').fill(teamName);
-
-  // Submit
-  await dialog.getByRole('button', { name: 'Create' }).click();
-
-  // Wait for dialog to close
-  await expect(dialog).not.toBeVisible({ timeout: 10_000 });
-
-  // Verify team exists in DB
-  await expect.poll(() => getTeamByName(org.id, teamName) ?? '', { timeout: 15_000 }).not.toBe('');
-  const teamId = getTeamByName(org.id, teamName);
-  expect(teamId).toBeTruthy();
-
-  // Verify team appears in the list
-  await expect(page.locator(`text=${teamName}`)).toBeVisible({ timeout: 10_000 });
-});
-
-test('adding a member to a team via UI creates a team_member record', async ({
+test('team lifecycle via UI creates, adds a member, removes a member, and deletes @critical @area(workspace)', async ({
   authedPage: page,
 }) => {
-  // Seed a team (setup, not action under test)
-  const teamName = `AddMbrTeam${Date.now()}`;
-  dbExec(
-    `INSERT INTO team (name, description, organization_id) VALUES ('${teamName}', 'test', ${org.id})`
-  );
-  const teamId = getTeamByName(org.id, teamName)!;
-  expect(getTeamMemberCount(teamId)).toBe(0);
+  const teamName = `Team${Date.now()}`;
 
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
-
-  // Open row menu for the team
-  const teamRow = page.locator('tr').filter({ hasText: teamName });
-  await expect(teamRow).toBeVisible({ timeout: 10_000 });
-  await teamRow.getByRole('button', { name: 'More team' }).click();
-
-  // Click "Add member"
-  await page.getByRole('menuitem', { name: 'Add member' }).click();
-
-  // Dialog opens with a member select
-  const dialog = page.getByRole('dialog');
+  await openOrgTeamsTab(page);
+  await page.getByRole('button', { name: 'Create new team' }).click();
+  let dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });
-
-  // Select a member from the dropdown
-  await dialog.locator('[role="combobox"]').click();
-  await page.getByRole('option').first().click();
-
-  // Submit
-  await dialog.getByRole('button', { name: 'Add' }).click();
-
-  // Wait for dialog to close
+  await dialog.getByPlaceholder('Team Name').fill(teamName);
+  await dialog.getByRole('button', { name: 'Create' }).click();
   await expect(dialog).not.toBeVisible({ timeout: 10_000 });
 
-  // Verify DB
+  await expect.poll(() => getTeamByName(org.id, teamName) ?? '', { timeout: 15_000 }).not.toBe('');
+  const teamId = getTeamByName(org.id, teamName)!;
+  expect(teamId).toBeTruthy();
+  await expect(page.locator(`text=${teamName}`)).toBeVisible({ timeout: 10_000 });
+  expect(getTeamMemberCount(teamId)).toBe(0);
+
+  let teamRow = page.locator('tr').filter({ hasText: teamName });
+  await teamRow.getByRole('button', { name: 'More team' }).click();
+  await page.getByRole('menuitem', { name: 'Add member' }).click();
+  dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible({ timeout: 5_000 });
+  await dialog.locator('[role="combobox"]').click();
+  await page.getByRole('option').first().click();
+  await dialog.getByRole('button', { name: 'Add' }).click();
+  await expect(dialog).not.toBeVisible({ timeout: 10_000 });
   await expect
     .poll(() => getTeamMemberCount(teamId), { timeout: 15_000 })
     .toBeGreaterThanOrEqual(1);
-});
 
-test('removing a member from a team via UI removes the team_member record', async ({
-  authedPage: page,
-}) => {
-  // Seed a team with a member (setup)
-  const teamName = `RmMbrTeam${Date.now()}`;
-  dbExec(
-    `INSERT INTO team (name, description, organization_id) VALUES ('${teamName}', 'test', ${org.id})`
-  );
-  const teamId = getTeamByName(org.id, teamName)!;
-  dbExec(
-    `INSERT INTO team_member (team_id, user_id) VALUES (${teamId}, '${member.id}') ON CONFLICT DO NOTHING`
-  );
-  expect(getTeamMemberCount(teamId)).toBe(1);
-
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
-
-  // Open row menu for the team
-  const teamRow = page.locator('tr').filter({ hasText: teamName });
-  await expect(teamRow).toBeVisible({ timeout: 10_000 });
+  teamRow = page.locator('tr').filter({ hasText: teamName });
   await teamRow.getByRole('button', { name: 'More team' }).click();
-
-  // Click "Remove member"
   await page.getByRole('menuitem', { name: 'Remove member' }).click();
-
-  // Dialog opens with a member-to-remove select
-  const dialog = page.getByRole('dialog');
+  dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });
-
-  // Select the member to remove
   await dialog.locator('[role="combobox"]').click();
   await page.getByRole('option').first().click();
-
-  // Submit
   await dialog.getByRole('button', { name: 'Remove' }).click();
-
-  // Wait for dialog to close
   await expect(dialog).not.toBeVisible({ timeout: 10_000 });
-
-  // Verify DB
   expect(getTeamMemberCount(teamId)).toBe(0);
-});
 
-test('deleting a team via UI removes it from the database', async ({ authedPage: page }) => {
-  // Seed a team (setup)
-  const teamName = `DelTeam${Date.now()}`;
-  dbExec(
-    `INSERT INTO team (name, description, organization_id) VALUES ('${teamName}', 'test', ${org.id})`
-  );
-  expect(getTeamByName(org.id, teamName)).toBeTruthy();
-
-  await page.goto('/organizations?tab=teams');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
-
-  // Open row menu for the team
-  const teamRow = page.locator('tr').filter({ hasText: teamName });
-  await expect(teamRow).toBeVisible({ timeout: 10_000 });
+  teamRow = page.locator('tr').filter({ hasText: teamName });
   await teamRow.getByRole('button', { name: 'More team' }).click();
-
-  // Click "Delete team" (no confirmation dialog — immediate action)
   await page.getByRole('menuitem', { name: 'Delete team' }).click();
-
-  // Wait for team to disappear from the list
   await expect(teamRow).not.toBeVisible({ timeout: 10_000 });
-
-  // Verify DB
   expect(getTeamByName(org.id, teamName)).toBeFalsy();
 });
 
 sharingTest(
   'org-wide sharing toggle manages the Org team lifecycle',
   async ({ authedPage: page }) => {
-    await page.goto('/organizations?tab=teams');
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await openOrganizationsTab(page, 'teams', sharingShellOpts);
     await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
 
     await page.getByTestId('org-sharing-toggle').click();
@@ -263,8 +208,7 @@ creationTest(
   async ({ authedPage: page }) => {
     const orgName = `DialogSharedOrg${Date.now()}`;
 
-    await page.goto('/organizations');
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await navigateToAppShellRoute(page, '/organizations', creationShellOpts);
     await page.getByRole('button', { name: 'Create organization' }).click();
 
     const dialog = page.getByRole('dialog');

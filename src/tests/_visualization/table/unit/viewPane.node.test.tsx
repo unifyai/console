@@ -59,7 +59,7 @@ describe('ViewPane - Empty State', () => {
     const onClose = vi.fn();
     render(<ViewPane selectedCells={[]} onClose={onClose} />);
 
-    expect(screen.getByText(/Ctrl\+click or Shift\+click/)).toBeInTheDocument();
+    expect(screen.getByText(/Ctrl \+ Click/)).toBeInTheDocument();
   });
 
   it('calls onClose when close button clicked', () => {
@@ -88,8 +88,7 @@ describe('ViewPane - Single Cell', () => {
     render(<ViewPane selectedCells={[cell]} onClose={vi.fn()} />);
 
     expect(screen.getByText('username')).toBeInTheDocument();
-    expect(screen.getByText(/Row 5/)).toBeInTheDocument();
-    expect(screen.getByText(/(abc123)/)).toBeInTheDocument();
+    expect(screen.getByText('[6]')).toBeInTheDocument();
   });
 
   it('displays string value correctly', () => {
@@ -103,7 +102,7 @@ describe('ViewPane - Single Cell', () => {
     const cell = createCellData();
     render(<ViewPane selectedCells={[cell]} onClose={vi.fn()} />);
 
-    expect(screen.getByText('1 cell selected')).toBeInTheDocument();
+    expect(screen.getByText('1 cell · 1 field')).toBeInTheDocument();
   });
 });
 
@@ -141,19 +140,19 @@ describe('ViewPane - Multiple Cells', () => {
 
     render(<ViewPane selectedCells={cells} onClose={vi.fn()} />);
 
-    expect(screen.getByText('3 cells selected')).toBeInTheDocument();
+    expect(screen.getByText('3 cells · 1 field')).toBeInTheDocument();
   });
 
   it('shows row numbers for each cell', () => {
     const cells = [
-      createCellData({ cellId: '0_name', rowIndex: 1 }),
-      createCellData({ cellId: '1_name', rowIndex: 2, rowId: '1' }),
+      createCellData({ cellId: '0_name', rowIndex: 1, value: 'Alpha' }),
+      createCellData({ cellId: '1_name', rowIndex: 2, rowId: '1', value: 'Beta' }),
     ];
 
     render(<ViewPane selectedCells={cells} onClose={vi.fn()} />);
 
-    expect(screen.getByText(/Row 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Row 2/)).toBeInTheDocument();
+    expect(screen.getByText('[2]')).toBeInTheDocument();
+    expect(screen.getByText('[3]')).toBeInTheDocument();
   });
 });
 
@@ -199,7 +198,7 @@ describe('ViewPane - Row Viewing', () => {
 
     // Should show field count (row mode), not cell count
     expect(screen.getByText('3 fields')).toBeInTheDocument();
-    expect(screen.queryByText('1 cell selected')).not.toBeInTheDocument();
+    expect(screen.queryByText('1 cell · 1 field')).not.toBeInTheDocument();
   });
 
   it('field accordion entries are collapsible', () => {
@@ -233,7 +232,7 @@ describe('ViewPane - Focused Field', () => {
     );
 
     // The focused field entry should have the accent highlight class
-    const focusedDiv = container.querySelector('.bg-accent\\/50');
+    const focusedDiv = container.querySelector('.bg-accent\\/30');
     expect(focusedDiv).not.toBeNull();
   });
 
@@ -245,7 +244,7 @@ describe('ViewPane - Focused Field', () => {
     );
 
     // No field should have the accent class since "nonexistent" isn't a real field
-    const focusedDivs = container.querySelectorAll('.bg-accent\\/50');
+    const focusedDivs = container.querySelectorAll('.bg-accent\\/30');
     expect(focusedDivs.length).toBe(0);
   });
 });
@@ -259,14 +258,14 @@ describe('ViewPane - Edge Cases', () => {
     const cell = createCellData({ rowDataId: undefined });
     render(<ViewPane selectedCells={[cell]} onClose={vi.fn()} />);
 
-    expect(screen.getByText(/Row 1/)).toBeInTheDocument();
+    expect(screen.getByText('[2]')).toBeInTheDocument();
   });
 
   it('handles undefined rowIndex', () => {
     const cell = createCellData({ rowIndex: undefined, rowId: '5' });
     render(<ViewPane selectedCells={[cell]} onClose={vi.fn()} />);
 
-    expect(screen.getByText(/Row 6/)).toBeInTheDocument();
+    expect(screen.getByText('[6]')).toBeInTheDocument();
   });
 
   it('handles very long strings', () => {

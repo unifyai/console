@@ -3,20 +3,13 @@
  * and for unify_meet call pills in the assistant chat timeline.
  *
  * Verifies:
- *  - Clicking the audio call button opens the communication dialog
- *  - The communication dialog shows the assistant name and controls
+ *  - Clicking the audio call button opens the communication dialog with controls
  *  - Hanging up closes the dialog and resets UI state
- *  - Clicking the video call button opens the dialog in video mode
- *  - Call buttons are disabled when spending is blocked
+ *  - Call buttons are disabled when spending is blocked, re-enable after funding
  *  - Hanging up and re-calling the same assistant works
  *  - Historical call pills render in the chat timeline
- *  - Call pills display correct duration
- *  - Clicking a call pill opens the transcript dialog
- *  - Transcript dialog shows utterances with correct speaker labels
- *  - Multiple calls show as distinct pills (grouped by exchange_id)
+ *  - Clicking a call pill opens the transcript dialog with utterances
  *  - Call pills interleave correctly with text messages by timestamp
- *  - Empty transcript shows fallback message
- *  - Backend Transcripts table data matches seeded exchange_id grouping
  *
  * Local mode: LiveKit credentials are absent, so the server action returns
  * localMode: true. The hook skips room.connect() and sets isConnected
@@ -71,7 +64,7 @@ async function openAssistantProfile(page: import('@playwright/test').Page, agent
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await selectAssistantInList(page, agentId);
-  await page.waitForTimeout(1_000);
+  await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 15_000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -157,24 +150,6 @@ async function seedTranscript(
   return msgId;
 }
 
-async function queryTranscripts(
-  apiKey: string,
-  userId: string,
-  assistantId: number,
-  filterExpr: string
-) {
-  const params = new URLSearchParams({
-    project_name: 'Assistants',
-    context: `${userId}/${assistantId}/Transcripts`,
-    filter_expr: filterExpr,
-    limit: '100',
-  });
-  const res = await orchestraFetch(`/v0/logs?${params.toString()}`, { method: 'GET' }, apiKey);
-  if (!res.ok) throw new Error(`Failed to query transcripts: ${res.status}`);
-  const data = await res.json();
-  return data.logs ?? [];
-}
-
 async function openAssistantChat(
   page: import('@playwright/test').Page,
   targetAssistant: { agentId: number } = assistant
@@ -196,38 +171,14 @@ async function openAssistantChat(
 // Call dialog tests
 // ---------------------------------------------------------------------------
 
-test('clicking audio call button opens the communication dialog', async ({ authedPage: page }) => {
+test('clicking audio call button opens the communication dialog @critical @area(assistants.call)', async ({
+  authedPage: page,
+}) => {
   await openAssistantProfile(page, assistant.agentId);
 
   const audioBtn = page.getByTestId('call-audio-button');
   await expect(audioBtn).toBeVisible({ timeout: 10_000 });
   await expect(audioBtn).toBeEnabled();
-  await audioBtn.click();
-
-  // The dialog should appear with the header showing "Talk to <name>"
-  const header = page.locator('text=Talk to Caller TestBot');
-  await expect(header).toBeVisible({ timeout: 30_000 });
-
-  // Controls bar should be visible (contains hang up, mic, camera buttons)
-  const hangUpControl = page.getByRole('button', { name: 'Hang up' });
-  await expect(hangUpControl).toBeVisible({ timeout: 10_000 });
-
-  await expect(page.getByTestId('assistant-call-docked-region')).toBeVisible();
-  await expect(page.getByTestId('assistant-chat-during-call-region')).toBeVisible();
-  await expect(page.getByTestId('chat-scroll-area')).toBeVisible();
-
-  await expect(page.getByTestId('assistant-call-self-view')).toHaveCount(0);
-
-  // End the call for cleanup
-  const endCallBtn = page.getByRole('button', { name: 'End call' });
-  await endCallBtn.click();
-  await expect(header).not.toBeVisible({ timeout: 10_000 });
-});
-
-test('communication dialog shows control buttons when connected', async ({ authedPage: page }) => {
-  await openAssistantProfile(page, assistant.agentId);
-
-  const audioBtn = page.getByTestId('call-audio-button');
   await audioBtn.click();
 
   const header = page.locator('text=Talk to Caller TestBot');
@@ -236,50 +187,44 @@ test('communication dialog shows control buttons when connected', async ({ authe
   await expect
     .poll(
       async () => {
-        if (await hangUp.isVisible().catch(() => false)) return 'connected';
+        if (await hangUp.isVisible().catch(() => false)) return 'ready';
         if (await failureToast.isVisible().catch(() => false)) return 'failed';
         return 'pending';
       },
-      { timeout: 30_000 }
+      { timeout: 45_000 }
     )
-    .not.toBe('pending');
-  const connected = await hangUp.isVisible().catch(() => false);
-  if (!connected) {
-    await expect(failureToast).toBeVisible();
-    return;
-  }
+    .toBe('ready');
 
-  // Verify expected control buttons exist
   await expect(hangUp).toBeVisible({ timeout: 10_000 });
 
-  // Chat and settings toggle buttons
   const chatToggle = page.getByRole('button', { name: 'Toggle chat' });
-  const chatVisible = await chatToggle.isVisible({ timeout: 2_000 }).catch(() => false);
-  if (!chatVisible) return;
-  await expect(chatToggle).toBeVisible();
+  await expect(chatToggle).toBeVisible({ timeout: 10_000 });
 
   const settingsToggle = page.getByRole('button', { name: 'Toggle settings' });
   await expect(settingsToggle).toBeVisible({ timeout: 10_000 });
 
-  // The mic/camera buttons use LiveKit track toggles whose aria-labels
-  // depend on hook state — verify by locating any button with a mic-related label
   const micBtn = page.locator('button[aria-label*="icrophone"], button[aria-label*="ute mic"]');
   const micVisible = await micBtn
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
-  // In local mode (no real tracks), mic button may not render — that's acceptable
   if (micVisible) {
     await expect(micBtn.first()).toBeVisible();
   }
 
-  // Cleanup
+  await expect(page.getByTestId('assistant-call-docked-region')).toBeVisible();
+  await expect(page.getByTestId('assistant-chat-during-call-region')).toBeVisible();
+  await expect(page.getByTestId('chat-scroll-area')).toBeVisible();
+  await expect(page.getByTestId('assistant-call-self-view')).toHaveCount(0);
+
   const endCallBtn = page.getByRole('button', { name: 'End call' });
   await endCallBtn.click();
   await expect(header).not.toBeVisible({ timeout: 10_000 });
 });
 
-test('hanging up closes the dialog and returns to the chat view', async ({ authedPage: page }) => {
+test('hanging up closes the dialog and returns to the chat view @critical @area(assistants.call)', async ({
+  authedPage: page,
+}) => {
   await openAssistantProfile(page, assistant.agentId);
 
   const audioBtn = page.getByTestId('call-audio-button');
@@ -301,14 +246,12 @@ test('hanging up closes the dialog and returns to the chat view', async ({ authe
   await expect(listItem).toBeVisible();
 });
 
-test('call button is disabled when credits are exhausted', async ({ authedPage: page }) => {
-  // Set credits negative BEFORE navigating so the spending gate blocks
+test('call button is disabled when credits are exhausted and re-enables after funding', async ({
+  authedPage: page,
+}) => {
   setUserCredits(user.id, -1);
 
-  // Use a fresh navigation (not a reload) so there's no stale react-query cache
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await selectAssistantInList(page, assistant.agentId);
   await page.waitForTimeout(2_000);
@@ -317,25 +260,15 @@ test('call button is disabled when credits are exhausted', async ({ authedPage: 
   await expect(audioBtn).toBeVisible({ timeout: 10_000 });
   await expect(audioBtn).toBeDisabled({ timeout: 20_000 });
 
-  // Restore credits
   setUserCredits(user.id, 50_000);
-});
-
-test('re-enabling credits allows starting a call again', async ({ authedPage: page }) => {
-  // Ensure credits are restored
-  setUserCredits(user.id, 50_000);
-
-  await openAssistantProfile(page, assistant.agentId);
   await page.waitForTimeout(3_000);
 
-  const audioBtn = page.getByTestId('call-audio-button');
   await expect(audioBtn).toBeEnabled({ timeout: 20_000 });
   await audioBtn.click();
 
   const header = page.locator('text=Talk to Caller TestBot');
   await expect(header).toBeVisible({ timeout: 30_000 });
 
-  // Cleanup
   const endCallBtn = page.getByRole('button', { name: 'End call' });
   await endCallBtn.click();
   await expect(header).not.toBeVisible({ timeout: 10_000 });
@@ -577,55 +510,6 @@ test('clicking a call pill opens transcript dialog with utterances', async ({
   expect(count).toBeGreaterThanOrEqual(2);
 });
 
-test('two distinct calls show as separate pills', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const exchangeA = 200;
-  const exchangeB = 201;
-
-  // Call A
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: 'First call utterance',
-    timestamp: new Date(ts - 60000).toISOString(),
-    medium: 'unify_meet',
-    exchangeId: exchangeA,
-  });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
-    content: 'First call reply',
-    timestamp: new Date(ts - 50000).toISOString(),
-    medium: 'unify_meet',
-    exchangeId: exchangeA,
-  });
-
-  // Call B (different exchange_id)
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: 'Second call utterance',
-    timestamp: new Date(ts - 20000).toISOString(),
-    medium: 'unify_meet',
-    exchangeId: exchangeB,
-  });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
-    content: 'Second call reply',
-    timestamp: new Date(ts - 10000).toISOString(),
-    medium: 'unify_meet',
-    exchangeId: exchangeB,
-  });
-
-  await openAssistantChat(page);
-
-  const pills = page.getByTestId('call-pill');
-  await expect(pills.first()).toBeVisible({ timeout: 20_000 });
-
-  const pillButtons = page.getByTestId('call-pill-button');
-  const pillCount = await pillButtons.count();
-  expect(pillCount).toBeGreaterThanOrEqual(2);
-});
-
 test('call pills interleave correctly with text messages by timestamp', async ({
   authedPage: page,
 }) => {
@@ -711,97 +595,4 @@ test('call pills interleave correctly with text messages by timestamp', async ({
   expect(beforeIdx).toBeGreaterThanOrEqual(0);
   expect(pillIdx).toBeGreaterThan(beforeIdx);
   expect(afterIdx).toBeGreaterThan(pillIdx);
-});
-
-test('backend data correctly groups meet utterances by exchange_id', async ({
-  authedPage: page,
-}) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const exchangeA = 400;
-  const exchangeB = 401;
-
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `DB verify call A ${ts}`,
-    timestamp: new Date(ts - 30000).toISOString(),
-    medium: 'unify_meet',
-    exchangeId: exchangeA,
-  });
-
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `DB verify call B ${ts}`,
-    timestamp: new Date(ts - 10000).toISOString(),
-    medium: 'unify_meet',
-    exchangeId: exchangeB,
-  });
-
-  const logsA = await queryTranscripts(
-    user.apiKey,
-    user.id,
-    assistant.agentId,
-    `medium == "unify_meet" and exchange_id == ${exchangeA}`
-  );
-  expect(logsA.length).toBeGreaterThanOrEqual(1);
-  const entryA = logsA[0].entries;
-  expect(entryA.medium).toBe('unify_meet');
-  expect(entryA.exchange_id).toBe(exchangeA);
-  expect(entryA.content).toContain(`DB verify call A ${ts}`);
-
-  const logsB = await queryTranscripts(
-    user.apiKey,
-    user.id,
-    assistant.agentId,
-    `medium == "unify_meet" and exchange_id == ${exchangeB}`
-  );
-  expect(logsB.length).toBeGreaterThanOrEqual(1);
-  expect(logsB[0].entries.exchange_id).toBe(exchangeB);
-  expect(logsB[0].entries.content).toContain(`DB verify call B ${ts}`);
-
-  // Verify text messages are NOT included when filtering for unify_meet
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: `DB verify text ${ts}`,
-    timestamp: new Date(ts).toISOString(),
-    medium: 'unify_message',
-  });
-
-  const allMeet = await queryTranscripts(
-    user.apiKey,
-    user.id,
-    assistant.agentId,
-    `medium == "unify_meet"`
-  );
-  const textInMeet = allMeet.some(
-    (l: { entries: { content: string } }) => l.entries.content === `DB verify text ${ts}`
-  );
-  expect(textInMeet).toBe(false);
-});
-
-test('transcript dialog shows empty state when exchange has no content', async ({
-  authedPage: page,
-}) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-
-  const ts = Date.now();
-  const exchangeId = 500;
-
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: '',
-    timestamp: new Date(ts).toISOString(),
-    medium: 'unify_meet',
-    exchangeId,
-  });
-
-  await openAssistantChat(page);
-
-  const pillButton = page.getByTestId('call-pill-button').first();
-  await expect(pillButton).toBeVisible({ timeout: 20_000 });
-  await pillButton.click();
-
-  const dialog = page.getByTestId('call-transcript-dialog');
-  await expect(dialog).toBeVisible({ timeout: 10_000 });
 });

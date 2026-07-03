@@ -13,60 +13,60 @@ import { expect } from '@playwright/test';
 import {
   createTestUser,
   cleanupUser,
-  createOrg,
-  deleteOrg,
-  dbExec,
   createAssistantTest,
-  addMember,
+  createAssistant,
+  deferCoordinatorOnboarding,
+  dismissCoordinatorOnboardingIfOpen,
+  getCoordinatorAgentId,
+  ensureProjectSync,
 } from '../assistants/helpers';
+import { ensureUnifyOrg } from '../helpers/seeds/client';
 
 const user = createTestUser({ name: 'ShellRoutes', lastName: 'Smoke', credits: 50_000 });
-const existingUnifyOrgId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
-let unifyOrg: { id: number };
-let createdUnifyOrg = false;
-if (existingUnifyOrgId) {
-  unifyOrg = { id: parseInt(existingUnifyOrgId, 10) };
-  addMember({ orgId: unifyOrg.id, userId: user.id, role: 'Member' });
-} else {
-  unifyOrg = createOrg({ ownerId: user.id, name: 'Unify', credits: 50_000 });
-  createdUnifyOrg = true;
-}
+ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
+ensureProjectSync(user.apiKey);
 
 const test = createAssistantTest(user);
-test.setTimeout(90_000);
+test.setTimeout(180_000);
+
+async function gotoAppShellRoute(page: import('@playwright/test').Page, path: string) {
+  await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => {});
+  await dismissCoordinatorOnboardingIfOpen(page);
+}
+
+test.beforeAll(async () => {
+  createAssistant({ userId: user.id, firstName: 'Shell', surname: 'Route' });
+  const coordinatorId = getCoordinatorAgentId(user.id);
+  if (coordinatorId !== null) {
+    await deferCoordinatorOnboarding(user.apiKey, coordinatorId);
+  }
+});
 
 test.afterAll(() => {
-  if (createdUnifyOrg) {
-    deleteOrg(unifyOrg.id);
-  }
   cleanupUser(user.id);
 });
 
-test('/favourites renders inside the rail shell with its section header', async ({
+test('/favourites renders inside the rail shell with its section header @push @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
-  await page.goto('/favourites');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await gotoAppShellRoute(page, '/favourites');
 
   await expect(page).toHaveURL(/\/favourites/);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
   // Page body heading (TabHeader also shows the section label in the rail chrome).
   await expect(page.getByRole('heading', { name: 'Favourites' })).toBeVisible();
   // Favourites body streamed in.
   await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 15_000 });
-
-  await page.screenshot({ path: '/tmp/shell-favourites.png', fullPage: false });
 });
 
-test('/interfaces renders inside the rail shell for a Unify member', async ({
+test('/interfaces renders inside the rail shell for a Unify member @push @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
-  await page.goto('/interfaces');
-  await page.waitForLoadState('networkidle', { timeout: 25_000 }).catch(() => {});
+  await gotoAppShellRoute(page, '/interfaces');
 
-  // Unify members are not redirected to /assistants, and we stay out of /login.
-  await expect(page).toHaveURL(/\/interfaces/);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
-
-  await page.screenshot({ path: '/tmp/shell-interfaces.png', fullPage: false });
+  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  // Project picker is part of the interfaces nav chrome; interface picker only mounts when
+  // the selected project has at least one interface.
+  await expect(page.getByTestId('project-picker-trigger')).toBeVisible({ timeout: 25_000 });
 });

@@ -29,7 +29,7 @@ describe('commsCredentialsConfigured', () => {
   });
 
   it('returns false for a relative credentials file path that does not exist', () => {
-    process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS = 'comms_sa_credentials.json';
+    process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS = './missing-comms-creds-test-only.json';
     expect(commsCredentialsConfigured()).toBe(false);
   });
 

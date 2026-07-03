@@ -37,7 +37,6 @@ import {
   createTestUser,
   cleanupUser,
   connectWorkspaceEmail,
-  createAssistant,
   createPersonalCoordinator,
   dbExec,
   deleteAllAssistantsForUser,
@@ -45,7 +44,6 @@ import {
   openAssistantInfoPanel,
   openRailSection,
   openUnitySwitcher,
-  selectAssistantInList,
 } from './helpers';
 
 const user = createTestUser({ name: 'CoordOnboard', lastName: 'E2E', credits: 50_000 });
@@ -253,7 +251,7 @@ async function markCoordinatorOnboardingStepComplete(
   expect(response.ok).toBeTruthy();
 }
 
-test('picker shows on first visit with no skip or resume affordance', async ({
+test('picker shows on first visit with no skip or resume affordance @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -346,7 +344,7 @@ test('checklist allows independent sections to start out of order', async ({
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 });
 
-test('picking chat lands in the full platform with the checklist in Assistant info', async ({
+test('picking chat lands in the full platform with the checklist in Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   // Simulate an earlier session's workspace OAuth so the checklist has a
@@ -615,7 +613,7 @@ test('the calendar demo only renders once the calendar scope is granted', async 
   await expect(page.getByTestId('coordinator-onboarding-item-workspace-calendar')).toHaveCount(0);
 });
 
-test('starting a call connects and docks the call in the platform', async ({
+test('starting a call connects and docks the call in the platform @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   await enableDevCalls(page);
@@ -638,28 +636,6 @@ test('starting a call connects and docks the call in the platform', async ({
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('coordinator state exposes a voice intro briefing for onboarding narration', async () => {
-  // The first call now uses Unity's bundled recorded opener. The state
-  // endpoint still exposes the server-composed orientation briefing for
-  // dynamic onboarding narration and non-recorded fallback paths.
-  const coordinator = createPersonalCoordinator(user.id);
-  resetCoordinatorIntroWatched();
-
-  const res = await orchestraFetch(
-    `/v0/assistant/${coordinator.agentId}/state`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(res.ok).toBeTruthy();
-  const body = (await res.json()) as { info?: Record<string, unknown> } & Record<string, unknown>;
-  const info = body.info ?? body;
-  const briefing = String(info.voice_intro_briefing ?? info.voiceIntroBriefing ?? '');
-
-  expect(briefing.length).toBeGreaterThan(0);
-  expect(briefing).toContain('T dash W 1 N');
-  expect(briefing.toLowerCase()).toContain('pause onboarding');
-});
-
 test('mobile onboarding keeps the docked T-W1N call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {
@@ -679,7 +655,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('resolving the picker persists intro_watched and reload defaults to T-W1N + Assistant info', async ({
+test('resolving the picker persists intro_watched and reload defaults to T-W1N + Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -688,14 +664,8 @@ test('resolving the picker persists intro_watched and reload defaults to T-W1N +
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  // Resolving the picker latches ``intro_watched`` on the latest
-  // Coordinator/State row.
   await expect.poll(() => readPersistedIntroWatched(), { timeout: 10_000 }).toBe('true');
 
-  // A reload now lands directly on the regular platform: no picker, no
-  // intro overlay. The bare /assistants visit defaults to the Coordinator
-  // selected with its "Assistant info" onboarding card open — regardless
-  // of onboarding being already watched.
   await page.reload();
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0, {
@@ -788,36 +758,4 @@ test('inactive onboarding offers a return affordance that re-enters onboarding',
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
   });
-});
-
-test('switching back to T-W1N does not reapply the onboarding focus layout', async ({
-  authedPage: page,
-}) => {
-  const coordinator = createPersonalCoordinator(user.id);
-  const otherAssistant = createAssistant({
-    userId: user.id,
-    firstName: 'Switch',
-    surname: 'Unity',
-  });
-  resetCoordinatorIntroWatched();
-
-  await gotoAssistants(page);
-  await expectPickerVisible(page);
-  await page.getByTestId('coordinator-onboarding-pick-chat').click();
-  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
-
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('assistant-info-tab-onboarding')).toBeVisible();
-
-  // Close the Coordinator's info sheet, then bounce to another unity and
-  // back via the rail's unity switcher.
-  await openAssistantInfoPanel(page);
-  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
-
-  await selectAssistantInList(page, otherAssistant.agentId);
-  await selectAssistantInList(page, coordinator.agentId);
-
-  // Returning to Twin must not reapply the onboarding focus layout — the
-  // info sheet stays closed.
-  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 });

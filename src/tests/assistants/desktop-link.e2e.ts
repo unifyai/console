@@ -37,6 +37,7 @@ import {
   setDesktopSftpTunnelId,
   getDesktopSftpTunnelId,
   ensureProjectSync,
+  navigateToAssistants,
   openUnitySwitcher,
   openDesktopLinkerFromList,
 } from './helpers';
@@ -59,9 +60,7 @@ test.afterAll(() => {
 });
 
 async function navigateForLinker(page: Page) {
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await navigateToAssistants(page);
 }
 
 /**

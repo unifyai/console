@@ -22,6 +22,7 @@ import {
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import {
   groupAssistantsByTeam,
   type AssistantListEntry,
@@ -225,6 +226,9 @@ export function AssistantList({
   const showHireButton = canHire;
   const isHireButtonDisabled = isLoading || !canHireNewAssistant;
 
+  const renderOnboardButton = (button: React.ReactElement) =>
+    showHireButton ? <BillableActionGuard>{button}</BillableActionGuard> : null;
+
   const renderAssistantRow = React.useCallback(
     (entry: AssistantListEntry, key: string) => {
       const item = (
@@ -421,7 +425,7 @@ export function AssistantList({
       >
         {isFolded ? (
           <div className="flex h-9 items-center justify-center">
-            {showHireButton && (
+            {renderOnboardButton(
               <div className="hidden md:flex">
                 <TooltipProvider delayDuration={100}>
                   <Tooltip>
@@ -459,7 +463,7 @@ export function AssistantList({
                 disabled={isLoading || !!error}
               />
             </div>
-            {showHireButton && (
+            {renderOnboardButton(
               <Button
                 data-testid="assistant-onboard-button"
                 variant="outline"

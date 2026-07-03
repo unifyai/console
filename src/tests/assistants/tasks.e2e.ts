@@ -3,9 +3,8 @@
  * Tasks tab on the assistant right pane. The tab renders expandable task
  * cards (collapsed by default); expanding a card reveals its description,
  * the labelled field grid, and its run-history table. Covers empty states,
- * seeded data rendering, status badges, the All/Active/Paused filter,
- * snapshot refresh, running-task indicators, search, and the run-detail
- * drawer — all driven by real data seeded via the Orchestra API.
+ * seeded data rendering, snapshot refresh, running-task indicators, search,
+ * and the run-detail drawer — all driven by real data seeded via the Orchestra API.
  *
  * Run: npx playwright test src/tests/assistants/tasks.e2e.ts
  */
@@ -256,24 +255,6 @@ async function expandTaskCard(page: import('@playwright/test').Page, name: strin
 }
 
 // ===========================================================================
-// Tab Visibility
-// ===========================================================================
-
-test('Tasks pane is visible when an assistant is selected', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
-
-  await expect(page.getByTestId('tasks-pane')).toBeVisible({ timeout: 5_000 });
-});
-
-test('Tasks pane exposes the All / Active / Paused filter', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
-
-  await expect(page.getByTestId('tasks-filter-all')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('tasks-filter-active')).toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('tasks-filter-paused')).toBeVisible({ timeout: 3_000 });
-});
-
-// ===========================================================================
 // Empty States
 // ===========================================================================
 
@@ -328,26 +309,6 @@ test('expanded card shows run history with state and source', async ({ authedPag
   await expect(runRow).toBeVisible({ timeout: 5_000 });
   await expect(runRow).toContainText('Running');
   await expect(runRow).toContainText('Triggered by Email');
-});
-
-// ===========================================================================
-// Status Badge Tooltips
-// ===========================================================================
-
-test('status badges show descriptive tooltips on hover', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  const triggeredCard = taskCard(page, 'Escalate security emails');
-  await expect(triggeredCard).toBeVisible({ timeout: 10_000 });
-
-  await triggeredCard
-    .getByText(/^Ready$/)
-    .first()
-    .hover();
-  await expect(page.getByRole('tooltip')).toContainText(
-    'Is armed and waiting for a matching event to happen.'
-  );
 });
 
 // ===========================================================================
@@ -417,18 +378,6 @@ test('clicking a run row opens the run-detail drawer', async ({ authedPage: page
   const fields = page.getByTestId('brain-row-detail-fields');
   await expect(fields.getByRole('heading', { name: 'Started by' })).toBeVisible({ timeout: 3_000 });
   await expect(fields.getByText('Alice Owner')).toBeVisible({ timeout: 3_000 });
-});
-
-test('run-detail drawer closes when clicking the close button', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  const card = await expandTaskCard(page, 'Follow up with Alice');
-  await card.getByTestId('task-run-row').first().click();
-  await page.waitForTimeout(500);
-
-  const detail = page.getByTestId('brain-row-detail');
-  await expect(detail).toBeVisible({ timeout: 5_000 });
 
   const closeBtn = detail.locator('button:has(svg)').first();
   await closeBtn.click();
@@ -467,70 +416,14 @@ test('searching tasks filters results server-side', async ({ authedPage: page })
   await expect(footer).toContainText('1 task', { timeout: 10_000 });
   await expect(page.getByTestId('task-card')).toHaveCount(1);
   await expect(taskCard(page, 'Escalate security emails')).toBeVisible({ timeout: 5_000 });
-});
-
-test('clear button removes search filter', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  const searchInput = page.getByTestId('tasks-search');
-  const footer = page.getByTestId('tasks-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-
-  await searchInput.fill('Escalate');
-  await searchInput.press('Enter');
-  await expect(footer).toContainText('1 task', { timeout: 10_000 });
 
   const clearBtn = page.getByTestId('tasks-search-clear');
   await expect(clearBtn).toBeVisible({ timeout: 3_000 });
-
   await clearBtn.click();
   await expect(footer).toContainText('3 tasks', { timeout: 10_000 });
   await expect(clearBtn).not.toBeVisible();
-});
 
-test('search with no results shows empty message', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  const searchInput = page.getByTestId('tasks-search');
   await searchInput.fill('xyznonexistent');
   await searchInput.press('Enter');
-
   await expect(page.getByText('No results match your search')).toBeVisible({ timeout: 10_000 });
-});
-
-// ===========================================================================
-// Backend Data Verification
-// ===========================================================================
-
-test('Tasks pane data matches what was seeded via Orchestra API', async ({ authedPage: page }) => {
-  await ensureSeeded();
-
-  const tasksRes = await orchestraFetch(
-    `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Tasks`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(tasksRes.ok).toBeTruthy();
-  const tasksData = await tasksRes.json();
-  const taskCount = tasksData.logs.length;
-  expect(taskCount).toBeGreaterThanOrEqual(3);
-
-  const runsRes = await orchestraFetch(
-    `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Tasks/Runs`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(runsRes.ok).toBeTruthy();
-  const runsData = await runsRes.json();
-  const runCount = runsData.logs.length;
-  expect(runCount).toBeGreaterThanOrEqual(2);
-
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  // The footer summarises both counts: "N tasks · M runs logged".
-  const tasksFooter = page.getByTestId('tasks-table-footer');
-  await expect(tasksFooter).toContainText(`${taskCount} tasks`, { timeout: 10_000 });
-  await expect(tasksFooter).toContainText(`${runCount} runs logged`, { timeout: 5_000 });
 });

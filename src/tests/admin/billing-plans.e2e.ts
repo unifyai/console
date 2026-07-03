@@ -26,7 +26,9 @@ import { expect, test as base, type Page } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 import { createTestUser, cleanupUser, createOrg, deleteOrg, dbExec } from '../billing/helpers';
+import { ensureUnifyOrg } from '../helpers/seeds/client';
 import { loginAndWaitForRedirect } from '../auth/helpers';
+import { deferCoordinatorForUser } from '../helpers/coordinator';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -35,7 +37,11 @@ import { loginAndWaitForRedirect } from '../auth/helpers';
 // Admin user belongs to an org literally named "Unify" with the Owner role
 // — that's what the `/admin` route layout checks.
 const adminUser = createTestUser({ name: 'Admin', lastName: 'Operator' });
-const unifyOrg = createOrg({ name: 'Unify', ownerId: adminUser.id });
+const unifyOrg = ensureUnifyOrg({
+  ownerId: adminUser.id,
+  existingOrgOwnerRole: 'Admin',
+});
+const createdUnifyOrg = unifyOrg.ownerId === adminUser.id;
 
 // Target org — a "real" customer org we'll manage from /admin/organizations.
 const targetOwner = createTestUser({ name: 'Target', lastName: 'OrgOwner' });
@@ -46,7 +52,7 @@ const targetOrg = createOrg({
 
 // Per-test unique template name so the catalog row is easy to spot among
 // any leftover BESPOKE rows from prior test runs.
-const templateName = `E2E Bespoke ${adminUser.id.slice(0, 8)}`;
+const templateName = `e2e-bespoke-${adminUser.id.slice(0, 8).toLowerCase()}`;
 
 // ---------------------------------------------------------------------------
 // Auth fixture (login once, reuse storageState)
@@ -64,6 +70,7 @@ const test = base.extend<{ adminPage: Page }>({
       );
       const ctx = await browser.newContext();
       const p = await ctx.newPage();
+      await deferCoordinatorForUser(adminUser.id, adminUser.apiKey);
       await p.goto('/login');
       await loginAndWaitForRedirect(p, adminUser.email, adminUser.password, 30_000);
       if (p.url().includes('/login/onboarding')) {
@@ -74,6 +81,8 @@ const test = base.extend<{ adminPage: Page }>({
           await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
         }
       }
+      await p.goto('/admin', { waitUntil: 'domcontentloaded' });
+      await expect(p).toHaveURL(/\/admin/, { timeout: 15_000 });
       await ctx.storageState({ path: authFile });
       await ctx.close();
     }
@@ -84,6 +93,8 @@ const test = base.extend<{ adminPage: Page }>({
     await ctx.close();
   },
 });
+
+test.describe.configure({ mode: 'serial' });
 
 // ---------------------------------------------------------------------------
 // Teardown
@@ -121,7 +132,7 @@ test.afterAll(() => {
     /* best effort */
   }
   try {
-    deleteOrg(unifyOrg.id);
+    if (createdUnifyOrg) deleteOrg(unifyOrg.id);
   } catch {
     /* best effort */
   }
@@ -138,7 +149,7 @@ test('admin landing lists the managed-billing tools', async ({ adminPage: page }
 
   // The landing isn't behind a redirect for admins — it should render
   // the tile grid with the new pages discoverable.
-  await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Admin', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('link', { name: /Billing Plans/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Organizations/i })).toBeVisible();
 });
@@ -150,20 +161,27 @@ test('admin landing lists the managed-billing tools', async ({ adminPage: page }
 test('billing plans page creates a BESPOKE template and lists it', async ({ adminPage: page }) => {
   await page.goto('/admin/plans');
 
-  await expect(page.getByRole('heading', { name: /Admin · Billing Plans/i })).toBeVisible({
+  await expect(page.getByText(/Plan templates and the groups/i)).toBeVisible({
     timeout: 15_000,
   });
 
-  await page.getByRole('button', { name: /Create Template/i }).click();
+  await page.getByRole('button', { name: /Create Plan/i }).click();
 
   // Fill the form. Defaults pick COMMITMENT + METERED + BESPOKE which is
   // the canonical happy path the dialog defaults to; we only need to
   // type a unique name + commit amount.
-  const dialog = page.getByRole('dialog', { name: /Create Billing Plan Template/i });
+  const dialog = page.getByRole('dialog', { name: /Create Billing Plan/i });
   await dialog.locator('input').first().fill(templateName);
 
+  const billingModeSelect = dialog
+    .locator('label')
+    .filter({ hasText: /^Billing Mode$/ })
+    .locator('xpath=following::button[@role="combobox"][1]');
+  await billingModeSelect.click();
+  await page.getByRole('option', { name: /CREDITS — prepaid wallet/ }).click();
+
   // Click the create button INSIDE the dialog (not the trigger above).
-  await dialog.getByRole('button', { name: /Create Template/i }).click();
+  await dialog.getByRole('button', { name: /Create Plan/i }).click();
 
   // Toast confirms create; row appears in the table when the BESPOKE
   // filter is on (default).
@@ -176,15 +194,19 @@ test('billing plans table scrolls horizontally at a constrained viewport', async
   await page.setViewportSize({ width: 820, height: 900 });
   await page.goto('/admin/plans');
 
-  await expect(page.getByRole('heading', { name: /Admin · Billing Plans/i })).toBeVisible({
+  await expect(page.getByRole('button', { name: /Create Plan/i })).toBeVisible({
     timeout: 15_000,
   });
 
   const table = page.locator('table.min-w-\\[960px\\]').first();
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const scrollWidth = await table.evaluate((el) => el.scrollWidth);
-  const clientWidth = await table.evaluate((el) => el.clientWidth);
+  const scrollContainer = table
+    .locator('xpath=ancestor::div[contains(@class,"overflow-auto")]')
+    .first();
+  await expect(scrollContainer).toBeVisible();
+  const scrollWidth = await scrollContainer.evaluate((el) => el.scrollWidth);
+  const clientWidth = await scrollContainer.evaluate((el) => el.clientWidth);
   expect(scrollWidth).toBeGreaterThan(clientWidth);
 });
 
@@ -193,25 +215,25 @@ test('billing plans table scrolls horizontally at a constrained viewport', async
 // =============================================================================
 
 test('organizations page sets the new template on the target org', async ({ adminPage: page }) => {
-  // Pre-seed a Stripe customer id on the target org's BillingAccount.
-  // METERED assignments require one (the implicit
-  // ``auto_create_stripe_customer`` toggle was removed in 2026-05; the
-  // canonical flow is "Provision via the admin UI's Business Profile
-  // → Provision button"). Seeding directly via SQL keeps this test
-  // focused on the plan-assignment surface without coupling it to
-  // the orthogonal Provision UX flow, which has its own tests.
+  test.setTimeout(90_000);
+
+  // PR sampling may run this spec without the create-template test in the
+  // same worker — seed the row directly so the combobox always has a match.
   dbExec(
-    `UPDATE billing_account SET stripe_customer_id = 'cus_e2e_billing_plans_seed' ` +
-      `WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${targetOrg.id})`
+    `INSERT INTO billing_plan_template (
+      name, display_name, billing_mode, commit_amount, currency,
+      collection_method, base_pricing_factor, overage_pricing_factor,
+      is_custom, is_active
+    ) VALUES (
+      '${templateName}', '${templateName}', 'CREDITS', NULL, 'USD',
+      'AUTO_CARD', 1.0, 1.0, true, true
+    ) ON CONFLICT (name) DO NOTHING`
   );
 
   await page.goto('/admin/organizations');
-  await expect(page.getByRole('heading', { name: /Admin · Organizations/i })).toBeVisible({
-    timeout: 15_000,
-  });
 
-  // Filter the org list down to our target org for stability.
   const search = page.getByPlaceholder('Search organizations…');
+  await expect(search).toBeVisible({ timeout: 15_000 });
   await search.fill(targetOrg.name);
 
   await expect(page.locator('text=' + targetOrg.name)).toBeVisible({ timeout: 10_000 });
@@ -220,30 +242,33 @@ test('organizations page sets the new template on the target org', async ({ admi
     .first()
     .click();
 
-  // The Plan section should render with "default (implicit)".
-  await expect(page.locator('text=default (implicit)')).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page
+      .locator('label')
+      .filter({ hasText: /^Plan$/ })
+      .locator('xpath=following-sibling::p[1]')
+  ).toHaveText('default', { timeout: 15_000 });
 
-  // The single plan-mutation entry point is "Set plan…".
-  await page.getByRole('button', { name: /Set plan/i }).click();
+  await page.getByRole('button', { name: /Change plan/i }).click();
   // Dialog title is "Change plan" for non-default templates and
   // "Return to default plan" for the cancel flow; match either so
   // the test isn't coupled to which template happens to be picked
   // first.
-  const dialog = page.getByRole('dialog', { name: /^(Change plan|Return to default plan)$/ });
+  const dialog = page.getByRole('dialog', { name: /^Change plan$/ });
   await expect(dialog).toBeVisible();
 
-  // Pick the template we created. The Select shows "Name · Mode · PlanType".
-  await dialog.locator('button[role="combobox"]').click();
-  await page.locator(`text=${templateName}`).first().click();
+  await dialog.getByRole('combobox').click();
+  const templateOption = page.getByRole('option', { name: new RegExp(templateName) });
+  await expect(templateOption).toBeVisible({ timeout: 30_000 });
+  await templateOption.click();
 
-  // No more "Auto-create Stripe Customer" toggle — the seeded
-  // stripe_customer_id above already satisfies the METERED guard,
-  // so the Set button is enabled directly.
-  await dialog.getByRole('button', { name: /^Set$/ }).click();
+  const setButton = dialog.getByRole('button', { name: /^Set$/ });
+  await expect(setButton).toBeEnabled({ timeout: 15_000 });
+  await setButton.click();
 
   // After success the dialog closes and the active plan card refreshes
   // to show the new template name. A "Return to default plan" affordance
   // appears now that the account is on a non-default plan.
   await expect(page.locator(`text=${templateName}`)).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: /Return to default plan/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Change plan/i })).toBeVisible();
 });

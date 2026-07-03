@@ -25,7 +25,8 @@ const TEST_ENV = {
   // API endpoints
   VITE_TEST_API_URL: process.env.VITE_TEST_API_URL || 'http://localhost:3000',
   VITE_TEST_API_KEY: process.env.VITE_TEST_API_KEY || 'test-api-key-12345',
-  ORCHESTRA_URL: process.env.ORCHESTRA_URL || '',
+  ORCHESTRA_URL:
+    process.env.ORCHESTRA_URL || (process.env.CI === 'true' ? 'http://127.0.0.1:8000' : ''),
   VITE_SHARED_CONTEXT_ASSISTANT_ID: process.env.VITE_SHARED_CONTEXT_ASSISTANT_ID || '',
   VITE_SHARED_CONTEXT_SPACES_REAL: process.env.VITE_SHARED_CONTEXT_SPACES_REAL || 'false',
   NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
@@ -47,6 +48,7 @@ const vitestConfig = async () => {
       alias: {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         '@': path.resolve(__dirname, './src'),
+        'server-only': path.resolve(__dirname, './src/tests/mocks/server-only.ts'),
       },
     },
     // Define process.env for browser tests (Next.js components use this)

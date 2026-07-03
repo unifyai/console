@@ -38,7 +38,9 @@ const test = createBillingTest(user);
 
 test.afterAll(() => cleanupUser(user.id));
 
-test('billing page shows all main sections', async ({ authedPage: page }) => {
+test('billing page shows all main sections @push @critical @area(billing.access)', async ({
+  authedPage: page,
+}) => {
   await waitForBillingReady(page);
   const manualTopup = await isManualTopupMode(page);
   if (!manualTopup) {

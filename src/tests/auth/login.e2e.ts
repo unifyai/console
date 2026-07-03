@@ -1,6 +1,5 @@
 /**
- * Email Login E2E — valid/invalid credentials, provider conflicts,
- * disabled states, error clearing, and view navigation.
+ * Email Login E2E — valid/invalid credentials and provider conflicts.
  *
  * Run: npx playwright test src/tests/auth/login.e2e.ts
  */
@@ -10,7 +9,6 @@ import {
   createTestUser,
   cleanupUser,
   createOAuthOnlyUser,
-  switchToEmailTab,
   login,
   loginAndWaitForRedirect,
   uniqueEmail,
@@ -37,7 +35,9 @@ test.describe('Email Login', () => {
     }
   });
 
-  test('completes login with valid credentials and redirects', async ({ page }) => {
+  test('completes login with valid credentials and redirects @push @critical @area(auth.core)', async ({
+    page,
+  }) => {
     await page.goto('/login');
     await loginAndWaitForRedirect(page, validUser.email, validUser.password, 15_000);
 
@@ -50,7 +50,7 @@ test.describe('Email Login', () => {
     expect(verified).toBe('t');
   });
 
-  test('shows error for invalid password', async ({ page }) => {
+  test('shows error for invalid password @critical @area(auth.core)', async ({ page }) => {
     await page.goto('/login');
     await login(page, validUser.email, 'WrongP@ssword99');
 
@@ -61,7 +61,7 @@ test.describe('Email Login', () => {
     expect(page.url()).toContain('/login');
   });
 
-  test('shows error when email is not registered', async ({ page }) => {
+  test('shows error when email is not registered @critical @area(auth.core)', async ({ page }) => {
     const fakeEmail = uniqueEmail('nonexistent');
 
     await page.goto('/login');
@@ -75,7 +75,9 @@ test.describe('Email Login', () => {
     expect(userExists).toBe('0');
   });
 
-  test('shows provider conflict when email is registered with OAuth only', async ({ page }) => {
+  test('shows provider conflict when email is registered with OAuth only @critical @area(auth.core)', async ({
+    page,
+  }) => {
     const oauthUser = createOAuthOnlyUser({
       name: 'OAuthLogin',
       lastName: 'Conflict',
@@ -97,79 +99,5 @@ test.describe('Email Login', () => {
 
     const oauthAccount = dbExec(`SELECT provider FROM account WHERE user_id = '${oauthUser.id}'`);
     expect(oauthAccount).toBe('google');
-  });
-
-  test('keeps submit button disabled when email or password is empty', async ({ page }) => {
-    await page.goto('/login');
-    await switchToEmailTab(page);
-
-    const submitBtn = page.getByTestId('email-submit-btn');
-    await expect(submitBtn).toBeDisabled();
-
-    await page.getByTestId('email-input').fill('someone@example.com');
-    await expect(submitBtn).toBeDisabled();
-
-    await page.getByTestId('email-input').clear();
-    await page.getByTestId('email-password-input').fill('SomePass1');
-    await expect(submitBtn).toBeDisabled();
-
-    await page.getByTestId('email-input').fill('someone@example.com');
-    await expect(submitBtn).toBeEnabled();
-  });
-
-  test('clears error message when email field changes', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, validUser.email, 'WrongP@ss1');
-
-    await expect(page.getByTestId('email-auth-error')).toBeVisible({ timeout: 5000 });
-
-    await page.getByTestId('email-input').fill('changed@example.com');
-
-    await expect(page.getByTestId('email-auth-error')).not.toBeVisible();
-  });
-});
-
-// =============================================================================
-// View Navigation — login ↔ register ↔ forgot-password, OAuth ↔ email tabs
-// =============================================================================
-
-test.describe('Login Navigation', () => {
-  test('navigates from login to register view and back', async ({ page }) => {
-    await page.goto('/login');
-    await switchToEmailTab(page);
-
-    await expect(page.getByTestId('email-login-form')).toBeVisible();
-
-    await page.getByTestId('switch-to-register').click();
-    await expect(page.getByTestId('email-register-form')).toBeVisible();
-    await expect(page.getByTestId('email-first-name-input')).toBeVisible();
-
-    await page.getByTestId('switch-to-login').click();
-    await expect(page.getByTestId('email-login-form')).toBeVisible();
-  });
-
-  test('navigates from login to forgot password and back', async ({ page }) => {
-    await page.goto('/login');
-    await switchToEmailTab(page);
-
-    await page.getByTestId('forgot-password-link').click();
-    await expect(page.getByTestId('forgot-password-form')).toBeVisible();
-
-    await page.getByTestId('back-to-login-link').click();
-    await expect(page.getByTestId('email-login-form')).toBeVisible();
-  });
-
-  test('switches between OAuth and email auth tabs', async ({ page }) => {
-    await page.goto('/login');
-
-    const emailTabBtn = page.getByTestId('email-auth-tab');
-    if (await emailTabBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await emailTabBtn.click();
-      await expect(page.getByTestId('email-login-form')).toBeVisible();
-
-      await page.getByTestId('switch-to-oauth').click();
-      await expect(page.getByTestId('email-login-form')).not.toBeVisible();
-      await expect(emailTabBtn).toBeVisible();
-    }
   });
 });

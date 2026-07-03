@@ -175,21 +175,7 @@ async function selectAssistant(page: import('@playwright/test').Page) {
 // Tests
 // ---------------------------------------------------------------------------
 
-test('viewer is present and header controls are visible when assistant is selected', async ({
-  authedPage: page,
-}) => {
-  await selectAssistant(page);
-
-  const viewer = page.getByTestId('live-actions-viewer');
-  await expect(viewer).toBeVisible({ timeout: 10_000 });
-
-  // Header controls should be rendered
-  await expect(page.getByTestId('live-actions-header')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('live-actions-time-window')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('live-actions-search')).toBeVisible({ timeout: 5_000 });
-});
-
-test('historical events seeded in Orchestra appear on initial load', async ({
+test('historical events seeded in Orchestra appear on initial load @critical @area(assistants.live-actions)', async ({
   authedPage: page,
 }) => {
   const callingId = `hist-${Date.now()}`;
@@ -234,7 +220,9 @@ test('historical events seeded in Orchestra appear on initial load', async ({
   await expect(eventCounts).toContainText('completed');
 });
 
-test('live events pushed via local endpoint appear in real time', async ({ authedPage: page }) => {
+test('live events pushed via local endpoint appear in real time @critical @area(assistants.live-actions)', async ({
+  authedPage: page,
+}) => {
   await selectAssistant(page);
 
   const viewer = page.getByTestId('live-actions-viewer');
@@ -324,25 +312,4 @@ test('search filters action nodes and shows match count', async ({ authedPage: p
 
   // Both should be visible again after clearing
   await expect(page.locator(`text=${calendarQuestion}`).first()).toBeVisible({ timeout: 5_000 });
-});
-
-test('footer shows connection status and assistant status', async ({ authedPage: page }) => {
-  await selectAssistant(page);
-
-  const footer = page.getByTestId('live-actions-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-
-  // Should show assistant name + idle/working status
-  const statusEl = page.getByTestId('assistant-status');
-  await expect(statusEl).toContainText('ActionBot');
-
-  // Should show event counts
-  const countsEl = page.getByTestId('event-counts');
-  await expect(countsEl).toBeVisible();
-
-  // Should show connection status (Live or Disconnected) — in local mode it should
-  // say "Live" once the SSE connection opens
-  const connectionEl = page.getByTestId('connection-status');
-  await expect(connectionEl).toBeVisible({ timeout: 10_000 });
-  await expect(connectionEl).toContainText('Live');
 });

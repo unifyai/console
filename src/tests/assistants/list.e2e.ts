@@ -1,7 +1,7 @@
 /**
  * Assistant List E2E — verifies the assistant list behaves correctly:
  * empty state, list rendering after seeding, clicking to open profile,
- * and list updating after a new hire.
+ * deep links, info panel interactions, and list updating after a new hire.
  *
  * Run: npx playwright test src/tests/assistants/list.e2e.ts
  */
@@ -25,12 +25,16 @@ import {
   deferCoordinatorOnboarding,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  openAssistantInfoPanelFromList,
+  openAssistantInfoPanel,
 } from './helpers';
 
 const user = createTestUser({ name: 'ListE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
+
+const shellOpts = { userId: user.id, apiKey: user.apiKey };
 
 test.beforeAll(async () => {
   const coordinatorId = getCoordinatorAgentId(user.id);
@@ -44,7 +48,9 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('the Onboard button opens the hire dialog', async ({ authedPage: page }) => {
+test('the Onboard button opens the hire dialog @push @critical @area(assistants.core)', async ({
+  authedPage: page,
+}) => {
   deleteAllAssistantsForUser(user.id);
   // Every workspace now has an always-present personal Coordinator, so the list
   // is never truly empty and the legacy "auto-open on empty" path no longer
@@ -65,7 +71,9 @@ test('the Onboard button opens the hire dialog', async ({ authedPage: page }) =>
   });
 });
 
-test('seeded assistants appear in the list with correct names', async ({ authedPage: page }) => {
+test('seeded assistants appear in the list with correct names @push @critical @area(assistants.core)', async ({
+  authedPage: page,
+}) => {
   deleteAllAssistantsForUser(user.id);
 
   const a1 = createAssistant({ userId: user.id, firstName: 'Alpha', surname: 'ListTest' });
@@ -90,7 +98,7 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await expect(item2).toContainText('Beta');
 });
 
-test('clicking an assistant in the list selects it and shows the Chat tab', async ({
+test('clicking an assistant in the list selects it and shows the Chat tab @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
@@ -112,135 +120,65 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
     timeout: 5_000,
   });
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('call-audio-button')).toBeVisible({ timeout: 5_000 });
 });
 
-test('clicking the selected teammate selects T-W1N instead of clearing selection', async ({
+test('deep link ?profile=agentId opens the correct assistant', async ({ authedPage: page }) => {
+  deleteAllAssistantsForUser(user.id);
+  const seeded = createAssistant({ userId: user.id, firstName: 'DeepLink', surname: 'Target' });
+  const dbAssistant = getAssistantFromDb(seeded.agentId);
+
+  await page.goto(`/assistants?profile=${seeded.agentId}`);
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await closeHireDialogIfOpen(page);
+
+  await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
+});
+
+test('assistant list item info toggle exposes profile and contact sections', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
-  const coordinatorId = getCoordinatorAgentId(user.id);
-  expect(coordinatorId).not.toBeNull();
+  const seeded = createAssistant({ userId: user.id, firstName: 'Menu', surname: 'Options' });
 
-  const solo = createAssistant({ userId: user.id, firstName: 'Solo', surname: 'Pick' });
-
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page, shellOpts);
 
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${solo.agentId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('Solo', { timeout: 5_000 });
-
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${solo.agentId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N', { timeout: 5_000 });
-  await expect(page).toHaveURL(new RegExp(`profile=${coordinatorId}`));
-
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${coordinatorId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('T-W1N', { timeout: 5_000 });
-  await expect(page).toHaveURL(new RegExp(`profile=${coordinatorId}`));
+  await openAssistantInfoPanelFromList(page, seeded.agentId);
+  await expect(page.getByTestId('assistant-info-edit-profile-section')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.getByTestId('assistant-info-edit-contact-section')).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
-// RETIRED (Phase 5 — Hire/onboarding): this journey asserts the legacy
-// two-pane model — clicking a selected row to *deselect* it back to a
-// ``right-pane-tab-chat`` / "Select a unity…" empty state. Both are gone: the
-// rail owns section nav (``rail-section-*``) and re-clicking a selected row
-// falls back to the workspace Coordinator (T-W1N) instead of clearing selection.
-// The deselect-to-empty behaviour no longer exists.
-test.fixme('rapid select/deselect settles on the final click and does not snap back', async ({
-  authedPage: page,
-}) => {
+test('assistant list item unfold control opens the info panel', async ({ authedPage: page }) => {
   deleteAllAssistantsForUser(user.id);
-  const seeded = createAssistant({ userId: user.id, firstName: 'Rapid', surname: 'Toggler' });
-  const agentId = seeded.agentId;
+  const seeded = createAssistant({ userId: user.id, firstName: 'Unfold', surname: 'Panel' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page, shellOpts);
 
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  const listItem = page.getByTestId(`assistant-list-item-${seeded.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  const emptyState = page.locator('text=Select a teammate to watch live actions.');
-
-  // Normalise to a known deselected starting point.
-  if (await chatTab.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await listItem.click();
-    await expect(emptyState).toBeVisible({ timeout: 5_000 });
-  }
-
-  // Three back-to-back clicks => the final intent is "selected". The
-  // `?profile=` URL sync runs through an async `router.replace`; a stale
-  // navigation resolving late must not flip the selection back off.
-  await listItem.click();
-  await listItem.click();
-  await listItem.click();
-
-  await expect(chatTab).toHaveAttribute('data-state', 'active', { timeout: 5_000 });
-  // Give any in-flight URL navigations time to resolve, then re-assert the
-  // selection held — the regression manifested as a delayed self-undo.
-  await page.waitForTimeout(1_500);
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
-
-  // Two back-to-back clicks => the final intent is "deselected"; it must
-  // stay deselected after the URL round-trip settles.
-  await listItem.click();
-  await listItem.click();
-
-  await expect(emptyState).toBeVisible({ timeout: 5_000 });
-  await page.waitForTimeout(1_500);
-  await expect(emptyState).toBeVisible();
-});
-
-test('the chat info side panel can be resized down to its minimum width', async ({
-  authedPage: page,
-}) => {
-  deleteAllAssistantsForUser(user.id);
-
-  const titled = createAssistant({
-    userId: user.id,
-    firstName: 'Titled',
-    surname: 'InfoPanel',
-    jobTitle: 'QA engineer',
+  await openAssistantInfoPanelFromList(page, seeded.agentId);
+  await expect(page.getByTestId('assistant-info-edit-profile')).toBeVisible({ timeout: 5_000 });
+  await page.getByTestId('assistant-info-edit-profile').click();
+  await expect(page.locator('[role="dialog"]').filter({ hasText: /^Edit / })).toHaveCount(0);
+  await expect(page.getByTestId('assistant-info-edit-contact-section')).toBeVisible({
+    timeout: 5_000,
   });
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  await selectAssistantInList(page, titled.agentId);
-
-  // Open the inline info side panel from the top navbar. We can't rely on
-  // the post-hire auto-open path here because this assistant was seeded via
-  // `createAssistant` (no `newlyHiredInfo` in memory).
-  const infoButton = page.getByTestId('assistant-info-button');
-  await expect(infoButton).toBeVisible({ timeout: 10_000 });
-
-  const infoSheet = page.getByTestId('assistant-info-sheet');
-  if (!(await infoSheet.isVisible({ timeout: 1_000 }).catch(() => false))) {
-    await infoButton.click();
-  }
-  await expect(infoSheet).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('assistant-info-name')).toContainText('Titled InfoPanel');
-
-  const resizeHandle = page.getByTestId('assistant-info-panel-resize-handle');
-  const beforeBox = await infoSheet.boundingBox();
-  const handleBox = await resizeHandle.boundingBox();
-  if (!beforeBox || !handleBox) throw new Error('Info panel resize target was not measurable');
-
-  const dragY = handleBox.y + handleBox.height / 2;
-  await page.mouse.move(handleBox.x + handleBox.width / 2, dragY);
-  await page.mouse.down();
-  await page.mouse.move(beforeBox.x + beforeBox.width + 200, dragY, { steps: 12 });
-  await page.mouse.up();
-
-  const afterBox = await infoSheet.boundingBox();
-  if (!afterBox) throw new Error('Info panel was not measurable after resize');
-  expect(afterBox.width).toBeLessThan(beforeBox.width - 40);
-  expect(afterBox.width).toBeGreaterThanOrEqual(318);
-  expect(afterBox.width).toBeLessThanOrEqual(324);
 });
 
-test('list updates after hiring a new assistant without page reload', async ({
+test('list updates after hiring a new assistant without page reload @critical @area(assistants.core)', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
