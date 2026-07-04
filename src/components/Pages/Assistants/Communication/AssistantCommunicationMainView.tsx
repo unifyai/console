@@ -205,7 +205,7 @@ export function AssistantCommunicationMainView({
               mood={mood}
               mouthShape={coordinatorMouthShape}
               speechLevel={coordinatorSpeechLevel}
-              alignLaptop
+              alignInSlot
             />
           ) : (
             <UnityCallAvatar
@@ -221,7 +221,7 @@ export function AssistantCommunicationMainView({
               baseEyes={creatureAppearance?.eyes}
               outfit={creatureAppearance?.outfit}
               label={assistantName}
-              alignLaptop
+              alignInSlot
             />
           )}
         </div>

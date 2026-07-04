@@ -1,13 +1,15 @@
 'use client';
 
 import * as React from 'react';
+// Keyboard key-beep animation for the working-pose laptop drawn inside the
+// droid scene.
+import '@unity/brand/laptop.css';
 import {
   AnimatedDroid as AnimatedUnity,
-  Laptop,
   TWIN_CREATURE_APPEARANCE,
   getCreatureAccent,
   getDroidBodyForm as getUnityBodyForm,
-  getRotatingBotLaptopLiftPx,
+  getRotatingBotSlotLiftPx,
 } from '@unity/brand/components';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type { UnityBody, UnityOutfit } from '@/components/Brand/unityAppearance';
@@ -48,55 +50,26 @@ interface UnityCallAvatarProps {
    *  onboarding handoff so the docked unity reappears after the intro fade-out. */
   teleportInOnMount?: boolean;
   /** Pin the midpoint of every body form's blank lower front (the strip
-   *  between the screen and the base) to the standard body's within the slot.
-   *  The call window enables this so the slot-anchored laptop sits centred on
-   *  each body's lower front, clear of every face; surfaces that position the
-   *  avatar by viewBox math (hire preview, chat bubble pop) leave it off. */
-  alignLaptop?: boolean;
+   *  between the screen and the base) to the standard body's within the slot,
+   *  so all body forms stand at a consistent height in the call window.
+   *  Surfaces that position the avatar by viewBox math (hire preview, chat
+   *  bubble pop) leave it off. */
+  alignInSlot?: boolean;
 }
 
 // Resting pose: faces the screen head-on (eye contact on a call). The "working"
-// pose turns the body into the landing page's isometric hero angle, which is the
-// exact projection the `Laptop` SVG is designed against — so the held laptop
-// lines up the same way it does on the landing hub. Both views share the {0,7}
-// endpoint (idle == working p=0) so entering/leaving the pose is seamless.
+// pose turns the body to the landing page's isometric hero angle. The laptop is
+// drawn inside the droid's own scene by the brand package (world coordinates,
+// same projection), so it stays attached to every body form at every pose with
+// no slot-space placement here. Both views share the {0,7} endpoint (idle ==
+// working p=0) so entering/leaving the pose is seamless.
 const CAMERA_VIEW = { yaw: 0, tilt: 7 } as const;
 const WORKING_VIEW = { yaw: 45, tilt: 30 } as const;
 
-// Match the landing hub exactly: lid hinge over 520ms (easeInOutQuad) and a
-// 0.5s ease opacity fade as the laptop appears/disappears during the turn.
+// Lid hinge over 520ms (easeInOutQuad), matching the landing hub's timing.
 const LID_DURATION_MS = 520;
-const LAPTOP_FADE = 'opacity 0.5s ease';
 
-// Placement of the open laptop in slot coordinates, tuned against the standard
-// body at WORKING_VIEW (the landing isometric pose) via an offline render: a
-// large laptop sitting in front of the droid's lower body, with the eyes still
-// reading above the raised lid. The laptop is anchored to the slot — NOT to the
-// body — because every body form is shifted so its lower-front midpoint matches
-// the standard body's (see useLaptopAnchorLift), so one slot position lines up
-// with every body's lower front.
-//
-// The squat wide body is the exception: its lower front (screen bottom → base)
-// is ~13 slot-px tall versus the standard's ~24, so the shared laptop physically
-// cannot sit inside it. That body gets a compact laptop profile, solved (via
-// the same projective math as the lift) so the tray's contact band is centred
-// on the strip with an equal band of body visible above and below it.
-const LAPTOP_PROFILES: Record<'default' | 'wide', { left: string; top: string; width: string }> = {
-  default: { left: '85%', top: '91%', width: '90%' },
-  wide: { left: '80%', top: '93.1%', width: '68%' },
-};
-
-function laptopStyleForForm(form: ReturnType<typeof getUnityBodyForm>): React.CSSProperties {
-  const profile = form === 'wide' ? LAPTOP_PROFILES.wide : LAPTOP_PROFILES.default;
-  return {
-    position: 'absolute',
-    ...profile,
-    transform: 'translate(-50%, -50%)',
-    pointerEvents: 'none',
-  };
-}
-
-function useLaptopAnchorLift(
+function useSlotLift(
   enabled: boolean,
   form: ReturnType<typeof getUnityBodyForm>,
   progress: number,
@@ -117,9 +90,9 @@ function useLaptopAnchorLift(
       const { width } = slot.getBoundingClientRect();
       if (width <= 0) return;
       // Reference defaults (standard body, no antenna) are the coordinator
-      // look the laptop placement is tuned against.
+      // look the call window is framed against.
       setLiftPx(
-        getRotatingBotLaptopLiftPx(form, width, {
+        getRotatingBotSlotLiftPx(form, width, {
           pose: progress,
           restView: CAMERA_VIEW,
           activeView: WORKING_VIEW,
@@ -146,8 +119,9 @@ function useLaptopAnchorLift(
  *     `active`/`poseActive` boolean makes the turn smooth in both directions
  *     AND independent of the brand package's own animation timing — so it
  *     can't regress if `@unity/brand` is served from a stale transpile.
- *   - the laptop lid (`fold={1 - progress}`, since `Laptop.fold` is inverted:
- *     0 = open, 1 = closed), so the lid unfolds exactly as the body turns.
+ *   - the laptop lid (`fold={1 - progress}`, since the laptop's fold is
+ *     inverted: 0 = open, 1 = closed), so the lid unfolds exactly as the body
+ *     turns.
  */
 function useWorkingProgress(active: boolean): number {
   const [progress, setProgress] = React.useState(0);
@@ -204,7 +178,7 @@ export function UnityCallAvatar({
   outfit = 'none',
   label = 'T-W1N',
   teleportInOnMount = false,
-  alignLaptop = false,
+  alignInSlot = false,
 }: UnityCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
   const slotRef = React.useRef<HTMLSpanElement>(null);
@@ -214,7 +188,7 @@ export function UnityCallAvatar({
   const turnedToLaptop = isActing && !isHovered;
   // 0 = idle (head-on, facing camera) … 1 = working (turned to the laptop).
   const progress = useWorkingProgress(turnedToLaptop);
-  const liftPx = useLaptopAnchorLift(alignLaptop, form, progress, antenna, slotRef);
+  const liftPx = useSlotLift(alignInSlot, form, progress, antenna, slotRef);
   // Keep the laptop mounted through the close animation so the lid can fold and
   // fade while the body turns back; idle callers (hire form, chat bubble) sit at
   // progress 0 and never mount it.
@@ -247,6 +221,9 @@ export function UnityCallAvatar({
   // so speech stays decoupled (mouth lipsyncs whether idle on the call or turned
   // to the laptop), and because we animate `progress` ourselves the turn is
   // smooth in both directions and immune to brand-package transpile staleness.
+  // The laptop is part of the droid's scene: `working` keeps it mounted through
+  // the close animation so the lid folds and fades as the body turns back;
+  // idle callers (hire form, chat bubble) sit at progress 0 and never mount it.
   const unity = (
     <AnimatedUnity
       antenna={antenna}
@@ -266,42 +243,26 @@ export function UnityCallAvatar({
       fixed={progress}
       restView={CAMERA_VIEW}
       activeView={WORKING_VIEW}
+      laptop={
+        working
+          ? {
+              fold: 1 - progress,
+              opacity: laptopVisible ? 1 : 0,
+              testId: 'unity-call-laptop',
+            }
+          : undefined
+      }
     />
   );
 
-  // When idle the wrapper is transparent to layout (`display: contents`) so the
-  // droid sizes exactly as it did before; while working it becomes a positioned
-  // box that anchors the laptop overlay. The anchor lift is applied to the
-  // droid ONLY: it shifts every body form so the midpoint of its blank lower
-  // front lands where the standard body's sits, while the laptop stays fixed in
-  // slot coordinates — so the laptop reads identically against every body.
+  // The slot lift shifts the whole scene (droid + its laptop) so every body
+  // form stands at the coordinator's height in the call window.
   const composed = (
     <span
-      style={
-        working
-          ? { position: 'relative', display: 'block', width: '100%', height: '100%' }
-          : { display: 'contents' }
-      }
+      className="block h-full w-full"
+      style={liftPx !== 0 ? { transform: `translateY(${liftPx}px)` } : undefined}
     >
-      <span
-        className="block h-full w-full"
-        style={liftPx !== 0 ? { transform: `translateY(${liftPx}px)` } : undefined}
-      >
-        {unity}
-      </span>
-      {working && (
-        <span
-          aria-hidden="true"
-          data-testid="unity-call-laptop"
-          style={{
-            ...laptopStyleForForm(form),
-            opacity: laptopVisible ? 1 : 0,
-            transition: LAPTOP_FADE,
-          }}
-        >
-          <Laptop fold={1 - progress} />
-        </span>
-      )}
+      {unity}
     </span>
   );
 

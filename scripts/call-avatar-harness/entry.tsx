@@ -78,7 +78,7 @@ function App() {
               <UnityCallAvatar
                 isSpeaking={false}
                 isActing
-                alignLaptop
+                alignInSlot
                 body={s.body}
                 color={s.color}
                 antenna={s.antenna}
