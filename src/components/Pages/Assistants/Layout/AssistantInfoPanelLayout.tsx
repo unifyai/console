@@ -49,6 +49,17 @@ function readInfoPanelOpen(): boolean {
   }
 }
 
+/** Coordinator onboarding panel starts closed until the user opens it explicitly. */
+function readCoordinatorOnboardingInfoPanelOpen(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.localStorage.getItem(INFO_PANEL_OPEN_KEY);
+    return raw === 'true';
+  } catch {
+    return false;
+  }
+}
+
 function writeInfoPanelOpen(open: boolean): void {
   if (typeof window === 'undefined') return;
   try {
@@ -286,6 +297,11 @@ export function AssistantInfoPanelLayout({
 
     if (consumePendingInfoPanelOpen(assistant.agentId)) {
       setIsInfoOpenAndPersist(true);
+      return;
+    }
+
+    if (isCoordinatorOnboardingPanel) {
+      setIsInfoOpen(readCoordinatorOnboardingInfoPanelOpen());
       return;
     }
 

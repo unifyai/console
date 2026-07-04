@@ -908,6 +908,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       requestCoordinatorOnboardingInfoClose();
     } else {
       requestCoordinatorOnboardingFocusLayout();
+      requestFirstLoginCommunicationEmailOpen();
     }
 
     if (isActiveSurface) {
@@ -927,6 +928,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     pathname,
     requestCoordinatorOnboardingFocusLayout,
     requestCoordinatorOnboardingInfoClose,
+    requestFirstLoginCommunicationEmailOpen,
     router,
     searchParams,
   ]);
@@ -2051,28 +2053,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isCoordinatorOnboardingFocusLayout =
     canApplyCoordinatorOnboardingFocusLayout && coordinatorOnboardingFocusLayoutRequest > 0;
 
-  const hasRequestedInitialCoordinatorFocusLayoutRef = React.useRef(false);
-  React.useEffect(() => {
-    if (hasRequestedInitialCoordinatorFocusLayoutRef.current) return;
-    if (isCoordinatorOnboardingResolvePending || isLoadingAssistants) return;
-
-    const awaitingBareLandingSelection =
-      !landedWithProfileDeepLinkRef.current && !!canonicalCoordinatorId && !profileAssistantId;
-    if (awaitingBareLandingSelection) return;
-
-    hasRequestedInitialCoordinatorFocusLayoutRef.current = true;
-    if (canApplyCoordinatorOnboardingFocusLayout) {
-      requestCoordinatorOnboardingFocusLayout();
-    }
-  }, [
-    canApplyCoordinatorOnboardingFocusLayout,
-    canonicalCoordinatorId,
-    isCoordinatorOnboardingResolvePending,
-    isLoadingAssistants,
-    profileAssistantId,
-    requestCoordinatorOnboardingFocusLayout,
-  ]);
-
   const seededCoordinatorFocusPaneRequestRef = React.useRef(0);
   React.useLayoutEffect(() => {
     if (!isCoordinatorOnboardingFocusLayout) return;
@@ -2941,7 +2921,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   onDiscardCall={handleHangUp}
                   onComplete={() => {
                     setCoordinatorIntroDismissed(true);
-                    requestCoordinatorOnboardingFocusLayout();
                     requestFirstLoginCommunicationEmailOpen();
                   }}
                 />

@@ -653,7 +653,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('resolving the picker persists intro_watched and reload defaults to T-W1N + Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
+test('resolving the picker persists intro_watched and reload lands on T-W1N without auto-opening Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -669,7 +669,7 @@ test('resolving the picker persists intro_watched and reload defaults to T-W1N +
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0, {
     timeout: 15_000,
   });
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
@@ -687,7 +687,7 @@ test('keeps the onboarding checklist visible while navigating assistant sections
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,

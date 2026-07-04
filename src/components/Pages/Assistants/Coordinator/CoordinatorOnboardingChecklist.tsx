@@ -643,6 +643,7 @@ export function CoordinatorOnboardingChecklist({
     new Map()
   );
   const didInitializeOpenSectionRef = React.useRef(false);
+  const didInitializeOpenSubgroupRef = React.useRef(false);
   const foldStateHydratedRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockedFeedbackTokenRef = React.useRef(0);
@@ -897,9 +898,14 @@ export function CoordinatorOnboardingChecklist({
         foldStateHydratedRef.current = true;
         return filtered.size === current.size ? current : filtered;
       }
-      const defaultSection = nextActionableId
-        ? resolved.find((section) => containsLeafId(section, nextActionableId))
-        : null;
+      const communicationSection = resolved.find(
+        (section) => section.id === COMMUNICATION_SECTION_ID
+      );
+      const defaultSection =
+        communicationSection ??
+        (nextActionableId
+          ? resolved.find((section) => containsLeafId(section, nextActionableId))
+          : null);
       didInitializeOpenSectionRef.current = true;
       foldStateHydratedRef.current = true;
       return new Set([defaultSection?.id ?? resolved[0].id]);
@@ -923,6 +929,24 @@ export function CoordinatorOnboardingChecklist({
       (group) => group.id === 'email'
     );
   }, [resolved]);
+
+  React.useEffect(() => {
+    if (!foldStateHydratedRef.current || didInitializeOpenSubgroupRef.current) return;
+    if (!hasVisibleEmailSubgroup) return;
+    if ((storedFoldStateRef.current?.subgroupIds.length ?? 0) > 0) {
+      didInitializeOpenSubgroupRef.current = true;
+      return;
+    }
+    if (!openSectionIds.has(COMMUNICATION_SECTION_ID)) return;
+    setOpenSubgroupIds((current) => {
+      if (current.size > 0) {
+        didInitializeOpenSubgroupRef.current = true;
+        return current;
+      }
+      didInitializeOpenSubgroupRef.current = true;
+      return new Set(['email']);
+    });
+  }, [hasVisibleEmailSubgroup, openSectionIds]);
 
   React.useEffect(() => {
     if (firstLoginCommunicationEmailOpenRequest <= 0 || !hasVisibleEmailSubgroup) return;
