@@ -27,7 +27,8 @@ interface UnityCallAvatarProps {
    *  (laptop unfolds, keys flicker) rather than facing the camera. The body keeps
    *  lipsyncing in either pose. Driven by the call window's pose state machine:
    *  the droid answers facing the camera and, once it turns to the laptop for
-   *  work or silence, stays there for the rest of the call. */
+   *  work or silence, stays there for the rest of the call. Hover temporarily
+   *  faces the screen again without changing this latch. */
   isActing?: boolean;
   isUserSpeaking?: boolean;
   animateBodyMotion?: boolean;
@@ -143,8 +144,11 @@ export function UnityCallAvatar({
   teleportInOnMount = false,
 }: UnityCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
+  // Call-state latch for the laptop pose; hover temporarily overrides the visual
+  // turn so the droid faces the screen without clearing isActing.
+  const turnedToLaptop = isActing && !isHovered;
   // 0 = idle (head-on, facing camera) … 1 = working (turned to the laptop).
-  const progress = useWorkingProgress(isActing);
+  const progress = useWorkingProgress(turnedToLaptop);
   // Keep the laptop mounted through the close animation so the lid can fold and
   // fade while the body turns back; idle callers (hire form, chat bubble) sit at
   // progress 0 and never mount it.
@@ -156,8 +160,8 @@ export function UnityCallAvatar({
   // the 0→1 edge actually animates; flips back to false to fade out on the turn.
   const [laptopVisible, setLaptopVisible] = React.useState(false);
   React.useEffect(() => {
-    setLaptopVisible(isActing);
-  }, [isActing]);
+    setLaptopVisible(turnedToLaptop);
+  }, [turnedToLaptop]);
 
   const displayedSpeechLevel = clampUnitySpeechLevel(speechLevel ?? 0);
   const displayedMouthShape =
@@ -169,7 +173,7 @@ export function UnityCallAvatar({
   // Turning to the laptop drops the droid's gaze to its work. Shifting the eyes
   // with the body makes the swivel read as a deliberate "getting to work"
   // gesture rather than a blank rotation.
-  const poseRestingEyes: CreatureEyes = isActing ? 'down' : baseEyes;
+  const poseRestingEyes: CreatureEyes = turnedToLaptop ? 'down' : baseEyes;
 
   // Speech + eyes stay live for the whole call via the bare `active` prop; the
   // body pose is driven by our own animated `progress` through `fixed` (0 =
@@ -233,6 +237,7 @@ export function UnityCallAvatar({
       aria-label={label}
       data-testid="unity-call-avatar"
       data-acting={isActing ? 'true' : 'false'}
+      data-facing={turnedToLaptop ? 'laptop' : 'camera'}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       role="img"

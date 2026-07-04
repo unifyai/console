@@ -73,6 +73,12 @@ public/userInfo.json
 # Workflow recording outputs
 src/workflows/recordings/
 
+# Call-avatar preview harness (esbuild bundle + screenshot output)
+scripts/call-avatar-harness/bundle.js
+scripts/call-avatar-harness/bundle.css
+/renders/
+.avatar-harness/
+
 # Service-account credential files
 comm-sa.json
 
