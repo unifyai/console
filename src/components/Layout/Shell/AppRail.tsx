@@ -73,7 +73,7 @@ export function AppRail({
           aria-label="Unify Console home"
           data-testid="platform-home-button"
           className={cn(
-            'flex items-center gap-2 rounded-md text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'flex items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             collapsed ? 'justify-center' : 'min-w-0'
           )}
         >
