@@ -1,14 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Input } from '@/components/UI/input';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/UI/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/UI/select';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/UI/command';
+import { Input } from '@/components/UI/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { cn } from '@/lib/utils';
 import {
   PHONE_COUNTRIES,
@@ -16,16 +20,6 @@ import {
   getPhoneCountry,
   parsePhoneNumber,
 } from '@/utils/phone';
-
-// Built once at module load. The country list is static, so freezing these
-// elements keeps their references stable across re-renders and lets React skip
-// reconciling the ~190-item dropdown on every keystroke in the number field.
-const COUNTRY_OPTIONS = PHONE_COUNTRIES.map((country) => (
-  <SelectItem key={country.code} value={country.code}>
-    <span className="mr-2">{country.flag}</span>
-    {country.name} (+{country.dialCode})
-  </SelectItem>
-));
 
 interface PhoneInputProps {
   /** Full E.164 value, e.g. "+15551234567" (empty string when unset). */
@@ -58,10 +52,11 @@ const PhoneInput = ({
   countryTestId,
   className,
 }: PhoneInputProps) => {
-  const parsed = useMemo(() => parsePhoneNumber(value), [value]);
+  const parsed = parsePhoneNumber(value);
 
   const [countryCode, setCountryCode] = useState(parsed.countryCode);
   const [nationalNumber, setNationalNumber] = useState(parsed.nationalNumber);
+  const [countryOpen, setCountryOpen] = useState(false);
 
   // Keep internal state in sync when the value is changed externally (e.g.
   // reset, or initialised from the saved profile) without clobbering in-flight
@@ -96,21 +91,65 @@ const PhoneInput = ({
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <Select value={selected.code} onValueChange={handleCountryChange} disabled={disabled}>
-        <SelectTrigger
-          aria-label="Country code"
-          data-testid={countryTestId}
-          className={cn('w-[6.5rem] flex-shrink-0', invalid && 'border-destructive')}
-        >
-          <SelectValue>
+      <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={countryOpen}
+            aria-label="Country code"
+            data-testid={countryTestId}
+            disabled={disabled}
+            className={cn(
+              'text-body h-9 w-[6.5rem] flex-shrink-0 justify-between px-3 py-2 font-normal shadow-sm',
+              invalid && 'border-destructive'
+            )}
+          >
             <span className="flex items-center gap-1.5">
               <span>{selected.flag}</span>
               <span>+{selected.dialCode}</span>
             </span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>{COUNTRY_OPTIONS}</SelectContent>
-      </Select>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-0" align="start">
+          <Command>
+            <CommandInput
+              placeholder="Search country or code…"
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                e.nativeEvent.stopImmediatePropagation();
+              }}
+            />
+            <CommandList>
+              <CommandEmpty>No countries match your search.</CommandEmpty>
+              <CommandGroup>
+                {PHONE_COUNTRIES.map((country) => (
+                  <CommandItem
+                    key={country.code}
+                    value={country.code}
+                    keywords={[country.name, country.dialCode, `+${country.dialCode}`]}
+                    onSelect={() => {
+                      handleCountryChange(country.code);
+                      setCountryOpen(false);
+                    }}
+                  >
+                    <span>{country.flag}</span>
+                    {country.name} (+{country.dialCode})
+                    <Check
+                      className={cn(
+                        'ml-auto h-4 w-4',
+                        selected.code === country.code ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
       <Input
         id={id}
         type="tel"

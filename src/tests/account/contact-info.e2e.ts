@@ -50,9 +50,10 @@ async function captureSentNumber(
   return captured;
 }
 
-async function selectCountry(page: import('@playwright/test').Page, name: RegExp) {
+async function selectCountry(page: import('@playwright/test').Page, query: string) {
   await page.getByTestId('phone-country-select').click();
-  await page.getByRole('option', { name }).click();
+  await page.getByPlaceholder('Search country or code…').fill(query);
+  await page.getByRole('option', { name: new RegExp(query, 'i') }).click();
 }
 
 test('phone number defaults to +1 and constructs the full E.164 number', async ({
@@ -85,7 +86,7 @@ test('selecting a country changes the dial code in the constructed number', asyn
   const phoneInput = page.locator('#phone-number-input');
   await expect(phoneInput).toBeVisible({ timeout: 15_000 });
 
-  await selectCountry(page, /United Kingdom/);
+  await selectCountry(page, 'United Kingdom');
   await phoneInput.fill('7911123456');
 
   const verifyBtn = page.getByRole('button', { name: 'Verify' }).first();
