@@ -8,16 +8,15 @@ import { User } from '@/types/user';
 import { Button } from '@/components/UI/button';
 
 /**
- * Fixed enrollment passage (the public-domain "Rainbow Passage", the standard
- * text for voice work) so users never have to decide what to say. Reading it
- * at a natural pace takes roughly a minute and covers a broad phonetic range,
- * which is what the speaker-embedding model needs.
+ * Fixed enrollment passage so users never have to decide what to say. Reading
+ * it at a natural pace gives the speaker-embedding model enough phonetic
+ * variety for reliable voice recognition.
  */
-const ENROLLMENT_PASSAGE = `When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arch, with its path high above, and its two ends apparently beyond the horizon. There is, according to legend, a boiling pot of gold at one end. People look, but no one ever finds it. When a man looks for something beyond his reach, his friends say he is looking for the pot of gold at the end of the rainbow. Throughout the centuries people have explained the rainbow in various ways. Some have accepted it as a miracle without physical explanation. To the Hebrews it was a token that there would be no more universal floods. The Greeks used to imagine that it was a sign from the gods to foretell war or heavy rain.`;
+const ENROLLMENT_PASSAGE = `I've seen things you people wouldn't believe. Attack ships on fire off the shoulder of Orion. I watched C-beams glitter in the dark near the Tannhäuser Gate. All those moments will be lost in time, like tears in rain.`;
 
-const TARGET_SECONDS = 60;
-const MAX_SECONDS = 90;
-const MIN_SECONDS = 15;
+const TARGET_SECONDS = 20;
+const MAX_SECONDS = 30;
+const MIN_SECONDS = 10;
 const WAV_SAMPLE_RATE = 16000;
 
 /** Encode an AudioBuffer as a 16 kHz mono 16-bit PCM WAV blob. */
@@ -289,8 +288,8 @@ export function ProfileVoiceSection({ user }: { user: User }) {
     <div className="mt-8 max-w-2xl">
       <h3 className="text-title">Voice</h3>
       <p className="text-body-muted mt-1">
-        Record a one-minute voice sample so your assistant can recognize your voice on calls and
-        tell you apart from other people in the room.
+        Record a short voice sample (~20 seconds) so your assistant can recognize your voice on
+        calls and tell you apart from other people in the room.
       </p>
 
       {hasEnrollment && state === 'idle' && (
