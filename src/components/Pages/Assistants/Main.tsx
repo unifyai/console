@@ -1835,16 +1835,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // isn't disrupted while they configure their profile. Optional `tab`
   // mirrors the /account page's `?tab=` param (see SettingsView) so
   // callers can deep-link straight to the relevant section.
-  const handleOpenUserSettings = React.useCallback((tab?: string) => {
-    if (typeof window === 'undefined') return;
-    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
-    try {
-      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
-    } catch {
-      /* private mode / quota — refresh just won't trigger */
-    }
-    window.open(url, '_blank', 'noopener');
-  }, []);
+  const handleOpenUserSettings = React.useCallback(
+    (tab?: string) => {
+      if (typeof window === 'undefined') return;
+      requestCoordinatorOnboardingInfoClose();
+      const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
+      try {
+        window.localStorage.setItem(
+          'console:assistants:user-settings-opened-at',
+          String(Date.now())
+        );
+      } catch {
+        /* private mode / quota — refresh just won't trigger */
+      }
+      window.open(url, '_blank', 'noopener');
+    },
+    [requestCoordinatorOnboardingInfoClose]
+  );
 
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
@@ -3060,6 +3067,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               slackOwner={userMeta.slackOwner ?? null}
               slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
               slackInitialInstall={userMeta.slackInitialInstall ?? null}
+              onOpenUserSettings={handleOpenUserSettings}
             />
           )}
           {workspaceManagerAssistant && (
