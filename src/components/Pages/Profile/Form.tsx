@@ -11,7 +11,6 @@ import ProfilePhoto from './ProfilePhoto';
 import { useAutoSave } from '@/hooks/Account/useAutoSave';
 import { SaveStatus } from './SaveStatus';
 import { ProfileNewsletterSection } from './ProfileNewsletterSection';
-import { ProfileVoiceSection } from './ProfileVoiceSection';
 
 const MemoizedProfilePhoto = memo(ProfilePhoto);
 
@@ -182,7 +181,6 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
         handleBlur={handleBlur}
         externalIdentity={externalIdentity}
       />
-      <ProfileVoiceSection user={user} />
       <ProfileNewsletterSection />
     </div>
   );

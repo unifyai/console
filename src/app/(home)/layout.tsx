@@ -85,7 +85,11 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
       backfillByCallingIds,
     },
   };
-  const callUserMeta = { email: user?.email ?? null, image: user?.image ?? null };
+  const callUserMeta = {
+    email: user?.email ?? null,
+    image: user?.image ?? null,
+    voiceSample: user?.voiceSample ?? null,
+  };
 
   return (
     <div className="h-screen w-full overflow-hidden">

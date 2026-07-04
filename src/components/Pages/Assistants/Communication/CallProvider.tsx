@@ -10,7 +10,9 @@ import {
   useIsCoordinatorIntroAudioPlaying,
 } from './AssistantCommunicationDialog';
 import { AssistantLiveKitAudioRenderer } from './AssistantLiveKitAudioRenderer';
+import { VoiceEnrollmentFallbackDialog } from './VoiceEnrollmentFallbackDialog';
 import type { AssistantActions } from '@/types/assistants/assistant';
+import { useVoiceEnrollmentFallbackPrompt } from '@/hooks/Assistants/useVoiceEnrollmentFallbackPrompt';
 
 /**
  * The action subset the call engine needs. Mirrors the shape the standalone
@@ -27,6 +29,7 @@ export type CallProviderActions = Pick<AssistantActions, 'call' | 'desktop' | 'c
 interface CallUserMeta {
   email: string | null | undefined;
   image: string | null | undefined;
+  voiceSample?: string | null;
 }
 
 type UseAssistantCallReturn = ReturnType<typeof useAssistantCall>;
@@ -99,7 +102,14 @@ export function CallProvider({
 
   const { activeCallAssistant } = call;
   const hasActiveCall = !!activeCallAssistant;
+  const callLifecycleActive = call.isConnecting || call.isConnected;
   const showFloating = hasActiveCall && shellActivePath !== '/assistants';
+
+  const voiceEnrollmentFallback = useVoiceEnrollmentFallbackPrompt({
+    assistantId: activeCallAssistant?.agentId ?? null,
+    callLifecycleActive,
+    hasVoiceSample: !!userMeta.voiceSample,
+  });
 
   React.useEffect(() => {
     onCallLifecycleChange?.(call.isConnecting || call.isConnected);
@@ -115,6 +125,11 @@ export function CallProvider({
   return (
     <CallContext.Provider value={value}>
       {children}
+      <VoiceEnrollmentFallbackDialog
+        open={voiceEnrollmentFallback.open}
+        onOpenChange={voiceEnrollmentFallback.onOpenChange}
+        onEnrolled={voiceEnrollmentFallback.onEnrolled}
+      />
       {hasActiveCall && activeCallAssistant && (
         <RoomContext.Provider value={room}>
           {/* Single, persistent audio sink for the call. Living here (rather

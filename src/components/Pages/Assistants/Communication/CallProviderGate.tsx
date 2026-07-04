@@ -22,7 +22,11 @@ export function CallProviderGate({
   children,
 }: {
   callActions: CallProviderActions;
-  userMeta: { email: string | null | undefined; image: string | null | undefined };
+  userMeta: {
+    email: string | null | undefined;
+    image: string | null | undefined;
+    voiceSample?: string | null;
+  };
   children: React.ReactNode;
 }) {
   const handleCallLifecycleChange = React.useCallback((active: boolean) => {
