@@ -7,6 +7,7 @@ import {
   TWIN_CREATURE_APPEARANCE,
   getCreatureAccent,
   getDroidBodyForm as getUnityBodyForm,
+  getRotatingBotLaptopLiftPx,
 } from '@unity/brand/components';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type { UnityBody, UnityOutfit } from '@/components/Brand/unityAppearance';
@@ -46,6 +47,12 @@ interface UnityCallAvatarProps {
   /** Fade in once when the avatar first mounts. Set by the coordinator
    *  onboarding handoff so the docked unity reappears after the intro fade-out. */
   teleportInOnMount?: boolean;
+  /** Pin the midpoint of every body form's blank lower front (the strip
+   *  between the screen and the base) to the standard body's within the slot.
+   *  The call window enables this so the slot-anchored laptop sits centred on
+   *  each body's lower front, clear of every face; surfaces that position the
+   *  avatar by viewBox math (hire preview, chat bubble pop) leave it off. */
+  alignLaptop?: boolean;
 }
 
 // Resting pose: faces the screen head-on (eye contact on a call). The "working"
@@ -61,22 +68,73 @@ const WORKING_VIEW = { yaw: 45, tilt: 30 } as const;
 const LID_DURATION_MS = 520;
 const LAPTOP_FADE = 'opacity 0.5s ease';
 
-// Placement of the open laptop relative to the droid box, tuned against the
-// droid at WORKING_VIEW (the landing isometric pose) via an offline render: a
+// Placement of the open laptop in slot coordinates, tuned against the standard
+// body at WORKING_VIEW (the landing isometric pose) via an offline render: a
 // large laptop sitting in front of the droid's lower body, with the eyes still
-// reading above the raised lid. Width > 100% intentionally — the open laptop
-// is meant to be prominent (overflow is visible on the avatar).
-const LAPTOP_STYLE: React.CSSProperties = {
-  position: 'absolute',
-  left: '85%',
-  top: '91%',
-  width: '90%',
-  transform: 'translate(-50%, -50%)',
-  pointerEvents: 'none',
+// reading above the raised lid. The laptop is anchored to the slot — NOT to the
+// body — because every body form is shifted so its lower-front midpoint matches
+// the standard body's (see useLaptopAnchorLift), so one slot position lines up
+// with every body's lower front.
+//
+// The squat wide body is the exception: its lower front (screen bottom → base)
+// is ~13 slot-px tall versus the standard's ~24, so the shared laptop physically
+// cannot sit inside it. That body gets a compact laptop profile, solved (via
+// the same projective math as the lift) so the tray's contact band is centred
+// on the strip with an equal band of body visible above and below it.
+const LAPTOP_PROFILES: Record<'default' | 'wide', { left: string; top: string; width: string }> = {
+  default: { left: '85%', top: '91%', width: '90%' },
+  wide: { left: '80%', top: '93.1%', width: '68%' },
 };
 
-function easeInOutQuad(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+function laptopStyleForForm(form: ReturnType<typeof getUnityBodyForm>): React.CSSProperties {
+  const profile = form === 'wide' ? LAPTOP_PROFILES.wide : LAPTOP_PROFILES.default;
+  return {
+    position: 'absolute',
+    ...profile,
+    transform: 'translate(-50%, -50%)',
+    pointerEvents: 'none',
+  };
+}
+
+function useLaptopAnchorLift(
+  enabled: boolean,
+  form: ReturnType<typeof getUnityBodyForm>,
+  progress: number,
+  antenna: CreatureAntenna,
+  slotRef: React.RefObject<HTMLSpanElement | null>
+) {
+  const [liftPx, setLiftPx] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setLiftPx(0);
+      return;
+    }
+    const slot = slotRef.current;
+    if (!slot) return;
+
+    const update = () => {
+      const { width } = slot.getBoundingClientRect();
+      if (width <= 0) return;
+      // Reference defaults (standard body, no antenna) are the coordinator
+      // look the laptop placement is tuned against.
+      setLiftPx(
+        getRotatingBotLaptopLiftPx(form, width, {
+          pose: progress,
+          restView: CAMERA_VIEW,
+          activeView: WORKING_VIEW,
+          antenna,
+        })
+      );
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(slot);
+    return () => observer.disconnect();
+  }, [antenna, enabled, form, progress, slotRef]);
+
+  return liftPx;
 }
 
 /**
@@ -125,6 +183,10 @@ function useWorkingProgress(active: boolean): number {
   return progress;
 }
 
+function easeInOutQuad(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
 export function UnityCallAvatar({
   isSpeaking,
   isActing = false,
@@ -142,13 +204,17 @@ export function UnityCallAvatar({
   outfit = 'none',
   label = 'T-W1N',
   teleportInOnMount = false,
+  alignLaptop = false,
 }: UnityCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
+  const slotRef = React.useRef<HTMLSpanElement>(null);
+  const form = getUnityBodyForm(body);
   // Call-state latch for the laptop pose; hover temporarily overrides the visual
   // turn so the droid faces the screen without clearing isActing.
   const turnedToLaptop = isActing && !isHovered;
   // 0 = idle (head-on, facing camera) … 1 = working (turned to the laptop).
   const progress = useWorkingProgress(turnedToLaptop);
+  const liftPx = useLaptopAnchorLift(alignLaptop, form, progress, antenna, slotRef);
   // Keep the laptop mounted through the close animation so the lid can fold and
   // fade while the body turns back; idle callers (hire form, chat bubble) sit at
   // progress 0 and never mount it.
@@ -188,7 +254,7 @@ export function UnityCallAvatar({
       accent={getCreatureAccent(color)}
       active
       disableSpeechMotion={!animateBodyMotion}
-      form={getUnityBodyForm(body)}
+      form={form}
       emotion={mood}
       isSpeaking={isSpeaking}
       isUserSpeaking={isUserSpeaking}
@@ -205,7 +271,10 @@ export function UnityCallAvatar({
 
   // When idle the wrapper is transparent to layout (`display: contents`) so the
   // droid sizes exactly as it did before; while working it becomes a positioned
-  // box that anchors the laptop overlay.
+  // box that anchors the laptop overlay. The anchor lift is applied to the
+  // droid ONLY: it shifts every body form so the midpoint of its blank lower
+  // front lands where the standard body's sits, while the laptop stays fixed in
+  // slot coordinates — so the laptop reads identically against every body.
   const composed = (
     <span
       style={
@@ -214,13 +283,18 @@ export function UnityCallAvatar({
           : { display: 'contents' }
       }
     >
-      {unity}
+      <span
+        className="block h-full w-full"
+        style={liftPx !== 0 ? { transform: `translateY(${liftPx}px)` } : undefined}
+      >
+        {unity}
+      </span>
       {working && (
         <span
           aria-hidden="true"
           data-testid="unity-call-laptop"
           style={{
-            ...LAPTOP_STYLE,
+            ...laptopStyleForForm(form),
             opacity: laptopVisible ? 1 : 0,
             transition: LAPTOP_FADE,
           }}
@@ -233,6 +307,7 @@ export function UnityCallAvatar({
 
   return (
     <span
+      ref={slotRef}
       className={cn('flex h-full w-full items-center justify-center overflow-visible', className)}
       aria-label={label}
       data-testid="unity-call-avatar"

@@ -83,3 +83,5 @@ scripts/call-avatar-harness/bundle.css
 comm-sa.json
 
 .design/
+# call-avatar harness build artifacts
+scripts/call-avatar-harness/bundle.*
