@@ -17,6 +17,12 @@ export type CoordinatorOnboardingIntroUnityAppearance = {
   outfit?: UnityOutfit;
 };
 
+/** Typing duration before the scripted chat opener is delivered (pairs with Unity). */
+export const COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_MS = 5000;
+
+/** Drop the forced typing hint if the opener never lands. */
+export const COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS = 15000;
+
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY = {
   antenna: TWIN_CREATURE_APPEARANCE.antenna,
   baseEyes: 'square',

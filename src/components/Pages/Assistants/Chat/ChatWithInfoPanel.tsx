@@ -56,6 +56,8 @@ export interface ChatWithInfoPanelProps {
    * during the conversation.
    */
   renderDockedCall?: () => React.ReactNode;
+  /** Onboarding-only: show typing while the scripted chat opener is in flight. */
+  forceCoordinatorChatIntroTyping?: boolean;
 }
 
 export function ChatWithInfoPanel({
@@ -82,6 +84,7 @@ export function ChatWithInfoPanel({
   isCallButtonDisabled,
   callButtonTooltip,
   renderDockedCall,
+  forceCoordinatorChatIntroTyping = false,
 }: ChatWithInfoPanelProps) {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const isInThisCall = activeCallAssistantId === assistant.agentId;
@@ -111,6 +114,7 @@ export function ChatWithInfoPanel({
       onAssistantAvatarStartCall={onStartAudioCall}
       isAssistantAvatarStartCallDisabled={isCallButtonDisabled}
       assistantAvatarStartCallTooltip={callButtonTooltip}
+      forceTypingIndicator={forceCoordinatorChatIntroTyping}
     />
   );
 

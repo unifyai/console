@@ -91,6 +91,7 @@ import {
 import { debugConsole } from '@/lib/consoleDebug';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
+import { COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS } from '@/utils/assistants/coordinator-onboarding-intro';
 import {
   clearCoordinatorOnboardingStaleFlag,
   COORDINATOR_ONBOARDING_STALE_EVENT,
@@ -477,6 +478,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // doesn't pop back in after the picker is resolved (the ``intro_watched``
   // write is async + optimistic, but this keeps the dismissal instant).
   const [coordinatorIntroDismissed, setCoordinatorIntroDismissed] = React.useState(false);
+  // Set when the user picks chat on the onboarding overlay; drives a one-shot
+  // forced typing bubble until the scripted opener lands (see chat panel prop).
+  const [awaitingCoordinatorChatIntro, setAwaitingCoordinatorChatIntro] = React.useState(false);
   // Global "do onboarding later" switch. When set, the whole Console
   // onboarding surface (intro overlay, focus layout, nudge dot) stands
   // down so the user can use the platform first — mirrored to the
@@ -1002,6 +1006,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     Record<string, ChatMessage[]>
   >({});
   const [callPillHistories, setCallPillHistories] = React.useState<Record<string, CallPill[]>>({});
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro || canonicalCoordinatorId === null) return;
+    const messages = profileChatHistories[String(canonicalCoordinatorId)] ?? [];
+    if (messages.some((message) => message.role === 'assistant')) {
+      setAwaitingCoordinatorChatIntro(false);
+    }
+  }, [awaitingCoordinatorChatIntro, canonicalCoordinatorId, profileChatHistories]);
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro) return;
+    const handle = window.setTimeout(
+      () => setAwaitingCoordinatorChatIntro(false),
+      COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS
+    );
+    return () => window.clearTimeout(handle);
+  }, [awaitingCoordinatorChatIntro]);
 
   // --- Prefetch contact IDs, transcripts, AND call pills for all loaded assistants ---
   // Resolves contact IDs and fetches transcript history + meet call pills in
@@ -2335,6 +2356,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [assistants, profileAssistantId]
   );
 
+  const forceCoordinatorChatIntroTyping =
+    awaitingCoordinatorChatIntro &&
+    canonicalCoordinatorId !== null &&
+    profileAssistant?.isCoordinator === true &&
+    profileAssistant.agentId === String(canonicalCoordinatorId);
+
   // --- Setup roadmap derivations (live-derived from existing state) ---
   // True iff the user has sent ≥1 message in the currently-profiled
   // assistant's chat — drives the "Say hi" sub-step completion.
@@ -2819,6 +2846,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           isActiveSurface={isActiveSurface}
                           infoPanel={infoPanel}
                           coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
+                          forceCoordinatorChatIntroTyping={forceCoordinatorChatIntroTyping}
                           renderDockedCall={
                             activeCallAssistant &&
                             profileAssistant &&
@@ -2919,8 +2947,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   coordinator={canonicalCoordinator}
                   onStartCall={handleStartCoordinatorIntroCall}
                   onDiscardCall={handleHangUp}
-                  onComplete={() => {
+                  onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
+                    if (medium === 'chat') {
+                      setAwaitingCoordinatorChatIntro(true);
+                    }
                     requestFirstLoginCommunicationEmailOpen();
                   }}
                 />

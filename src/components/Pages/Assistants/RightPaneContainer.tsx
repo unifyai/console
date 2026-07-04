@@ -102,6 +102,8 @@ interface RightPaneContainerProps {
    * *this* assistant and hasn't been popped out.
    */
   renderDockedCall?: () => React.ReactNode;
+  /** Onboarding-only: show typing while the scripted chat opener is in flight. */
+  forceCoordinatorChatIntroTyping?: boolean;
   /** True while a Brain section overlay hides the workspace pane (Actions SSE stays live). */
   workspacePaneObscured?: boolean;
   /** False when the assistants surface is hidden behind settings/admin routes. */
@@ -142,6 +144,7 @@ export function RightPaneContainer({
   infoPanel,
   coordinatorOnboarding,
   renderDockedCall,
+  forceCoordinatorChatIntroTyping = false,
   workspacePaneObscured = false,
   isActiveSurface = true,
 }: RightPaneContainerProps) {
@@ -221,6 +224,7 @@ export function RightPaneContainer({
           isCallButtonDisabled={infoPanel.isCallButtonDisabled}
           callButtonTooltip={infoPanel.callButtonTooltip}
           renderDockedCall={renderDockedCall}
+          forceCoordinatorChatIntroTyping={forceCoordinatorChatIntroTyping}
         />
       </TabsContent>
 
