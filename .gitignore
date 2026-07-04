@@ -85,3 +85,4 @@ comm-sa.json
 .design/
 # call-avatar harness build artifacts
 scripts/call-avatar-harness/bundle.*
+scripts/call-avatar-harness/parity-bundle.*
