@@ -13,6 +13,7 @@ import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholde
 import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
 import type { ChatDraftSeed } from '@/components/Pages/Assistants/Layout/AssistantInfoPanelLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
+import { cn } from '@/lib/utils';
 
 /**
  * Chat tab body: hosts the conversation panel and the chat-scoped toolbar.
@@ -169,35 +170,28 @@ export function ChatWithInfoPanel({
             </div>
           </div>
           <div className="flex min-h-0 flex-1 flex-col">
-            {renderDockedCall ? (
-              isBelowCompact ? (
-                <>
-                  <div
-                    className="flex min-h-[40vh] shrink-0 flex-col border-b"
-                    data-testid="assistant-call-docked-region"
-                  >
-                    {renderDockedCall()}
-                  </div>
-                  <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
-                    {chatPanel}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    className="min-h-0 flex-1 border-b"
-                    data-testid="assistant-call-docked-region"
-                  >
-                    {renderDockedCall()}
-                  </div>
-                  <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
-                    {chatPanel}
-                  </div>
-                </>
-              )
-            ) : (
-              chatPanel
-            )}
+            {/* Keep the chat panel at a stable tree position so its composer
+                state survives hanging up (mount/unmount would reset inputValue). */}
+            <div
+              className={cn(
+                'flex-col border-b',
+                renderDockedCall
+                  ? isBelowCompact
+                    ? 'flex min-h-[40vh] shrink-0'
+                    : 'flex min-h-0 flex-1'
+                  : 'hidden'
+              )}
+              data-testid="assistant-call-docked-region"
+              aria-hidden={!renderDockedCall}
+            >
+              {renderDockedCall?.()}
+            </div>
+            <div
+              className="flex min-h-0 flex-1 flex-col"
+              data-testid="assistant-chat-during-call-region"
+            >
+              {chatPanel}
+            </div>
           </div>
         </div>
       </div>

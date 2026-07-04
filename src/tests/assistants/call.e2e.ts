@@ -246,6 +246,29 @@ test('hanging up closes the dialog and returns to the chat view @critical @area(
   await expect(listItem).toBeVisible();
 });
 
+test('unsent chat draft survives hanging up a docked call', async ({ authedPage: page }) => {
+  await openAssistantProfile(page, assistant.agentId);
+
+  const audioBtn = page.getByTestId('call-audio-button');
+  await audioBtn.click();
+
+  const header = page.locator('text=Talk to Caller TestBot');
+  await expect(header).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('assistant-chat-during-call-region')).toBeVisible();
+
+  const draftText = 'Follow up after the call';
+  const composer = page
+    .getByTestId('assistant-chat-during-call-region')
+    .getByPlaceholder('Send a message...');
+  await composer.fill(draftText);
+
+  const endCallBtn = page.getByRole('button', { name: 'End call' });
+  await endCallBtn.click();
+  await expect(header).not.toBeVisible({ timeout: 10_000 });
+
+  await expect(composer).toHaveValue(draftText);
+});
+
 test('call button is disabled when credits are exhausted and re-enables after funding', async ({
   authedPage: page,
 }) => {
