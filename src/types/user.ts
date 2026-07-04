@@ -26,6 +26,9 @@ export interface User {
   createdAt: string;
   apiKey: string;
   personalWorkspaceDisabled?: boolean;
+  /** gs:// URL of the recorded voice-enrollment sample, if any */
+  voiceSample?: string | null;
+  voiceSampleUploadedAt?: string | null;
   stripeCustomerId: string;
   organization: {
     name: string;
