@@ -538,25 +538,6 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         <Input type="email" value={user.email} disabled className="mt-2" />
       </div>
 
-      {contactPhone && (
-        <VerificationField
-          label="Phone Number"
-          icon={<span className="text-muted-foreground">📱</span>}
-          inputId="phone-number-input"
-          countryTestId="phone-country-select"
-          state={phoneState}
-          onValueChange={(v) => handleValueChange(setPhoneState, 'phoneNumber', whatsappState, v)}
-          onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
-          onCancel={() => handleCancel(setPhoneState)}
-          onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
-          onCodeChange={(v) =>
-            setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
-          }
-          onEdit={() => handleEdit(setPhoneState)}
-          onRemove={() => handleRemove(setPhoneState, 'phoneNumber')}
-        />
-      )}
-
       {contactWhatsapp && (
         <VerificationField
           label="WhatsApp Number"
@@ -575,6 +556,25 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           }
           onEdit={() => handleEdit(setWhatsappState)}
           onRemove={() => handleRemove(setWhatsappState, 'whatsappNumber')}
+        />
+      )}
+
+      {contactPhone && (
+        <VerificationField
+          label="Phone Number"
+          icon={<span className="text-muted-foreground">📱</span>}
+          inputId="phone-number-input"
+          countryTestId="phone-country-select"
+          state={phoneState}
+          onValueChange={(v) => handleValueChange(setPhoneState, 'phoneNumber', whatsappState, v)}
+          onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
+          onCancel={() => handleCancel(setPhoneState)}
+          onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
+          onCodeChange={(v) =>
+            setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+          }
+          onEdit={() => handleEdit(setPhoneState)}
+          onRemove={() => handleRemove(setPhoneState, 'phoneNumber')}
         />
       )}
 
