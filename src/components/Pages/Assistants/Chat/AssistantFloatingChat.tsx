@@ -6,10 +6,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Maximize2, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { useFloatingShellGeometry } from '@/components/Common/FloatingShell/useFloatingShellGeometry';
-import { assistantDisplayName } from '@/lib/assistants/displayName';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
@@ -19,6 +20,54 @@ import {
   readFloatingChatCollapsedPreference,
   writeFloatingChatCollapsedPreference,
 } from '@/hooks/Assistants/useFloatingChatVisibility';
+
+/** Sits above the shared h-10 tab footer (`bottom-14` = 3.5rem). */
+const LAUNCHER_BOTTOM_CLASS = 'bottom-14';
+const LAUNCHER_SIZE_CLASS = 'h-16 w-16';
+const HEADER_AVATAR_SIZE_CLASS = 'h-7 w-7';
+
+function FloatingChatAssistantAvatar({
+  assistant,
+  displayName,
+  sizeClass,
+}: {
+  assistant: Assistant;
+  displayName: string;
+  sizeClass: string;
+}) {
+  if (assistant.isCoordinator) {
+    return <CoordinatorLogoAvatar className={cn('shrink-0', sizeClass)} />;
+  }
+
+  const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
+  const creatureAppearance = parseCreatureSentinel(photoSrc);
+  if (creatureAppearance) {
+    return (
+      <CreatureAvatar
+        appearance={creatureAppearance}
+        className={cn('shrink-0', sizeClass)}
+        label={displayName}
+      />
+    );
+  }
+
+  if (photoSrc) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- signed teammate photo URL
+      <img
+        src={photoSrc}
+        alt={displayName}
+        className={cn('shrink-0 object-contain object-bottom', sizeClass)}
+      />
+    );
+  }
+
+  return (
+    <span className="text-title shrink-0 font-display" aria-hidden>
+      {assistantInitials(assistant)}
+    </span>
+  );
+}
 
 export interface AssistantFloatingChatProps {
   assistant: Assistant;
@@ -91,7 +140,6 @@ export function AssistantFloatingChat({
   }, [visible, collapsed, seedDefaultGeometry]);
 
   const displayName = assistantDisplayName(assistant);
-  const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
   const setCollapsedPreference = React.useCallback((next: boolean) => {
     setCollapsed(next);
@@ -137,18 +185,24 @@ export function AssistantFloatingChat({
               type="button"
               data-testid="floating-chat-launcher"
               aria-label={`Open chat with ${displayName}`}
-              className="pointer-events-auto fixed bottom-5 right-5 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background shadow-pop-lg"
+              className={cn(
+                'pointer-events-auto fixed relative right-5 flex shrink-0 items-end justify-center bg-transparent p-0',
+                LAUNCHER_BOTTOM_CLASS,
+                LAUNCHER_SIZE_CLASS,
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+              )}
               onClick={() => setCollapsedPreference(false)}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
             >
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={photoSrc} alt={displayName} />
-                <AvatarFallback>{displayName.slice(0, 1)}</AvatarFallback>
-              </Avatar>
+              <FloatingChatAssistantAvatar
+                assistant={assistant}
+                displayName={displayName}
+                sizeClass={LAUNCHER_SIZE_CLASS}
+              />
               {unreadCount > 0 && (
                 <span
-                  className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                  className="absolute -right-0.5 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground ring-2 ring-background"
                   data-testid="floating-chat-unread-badge"
                 >
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -196,10 +250,11 @@ export function AssistantFloatingChat({
                   </div>
                 )}
                 <div className="flex items-center gap-2 px-3 py-2">
-                  <Avatar className="h-7 w-7 shrink-0">
-                    <AvatarImage src={photoSrc} alt={displayName} />
-                    <AvatarFallback>{displayName.slice(0, 1)}</AvatarFallback>
-                  </Avatar>
+                  <FloatingChatAssistantAvatar
+                    assistant={assistant}
+                    displayName={displayName}
+                    sizeClass={HEADER_AVATAR_SIZE_CLASS}
+                  />
                   <span className="text-title min-w-0 flex-1 truncate font-display">
                     {displayName}
                   </span>
