@@ -860,18 +860,6 @@ function getWorkspaceStatusDescription(assistant: Assistant): {
     return { text: 'Microsoft 365 connected', provider: 'microsoft' };
   }
 
-  if (assistant.isCoordinator && assistant.email?.trim()) {
-    return { text: 'T-W1N email configured', provider: null };
-  }
-
-  if (assistant.email?.trim() && assistant.emailProvisionedBy === 'platform') {
-    return { text: 'Platform email configured', provider: null };
-  }
-
-  if (assistant.email?.trim()) {
-    return { text: 'Email configured', provider: null };
-  }
-
   return { text: 'No workspace connected yet', provider: null };
 }
 
