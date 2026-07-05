@@ -65,20 +65,22 @@ export function EmojiReactionPicker({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className={cn(
-          expanded
-            ? 'w-auto border-0 bg-transparent p-0 shadow-none backdrop-blur-none'
-            : 'w-auto p-2'
-        )}
+        side="bottom"
+        sideOffset={6}
+        avoidCollisions={!expanded}
+        collisionPadding={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        className={cn('w-auto', expanded ? 'overflow-hidden p-0' : 'p-2')}
       >
         {expanded ? (
           <FullEmojiPicker
             open
             theme={emojiPickerTheme}
             emojiStyle={EmojiStyle.NATIVE}
-            width={320}
-            height={380}
+            className="chat-emoji-picker"
+            width={300}
+            height={320}
             lazyLoadEmojis
+            autoFocusSearch={false}
             previewConfig={{ showPreview: false }}
             onEmojiClick={(data: EmojiClickData) => handleSelect(data.emoji)}
           />
