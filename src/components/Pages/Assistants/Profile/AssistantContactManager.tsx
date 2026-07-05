@@ -659,6 +659,22 @@ export function AssistantContactManager({
                 {renderContactActions('email')}
               </ContactSection>
 
+              {contactWhatsapp && (
+                <ContactSection
+                  type="whatsapp"
+                  icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
+                  label="WhatsApp"
+                >
+                  <WhatsAppTabContent
+                    assistant={assistant}
+                    canWrite={canWrite}
+                    userWhatsappNumber={userWhatsappNumber}
+                    onOpenUserSettings={onOpenUserSettings}
+                  />
+                  {renderContactActions('whatsapp')}
+                </ContactSection>
+              )}
+
               {contactPhone && (
                 <ContactSection
                   type="phone"
@@ -682,19 +698,19 @@ export function AssistantContactManager({
                 </ContactSection>
               )}
 
-              {contactWhatsapp && (
+              {slackAvailable && slackOwner && assistantActions.slack && (
                 <ContactSection
-                  type="whatsapp"
-                  icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
-                  label="WhatsApp"
+                  type="slack"
+                  icon={<Slack className="h-4 w-4 text-muted-foreground" />}
+                  label="Slack"
                 >
-                  <WhatsAppTabContent
+                  <SlackTabContent
                     assistant={assistant}
-                    canWrite={canWrite}
-                    userWhatsappNumber={userWhatsappNumber}
-                    onOpenUserSettings={onOpenUserSettings}
+                    owner={slackOwner}
+                    canManage={slackCanManageInstall}
+                    initialInstall={slackInitialInstall}
+                    actions={assistantActions.slack}
                   />
-                  {renderContactActions('whatsapp')}
                 </ContactSection>
               )}
 
@@ -711,22 +727,6 @@ export function AssistantContactManager({
                 />
                 {renderContactActions('discord')}
               </ContactSection>
-
-              {slackAvailable && slackOwner && assistantActions.slack && (
-                <ContactSection
-                  type="slack"
-                  icon={<Slack className="h-4 w-4 text-muted-foreground" />}
-                  label="Slack"
-                >
-                  <SlackTabContent
-                    assistant={assistant}
-                    owner={slackOwner}
-                    canManage={slackCanManageInstall}
-                    initialInstall={slackInitialInstall}
-                    actions={assistantActions.slack}
-                  />
-                </ContactSection>
-              )}
             </div>
           )}
         </FormProvider>
