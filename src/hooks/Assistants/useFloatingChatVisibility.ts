@@ -16,6 +16,44 @@ export interface FloatingChatVisibilityInput {
   assistantsBootstrapped: boolean;
 }
 
+export function isFullPageAssistantChatVisible(input: {
+  pathname: string;
+  isChatVisibleInRightPane: boolean;
+}): boolean {
+  return isAssistantsPath(input.pathname) && input.isChatVisibleInRightPane;
+}
+
+/**
+ * Session dismiss for the floating chat. Clears when the user leaves the
+ * full-page Chat tab on /assistants after having entered it — not on mere
+ * cross-route navigation.
+ */
+export function useFloatingChatDismissReset(input: {
+  pathname: string;
+  isChatVisibleInRightPane: boolean;
+}) {
+  const { pathname, isChatVisibleInRightPane } = input;
+  const [dismissed, setDismissed] = React.useState(false);
+  const wasInFullPageChatRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const inFullPageChat = isFullPageAssistantChatVisible({
+      pathname,
+      isChatVisibleInRightPane,
+    });
+    if (wasInFullPageChatRef.current && !inFullPageChat) {
+      setDismissed(false);
+    }
+    wasInFullPageChatRef.current = inFullPageChat;
+  }, [pathname, isChatVisibleInRightPane]);
+
+  const dismiss = React.useCallback(() => {
+    setDismissed(true);
+  }, []);
+
+  return { dismissed, dismiss };
+}
+
 export function useFloatingChatVisibility(input: FloatingChatVisibilityInput): boolean {
   const {
     pathname,

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Maximize2, Phone } from 'lucide-react';
+import { ChevronDown, Maximize2, Phone, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
@@ -69,6 +69,33 @@ function FloatingChatAssistantAvatar({
   );
 }
 
+function FloatingChatDismissButton({
+  onDismiss,
+  className,
+}: {
+  onDismiss: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid="floating-chat-dismiss"
+      aria-label="Hide chat"
+      onClick={(e) => {
+        e.stopPropagation();
+        onDismiss();
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+      className={cn(
+        'bg-background/90 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-opacity hover:text-foreground',
+        className
+      )}
+    >
+      <X className="h-3 w-3" />
+    </button>
+  );
+}
+
 export interface AssistantFloatingChatProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
@@ -89,6 +116,7 @@ export interface AssistantFloatingChatProps {
   isInActiveCall: boolean;
   isCallConnected: boolean;
   onReturnToCall?: () => void;
+  onDismiss?: () => void;
   onExpandedChange?: (expanded: boolean) => void;
 }
 
@@ -112,6 +140,7 @@ export function AssistantFloatingChat({
   isInActiveCall,
   isCallConnected,
   onReturnToCall,
+  onDismiss,
   onExpandedChange,
 }: AssistantFloatingChatProps) {
   const { navigateToAssistantChat } = useAppShellNavigation();
@@ -158,6 +187,11 @@ export function AssistantFloatingChat({
     navigateToAssistantChat(assistant.agentId);
   }, [assistant.agentId, hasActiveCall, navigateToAssistantChat, onReturnToCall]);
 
+  const handleDismiss = React.useCallback(() => {
+    setCollapsedPreference(true);
+    onDismiss?.();
+  }, [onDismiss, setCollapsedPreference]);
+
   const onHeaderPointerDown = React.useCallback(
     (e: React.PointerEvent) => {
       handleHeaderPointerDown(e, contentRef);
@@ -181,39 +215,51 @@ export function AssistantFloatingChat({
           className="pointer-events-none fixed inset-0 z-[45]"
         >
           {collapsed ? (
-            <motion.button
-              type="button"
-              data-testid="floating-chat-launcher"
-              aria-label={`Open chat with ${displayName}`}
+            <div
               className={cn(
-                'pointer-events-auto fixed relative right-5 flex shrink-0 items-end justify-center bg-transparent p-0',
+                'group pointer-events-auto fixed right-5',
                 LAUNCHER_BOTTOM_CLASS,
-                LAUNCHER_SIZE_CLASS,
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+                LAUNCHER_SIZE_CLASS
               )}
-              onClick={() => setCollapsedPreference(false)}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
             >
-              <FloatingChatAssistantAvatar
-                assistant={assistant}
-                displayName={displayName}
-                sizeClass={LAUNCHER_SIZE_CLASS}
-              />
-              {unreadCount > 0 && (
-                <span
-                  className="absolute -right-0.5 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground ring-2 ring-background"
-                  data-testid="floating-chat-unread-badge"
-                >
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+              <motion.button
+                type="button"
+                data-testid="floating-chat-launcher"
+                aria-label={`Open chat with ${displayName}`}
+                className={cn(
+                  'flex h-full w-full shrink-0 items-end justify-center bg-transparent p-0',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+                )}
+                onClick={() => setCollapsedPreference(false)}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+              >
+                <FloatingChatAssistantAvatar
+                  assistant={assistant}
+                  displayName={displayName}
+                  sizeClass={LAUNCHER_SIZE_CLASS}
+                />
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute -right-0.5 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground ring-2 ring-background"
+                    data-testid="floating-chat-unread-badge"
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </motion.button>
+              {onDismiss && (
+                <FloatingChatDismissButton
+                  onDismiss={handleDismiss}
+                  className="absolute -right-1 -top-1 z-10 group-hover:opacity-100"
+                />
               )}
-            </motion.button>
+            </div>
           ) : (
             <div
               ref={contentRef}
               data-testid="floating-chat-panel"
-              className="bg-background/95 pointer-events-auto fixed flex flex-col overflow-hidden rounded-lg border border-border text-foreground shadow-2xl backdrop-blur-md"
+              className="group/panel bg-background/95 pointer-events-auto fixed flex flex-col overflow-hidden rounded-lg border border-border text-foreground shadow-2xl backdrop-blur-md"
               style={{
                 left: floatingPos.x,
                 top: floatingPos.y,
@@ -221,6 +267,12 @@ export function AssistantFloatingChat({
                 height: floatingSize.height,
               }}
             >
+              {onDismiss && (
+                <FloatingChatDismissButton
+                  onDismiss={handleDismiss}
+                  className="absolute right-2 top-2 z-30 group-hover/panel:opacity-100"
+                />
+              )}
               <div
                 className="bg-muted/40 flex shrink-0 cursor-grab flex-col border-b border-border active:cursor-grabbing"
                 onPointerDown={onHeaderPointerDown}

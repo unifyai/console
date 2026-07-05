@@ -4,6 +4,7 @@ import * as React from 'react';
 import { AssistantFloatingChat } from '@/components/Pages/Assistants/Chat/AssistantFloatingChat';
 import {
   useFloatingChatVisibility,
+  useFloatingChatDismissReset,
   type FloatingChatVisibilityInput,
 } from '@/hooks/Assistants/useFloatingChatVisibility';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -59,7 +60,17 @@ export function AssistantFloatingChatHost({
   ...visibilityInput
 }: AssistantFloatingChatHostProps) {
   const { navigateToAssistantChat } = useAppShellNavigation();
-  const visible = useFloatingChatVisibility(visibilityInput);
+  const eligible = useFloatingChatVisibility(visibilityInput);
+  const { dismissed, dismiss } = useFloatingChatDismissReset({
+    pathname: visibilityInput.pathname,
+    isChatVisibleInRightPane: visibilityInput.isChatVisibleInRightPane,
+  });
+  const visible = eligible && !dismissed;
+
+  const handleDismiss = React.useCallback(() => {
+    dismiss();
+    onExpandedChange(false);
+  }, [dismiss, onExpandedChange]);
 
   const handleReturnToCall = React.useCallback(() => {
     if (!activeCallAssistantId) return;
@@ -88,6 +99,7 @@ export function AssistantFloatingChatHost({
       isInActiveCall={isInActiveCall}
       isCallConnected={isCallConnected}
       onReturnToCall={hasActiveCall ? handleReturnToCall : undefined}
+      onDismiss={handleDismiss}
       onExpandedChange={(expanded) => onExpandedChange(visible && expanded)}
     />
   );

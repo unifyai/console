@@ -148,3 +148,29 @@ test('floating chat hides while hire dialog is open', async ({ authedPage: page 
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('floating-chat-launcher')).toHaveCount(0, { timeout: 5_000 });
 });
+
+async function dismissFloatingChat(page: import('@playwright/test').Page) {
+  const launcher = page.getByTestId('floating-chat-launcher');
+  await expect(launcher).toBeVisible({ timeout: 15_000 });
+  await launcher.hover();
+  await page.getByTestId('floating-chat-dismiss').click();
+  await expect(launcher).toHaveCount(0, { timeout: 5_000 });
+}
+
+test('dismiss hides floater until user exits full-page chat', async ({ authedPage: page }) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+  await openAssistantChat(page);
+  await openRailSection(page, 'tasks');
+  await dismissFloatingChat(page);
+
+  await openSettingsFromRail(page);
+  await expect(page.getByTestId('floating-chat-launcher')).toHaveCount(0, { timeout: 5_000 });
+
+  await page.getByTestId('rail-nav-assistants').click();
+  await expect(page).toHaveURL(/\/assistants/, { timeout: 15_000 });
+  await openRailSection(page, 'chat');
+  await expect(page.getByTestId('floating-chat-launcher')).toHaveCount(0, { timeout: 5_000 });
+
+  await openRailSection(page, 'tasks');
+  await expect(page.getByTestId('floating-chat-launcher')).toBeVisible({ timeout: 10_000 });
+});
