@@ -127,89 +127,81 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
   const [isRefreshingContacts, setIsRefreshingContacts] = React.useState(false);
 
   const isMountedRef = React.useRef(true);
+  const actionsRef = React.useRef(actions);
+  actionsRef.current = actions;
+  const hasInitiallyLoadedRef = React.useRef(false);
 
   /**
    * Fetches demo assistants and source assistants.
    */
-  const fetchData = React.useCallback(
-    async (showLoadingToast = false) => {
+  const fetchData = React.useCallback(async (options?: { showLoading?: boolean }) => {
+    if (!isMountedRef.current) return;
+
+    const showLoading = options?.showLoading ?? !hasInitiallyLoadedRef.current;
+    if (showLoading) {
+      setIsLoading(true);
+    }
+    setError(null);
+
+    try {
+      // Load demo assistants
+      const demosResult = await actionsRef.current.list();
       if (!isMountedRef.current) return;
 
-      setIsLoading(true);
-      setError(null);
-
-      let toastId: string | number | undefined;
-      if (showLoadingToast) {
-        toastId = toast.loading('Refreshing demo assistants...');
+      if (isResponseError(demosResult)) {
+        throw new Error(demosResult.detail);
       }
 
+      if (Array.isArray(demosResult)) {
+        setDemoAssistants(demosResult);
+      }
+
+      // Load demo metadata list (for labels)
+      const metaListResult = await actionsRef.current.listMeta();
+      if (!isMountedRef.current) return;
+
+      if (isResponseError(metaListResult)) {
+        console.warn('Failed to load demo metadata:', metaListResult.detail);
+      } else if (Array.isArray(metaListResult)) {
+        setMetaList(metaListResult);
+      }
+
+      // Load source assistants
+      const sourcesResult = await actionsRef.current.listSourceAssistants();
+      if (!isMountedRef.current) return;
+
+      if (isResponseError(sourcesResult)) {
+        console.warn('Failed to load source assistants:', sourcesResult.detail);
+      } else if (Array.isArray(sourcesResult)) {
+        setSourceAssistants(sourcesResult);
+      }
+
+      // Load available phone countries
       try {
-        // Load demo assistants
-        const demosResult = await actions.list();
+        const countriesResult = await actionsRef.current.listAvailablePhoneCountries();
         if (!isMountedRef.current) return;
 
-        if (isResponseError(demosResult)) {
-          throw new Error(demosResult.detail);
-        }
-
-        if (Array.isArray(demosResult)) {
-          setDemoAssistants(demosResult);
-        }
-
-        // Load demo metadata list (for labels)
-        const metaListResult = await actions.listMeta();
-        if (!isMountedRef.current) return;
-
-        if (isResponseError(metaListResult)) {
-          console.warn('Failed to load demo metadata:', metaListResult.detail);
-        } else if (Array.isArray(metaListResult)) {
-          setMetaList(metaListResult);
-        }
-
-        // Load source assistants
-        const sourcesResult = await actions.listSourceAssistants();
-        if (!isMountedRef.current) return;
-
-        if (isResponseError(sourcesResult)) {
-          console.warn('Failed to load source assistants:', sourcesResult.detail);
-        } else if (Array.isArray(sourcesResult)) {
-          setSourceAssistants(sourcesResult);
-        }
-
-        // Load available phone countries
-        try {
-          const countriesResult = await actions.listAvailablePhoneCountries();
-          if (!isMountedRef.current) return;
-
-          if (Array.isArray(countriesResult)) {
-            setAvailablePhoneCountries(countriesResult);
-          }
-        } catch (err) {
-          console.warn('Failed to load phone countries:', err);
-          // Default to US if countries can't be loaded
-          setAvailablePhoneCountries([{ code: 'US', name: 'United States', flag: '🇺🇸' }]);
-        }
-
-        if (toastId) {
-          toast.dismiss(toastId);
+        if (Array.isArray(countriesResult)) {
+          setAvailablePhoneCountries(countriesResult);
         }
       } catch (err) {
-        if (!isMountedRef.current) return;
-
-        const errorMsg = err instanceof Error ? err.message : 'Failed to load demo assistants';
-        setError(errorMsg);
-
-        if (toastId) {
-          toast.error('Failed to load demo assistants', { id: toastId });
-        }
-      } finally {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
+        console.warn('Failed to load phone countries:', err);
+        // Default to US if countries can't be loaded
+        setAvailablePhoneCountries([{ code: 'US', name: 'United States', flag: '🇺🇸' }]);
       }
-    },
-    [actions]
-  );
+    } catch (err) {
+      if (!isMountedRef.current) return;
+
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load demo assistants';
+      setError(errorMsg);
+      toast.error('Failed to load demo assistants');
+    } finally {
+      if (isMountedRef.current) {
+        hasInitiallyLoadedRef.current = true;
+        setIsLoading(false);
+      }
+    }
+  }, []);
 
   /**
    * Creates a new demo assistant.
@@ -222,7 +214,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
       const toastId = toast.loading('Creating demo assistant...');
 
       try {
-        const result = await actions.create(payload);
+        const result = await actionsRef.current.create(payload);
 
         if (!isMountedRef.current) return null;
 
@@ -254,14 +246,16 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
         }
       }
     },
-    [actions]
+    []
   );
 
   /**
    * Public refresh function.
    */
   const refresh = React.useCallback(async () => {
-    await fetchData(true);
+    const toastId = toast.loading('Refreshing demo assistants...');
+    await fetchData({ showLoading: false });
+    toast.dismiss(toastId);
   }, [fetchData]);
 
   /**
@@ -284,7 +278,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
 
       try {
         // Load metadata (for label)
-        const metaResult = await actions.getMeta(demo.demoId);
+        const metaResult = await actionsRef.current.getMeta(demo.demoId);
         if (!isMountedRef.current) return;
 
         if (isResponseError(metaResult)) {
@@ -294,7 +288,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
         }
 
         // Load contacts
-        const contactsResult = await actions.getContacts(demo.userId, demo.agentId);
+        const contactsResult = await actionsRef.current.getContacts(demo.userId, demo.agentId);
         if (!isMountedRef.current) return;
 
         if (isResponseError(contactsResult)) {
@@ -304,7 +298,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
         }
 
         // Load spending
-        const spendingResult = await actions.getSpending(demo.agentId);
+        const spendingResult = await actionsRef.current.getSpending(demo.agentId);
         if (!isMountedRef.current) return;
 
         if (isResponseError(spendingResult)) {
@@ -322,7 +316,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
         }
       }
     },
-    [actions, selectedDemo?.agentId]
+    [selectedDemo?.agentId]
   );
 
   /**
@@ -347,7 +341,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
       const toastId = toast.loading('Deleting demo assistant...');
 
       try {
-        const result = await actions.delete(assistantId);
+        const result = await actionsRef.current.delete(assistantId);
 
         if (!isMountedRef.current) return false;
 
@@ -377,7 +371,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
         }
       }
     },
-    [actions, selectedDemo?.agentId, clearSelection]
+    [selectedDemo?.agentId, clearSelection]
   );
 
   /**
@@ -389,7 +383,10 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
     setIsRefreshingContacts(true);
 
     try {
-      const contactsResult = await actions.getContacts(selectedDemo.userId, selectedDemo.agentId);
+      const contactsResult = await actionsRef.current.getContacts(
+        selectedDemo.userId,
+        selectedDemo.agentId
+      );
       if (!isMountedRef.current) return;
 
       if (isResponseError(contactsResult)) {
@@ -406,7 +403,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
         setIsRefreshingContacts(false);
       }
     }
-  }, [actions, selectedDemo]);
+  }, [selectedDemo]);
 
   /**
    * Get the display label for a demo assistant.
@@ -431,7 +428,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
   // Effect: Initial load
   React.useEffect(() => {
     isMountedRef.current = true;
-    fetchData(false);
+    void fetchData();
 
     return () => {
       isMountedRef.current = false;

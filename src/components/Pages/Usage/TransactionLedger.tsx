@@ -412,6 +412,7 @@ export interface TransactionLedgerProps {
   aggregated: AggregatedTransaction[];
   isAggregated: boolean;
   isLoading: boolean;
+  isLoadingMore?: boolean;
   error: string | null;
   hasMore: boolean;
   onLoadMore: () => void;
@@ -427,6 +428,7 @@ export function TransactionLedger({
   aggregated,
   isAggregated,
   isLoading,
+  isLoadingMore = false,
   error,
   hasMore,
   onLoadMore,
@@ -475,9 +477,9 @@ export function TransactionLedger({
                     ))
                   : spendingTxns.map((tx) => <TransactionRow key={tx.id} transaction={tx} />)}
 
-                {isLoading && <LedgerSkeleton count={3} />}
+                {isLoadingMore && <LedgerSkeleton count={3} />}
 
-                {hasMore && !isLoading && (
+                {hasMore && !isLoadingMore && (
                   <div className="p-2">
                     <Button
                       variant="ghost"

@@ -412,6 +412,7 @@ export function UsageMain({
               aggregated={ledger.aggregated}
               isAggregated={ledger.isAggregated}
               isLoading={ledger.isLoading}
+              isLoadingMore={ledger.isLoadingMore}
               error={ledger.error}
               hasMore={ledger.hasMore}
               onLoadMore={ledger.loadMore}
