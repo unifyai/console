@@ -96,7 +96,10 @@ export function useAssistantContactManager({
   const [isLoadingFeatures, setIsLoadingFeatures] = React.useState(false);
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+  /** True from OAuth popup open until the connected workspace view is ready. */
+  const [isAwaitingOAuthResult, setIsAwaitingOAuthResult] = React.useState(false);
   const grantedFeaturesRequestRef = React.useRef(0);
+  const oauthPollGenerationRef = React.useRef(0);
 
   // Bootstrap rebuilds ``assistantActions`` on every server render, so the
   // ``contact`` object identity changes on each ``router.refresh()``. Read
@@ -260,29 +263,32 @@ export function useAssistantContactManager({
   // OAuth-complete refetch while a prior response is still pending) cannot
   // clear the loading flag early or apply stale results out of order.
   const refetchGrantedFeatures = React.useCallback(
-    async (background = false) => {
-      if (!assistant.email) return;
+    async (background = false): Promise<GrantedFeaturesResponse | null> => {
+      if (!assistant.email) return null;
       const requestId = ++grantedFeaturesRequestRef.current;
       if (!background) {
         setIsLoadingFeatures(true);
       }
       try {
         const result = await contactActionsRef.current.getGrantedFeatures(assistant.agentId);
-        if (requestId !== grantedFeaturesRequestRef.current) return;
+        if (requestId !== grantedFeaturesRequestRef.current) return null;
 
         if ('detail' in result) {
           console.warn(
             '[useAssistantContactManager] Failed to fetch granted features:',
             (result as ResponseProps).detail
           );
-        } else {
-          const feats = result as GrantedFeaturesResponse;
-          setGrantedFeatures(feats);
-          setSelectedFeatures(feats.features);
+          return null;
         }
+
+        const feats = result as GrantedFeaturesResponse;
+        setGrantedFeatures(feats);
+        setSelectedFeatures(feats.features);
+        return feats;
       } catch (error) {
-        if (requestId !== grantedFeaturesRequestRef.current) return;
+        if (requestId !== grantedFeaturesRequestRef.current) return null;
         console.warn('[useAssistantContactManager] Error fetching granted features:', error);
+        return null;
       } finally {
         if (requestId === grantedFeaturesRequestRef.current && !background) {
           setIsLoadingFeatures(false);
@@ -291,6 +297,29 @@ export function useAssistantContactManager({
     },
     [assistant.email, assistant.agentId]
   );
+
+  const pollGrantedFeaturesAfterWorkspaceOAuth = React.useCallback(async () => {
+    const pollGeneration = ++oauthPollGenerationRef.current;
+    const retryDelaysMs = [0, 1500, 1500, 2000, 2500, 3000];
+
+    for (let attempt = 0; attempt < retryDelaysMs.length; attempt++) {
+      if (pollGeneration !== oauthPollGenerationRef.current) return;
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelaysMs[attempt]!));
+      }
+      if (pollGeneration !== oauthPollGenerationRef.current) return;
+
+      const feats = await refetchGrantedFeatures(false);
+      if (feats?.provider) {
+        setIsAwaitingOAuthResult(false);
+        return;
+      }
+    }
+
+    if (pollGeneration !== oauthPollGenerationRef.current) return;
+    setIsAwaitingOAuthResult(false);
+    toast.error('Could not confirm the workspace connection. Please try again.');
+  }, [refetchGrantedFeatures]);
 
   // Drop any cached granted-features snapshot when switching assistants while
   // the dialog stays open.
@@ -312,13 +341,36 @@ export function useAssistantContactManager({
   // is the only durable refresh signal for a Coordinator, whose own mailbox
   // stays platform-managed — no BYOD email contact is created, so
   // ``assistant.email`` never changes to re-trigger the open effect above.
-  // Background refetch: callers keep showing the last snapshot while this runs.
   React.useEffect(() => {
     if (!isOpen) return;
-    return subscribeOAuthComplete(() => {
+    return subscribeOAuthComplete((detail) => {
+      if (detail.kind === 'workspace') {
+        const params = new URLSearchParams(detail.query || '');
+        if (params.get('contact_error') || params.get('success') === 'false') {
+          oauthPollGenerationRef.current += 1;
+          setIsAwaitingOAuthResult(false);
+          void refetchGrantedFeatures(true);
+          return;
+        }
+        void pollGrantedFeaturesAfterWorkspaceOAuth();
+        return;
+      }
       void refetchGrantedFeatures(true);
     });
-  }, [isOpen, refetchGrantedFeatures]);
+  }, [isOpen, refetchGrantedFeatures, pollGrantedFeaturesAfterWorkspaceOAuth]);
+
+  React.useEffect(() => {
+    if (isByodEmail && isAwaitingOAuthResult) {
+      oauthPollGenerationRef.current += 1;
+      setIsAwaitingOAuthResult(false);
+    }
+  }, [isByodEmail, isAwaitingOAuthResult]);
+
+  React.useEffect(() => {
+    if (isOpen) return;
+    oauthPollGenerationRef.current += 1;
+    setIsAwaitingOAuthResult(false);
+  }, [isOpen]);
 
   // ---------------------------------------------------------------------------
   // UI state
@@ -429,6 +481,7 @@ export function useAssistantContactManager({
         oauthTab.navigate(oauthUrl);
         toast.success('Continue sign-in in the new tab.', { id: toastId });
         setIsConnecting(false);
+        setIsAwaitingOAuthResult(true);
       } else {
         // Popup blocked — fall back to a same-tab redirect.
         toast.success('Redirecting to sign in...', { id: toastId });
@@ -438,6 +491,7 @@ export function useAssistantContactManager({
       oauthTab.close();
       toast.error(error?.message || 'Failed to start connection.', { id: toastId });
       setIsConnecting(false);
+      setIsAwaitingOAuthResult(false);
     }
   }, [isConnecting, byodProvider, selectedFeatures, assistant.agentId, assistantActions.contact]);
 
@@ -468,6 +522,7 @@ export function useAssistantContactManager({
         oauthTab.navigate(oauthUrl);
         toast.success('Continue in the new tab to update permissions.', { id: toastId });
         setIsConnecting(false);
+        setIsAwaitingOAuthResult(true);
       } else {
         toast.success('Redirecting to update permissions...', { id: toastId });
         window.location.href = oauthUrl;
@@ -476,6 +531,7 @@ export function useAssistantContactManager({
       oauthTab.close();
       toast.error(error?.message || 'Failed to update features.', { id: toastId });
       setIsConnecting(false);
+      setIsAwaitingOAuthResult(false);
     }
   }, [
     isConnecting,
@@ -735,6 +791,7 @@ export function useAssistantContactManager({
     disconnectAccount,
     isConnecting,
     isDisconnecting,
+    isAwaitingOAuthResult,
     confirmDisconnect,
     setConfirmDisconnect,
     isByodEmail: !!isByodEmail,

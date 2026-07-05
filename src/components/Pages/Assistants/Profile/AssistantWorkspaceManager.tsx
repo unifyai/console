@@ -107,6 +107,7 @@ export function AssistantWorkspaceManager({
     disconnectAccount,
     isConnecting,
     isDisconnecting,
+    isAwaitingOAuthResult,
     confirmDisconnect,
     setConfirmDisconnect,
     isByodEmail,
@@ -119,7 +120,7 @@ export function AssistantWorkspaceManager({
     initialTab: 'email',
   });
 
-  const isBusy = isConnecting || isDisconnecting;
+  const isBusy = isConnecting || isDisconnecting || isAwaitingOAuthResult;
 
   React.useEffect(() => {
     if (isOpen && initialProvider && !isByodEmail) {
@@ -253,6 +254,26 @@ export function AssistantWorkspaceManager({
     // No connection yet — pick a provider. Each provider stays visible even when
     // the deployment hasn't configured its OAuth client (reported by Orchestra);
     // it's disabled with an explanatory tooltip rather than hidden.
+    if (isAwaitingOAuthResult) {
+      const finishingMessage = isLoadingFeatures
+        ? 'Finishing workspace connection...'
+        : 'Complete sign-in in the other tab to continue.';
+      const finishingDetail = isLoadingFeatures
+        ? 'Setting up mail, Teams, and file access. This can take a moment.'
+        : 'Return here once Microsoft or Google authorization finishes.';
+
+      return (
+        <div
+          className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground"
+          data-testid="workspace-oauth-finishing"
+        >
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-caption">{finishingMessage}</span>
+          <span className="text-caption max-w-sm">{finishingDetail}</span>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         {isLoadingFeatures && !grantedFeatures && (
