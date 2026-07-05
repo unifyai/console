@@ -95,6 +95,7 @@ import {
   type CoordinatorWorkspaceScope,
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
+import { buildDisplayedAssistantStatuses } from '@/lib/assistants/coordinatorOnboardingPresence';
 import { debugConsole } from '@/lib/consoleDebug';
 import { wakeCoordinator } from '@/lib/client/coordinator';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
@@ -2364,6 +2365,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     void wakeCoordinator(canonicalCoordinatorId);
   }, [showCoordinatorOnboardingIntro, canonicalCoordinatorId]);
 
+  React.useEffect(() => {
+    if (!canonicalCoordinatorId) return;
+    if (!showCoordinatorOnboardingIntro && !awaitingCoordinatorChatIntro) return;
+    markAssistantOnline(String(canonicalCoordinatorId));
+  }, [
+    awaitingCoordinatorChatIntro,
+    canonicalCoordinatorId,
+    markAssistantOnline,
+    showCoordinatorOnboardingIntro,
+  ]);
+
   // Seed durable step completion from the server-derived
   // ``completedStepIds`` on the Coordinator/State read. Orchestra
   // re-derives the set from domain data (BYOD email contact,
@@ -2861,13 +2873,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     };
   }, [goToPlatformHome]);
 
+  const coordinatorOnboardingPresenceContext = React.useMemo(
+    () => ({
+      canonicalCoordinatorId,
+      showCoordinatorOnboardingIntro,
+      awaitingCoordinatorChatIntro,
+    }),
+    [awaitingCoordinatorChatIntro, canonicalCoordinatorId, showCoordinatorOnboardingIntro]
+  );
+
+  const displayedAssistantStatuses = React.useMemo(
+    () => buildDisplayedAssistantStatuses(assistantStatuses, coordinatorOnboardingPresenceContext),
+    [assistantStatuses, coordinatorOnboardingPresenceContext]
+  );
+
   // The full prop bag the rail forwards to the embedded `AssistantList` (the
   // unity switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
   // popover list always renders expanded.
   const railListProps: React.ComponentProps<typeof AssistantList> = React.useMemo(
     () => ({
       assistants: sidebarAssistants,
-      assistantStatuses,
+      assistantStatuses: displayedAssistantStatuses,
       assistantError,
       isLoading: isLoadingAssistants,
       error: assistantError,
@@ -2885,7 +2911,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }),
     [
       sidebarAssistants,
-      assistantStatuses,
+      displayedAssistantStatuses,
       assistantError,
       isLoadingAssistants,
       profileAssistantId,
