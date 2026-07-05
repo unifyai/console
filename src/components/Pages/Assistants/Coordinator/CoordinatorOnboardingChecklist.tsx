@@ -539,12 +539,12 @@ export interface CoordinatorOnboardingChecklistProps {
   onAddPhoneNumber?: () => void;
   onConnectSlack?: () => void;
   onConnectDiscord?: () => void;
-  /** Opens the workspace OAuth dialog. Hung off the "Give me
+  /** Opens the workspace OAuth dialog. Hung off the "Give T-W1N
    * access to your workspace" sub-item. Unset means
    * the row degrades to a static checklist entry. */
   onConnectWorkspace?: () => void;
   /** Opens the Integrations pane in the current surface. Hung off
-   * "Connect me with your apps". Unset means the
+   * "Connect T-W1N with your apps". Unset means the
    * row degrades to a static entry. */
   onConnectApps?: () => void;
   /** Opens the live Actions viewer in the current surface. Hung off
