@@ -47,9 +47,11 @@ import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
+  COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
   requestAssistantInfoPanelOpen,
   requestAssistantInfoPanelOpenAfterSelect,
   requestAssistantInfoPanelToggle,
+  type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
@@ -975,6 +977,50 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     requestFirstLoginCommunicationEmailOpen,
     router,
     searchParams,
+  ]);
+
+  React.useEffect(() => {
+    const onCoordinatorOnboardingPanelRequest = (event: Event) => {
+      const detail = (event as CustomEvent<CoordinatorOnboardingPanelRequestDetail>).detail;
+      if (!detail?.assistantId || !canonicalCoordinatorId) return;
+      if (detail.assistantId !== canonicalCoordinatorId) return;
+      if (isLoadingAssistants) return;
+
+      setActiveBrainSectionId(null);
+      setPaneState((prev) => ({
+        ...prev,
+        primary: { tab: 'chat' },
+        secondary: null,
+      }));
+      handleShowProfile(canonicalCoordinatorId);
+
+      if (detail.action === 'close') {
+        requestCoordinatorOnboardingInfoClose();
+        return;
+      }
+
+      requestCoordinatorOnboardingFocusLayout();
+      requestFirstLoginCommunicationEmailOpen();
+      requestAssistantInfoPanelOpen(canonicalCoordinatorId);
+    };
+
+    window.addEventListener(
+      COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
+      onCoordinatorOnboardingPanelRequest
+    );
+    return () => {
+      window.removeEventListener(
+        COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
+        onCoordinatorOnboardingPanelRequest
+      );
+    };
+  }, [
+    canonicalCoordinatorId,
+    handleShowProfile,
+    isLoadingAssistants,
+    requestCoordinatorOnboardingFocusLayout,
+    requestCoordinatorOnboardingInfoClose,
+    requestFirstLoginCommunicationEmailOpen,
   ]);
 
   // --- Assistant Status Polling ---

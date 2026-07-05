@@ -171,7 +171,7 @@ export function AssistantInfoPanelLayout({
   const { voiceCalls } = useFeatures();
   const { canOpenAssistantChat } = useAssistantPermissions();
   const isBelowShellCompact = useMatchesBelow('shellCompact');
-  const useOverlayInfoPanel = isBelowShellCompact;
+  const useOverlayInfoPanel = isBelowShellCompact || !isActiveSurface;
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
   const infoPanelContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [infoPanelWidth, setInfoPanelWidth] = React.useState(INFO_PANEL_DEFAULT_WIDTH);

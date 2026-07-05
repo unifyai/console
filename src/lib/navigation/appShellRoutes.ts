@@ -46,3 +46,8 @@ export function isRoutedShellPath(pathname: string | null): boolean {
 export function isPersistentMainShellPath(pathname: string | null): boolean {
   return isAssistantsPath(pathname) || isRoutedShellPath(pathname);
 }
+
+/** Routes where the top-nav assistant info / onboarding shortcuts can drive the panel. */
+export function isAssistantInfoPanelShortcutPath(pathname: string | null): boolean {
+  return isPersistentMainShellPath(pathname);
+}

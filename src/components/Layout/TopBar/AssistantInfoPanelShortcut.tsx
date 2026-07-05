@@ -6,6 +6,7 @@ import { PanelRight } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
+import { isAssistantInfoPanelShortcutPath } from '@/lib/navigation/appShellRoutes';
 import {
   ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
   readAssistantInfoPanelVisibility,
@@ -16,7 +17,7 @@ import {
 /** Toggles the assistants info side panel from the top navbar. */
 export function AssistantInfoPanelShortcut({ buttonClassName }: { buttonClassName?: string }) {
   const pathname = usePathname();
-  const isOnAssistantsPage = pathname === '/assistants' || pathname.startsWith('/assistants/');
+  const showOnAssistantPanelRoutes = isAssistantInfoPanelShortcutPath(pathname);
   const [visibility, setVisibility] = React.useState<AssistantInfoPanelVisibilityDetail | null>(
     () => readAssistantInfoPanelVisibility()
   );
@@ -31,7 +32,7 @@ export function AssistantInfoPanelShortcut({ buttonClassName }: { buttonClassNam
     };
   }, []);
 
-  if (!isOnAssistantsPage || !visibility?.assistantId) return null;
+  if (!showOnAssistantPanelRoutes || !visibility?.assistantId) return null;
 
   const isOpen = visibility.isOpen;
   const showDot = visibility.showOnboardingDot ?? visibility.isCoordinatorOnboarding;
