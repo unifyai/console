@@ -4,10 +4,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Volume2, Loader2, Square, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
-import { Attachment } from '@/types/assistants/chat';
+import { Attachment, MessageReaction } from '@/types/assistants/chat';
 import { ChatMarkdown } from './ChatMarkdown';
 import { RenderContentWithEmbeds, containsEmbedUrl } from './InlineEmbed';
 import { MessageAttachmentList } from './ChatAttachments';
+import { EmojiReactionPicker } from './EmojiReactionPicker';
+import { MessageReactionsBar } from './MessageReactionsBar';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
@@ -94,6 +96,11 @@ interface ChatMessageBubbleProps {
   onAssistantAvatarStartCall?: () => void;
   isAssistantAvatarStartCallDisabled?: boolean;
   assistantAvatarStartCallTooltip?: string;
+  transcriptMessageId?: number;
+  reactions?: MessageReaction[];
+  currentContactId?: number | null;
+  onToggleReaction?: (emoji: string) => void;
+  canReact?: boolean;
 }
 
 function ChatMessageBubbleImpl({
@@ -116,6 +123,11 @@ function ChatMessageBubbleImpl({
   onAssistantAvatarStartCall,
   isAssistantAvatarStartCallDisabled,
   assistantAvatarStartCallTooltip,
+  transcriptMessageId,
+  reactions,
+  currentContactId,
+  onToggleReaction,
+  canReact = false,
 }: ChatMessageBubbleProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -234,10 +246,20 @@ function ChatMessageBubbleImpl({
     return <div className="whitespace-pre-wrap">{message}</div>;
   };
 
+  const reactionControls =
+    canReact && onToggleReaction ? (
+      <div className="flex items-center gap-1">
+        <EmojiReactionPicker
+          disabled={transcriptMessageId === undefined}
+          onSelect={onToggleReaction}
+        />
+      </div>
+    ) : null;
+
   if (isUser) {
     return (
       <div
-        className="flex min-w-0 justify-end"
+        className="group flex min-w-0 justify-end"
         data-testid={isProfile ? 'message-bubble' : undefined}
         data-role={isProfile ? 'user' : undefined}
         data-index={isProfile ? index : undefined}
@@ -251,21 +273,32 @@ function ChatMessageBubbleImpl({
           {attachments && attachments.length > 0 && (
             <MessageAttachmentList attachments={attachments} />
           )}
-          <div
-            className={cn(
-              'break-words rounded-lg p-2.5 font-sans text-sm leading-snug',
-              isProfile
-                ? 'border border-primary-tint-30 bg-accent-soft text-foreground'
-                : 'bg-accent'
-            )}
-          >
-            {bubbleContent()}
-            {timeString && (
-              <time className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
-                {timeString}
-              </time>
-            )}
+          <div className="flex items-end justify-end gap-1">
+            <div className="opacity-0 transition-opacity group-hover:opacity-100">
+              {reactionControls}
+            </div>
+            <div
+              className={cn(
+                'break-words rounded-lg p-2.5 font-sans text-sm leading-snug',
+                isProfile
+                  ? 'border border-primary-tint-30 bg-accent-soft text-foreground'
+                  : 'bg-accent'
+              )}
+            >
+              {bubbleContent()}
+              {timeString && (
+                <time className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
+                  {timeString}
+                </time>
+              )}
+            </div>
           </div>
+          <MessageReactionsBar
+            reactions={reactions}
+            currentContactId={currentContactId}
+            onToggleReaction={onToggleReaction}
+            className="justify-end"
+          />
         </div>
       </div>
     );
@@ -276,7 +309,7 @@ function ChatMessageBubbleImpl({
       data-testid={isProfile ? 'message-bubble' : undefined}
       data-role={isProfile ? 'assistant' : undefined}
       data-index={isProfile ? index : undefined}
-      className={cn('min-w-0', isProfile && 'md:max-w-[66.6667%]')}
+      className={cn('group min-w-0', isProfile && 'md:max-w-[66.6667%]')}
     >
       <div className="mb-2.5 flex items-center gap-2">
         {assistantAvatarNode}
@@ -346,11 +379,19 @@ function ChatMessageBubbleImpl({
             </Tooltip>
           </TooltipProvider>
         )}
+        <div className="opacity-0 transition-opacity group-hover:opacity-100">
+          {reactionControls}
+        </div>
       </div>
       {attachments && attachments.length > 0 && (
         <MessageAttachmentList attachments={attachments} isAssistant />
       )}
       <div className="min-w-0 break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
+      <MessageReactionsBar
+        reactions={reactions}
+        currentContactId={currentContactId}
+        onToggleReaction={onToggleReaction}
+      />
     </div>
   );
 }

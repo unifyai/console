@@ -1,7 +1,7 @@
 import { ResponseProps } from '../common';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@/types/assistants/cartesia';
-import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
+import { ChatMessage, UnifyMessage, UnifyMessageReaction, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import type { SlackInstallActions } from '../slack/install';
 import { ConnectionDetails } from './call';
@@ -534,6 +534,7 @@ export interface AssistantActions {
       before?: { timestamp: string; excludedKeys?: string[] }
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
+    reactToMessage: (payload: UnifyMessageReaction) => Promise<ResponseProps & { info?: string }>;
     getAssistantOwnerById: (
       userId: string
     ) => Promise<{ firstName: string; lastName: string } | null>;

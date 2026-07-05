@@ -29,6 +29,7 @@ import {
 import {
   getTranscripts,
   messageAssistant,
+  reactToMessage,
   getContactIdByEmail,
   getAssistantOwnerById,
   uploadAttachment,
@@ -146,6 +147,7 @@ export const assembleMainBootstrap = cache(async (): Promise<AssistantsMainBoots
       getContactId: getContactIdByEmail,
       getTranscripts,
       message: messageAssistant,
+      reactToMessage,
       getAssistantOwnerById,
       uploadAttachment,
     },

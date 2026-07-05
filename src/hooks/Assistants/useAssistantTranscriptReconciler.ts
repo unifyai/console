@@ -158,7 +158,19 @@ function mergeFetchedIntoHistory(
   const claimed = new Set<number>();
 
   for (const m of fetched) {
-    if (existingIds.has(m.id)) continue;
+    if (existingIds.has(m.id)) {
+      if (m.messageId !== undefined && m.reactions) {
+        const byMessageId =
+          reconciled?.findIndex((item) => item.messageId === m.messageId) ??
+          current.findIndex((item) => item.messageId === m.messageId);
+        if (byMessageId !== -1) {
+          if (!reconciled) reconciled = [...current];
+          reconciled[byMessageId] = { ...reconciled[byMessageId], reactions: m.reactions };
+          replaced += 1;
+        }
+      }
+      continue;
+    }
     const key = `${m.role}\u0000${m.content}`;
     const candidates = fallbackIndex.get(key);
     let matchIdx = -1;

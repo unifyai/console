@@ -12,6 +12,7 @@ import {
   getOrFetchTranscripts,
 } from './useContactIdPrefetch';
 import { clientLog, setLogContext } from '@/lib/logging/client-log-buffer';
+import { applyReactionUpdate } from '@/utils/assistants/chat-reactions';
 import type { ChatStreamConnectionStatus } from './useAssistantChatStream';
 
 /**
@@ -571,7 +572,19 @@ export function useAssistantProfileChat(
     const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
     channel.onmessage = (event) => {
       const payload = event.data as BroadcastMessagePayload;
-      if (!payload || !payload.message || !payload.message.id) return;
+      if (!payload) return;
+      if (payload.type === 'REACTION_UPDATE') {
+        setChatHistories((prev) => {
+          const current = prev[assistantId] || [];
+          const index = current.findIndex((msg) => msg.messageId === payload.targetMessageId);
+          if (index === -1) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: payload.reactions };
+          return { ...prev, [assistantId]: updated };
+        });
+        return;
+      }
+      if (!payload.message || !payload.message.id) return;
       const incomingMsg = payload.message;
       const messageWithDate = {
         ...incomingMsg,
@@ -871,6 +884,59 @@ export function useAssistantProfileChat(
     stopReplying();
   }, [stopReplying]);
 
+  const toggleReaction = React.useCallback(
+    async (targetMessageId: number, emoji: string) => {
+      if (!assistant || contactId === null) return;
+      const currentMessages = chatHistories[assistant.agentId] ?? messages;
+      const target = currentMessages.find((msg) => msg.messageId === targetMessageId);
+      if (!target) return;
+
+      const existing = target.reactions?.find((reaction) => reaction.contactId === contactId);
+      const nextEmoji = existing?.emoji === emoji ? null : emoji;
+      const optimisticReactions = applyReactionUpdate(target.reactions, contactId, nextEmoji);
+
+      setChatHistories((prev) => {
+        const current = prev[assistant.agentId] || [];
+        const index = current.findIndex((msg) => msg.messageId === targetMessageId);
+        if (index === -1) return prev;
+        const updated = [...current];
+        updated[index] = { ...updated[index], reactions: optimisticReactions };
+        return { ...prev, [assistant.agentId]: updated };
+      });
+
+      try {
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistant.agentId}`);
+        channel.postMessage({
+          type: 'REACTION_UPDATE',
+          targetMessageId,
+          reactions: optimisticReactions,
+        } satisfies BroadcastMessagePayload);
+        channel.close();
+      } catch {
+        /* BroadcastChannel unsupported */
+      }
+
+      const result = await assistantActions.chat.reactToMessage({
+        assistantId: parseInt(assistant.agentId, 10),
+        contactId,
+        targetMessageId,
+        emoji: nextEmoji,
+      });
+      if (result.detail) {
+        setChatHistories((prev) => {
+          const current = prev[assistant.agentId] || [];
+          const index = current.findIndex((msg) => msg.messageId === targetMessageId);
+          if (index === -1) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: target.reactions };
+          return { ...prev, [assistant.agentId]: updated };
+        });
+        toast.error('Could not update reaction. Please try again.');
+      }
+    },
+    [assistant, assistantActions.chat, chatHistories, contactId, messages, setChatHistories]
+  );
+
   // =========================================================================
   // Return backward-compatible API
   // =========================================================================
@@ -895,5 +961,6 @@ export function useAssistantProfileChat(
     isRetryingContactId,
     currentContactId: contactId,
     reconnectSSE,
+    toggleReaction,
   };
 }

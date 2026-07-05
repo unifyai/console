@@ -26,6 +26,7 @@ import {
   seedCoordinatorChatForUsers,
   seedSecretsViaOrchestra,
   dbExecBlock,
+  orchestraFetch,
 } from '../client';
 
 export async function seedPersonalWorkspace(): Promise<SeededState> {
@@ -55,6 +56,42 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
     assistantId: assistant.agentId,
     email: owner.email,
   });
+
+  const reactedAt = new Date().toISOString();
+  const transcriptRes = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${owner.id}/${assistant.agentId}/Transcripts`,
+        entries: [
+          {
+            medium: 'unify_message',
+            sender_id: assistant.selfContactId,
+            receiver_ids: [assistant.bossContactId],
+            content: 'Welcome back — this message already has a reaction.',
+            message_id: 9001,
+            timestamp: reactedAt,
+            metadata: {
+              reactions: [
+                {
+                  contact_id: assistant.bossContactId,
+                  emoji: '👍',
+                  updated_at: reactedAt,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    },
+    owner.apiKey
+  );
+  if (!transcriptRes.ok) {
+    const text = await transcriptRes.text().catch(() => '');
+    throw new Error(`Failed to seed reacted transcript message: ${transcriptRes.status} ${text}`);
+  }
 
   // An assistant with a connected Google Workspace account (Drive scope
   // granted) plus an empty file-access allowlist, so the workspace file

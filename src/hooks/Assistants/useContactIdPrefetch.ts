@@ -12,6 +12,7 @@ import {
   transcriptFilterForRoot,
 } from '@/lib/assistants/scope';
 import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
+import { isReactionAuditMedium, mapTranscriptReactions } from '@/utils/assistants/chat-reactions';
 
 const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
 const TRANSCRIPT_LIMIT = 50;
@@ -238,6 +239,9 @@ export async function fetchTranscriptsDirect(
         ) {
           return null;
         }
+        if (isReactionAuditMedium(entries.medium)) {
+          return null;
+        }
         return {
           id: String(id),
           role: roleFromRootSenderId(query, entries.senderId as number),
@@ -257,6 +261,7 @@ export async function fetchTranscriptsDirect(
                 })
               )
             : [],
+          reactions: mapTranscriptReactions(entries.metadata),
         };
       })
       .filter((msg: ChatMessage | null): msg is ChatMessage => msg !== null);

@@ -162,6 +162,7 @@ export function AssistantProfileChatPanel({
     isRetryingContactId,
     reconnectSSE,
     currentContactId,
+    toggleReaction,
   } = useAssistantProfileChat(
     assistant,
     assistantActions,
@@ -777,6 +778,15 @@ export function AssistantProfileChatPanel({
                             onAssistantAvatarStartCall={onAssistantAvatarStartCall}
                             isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
                             assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
+                            transcriptMessageId={item.messageId}
+                            reactions={item.reactions}
+                            currentContactId={currentContactId}
+                            canReact={canChat && !isSpendingBlocked}
+                            onToggleReaction={
+                              item.messageId !== undefined
+                                ? (emoji) => toggleReaction(item.messageId!, emoji)
+                                : undefined
+                            }
                           />
                         </div>
                       </React.Fragment>
@@ -866,6 +876,15 @@ export function AssistantProfileChatPanel({
                         onAssistantAvatarStartCall={onAssistantAvatarStartCall}
                         isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
                         assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
+                        transcriptMessageId={msg.messageId}
+                        reactions={msg.reactions}
+                        currentContactId={currentContactId}
+                        canReact={canChat && !isSpendingBlocked}
+                        onToggleReaction={
+                          msg.messageId !== undefined
+                            ? (emoji) => toggleReaction(msg.messageId!, emoji)
+                            : undefined
+                        }
                       />
                     </React.Fragment>
                   );

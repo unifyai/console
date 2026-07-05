@@ -20,6 +20,7 @@ import { updateAssistant } from '@/lib/assistants/assistant';
 import {
   getTranscripts,
   messageAssistant,
+  reactToMessage,
   getContactIdByEmail,
   getAssistantOwnerById,
   uploadAttachment,
@@ -59,6 +60,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
       getContactId: getContactIdByEmail,
       getTranscripts,
       message: messageAssistant,
+      reactToMessage,
       getAssistantOwnerById,
       uploadAttachment,
     },

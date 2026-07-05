@@ -123,7 +123,10 @@ import {
   type TranscriptReconcilerPair,
 } from '@/hooks/Assistants/useAssistantTranscriptReconciler';
 import { useUnreadDocumentTitle } from '@/hooks/Assistants/useUnreadDocumentTitle';
-import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
+import type {
+  ParsedInboundChatMessage,
+  ParsedReactionUpdate,
+} from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { RoomContext } from '@livekit/components-react';
@@ -1259,6 +1262,37 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [handleChatActivity, markAssistantOnline]
   );
 
+  const handleChatStreamReaction = React.useCallback(
+    (assistantId: string, parsed: ParsedReactionUpdate) => {
+      setProfileChatHistories((prev) => {
+        const current = prev[assistantId];
+        if (!current) return prev;
+        const index = current.findIndex((msg) => msg.messageId === parsed.targetMessageId);
+        if (index === -1) return prev;
+        const updated = [...current];
+        updated[index] = {
+          ...updated[index],
+          reactions: parsed.reactions,
+        };
+        return { ...prev, [assistantId]: updated };
+      });
+
+      try {
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+        const payload: BroadcastMessagePayload = {
+          type: 'REACTION_UPDATE',
+          targetMessageId: parsed.targetMessageId,
+          reactions: parsed.reactions,
+        };
+        channel.postMessage(payload);
+        channel.close();
+      } catch {
+        /* BroadcastChannel unsupported */
+      }
+    },
+    []
+  );
+
   const handleChatStreamDesktopReady = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
       try {
@@ -1311,6 +1345,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     chatStreamPairs.length > 0,
     {
       onChatMessage: handleChatStreamMessage,
+      onReactionUpdate: handleChatStreamReaction,
       onDesktopReady: handleChatStreamDesktopReady,
       onUnifyMeetIncoming: handleUnifyMeetIncoming,
       onMessageActivity: handleAssistantLiveActivity,
@@ -1497,8 +1532,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setIncomingMeetCall(null);
     handleShowProfile(assistant.agentId);
     const openingConfig: CallOpeningConfig = {
-      mode: 'briefed',
-      systemContext: reason || 'Continuing our conversation on the live call.',
+      mode: 'simulated',
+      simulatedUtterance: reason || 'Continuing our conversation on the live call.',
       source: 'unify_meet_ring',
     };
     void handleStartCall(assistant, 'audio', {
