@@ -255,12 +255,30 @@ export function AssistantWorkspaceManager({
     // the deployment hasn't configured its OAuth client (reported by Orchestra);
     // it's disabled with an explanatory tooltip rather than hidden.
     if (isAwaitingOAuthResult) {
+      const pendingProvider = (byodProvider ??
+        grantedFeatures?.provider ??
+        null) as OAuthProvider | null;
       const finishingMessage = isLoadingFeatures
         ? 'Finishing workspace connection...'
         : 'Complete sign-in in the other tab to continue.';
-      const finishingDetail = isLoadingFeatures
-        ? 'Setting up mail, Teams, and file access. This can take a moment.'
-        : 'Return here once Microsoft or Google authorization finishes.';
+      const finishingDetail = (() => {
+        if (!isLoadingFeatures) {
+          if (pendingProvider === 'google') {
+            return 'Return here once Google authorization finishes.';
+          }
+          if (pendingProvider === 'microsoft') {
+            return 'Return here once Microsoft authorization finishes.';
+          }
+          return 'Return here once authorization finishes in the other tab.';
+        }
+        if (pendingProvider === 'google') {
+          return 'Setting up Gmail and Drive access. This can take a moment.';
+        }
+        if (pendingProvider === 'microsoft') {
+          return 'Setting up mail, Teams, and file access. This can take a moment.';
+        }
+        return 'Setting up workspace access. This can take a moment.';
+      })();
 
       return (
         <div
