@@ -231,7 +231,7 @@ export function AssistantFloatingChat({
                   label="Hide chat"
                   testId="floating-chat-dismiss"
                   onClick={handleDismiss}
-                  className="bg-background/95 h-6 w-6 opacity-0 shadow-sm ring-1 ring-border transition-opacity group-hover:opacity-100"
+                  className="h-6 w-6 bg-background opacity-0 shadow-sm ring-1 ring-border transition-opacity group-hover:opacity-100"
                 >
                   <X className="h-3.5 w-3.5" />
                 </FloatingChatHeaderIconButton>
@@ -269,7 +269,7 @@ export function AssistantFloatingChat({
             <div
               ref={contentRef}
               data-testid="floating-chat-panel"
-              className="bg-background/95 pointer-events-auto fixed flex flex-col overflow-hidden rounded-lg border border-border text-foreground shadow-2xl backdrop-blur-md"
+              className="pointer-events-auto fixed flex flex-col overflow-hidden rounded-lg border border-border bg-background text-foreground shadow-2xl"
               style={{
                 left: floatingPos.x,
                 top: floatingPos.y,
@@ -278,7 +278,7 @@ export function AssistantFloatingChat({
               }}
             >
               <div
-                className="bg-muted/40 group/header flex shrink-0 cursor-grab flex-col border-b border-border active:cursor-grabbing"
+                className="group/header flex shrink-0 cursor-grab flex-col border-b border-border bg-card active:cursor-grabbing"
                 onPointerDown={onHeaderPointerDown}
               >
                 {hasActiveCall && (
@@ -327,7 +327,7 @@ export function AssistantFloatingChat({
                       <Maximize2 className="mr-1 h-3.5 w-3.5" />
                       Back to chat
                     </Button>
-                    <div className="group-hover/header:bg-background/60 flex items-center rounded-md border border-transparent pl-0.5 transition-colors group-hover/header:border-border">
+                    <div className="flex items-center rounded-md border border-transparent pl-0.5 transition-colors group-hover/header:border-border group-hover/header:bg-muted">
                       <FloatingChatHeaderIconButton
                         label="Minimize chat"
                         testId="floating-chat-minimize"
