@@ -1969,12 +1969,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [markStepEngaged]
   );
 
-  // Open the user's account settings in a new tab so the chat session
-  // isn't disrupted while they configure their profile. Optional `tab`
-  // mirrors the /account page's `?tab=` param (see SettingsView) so
-  // callers can deep-link straight to the relevant section.
+  // Open the user's account settings. By default opens a new tab so the
+  // chat session isn't disrupted; pass `sameTab` to navigate in the
+  // current tab instead. Optional `tab` mirrors the /account page's
+  // `?tab=` param (see SettingsView) so callers can deep-link straight
+  // to the relevant section.
   const handleOpenUserSettings = React.useCallback(
-    (tab?: string) => {
+    (tab?: string, sameTab = false) => {
       if (typeof window === 'undefined') return;
       requestCoordinatorOnboardingInfoClose();
       const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
@@ -1986,9 +1987,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       } catch {
         /* private mode / quota — refresh just won't trigger */
       }
-      window.open(url, '_blank', 'noopener');
+      if (sameTab) {
+        router.push(url);
+      } else {
+        window.open(url, '_blank', 'noopener');
+      }
     },
-    [requestCoordinatorOnboardingInfoClose]
+    [requestCoordinatorOnboardingInfoClose, router]
   );
 
   const appendCoordinatorRequestSentAck = React.useCallback(
@@ -2186,12 +2191,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
-    handleOpenUserSettings('contact-info');
+    handleOpenUserSettings('contact-info', true);
   }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
 
   const handleCoordinatorAddPhoneNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('phone-number');
-    handleOpenUserSettings('contact-info');
+    handleOpenUserSettings('contact-info', true);
   }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
 
   const handleCoordinatorConnectSlack = React.useCallback(() => {
