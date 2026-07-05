@@ -354,19 +354,34 @@ export function AssistantWorkspaceManager({
 
     if (isByodEmail && canWrite) {
       return (
-        <div className="flex w-full items-center justify-end gap-2">
-          {hasFeaturesChanged && (
-            <Button onClick={updateFeatures} disabled={isConnecting}>
-              {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Features
-            </Button>
-          )}
+        <div className="flex w-full items-center justify-between gap-2">
           <Button
             variant="destructive"
             onClick={() => setConfirmDisconnect(true)}
             disabled={isBusy}
           >
             Disconnect
+          </Button>
+          <div className="flex items-center gap-2">
+            {hasFeaturesChanged && (
+              <Button onClick={updateFeatures} disabled={isConnecting}>
+                {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Update Features
+              </Button>
+            )}
+            <Button onClick={onClose} disabled={isBusy} data-testid="workspace-okay">
+              Okay
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (isByodEmail) {
+      return (
+        <div className="flex w-full justify-end">
+          <Button onClick={onClose} data-testid="workspace-okay">
+            Okay
           </Button>
         </div>
       );
