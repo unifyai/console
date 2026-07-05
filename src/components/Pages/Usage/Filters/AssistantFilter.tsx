@@ -7,6 +7,7 @@
  */
 
 import * as React from 'react';
+import { DroidIcon } from '@/components/Brand';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/UI/select';
 import { Assistant } from '@/types/assistants/assistant';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
@@ -20,25 +21,6 @@ interface AssistantFilterProps {
   onChange: (value: string) => void;
   /** Whether the filter is disabled */
   disabled?: boolean;
-}
-
-function UnityOutlineIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M7 5h10v3h3v5h-3v6h-4v-4h-2v4H7v-6H4V8h3V5Z"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth={1.8}
-      />
-    </svg>
-  );
 }
 
 export function AssistantFilter({
@@ -62,7 +44,7 @@ export function AssistantFilter({
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled || assistants.length === 0}>
       <SelectTrigger className="h-8 w-full sm:w-[180px]" data-testid="assistant-filter">
-        <UnityOutlineIcon className="mr-2 h-4 w-4 shrink-0" />
+        <DroidIcon className="mr-2 h-4 w-4 shrink-0" />
         <span className="flex-1 truncate text-left">{displayText}</span>
       </SelectTrigger>
       <SelectContent>
