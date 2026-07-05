@@ -108,7 +108,10 @@ export function CoordinatorOnboarding({
         medium,
       });
       // Latch ``intro_watched`` so reloads never re-show the picker.
-      void updateState({ introWatched: true });
+      void updateState({
+        introWatched: true,
+        pendingChatIntro: medium === 'chat',
+      });
       onComplete(medium);
     },
     [coordinator.agentId, onComplete, updateState]

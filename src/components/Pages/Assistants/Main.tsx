@@ -91,7 +91,10 @@ import {
 import { debugConsole } from '@/lib/consoleDebug';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
-import { COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS } from '@/utils/assistants/coordinator-onboarding-intro';
+import {
+  COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS,
+  COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS,
+} from '@/utils/assistants/coordinator-onboarding-intro';
 import {
   clearCoordinatorOnboardingStaleFlag,
   COORDINATOR_ONBOARDING_STALE_EVENT,
@@ -484,6 +487,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Set when the user picks chat on the onboarding overlay; drives a one-shot
   // forced typing bubble until the scripted opener lands (see chat panel prop).
   const [awaitingCoordinatorChatIntro, setAwaitingCoordinatorChatIntro] = React.useState(false);
+  const [showCoordinatorChatIntroTyping, setShowCoordinatorChatIntroTyping] = React.useState(false);
   // Global "do onboarding later" switch. When set, the whole Console
   // onboarding surface (intro overlay, focus layout, nudge dot) stands
   // down so the user can use the platform first — mirrored to the
@@ -1009,6 +1013,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     Record<string, ChatMessage[]>
   >({});
   const [callPillHistories, setCallPillHistories] = React.useState<Record<string, CallPill[]>>({});
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro) {
+      setShowCoordinatorChatIntroTyping(false);
+      return;
+    }
+    const handle = window.setTimeout(
+      () => setShowCoordinatorChatIntroTyping(true),
+      COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS
+    );
+    return () => window.clearTimeout(handle);
+  }, [awaitingCoordinatorChatIntro]);
 
   React.useEffect(() => {
     if (!awaitingCoordinatorChatIntro || canonicalCoordinatorId === null) return;
@@ -2392,6 +2408,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   const forceCoordinatorChatIntroTyping =
+    showCoordinatorChatIntroTyping &&
     awaitingCoordinatorChatIntro &&
     canonicalCoordinatorId !== null &&
     profileAssistant?.isCoordinator === true &&
