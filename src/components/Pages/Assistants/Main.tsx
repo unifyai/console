@@ -117,7 +117,7 @@ import {
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
@@ -155,6 +155,10 @@ import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
+import {
+  appendRequestSentAck,
+  ONBOARDING_START_ACK_STEP_IDS,
+} from '@/utils/assistants/request-sent-ack';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
@@ -1040,6 +1044,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     Record<string, ChatMessage[]>
   >({});
   const [callPillHistories, setCallPillHistories] = React.useState<Record<string, CallPill[]>>({});
+  const [requestAckHistories, setRequestAckHistories] = React.useState<
+    Record<string, RequestSentAck[]>
+  >({});
 
   React.useEffect(() => {
     if (!awaitingCoordinatorChatIntro) {
@@ -1982,20 +1989,51 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [requestCoordinatorOnboardingInfoClose]
   );
 
+  const appendCoordinatorRequestSentAck = React.useCallback(
+    (label: string) => {
+      if (!canonicalCoordinator) return;
+      appendRequestSentAck(setRequestAckHistories, canonicalCoordinator.agentId, label);
+    },
+    [canonicalCoordinator]
+  );
+
+  const resolveOnboardingStepLabel = React.useCallback(
+    (stepId: string, chipId?: string): string | null => {
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return null;
+      if (chipId) {
+        const chip = [...step.chipsChat, ...step.chipsCall].find(
+          (candidate) => candidate.id === chipId
+        );
+        return chip?.label ?? step.title;
+      }
+      return step.title;
+    },
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
+
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
       if (!shouldDispatchStepRequest(stepId)) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      if (ONBOARDING_START_ACK_STEP_IDS.has(stepId)) {
+        const label = resolveOnboardingStepLabel(stepId);
+        if (label) appendCoordinatorRequestSentAck(label);
+      }
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void updateCoordinatorOnboardingState({ onboardingStep: stepId });
     },
     [
+      appendCoordinatorRequestSentAck,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
       updateCoordinatorOnboardingState,
     ]
@@ -2012,6 +2050,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void (async () => {
@@ -2035,11 +2075,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
       updateCoordinatorOnboardingState,
     ]
@@ -2064,6 +2106,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId, chipId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(requestKey);
       void (async () => {
@@ -2082,11 +2126,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
     ]
   );
@@ -2106,6 +2152,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void (async () => {
@@ -2123,11 +2171,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
     ]
   );
@@ -2227,6 +2277,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSelectTaskChip: (stepId: string, chipId: string) =>
         handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
+      appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -2260,6 +2311,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
     handleCoordinatorDispatchLearningBeat,
+    appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
@@ -2973,6 +3025,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           setChatHistories={setProfileChatHistories}
                           callPillHistories={callPillHistories}
                           setCallPillHistories={setCallPillHistories}
+                          requestAckHistories={requestAckHistories}
                           userEmail={userMeta.email}
                           isFirstView={isFirstViewAfterHire}
                           preHireChat={
@@ -3015,6 +3068,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                       setChatHistories={setProfileChatHistories}
                                       callPillHistories={callPillHistories}
                                       setCallPillHistories={setCallPillHistories}
+                                      requestAckHistories={requestAckHistories}
                                       isConnecting={isConnectingCall}
                                       userEmail={userMeta.email}
                                       userImage={userMeta.image}
@@ -3269,6 +3323,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               setChatHistories={setProfileChatHistories}
               callPillHistories={callPillHistories}
               setCallPillHistories={setCallPillHistories}
+              requestAckHistories={requestAckHistories}
               isConnecting={isConnectingCall}
               userEmail={userMeta.email}
               userImage={userMeta.image}
@@ -3317,6 +3372,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             setChatHistories={setProfileChatHistories}
             callPillHistories={callPillHistories}
             setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
             userEmail={userMeta.email}
             userTimezone={userMeta.timezone}
             spendingGate={spendingGateStatus}

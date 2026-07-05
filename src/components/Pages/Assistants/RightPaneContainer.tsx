@@ -14,7 +14,7 @@ import type {
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { DashboardPaneData } from '@/types/assistants/dashboard';
-import type { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import {
   type SpendingGateStatus,
   DEFAULT_SPENDING_GATE_STATUS,
@@ -62,6 +62,7 @@ interface RightPaneContainerProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories: Record<string, CallPill[]>;
   setCallPillHistories: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
@@ -126,6 +127,7 @@ export function RightPaneContainer({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   isFirstView = false,
   preHireChat,
@@ -207,6 +209,7 @@ export function RightPaneContainer({
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
+          requestAckHistories={requestAckHistories}
           userEmail={userEmail}
           userTimezone={userTimezone}
           isFirstView={isFirstView}

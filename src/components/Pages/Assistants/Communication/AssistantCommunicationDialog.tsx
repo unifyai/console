@@ -23,7 +23,7 @@ import {
   useMediaDeviceSelect,
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
@@ -175,6 +175,7 @@ interface AssistantCommunicationDialogContentProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
@@ -221,6 +222,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   assistantActions,
   isConnecting,
   userEmail,
@@ -630,6 +632,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 setChatHistories={setChatHistories}
                 callPillHistories={callPillHistories}
                 setCallPillHistories={setCallPillHistories}
+                requestAckHistories={requestAckHistories}
                 userEmail={userEmail}
                 userImage={userImage}
                 assistantPhoto={assistantPhoto}
@@ -704,6 +707,7 @@ interface AssistantCommunicationDialogProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
@@ -776,6 +780,7 @@ export function AssistantCommunicationDialog({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   isConnecting,
   userEmail,
   userImage,
@@ -905,6 +910,7 @@ export function AssistantCommunicationDialog({
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
+          requestAckHistories={requestAckHistories}
           assistantActions={assistantActions}
           isConnecting={isConnecting}
           userEmail={userEmail}
@@ -1022,6 +1028,7 @@ export function AssistantCommunicationDialog({
             setChatHistories={setChatHistories}
             callPillHistories={callPillHistories}
             setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
             assistantActions={assistantActions}
             isConnecting={isConnecting}
             userEmail={userEmail}

@@ -406,6 +406,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     }
   });
   await emailReferenceRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(
     page.getByTestId('coordinator-onboarding-action-feedback-email-reference')
   ).toHaveText('Sending...');
@@ -446,6 +447,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   const emailReplyRow = page.getByTestId('coordinator-onboarding-item-email-reply').first();
   await expectChecklistItemClickable(page, 'email-reply');
   await emailReplyRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(page.getByTestId('coordinator-onboarding-action-feedback-email-reply')).toHaveText(
     'Checking...'
   );
@@ -538,6 +540,7 @@ test('workspace demos complete only when the assistant explicitly marks them don
   // Clicking the row dispatches a single graph-owned step event for the
   // demo and surfaces the in-flight feedback label.
   await mailboxRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(
     page.getByTestId('coordinator-onboarding-action-feedback-workspace-mailbox')
   ).toHaveText('Summarizing...');

@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Phone, Search, Loader2 } from 'lucide-react';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import type { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -29,6 +29,7 @@ export interface ChatWithInfoPanelProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   userTimezone?: string | null;
   isFirstView?: boolean;
@@ -67,6 +68,7 @@ export function ChatWithInfoPanel({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   userTimezone,
   isFirstView,
@@ -98,6 +100,7 @@ export function ChatWithInfoPanel({
       setChatHistories={setChatHistories}
       callPillHistories={callPillHistories}
       setCallPillHistories={setCallPillHistories}
+      requestAckHistories={requestAckHistories}
       userEmail={userEmail}
       userTimezone={userTimezone}
       isFirstView={isFirstView}

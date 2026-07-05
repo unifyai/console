@@ -117,6 +117,8 @@ export interface AssistantInfoSidePanelContentProps {
     onSelectTaskChip?: (stepId: string, chipId: string) => void;
     /** Dispatches the Learning tutorial beat event to Unity. */
     onLearnFromCorrection?: () => void;
+    /** Echo a checklist trigger acknowledgement into the coordinator chat. */
+    appendRequestSentAck?: (label: string) => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -285,6 +287,16 @@ function CoordinatorAssistantInfoSidePanelContent({
     isActiveSurface,
   });
 
+  const appendRequestSentAck = coordinatorOnboarding?.appendRequestSentAck;
+
+  const handleTestTriggerableTask = React.useCallback(
+    async (taskId: number) => {
+      appendRequestSentAck?.('Test triggerable task');
+      await taskBeats.testTriggerableTask(taskId);
+    },
+    [appendRequestSentAck, taskBeats]
+  );
+
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
     showOnboardingTab ? 'onboarding' : 'profile'
@@ -387,7 +399,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onCreateTriggerableTask={coordinatorOnboarding.onCreateTriggerableTask}
                 onSelectTaskChip={coordinatorOnboarding.onSelectTaskChip}
                 onLearnFromCorrection={coordinatorOnboarding.onLearnFromCorrection}
-                onTestTriggerableTask={taskBeats.testTriggerableTask}
+                onTestTriggerableTask={handleTestTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}
                 onSkipSection={coordinatorOnboarding.onSkipSection}

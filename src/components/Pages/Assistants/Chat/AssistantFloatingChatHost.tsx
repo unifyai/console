@@ -7,7 +7,7 @@ import {
   type FloatingChatVisibilityInput,
 } from '@/hooks/Assistants/useFloatingChatVisibility';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import type { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
@@ -19,6 +19,7 @@ interface AssistantFloatingChatHostProps extends FloatingChatVisibilityInput {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories: Record<string, CallPill[]>;
   setCallPillHistories: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   userTimezone?: string | null;
   spendingGate: SpendingGateStatus;
@@ -41,6 +42,7 @@ export function AssistantFloatingChatHost({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   userTimezone,
   spendingGate,
@@ -73,6 +75,7 @@ export function AssistantFloatingChatHost({
       setChatHistories={setChatHistories}
       callPillHistories={callPillHistories}
       setCallPillHistories={setCallPillHistories}
+      requestAckHistories={requestAckHistories}
       userEmail={userEmail}
       userTimezone={userTimezone}
       spendingGate={spendingGate}

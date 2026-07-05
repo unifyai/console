@@ -130,10 +130,23 @@ export interface CallPill {
   recordingUrl?: string;
 }
 
-export type TimelineItem = ChatMessage | CallPill;
+/** Ephemeral onboarding/checklist trigger acknowledgement shown in chat. */
+export interface RequestSentAck {
+  id: string;
+  type: 'request_sent_ack';
+  timestamp: Date;
+  /** Checklist row title or chip label the user triggered. */
+  label: string;
+}
+
+export type TimelineItem = ChatMessage | CallPill | RequestSentAck;
 
 export function isCallPill(item: TimelineItem): item is CallPill {
   return 'type' in item && item.type === 'call_pill';
+}
+
+export function isRequestSentAck(item: TimelineItem): item is RequestSentAck {
+  return 'type' in item && item.type === 'request_sent_ack';
 }
 
 export interface CallTranscriptUtterance {

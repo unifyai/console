@@ -13,8 +13,10 @@ import {
   ChatMessage,
   Attachment,
   CallPill,
+  RequestSentAck,
   TimelineItem,
   isCallPill,
+  isRequestSentAck,
 } from '@/types/assistants/chat';
 import {
   PendingAttachmentList,
@@ -23,6 +25,7 @@ import {
   ChatDateDivider,
   isSameDay,
   CallPillBubble,
+  RequestSentAckBubble,
   CallTranscriptDialog,
   ChatSearchDialog,
   OlderMessagesBanner,
@@ -62,6 +65,7 @@ interface AssistantProfileChatPanelProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   userTimezone?: string | null;
   isFirstView?: boolean;
@@ -111,6 +115,7 @@ export function AssistantProfileChatPanel({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   userTimezone,
   isFirstView,
@@ -293,14 +298,19 @@ export function AssistantProfileChatPanel({
   // lives in `useAssistantProfileChat`), and re-sorting hundreds of
   // messages per keystroke is one of the dominant typing-lag contributors
   // in long conversations.
+  const requestAcks = React.useMemo(
+    () => requestAckHistories?.[assistant.agentId] ?? [],
+    [requestAckHistories, assistant.agentId]
+  );
+
   const liveTimeline = React.useMemo<TimelineItem[]>(() => {
     const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
       ? [...messages, ...getMockEmbedMessages()]
       : messages;
-    return [...baseMessages, ...callPills].sort(
+    return [...baseMessages, ...callPills, ...requestAcks].sort(
       (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
     );
-  }, [messages, callPills]);
+  }, [messages, callPills, requestAcks]);
 
   const historicalTimeline = React.useMemo<TimelineItem[]>(() => {
     if (!historicalView) return [];
@@ -755,6 +765,17 @@ export function AssistantProfileChatPanel({
                       );
                     }
 
+                    if (isRequestSentAck(item)) {
+                      return (
+                        <React.Fragment key={item.id}>
+                          {showDivider && (
+                            <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                          )}
+                          <RequestSentAckBubble ack={item} timezone={userTimezone} />
+                        </React.Fragment>
+                      );
+                    }
+
                     return (
                       <React.Fragment key={item.id}>
                         {showDivider && (
@@ -842,6 +863,17 @@ export function AssistantProfileChatPanel({
                           timezone={userTimezone}
                           onClick={openTranscript}
                         />
+                      </React.Fragment>
+                    );
+                  }
+
+                  if (isRequestSentAck(item)) {
+                    return (
+                      <React.Fragment key={item.id}>
+                        {showDivider && (
+                          <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                        )}
+                        <RequestSentAckBubble ack={item} timezone={userTimezone} />
                       </React.Fragment>
                     );
                   }
