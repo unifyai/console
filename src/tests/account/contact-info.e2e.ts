@@ -9,6 +9,7 @@
  */
 
 import { expect } from '@playwright/test';
+import { enterVerificationCode } from '@/tests/auth/helpers';
 import { createTestUser, cleanupUser, createAccountTest, dbExec } from './helpers';
 
 const user = createTestUser({ name: 'Contact', lastName: 'Info', credits: 5_000 });
@@ -143,10 +144,8 @@ test('verifying a number eagerly persists it with no Save button', async ({ auth
 
   await page.getByRole('button', { name: 'Verify' }).first().click();
 
-  const codeInput = page.getByPlaceholder('Enter verification code...');
-  await expect(codeInput).toBeVisible({ timeout: 10_000 });
-  await codeInput.fill('123456');
-  await codeInput.press('Enter');
+  await expect(page.getByTestId('six-digit-code-input')).toBeVisible({ timeout: 10_000 });
+  await enterVerificationCode(page, '123456');
 
   // Verification triggers persistence with the full E.164 number, but the UI must
   // wait for that write to complete before presenting the number as verified.
@@ -235,14 +234,13 @@ test('clicking Verify again while the code section is open does not collapse it'
 
   await page.getByRole('button', { name: 'Verify' }).first().click();
 
-  const codeInput = page.getByPlaceholder('Enter verification code...');
-  await expect(codeInput).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('six-digit-code-input')).toBeVisible({ timeout: 10_000 });
   const resendBtn = page.getByRole('button', { name: /Resend/ });
   await expect(resendBtn).toBeVisible();
 
   await expect(resendBtn).toBeEnabled({ timeout: 65_000 });
   await resendBtn.click();
-  await expect(codeInput).toBeVisible();
+  await expect(page.getByTestId('six-digit-code-input')).toBeVisible();
   await expect(resendBtn).toBeVisible();
 });
 
