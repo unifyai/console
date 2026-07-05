@@ -1,13 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import dynamic from 'next/dynamic';
-import type { CallProviderActions } from './CallProvider';
-
-const CallProviderLazy = dynamic(
-  () => import('./CallProvider').then((m) => ({ default: m.CallProvider })),
-  { ssr: false }
-);
+import { CallProvider, type CallProviderActions } from './CallProvider';
 
 const CALL_ACTIVE_STORAGE_KEY = 'console:call-active';
 
@@ -34,12 +28,12 @@ export function CallProviderGate({
   }, []);
 
   return (
-    <CallProviderLazy
+    <CallProvider
       callActions={callActions}
       userMeta={userMeta}
       onCallLifecycleChange={handleCallLifecycleChange}
     >
       {children}
-    </CallProviderLazy>
+    </CallProvider>
   );
 }

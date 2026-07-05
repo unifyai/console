@@ -15,6 +15,7 @@ import { Toaster } from '@/components/UI/Chat/sonner';
 import { CallProviderActions } from '@/components/Pages/Assistants/Communication/CallProvider';
 import { CallProviderGate } from '@/components/Pages/Assistants/Communication/CallProviderGate';
 import { AppShellNavigationProvider } from '@/lib/navigation/AppShellRouter';
+import { AssistantSwitcherBridgeProvider } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
 import { getCurrentUser } from '@/lib/user/user';
 import { updateAssistant } from '@/lib/assistants/assistant';
 import {
@@ -98,17 +99,19 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
       <Providers>
         <ThemeLoader>
           <AppShellNavigationProvider>
-            <CallProviderGate callActions={callActions} userMeta={callUserMeta}>
-              {/* The MFA gate is an async server component, so it must be
+            <AssistantSwitcherBridgeProvider>
+              <CallProviderGate callActions={callActions} userMeta={callUserMeta}>
+                {/* The MFA gate is an async server component, so it must be
                   instantiated here in the server layout and handed to the client
                   chrome as a child — rendering it from inside HomeChrome would make
                   React treat it as an async client component and crash the tree. */}
-              <HomeChrome>
-                <MfaEnforcementGate>
-                  <NuqsAdapter>{children}</NuqsAdapter>
-                </MfaEnforcementGate>
-              </HomeChrome>
-            </CallProviderGate>
+                <HomeChrome>
+                  <MfaEnforcementGate>
+                    <NuqsAdapter>{children}</NuqsAdapter>
+                  </MfaEnforcementGate>
+                </HomeChrome>
+              </CallProviderGate>
+            </AssistantSwitcherBridgeProvider>
           </AppShellNavigationProvider>
           <Toaster position="bottom-right" closeButton />
           <ImpersonationBanner />

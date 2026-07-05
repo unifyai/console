@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { readStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
 
 export function usePanelManager(initialProfileId: string | null = null) {
   // Selection state is authoritative locally. The `?profile=` URL param is a
@@ -12,9 +13,10 @@ export function usePanelManager(initialProfileId: string | null = null) {
   // would clobber the user's latest click — making selection feel unreliable
   // (responding and then undoing itself). Cross-route deep links re-mount this
   // hook, so seeding once is sufficient.
-  const [profileAssistantId, setProfileAssistantId] = React.useState<string | null>(
-    initialProfileId
-  );
+  const [profileAssistantId, setProfileAssistantId] = React.useState<string | null>(() => {
+    if (initialProfileId) return initialProfileId;
+    return readStoredSelectedAssistantId();
+  });
 
   const handleShowProfile = React.useCallback((id: string) => {
     setProfileAssistantId(id);

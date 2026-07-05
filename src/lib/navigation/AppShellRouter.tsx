@@ -8,6 +8,7 @@ import {
   isRoutedShellPath,
   SETTINGS_ROUTE_PREFIXES,
 } from '@/lib/navigation/appShellRoutes';
+import { dispatchOpenAssistantChat } from '@/lib/navigation/openAssistantChat';
 
 interface AppShellNavigationContextValue {
   pendingTargetHref: string | null;
@@ -60,8 +61,9 @@ export function usePendingShellNavigationTarget(): string | null {
  * The assistants surface is different: its runtime (`Main`) is mounted once by
  * the shell layout and only ever hidden, so SSE, live calls, and action streams
  * survive. When the user is already inside the shell on a routed surface,
- * returning to `/assistants` can reveal that existing runtime without a server
- * round-trip.
+ * returning to `/assistants` reveals that existing runtime. Client-side
+ * `router.push` keeps the layout-mounted `Main` instance alive while updating
+ * the Next.js pathname so `AppShell` can show the assistants surface.
  */
 export function useAppShellNavigation() {
   const router = useRouter();
@@ -74,10 +76,6 @@ export function useAppShellNavigation() {
 
       if (isAssistantsPath(targetPathname)) {
         navigationContext?.setPendingTargetHref(null);
-        if (typeof window !== 'undefined' && isRoutedShellPath(pathname)) {
-          window.history.pushState(null, '', href);
-          return;
-        }
         router.push(href);
         return;
       }
@@ -95,12 +93,17 @@ export function useAppShellNavigation() {
 
   const navigateToAssistants = React.useCallback(() => {
     navigationContext?.setPendingTargetHref(null);
-    if (typeof window !== 'undefined' && isRoutedShellPath(pathname)) {
-      window.history.pushState(null, '', '/assistants');
-      return;
-    }
     router.push('/assistants');
-  }, [navigationContext, pathname, router]);
+  }, [navigationContext, router]);
+
+  const navigateToAssistantChat = React.useCallback(
+    (assistantId: string) => {
+      navigationContext?.setPendingTargetHref(null);
+      dispatchOpenAssistantChat(assistantId);
+      router.push('/assistants');
+    },
+    [navigationContext, router]
+  );
 
   return {
     activeHref: pathname,
@@ -109,6 +112,7 @@ export function useAppShellNavigation() {
     showRoutedSurface: isRoutedShellPath(pathname),
     assistantsSurfaceActive: isAssistantsPath(pathname),
     navigateToAssistants,
+    navigateToAssistantChat,
     navigateTo,
   };
 }

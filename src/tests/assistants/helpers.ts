@@ -354,7 +354,7 @@ export async function openUnitySwitcher(page: Page, opts?: { userId?: string; ap
   } else {
     await dismissCoordinatorOnboardingIfOpen(page);
   }
-  const switcher = page.getByTestId('rail-unity-switcher');
+  const switcher = page.locator('[data-testid="rail-unity-switcher"]:visible').first();
   await expect(switcher).toBeVisible({ timeout: 10_000 });
   await switcher.click();
   await expect(popover).toBeVisible({ timeout: 5_000 });

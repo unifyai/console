@@ -74,6 +74,13 @@ import {
   useAppShellNavigation,
 } from '@/lib/navigation/AppShellRouter';
 import {
+  OPEN_ASSISTANT_CHAT_EVENT,
+  type OpenAssistantChatDetail,
+} from '@/lib/navigation/openAssistantChat';
+import { AssistantFloatingChatHost } from '@/components/Pages/Assistants/Chat/AssistantFloatingChatHost';
+import { AssistantSwitcherBridgeSync } from '@/components/Layout/Shell/AssistantSwitcherBridgeSync';
+import { writeStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
+import {
   PLATFORM_HOME_NAVIGATION_EVENT,
   requestPlatformHomeNavigation,
 } from '@/lib/navigation/platformHome';
@@ -268,12 +275,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
+      writeStoredSelectedAssistantId(assistantId);
       syncProfileQueryParam(assistantId);
     },
     [setPanelProfileAssistant, syncProfileQueryParam]
   );
+  React.useEffect(() => {
+    if (!isActiveSurface || !profileAssistantId) return;
+    syncProfileQueryParam(profileAssistantId);
+  }, [isActiveSurface, profileAssistantId, syncProfileQueryParam]);
   const handleProfileClose = React.useCallback(() => {
     clearPanelProfileAssistant();
+    writeStoredSelectedAssistantId(null);
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
   const handleToggleAssistantInfo = React.useCallback(
@@ -417,6 +430,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
+
+  const [floatingChatExpanded, setFloatingChatExpanded] = React.useState(false);
+  const handleFloatingChatExpandedChange = React.useCallback((expanded: boolean) => {
+    setFloatingChatExpanded(expanded);
+  }, []);
 
   // --- Assistant Data & Actions ---
   const {
@@ -843,6 +861,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     popOut,
     redock,
   } = useCallContext();
+
+  const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
+  React.useEffect(() => {
+    const wasActive = wasAssistantsSurfaceActiveRef.current;
+    wasAssistantsSurfaceActiveRef.current = isActiveSurface;
+    if (!wasActive && isActiveSurface && activeCallAssistant) {
+      redock();
+    }
+  }, [activeCallAssistant, isActiveSurface, redock]);
 
   React.useEffect(() => {
     if (!profileAssistantId || isLoadingAssistants) return;
@@ -1376,6 +1403,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // open, the call dialog's embedded side panel.
       activeAssistantId:
         (isChatVisibleInRightPane ? profileAssistantId : null) ??
+        (floatingChatExpanded &&
+        profileAssistantId &&
+        !isHireDialogOpen &&
+        !showCoordinatorOnboardingIntro
+          ? profileAssistantId
+          : null) ??
         activeCallAssistant?.agentId ??
         null,
       getCutoff: getChatStreamCutoff,
@@ -1404,6 +1437,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
     activeAssistantId:
       (isChatVisibleInRightPane ? profileAssistantId : null) ??
+      (floatingChatExpanded &&
+      profileAssistantId &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+        ? profileAssistantId
+        : null) ??
       activeCallAssistant?.agentId ??
       null,
     enabled: reconcilerPairs.length > 0,
@@ -1430,7 +1469,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (profileAssistantId && isChatVisibleInRightPane) {
       markChatStreamRead(profileAssistantId);
     }
-  }, [profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+    if (
+      profileAssistantId &&
+      floatingChatExpanded &&
+      !isChatVisibleInRightPane &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+    ) {
+      markChatStreamRead(profileAssistantId);
+    }
+  }, [
+    profileAssistantId,
+    isChatVisibleInRightPane,
+    floatingChatExpanded,
+    isHireDialogOpen,
+    showCoordinatorOnboardingIntro,
+    markChatStreamRead,
+  ]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -2683,6 +2738,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     );
   }, []);
 
+  const openAssistantChatFromNavigation = React.useCallback(
+    (assistantId: string) => {
+      const targetId = activeCallAssistant?.agentId ?? assistantId;
+      handleShowProfile(targetId);
+      handleOpenChatSection();
+      if (activeCallAssistant) {
+        redock();
+      }
+    },
+    [activeCallAssistant, handleOpenChatSection, handleShowProfile, redock]
+  );
+
+  React.useEffect(() => {
+    const onOpenAssistantChat = (event: Event) => {
+      const detail = (event as CustomEvent<OpenAssistantChatDetail>).detail;
+      if (!detail?.assistantId) return;
+      openAssistantChatFromNavigation(detail.assistantId);
+    };
+    window.addEventListener(OPEN_ASSISTANT_CHAT_EVENT, onOpenAssistantChat);
+    return () => window.removeEventListener(OPEN_ASSISTANT_CHAT_EVENT, onOpenAssistantChat);
+  }, [openAssistantChatFromNavigation]);
+
   const goToPlatformHome = React.useCallback(() => {
     navigateToAssistants();
     setMobileRailOpen(false);
@@ -2729,24 +2806,42 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // The full prop bag the rail forwards to the embedded `AssistantList` (the
   // unity switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
   // popover list always renders expanded.
-  const railListProps: React.ComponentProps<typeof AssistantList> = {
-    assistants: sidebarAssistants,
-    assistantStatuses,
-    assistantError,
-    isLoading: isLoadingAssistants,
-    error: assistantError,
-    profileAssistantId,
-    onShowProfile: handleAssistantListSelect,
-    onToggleAssistantInfo: handleToggleAssistantInfo,
-    onOpenHireDialog: handleOpenHireDialog,
-    isFolded: false,
-    activeCallAssistantId: activeCallId,
-    canHire,
-    unreadCounts: chatStreamUnreadCounts,
-    currentUserId,
-    workspace: coordinatorWorkspace,
-    teamsById,
-  };
+  const railListProps: React.ComponentProps<typeof AssistantList> = React.useMemo(
+    () => ({
+      assistants: sidebarAssistants,
+      assistantStatuses,
+      assistantError,
+      isLoading: isLoadingAssistants,
+      error: assistantError,
+      profileAssistantId,
+      onShowProfile: handleAssistantListSelect,
+      onToggleAssistantInfo: handleToggleAssistantInfo,
+      onOpenHireDialog: handleOpenHireDialog,
+      isFolded: false,
+      activeCallAssistantId: activeCallId,
+      canHire,
+      unreadCounts: chatStreamUnreadCounts,
+      currentUserId,
+      workspace: coordinatorWorkspace,
+      teamsById,
+    }),
+    [
+      sidebarAssistants,
+      assistantStatuses,
+      assistantError,
+      isLoadingAssistants,
+      profileAssistantId,
+      handleAssistantListSelect,
+      handleToggleAssistantInfo,
+      handleOpenHireDialog,
+      activeCallId,
+      canHire,
+      chatStreamUnreadCounts,
+      currentUserId,
+      coordinatorWorkspace,
+      teamsById,
+    ]
+  );
 
   const profileCanWrite = profileAssistant ? canWrite(profileAssistant) : undefined;
   const profileChatStreamConnectionStatus = profileAssistant
@@ -2765,6 +2860,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   return (
     <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>
+      <AssistantSwitcherBridgeSync activeUnity={profileAssistant} listProps={railListProps} />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
           credits={credits}
@@ -2902,7 +2998,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           renderDockedCall={
                             activeCallAssistant &&
                             profileAssistant &&
-                            activeCallAssistant.agentId === profileAssistant.agentId &&
+                            String(activeCallAssistant.agentId) ===
+                              String(profileAssistant.agentId) &&
                             isDocked
                               ? () => (
                                   <RoomContext.Provider value={room}>
@@ -3159,11 +3256,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           />
         )}
 
-        {/* Page-level dialog — only mounted when the user has popped
-         *  the call out of its docked slot. The docked render lives
-         *  closer to the call's content (the chat panel in the base
-         *  /assistants view, or the Coordinator-onboarding shell)
-         *  so we don't need a guard for those shells here. */}
         {activeCallAssistant && !isDocked && (
           <RoomContext.Provider value={room}>
             <AssistantCommunicationDialog
@@ -3206,6 +3298,43 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
             />
           </RoomContext.Provider>
+        )}
+
+        {profileAssistant && (
+          <AssistantFloatingChatHost
+            pathname={routePathname ?? '/assistants'}
+            isBelowTablet={isBelowTablet}
+            isHireDialogOpen={isHireDialogOpen}
+            showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
+            isCoordinatorOnboardingFocusLayout={isCoordinatorOnboardingFocusLayout}
+            isChatVisibleInRightPane={isChatVisibleInRightPane}
+            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            profileAssistant={profileAssistant}
+            assistantsBootstrapped={!isLoadingAssistants}
+            assistant={profileAssistant}
+            assistantActions={assistantActions}
+            chatHistories={profileChatHistories}
+            setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
+            userEmail={userMeta.email}
+            userTimezone={userMeta.timezone}
+            spendingGate={spendingGateStatus}
+            chatStreamConnectionStatus={profileChatStreamConnectionStatus}
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={profileChatActivitySignal}
+            unreadCount={chatStreamUnreadCounts[profileAssistant.agentId] ?? 0}
+            hasActiveCall={!!activeCallAssistant && (isConnectingCall || isCallConnected)}
+            isInActiveCall={
+              !!activeCallAssistant &&
+              activeCallAssistant.agentId === profileAssistant.agentId &&
+              (isConnectingCall || isCallConnected)
+            }
+            activeCallAssistantId={activeCallAssistant?.agentId ?? null}
+            isCallConnected={isCallConnected}
+            onExpandedChange={handleFloatingChatExpandedChange}
+            redock={redock}
+          />
         )}
       </div>
     </CoordinatorOnboardingProvider>
