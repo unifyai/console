@@ -19,6 +19,10 @@ import { useUnityAudioElementLipsync } from '@/utils/assistants/unity-lipsync';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
+const messageActionButtonClass =
+  'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors text-muted-foreground/50 hover:text-muted-foreground';
+const messageActionIconClass = 'h-3.5 w-3.5';
+
 // `Intl.DateTimeFormat` construction is surprisingly expensive (allocates an
 // ICU formatter under the hood). Long conversations call `formatMessageTime`
 // once per bubble per render, so we cache one formatter per timezone and
@@ -248,12 +252,15 @@ function ChatMessageBubbleImpl({
 
   const reactionControls =
     !isUser && canReact && onToggleReaction ? (
-      <div className="flex items-center gap-1">
-        <EmojiReactionPicker
-          disabled={transcriptMessageId === undefined}
-          onSelect={onToggleReaction}
-        />
-      </div>
+      <EmojiReactionPicker
+        disabled={transcriptMessageId === undefined}
+        onSelect={onToggleReaction}
+        className={cn(
+          messageActionButtonClass,
+          'inline-flex hover:bg-transparent disabled:cursor-not-allowed disabled:opacity-50'
+        )}
+        iconClassName={messageActionIconClass}
+      />
     ) : null;
 
   if (isUser) {
@@ -323,17 +330,17 @@ function ChatMessageBubbleImpl({
                       }
                       disabled={audioState === 'generating'}
                       className={cn(
-                        'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
-                        audioState === 'playing'
-                          ? 'text-primary hover:text-primary-tint-80'
-                          : 'text-muted-foreground/50 hover:text-muted-foreground'
+                        messageActionButtonClass,
+                        audioState === 'playing' && 'text-primary hover:text-primary-tint-80'
                       )}
                     >
                       {audioState === 'generating' && (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className={cn(messageActionIconClass, 'animate-spin')} />
                       )}
-                      {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
-                      {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
+                      {audioState === 'playing' && (
+                        <Square className={cn(messageActionIconClass, 'fill-current')} />
+                      )}
+                      {audioState === 'idle' && <Volume2 className={messageActionIconClass} />}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
@@ -358,14 +365,13 @@ function ChatMessageBubbleImpl({
                       aria-label={isCopied ? 'Message copied' : 'Copy message'}
                       data-testid="message-copy-button"
                       data-copied={isCopied || undefined}
-                      className={cn(
-                        'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded pt-0.5 transition-colors',
-                        isCopied
-                          ? 'text-primary'
-                          : 'text-muted-foreground/50 hover:text-muted-foreground'
-                      )}
+                      className={cn(messageActionButtonClass, isCopied && 'text-primary')}
                     >
-                      {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      {isCopied ? (
+                        <Check className={messageActionIconClass} />
+                      ) : (
+                        <Copy className={messageActionIconClass} />
+                      )}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top">

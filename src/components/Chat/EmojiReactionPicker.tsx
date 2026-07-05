@@ -16,12 +16,14 @@ interface EmojiReactionPickerProps {
   disabled?: boolean;
   onSelect: (emoji: string) => void;
   className?: string;
+  iconClassName?: string;
 }
 
 export function EmojiReactionPicker({
   disabled = false,
   onSelect,
   className,
+  iconClassName,
 }: EmojiReactionPickerProps) {
   const [open, setOpen] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
@@ -60,7 +62,7 @@ export function EmojiReactionPicker({
             className
           )}
         >
-          <SmilePlus className="h-3.5 w-3.5" />
+          <SmilePlus className={cn('h-3.5 w-3.5', iconClassName)} />
         </button>
       </PopoverTrigger>
       <PopoverContent
