@@ -96,6 +96,7 @@ import {
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
 import { debugConsole } from '@/lib/consoleDebug';
+import { wakeCoordinator } from '@/lib/client/coordinator';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
 import {
@@ -2357,6 +2358,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     profileAssistantId,
     handleShowProfile,
   ]);
+
+  React.useEffect(() => {
+    if (!showCoordinatorOnboardingIntro || !canonicalCoordinatorId) return;
+    void wakeCoordinator(canonicalCoordinatorId);
+  }, [showCoordinatorOnboardingIntro, canonicalCoordinatorId]);
 
   // Seed durable step completion from the server-derived
   // ``completedStepIds`` on the Coordinator/State read. Orchestra
