@@ -98,3 +98,32 @@ test('user can add and remove a reaction optimistically in the chat UI @push @ar
   await page.getByTestId('chat-reaction-chip-👍').first().click();
   await expect(page.getByTestId('chat-message-reactions')).toHaveCount(0);
 });
+
+test('user can pick a custom emoji from the expanded reaction picker @push @area(assistants.chat)', async ({
+  authedPage: page,
+}) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: ASSISTANT_CONTACT_ID,
+    content: 'Pick a party emoji!',
+    medium: 'unify_message',
+    receiverIds: [CONTACT_ID],
+  });
+
+  await openAssistantChat(page);
+  await page.waitForSelector('[data-testid="message-bubble"][data-role="assistant"]', {
+    timeout: 30_000,
+  });
+
+  const assistantBubble = page
+    .locator('[data-testid="message-bubble"][data-role="assistant"]')
+    .first();
+  await assistantBubble.hover();
+  await page.getByTestId('chat-reaction-picker').first().click();
+  await page.getByTestId('chat-reaction-expand').click();
+  await expect(page.getByPlaceholder('Search')).toBeVisible();
+
+  await page.getByPlaceholder('Search').fill('tada');
+  await page.locator('.EmojiPickerReact button').filter({ hasText: '🎉' }).first().click();
+  await expect(page.getByTestId('chat-message-reactions').first()).toContainText('🎉');
+});
