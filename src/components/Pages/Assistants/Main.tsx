@@ -1612,8 +1612,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setIncomingMeetCall(null);
     handleShowProfile(assistant.agentId);
     const openingConfig: CallOpeningConfig = {
-      mode: 'simulated',
-      simulatedUtterance: reason || 'Continuing our conversation on the live call.',
+      mode: 'opener',
+      openerText: reason || 'Continuing our conversation on the live call.',
       source: 'unify_meet_ring',
     };
     void handleStartCall(assistant, 'audio', {

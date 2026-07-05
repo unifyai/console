@@ -20,13 +20,14 @@ import type {
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
-export type CallOpeningMode = 'speak' | 'simulated' | 'silent' | 'briefed' | 'recorded';
+export type CallOpeningMode = 'speak' | 'opener' | 'simulated' | 'silent' | 'recorded';
 
 export interface CallOpeningConfig {
   mode: CallOpeningMode;
+  /** Exact words spoken verbatim to open the call in `opener` mode. */
+  openerText?: string;
+  /** Utterance injected as already-spoken context (never voiced) in `simulated` mode. */
   simulatedUtterance?: string;
-  /** Durable system briefing spoken as the opening turn in `briefed` mode. */
-  systemContext?: string;
   /** Name of a Unity-bundled audio asset spoken as a recorded opening turn. */
   recordingAsset?: string;
   /** Transcript paired with a recorded opening; Unity may provide it for bundled assets. */
