@@ -247,7 +247,7 @@ function ChatMessageBubbleImpl({
   };
 
   const reactionControls =
-    canReact && onToggleReaction ? (
+    !isUser && canReact && onToggleReaction ? (
       <div className="flex items-center gap-1">
         <EmojiReactionPicker
           disabled={transcriptMessageId === undefined}
@@ -274,9 +274,6 @@ function ChatMessageBubbleImpl({
             <MessageAttachmentList attachments={attachments} />
           )}
           <div className="flex items-end justify-end gap-1">
-            <div className="opacity-0 transition-opacity group-hover:opacity-100">
-              {reactionControls}
-            </div>
             <div
               className={cn(
                 'break-words rounded-lg p-2.5 font-sans text-sm leading-snug',
@@ -293,12 +290,6 @@ function ChatMessageBubbleImpl({
               )}
             </div>
           </div>
-          <MessageReactionsBar
-            reactions={reactions}
-            currentContactId={currentContactId}
-            onToggleReaction={onToggleReaction}
-            className="justify-end"
-          />
         </div>
       </div>
     );
