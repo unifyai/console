@@ -12,6 +12,22 @@ const FullEmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false
 
 export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
 
+const PICKER_WIDTH = 280;
+const PICKER_MAX_HEIGHT = 288;
+const PICKER_MIN_HEIGHT = 200;
+const VIEWPORT_PADDING = 16;
+const COMPOSER_RESERVE = 96;
+const POPOVER_SIDE_OFFSET = 6;
+
+function measureExpandedPickerHeight(trigger: HTMLElement): number {
+  const rect = trigger.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom - POPOVER_SIDE_OFFSET - COMPOSER_RESERVE;
+  const spaceAbove = rect.top - POPOVER_SIDE_OFFSET - VIEWPORT_PADDING;
+  const available = Math.max(spaceBelow, spaceAbove);
+
+  return Math.max(PICKER_MIN_HEIGHT, Math.min(PICKER_MAX_HEIGHT, Math.floor(available)));
+}
+
 interface EmojiReactionPickerProps {
   disabled?: boolean;
   onSelect: (emoji: string) => void;
@@ -27,7 +43,32 @@ export function EmojiReactionPicker({
 }: EmojiReactionPickerProps) {
   const [open, setOpen] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
+  const [pickerHeight, setPickerHeight] = React.useState(PICKER_MAX_HEIGHT);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const { resolvedTheme } = useTheme();
+
+  React.useLayoutEffect(() => {
+    if (!open || !expanded) {
+      return;
+    }
+
+    const updatePickerHeight = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) {
+        return;
+      }
+      setPickerHeight(measureExpandedPickerHeight(trigger));
+    };
+
+    updatePickerHeight();
+    window.addEventListener('resize', updatePickerHeight);
+    window.addEventListener('scroll', updatePickerHeight, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePickerHeight);
+      window.removeEventListener('scroll', updatePickerHeight, true);
+    };
+  }, [open, expanded]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -53,6 +94,7 @@ export function EmojiReactionPicker({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
+          ref={triggerRef}
           type="button"
           disabled={disabled}
           data-testid="chat-reaction-picker"
@@ -68,9 +110,14 @@ export function EmojiReactionPicker({
       <PopoverContent
         align="start"
         side="bottom"
-        sideOffset={6}
-        avoidCollisions={!expanded}
-        collisionPadding={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        sideOffset={POPOVER_SIDE_OFFSET}
+        avoidCollisions
+        collisionPadding={{
+          top: VIEWPORT_PADDING,
+          bottom: COMPOSER_RESERVE,
+          left: VIEWPORT_PADDING,
+          right: VIEWPORT_PADDING,
+        }}
         className={cn('w-auto', expanded ? 'overflow-hidden p-0' : 'p-2')}
       >
         {expanded ? (
@@ -79,8 +126,8 @@ export function EmojiReactionPicker({
             theme={emojiPickerTheme}
             emojiStyle={EmojiStyle.NATIVE}
             className="chat-emoji-picker"
-            width={300}
-            height={320}
+            width={PICKER_WIDTH}
+            height={pickerHeight}
             lazyLoadEmojis
             autoFocusSearch={false}
             previewConfig={{ showPreview: false }}

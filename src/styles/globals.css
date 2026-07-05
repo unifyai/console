@@ -410,10 +410,11 @@
   --epr-picker-border-color: transparent;
   --epr-reactions-bg-color: transparent;
   --epr-emoji-variation-picker-bg-color: transparent;
-  --epr-category-label-bg-color: color-mix(in srgb, var(--popover) 92%, transparent);
-  --epr-search-input-bg-color: var(--muted);
-  --epr-search-input-bg-color-active: var(--muted);
-  --epr-search-border-color: var(--border);
+  --epr-category-label-bg-color: color-mix(in srgb, var(--popover) 52%, transparent);
+  --epr-search-input-bg-color: color-mix(in srgb, var(--muted) 48%, transparent);
+  --epr-search-input-bg-color-active: color-mix(in srgb, var(--muted) 56%, transparent);
+  --epr-skin-tone-picker-menu-color: color-mix(in srgb, var(--popover) 72%, transparent);
+  --epr-search-border-color: color-mix(in srgb, var(--border) 70%, transparent);
   --epr-search-border-color-active: var(--ring);
   --epr-highlight-color: var(--ring);
   --epr-hover-bg-color: color-mix(in srgb, var(--muted) 72%, transparent);
@@ -425,9 +426,26 @@
   --epr-search-input-text-color: var(--foreground);
   --epr-search-input-placeholder-color: var(--muted-foreground);
   --epr-picker-border-radius: calc(var(--radius) + 4px);
+  --epr-horizontal-padding: 8px;
+  --epr-header-padding: 8px var(--epr-horizontal-padding);
+  --epr-search-bar-inner-padding: 8px var(--epr-horizontal-padding);
+  --epr-search-input-height: 32px;
+  --epr-search-input-padding: 0 28px;
+  --epr-search-input-border-radius: var(--radius-control);
+  --epr-category-navigation-button-size: 24px;
+  --epr-category-label-height: 28px;
+  --epr-emoji-size: 22px;
+  --epr-emoji-padding: 3px;
   border: none;
   box-shadow: none;
   font-family: var(--font-sans);
+  font-size: 12px;
+}
+
+.chat-emoji-picker .epr-emoji-category-label {
+  backdrop-filter: blur(10px);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 /* Force disable cmdk internal scrolling and use browser scrolling */
