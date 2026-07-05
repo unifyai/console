@@ -134,14 +134,15 @@ export function UsageMain({
   const [spendingLimits, setSpendingLimits] = React.useState<SpendingLimitData[]>([]);
   const [isLoadingLimits, setIsLoadingLimits] = React.useState(true);
   const [limitRefreshKey, setLimitRefreshKey] = React.useState(0);
+  const hasInitiallyLoadedLimitsRef = React.useRef(false);
+  const usageActionsRef = React.useRef(usageActions);
+  usageActionsRef.current = usageActions;
 
-  // Type guard for spending limit response
-  const isSpendingLimit = React.useCallback(
-    (result: SpendingLimitInfo | { detail?: string }): result is SpendingLimitInfo => {
-      return 'type' in result && 'limit' in result && 'label' in result;
-    },
-    []
-  );
+  const isSpendingLimit = (
+    result: SpendingLimitInfo | { detail?: string }
+  ): result is SpendingLimitInfo => {
+    return 'type' in result && 'limit' in result && 'label' in result;
+  };
 
   // Per-limit save handlers — each limit type has its own save function
   const handleSaveUserLimit = React.useCallback(
@@ -239,6 +240,15 @@ export function UsageMain({
     [usageActions, filters.assistantId]
   );
 
+  const handleSaveUserLimitRef = React.useRef(handleSaveUserLimit);
+  handleSaveUserLimitRef.current = handleSaveUserLimit;
+  const handleSaveOrgLimitRef = React.useRef(handleSaveOrgLimit);
+  handleSaveOrgLimitRef.current = handleSaveOrgLimit;
+  const handleSaveMemberLimitRef = React.useRef(handleSaveMemberLimit);
+  handleSaveMemberLimitRef.current = handleSaveMemberLimit;
+  const handleSaveAssistantLimitRef = React.useRef(handleSaveAssistantLimit);
+  handleSaveAssistantLimitRef.current = handleSaveAssistantLimit;
+
   // Get the selected assistant's name for the limit label
   const selectedAssistantName = React.useMemo(() => {
     if (filters.assistantId === 'all') return null;
@@ -250,23 +260,29 @@ export function UsageMain({
   // In org context: always show org limit + current user's member limit
   // In personal workspace: show user limit only
   React.useEffect(() => {
+    let cancelled = false;
+
     const fetchSpendingLimits = async () => {
-      setIsLoadingLimits(true);
+      if (!hasInitiallyLoadedLimitsRef.current) {
+        setIsLoadingLimits(true);
+      }
+
+      const actions = usageActionsRef.current;
       const limits: SpendingLimitData[] = [];
 
       try {
         if (orgId) {
           // Org context — always show both org limit and the user's member limit
           const [orgResult, memberResult] = await Promise.all([
-            usageActions.getOrgSpendingLimit(orgId),
-            usageActions.getMemberSpendingLimit(orgId, activeMemberId),
+            actions.getOrgSpendingLimit(orgId),
+            actions.getMemberSpendingLimit(orgId, activeMemberId),
           ]);
 
           if (orgResult && isSpendingLimit(orgResult)) {
             limits.push({
               ...orgResult,
               canEdit: isAdmin,
-              onSave: isAdmin ? handleSaveOrgLimit : undefined,
+              onSave: isAdmin ? handleSaveOrgLimitRef.current : undefined,
             });
           }
 
@@ -275,24 +291,24 @@ export function UsageMain({
               ...memberResult,
               label: activeMemberName,
               canEdit: isAdmin,
-              onSave: isAdmin ? handleSaveMemberLimit : undefined,
+              onSave: isAdmin ? handleSaveMemberLimitRef.current : undefined,
             });
           }
         } else {
           // Personal workspace — show user limit
-          const scopeResult = await usageActions.getUserSpendingLimit();
+          const scopeResult = await actions.getUserSpendingLimit();
           if (scopeResult && isSpendingLimit(scopeResult)) {
             limits.push({
               ...scopeResult,
               canEdit: true,
-              onSave: handleSaveUserLimit,
+              onSave: handleSaveUserLimitRef.current,
             });
           }
         }
 
         // If filtering by specific assistant, also fetch assistant limit (editable)
         if (filters.assistantId !== 'all') {
-          const assistantResult = await usageActions.getAssistantSpendingLimit(filters.assistantId);
+          const assistantResult = await actions.getAssistantSpendingLimit(filters.assistantId);
           if (assistantResult && isSpendingLimit(assistantResult)) {
             // In personal workspace: user can edit; in org workspace: only admins can edit
             const canEditAssistantLimit = orgId ? isAdmin : true;
@@ -300,34 +316,36 @@ export function UsageMain({
               ...assistantResult,
               label: selectedAssistantName || assistantResult.label,
               canEdit: canEditAssistantLimit,
-              onSave: canEditAssistantLimit ? handleSaveAssistantLimit : undefined,
+              onSave: canEditAssistantLimit ? handleSaveAssistantLimitRef.current : undefined,
             });
           }
         }
 
+        if (cancelled) return;
         setSpendingLimits(limits);
       } catch (error) {
+        if (cancelled) return;
         console.error('[UsageMain] Error fetching spending limits:', error);
         setSpendingLimits([]);
       } finally {
+        if (cancelled) return;
+        hasInitiallyLoadedLimitsRef.current = true;
         setIsLoadingLimits(false);
       }
     };
 
     fetchSpendingLimits();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
-    usageActions,
     orgId,
     activeMemberId,
     activeMemberName,
     isAdmin,
     filters.assistantId,
-    isSpendingLimit,
     limitRefreshKey,
-    handleSaveOrgLimit,
-    handleSaveMemberLimit,
-    handleSaveUserLimit,
-    handleSaveAssistantLimit,
     selectedAssistantName,
   ]);
 
@@ -376,10 +394,7 @@ export function UsageMain({
         {/* Left column — spending limits (compact) + transaction ledger (fills remaining) */}
         <div className="flex w-full flex-col gap-3 lg:max-h-[calc(100vh-140px)] lg:w-80 xl:w-96">
           <div className="shrink-0">
-            <SpendingLimitCard
-              spendingLimits={spendingLimits}
-              isLoading={isLoadingLimits || (isLoading && !hasInitiallyLoaded)}
-            />
+            <SpendingLimitCard spendingLimits={spendingLimits} isLoading={isLoadingLimits} />
           </div>
 
           {/* Chart appears here on mobile (between limits and ledger), hidden on desktop */}
