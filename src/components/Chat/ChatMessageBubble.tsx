@@ -308,71 +308,75 @@ function ChatMessageBubbleImpl({
         {timeString && (
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>
         )}
-        {onPlayAudio && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={
-                    audioState === 'playing'
-                      ? onStopAudio
-                      : () => onPlayAudio(messageId ?? '', message)
-                  }
-                  disabled={audioState === 'generating'}
-                  className={cn(
-                    'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
-                    audioState === 'playing'
-                      ? 'text-primary hover:text-primary-tint-80'
-                      : 'text-muted-foreground/50 hover:text-muted-foreground'
-                  )}
-                >
-                  {audioState === 'generating' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
-                  {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>
-                  {audioState === 'generating'
-                    ? 'Generating audio'
-                    : audioState === 'playing'
-                      ? 'Stop audio'
-                      : 'Play audio'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        {(onPlayAudio || canCopy || reactionControls) && (
+          <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            {onPlayAudio && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={
+                        audioState === 'playing'
+                          ? onStopAudio
+                          : () => onPlayAudio(messageId ?? '', message)
+                      }
+                      disabled={audioState === 'generating'}
+                      className={cn(
+                        'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
+                        audioState === 'playing'
+                          ? 'text-primary hover:text-primary-tint-80'
+                          : 'text-muted-foreground/50 hover:text-muted-foreground'
+                      )}
+                    >
+                      {audioState === 'generating' && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      )}
+                      {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
+                      {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>
+                      {audioState === 'generating'
+                        ? 'Generating audio'
+                        : audioState === 'playing'
+                          ? 'Stop audio'
+                          : 'Play audio'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {canCopy && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      aria-label={isCopied ? 'Message copied' : 'Copy message'}
+                      data-testid="message-copy-button"
+                      data-copied={isCopied || undefined}
+                      className={cn(
+                        'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded pt-0.5 transition-colors',
+                        isCopied
+                          ? 'text-primary'
+                          : 'text-muted-foreground/50 hover:text-muted-foreground'
+                      )}
+                    >
+                      {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>{isCopied ? 'Message copied' : 'Copy message'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {reactionControls}
+          </div>
         )}
-        {canCopy && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  aria-label={isCopied ? 'Message copied' : 'Copy message'}
-                  data-testid="message-copy-button"
-                  data-copied={isCopied || undefined}
-                  className={cn(
-                    'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded pt-0.5 transition-colors',
-                    isCopied
-                      ? 'text-primary'
-                      : 'text-muted-foreground/50 hover:text-muted-foreground'
-                  )}
-                >
-                  {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{isCopied ? 'Message copied' : 'Copy message'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        <div className="opacity-0 transition-opacity group-hover:opacity-100">
-          {reactionControls}
-        </div>
       </div>
       {attachments && attachments.length > 0 && (
         <MessageAttachmentList attachments={attachments} isAssistant />
