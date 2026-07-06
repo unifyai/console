@@ -113,7 +113,9 @@ export function AssistantDesktopPane({
       } else {
         const result = await actions
           .getLiveviewUrl(assistantId, ownerId, organizationId)
-          .catch((error: unknown) => ({ detail: formatUnknownError(error, 'Failed to fetch desktop URL.') }));
+          .catch((error: unknown) => ({
+            detail: formatUnknownError(error, 'Failed to fetch desktop URL.'),
+          }));
         resolvedUrl = result && 'liveviewUrl' in result ? result.liveviewUrl : undefined;
         if (!resolvedUrl && result && 'detail' in result && result.detail) {
           throw new Error(
@@ -371,7 +373,12 @@ export function AssistantDesktopPane({
               )}
               {isInteractive ? 'View only' : 'Take control'}
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleRefresh} aria-label="Refresh desktop">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              aria-label="Refresh desktop"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>

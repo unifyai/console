@@ -204,21 +204,19 @@ export async function wakeAssistantSession(assistantId: string): Promise<Respons
       return { detail: 'Server configuration error: admin key not set.' };
     }
 
-    if (
-      !process.env.LOCAL_ADAPTERS_URL &&
-      !process.env.UNITY_ADAPTERS_URL &&
-      isSelfHost()
-    ) {
+    if (!process.env.LOCAL_ADAPTERS_URL && !process.env.UNITY_ADAPTERS_URL && isSelfHost()) {
       return { info: 'Self-host runtime start skipped (no adapters configured).' };
     }
 
     const wakeUpUrl = `${getAdaptersBaseUrl({
       localAdaptersUrl: process.env.LOCAL_ADAPTERS_URL,
     })}/assistant/wakeup`;
+    const wakeUpParams = new URLSearchParams();
+    wakeUpParams.set('assistant_id', String(parsedId));
     const response = await fetch(wakeUpUrl, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminKey}` },
-      body: new URLSearchParams({ assistant_id: String(parsedId) }),
+      body: wakeUpParams,
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => 'Failed to start assistant session.');

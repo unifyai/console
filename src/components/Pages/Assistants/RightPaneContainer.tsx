@@ -31,13 +31,7 @@ const TAB_CONTENT_CLASS = 'min-h-0 flex-1 overflow-hidden data-[state=inactive]:
  * stay typed end-to-end. The active tab is owned by the rail; this
  * container renders the matching body.
  */
-export type RightPaneTab =
-  | 'chat'
-  | 'tasks'
-  | 'dashboards'
-  | 'integrations'
-  | 'actions'
-  | 'desktop';
+export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'integrations' | 'actions' | 'desktop';
 
 /**
  * What the right pane is showing. `secondary`/`splitRatio` remain on the
