@@ -37,27 +37,33 @@ export function DashboardsPane({
   assistant,
   ownerId,
   assistantId,
-  getMetadata,
-  getTileContent,
   shouldPoll,
 }: DashboardsPaneProps) {
   // In mock mode, override the server actions so mock data flows through
   // the same lazy-loading path (metadata without htmlContent, content fetched
   // on demand with a simulated delay).
   const effectiveGetMetadata = useMemo(
-    () => (USE_MOCK_DASHBOARDS ? () => Promise.resolve(getMockDashboardMetadata()) : getMetadata),
-    [getMetadata]
+    () => (USE_MOCK_DASHBOARDS ? () => Promise.resolve(getMockDashboardMetadata()) : undefined),
+    []
   );
 
   const effectiveGetTileContent = useMemo(
     () =>
       USE_MOCK_DASHBOARDS
         ? (_assistant: Assistant, token: string) => getMockTileContent(token)
-        : getTileContent,
-    [getTileContent]
+        : undefined,
+    []
   );
 
-  const { dashboards, tiles, isLoading, refetch, dataUpdatedAt, getTileHtml } = useDashboards({
+  const {
+    dashboards,
+    tiles,
+    isInitialLoading,
+    isRefreshing: isResourceRefreshing,
+    refetch,
+    dataUpdatedAt,
+    getTileHtml,
+  } = useDashboards({
     assistant,
     ownerId,
     assistantId,
@@ -118,7 +124,9 @@ export function DashboardsPane({
     }
   }, [refetch]);
 
-  if (isLoading && dashboards.length === 0 && tiles.length === 0) {
+  const showRefreshing = isRefreshing || isResourceRefreshing;
+
+  if (isInitialLoading) {
     return (
       <div className="flex h-full flex-col" data-testid="dashboards-loading">
         <div className="border-b border-border px-3 py-2">
@@ -129,7 +137,7 @@ export function DashboardsPane({
     );
   }
 
-  if (!isLoading && dashboards.length === 0 && tiles.length === 0) {
+  if (dashboards.length === 0 && tiles.length === 0) {
     return <DashboardEmptyState />;
   }
 
@@ -144,7 +152,7 @@ export function DashboardsPane({
         allCollapsed={allCollapsed === true}
         onToggleCollapseAll={toggleCollapseAll}
         onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
+        isRefreshing={showRefreshing}
       />
 
       {/* Body */}
@@ -189,7 +197,7 @@ export function DashboardsPane({
         tileCount={tiles.length}
         dataUpdatedAt={dataUpdatedAt}
         isPolling={shouldPoll}
-        isRefreshing={isRefreshing}
+        isRefreshing={showRefreshing}
         isMockData={USE_MOCK_DASHBOARDS}
         onRefresh={handleRefresh}
       />
