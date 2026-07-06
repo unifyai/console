@@ -106,10 +106,13 @@ test('mobile viewport exposes rail navigation via the menu toggle', async ({
   await navigateToAssistants(page, { ...shellOpts, skipRailCheck: true });
   await closeHireDialogIfOpen(page);
 
-  await expect(page.getByTestId('rail-mobile-toggle')).toBeVisible({ timeout: 15_000 });
+  // A hidden duplicate shell surface can mount its own toggle; assert and
+  // click the visible instance only.
+  const mobileToggle = page.locator('[data-testid="rail-mobile-toggle"]:visible').first();
+  await expect(mobileToggle).toBeVisible({ timeout: 15_000 });
   await expect(assistantRail(page)).toHaveCount(0);
 
-  await page.getByTestId('rail-mobile-toggle').click();
+  await mobileToggle.click();
   const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 5_000 });
   await expect(railSection(page, 'chat')).toBeVisible();

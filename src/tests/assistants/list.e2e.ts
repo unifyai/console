@@ -117,10 +117,18 @@ test('clicking an assistant in the list selects it and shows the Chat tab @criti
   await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page', {
     timeout: 10_000,
   });
-  await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
+  // Hidden duplicate shell surfaces can also contain the name; match the
+  // visible instance only.
+  await expect(
+    page.locator(`text=${dbAssistant.firstName}`).locator('visible=true').first()
+  ).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
+  await expect(
+    page.locator(`text=${dbAssistant.surname}`).locator('visible=true').first()
+  ).toBeVisible({
+    timeout: 5_000,
+  });
   await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('call-audio-button')).toBeVisible({ timeout: 5_000 });
 });
