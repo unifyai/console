@@ -2288,6 +2288,54 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the graph-owned event for the My Computer live demo row. Row click
+  // starts the call-anchored desktop errand directly — no pane navigation.
+  // Mirrors the Learning beat path: Orchestra emits the canonical onboarding
+  // event to Unity and the user stays on the current surface.
+  const handleCoordinatorDispatchMyComputerBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error(
+            '[Coordinator onboarding] Failed to dispatch My Computer beat event:',
+            error
+          );
+          toast.error('Could not start this demo. Please try again.');
+        }
+      })();
+    },
+    [
+      appendCoordinatorRequestSentAck,
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
+      shouldDispatchStepRequest,
+    ]
+  );
+
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
     handleOpenUserSettings('contact-info', true);
@@ -2441,6 +2489,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSelectTaskChip: (stepId: string, chipId: string) =>
         handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
+      onMyComputerDemo: () => handleCoordinatorDispatchMyComputerBeat('my-computer-demo'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
@@ -2478,6 +2527,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
     handleCoordinatorDispatchLearningBeat,
+    handleCoordinatorDispatchMyComputerBeat,
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,

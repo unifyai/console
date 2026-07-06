@@ -118,6 +118,8 @@ export interface AssistantInfoSidePanelContentProps {
     onSelectTaskChip?: (stepId: string, chipId: string) => void;
     /** Dispatches the Learning tutorial beat event to Unity. */
     onLearnFromCorrection?: () => void;
+    /** Dispatches the My Computer live demo beat event to Unity. */
+    onMyComputerDemo?: () => void;
     /** Echo a checklist trigger acknowledgement into the coordinator chat. */
     appendRequestSentAck?: (label: string) => void;
     onSkipSection?: (phaseId: string) => void;
@@ -404,6 +406,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onCreateTriggerableTask={coordinatorOnboarding.onCreateTriggerableTask}
                 onSelectTaskChip={coordinatorOnboarding.onSelectTaskChip}
                 onLearnFromCorrection={coordinatorOnboarding.onLearnFromCorrection}
+                onMyComputerDemo={coordinatorOnboarding.onMyComputerDemo}
                 onTestTriggerableTask={handleTestTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}

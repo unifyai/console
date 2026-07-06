@@ -78,7 +78,8 @@ export type ChecklistAction =
   | 'act'
   | 'create-scheduled-task'
   | 'create-triggerable-task'
-  | 'learn-from-correction';
+  | 'learn-from-correction'
+  | 'my-computer-demo';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -140,6 +141,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'create-scheduled-task': 'create-scheduled-task',
   'create-triggerable-task': 'create-triggerable-task',
   'learn-from-correction': 'learn-from-correction',
+  'my-computer-demo': 'my-computer-demo',
 };
 
 const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
@@ -163,6 +165,7 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'create-scheduled-task': 'Starting...',
   'create-triggerable-task': 'Starting...',
   'learn-from-correction': 'Starting...',
+  'my-computer-demo': 'Starting...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -571,6 +574,9 @@ export interface CoordinatorOnboardingChecklistProps {
   /** Dispatches the Learning tutorial beat event to Unity. Hung off
    * ``learn-from-correction``. Unset means the row degrades to a static entry. */
   onLearnFromCorrection?: () => void;
+  /** Dispatches the My Computer live demo beat event to Unity. Hung off
+   * ``my-computer-demo``. Unset means the row degrades to a static entry. */
+  onMyComputerDemo?: () => void;
   /** Deterministically fire the armed triggerable task by id — powers the
    * inline "Test it" affordance under the ``create-triggerable-task`` row.
    * Unset (or a null ``armedTriggerableTaskId``) hides the affordance. */
@@ -607,6 +613,7 @@ export function CoordinatorOnboardingChecklist({
   onCreateTriggerableTask,
   onSelectTaskChip,
   onLearnFromCorrection,
+  onMyComputerDemo,
   onTestTriggerableTask,
   armedTriggerableTaskId = null,
   nextScheduledTaskDueAt = null,
@@ -688,6 +695,7 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'create-scheduled-task') onCreateScheduledTask?.();
       else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
       else if (action === 'learn-from-correction') onLearnFromCorrection?.();
+      else if (action === 'my-computer-demo') onMyComputerDemo?.();
     },
     [
       onStartOnboardingStep,
@@ -703,6 +711,7 @@ export function CoordinatorOnboardingChecklist({
       onCreateScheduledTask,
       onCreateTriggerableTask,
       onLearnFromCorrection,
+      onMyComputerDemo,
     ]
   );
 
@@ -815,6 +824,7 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'create-scheduled-task') return !!onCreateScheduledTask;
       if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
       if (action === 'learn-from-correction') return !!onLearnFromCorrection;
+      if (action === 'my-computer-demo') return !!onMyComputerDemo;
       return false;
     },
     [
@@ -831,6 +841,7 @@ export function CoordinatorOnboardingChecklist({
       onCreateScheduledTask,
       onCreateTriggerableTask,
       onLearnFromCorrection,
+      onMyComputerDemo,
     ]
   );
 
