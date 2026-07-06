@@ -583,8 +583,10 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           onBlur={handleDiscordBlur}
         />
         <p className="text-body-muted">
-          Your Discord user ID (numeric snowflake). Enable Developer Mode in Discord settings, then
-          click your profile to copy it.
+          Your Discord user ID (numeric snowflake). Open Discord settings (cog icon beside your
+          profile/name), then scroll to the bottom of the left pane, click "Developer" and turn on
+          "Developer Mode". Once done, close the dialog. Click on your profile photo and click "Copy
+          User ID".
         </p>
       </div>
     </div>
