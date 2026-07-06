@@ -255,12 +255,8 @@ export function ContactsPane({
             clearTestId="contacts-filter-clear"
           />
         }
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        refreshTitle="Refresh contacts"
-        refreshTestId="contacts-refresh"
-        addAction={
-          onManageContacts && (
+        trailing={
+          onManageContacts ? (
             <Button
               size="sm"
               className="h-7 shrink-0"
@@ -269,8 +265,12 @@ export function ContactsPane({
             >
               <Plus className="mr-1 h-3.5 w-3.5" /> Add contact
             </Button>
-          )
+          ) : undefined
         }
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshTitle="Refresh contacts"
+        refreshTestId="contacts-refresh"
       />
 
       <div className="min-h-0 flex-1" data-testid="contacts-body">

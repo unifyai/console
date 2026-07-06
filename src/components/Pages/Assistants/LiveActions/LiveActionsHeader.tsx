@@ -187,36 +187,36 @@ export function LiveActionsHeader({
       refreshTitle="Poll recent events"
       refreshTestId="live-actions-refresh"
       trailing={
-        <span
-          className="hidden h-7 items-center gap-1.5 whitespace-nowrap rounded-full border bg-card px-2.5 text-[11.5px] font-medium text-muted-foreground lg:inline-flex"
-          title="Actions are ordered oldest at the top, newest at the bottom"
-          data-testid="live-actions-order-hint"
-        >
-          <ArrowDown className="h-3 w-3 text-accent-soft-foreground" />
-          Oldest → Newest
-        </span>
-      }
-      addAction={
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExpandCollapseClick}
-          disabled={expandCollapseDisabled}
-          className="h-7 gap-1.5 whitespace-nowrap"
-          data-testid="live-actions-expand-collapse"
-        >
-          {allExpanded ? (
-            <>
-              <ChevronsDownUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Collapse All</span>
-            </>
-          ) : (
-            <>
-              <ChevronsUpDown className="h-4 w-4" />
-              <span className="hidden sm:inline">Expand All</span>
-            </>
-          )}
-        </Button>
+        <>
+          <span
+            className="hidden h-7 items-center gap-1.5 whitespace-nowrap rounded-full border bg-card px-2.5 text-[11.5px] font-medium text-muted-foreground lg:inline-flex"
+            title="Actions are ordered oldest at the top, newest at the bottom"
+            data-testid="live-actions-order-hint"
+          >
+            <ArrowDown className="h-3 w-3 text-accent-soft-foreground" />
+            Oldest → Newest
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExpandCollapseClick}
+            disabled={expandCollapseDisabled}
+            className="h-7 gap-1.5 whitespace-nowrap"
+            data-testid="live-actions-expand-collapse"
+          >
+            {allExpanded ? (
+              <>
+                <ChevronsDownUp className="h-4 w-4" />
+                <span className="hidden sm:inline">Collapse All</span>
+              </>
+            ) : (
+              <>
+                <ChevronsUpDown className="h-4 w-4" />
+                <span className="hidden sm:inline">Expand All</span>
+              </>
+            )}
+          </Button>
+        </>
       }
     />
   );
