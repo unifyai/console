@@ -24,4 +24,31 @@ const credits: SimHandler = {
   },
 };
 
-export const billingHandlers: SimHandler[] = [credits];
+const creditsTransactions: SimHandler = {
+  match: (method, pathname) => method === 'GET' && pathname === '/v0/credits/transactions',
+  handle: (ctx: SimContext) => {
+    const { transactions } = getSession(ctx.scenario.id);
+    const limit = Number(ctx.searchParams.get('limit') ?? '50');
+    const offset = Number(ctx.searchParams.get('offset') ?? '0');
+    const orgId =
+      ctx.workspaceId === 'personal'
+        ? null
+        : Number.isFinite(Number(ctx.workspaceId))
+          ? Number(ctx.workspaceId)
+          : null;
+    const page = transactions.slice(offset, offset + limit).map((txn, index) => ({
+      id: offset + index + 1,
+      at: txn.createdAt,
+      amount: txn.amount,
+      category: txn.category,
+      assistantId: txn.assistantId ? Number(txn.assistantId) : null,
+      userId: ctx.scenario.user.id,
+      organizationId: orgId,
+      description: txn.description,
+      detail: null,
+    }));
+    return { json: { transactions: page } };
+  },
+};
+
+export const billingHandlers: SimHandler[] = [credits, creditsTransactions];
