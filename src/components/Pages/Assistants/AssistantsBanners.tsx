@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { SpendingGateStatus } from '@/types/assistants/spendingGate';
@@ -96,9 +97,9 @@ export function AssistantsBanners({
             <span className="font-medium">{config.label}</span>
             {' — '}
             {config.description}{' '}
-            <a href="/billing" className="font-medium underline underline-offset-2">
+            <Link href="/billing" className="font-medium underline underline-offset-2">
               Go to Billing
-            </a>
+            </Link>
           </p>
         </div>
       );
@@ -149,9 +150,9 @@ export function AssistantsBanners({
                 Talk to us about deploying across your portfolio
               </a>
               {' or '}
-              <a href="/billing" className="font-medium underline underline-offset-2">
+              <Link href="/billing" className="font-medium underline underline-offset-2">
                 choose a plan
-              </a>
+              </Link>
               {' to keep exploring.'}
             </>
           ) : (
@@ -163,9 +164,9 @@ export function AssistantsBanners({
                 : isOrgWorkspace
                   ? 'An organization owner or admin can upgrade your plan on the '
                   : 'You can upgrade your plan on the '}
-              <a href="/billing" className="font-medium underline underline-offset-2">
+              <Link href="/billing" className="font-medium underline underline-offset-2">
                 Billing page
-              </a>
+              </Link>
               .
             </>
           )}
@@ -207,9 +208,9 @@ export function AssistantsBanners({
           {spendingGateStatus.blockReason === 'org_limit'
             ? 'An organization owner or admin can increase the limit on the '
             : 'You can update your limit on the '}
-          <a href="/usage" className="font-medium underline underline-offset-2">
+          <Link href="/usage" className="font-medium underline underline-offset-2">
             Usage page
-          </a>
+          </Link>
           .
         </p>
       </div>
