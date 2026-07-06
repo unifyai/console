@@ -9,8 +9,10 @@ import { TabToolbar } from '@/components/Pages/Assistants/Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '@/components/Pages/Assistants/Common/TabSegmentGroup';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
-import { ProviderIntegrationCard } from './ProviderIntegrationCard';
-import { IntegrationGalleryVirtualGrid } from './IntegrationGalleryVirtualGrid';
+import {
+  IntegrationGalleryCardGrid,
+  IntegrationGalleryVirtualGrid,
+} from './IntegrationGalleryVirtualGrid';
 import { integrationTypeFilterValue, integrationTypeLabel } from './integrationType';
 import type { IntegrationGalleryItem } from '@/types/integrations';
 import type { ProviderAppCatalogFacets } from '@/lib/client/integrations';
@@ -87,9 +89,6 @@ function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGaller
   }
   return true;
 }
-
-const INTEGRATION_CARD_GRID_CLASS =
-  'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4';
 
 function GallerySkeleton() {
   return <IntegrationGridSkeleton />;
@@ -293,17 +292,12 @@ export function IntegrationGalleryShell({
                         )}
                       </div>
                     </div>
-                    <div className={INTEGRATION_CARD_GRID_CLASS}>
-                      {pinnedItems.map((item) => (
-                        <ProviderIntegrationCard
-                          key={`${item.source}:${item.id}`}
-                          item={item}
-                          busy={busySlug === item.canonicalSlug}
-                          onOpen={onOpen}
-                          onPrimaryAction={onPrimaryAction}
-                        />
-                      ))}
-                    </div>
+                    <IntegrationGalleryCardGrid
+                      items={pinnedItems}
+                      busySlug={busySlug}
+                      onOpen={onOpen}
+                      onPrimaryAction={onPrimaryAction}
+                    />
                   </section>
                 )
               ) : (
@@ -322,17 +316,12 @@ export function IntegrationGalleryShell({
                           {connectedItems.length} connected
                         </Badge>
                       </div>
-                      <div className={INTEGRATION_CARD_GRID_CLASS}>
-                        {connectedItems.map((item) => (
-                          <ProviderIntegrationCard
-                            key={`${item.source}:${item.id}`}
-                            item={item}
-                            busy={busySlug === item.canonicalSlug}
-                            onOpen={onOpen}
-                            onPrimaryAction={onPrimaryAction}
-                          />
-                        ))}
-                      </div>
+                      <IntegrationGalleryCardGrid
+                        items={connectedItems}
+                        busySlug={busySlug}
+                        onOpen={onOpen}
+                        onPrimaryAction={onPrimaryAction}
+                      />
                     </section>
                   )}
 
@@ -355,17 +344,12 @@ export function IntegrationGalleryShell({
                           {needsAttentionItems.length} need attention
                         </Badge>
                       </div>
-                      <div className={INTEGRATION_CARD_GRID_CLASS}>
-                        {needsAttentionItems.map((item) => (
-                          <ProviderIntegrationCard
-                            key={`${item.source}:${item.id}`}
-                            item={item}
-                            busy={busySlug === item.canonicalSlug}
-                            onOpen={onOpen}
-                            onPrimaryAction={onPrimaryAction}
-                          />
-                        ))}
-                      </div>
+                      <IntegrationGalleryCardGrid
+                        items={needsAttentionItems}
+                        busySlug={busySlug}
+                        onOpen={onOpen}
+                        onPrimaryAction={onPrimaryAction}
+                      />
                     </section>
                   )}
                 </>
