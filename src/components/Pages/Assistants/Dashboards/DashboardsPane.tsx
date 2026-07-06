@@ -157,7 +157,9 @@ export function DashboardsPane({
         {isInitialLoading ? (
           <DashboardGridSkeleton className="min-h-0 flex-1" />
         ) : isEmpty ? (
-          <DashboardEmptyState />
+          <div className="flex h-full items-center justify-center">
+            <DashboardEmptyState />
+          </div>
         ) : (
           <>
             {activeDashboard && (
