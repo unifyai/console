@@ -10,7 +10,7 @@
 
 import { expect } from '@playwright/test';
 import { enterVerificationCode } from '@/tests/auth/helpers';
-import { createTestUser, cleanupUser, createAccountTest, dbExec } from './helpers';
+import { createTestUser, cleanupUser, createAccountTest, dbExec, openAccountTab } from './helpers';
 
 const user = createTestUser({ name: 'Contact', lastName: 'Info', credits: 5_000 });
 const test = createAccountTest(user);
@@ -60,8 +60,7 @@ async function selectCountry(page: import('@playwright/test').Page, query: strin
 test('phone number defaults to +1 and constructs the full E.164 number', async ({
   authedPage: page,
 }) => {
-  await page.goto('/account?tab=contact-info');
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await openAccountTab(page, 'contact-info', { userId: user.id, apiKey: user.apiKey });
 
   const phoneInput = page.locator('#phone-number-input');
   await expect(phoneInput).toBeVisible({ timeout: 15_000 });
@@ -81,8 +80,7 @@ test('phone number defaults to +1 and constructs the full E.164 number', async (
 test('selecting a country changes the dial code in the constructed number', async ({
   authedPage: page,
 }) => {
-  await page.goto('/account?tab=contact-info');
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await openAccountTab(page, 'contact-info', { userId: user.id, apiKey: user.apiKey });
 
   const phoneInput = page.locator('#phone-number-input');
   await expect(phoneInput).toBeVisible({ timeout: 15_000 });
@@ -106,8 +104,7 @@ test('verifying a number eagerly persists it with no Save button', async ({ auth
   // the client fires the moment verification succeeds. This is the exact bug
   // the eager-save redesign fixes: a verified number must persist immediately,
   // not wait for a separate Save click.
-  await page.goto('/account?tab=contact-info');
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await openAccountTab(page, 'contact-info', { userId: user.id, apiKey: user.apiKey });
 
   await page.route('**/api/profile/phone/send-verification', (route) =>
     route.fulfill({
@@ -161,8 +158,7 @@ test('verifying a number eagerly persists it with no Save button', async ({ auth
 test('Discord ID auto-saves to the database on blur', async ({ authedPage: page }) => {
   const discord = `9${`${Date.now()}`.slice(-17)}`;
 
-  await page.goto('/account?tab=contact-info');
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await openAccountTab(page, 'contact-info', { userId: user.id, apiKey: user.apiKey });
 
   const discordInput = page.getByPlaceholder('e.g., 123456789012345678');
   await expect(discordInput).toBeVisible({ timeout: 15_000 });
@@ -190,8 +186,7 @@ test('removing a saved number clears it from the database eagerly', async ({
   dbExec(`UPDATE "user" SET phone_number = '+15125551234' WHERE id = '${user.id}'`);
 
   try {
-    await page.goto('/account?tab=contact-info');
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await openAccountTab(page, 'contact-info', { userId: user.id, apiKey: user.apiKey });
 
     const removeBtn = page.getByRole('button', { name: 'Remove' }).first();
     await expect(removeBtn).toBeVisible({ timeout: 15_000 });
@@ -217,8 +212,7 @@ test('clicking Verify again while the code section is open does not collapse it'
   test.setTimeout(120_000);
   dbExec(`UPDATE "user" SET phone_number = NULL WHERE id = '${user.id}'`);
 
-  await page.goto('/account?tab=contact-info');
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await openAccountTab(page, 'contact-info', { userId: user.id, apiKey: user.apiKey });
 
   await page.route('**/api/profile/phone/send-verification', (route) =>
     route.fulfill({
@@ -251,8 +245,7 @@ test('a saved E.164 number is split back into country + national parts', async (
   dbExec(`UPDATE "user" SET phone_number = '+4915123456789' WHERE id = '${user.id}'`);
 
   try {
-    await page.goto('/account?tab=contact-info');
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await openAccountTab(page, 'contact-info', { userId: user.id, apiKey: user.apiKey });
 
     const phoneInput = page.locator('#phone-number-input');
     await expect(phoneInput).toBeVisible({ timeout: 15_000 });

@@ -15,6 +15,7 @@ import {
   loginAndNavigateTo,
   switchToEmailTab,
 } from '../auth/helpers';
+import { waitForAssistantsRail } from '../helpers/shell';
 import {
   deferCoordinatorForUser,
   deferCoordinatorAfterAssistantsLoad,
@@ -60,6 +61,20 @@ export async function navigateToAppShellRoute(
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
+}
+
+export async function waitForSettingsShellReady(page: Page): Promise<void> {
+  await expect(page.getByTestId('settings-subrail')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+}
+
+export async function openAccountTab(
+  page: Page,
+  tab: string,
+  opts: { userId: string; apiKey: string }
+) {
+  await navigateToAppShellRoute(page, `/account?tab=${tab}`, opts);
+  await waitForSettingsShellReady(page);
 }
 
 export async function switchWorkspaceViaApi(page: Page, workspaceId: string | number) {
@@ -175,6 +190,7 @@ export function createAccountTest(user: {
         await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
         await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
         await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await waitForAssistantsRail(warmPage);
         await warmCtx.storageState({ path: authFile });
         await warmCtx.close();
       }

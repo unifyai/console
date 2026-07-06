@@ -150,8 +150,8 @@ test('admin landing lists the managed-billing tools', async ({ adminPage: page }
   // The landing isn't behind a redirect for admins — it should render
   // the tile grid with the new pages discoverable.
   await expect(page.getByText('Admin', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('link', { name: /Billing Plans/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Organizations/i })).toBeVisible();
+  await expect(page.getByTestId('admin-nav-organizations')).toBeVisible();
+  await expect(page.getByTestId('admin-nav-plans')).toBeVisible();
 });
 
 // =============================================================================

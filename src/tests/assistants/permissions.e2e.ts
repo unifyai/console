@@ -36,6 +36,7 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
+import { assistantRail } from '../helpers/shell';
 import {
   navigateToAssistants,
   openUnitySwitcher,
@@ -124,7 +125,7 @@ async function loginAndSaveOrgState(
   const apiKey = email === owner.email ? owner.apiKey : member.apiKey;
   await deferCoordinatorAfterAssistantsLoad(page, userId, apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
 
   await ctx.storageState({ path: stateFile });
   await ctx.close();

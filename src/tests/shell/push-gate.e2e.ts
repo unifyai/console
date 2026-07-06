@@ -18,6 +18,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
 } from '../assistants/helpers';
+import { assistantRail, railUnitySwitcher } from '../helpers/shell';
 
 const user = createTestUser({ name: 'PushGate', lastName: 'Shell', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -45,8 +46,8 @@ test('the assistants rail renders with brand and unity switcher @push @critical 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const rail = page.getByTestId('assistant-rail');
+  const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 15_000 });
   await expect(rail.getByText('Unify', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('rail-unity-switcher')).toBeVisible();
+  await expect(railUnitySwitcher(page)).toBeVisible();
 });

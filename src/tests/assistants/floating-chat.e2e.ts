@@ -18,6 +18,7 @@ import {
   ensureProjectSync,
 } from './helpers';
 import { createContactSeeder, createOpenAssistantChat } from './chat-helpers';
+import { visibleShellTestId } from '../helpers/shell';
 
 const user = createTestUser({ name: 'FloatChatE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -54,7 +55,7 @@ async function expandFloatingChat(page: import('@playwright/test').Page) {
 async function openSettingsFromRail(page: import('@playwright/test').Page) {
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
-  await page.getByTestId('rail-nav-settings').click();
+  await visibleShellTestId(page, 'rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
 }
 

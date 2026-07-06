@@ -26,6 +26,7 @@ import {
   openUnitySwitcher,
   openRailSection,
 } from './helpers';
+import { railSection } from '../helpers/shell';
 import { createContactSeeder, createOpenAssistantChat } from './chat-helpers';
 
 const CONSOLE_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -167,7 +168,7 @@ async function selectAssistant(page: import('@playwright/test').Page) {
   // Actions are a rail section (Workspace cluster); selecting it brings the
   // live-actions viewer into focus in the section host.
   await openRailSection(page, 'actions');
-  await expect(page.getByTestId('rail-section-actions')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'actions')).toHaveAttribute('aria-current', 'page');
   await page.waitForTimeout(500);
 }
 

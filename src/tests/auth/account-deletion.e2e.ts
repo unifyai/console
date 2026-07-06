@@ -7,6 +7,7 @@
 
 import { test, expect } from '@playwright/test';
 import { createTestUser, loginAndNavigateTo, dbExec, cleanupUser } from './helpers';
+import { assistantRail } from '../helpers/shell';
 
 test.describe('Account Deletion', () => {
   test('deletes account and redirects to login', async ({ page }) => {
@@ -43,7 +44,7 @@ test.describe('Account Deletion', () => {
       expect(userCount).toBe('1');
 
       await page.goto('/assistants');
-      await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
+      await expect(assistantRail(page)).toBeVisible({ timeout: 15_000 });
     } finally {
       cleanupUser(user.id);
     }

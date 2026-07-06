@@ -18,6 +18,8 @@ src/tests/shell/unified-shell-navigation.e2e.ts
 src/tests/assistants/shell.e2e.ts
 src/tests/assistants/list.e2e.ts
 src/tests/assistants/chat.e2e.ts
+src/tests/assistants/floating-chat.e2e.ts
+src/tests/assistants/reactions.e2e.ts
 src/tests/billing/billable-action-guard.e2e.ts
 src/tests/billing/access-control.e2e.ts
 src/tests/account/workspace-context.e2e.ts

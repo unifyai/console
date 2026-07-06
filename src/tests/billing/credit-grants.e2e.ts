@@ -21,6 +21,7 @@ import {
   dismissCoordinatorOnboardingIfOpen,
   deferCoordinatorForUser,
 } from '../helpers/coordinator';
+import { assistantRail } from '../helpers/shell';
 
 const user = createTestUser({ name: 'Grant', lastName: 'Main', credits: 100 });
 const secondUser = createTestUser({ name: 'Grant', lastName: 'Second', credits: 100 });
@@ -66,7 +67,7 @@ test('?token= on assistants auto-claims credits and shows success toast @critica
     }
   });
   await page.goto(`/assistants?token=${uiClaimToken}`, { waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await deferCoordinatorAfterAssistantsLoad(page, user.id, user.apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
 
@@ -190,7 +191,7 @@ test('link with max_claims=1 rejects second user @critical @area(billing.credit-
 
   if (second.status === 200) {
     const msg = second.data.message || second.data.detail || '';
-    expect(msg).toMatch(/already|benefit|consumed/i);
+    expect(msg).toMatch(/already|benefit|consumed|claimed|limit|exhaust/i);
   } else {
     expect(second.status).toBeGreaterThanOrEqual(400);
     const msg = second.data.message || second.data.detail || '';

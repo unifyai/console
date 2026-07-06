@@ -8,6 +8,7 @@
 import { test as base, expect, type Browser, type Page } from '@playwright/test';
 import os from 'os';
 import path from 'path';
+import { railSection } from '../helpers/shell';
 import {
   addMember,
   cleanupUser,
@@ -121,7 +122,7 @@ async function expectCoordinatorChatOpen(page: Page, agentId: number) {
   await openUnitySwitcher(page);
   await page.getByTestId(`assistant-list-item-${agentId}`).click();
   await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 }
 
 async function expectPinnedBeforeSolo(page: Page) {

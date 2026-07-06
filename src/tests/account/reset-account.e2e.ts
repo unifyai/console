@@ -36,6 +36,7 @@ import {
   loginAndWaitForRedirect,
 } from '../auth/helpers';
 import { createAssistant, addMember, dbExec } from '../helpers/seeds/client';
+import { railAccountTrigger } from '../helpers/shell';
 
 // ---------------------------------------------------------------------------
 // Seed (module scope, synchronous)
@@ -138,7 +139,7 @@ test('Unify member resets their account back to fresh-signup state @critical @ar
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
 
   // Open the rail account menu; skip cleanly if the staging-only tool is off.
-  await page.getByTestId('rail-account-trigger').click();
+  await railAccountTrigger(page).click();
   const resetItem = page.getByTestId('reset-account-menu-item');
   if (!(await resetItem.isVisible({ timeout: 5_000 }).catch(() => false))) {
     test.skip(true, 'Account reset not enabled (set ACCOUNT_RESET=1 on Orchestra).');

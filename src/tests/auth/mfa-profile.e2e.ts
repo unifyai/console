@@ -42,8 +42,9 @@ test.describe('MFA Setup from Profile', () => {
     await expect(page.getByTestId('totp-qr-image')).toBeVisible({ timeout: 5000 });
 
     // Reveal the manual secret
-    const details = page.locator('details').filter({ hasText: /scan/i });
-    await details.click();
+    const summary = page.locator('summary').filter({ hasText: /scan/i });
+    await summary.scrollIntoViewIfNeeded();
+    await summary.click();
     const secretEl = page.getByTestId('totp-secret');
     await expect(secretEl).toBeVisible({ timeout: 5000 });
     const secret = (await secretEl.textContent())!.trim();

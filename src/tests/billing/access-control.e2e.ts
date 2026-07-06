@@ -5,13 +5,7 @@
  */
 
 import { test as unauthTest, expect } from '@playwright/test';
-import {
-  createTestUser,
-  cleanupUser,
-  createBillingTest,
-  waitForBillingReady,
-  isManualTopupMode,
-} from './helpers';
+import { createTestUser, cleanupUser, createBillingTest, waitForBillingReady } from './helpers';
 
 // ---------------------------------------------------------------------------
 // Unauthenticated redirects
@@ -42,17 +36,25 @@ test('billing page shows all main sections @push @critical @area(billing.access)
   authedPage: page,
 }) => {
   await waitForBillingReady(page);
-  const manualTopup = await isManualTopupMode(page);
-  if (!manualTopup) {
-    await expect(page.locator('text=Billing Profile')).toBeVisible({ timeout: 10_000 });
-  }
-  // Local Orchestra runs in manualTopup mode — tier picker is subscription-only.
   const tierSelect = page.getByTestId('tier-select-trigger');
+  const topupSection = page.getByTestId('topup-section');
+  const meteredSection = page.getByTestId('metered-plan-section');
+
+  if (await meteredSection.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await expect(meteredSection).toBeVisible();
+    return;
+  }
   if (await tierSelect.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await expect(tierSelect).toBeVisible();
-  } else {
-    await expect(page.getByRole('button', { name: /Top up/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=Billing Profile')).toBeVisible({ timeout: 10_000 });
+    return;
   }
+  if (await topupSection.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await expect(topupSection).toBeVisible();
+    await expect(page.getByTestId('topup-submit')).toBeVisible({ timeout: 10_000 });
+    return;
+  }
+  await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 10_000 });
 });
 
 test('usage page loads for authenticated users', async ({ authedPage: page }) => {

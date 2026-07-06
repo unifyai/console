@@ -18,6 +18,7 @@ import {
   selectAssistantInList,
 } from '../assistants/helpers';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
+import { assistantRail, railSection } from '../helpers/shell';
 
 const user = createTestUser({ name: 'UnifiedShell', lastName: 'Navigator', credits: 50_000 });
 ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
@@ -126,7 +127,7 @@ test('direct assistants entry settles into the assistant shell @push @area(assis
 }) => {
   await navigateToAssistants(page, { userId: user.id, apiKey: user.apiKey });
   await closeHireDialogIfOpen(page);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 15_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 15_000 });
   await expectNoWorkspaceCube(page);
 });
 
@@ -138,8 +139,8 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await selectAssistantInList(page, assistant.agentId);
   await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 15_000 });
   await expectNoWorkspaceCube(page);
-  await page.getByTestId('rail-section-tasks').click();
-  await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
+  await railSection(page, 'tasks').click();
+  await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
   await expectNoWorkspaceCube(page);
   await expect(page.getByTestId('tasks-skeleton')).toHaveCount(0, { timeout: 15_000 });
 
@@ -180,9 +181,9 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await expectNoWorkspaceCube(page);
 
   const stopAdminToTasksObserver = await observeSkeletonFlicker(page);
-  await page.getByTestId('rail-section-tasks').click();
+  await railSection(page, 'tasks').click();
   await expect(page).toHaveURL(/\/assistants/);
-  await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText('ShellNav')).toBeVisible();
   await expectNoWorkspaceCube(page);
   await expectNoAssistantTabSkeletons(page);

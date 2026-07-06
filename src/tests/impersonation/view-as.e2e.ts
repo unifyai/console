@@ -27,6 +27,7 @@ import {
   deferCoordinatorForUser,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
+import { assistantRail, railAccountTrigger, railUnitySwitcher } from '../helpers/shell';
 
 // ---------------------------------------------------------------------------
 // Seed (module scope, synchronous)
@@ -74,7 +75,7 @@ const test = base.extend<{ adminPage: Page }>({
         }
       }
       await p.goto('/assistants', { waitUntil: 'domcontentloaded' });
-      await expect(p.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+      await expect(assistantRail(p)).toBeVisible({ timeout: 20_000 });
       await deferCoordinatorAfterAssistantsLoad(p, adminUser.id, adminUser.apiKey);
       await dismissCoordinatorOnboardingIfOpen(p);
       await ctx.storageState({ path: authFile });
@@ -112,13 +113,13 @@ test.afterAll(() => {
 test('Unify member can view as another user and return', async ({ adminPage: page }) => {
   test.setTimeout(120_000);
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await deferCoordinatorAfterAssistantsLoad(page, adminUser.id, adminUser.apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
 
   // Open the rail account menu and start impersonation.
-  await expect(page.getByTestId('rail-account-trigger')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId('rail-account-trigger').click({ timeout: 15_000 });
+  await expect(railAccountTrigger(page)).toBeVisible({ timeout: 30_000 });
+  await railAccountTrigger(page).click({ timeout: 15_000 });
   await page.getByTestId('view-as-user-menu-item').click();
 
   const dialog = page.getByTestId('impersonate-dialog');
@@ -144,7 +145,7 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   await page.goto(`/assistants?profile=${targetAssistant.agentId}`, {
     waitUntil: 'domcontentloaded',
   });
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await deferCoordinatorAfterAssistantsLoad(page, targetUser.id, targetUser.apiKey);
   await dismissCoordinatorOnboardingIfOpen(page);
   await openUnitySwitcher(page, { userId: targetUser.id, apiKey: targetUser.apiKey });
@@ -163,5 +164,5 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   // The target's assistant is no longer in view once we are back as the admin.
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('impersonation-banner')).toBeHidden({ timeout: 30_000 });
-  await expect(page.getByTestId('rail-unity-switcher')).not.toContainText('Solo');
+  await expect(railUnitySwitcher(page)).not.toContainText('Solo');
 });

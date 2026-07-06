@@ -17,6 +17,7 @@ import {
   getUserApiKeyFromDb,
   dbExec,
   navigateToAppShellRoute,
+  switchWorkspaceViaApi,
 } from './helpers';
 import {
   deferCoordinatorOnboarding,
@@ -24,6 +25,7 @@ import {
   dismissCoordinatorOnboardingIfOpen,
   getCoordinatorAgentId,
 } from '../helpers/coordinator';
+import { assistantRail, railAccountTrigger, waitForAssistantsRail } from '../helpers/shell';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
 
 const user = createTestUser({ name: 'WsCtx', lastName: 'Test', credits: 5_000 });
@@ -59,17 +61,20 @@ const personalWorkspaceLabel = `${user.name} ${user.lastName}`;
 async function switchWorkspaceViaRail(page: import('@playwright/test').Page, label: string) {
   await navigateToAppShellRoute(page, '/assistants', shellOpts);
   await dismissCoordinatorOnboardingIfOpen(page);
-  const accountTrigger = page.getByTestId('rail-account-trigger');
+  const accountTrigger = railAccountTrigger(page);
   await expect(accountTrigger).toBeVisible({ timeout: 15_000 });
   await accountTrigger.click({ timeout: 15_000 });
-  const menu = page.getByTestId('rail-account-menu');
+  const menu = page.locator('[data-testid="rail-account-menu"]:visible');
   await expect(menu).toBeVisible({ timeout: 5_000 });
   await menu.getByRole('menuitem', { name: label }).click();
   await expect
-    .poll(async () => {
-      const cookies = await page.context().cookies();
-      return cookies.find((c) => c.name === 'unify_workspace_id')?.value ?? '';
-    })
+    .poll(
+      async () => {
+        const cookies = await page.context().cookies();
+        return cookies.find((c) => c.name === 'unify_workspace_id')?.value ?? '';
+      },
+      { timeout: 15_000 }
+    )
     .not.toBe('');
 }
 
@@ -86,8 +91,10 @@ test('switching to personal workspace sets a cookie that persists across navigat
   authedPage: page,
 }) => {
   await navigateToAppShellRoute(page, '/assistants', shellOpts);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await waitForAssistantsRail(page);
 
+  // Establish a non-personal cookie via the API, then verify the rail can switch back.
+  await switchWorkspaceViaApi(page, org.id);
   await switchWorkspaceViaRail(page, personalWorkspaceLabel);
   await navigateToAppShellRoute(page, '/account?tab=profile', shellOpts);
   await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible({ timeout: 15_000 });
@@ -100,7 +107,7 @@ test('switching to org workspace returns org billing balance @push @critical @ar
   authedPage: page,
 }) => {
   await navigateToAppShellRoute(page, '/assistants', shellOpts);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
 
   await switchWorkspaceViaRail(page, org.name);
 
@@ -121,7 +128,7 @@ test('locked org users still see org assistants with a personal workspace cookie
   authedPage: page,
 }) => {
   await navigateToAppShellRoute(page, '/assistants', shellOpts);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
 
   await switchWorkspaceViaRail(page, personalWorkspaceLabel);
 

@@ -21,6 +21,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
 } from './helpers';
+import { assistantRail, railSection, railUnitySwitcher } from '../helpers/shell';
 
 const user = createTestUser({ name: 'ShellE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -48,10 +49,10 @@ test('the rail renders with the brand and unity switcher', async ({ authedPage: 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const rail = page.getByTestId('assistant-rail');
+  const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 15_000 });
   await expect(rail.getByText('Unify', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('rail-unity-switcher')).toBeVisible();
+  await expect(railUnitySwitcher(page)).toBeVisible();
 });
 
 test('the unity switcher opens and selecting a unity drives the section host @push @critical @area(assistants.core)', async ({
@@ -71,9 +72,9 @@ test('the unity switcher opens and selecting a unity drives the section host @pu
 
   // Popover dismisses on selection; the switcher card now faces the picked unity.
   await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText('Switchy');
+  await expect(railUnitySwitcher(page)).toContainText('Switchy');
   // Default section is Chat.
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 });
 
 test('Workspace and Brain section nav switches the active view', async ({ authedPage: page }) => {
@@ -87,10 +88,10 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
 
   await openRailSection(page, 'tasks');
-  await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
 
   await openRailSection(page, 'data');
-  await expect(page.getByTestId('rail-section-data')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'data')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 5_000 });
 });
 
@@ -106,11 +107,11 @@ test('mobile viewport exposes rail navigation via the menu toggle', async ({
   await closeHireDialogIfOpen(page);
 
   await expect(page.getByTestId('rail-mobile-toggle')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('assistant-rail')).toHaveCount(0);
+  await expect(assistantRail(page)).toHaveCount(0);
 
   await page.getByTestId('rail-mobile-toggle').click();
-  const rail = page.getByTestId('assistant-rail');
+  const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('rail-section-chat')).toBeVisible();
+  await expect(railSection(page, 'chat')).toBeVisible();
   await expect(page.getByTestId('chat-search-trigger')).toBeVisible();
 });

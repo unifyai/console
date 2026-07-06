@@ -8,6 +8,7 @@
 
 import { expect, type Page } from '@playwright/test';
 import { dbExec, orchestraFetch } from './seeds/client';
+import { assistantRail } from './shell';
 
 /** Agent ID of a user's personal (non-org) Coordinator, or null if none. */
 export function getCoordinatorAgentId(userId: string): number | null {
@@ -78,9 +79,7 @@ async function waitForWorkspaceShell(page: Page): Promise<void> {
       async () => {
         if (await coordinatorOverlayVisible(page)) return 'overlay';
         if (
-          await page
-            .getByTestId('assistant-rail')
-            .first()
+          await assistantRail(page)
             .isVisible()
             .catch(() => false)
         ) {
