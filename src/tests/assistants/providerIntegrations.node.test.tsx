@@ -385,7 +385,6 @@ describe('provider integrations gallery model', () => {
     );
 
     expect(screen.getByTestId('integration-gallery-skeleton')).toBeInTheDocument();
-    expect(screen.getByText('Loading available integrations...')).toBeInTheDocument();
     expect(screen.queryByText('Loading integrations...')).not.toBeInTheDocument();
   });
 

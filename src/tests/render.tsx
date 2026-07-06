@@ -5,7 +5,7 @@ import { NextUIProvider } from '@nextui-org/react';
 import { SidebarProvider } from '@/components/UI/sidebar';
 import { ThemeProvider } from 'next-themes';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/UI/Chat/sonner';
 
 // Create a client that doesn't retry on failure for tests
 const testQueryClient = new QueryClient({
@@ -28,7 +28,7 @@ const TestProviders = ({ children }: { children: React.ReactNode }) => {
             <main className="relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden">
               <NuqsAdapter>
                 {children}
-                <Toaster richColors position="bottom-right" />
+                <Toaster position="bottom-right" />
               </NuqsAdapter>
             </main>
           </SidebarProvider>

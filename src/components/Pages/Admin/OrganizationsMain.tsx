@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { showToast as toast } from '@/components/Common/Toasts/notifications';
 import {
   Search,
   Plus,
@@ -145,38 +146,6 @@ function profileMeetsProvisioningMinimum(profile: AdminBillingProfile): boolean 
 }
 
 // ---------------------------------------------------------------------------
-// Toast-style inline notification (simple, no external dep)
-// ---------------------------------------------------------------------------
-
-function useToast() {
-  const [message, setMessage] = useState<{
-    text: string;
-    type: 'success' | 'error';
-  } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const show = useCallback((text: string, type: 'success' | 'error' = 'success') => {
-    if (timer.current) clearTimeout(timer.current);
-    setMessage({ text, type });
-    timer.current = setTimeout(() => setMessage(null), 4000);
-  }, []);
-
-  const Toast = message ? (
-    <div
-      className={`text-body fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 shadow-lg ${
-        message.type === 'success'
-          ? 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
-          : 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]'
-      }`}
-    >
-      {message.text}
-    </div>
-  ) : null;
-
-  return { show, Toast };
-}
-
-// ---------------------------------------------------------------------------
 // Foldable section
 //
 // Same shape as the helper used in BillingPlansMain so the admin pages
@@ -243,8 +212,6 @@ export default function OrganizationsAdminMain({
   actions,
   planActions,
 }: OrganizationsAdminMainProps) {
-  const { show: toast, Toast } = useToast();
-
   // ── Organization list state ──────────────────────────────────────────
   const [orgs, setOrgs] = useState<AdminOrgListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -321,7 +288,7 @@ export default function OrganizationsAdminMain({
       }
       setIsLoadingOrgs(false);
     },
-    [actions, toast]
+    [actions]
   );
 
   // Initial load
@@ -350,7 +317,7 @@ export default function OrganizationsAdminMain({
       }
       setIsLoadingDetail(false);
     },
-    [actions, toast]
+    [actions]
   );
 
   // ── Fetch invites ────────────────────────────────────────────────────
@@ -599,11 +566,11 @@ export default function OrganizationsAdminMain({
   const isMetered = activePlan?.activeAssignment?.templateBillingMode === 'METERED';
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-w-0">
       {/* ── Left: Org list ───────────────────────────────────────────── */}
       <div
-        className={`flex h-full flex-col border-r border-border ${
-          selectedOrgId ? 'w-1/3' : 'w-full'
+        className={`flex h-full min-w-0 flex-col border-r border-border ${
+          selectedOrgId ? 'w-1/3 min-w-0' : 'w-full'
         } transition-all`}
       >
         {/* Header */}
@@ -701,7 +668,7 @@ export default function OrganizationsAdminMain({
         </div>
 
         {/* Org table */}
-        <div className="flex-1 overflow-auto">
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
           {isLoadingOrgs ? (
             <div className="flex items-center justify-center py-12">
               <Loader size={24} />
@@ -709,7 +676,7 @@ export default function OrganizationsAdminMain({
           ) : orgs.length === 0 ? (
             <div className="text-body-muted py-12 text-center">No organizations found</div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="text-caption border-b border-border text-left">
                   <th className="px-4 py-2 font-medium">Name</th>
@@ -750,7 +717,7 @@ export default function OrganizationsAdminMain({
 
       {/* ── Right: Detail panel (2/3 width) ──────────────────────────── */}
       {selectedOrgId && (
-        <div className="flex h-full w-2/3 flex-col overflow-auto">
+        <div className="flex h-full w-2/3 min-w-0 flex-col overflow-auto">
           {/* Detail header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-h3 text-semibold">{orgDetail?.name ?? 'Loading…'}</h2>
@@ -1471,8 +1438,6 @@ export default function OrganizationsAdminMain({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {Toast}
     </div>
   );
 }

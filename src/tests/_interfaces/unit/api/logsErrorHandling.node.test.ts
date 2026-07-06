@@ -9,6 +9,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+vi.mock('@/lib/server-action-session', () => ({
+  requireUserApiKey: vi.fn().mockResolvedValue('test-api-key'),
+}));
+
 describe('Logs API Error Handling', () => {
   const originalFetch = global.fetch;
 

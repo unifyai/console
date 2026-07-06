@@ -16,6 +16,7 @@ import type {
 } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { fetchBrainContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/brain';
+import { fetchHasRunningTaskRun } from '@/lib/client/tasks';
 import {
   invalidateTabDataCache,
   readTabDataCache,
@@ -23,12 +24,12 @@ import {
 } from '@/lib/assistants/tabDataCache';
 
 const PAGE_SIZE = 50;
-const RUNNING_TASK_RUN_FILTER_EXPR = 'state == "running"';
 
 interface UseTasksDataOptions {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  enabled?: boolean;
 }
 
 interface SortState {
@@ -51,6 +52,7 @@ export interface UseTasksDataResult {
   tasks: ContextState<TaskRow>;
   taskRuns: ContextState<TaskRunRow>;
   hasRunningTaskRun: boolean;
+  hasLoaded: boolean;
   isLoading: boolean;
   error: string | null;
   taskView: TaskBrainView;
@@ -129,34 +131,32 @@ function fetchForKey(
   });
 }
 
-async function fetchHasRunningSnapshot(assistant: Assistant): Promise<boolean> {
-  const data = (await fetchForKey(
-    assistant,
-    'taskRuns',
-    null,
-    0,
-    RUNNING_TASK_RUN_FILTER_EXPR
-  )) as BrainContextData<TaskRunRow>;
-  return data.count > 0 || data.rows.some((row) => row.state === 'running');
-}
-
 export function useTasksData({
   assistant,
   ownerId,
   assistantId,
+  enabled = true,
 }: UseTasksDataOptions): UseTasksDataResult {
+  const cacheKey = `${ownerId}:${assistantId}:tasks`;
+  const initialCachedState = readTabDataCache<{
+    tasks: TaskStates['tasks'];
+    taskRuns: TaskStates['taskRuns'];
+    hasRunningTaskRun: boolean;
+  }>(cacheKey);
   const [states, setStates] = React.useState<TaskStates>({
-    tasks: emptyState(),
-    taskRuns: emptyState(),
+    tasks: initialCachedState?.tasks ?? emptyState(),
+    taskRuns: initialCachedState?.taskRuns ?? emptyState(),
   });
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(!initialCachedState);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [taskView, setTaskView] = React.useState<TaskBrainView>('Tasks');
-  const [hasRunningTaskRun, setHasRunningTaskRun] = React.useState(false);
+  const [hasRunningTaskRun, setHasRunningTaskRun] = React.useState(
+    initialCachedState?.hasRunningTaskRun ?? false
+  );
 
   const activeKey = VIEW_TO_STATE_KEY[taskView];
-  const cacheKey = `${ownerId}:${assistantId}:tasks`;
+  const hasLoaded = states.tasks.lastLoadedAt !== null && states.taskRuns.lastLoadedAt !== null;
 
   const fetchAll = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -168,7 +168,7 @@ export function useTasksData({
       const [td, tr, hasRunning] = await Promise.all([
         fetchForKey(assistant, 'tasks', null),
         fetchForKey(assistant, 'taskRuns', null),
-        fetchHasRunningSnapshot(assistant),
+        fetchHasRunningTaskRun(assistant),
       ]);
       const loadedAt = Date.now();
       const nextStates = {
@@ -195,7 +195,7 @@ export function useTasksData({
   fetchAllRef.current = fetchAll;
 
   React.useEffect(() => {
-    if (!ownerId || !assistantId) return;
+    if (!enabled || !ownerId || !assistantId) return;
 
     const cached = readTabDataCache<{
       tasks: TaskStates['tasks'];
@@ -214,7 +214,7 @@ export function useTasksData({
     setTaskView('Tasks');
     setHasRunningTaskRun(false);
     void fetchAllRef.current();
-  }, [ownerId, assistantId, cacheKey]);
+  }, [enabled, ownerId, assistantId, cacheKey]);
 
   const sort = React.useCallback(
     async (field: string, direction: 'asc' | 'desc' | null) => {
@@ -346,6 +346,7 @@ export function useTasksData({
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
     invalidateTabDataCache(cacheKey);
+    setStates({ tasks: emptyState(), taskRuns: emptyState() });
     await fetchAllRef.current();
   }, [ownerId, assistantId, cacheKey]);
 
@@ -353,6 +354,7 @@ export function useTasksData({
     tasks: states.tasks,
     taskRuns: states.taskRuns,
     hasRunningTaskRun,
+    hasLoaded,
     isLoading,
     isLoadingMore,
     error,

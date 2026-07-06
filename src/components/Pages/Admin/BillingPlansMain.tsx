@@ -32,7 +32,9 @@
  *     SPOT / PERIOD_AVERAGE for non-USD ones.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { showToast as toast } from '@/components/Common/Toasts/notifications';
 import {
   Loader2,
   Plus,
@@ -211,35 +213,6 @@ const PLACEMENT_LABELS: Record<PlacementFilter, string> = {
  */
 type GroupFilter = 'ALL' | 'ANY' | 'NONE' | number;
 
-// ---------------------------------------------------------------------------
-// Toast helper (local copy of the OrganizationsMain pattern)
-// ---------------------------------------------------------------------------
-
-function useToast() {
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const show = useCallback((text: string, type: 'success' | 'error' = 'success') => {
-    if (timer.current) clearTimeout(timer.current);
-    setMessage({ text, type });
-    timer.current = setTimeout(() => setMessage(null), 4000);
-  }, []);
-
-  const Toast = message ? (
-    <div
-      className={`text-body fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 shadow-lg ${
-        message.type === 'success'
-          ? 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
-          : 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]'
-      }`}
-    >
-      {message.text}
-    </div>
-  ) : null;
-
-  return { show, Toast };
-}
-
 // =============================================================================
 // Main Component
 // =============================================================================
@@ -279,7 +252,8 @@ const DEFAULT_FORM: FormState = {
 };
 
 export default function BillingPlansAdminMain({ actions }: Props) {
-  const { show: toast, Toast } = useToast();
+  const actionsRef = React.useRef(actions);
+  actionsRef.current = actions;
 
   // ── Catalog state ────────────────────────────────────────────────────
   const [templates, setTemplates] = useState<AdminBillingPlanTemplate[]>([]);
@@ -316,7 +290,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
 
   const fetchGroups = useCallback(async () => {
     setGroupsLoading(true);
-    const listResult = await actions.listGroups({
+    const listResult = await actionsRef.current.listGroups({
       includeInactive: showInactiveGroups,
     });
     if (isError(listResult)) {
@@ -331,13 +305,15 @@ export default function BillingPlansAdminMain({ actions }: Props) {
     // Fan out to load each group's members in parallel; failures are
     // logged but don't block the rest from rendering (the row just
     // shows zero members downstream rather than a stale entry).
-    const detailResults = await Promise.all(summaries.map((g) => actions.getGroup(g.id)));
+    const detailResults = await Promise.all(
+      summaries.map((g) => actionsRef.current.getGroup(g.id))
+    );
     setGroupDetails(detailResults.filter((r) => !isError(r)) as AdminPlanGroupDetail[]);
     setGroupsLoading(false);
-  }, [actions, showInactiveGroups, toast]);
+  }, [showInactiveGroups]);
 
   useEffect(() => {
-    fetchGroups();
+    void fetchGroups();
   }, [fetchGroups]);
 
   // template_id → AdminPlanGroupSummary[] derived from the loaded
@@ -365,7 +341,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
   // Load catalog whenever the filters change.
   const fetchCatalog = useCallback(async () => {
     setIsLoading(true);
-    const result = await actions.listTemplates({
+    const result = await actionsRef.current.listTemplates({
       includeCustom: placement === 'ALL' ? undefined : placement === 'CUSTOM' ? true : false,
       includeInactive: showInactive,
     });
@@ -376,10 +352,10 @@ export default function BillingPlansAdminMain({ actions }: Props) {
       setTemplates(result as AdminBillingPlanTemplate[]);
     }
     setIsLoading(false);
-  }, [actions, placement, showInactive, toast]);
+  }, [placement, showInactive]);
 
   useEffect(() => {
-    fetchCatalog();
+    void fetchCatalog();
   }, [fetchCatalog]);
 
   // Client-side search + group filter (cheap; the catalog is never
@@ -535,29 +511,23 @@ export default function BillingPlansAdminMain({ actions }: Props) {
   return (
     <TooltipProvider delayDuration={150}>
       {/*
-       * Layout note: the Tabs root uses natural document flow rather
-       * than a `flex h-full` cascade. Radix `<Tabs.Content>` renders as
-       * a plain block — nesting it inside a flex column with
-       * `overflow-auto` on the table container left a phantom
-       * intermediate height so the table started scrolling before the
-       * page did, and the (initially empty) Groups tab body floated to
-       * the bottom instead of pinning to the top. Letting the page
-       * scroll as one unit keeps both tabs visually consistent and
-       * removes the double-scrollbar UX.
+       * Admin settings chrome uses `fill` mode (overflow-hidden flex column).
+       * Mirror AdminInvoicesMain: keep filters pinned and let the table body
+       * scroll horizontally inside a bounded column.
        */}
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as 'plans' | 'groups')}
-        className="w-full"
+        className="flex h-full min-h-0 w-full min-w-0 flex-col"
       >
         {/* ── Header ───────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
           <p className="text-caption min-w-0">
             Plan templates and the groups that scope self-serve switching. Per-account assignments
             live on{' '}
-            <a href="/admin/organizations" className="underline">
+            <Link href="/admin/organizations" className="underline">
               Organizations
-            </a>
+            </Link>
             .
           </p>
           {/* Tab switcher lives in the header so the page chrome doesn't
@@ -571,10 +541,13 @@ export default function BillingPlansAdminMain({ actions }: Props) {
         </div>
 
         {/* ── Plans tab ────────────────────────────────────────────────── */}
-        <TabsContent value="plans" className="focus-visible:ring-0 focus-visible:ring-offset-0">
+        <TabsContent
+          value="plans"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:ring-0 focus-visible:ring-offset-0"
+        >
           {/* Filters (search · placement · group · status · count · create) */}
-          <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-            <div className="relative w-72">
+          <div className="flex min-h-0 min-w-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+            <div className="relative min-w-[12rem] flex-1 basis-48">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
@@ -684,7 +657,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
           </div>
 
           {/* ── Catalog table ────────────────────────────────────────── */}
-          <div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader size={24} />
@@ -696,7 +669,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
                   : `No plans match "${search}".`}
               </div>
             ) : (
-              <Table>
+              <Table className="min-w-[960px]">
                 <TableHeader>
                   <TableRow>
                     {(
@@ -990,8 +963,6 @@ export default function BillingPlansAdminMain({ actions }: Props) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {Toast}
       </Tabs>
     </TooltipProvider>
   );

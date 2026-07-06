@@ -31,7 +31,7 @@ export const freeTrialBilling: MockBillingState = {
 export const transactions: MockTransaction[] = [
   {
     id: 'txn_0001',
-    category: 'inference',
+    category: 'llm',
     amount: -2.41,
     description: 'LLM usage — chat',
     createdAt: '2026-01-14T18:20:00.000Z',
@@ -39,7 +39,7 @@ export const transactions: MockTransaction[] = [
   },
   {
     id: 'txn_0002',
-    category: 'communication',
+    category: 'resources',
     amount: -0.18,
     description: 'Outbound SMS',
     createdAt: '2026-01-13T12:00:00.000Z',
@@ -47,10 +47,26 @@ export const transactions: MockTransaction[] = [
   },
   {
     id: 'txn_0003',
-    category: 'top_up',
+    category: 'recharge',
     amount: 50,
     description: 'Auto-reload',
     createdAt: '2026-01-12T08:00:00.000Z',
+  },
+  {
+    id: 'txn_0004',
+    category: 'llm',
+    amount: -1.12,
+    description: 'LLM usage — task run',
+    createdAt: '2026-01-11T16:45:00.000Z',
+    assistantId: '1002',
+  },
+  {
+    id: 'txn_0005',
+    category: 'media',
+    amount: -0.42,
+    description: 'Profile photo generation',
+    createdAt: '2026-01-10T09:30:00.000Z',
+    assistantId: '1002',
   },
 ];
 

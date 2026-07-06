@@ -7,6 +7,7 @@ import { DashboardsPane } from './Dashboards';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
+import { AssistantDesktopPane } from './Desktop/AssistantDesktopPane';
 import type {
   AssistantInfoPanelCoordinatorOnboarding,
   AssistantInfoPanelLayoutContext,
@@ -14,7 +15,7 @@ import type {
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { DashboardPaneData } from '@/types/assistants/dashboard';
-import type { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import {
   type SpendingGateStatus,
   DEFAULT_SPENDING_GATE_STATUS,
@@ -30,7 +31,7 @@ const TAB_CONTENT_CLASS = 'min-h-0 flex-1 overflow-hidden data-[state=inactive]:
  * stay typed end-to-end. The active tab is owned by the rail; this
  * container renders the matching body.
  */
-export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'integrations' | 'actions';
+export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'integrations' | 'actions' | 'desktop';
 
 /**
  * What the right pane is showing. `secondary`/`splitRatio` remain on the
@@ -62,6 +63,7 @@ interface RightPaneContainerProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories: Record<string, CallPill[]>;
   setCallPillHistories: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
@@ -102,8 +104,14 @@ interface RightPaneContainerProps {
    * *this* assistant and hasn't been popped out.
    */
   renderDockedCall?: () => React.ReactNode;
+  /** Onboarding-only: show typing while the scripted chat opener is in flight. */
+  forceCoordinatorChatIntroTyping?: boolean;
   /** True while a Brain section overlay hides the workspace pane (Actions SSE stays live). */
   workspacePaneObscured?: boolean;
+  /** False when the assistants surface is hidden behind settings/admin routes. */
+  isActiveSurface?: boolean;
+  /** Reports root-level Actions SSE activity that arrived while Actions was inactive. */
+  onActionsUnreadActivityChange?: (hasUnread: boolean) => void;
 }
 
 /**
@@ -122,6 +130,7 @@ export function RightPaneContainer({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   isFirstView = false,
   preHireChat,
@@ -140,7 +149,10 @@ export function RightPaneContainer({
   infoPanel,
   coordinatorOnboarding,
   renderDockedCall,
+  forceCoordinatorChatIntroTyping = false,
   workspacePaneObscured = false,
+  isActiveSurface = true,
+  onActionsUnreadActivityChange,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. The Actions body owns the
@@ -201,6 +213,7 @@ export function RightPaneContainer({
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
+          requestAckHistories={requestAckHistories}
           userEmail={userEmail}
           userTimezone={userTimezone}
           isFirstView={isFirstView}
@@ -218,6 +231,7 @@ export function RightPaneContainer({
           isCallButtonDisabled={infoPanel.isCallButtonDisabled}
           callButtonTooltip={infoPanel.callButtonTooltip}
           renderDockedCall={renderDockedCall}
+          forceCoordinatorChatIntroTyping={forceCoordinatorChatIntroTyping}
         />
       </TabsContent>
 
@@ -226,6 +240,8 @@ export function RightPaneContainer({
           assistant={assistant}
           ownerId={assistant.userId}
           assistantId={assistant.agentId}
+          isVisible={activeTab === 'tasks'}
+          isActiveSurface={isActiveSurface}
         />
       </TabsContent>
 
@@ -253,6 +269,7 @@ export function RightPaneContainer({
           secretActions={assistantActions.secret}
           canWrite={canWrite}
           isVisible={activeTab === 'integrations'}
+          isActiveSurface={isActiveSurface}
           onSecretsCountChange={
             coordinatorOnboarding?.onStepComplete
               ? (count) => {
@@ -263,6 +280,15 @@ export function RightPaneContainer({
         />
       </TabsContent>
 
+      <TabsContent value="desktop" className={TAB_CONTENT_CLASS} forceMount>
+        <AssistantDesktopPane
+          assistant={assistant}
+          desktopActions={assistantActions.desktop}
+          isVisible={activeTab === 'desktop'}
+          isActiveSurface={isActiveSurface}
+        />
+      </TabsContent>
+
       <TabsContent value="actions" className={TAB_CONTENT_CLASS} forceMount>
         <LiveActionsViewer
           assistant={assistant}
@@ -270,6 +296,7 @@ export function RightPaneContainer({
           className="h-full"
           isPaneVisible={isActionsPaneVisible}
           onHasActiveActionChange={handleActiveActionChange}
+          onUnreadLiveActivityChange={onActionsUnreadActivityChange}
         />
       </TabsContent>
     </Tabs>

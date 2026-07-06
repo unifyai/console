@@ -37,6 +37,8 @@ interface TasksPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  isVisible?: boolean;
+  isActiveSurface?: boolean;
   /**
    * Notifies the parent whenever the pane's task count changes. Used by
    * the Coordinator onboarding flow to auto-mark the "Assign a task" step
@@ -46,9 +48,26 @@ interface TasksPaneProps {
   onTasksCountChange?: (count: number) => void;
 }
 
-export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange }: TasksPaneProps) {
-  const { tasks, taskRuns, hasRunningTaskRun, isLoading, error, search, clearSearch, refetch } =
-    useTasksData({ assistant, ownerId, assistantId });
+export function TasksPane({
+  assistant,
+  ownerId,
+  assistantId,
+  isVisible = true,
+  isActiveSurface = true,
+  onTasksCountChange,
+}: TasksPaneProps) {
+  const tasksDataEnabled = isVisible && isActiveSurface;
+  const {
+    tasks,
+    taskRuns,
+    hasRunningTaskRun,
+    hasLoaded,
+    isLoading,
+    error,
+    search,
+    clearSearch,
+    refetch,
+  } = useTasksData({ assistant, ownerId, assistantId, enabled: tasksDataEnabled });
 
   const tasksCount = tasks.count;
   useEffect(() => {
@@ -188,7 +207,7 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
 
       {/* Body — expandable task cards */}
       <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="tasks-body">
-        {isLoading && tasks.rows.length === 0 ? (
+        {isLoading && !hasLoaded ? (
           <div className="flex flex-col gap-2" data-testid="tasks-skeleton">
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonCard key={i} lines={1} />

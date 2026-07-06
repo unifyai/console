@@ -5,17 +5,7 @@ import { usePathname } from 'next/navigation';
 import TopNav from '@/components/Layout/TopBar/TopNav';
 import { MockModeIndicator } from '@/components/Simulation/MockModeIndicator';
 import { Loader } from '@/components/Common/Loader';
-
-/** Home routes hosted inside the shared rail shell (migrated off `TopNav`). */
-const SHELL_ROUTE_PREFIXES = [
-  '/account',
-  '/billing',
-  '/usage',
-  '/organizations',
-  '/admin',
-  '/favourites',
-  '/interfaces',
-];
+import { isPersistentMainShellPath } from '@/lib/navigation/appShellRoutes';
 
 const shellFallback = (
   <div className="flex h-full min-h-0 w-full items-center justify-center bg-background">
@@ -25,20 +15,14 @@ const shellFallback = (
 
 /**
  * Decides the home chrome per route. The rail shell owns global navigation, so
- * the top nav is suppressed and the main area fills the viewport. `/assistants`
- * renders its own rail (the route body owns it); the `SHELL_ROUTE_PREFIXES`
- * routes are hosted inside the shared `HomeShell`. Every other home route keeps
- * the legacy top nav until it is migrated into the rail.
+ * the top nav is suppressed and the main area fills the viewport. Every other
+ * home route keeps the legacy top nav until it is migrated into the rail.
  */
 export function HomeChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const assistantsShell =
-    pathname === '/' || pathname === '/assistants' || pathname?.startsWith('/assistants/');
-  const homeShell = SHELL_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
-  );
+  const homeShell = pathname === '/' || isPersistentMainShellPath(pathname);
 
-  if (assistantsShell || homeShell) {
+  if (homeShell) {
     return (
       <>
         <main className="relative h-screen overflow-hidden bg-background">{children}</main>

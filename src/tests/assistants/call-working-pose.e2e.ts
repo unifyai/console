@@ -3,13 +3,19 @@
  *
  * Behaviour under test (see `useWorkingPose` in AssistantCommunicationDialog):
  *  - The droid answers facing the camera. The first time it turns to its laptop
- *    it stays there for the rest of the call — nothing ever turns it back to
- *    face the camera (a one-way latch).
+ *    it stays there for the rest of the call — only hover temporarily faces it
+ *    back to the screen.
  *  - An in-flight `act` turns the droid to its laptop, and it STAYS there after
  *    the act completes.
  *  - A non-unify comms event turns the droid to its laptop, and it STAYS there.
  *  - With no events, the droid turns to its laptop after the silence window and
  *    stays.
+ *  - Hovering the on-laptop droid temporarily faces it to the camera; moving the
+ *    pointer away turns it back to the laptop without changing the latch.
+ *  - During the coordinator onboarding intro (precomputed audio), the droid
+ *    stays camera-facing for the full intro segment.
+ *  - Before the call is answered (connecting, waiting for the assistant, or
+ *    preparing), the droid stays camera-facing and cannot turn to the laptop.
  *
  * Local mode: LiveKit creds are absent so the call hook reports connected
  * immediately; Pub/Sub creds are absent so actions flow through the in-memory
@@ -110,7 +116,7 @@ async function endCall(page: import('@playwright/test').Page) {
   await expect(page.locator('text=Talk to Worker TestBot')).not.toBeVisible({ timeout: 10_000 });
 }
 
-test('an in-flight act turns the droid to the laptop and it stays there after the act ends', async ({
+test('an in-flight act turns the droid to the laptop and it stays there after the act ends @critical @area(assistants.call-pose)', async ({
   authedPage: page,
 }) => {
   await startCall(page);
@@ -175,6 +181,28 @@ test('the droid drifts to the laptop after a spell of silence with no events', a
     timeout: 30_000,
   });
   await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
+
+  await endCall(page);
+});
+
+test('hovering the on-laptop droid temporarily faces it to the camera', async ({
+  authedPage: page,
+}) => {
+  await startCall(page);
+
+  await pushEvent(assistant.agentId, makeCommsEvent('email', 'outbound'));
+  const avatar = page.getByTestId('unity-call-avatar');
+  await expect(avatar).toHaveAttribute('data-acting', 'true', { timeout: 15_000 });
+  await expect(avatar).toHaveAttribute('data-facing', 'laptop');
+  await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
+
+  await avatar.hover();
+  await expect(avatar).toHaveAttribute('data-facing', 'camera', { timeout: 2_000 });
+  await expect(avatar).toHaveAttribute('data-acting', 'true');
+
+  await page.mouse.move(0, 0);
+  await expect(avatar).toHaveAttribute('data-facing', 'laptop', { timeout: 2_000 });
+  await expect(page.getByTestId('unity-call-laptop')).toBeVisible();
 
   await endCall(page);
 });

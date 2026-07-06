@@ -12,6 +12,7 @@ import { mutationHandlers } from './mutations';
 import { billingHandlers } from './billing';
 import { interfaceHandlers } from './interfaces';
 import { identityHandlers } from './identity';
+import { integrationHandlers } from './integrations';
 
 export const handlers: SimHandler[] = [
   assistantsHandler,
@@ -21,4 +22,5 @@ export const handlers: SimHandler[] = [
   ...billingHandlers,
   ...interfaceHandlers,
   ...identityHandlers,
+  ...integrationHandlers,
 ];

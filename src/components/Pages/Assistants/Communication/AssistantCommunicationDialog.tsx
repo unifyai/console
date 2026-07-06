@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import { Assistant, AssistantActions, CallOpeningConfig } from '@/types/assistants/assistant';
 import { AssistantCommunicationHeader } from './AssistantCommunicationHeader';
 import { AssistantCommunicationMainView } from './AssistantCommunicationMainView';
 import { AssistantCommunicationUserView } from './AssistantCommunicationUserView';
@@ -23,12 +23,13 @@ import {
   useMediaDeviceSelect,
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophoneActivity';
 import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
+import { useFloatingShellGeometry } from '@/components/Common/FloatingShell/useFloatingShellGeometry';
 
 /**
  * The call surface only touches the chat + desktop action groups (and,
@@ -42,6 +43,61 @@ export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'act
 // Once the droid stops speaking, it holds eye contact for this long before it
 // turns to its laptop to get to work.
 const SILENCE_TO_LAPTOP_MS = 5_000;
+const COORDINATOR_RECORDED_INTRO_SILENCE_MS = 1_500;
+
+function isCoordinatorRecordedIntroOpening(openingConfig: CallOpeningConfig | undefined): boolean {
+  if (openingConfig?.mode !== 'recorded') return false;
+  return (
+    openingConfig.recordingAsset === 'coordinator_onboarding_intro' ||
+    openingConfig.source === 'coordinator_onboarding_intro'
+  );
+}
+
+/**
+ * Tracks the coordinator's pre-recorded onboarding intro played through LiveKit.
+ * The droid should stay camera-facing for the full segment, including the
+ * prepare-to-speak window before the first clip and brief gaps between clips.
+ */
+function useCoordinatorRecordedIntroSpeechActive(
+  isAssistantSpeaking: boolean,
+  isAssistantPreparing: boolean,
+  openingConfig: CallOpeningConfig | undefined
+): boolean {
+  const isRecordedIntro = isCoordinatorRecordedIntroOpening(openingConfig);
+  const openingKey = openingConfig
+    ? `${openingConfig.mode}:${openingConfig.recordingAsset ?? ''}:${openingConfig.source ?? ''}`
+    : '';
+  const [seenSpeakingSinceReady, setSeenSpeakingSinceReady] = React.useState(false);
+  const [introComplete, setIntroComplete] = React.useState(false);
+
+  React.useEffect(() => {
+    setSeenSpeakingSinceReady(false);
+    setIntroComplete(false);
+  }, [openingKey]);
+
+  React.useEffect(() => {
+    if (!isRecordedIntro || introComplete || isAssistantPreparing) return;
+    if (isAssistantSpeaking) setSeenSpeakingSinceReady(true);
+  }, [isRecordedIntro, introComplete, isAssistantPreparing, isAssistantSpeaking]);
+
+  React.useEffect(() => {
+    if (!isRecordedIntro || introComplete || !seenSpeakingSinceReady) return;
+    if (isAssistantSpeaking || isAssistantPreparing) return;
+    const timer = window.setTimeout(
+      () => setIntroComplete(true),
+      COORDINATOR_RECORDED_INTRO_SILENCE_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    isRecordedIntro,
+    introComplete,
+    seenSpeakingSinceReady,
+    isAssistantSpeaking,
+    isAssistantPreparing,
+  ]);
+
+  return isRecordedIntro && !introComplete;
+}
 
 /**
  * Computes the call-window droid's "working on a laptop" pose. Returns `true`
@@ -53,20 +109,31 @@ const SILENCE_TO_LAPTOP_MS = 5_000;
  * simply because the conversation has gone quiet — it stays there for the rest
  * of the call. Nothing ever turns it back to face the camera: the turn is a
  * one-way latch.
+ *
+ * The coordinator onboarding intro (precomputed audio outside LiveKit, or the
+ * recorded LiveKit opening configured for fresh onboarding) counts as a
+ * speaking turn for pose purposes so the droid stays camera-facing for the
+ * full intro segment.
+ *
+ * Until the call is answered (connected and the assistant has joined and is
+ * ready), the droid stays camera-facing — the same gate used for the intro.
  */
 function useWorkingPose(
   isSpeaking: boolean,
   lastCommsActivityAt: number | null,
-  hasActiveAction: boolean
+  hasActiveAction: boolean,
+  isIntroSpeechActive: boolean,
+  isCallAnswered: boolean
 ): boolean {
   const [onLaptop, setOnLaptop] = React.useState(false);
+  const facesCamera = isSpeaking || isIntroSpeechActive || !isCallAnswered;
 
   // Silence while the droid still faces the camera → turn to the laptop.
   React.useEffect(() => {
-    if (isSpeaking || onLaptop) return;
+    if (facesCamera || onLaptop) return;
     const timer = window.setTimeout(() => setOnLaptop(true), SILENCE_TO_LAPTOP_MS);
     return () => window.clearTimeout(timer);
-  }, [isSpeaking, onLaptop]);
+  }, [facesCamera, onLaptop]);
 
   // A fresh comms event or a newly in-flight action → turn to the laptop now,
   // unless the droid is still speaking its opening turn (it answers facing the
@@ -80,8 +147,8 @@ function useWorkingPose(
     const actionStarted = hasActiveAction && !prevActiveRef.current;
     prevCommsAtRef.current = lastCommsActivityAt;
     prevActiveRef.current = hasActiveAction;
-    if (!isSpeaking && (commsArrived || actionStarted)) setOnLaptop(true);
-  }, [lastCommsActivityAt, hasActiveAction, isSpeaking]);
+    if (!facesCamera && (commsArrived || actionStarted)) setOnLaptop(true);
+  }, [lastCommsActivityAt, hasActiveAction, facesCamera]);
 
   return onLaptop;
 }
@@ -108,12 +175,14 @@ interface AssistantCommunicationDialogContentProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
   isAssistantPreparing: boolean;
+  activeOpeningConfig?: CallOpeningConfig;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -153,12 +222,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   assistantActions,
   isConnecting,
   userEmail,
   userImage,
   isWaitingForAssistant,
   isAssistantPreparing,
+  activeOpeningConfig,
   waitingMessage,
   connectionError,
   onRetry,
@@ -201,6 +272,9 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   const screenShareTracks = useTracks([Track.Source.ScreenShare]);
   const screenShareTrack = screenShareTracks?.[0];
 
+  const desktopActionsRef = React.useRef(assistantActions.desktop);
+  desktopActionsRef.current = assistantActions.desktop;
+
   // Fire system events when user screen share state changes.
   const prevScreenShareEnabledRef = React.useRef(screenShareToggle.enabled);
   React.useEffect(() => {
@@ -209,14 +283,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     prevScreenShareEnabledRef.current = isOn;
     if (wasOn === isOn || !assistant) return;
 
-    assistantActions.desktop
+    desktopActionsRef.current
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
         isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
       )
       .catch(console.error);
-  }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
+  }, [screenShareToggle.enabled, assistant]);
 
   // Fire system events when user webcam state changes.
   const prevCamEnabledRef = React.useRef(camToggle.enabled);
@@ -226,14 +300,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     prevCamEnabledRef.current = isOn;
     if (wasOn === isOn || !assistant) return;
 
-    assistantActions.desktop
+    desktopActionsRef.current
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_webcam_started' : 'user_webcam_stopped',
         isOn ? 'User enabled their webcam' : 'User disabled their webcam'
       )
       .catch(console.error);
-  }, [camToggle.enabled, assistant, assistantActions.desktop]);
+  }, [camToggle.enabled, assistant]);
 
   const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
   const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
@@ -312,7 +386,22 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     assistantActions.actions ?? { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     { enabled: isCallConnected }
   );
-  const isActing = useWorkingPose(isAssistantSpeaking, lastCommsActivityAt, hasActiveAction);
+  const isIntroAudioPlaying = useIsCoordinatorIntroAudioPlaying();
+  const isRecordedIntroSpeechActive = useCoordinatorRecordedIntroSpeechActive(
+    isAssistantSpeaking,
+    isAssistantPreparing,
+    activeOpeningConfig
+  );
+  const isIntroSpeechActive = isIntroAudioPlaying || isRecordedIntroSpeechActive;
+  const isCallAnswered =
+    isCallConnected && !isConnecting && !isWaitingForAssistant && !isAssistantPreparing;
+  const isActing = useWorkingPose(
+    isAssistantSpeaking,
+    lastCommsActivityAt,
+    hasActiveAction,
+    isIntroSpeechActive,
+    isCallAnswered
+  );
 
   React.useEffect(() => {
     if (!isCallConnected) return;
@@ -543,6 +632,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 setChatHistories={setChatHistories}
                 callPillHistories={callPillHistories}
                 setCallPillHistories={setCallPillHistories}
+                requestAckHistories={requestAckHistories}
                 userEmail={userEmail}
                 userImage={userImage}
                 assistantPhoto={assistantPhoto}
@@ -583,42 +673,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   );
 };
 
-const MIN_FLOATING_WIDTH = 200;
-const MIN_FLOATING_HEIGHT = 160;
 const COMPACT_WIDTH_THRESHOLD = 480;
 const COMPACT_HEIGHT_THRESHOLD = 380;
-const DEFAULT_FLOATING_WIDTH = 240;
-const DEFAULT_FLOATING_HEIGHT = 280;
-
-type FloatingGeometry = {
-  pos: { x: number; y: number };
-  size: { width: number; height: number };
-};
-
-const EMPTY_FLOATING_GEOMETRY: FloatingGeometry = {
-  pos: { x: 0, y: 0 },
-  size: { width: 0, height: 0 },
-};
-
-function getDefaultFloatingGeometry(): FloatingGeometry {
-  if (typeof window === 'undefined') return EMPTY_FLOATING_GEOMETRY;
-
-  const width = Math.min(
-    DEFAULT_FLOATING_WIDTH,
-    Math.max(MIN_FLOATING_WIDTH, window.innerWidth - 32)
-  );
-  const height = Math.min(
-    DEFAULT_FLOATING_HEIGHT,
-    Math.max(MIN_FLOATING_HEIGHT, window.innerHeight - 32)
-  );
-  return {
-    pos: {
-      x: Math.max(16, window.innerWidth - width - 16),
-      y: Math.max(16, window.innerHeight - height - 16),
-    },
-    size: { width, height },
-  };
-}
 
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
@@ -651,12 +707,14 @@ interface AssistantCommunicationDialogProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
   isAssistantPreparing: boolean;
+  activeOpeningConfig?: CallOpeningConfig;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -722,11 +780,13 @@ export function AssistantCommunicationDialog({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   isConnecting,
   userEmail,
   userImage,
   isWaitingForAssistant,
   isAssistantPreparing,
+  activeOpeningConfig,
   waitingMessage,
   connectionError,
   onRetry,
@@ -759,18 +819,17 @@ export function AssistantCommunicationDialog({
     defaultFloating ? 'floating' : 'modal'
   );
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const initialFloatingGeometryRef = React.useRef<FloatingGeometry | null>(null);
-  if (initialFloatingGeometryRef.current === null) {
-    initialFloatingGeometryRef.current = defaultFloating
-      ? getDefaultFloatingGeometry()
-      : EMPTY_FLOATING_GEOMETRY;
-  }
 
-  const [floatingPos, setFloatingPos] = React.useState(initialFloatingGeometryRef.current.pos);
-  const [floatingSize, setFloatingSize] = React.useState(initialFloatingGeometryRef.current.size);
-  const floatingPosRef = React.useRef(initialFloatingGeometryRef.current.pos);
-  const floatingSizeRef = React.useRef(initialFloatingGeometryRef.current.size);
-  const [isResizing, setIsResizing] = React.useState(false);
+  const {
+    floatingPos,
+    floatingSize,
+    seedDefaultGeometry,
+    captureGeometryFromRect,
+    handleHeaderPointerDown: shellHeaderPointerDown,
+    handleCornerResize,
+    handleEdgeResize,
+    handleResizeEnd,
+  } = useFloatingShellGeometry({ preset: 'call', seedOnMount: false });
 
   const isModal = mode === 'modal';
 
@@ -784,27 +843,17 @@ export function AssistantCommunicationDialog({
   // dialog opens (it never transitions from a modal, so it has no rect to copy).
   React.useEffect(() => {
     if (!defaultFloating || !isOpen) return;
-    if (floatingSizeRef.current.width > 0) return;
-    const geometry = getDefaultFloatingGeometry();
-    floatingPosRef.current = geometry.pos;
-    floatingSizeRef.current = geometry.size;
-    setFloatingPos(geometry.pos);
-    setFloatingSize(geometry.size);
-  }, [defaultFloating, isOpen]);
+    seedDefaultGeometry();
+  }, [defaultFloating, isOpen, seedDefaultGeometry]);
 
   // --- Transition helpers ---
   const transitionToFloating = React.useCallback(() => {
     const rect = contentRef.current?.getBoundingClientRect();
     if (rect) {
-      const pos = { x: rect.x, y: rect.y };
-      const size = { width: rect.width, height: rect.height };
-      floatingPosRef.current = pos;
-      floatingSizeRef.current = size;
-      setFloatingPos(pos);
-      setFloatingSize(size);
+      captureGeometryFromRect(rect);
     }
     setMode('floating');
-  }, []);
+  }, [captureGeometryFromRect]);
 
   // Escape key: modal → floating (keeps the call alive).
   // Suppressed in docked mode — the call is part of the surrounding
@@ -822,118 +871,18 @@ export function AssistantCommunicationDialog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isModal, docked, transitionToFloating]);
 
-  // --- Header drag ---
   const handleHeaderPointerDown = React.useCallback(
     (e: React.PointerEvent) => {
-      const startX = e.clientX;
-      const startY = e.clientY;
-      let dragStarted = false;
-
-      // Pre-compute cursor offset from the window's top-left corner.
-      const rect = contentRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const offsetX = startX - rect.x;
-      const offsetY = startY - rect.y;
-
-      const handleMove = (moveEvent: PointerEvent) => {
-        const dx = moveEvent.clientX - startX;
-        const dy = moveEvent.clientY - startY;
-
-        if (!dragStarted && Math.abs(dx) + Math.abs(dy) > 5) {
-          dragStarted = true;
-          if (isModal) {
-            // Capture current computed size and switch mode in one batch.
-            const r = contentRef.current?.getBoundingClientRect();
-            if (r) {
-              floatingSizeRef.current = { width: r.width, height: r.height };
-              setFloatingSize({ width: r.width, height: r.height });
-            }
-            setMode('floating');
-          }
+      shellHeaderPointerDown(e, contentRef, () => {
+        if (isModal) {
+          const r = contentRef.current?.getBoundingClientRect();
+          if (r) captureGeometryFromRect(r);
+          setMode('floating');
         }
-
-        if (dragStarted) {
-          const newPos = {
-            x: moveEvent.clientX - offsetX,
-            y: moveEvent.clientY - offsetY,
-          };
-          floatingPosRef.current = newPos;
-          setFloatingPos(newPos);
-        }
-      };
-
-      const handleUp = () => {
-        window.removeEventListener('pointermove', handleMove);
-        window.removeEventListener('pointerup', handleUp);
-        document.body.style.userSelect = '';
-      };
-
-      document.body.style.userSelect = 'none';
-      window.addEventListener('pointermove', handleMove);
-      window.addEventListener('pointerup', handleUp);
+      });
     },
-    [isModal]
+    [shellHeaderPointerDown, isModal, captureGeometryFromRect]
   );
-
-  // --- Corner resize (floating mode) ---
-  const handleCornerResize = React.useCallback(
-    (corner: 'tl' | 'tr' | 'bl' | 'br') =>
-      (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        setIsResizing(true);
-        const prev = floatingSizeRef.current;
-        const prevPos = floatingPosRef.current;
-
-        const dw = corner === 'tl' || corner === 'bl' ? -info.delta.x : info.delta.x;
-        const dh = corner === 'tl' || corner === 'tr' ? -info.delta.y : info.delta.y;
-
-        const newWidth = Math.max(MIN_FLOATING_WIDTH, prev.width + dw);
-        const newHeight = Math.max(MIN_FLOATING_HEIGHT, prev.height + dh);
-        const actualDw = newWidth - prev.width;
-        const actualDh = newHeight - prev.height;
-
-        let newX = prevPos.x;
-        let newY = prevPos.y;
-        if (corner === 'tl' || corner === 'bl') newX -= actualDw;
-        if (corner === 'tl' || corner === 'tr') newY -= actualDh;
-
-        floatingSizeRef.current = { width: newWidth, height: newHeight };
-        floatingPosRef.current = { x: newX, y: newY };
-        setFloatingSize({ width: newWidth, height: newHeight });
-        setFloatingPos({ x: newX, y: newY });
-      },
-    []
-  );
-
-  // --- Edge resize (floating mode) ---
-  const handleEdgeResize = React.useCallback(
-    (edge: 't' | 'r' | 'b' | 'l') =>
-      (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        setIsResizing(true);
-        const prev = floatingSizeRef.current;
-        const prevPos = floatingPosRef.current;
-
-        const dw = edge === 'l' ? -info.delta.x : edge === 'r' ? info.delta.x : 0;
-        const dh = edge === 't' ? -info.delta.y : edge === 'b' ? info.delta.y : 0;
-
-        const newWidth = Math.max(MIN_FLOATING_WIDTH, prev.width + dw);
-        const newHeight = Math.max(MIN_FLOATING_HEIGHT, prev.height + dh);
-        const actualDw = newWidth - prev.width;
-        const actualDh = newHeight - prev.height;
-
-        let newX = prevPos.x;
-        let newY = prevPos.y;
-        if (edge === 'l') newX -= actualDw;
-        if (edge === 't') newY -= actualDh;
-
-        floatingSizeRef.current = { width: newWidth, height: newHeight };
-        floatingPosRef.current = { x: newX, y: newY };
-        setFloatingSize({ width: newWidth, height: newHeight });
-        setFloatingPos({ x: newX, y: newY });
-      },
-    []
-  );
-
-  const handleResizeEnd = React.useCallback(() => setIsResizing(false), []);
 
   // Docked mode: inline surface that fills its parent. No backdrop,
   // no positioning chrome, no drag/resize/floating — the dialog is
@@ -961,12 +910,14 @@ export function AssistantCommunicationDialog({
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
+          requestAckHistories={requestAckHistories}
           assistantActions={assistantActions}
           isConnecting={isConnecting}
           userEmail={userEmail}
           userImage={userImage}
           isWaitingForAssistant={isWaitingForAssistant}
           isAssistantPreparing={isAssistantPreparing}
+          activeOpeningConfig={activeOpeningConfig}
           waitingMessage={waitingMessage}
           connectionError={connectionError}
           onRetry={onRetry}
@@ -1077,12 +1028,14 @@ export function AssistantCommunicationDialog({
             setChatHistories={setChatHistories}
             callPillHistories={callPillHistories}
             setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
             assistantActions={assistantActions}
             isConnecting={isConnecting}
             userEmail={userEmail}
             userImage={userImage}
             isWaitingForAssistant={isWaitingForAssistant}
             isAssistantPreparing={isAssistantPreparing}
+            activeOpeningConfig={activeOpeningConfig}
             waitingMessage={waitingMessage}
             connectionError={connectionError}
             onRetry={onRetry}

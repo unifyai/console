@@ -122,7 +122,7 @@ function createBenignStream(request: NextRequest): Response {
 }
 
 const CHAT_FILTER =
-  'attributes.thread = "unify_message_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "unify_meet_incoming"';
+  'attributes.thread = "unify_message_outbound" OR attributes.thread = "unify_message_reaction_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "unify_meet_incoming"';
 
 const MAX_PAIRS = 50;
 
@@ -371,6 +371,7 @@ export async function GET(request: NextRequest) {
             // rendered as assistant chat bubbles on the client.
             if (
               thread !== 'unify_message_outbound' &&
+              thread !== 'unify_message_reaction_outbound' &&
               thread !== 'assistant_desktop_ready' &&
               thread !== 'unify_meet_incoming'
             ) {

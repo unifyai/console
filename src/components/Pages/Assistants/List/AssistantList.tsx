@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { DroidOnboardIcon } from '@/components/Brand';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import {
@@ -22,6 +23,7 @@ import {
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import {
   groupAssistantsByTeam,
   type AssistantListEntry,
@@ -44,35 +46,6 @@ function OnboardPlusIcon({ className }: { className?: string }) {
         stroke="currentColor"
         strokeLinecap="round"
         strokeWidth={2.4}
-      />
-    </svg>
-  );
-}
-
-function UnityOnboardIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Antenna */}
-      <circle cx={9.5} cy={3.3} r={1.1} />
-      <rect x={8.9} y={4.1} width={1.2} height={2.4} />
-      {/* Cuboidal head with square eyes cut out */}
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M3.5 6.5h12v12.5h-12ZM6 10.5h2.5v2.5H6ZM10.5 10.5h2.5v2.5h-2.5Z"
-      />
-      {/* Add badge */}
-      <path
-        d="M20.2 1.4v4.8M22.6 3.8h-4.8"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth={2}
       />
     </svg>
   );
@@ -224,6 +197,9 @@ export function AssistantList({
   // Hide hire button if user doesn't have permission (org members who aren't Owner)
   const showHireButton = canHire;
   const isHireButtonDisabled = isLoading || !canHireNewAssistant;
+
+  const renderOnboardButton = (button: React.ReactElement) =>
+    showHireButton ? <BillableActionGuard>{button}</BillableActionGuard> : null;
 
   const renderAssistantRow = React.useCallback(
     (entry: AssistantListEntry, key: string) => {
@@ -421,7 +397,7 @@ export function AssistantList({
       >
         {isFolded ? (
           <div className="flex h-9 items-center justify-center">
-            {showHireButton && (
+            {renderOnboardButton(
               <div className="hidden md:flex">
                 <TooltipProvider delayDuration={100}>
                   <Tooltip>
@@ -459,7 +435,7 @@ export function AssistantList({
                 disabled={isLoading || !!error}
               />
             </div>
-            {showHireButton && (
+            {renderOnboardButton(
               <Button
                 data-testid="assistant-onboard-button"
                 variant="outline"
@@ -469,7 +445,7 @@ export function AssistantList({
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
               >
-                <UnityOnboardIcon className="h-5 w-5" />
+                <DroidOnboardIcon className="h-5 w-5" />
                 Onboard
               </Button>
             )}

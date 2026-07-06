@@ -36,6 +36,7 @@ interface UseProviderIntegrationCatalogOptions {
   query?: string;
   sourceType?: ProviderCatalogSourceType | null;
   statusGroups?: ProviderAppStatusGroup[];
+  enabled?: boolean;
 }
 
 function buildProviderIntegrationCallbackUrl(returnTo: string, assistantId: string): string {
@@ -120,6 +121,7 @@ export function useProviderIntegrationCatalog(
   assistantId: string,
   options: UseProviderIntegrationCatalogOptions = {}
 ) {
+  const enabled = options.enabled ?? true;
   const ownerScope = options.ownerScope ?? 'assistant';
   const query = options.query ?? '';
   const sourceType = options.sourceType ?? null;
@@ -128,6 +130,8 @@ export function useProviderIntegrationCatalog(
     () => (statusGroupsKey ? (statusGroupsKey.split(',') as ProviderAppStatusGroup[]) : []),
     [statusGroupsKey]
   );
+  const requestKey = `${assistantId}:${ownerScope}:${query}:${sourceType ?? 'all'}:${statusGroupsKey}`;
+  const loadedRequestKeyRef = React.useRef<string | null>(null);
   const [definitions, setDefinitions] = React.useState<IntegrationDefinition[]>([]);
   // Connected + needs-attention apps, fetched independently of the browse
   // pagination so they always surface at the top under the "All" filter even
@@ -150,130 +154,148 @@ export function useProviderIntegrationCatalog(
   const [generatedAt, setGeneratedAt] = React.useState<string | null>(null);
   const providerConnectionsRef = React.useRef<IntegrationConnection[]>([]);
   const isLoadingMoreRef = React.useRef(false);
+  const hasLoadedRef = React.useRef(hasLoaded);
 
   const hasMore = !isMock && hasLoaded && hasMoreServer;
 
-  const fetchCatalog = React.useCallback(async () => {
-    if (!assistantId) return;
-    const useMock = shouldUseMockProviderIntegrations();
-    setIsMock(useMock);
-    if (useMock) {
-      setDefinitions(MOCK_PROVIDER_INTEGRATION_DEFINITIONS);
-      setDetailsBySlug({});
-      setIsLoading(false);
-      setIsLoadingMore(false);
-      setHasLoaded(true);
-      setTotal(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
-      setNextOffset(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
-      setHasMoreServer(false);
-      setFacets(null);
-      setCatalogVersion(null);
-      setGeneratedAt(null);
-      setPinnedDefinitions([]);
-      providerConnectionsRef.current = [];
+  React.useEffect(() => {
+    hasLoadedRef.current = hasLoaded;
+  }, [hasLoaded]);
+
+  const fetchCatalog = React.useCallback(
+    async (options?: { background?: boolean }) => {
+      if (!enabled || !assistantId) return;
+      const background = options?.background ?? false;
+      const useMock = shouldUseMockProviderIntegrations();
+      setIsMock(useMock);
+      if (useMock) {
+        setDefinitions(MOCK_PROVIDER_INTEGRATION_DEFINITIONS);
+        setDetailsBySlug({});
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        setHasLoaded(true);
+        setTotal(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
+        setNextOffset(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
+        setHasMoreServer(false);
+        setFacets(null);
+        setCatalogVersion(null);
+        setGeneratedAt(null);
+        setPinnedDefinitions([]);
+        providerConnectionsRef.current = [];
+        isLoadingMoreRef.current = false;
+        loadedRequestKeyRef.current = requestKey;
+        return;
+      }
+      if (!background) {
+        setIsLoading(true);
+        setIsLoadingMore(false);
+        if (!hasLoadedRef.current) {
+          setHasLoaded(false);
+          setDefinitions([]);
+          setPinnedDefinitions([]);
+        }
+      }
       isLoadingMoreRef.current = false;
-      return;
-    }
-    setIsLoading(true);
-    setIsLoadingMore(false);
-    setHasLoaded(false);
-    setDefinitions([]);
-    isLoadingMoreRef.current = false;
-    // Only the "All" view needs the pinned connected/needs-attention rows; the
-    // dedicated status filters already scope the main list to those apps.
-    const shouldPinConnected = statusGroups.length === 0;
-    try {
-      const [page, providerConnections, catalogCount, pinnedPage] = await Promise.all([
-        listProviderIntegrationDefinitionsPage({
-          ownerScope,
-          assistantId,
-          query,
-          sourceType,
-          statusGroups,
-          detailLevel: 'summary',
-          limit: PROVIDER_CATALOG_PAGE_SIZE,
-          offset: 0,
-        }),
-        listProviderIntegrationConnections({ ownerScope, assistantId }).catch((error) => {
-          console.error('Failed to load provider integration connections', error);
-          return [];
-        }),
-        // A search applies a `contains` filter, so the list response's inline
-        // count is already the exact match count (the filtered metric aggregation
-        // is far slower and would time out). Only the unfiltered/faceted browse
-        // needs the metric call for the true catalogue total.
-        query?.trim()
-          ? Promise.resolve<number | null>(null)
-          : getProviderIntegrationCatalogCount({
-              ownerScope,
-              assistantId,
-              sourceType,
-              statusGroups,
-            }).catch((error) => {
-              console.error('Failed to load provider integration catalog count', error);
-              return null;
-            }),
-        shouldPinConnected
-          ? listProviderIntegrationDefinitionsPage({
-              ownerScope,
-              assistantId,
-              query,
-              sourceType,
-              statusGroups: PINNED_STATUS_GROUPS,
-              detailLevel: 'summary',
-              limit: PROVIDER_CATALOG_PAGE_SIZE,
-              offset: 0,
-            }).catch((error) => {
-              console.error('Failed to load connected provider integrations', error);
-              return null;
-            })
-          : Promise.resolve(null),
-      ]);
-      providerConnectionsRef.current = providerConnections;
-      setPinnedDefinitions(
-        pinnedPage
-          ? mergeDefinitionsWithConnections(
-              mergeUniqueDefinitions(pinnedPage.definitions),
+      // Only the "All" view needs the pinned connected/needs-attention rows; the
+      // dedicated status filters already scope the main list to those apps.
+      const shouldPinConnected = statusGroups.length === 0;
+      try {
+        const [page, providerConnections, catalogCount, pinnedPage] = await Promise.all([
+          listProviderIntegrationDefinitionsPage({
+            ownerScope,
+            assistantId,
+            query,
+            sourceType,
+            statusGroups,
+            detailLevel: 'summary',
+            limit: PROVIDER_CATALOG_PAGE_SIZE,
+            offset: 0,
+          }),
+          listProviderIntegrationConnections({ ownerScope, assistantId }).catch((error) => {
+            console.error('Failed to load provider integration connections', error);
+            return [];
+          }),
+          // A search applies a `contains` filter, so the list response's inline
+          // count is already the exact match count (the filtered metric aggregation
+          // is far slower and would time out). Only the unfiltered/faceted browse
+          // needs the metric call for the true catalogue total.
+          query?.trim()
+            ? Promise.resolve<number | null>(null)
+            : getProviderIntegrationCatalogCount({
+                ownerScope,
+                assistantId,
+                sourceType,
+                statusGroups,
+              }).catch((error) => {
+                console.error('Failed to load provider integration catalog count', error);
+                return null;
+              }),
+          shouldPinConnected
+            ? listProviderIntegrationDefinitionsPage({
+                ownerScope,
+                assistantId,
+                query,
+                sourceType,
+                statusGroups: PINNED_STATUS_GROUPS,
+                detailLevel: 'summary',
+                limit: PROVIDER_CATALOG_PAGE_SIZE,
+                offset: 0,
+              }).catch((error) => {
+                console.error('Failed to load connected provider integrations', error);
+                return null;
+              })
+            : Promise.resolve(null),
+        ]);
+        providerConnectionsRef.current = providerConnections;
+        setPinnedDefinitions(
+          pinnedPage
+            ? mergeDefinitionsWithConnections(
+                mergeUniqueDefinitions(pinnedPage.definitions),
+                providerConnections
+              )
+            : []
+        );
+        setDefinitions(
+          filterDefinitionsByStatusGroups(
+            mergeDefinitionsWithConnections(
+              mergeUniqueDefinitions(page.definitions),
               providerConnections
-            )
-          : []
-      );
-      setDefinitions(
-        filterDefinitionsByStatusGroups(
-          mergeDefinitionsWithConnections(
-            mergeUniqueDefinitions(page.definitions),
-            providerConnections
-          ),
-          statusGroups
-        )
-      );
-      const resolvedTotal = typeof catalogCount === 'number' ? catalogCount : page.total;
-      setTotal(Math.max(resolvedTotal, page.definitions.length));
-      setNextOffset(page.offset + page.definitions.length);
-      setHasMoreServer(page.definitions.length >= PROVIDER_CATALOG_PAGE_SIZE);
-      setFacets(
-        page.facets && typeof catalogCount === 'number'
-          ? { ...page.facets, total: catalogCount }
-          : page.facets
-      );
-      setCatalogVersion(page.catalogVersion);
-      setGeneratedAt(page.generatedAt);
-    } catch (error) {
-      console.error('Failed to load provider integration catalog', error);
-      toast.error('Could not load integrations. Please try again.');
-      setDefinitions([]);
-      setPinnedDefinitions([]);
-      setTotal(0);
-      setNextOffset(0);
-      setHasMoreServer(false);
-      setFacets(null);
-      setCatalogVersion(null);
-      setGeneratedAt(null);
-    } finally {
-      setIsLoading(false);
-      setHasLoaded(true);
-    }
-  }, [assistantId, ownerScope, query, sourceType, statusGroups]);
+            ),
+            statusGroups
+          )
+        );
+        const resolvedTotal = typeof catalogCount === 'number' ? catalogCount : page.total;
+        setTotal(Math.max(resolvedTotal, page.definitions.length));
+        setNextOffset(page.offset + page.definitions.length);
+        setHasMoreServer(page.definitions.length >= PROVIDER_CATALOG_PAGE_SIZE);
+        setFacets(
+          page.facets && typeof catalogCount === 'number'
+            ? { ...page.facets, total: catalogCount }
+            : page.facets
+        );
+        setCatalogVersion(page.catalogVersion);
+        setGeneratedAt(page.generatedAt);
+        loadedRequestKeyRef.current = requestKey;
+      } catch (error) {
+        console.error('Failed to load provider integration catalog', error);
+        toast.error('Could not load integrations. Please try again.');
+        if (!hasLoadedRef.current) {
+          setDefinitions([]);
+          setPinnedDefinitions([]);
+        }
+        setTotal(0);
+        setNextOffset(0);
+        setHasMoreServer(false);
+        setFacets(null);
+        setCatalogVersion(null);
+        setGeneratedAt(null);
+      } finally {
+        setIsLoading(false);
+        setHasLoaded(true);
+      }
+    },
+    [assistantId, enabled, ownerScope, query, sourceType, statusGroups, requestKey]
+  );
 
   const loadMore = React.useCallback(async () => {
     if (!assistantId || isMock || isLoadingMoreRef.current || isLoading || !hasMoreServer) {
@@ -327,9 +349,19 @@ export function useProviderIntegrationCatalog(
     statusGroups,
   ]);
 
+  const refresh = React.useCallback(async () => {
+    if (!enabled || !assistantId) return;
+    setDefinitions([]);
+    setPinnedDefinitions([]);
+    setHasLoaded(false);
+    hasLoadedRef.current = false;
+    await fetchCatalog();
+  }, [assistantId, enabled, fetchCatalog]);
+
   React.useEffect(() => {
+    if (loadedRequestKeyRef.current === requestKey) return;
     void fetchCatalog();
-  }, [fetchCatalog]);
+  }, [fetchCatalog, requestKey]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -338,7 +370,7 @@ export function useProviderIntegrationCatalog(
     let cancelled = false;
     const refreshUntilSettled = async () => {
       for (let attempt = 0; attempt < 5 && !cancelled; attempt += 1) {
-        await fetchCatalog();
+        await fetchCatalog({ background: true });
         if (attempt < 4) {
           await new Promise((resolve) => setTimeout(resolve, 800));
         }
@@ -353,9 +385,9 @@ export function useProviderIntegrationCatalog(
   React.useEffect(() => {
     return subscribeOAuthComplete((detail) => {
       if (detail.kind !== 'integration') return;
-      void fetchCatalog();
-      window.setTimeout(() => void fetchCatalog(), 800);
-      window.setTimeout(() => void fetchCatalog(), 1600);
+      void fetchCatalog({ background: true });
+      window.setTimeout(() => void fetchCatalog({ background: true }), 800);
+      window.setTimeout(() => void fetchCatalog({ background: true }), 1600);
     });
   }, [fetchCatalog]);
 
@@ -456,7 +488,7 @@ export function useProviderIntegrationCatalog(
             console.warn('Failed to request Unity integration tool sync', error);
           });
         }
-        await fetchCatalog();
+        await fetchCatalog({ background: true });
         setDetailsBySlug((current) => {
           const next = { ...current };
           delete next[connectDefinition.canonicalSlug];
@@ -506,7 +538,7 @@ export function useProviderIntegrationCatalog(
     generatedAt,
     isDetailLoading,
     isConnecting,
-    refresh: fetchCatalog,
+    refresh,
     loadMore,
     fetchDetails,
     startConnect,

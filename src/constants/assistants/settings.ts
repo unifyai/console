@@ -13,8 +13,8 @@ export const AVAILABLE_FEATURES: Record<string, string[]> = {
 };
 
 export const REQUIRED_FEATURES: Record<string, string[]> = {
-  google: ['email'],
-  microsoft: ['email', 'teams'],
+  google: ['email', 'drive'],
+  microsoft: ['email', 'teams', 'drive', 'sharepoint'],
 };
 
 export const PRIMARY_VOICE_PROVIDER: 'cartesia' | 'elevenlabs' = 'elevenlabs';

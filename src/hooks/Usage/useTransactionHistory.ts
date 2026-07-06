@@ -32,6 +32,7 @@ export interface UseTransactionHistoryReturn {
   aggregated: AggregatedTransaction[];
   isAggregated: boolean;
   isLoading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   hasMore: boolean;
   loadMore: () => Promise<void>;
@@ -50,9 +51,12 @@ export function useTransactionHistory({
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [aggregated, setAggregated] = useState<AggregatedTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const mountedRef = useRef(true);
+  const hasInitiallyLoadedRef = useRef(false);
+  const isFetchingMoreRef = useRef(false);
 
   const isAggregated = !!groupBy;
 
@@ -60,7 +64,11 @@ export function useTransactionHistory({
     async (offset: number, append: boolean) => {
       if (!enabled) return;
 
-      setIsLoading(true);
+      if (append) {
+        setIsLoadingMore(true);
+      } else if (!hasInitiallyLoadedRef.current) {
+        setIsLoading(true);
+      }
       if (!append) setError(null);
 
       try {
@@ -109,30 +117,46 @@ export function useTransactionHistory({
           setAggregated([]);
         }
       } finally {
-        if (mountedRef.current) setIsLoading(false);
+        if (!mountedRef.current) return;
+        if (append) {
+          setIsLoadingMore(false);
+        } else {
+          hasInitiallyLoadedRef.current = true;
+          setIsLoading(false);
+        }
       }
     },
     [enabled, category, assistantId, userId, startDate, endDate, groupBy]
   );
 
   const refetch = useCallback(async () => {
-    setTransactions([]);
-    setAggregated([]);
     setHasMore(true);
     await fetchPage(0, false);
   }, [fetchPage]);
 
   const loadMore = useCallback(async () => {
-    if (isLoading || !hasMore) return;
+    if (isFetchingMoreRef.current || isLoading || isLoadingMore || !hasMore) return;
+    isFetchingMoreRef.current = true;
     const currentCount = groupBy ? aggregated.length : transactions.length;
-    await fetchPage(currentCount, true);
-  }, [fetchPage, isLoading, hasMore, transactions.length, aggregated.length, groupBy]);
+    try {
+      await fetchPage(currentCount, true);
+    } finally {
+      isFetchingMoreRef.current = false;
+    }
+  }, [
+    fetchPage,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    transactions.length,
+    aggregated.length,
+    groupBy,
+  ]);
 
   useEffect(() => {
-    setTransactions([]);
-    setAggregated([]);
+    hasInitiallyLoadedRef.current = false;
     setHasMore(true);
-    fetchPage(0, false);
+    void fetchPage(0, false);
   }, [fetchPage]);
 
   useEffect(() => {
@@ -142,7 +166,17 @@ export function useTransactionHistory({
     };
   }, []);
 
-  return { transactions, aggregated, isAggregated, isLoading, error, hasMore, loadMore, refetch };
+  return {
+    transactions,
+    aggregated,
+    isAggregated,
+    isLoading,
+    isLoadingMore,
+    error,
+    hasMore,
+    loadMore,
+    refetch,
+  };
 }
 
 export default useTransactionHistory;

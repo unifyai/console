@@ -107,6 +107,7 @@ export function AssistantWorkspaceManager({
     disconnectAccount,
     isConnecting,
     isDisconnecting,
+    isAwaitingOAuthResult,
     confirmDisconnect,
     setConfirmDisconnect,
     isByodEmail,
@@ -119,7 +120,7 @@ export function AssistantWorkspaceManager({
     initialTab: 'email',
   });
 
-  const isBusy = isConnecting || isDisconnecting;
+  const isBusy = isConnecting || isDisconnecting || isAwaitingOAuthResult;
 
   React.useEffect(() => {
     if (isOpen && initialProvider && !isByodEmail) {
@@ -253,6 +254,44 @@ export function AssistantWorkspaceManager({
     // No connection yet — pick a provider. Each provider stays visible even when
     // the deployment hasn't configured its OAuth client (reported by Orchestra);
     // it's disabled with an explanatory tooltip rather than hidden.
+    if (isAwaitingOAuthResult) {
+      const pendingProvider = (byodProvider ??
+        grantedFeatures?.provider ??
+        null) as OAuthProvider | null;
+      const finishingMessage = isLoadingFeatures
+        ? 'Finishing workspace connection...'
+        : 'Complete sign-in in the other tab to continue.';
+      const finishingDetail = (() => {
+        if (!isLoadingFeatures) {
+          if (pendingProvider === 'google') {
+            return 'Return here once Google authorization finishes.';
+          }
+          if (pendingProvider === 'microsoft') {
+            return 'Return here once Microsoft authorization finishes.';
+          }
+          return 'Return here once authorization finishes in the other tab.';
+        }
+        if (pendingProvider === 'google') {
+          return 'Setting up Gmail and Drive access. This can take a moment.';
+        }
+        if (pendingProvider === 'microsoft') {
+          return 'Setting up mail, Teams, and file access. This can take a moment.';
+        }
+        return 'Setting up workspace access. This can take a moment.';
+      })();
+
+      return (
+        <div
+          className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground"
+          data-testid="workspace-oauth-finishing"
+        >
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-caption">{finishingMessage}</span>
+          <span className="text-caption max-w-sm">{finishingDetail}</span>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         {isLoadingFeatures && !grantedFeatures && (
@@ -333,19 +372,34 @@ export function AssistantWorkspaceManager({
 
     if (isByodEmail && canWrite) {
       return (
-        <div className="flex w-full items-center justify-end gap-2">
-          {hasFeaturesChanged && (
-            <Button onClick={updateFeatures} disabled={isConnecting}>
-              {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Features
-            </Button>
-          )}
+        <div className="flex w-full items-center justify-between gap-2">
           <Button
             variant="destructive"
             onClick={() => setConfirmDisconnect(true)}
             disabled={isBusy}
           >
             Disconnect
+          </Button>
+          <div className="flex items-center gap-2">
+            {hasFeaturesChanged && (
+              <Button onClick={updateFeatures} disabled={isConnecting}>
+                {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Update Features
+              </Button>
+            )}
+            <Button onClick={onClose} disabled={isBusy} data-testid="workspace-okay">
+              Okay
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (isByodEmail) {
+      return (
+        <div className="flex w-full justify-end">
+          <Button onClick={onClose} data-testid="workspace-okay">
+            Okay
           </Button>
         </div>
       );

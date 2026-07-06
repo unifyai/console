@@ -3,8 +3,7 @@
  * the assistant chat panel.
  *
  * Verifies:
- *  - Attach button opens dropdown (Camera / Files)
- *  - File selection shows pending attachment chips
+ *  - Attach dropdown and valid file chips
  *  - Blocked file types (.exe, .bat) are rejected with toast errors
  *  - Removing attachments (single + remove all)
  *  - Duplicate file detection
@@ -49,10 +48,6 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-// ===========================================================================
-// Attachment Tests
-// ===========================================================================
-
 const TEST_FILES_DIR = path.join(os.tmpdir(), 'attach-e2e-files');
 
 function ensureTestFile(name: string, sizeBytes: number): string {
@@ -72,7 +67,9 @@ const smallCsvFile = ensureTestFile('data.csv', 150);
 const blockedExeFile = ensureTestFile('malware.exe', 50);
 const blockedBatFile = ensureTestFile('script.bat', 50);
 
-test('attach button is visible and opens dropdown menu', async ({ authedPage: page }) => {
+test('selecting valid files shows pending attachment chips and opens attach dropdown', async ({
+  authedPage: page,
+}) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
   await openAssistantChat(page);
 
@@ -82,36 +79,49 @@ test('attach button is visible and opens dropdown menu', async ({ authedPage: pa
   const attachBtn = page.getByTestId('attach-button');
   await expect(attachBtn).toBeVisible();
   await expect(attachBtn).toBeEnabled();
-
   await attachBtn.click();
 
-  const filesItem = page.getByTestId('attach-files-item');
-  const cameraItem = page.getByTestId('attach-webcam-item');
-  await expect(filesItem).toBeVisible({ timeout: 5_000 });
-  await expect(cameraItem).toBeVisible({ timeout: 5_000 });
-});
-
-test('selecting a valid file shows a pending attachment chip', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
+  await expect(page.getByTestId('attach-files-item')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('attach-webcam-item')).toBeVisible({ timeout: 5_000 });
 
   const fileInput = page.getByTestId('file-input');
-  await fileInput.setInputFiles(smallTextFile);
+  await fileInput.setInputFiles([smallTextFile, smallPdfFile, smallCsvFile]);
 
   const pendingArea = page.getByTestId('pending-attachments');
   await expect(pendingArea).toBeVisible({ timeout: 5_000 });
 
-  const chip = page.getByTestId('attachment-chip').first();
-  await expect(chip).toBeVisible({ timeout: 5_000 });
+  const chips = page.getByTestId('attachment-chip');
+  await expect(chips).toHaveCount(3, { timeout: 5_000 });
 
   const chipName = page.getByTestId('attachment-name').first();
   await expect(chipName).toContainText('test-doc', { timeout: 5_000 });
 });
 
-test('selecting multiple files shows multiple chips', async ({ authedPage: page }) => {
+test('blocked file types (.exe and .bat) are rejected with toast errors', async ({
+  authedPage: page,
+}) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+  await openAssistantChat(page);
+
+  const textarea = page.locator('textarea');
+  await expect(textarea).toBeEnabled({ timeout: 20_000 });
+
+  const fileInput = page.getByTestId('file-input');
+
+  for (const blockedFile of [blockedExeFile, blockedBatFile]) {
+    await fileInput.setInputFiles(blockedFile);
+
+    const errorToast = page.locator('[data-sonner-toast][data-type="error"]').first();
+    await expect(errorToast).toBeVisible({ timeout: 5_000 });
+    await expect(errorToast).toContainText(/not allowed/i);
+  }
+
+  await expect(page.getByTestId('pending-attachments')).toHaveCount(0, { timeout: 3_000 });
+});
+
+test('removing pending attachments via remove button and remove all works', async ({
+  authedPage: page,
+}) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
   await openAssistantChat(page);
 
@@ -123,88 +133,23 @@ test('selecting multiple files shows multiple chips', async ({ authedPage: page 
 
   const chips = page.getByTestId('attachment-chip');
   await expect(chips).toHaveCount(3, { timeout: 5_000 });
-});
-
-test('blocked file type (.exe) is rejected with a toast error', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  const fileInput = page.getByTestId('file-input');
-  await fileInput.setInputFiles(blockedExeFile);
-
-  const errorToast = page.locator('[data-sonner-toast][data-type="error"]').first();
-  await expect(errorToast).toBeVisible({ timeout: 5_000 });
-  await expect(errorToast).toContainText(/not allowed/i);
-
-  const pendingArea = page.getByTestId('pending-attachments');
-  await expect(pendingArea).toHaveCount(0, { timeout: 3_000 });
-});
-
-test('blocked file type (.bat) is rejected with a toast error', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  const fileInput = page.getByTestId('file-input');
-  await fileInput.setInputFiles(blockedBatFile);
-
-  const errorToast = page.locator('[data-sonner-toast][data-type="error"]').first();
-  await expect(errorToast).toBeVisible({ timeout: 5_000 });
-  await expect(errorToast).toContainText(/not allowed/i);
-});
-
-test('removing a pending attachment via the remove button works', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  const fileInput = page.getByTestId('file-input');
-  await fileInput.setInputFiles([smallTextFile, smallPdfFile]);
-
-  const chips = page.getByTestId('attachment-chip');
-  await expect(chips).toHaveCount(2, { timeout: 5_000 });
 
   const firstChip = chips.first();
   await firstChip.hover();
   await page.waitForTimeout(300);
-
-  const removeBtn = firstChip.getByTestId('attachment-remove');
-  await removeBtn.click({ force: true });
-
-  await expect(chips).toHaveCount(1, { timeout: 5_000 });
-});
-
-test('remove all button clears all pending attachments', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-  await openAssistantChat(page);
-
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
-  const fileInput = page.getByTestId('file-input');
-  await fileInput.setInputFiles([smallTextFile, smallPdfFile, smallCsvFile]);
-
-  const chips = page.getByTestId('attachment-chip');
-  await expect(chips).toHaveCount(3, { timeout: 5_000 });
+  await firstChip.getByTestId('attachment-remove').click({ force: true });
+  await expect(chips).toHaveCount(2, { timeout: 5_000 });
 
   const removeAllBtn = page.getByTestId('attachment-remove-all');
   if (await removeAllBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await removeAllBtn.click();
     await expect(chips).toHaveCount(0, { timeout: 5_000 });
   } else {
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       const chip = page.getByTestId('attachment-chip').first();
       if (!(await chip.isVisible({ timeout: 1_000 }).catch(() => false))) break;
       await chip.hover();
-      const rmBtn = chip.getByTestId('attachment-remove');
-      await rmBtn.click({ force: true });
+      await chip.getByTestId('attachment-remove').click({ force: true });
       await page.waitForTimeout(300);
     }
     await expect(page.getByTestId('pending-attachments')).toHaveCount(0, { timeout: 5_000 });

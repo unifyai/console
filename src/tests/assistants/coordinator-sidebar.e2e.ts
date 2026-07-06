@@ -8,6 +8,7 @@
 import { test as base, expect, type Browser, type Page } from '@playwright/test';
 import os from 'os';
 import path from 'path';
+import { railSection } from '../helpers/shell';
 import {
   addMember,
   cleanupUser,
@@ -121,7 +122,7 @@ async function expectCoordinatorChatOpen(page: Page, agentId: number) {
   await openUnitySwitcher(page);
   await page.getByTestId(`assistant-list-item-${agentId}`).click();
   await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 }
 
 async function expectPinnedBeforeSolo(page: Page) {
@@ -287,11 +288,11 @@ const test = base.extend<{
 test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
-// A freshly provisioned Coordinator resolves to ``mode: onboarding`` with
-// ``intro_watched: false``, which renders the full-screen onboarding overlay
+// A freshly provisioned Coordinator resolves with ``onboarding_active: true``
+// and ``intro_watched: false``, which renders the full-screen onboarding overlay
 // (``data-testid="coordinator-onboarding"``, ``absolute inset-0 z-50``) that
 // intercepts every pointer event. This suite drives the regular two-pane shell
-// (rail switcher, list groups), so defer onboarding for the canonical
+// (rail switcher, list groups), so pause onboarding for the canonical
 // coordinators it views up front — exactly as ``createAssistantTest`` does for
 // the standard flows.
 test.beforeAll(async () => {
@@ -320,7 +321,7 @@ test.afterAll(() => {
   }
 });
 
-test('owner sees the Coordinator pinned with workspace chrome and no contract teardown', async ({
+test('owner sees the Coordinator pinned with workspace chrome and no contract teardown @critical @area(assistants.coordinator)', async ({
   ownerPage: page,
 }) => {
   await navigateToAssistants(page);
@@ -350,46 +351,24 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await expect(page.getByTestId('assistant-info-tab-profile')).toContainText('Profile');
 });
 
-test('organization admin cannot access another user coordinator in org workspace', async ({
-  adminPage: page,
+test('organization admin and member cannot access another user coordinator in org workspace @critical @area(assistants.coordinator)', async ({
+  adminPage,
+  memberPage,
 }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
-  await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
-    timeout: 15_000,
-  });
-  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
-  await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-});
-
-test('organization member cannot access another user coordinator in org workspace', async ({
-  memberPage: page,
-}) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
-  await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
-    timeout: 15_000,
-  });
-  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
-  await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-  await openUnitySwitcher(page);
-  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).hover();
-  const infoToggle = page.getByTestId(`assistant-info-toggle-${regularAssistant.agentId}`);
-  const hasInfoToggle = (await infoToggle.count()) > 0;
-  if (hasInfoToggle) {
-    await openEditDialogFromList(page, regularAssistant.agentId);
-    await expect(page.getByRole('button', { name: /^End contract$/ })).toHaveCount(0);
-    await page.keyboard.press('Escape');
-  } else {
-    await expect(infoToggle).toHaveCount(0);
+  for (const page of [adminPage, memberPage]) {
+    await navigateToAssistants(page);
+    await closeHireDialogIfOpen(page);
+    await openUnitySwitcher(page);
+    await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
+    await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
+    await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
   }
 });
 
-test('personal workspace shows the personal Coordinator surface', async ({
+test('personal workspace shows the personal Coordinator surface @critical @area(assistants.coordinator)', async ({
   personalPage: page,
 }) => {
   await navigateToAssistants(page);

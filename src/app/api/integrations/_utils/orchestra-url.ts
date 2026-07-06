@@ -10,3 +10,8 @@ export function buildOrchestraV0Url(path: string): URL {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return new URL(`${getOrchestraV0BaseUrl()}${normalizedPath}`);
 }
+
+/** Composio white-label OAuth callback served by Orchestra's public proxy. */
+export function getComposioOAuthCallbackUrl(): string {
+  return `${getOrchestraV0BaseUrl()}/integrations/composio/oauth/callback`;
+}

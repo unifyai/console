@@ -1,7 +1,7 @@
 import { ResponseProps } from '../common';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@/types/assistants/cartesia';
-import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
+import { ChatMessage, UnifyMessage, UnifyMessageReaction, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import type { SlackInstallActions } from '../slack/install';
 import { ConnectionDetails } from './call';
@@ -20,13 +20,14 @@ import type {
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
-export type CallOpeningMode = 'speak' | 'simulated' | 'silent' | 'briefed' | 'recorded';
+export type CallOpeningMode = 'speak' | 'opener' | 'simulated' | 'silent' | 'recorded';
 
 export interface CallOpeningConfig {
   mode: CallOpeningMode;
+  /** Exact words spoken verbatim to open the call in `opener` mode. */
+  openerText?: string;
+  /** Utterance injected as already-spoken context (never voiced) in `simulated` mode. */
   simulatedUtterance?: string;
-  /** Durable system briefing spoken as the opening turn in `briefed` mode. */
-  systemContext?: string;
   /** Name of a Unity-bundled audio asset spoken as a recorded opening turn. */
   recordingAsset?: string;
   /** Transcript paired with a recorded opening; Unity may provide it for bundled assets. */
@@ -115,6 +116,11 @@ export interface Assistant {
   // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
   emailProvider?: string | null;
+  // The OAuth-connected workspace provider, derived server-side from the
+  // granted-scopes secrets. Distinct from `emailProvider` (the mailbox's own
+  // tenant): a Coordinator keeps a platform Google mailbox while connecting a
+  // Microsoft workspace. Null when no workspace OAuth grant is present.
+  workspaceProvider?: 'google' | 'microsoft' | null;
   emailProvisionedBy?: 'platform' | 'user' | null;
   phone: string | null;
   assistantWhatsappNumber: string | null;
@@ -529,6 +535,7 @@ export interface AssistantActions {
       before?: { timestamp: string; excludedKeys?: string[] }
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
+    reactToMessage: (payload: UnifyMessageReaction) => Promise<ResponseProps & { info?: string }>;
     getAssistantOwnerById: (
       userId: string
     ) => Promise<{ firstName: string; lastName: string } | null>;
@@ -620,6 +627,7 @@ export interface AssistantActions {
       organizationId: number | null
     ) => Promise<{ liveviewUrl: string }>;
     checkLiveviewHealth: (liveviewUrl: string) => Promise<boolean>;
+    wakeAssistantSession: (assistantId: string) => Promise<ResponseProps>;
     sendSystemEvent: (
       assistantId: string,
       eventType: import('@/lib/assistants/desktop').SystemEventType,

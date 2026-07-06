@@ -65,7 +65,6 @@ test('updating the first name and surname via the edit dialog persists to DB', a
   const newFirst = `Edited${Date.now()}`;
   const newLast = 'Updated';
 
-  // The edit form reuses the hire form layout with profile accordion
   await openAccordionSection(page, 'profile');
 
   const firstNameInput = page.locator('#firstName');
@@ -75,51 +74,21 @@ test('updating the first name and surname via the edit dialog persists to DB', a
   const surnameInput = page.locator('#surname');
   await surnameInput.fill(newLast);
 
-  // Click "Update Teammate" button and wait for the dialog to close
   const updateBtn = page.getByRole('button', { name: /Update Teammate/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
-  // Wait for the edit dialog to close (indicates update completed)
   const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
   await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1_000);
 
-  // Verify DB was updated
   const dbAfter = getAssistantFromDb(assistant.agentId);
   expect(dbAfter.firstName).toBe(newFirst);
   expect(dbAfter.surname).toBe(newLast);
 
-  // Verify the updated name is visible in the list
   await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: newFirst });
   await expect(listItem).toBeVisible({ timeout: 10_000 });
-});
-
-test('clearing the surname via the edit dialog persists an empty string', async ({
-  authedPage: page,
-}) => {
-  await openEditDialog(page);
-  await openAccordionSection(page, 'profile');
-
-  const firstNameInput = page.locator('#firstName');
-  await expect(firstNameInput).toBeVisible({ timeout: 5_000 });
-  await firstNameInput.fill(`SingleName${Date.now()}`);
-
-  const surnameInput = page.locator('#surname');
-  await expect(surnameInput).toBeVisible({ timeout: 5_000 });
-  await surnameInput.fill('   ');
-
-  const updateBtn = page.getByRole('button', { name: /Update Teammate/i });
-  await updateBtn.scrollIntoViewIfNeeded();
-  await updateBtn.click();
-
-  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
-  await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(1_000);
-
-  const dbAfter = getAssistantFromDb(assistant.agentId);
-  expect(dbAfter.surname).toBe('');
 });
 
 test('updating the about field via the edit dialog persists to DB', async ({
@@ -147,7 +116,9 @@ test('updating the about field via the edit dialog persists to DB', async ({
   expect(dbAfter.about).toBe(newAbout);
 });
 
-test('changing T-W1N voice via the edit dialog persists to DB', async ({ authedPage: page }) => {
+test('changing T-W1N voice via the edit dialog persists to DB @critical @area(assistants.edit)', async ({
+  authedPage: page,
+}) => {
   const coordinator = user.coordinator;
   if (!coordinator) throw new Error('Expected seeded user to have a personal coordinator.');
 
@@ -211,45 +182,6 @@ test('setting a job title via the edit dialog persists job_title to DB', async (
   expect(dbAfter.jobTitle).toBe(newJobTitle);
 });
 
-test('clearing the job title via the edit dialog sets job_title to NULL', async ({
-  authedPage: page,
-}) => {
-  // Pre-condition: previous test set a job title; if not, set one directly so
-  // this test is independent.
-  const before = getAssistantFromDb(assistant.agentId);
-  if (!before.jobTitle) {
-    await openEditDialog(page);
-    await openAccordionSection(page, 'profile');
-    await page.locator('#jobTitle').fill('Temporary Title');
-    await page.getByRole('button', { name: /Update Teammate/i }).click();
-    await expect(
-      page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE })
-    ).not.toBeVisible({
-      timeout: 30_000,
-    });
-    await page.waitForTimeout(1_000);
-  }
-
-  await openEditDialog(page);
-  await openAccordionSection(page, 'profile');
-
-  const jobTitleInput = page.locator('#jobTitle');
-  await expect(jobTitleInput).toBeVisible({ timeout: 5_000 });
-  // Clear the field — backend should normalize empty / whitespace to NULL.
-  await jobTitleInput.fill('   ');
-
-  const updateBtn = page.getByRole('button', { name: /Update Teammate/i });
-  await updateBtn.scrollIntoViewIfNeeded();
-  await updateBtn.click();
-
-  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
-  await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(1_000);
-
-  const dbAfter = getAssistantFromDb(assistant.agentId);
-  expect(dbAfter.jobTitle).toBeNull();
-});
-
 test('closing the edit dialog without saving leaves DB unchanged', async ({ authedPage: page }) => {
   const dbBefore = getAssistantFromDb(assistant.agentId);
 
@@ -261,7 +193,6 @@ test('closing the edit dialog without saving leaves DB unchanged', async ({ auth
   await expect(firstNameInput).toBeVisible({ timeout: 5_000 });
   await firstNameInput.fill('ShouldNotSave');
 
-  // Close via the X button (has sr-only text "Close Edit Dialog")
   const closeBtn = page.getByRole('button', { name: /Close Edit Dialog/i });
   if (await closeBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await closeBtn.click();

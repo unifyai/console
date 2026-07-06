@@ -2,6 +2,16 @@ name: Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      tier:
+        description: 'CI tier to run (push, pr, or full exhaustive)'
+        required: true
+        default: full
+        type: choice
+        options:
+          - push
+          - pr
+          - full
   push:
     branches:
       - '**'
@@ -14,73 +24,69 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  should-run:
+  resolve-tier:
     runs-on: ubuntu-latest
     outputs:
-      run_tests: ${{ steps.check.outputs.run_tests }}
+      tier: ${{ steps.resolve.outputs.tier }}
     steps:
-      - name: Check if tests should run
-        id: check
+      - name: Resolve CI tier
+        id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BASE: ${{ github.event.pull_request.base.ref }}
+          DISPATCH_TIER: ${{ github.event.inputs.tier }}
         run: |
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "run_tests=true" >> "$GITHUB_OUTPUT"
-            echo "Tests triggered by workflow_dispatch"
+            case "${DISPATCH_TIER:-full}" in
+              push) echo "tier=push" >> "$GITHUB_OUTPUT"; echo "Manual Push Gate (workflow_dispatch)" ;;
+              pr) echo "tier=pr" >> "$GITHUB_OUTPUT"; echo "Manual PR Gate (workflow_dispatch)" ;;
+              full|*) echo "tier=full" >> "$GITHUB_OUTPUT"; echo "Manual exhaustive sweep (workflow_dispatch)" ;;
+            esac
             exit 0
           fi
 
           if [[ "$EVENT_NAME" == "push" ]]; then
             if [[ "$COMMIT_MSG" == *"[run-tests]"* ]]; then
-              echo "run_tests=true" >> "$GITHUB_OUTPUT"
-              echo "Tests triggered by commit message containing [run-tests]"
+              echo "tier=full" >> "$GITHUB_OUTPUT"
+              echo "Exhaustive sweep triggered by [run-tests] in commit message"
             else
-              echo "run_tests=false" >> "$GITHUB_OUTPUT"
-              echo "Skipping tests - commit message does not contain [run-tests]"
+              echo "tier=push" >> "$GITHUB_OUTPUT"
+              echo "Push Gate — every branch push without [run-tests]"
             fi
             exit 0
           fi
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            if [[ "$PR_BASE" == "main" || "$PR_BASE" == "staging" ]]; then
-              echo "run_tests=true" >> "$GITHUB_OUTPUT"
-              echo "Tests triggered by PR targeting ${PR_BASE}"
+            if [[ "$PR_TITLE" == *"[run-tests]"* ]]; then
+              echo "tier=full" >> "$GITHUB_OUTPUT"
+              echo "Exhaustive sweep triggered by [run-tests] in PR title"
               exit 0
             fi
-
-            if [[ "$PR_TITLE" == *"[run-tests]"* ]]; then
-              echo "run_tests=true" >> "$GITHUB_OUTPUT"
-              echo "Tests triggered by PR title containing [run-tests]"
-            else
-              echo "run_tests=false" >> "$GITHUB_OUTPUT"
-              echo "Skipping tests - PR title does not contain [run-tests]"
+            if [[ "$PR_BASE" == "main" || "$PR_BASE" == "staging" ]]; then
+              echo "tier=pr" >> "$GITHUB_OUTPUT"
+              echo "PR Gate — integration PR to ${PR_BASE}"
+              exit 0
             fi
+            echo "tier=push" >> "$GITHUB_OUTPUT"
+            echo "Push Gate — PR to non-integration branch"
             exit 0
           fi
 
-          echo "run_tests=false" >> "$GITHUB_OUTPUT"
-          echo "Skipping tests - unknown event type"
+          echo "tier=push" >> "$GITHUB_OUTPUT"
+          echo "Push Gate — default fallback"
 
-  # Fast feedback lane: runs on every push/PR that does NOT trigger the full
-  # matrix (i.e. no [run-tests] marker). Exercises the critical path only —
-  # "can a user log in" + "do shell routes render" — so catastrophic breakage
-  # (e.g. a missing dependency 500ing every page) surfaces in minutes.
-  smoke:
-    needs: should-run
-    if: needs.should-run.outputs.run_tests != 'true'
-    name: Smoke
+  push-gate:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'push'
+    name: Push Gate
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 25
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
         with:
-          # The `branding` submodule provides @unity/brand (tailwind-preset,
-          # tokens, fonts). Without it every page 500s at compile time. Use
-          # CLONE_TOKEN so the private submodule repos are fetchable.
           submodules: recursive
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -131,29 +137,12 @@ jobs:
         env:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-      - name: Run smoke E2E tests
-        run: |
-          npx playwright test \
-            src/tests/auth/login.e2e.ts \
-            src/tests/shell/route-shell-smoke.e2e.ts \
-            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          npx playwright test \
-            src/tests/assistants/shell.e2e.ts \
-            -g "the rail renders with the brand" \
-            --reporter=list --max-failures=1 2>&1 | tee -a test-output.log
-
-          if [ $EXIT_CODE -eq 0 ]; then
-            EXIT_CODE=${PIPESTATUS[0]}
-          fi
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Smoke E2E tests failed"
-          fi
-          exit $EXIT_CODE
+      - name: Run Push Gate E2E tests
+        run: bash scripts/ci-playwright-run.sh push-gate
         env:
           CI: true
+          SAMPLE_MODE: push
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 3
           MAX_FAILURES: 1
@@ -162,7 +151,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-logs-smoke
+          name: test-logs-push-gate
           path: |
             test-output.log
             /tmp/console-build.log
@@ -172,15 +161,196 @@ jobs:
             /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
-  assistants:
-    needs: should-run
-    if: needs.should-run.outputs.run_tests == 'true'
-    name: Assistants
+  pr-gate-assistants:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'pr'
+    name: PR Gate · Assistants
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 45
-    # The Assistants suite (~250 tests) is split across parallel shards so no
-    # single job approaches the timeout. Each shard re-runs the full env setup;
-    # fail-fast off so one failing shard doesn't cancel the others' signal.
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run PR Gate Assistants E2E tests
+        run: bash scripts/ci-playwright-run.sh pr-assistants
+        env:
+          CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 10
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-pr-assistants
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-pr-assistants
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  pr-gate-account:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'pr'
+    name: PR Gate · Account
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run PR Gate Account E2E tests
+        run: bash scripts/ci-playwright-run.sh pr-account
+        env:
+          CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 10
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-pr-account
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-pr-account
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  pr-gate-billing:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'pr'
+    name: PR Gate · Billing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -189,9 +359,6 @@ jobs:
       - name: Checkout Console
         uses: actions/checkout@v4
         with:
-          # The `branding` submodule provides @unity/brand (tailwind-preset,
-          # tokens, fonts). Without it every page 500s at compile time. Use
-          # CLONE_TOKEN so the private submodule repos are fetchable.
           submodules: recursive
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -199,9 +366,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
-          # Mirror unity: console `main` tests against Orchestra `main`; every
-          # other branch (staging + feature branches) tests against the live
-          # Orchestra `staging` integration branch.
           ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
@@ -245,35 +409,21 @@ jobs:
         env:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-      - name: Run Assistants E2E tests
-        run: |
-          npx playwright test src/tests/assistants/ \
-            --shard="${SHARD}/3" \
-            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Assistants E2E tests failed (shard ${SHARD}/3)"
-          fi
-          exit $EXIT_CODE
+      - name: Run PR Gate Billing E2E tests
+        run: bash scripts/ci-playwright-run.sh pr-billing "${{ matrix.shard }}/3"
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
-          # 2 workers (not 3) on the 4-core runner: 3 Chromium instances plus the
-          # Node server, Orchestra/uvicorn, Postgres and the JVM Pub/Sub emulator
-          # oversubscribe the box, which slows timing-sensitive tests into their
-          # per-test timeouts and accelerates server degradation across the shard.
-          # Leaving 2 cores for the backend trades a little wall time for stability
-          # (still well inside the 45-min budget, esp. with fewer flaky retries).
           PLAYWRIGHT_WORKERS: 2
-          MAX_FAILURES: 20
-          SHARD: ${{ matrix.shard }}
+          MAX_FAILURES: 10
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-assistants-${{ matrix.shard }}
+          name: playwright-report-pr-billing
           path: playwright-report/
           retention-days: 7
 
@@ -281,7 +431,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-logs-assistants-${{ matrix.shard }}
+          name: test-logs-pr-billing
           path: |
             test-output.log
             /tmp/console-build.log
@@ -291,19 +441,16 @@ jobs:
             /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
-  account:
-    needs: should-run
-    if: needs.should-run.outputs.run_tests == 'true'
-    name: Account
+  pr-gate-auth:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'pr'
+    name: PR Gate · Auth
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
         with:
-          # The `branding` submodule provides @unity/brand (tailwind-preset,
-          # tokens, fonts). Without it every page 500s at compile time. Use
-          # CLONE_TOKEN so the private submodule repos are fetchable.
           submodules: recursive
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -311,9 +458,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
-          # Mirror unity: console `main` tests against Orchestra `main`; every
-          # other branch (staging + feature branches) tests against the live
-          # Orchestra `staging` integration branch.
           ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
@@ -357,27 +501,21 @@ jobs:
         env:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-      - name: Run Account E2E tests
-        run: |
-          npx playwright test src/tests/account/ \
-            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Account E2E tests failed"
-          fi
-          exit $EXIT_CODE
+      - name: Run PR Gate Auth E2E tests
+        run: bash scripts/ci-playwright-run.sh pr-auth
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 2
-          MAX_FAILURES: 20
+          MAX_FAILURES: 10
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-account
+          name: playwright-report-pr-auth
           path: playwright-report/
           retention-days: 7
 
@@ -385,7 +523,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-logs-account
+          name: test-logs-pr-auth
           path: |
             test-output.log
             /tmp/console-build.log
@@ -395,123 +533,16 @@ jobs:
             /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
-  billing:
-    needs: should-run
-    if: needs.should-run.outputs.run_tests == 'true'
-    name: Billing
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout Console
-        uses: actions/checkout@v4
-        with:
-          # The `branding` submodule provides @unity/brand (tailwind-preset,
-          # tokens, fonts). Without it every page 500s at compile time. Use
-          # CLONE_TOKEN so the private submodule repos are fetchable.
-          submodules: recursive
-          token: ${{ secrets.CLONE_TOKEN }}
-
-      - name: Checkout Orchestra
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/orchestra
-          # Mirror unity: console `main` tests against Orchestra `main`; every
-          # other branch (staging + feature branches) tests against the live
-          # Orchestra `staging` integration branch.
-          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
-          path: orchestra
-          token: ${{ secrets.CLONE_TOKEN }}
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
-
-      - name: Cache Orchestra Poetry deps
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
-          restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
-
-      - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install npm dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Install Playwright
-        run: npx playwright install chromium
-
-      - name: Install Pub/Sub emulator
-        run: bash scripts/ci-install-pubsub-emulator.sh
-
-      - name: Start test environment
-        run: bash scripts/ci-test-setup.sh --no-seed
-        env:
-          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
-
-      - name: Run Billing E2E tests
-        run: |
-          npx playwright test src/tests/billing/ \
-            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Billing E2E tests failed"
-          fi
-          exit $EXIT_CODE
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=4096
-          PLAYWRIGHT_WORKERS: 2
-          MAX_FAILURES: 20
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report-billing
-          path: playwright-report/
-          retention-days: 7
-
-      - name: Upload logs
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: test-logs-billing
-          path: |
-            test-output.log
-            /tmp/console-build.log
-            /tmp/console-ci.log
-            /tmp/orchestra-local-server.log
-            /tmp/pubsub-ci.log
-            /tmp/pubsub-emulator-apt.log
-          retention-days: 7
-
-  shell:
-    needs: should-run
-    if: needs.should-run.outputs.run_tests == 'true'
-    name: Shell
+  pr-gate-shell-admin:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'pr'
+    name: PR Gate · Shell & Admin
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 45
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
         with:
-          # The `branding` submodule provides @unity/brand (tailwind-preset,
-          # tokens, fonts). Without it every page 500s at compile time. Use
-          # CLONE_TOKEN so the private submodule repos are fetchable.
           submodules: recursive
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -519,9 +550,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
-          # Mirror unity: console `main` tests against Orchestra `main`; every
-          # other branch (staging + feature branches) tests against the live
-          # Orchestra `staging` integration branch.
           ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
@@ -565,30 +593,21 @@ jobs:
         env:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-      - name: Run Shell E2E tests
-        run: |
-          npx playwright test src/tests/shell/ \
-            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Shell E2E tests failed"
-          fi
-          exit $EXIT_CODE
+      - name: Run PR Gate Shell & Admin E2E tests
+        run: bash scripts/ci-playwright-run.sh pr-shell-admin
         env:
           CI: true
+          SAMPLE_MODE: pr
+          GITHUB_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
-          # 2 workers (not 3): leave headroom on the 4-core runner for the Node
-          # server + Orchestra + Postgres + Pub/Sub emulator so timing-sensitive
-          # tests don't tip into their per-test timeouts under contention.
           PLAYWRIGHT_WORKERS: 2
-          MAX_FAILURES: 20
+          MAX_FAILURES: 10
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-shell
+          name: playwright-report-pr-shell-admin
           path: playwright-report/
           retention-days: 7
 
@@ -596,7 +615,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-logs-shell
+          name: test-logs-pr-shell-admin
           path: |
             test-output.log
             /tmp/console-build.log
@@ -606,19 +625,20 @@ jobs:
             /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
-  auth:
-    needs: should-run
-    if: needs.should-run.outputs.run_tests == 'true'
-    name: Auth
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+  exhaustive-assistants:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Assistants
+    runs-on: ubuntu-latest-4-cores
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
         with:
-          # The `branding` submodule provides @unity/brand (tailwind-preset,
-          # tokens, fonts). Without it every page 500s at compile time. Use
-          # CLONE_TOKEN so the private submodule repos are fetchable.
           submodules: recursive
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -626,9 +646,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
-          # Mirror unity: console `main` tests against Orchestra `main`; every
-          # other branch (staging + feature branches) tests against the live
-          # Orchestra `staging` integration branch.
           ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
@@ -672,16 +689,8 @@ jobs:
         env:
           ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-      - name: Run Auth E2E tests
-        run: |
-          npx playwright test src/tests/auth/ \
-            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Auth E2E tests failed"
-          fi
-          exit $EXIT_CODE
+      - name: Run Exhaustive Assistants E2E tests
+        run: bash scripts/ci-playwright-run.sh exhaustive-assistants "${{ matrix.shard }}/5"
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
@@ -692,7 +701,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-auth
+          name: playwright-report-exhaustive-assistants-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
 
@@ -700,9 +709,637 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-logs-auth
+          name: test-logs-exhaustive-assistants-${{ matrix.shard }}
           path: |
             test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  exhaustive-account:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Account
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run Exhaustive Account E2E tests
+        run: bash scripts/ci-playwright-run.sh exhaustive-account "${{ matrix.shard }}/2"
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-exhaustive-account-${{ matrix.shard }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-exhaustive-account-${{ matrix.shard }}
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  exhaustive-billing:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Billing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run Exhaustive Billing E2E tests
+        run: bash scripts/ci-playwright-run.sh exhaustive-billing
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-exhaustive-billing
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-exhaustive-billing
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  exhaustive-auth:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Auth
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run Exhaustive Auth E2E tests
+        run: bash scripts/ci-playwright-run.sh exhaustive-auth
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-exhaustive-auth
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-exhaustive-auth
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  exhaustive-shell:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Shell
+    runs-on: ubuntu-latest-4-cores
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run Exhaustive Shell E2E tests
+        run: bash scripts/ci-playwright-run.sh exhaustive-shell
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-exhaustive-shell
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-exhaustive-shell
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  exhaustive-admin:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run Exhaustive Admin E2E tests
+        run: bash scripts/ci-playwright-run.sh exhaustive-admin
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-exhaustive-admin
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-exhaustive-admin
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  exhaustive-impersonation:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Impersonation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run Exhaustive Impersonation E2E tests
+        run: bash scripts/ci-playwright-run.sh exhaustive-impersonation
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-exhaustive-impersonation
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-exhaustive-impersonation
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
+          retention-days: 7
+
+  exhaustive-vitest:
+    needs: resolve-tier
+    if: needs.resolve-tier.outputs.tier == 'full'
+    name: Exhaustive · Vitest
+    runs-on: ubuntu-latest-4-cores
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run Vitest node suite
+        run: npm run test:node -- --run
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          ORCHESTRA_URL: http://127.0.0.1:8000
+
+      - name: Run Vitest real integration suite
+        run: npm run test:real -- --run
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          ORCHESTRA_URL: http://127.0.0.1:8000
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-exhaustive-vitest
+          path: |
             /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log

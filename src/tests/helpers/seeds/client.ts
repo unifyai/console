@@ -693,7 +693,7 @@ export interface AddMemberOpts {
  * Also creates an org-scoped API key for the member so they can authenticate
  * in the org context.
  *
- * Idempotent: skips if the member already exists.
+ * Idempotent: upserts membership and upgrades role on conflict.
  */
 export function addMember(opts: AddMemberOpts): string {
   const orgApiKey = uniqueApiKey('member');
@@ -705,9 +705,14 @@ DECLARE
 BEGIN
   SELECT id INTO _role_id FROM role WHERE name = '${opts.role}' AND is_system_role = true LIMIT 1;
 
-  INSERT INTO organization_member (organization_id, user_id, role_id)
-  VALUES (${opts.orgId}, '${opts.userId}', _role_id)
-  ON CONFLICT DO NOTHING;
+  UPDATE organization_member
+  SET role_id = _role_id
+  WHERE organization_id = ${opts.orgId} AND user_id = '${opts.userId}';
+
+  IF NOT FOUND THEN
+    INSERT INTO organization_member (organization_id, user_id, role_id)
+    VALUES (${opts.orgId}, '${opts.userId}', _role_id);
+  END IF;
 
   INSERT INTO api_key (user_id, organization_id, key, name)
   VALUES ('${opts.userId}', ${opts.orgId}, '${orgApiKey}', 'Member Key')
@@ -719,6 +724,61 @@ END
   syncOrgWideSharingSeedState(opts.orgId, opts.userId);
 
   return orgApiKey;
+}
+
+export interface EnsureUnifyOrgOpts {
+  /** User who owns the org when one is created fresh. */
+  ownerId?: string;
+  /** User to add as a member of an existing or newly created org. */
+  memberId?: string;
+  /** Role for memberId on an existing org (default Member). */
+  memberRole?: OrgRole;
+  /** Role for ownerId when joining an existing org owned by someone else (default Admin). */
+  existingOrgOwnerRole?: OrgRole;
+  credits?: number;
+}
+
+/**
+ * Find or create the globally unique ``Unify`` org used by admin and
+ * interfaces gates. Parallel E2E jobs share one Orchestra DB — never
+ * DELETE-and-recreate this org in individual specs.
+ */
+export function ensureUnifyOrg(opts: EnsureUnifyOrgOpts): SeededOrg {
+  ensureSystemRoles();
+
+  const existingId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);
+
+  if (existingId) {
+    const orgId = parseInt(existingId, 10);
+    const ownerId = dbExec(`SELECT owner_id FROM organization WHERE id = ${orgId};`);
+    const ownerOrgApiKey = dbExec(
+      `SELECT key FROM api_key WHERE user_id = '${ownerId}' AND organization_id = ${orgId} LIMIT 1;`
+    );
+
+    if (opts.memberId) {
+      addMember({ orgId, userId: opts.memberId, role: opts.memberRole ?? 'Member' });
+    }
+    if (opts.ownerId && opts.ownerId !== ownerId) {
+      addMember({
+        orgId,
+        userId: opts.ownerId,
+        role: opts.existingOrgOwnerRole ?? 'Admin',
+      });
+    }
+
+    return { id: orgId, name: 'Unify', ownerId, ownerOrgApiKey };
+  }
+
+  const ownerId = opts.ownerId ?? opts.memberId;
+  if (!ownerId) {
+    throw new Error('ensureUnifyOrg: Unify org does not exist and no ownerId was provided');
+  }
+
+  return createOrg({
+    name: 'Unify',
+    ownerId,
+    credits: opts.credits,
+  });
 }
 
 // =============================================================================

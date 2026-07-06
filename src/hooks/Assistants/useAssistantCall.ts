@@ -107,6 +107,8 @@ export function useAssistantCall(
   const [isSpeakerMuted, setIsSpeakerMuted] = React.useState(false);
   const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
   const [isAssistantPreparing, setIsAssistantPreparing] = React.useState(false);
+  const [activeOpeningConfig, setActiveOpeningConfig] =
+    React.useState<AssistantCallConnectOptions['openingConfig']>(undefined);
   const [waitingMessage, setWaitingMessage] = React.useState<string | null>(null);
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const [avatarMood, setAvatarMood] = React.useState<CreatureMood>(DEFAULT_AVATAR_MOOD);
@@ -245,6 +247,7 @@ export function useAssistantCall(
     setCallType(null);
     activeConnectOptionsRef.current = undefined;
     activeCallSessionIdRef.current = null;
+    setActiveOpeningConfig(undefined);
     setIsSpeakerMuted(false);
     setAvatarMood(DEFAULT_AVATAR_MOOD);
     moodTurnIndexRef.current = -1;
@@ -276,6 +279,7 @@ export function useAssistantCall(
       const optionsWithSession = { ...options, callSessionId };
       activeConnectOptionsRef.current = optionsWithSession;
       activeCallSessionIdRef.current = callSessionId;
+      setActiveOpeningConfig(optionsWithSession.openingConfig);
       isCancelledRef.current = false;
       pendingRoomDeleteRef.current = null;
       redispatchPromiseRef.current = null;
@@ -284,7 +288,6 @@ export function useAssistantCall(
       expectsReadyToSpeakRef.current =
         !optionsWithSession.openingConfig ||
         optionsWithSession.openingConfig.mode === 'speak' ||
-        optionsWithSession.openingConfig.mode === 'briefed' ||
         optionsWithSession.openingConfig.mode === 'recorded';
       const shouldWaitForAssistantReady =
         optionsWithSession.waitForAssistantReady === true && expectsReadyToSpeakRef.current;
@@ -988,6 +991,7 @@ export function useAssistantCall(
     disconnect,
     isWaitingForAssistant,
     isAssistantPreparing,
+    activeOpeningConfig,
     waitingMessage,
     connectionError,
     retryConnection,

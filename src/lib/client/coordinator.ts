@@ -43,7 +43,7 @@ export interface OnboardingSessionStartedResult {
   /**
    * Whether Orchestra actually forwarded the event to Unity.
    *
-   * ``false`` when the Coordinator is no longer in onboarding mode
+   * ``false`` when onboarding is inactive
    * (e.g. the user already skipped onboarding in another tab) — the
    * call is silently dropped server-side and the client doesn't
    * need to do anything special; the chat history will load
@@ -91,6 +91,42 @@ export async function notifyOnboardingSessionStarted(
   } catch (error) {
     return {
       detail: error instanceof Error ? error.message : 'Failed to notify onboarding session start',
+    };
+  }
+}
+
+export interface CoordinatorWakeupResult {
+  coordinatorId: string;
+  attempted: boolean;
+}
+
+/**
+ * Start the Coordinator runtime early so onboarding feels instant.
+ * Best-effort: callers should not block UI on the response.
+ */
+export async function wakeCoordinator(
+  coordinatorId: string | number
+): Promise<CoordinatorWakeupResult | ResponseProps> {
+  try {
+    const res = await fetch('/api/coordinator-wakeup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coordinatorId: String(coordinatorId) }),
+    });
+    const contentType = res.headers.get('content-type');
+    const data = contentType?.includes('application/json') ? await res.json() : {};
+
+    if (!res.ok) {
+      return {
+        detail: data?.detail || data?.error || `Failed to wake T-W1N: ${res.statusText}`,
+        status: res.status,
+      };
+    }
+
+    return data as CoordinatorWakeupResult;
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to wake T-W1N',
     };
   }
 }

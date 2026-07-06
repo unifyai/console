@@ -303,7 +303,7 @@ substitutions:
   _TRIGGER_ID: 43a9d7a2-951c-49f5-af3c-234567890abc
   REPO_NAME: console
   _DEPLOY_REGION: us-central1
-  _AR_HOSTNAME: europe-west3-docker.pkg.dev
+  _AR_HOSTNAME: us-central1-docker.pkg.dev
 tags:
   - gcp-cloud-build-deploy-cloud-run
   - gcp-cloud-build-deploy-cloud-run-managed

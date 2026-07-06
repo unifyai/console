@@ -32,6 +32,8 @@ import {
   deleteUserDesktopsForUser,
   getLinkFilesysState,
   ensureProjectSync,
+  navigateToAssistants,
+  openUnitySwitcher,
   openDesktopLinkerFromList,
 } from './helpers';
 
@@ -52,9 +54,8 @@ test.afterAll(() => {
 });
 
 async function navigateForLinker(page: Page) {
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await navigateToAssistants(page);
+  await openUnitySwitcher(page);
 }
 
 /** Open the desktop linker from the assistant row info panel. */
@@ -64,7 +65,7 @@ async function openDesktopLinker(page: Page, agentId: number) {
   await openDesktopLinkerFromList(page, agentId);
 }
 
-test('toggling filesystem access drives consent flag and per-link SFTP key', async ({
+test('toggling filesystem access drives consent flag and per-link SFTP key @critical @area(assistants.data)', async ({
   authedPage: page,
 }) => {
   // Precondition: linked with consent off, so no key has been minted yet.

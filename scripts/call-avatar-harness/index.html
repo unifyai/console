@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>UnityCallAvatar live harness</title>
+    <style>
+      /* Tailwind preflight essentials used by the component tree. */
+      *,
+      ::before,
+      ::after {
+        box-sizing: border-box;
+      }
+      img,
+      svg,
+      video {
+        display: block;
+        vertical-align: middle;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.45 system-ui,
+          sans-serif;
+        background: #f4f1ea;
+        color: #1b1b1b;
+      }
+      .board {
+        padding: 28px 28px 140px;
+        display: flex;
+        flex-direction: column;
+        gap: 130px;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 64px;
+      }
+      .grid {
+        display: flex;
+        gap: 72px;
+      }
+      .cell {
+        width: 150px;
+        margin: 0;
+      }
+      figcaption {
+        margin-top: 96px;
+        font-size: 12px;
+        color: #666;
+      }
+      .relative-center {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* AssistantCommunicationMainView: 'z-10 flex items-center justify-center overflow-visible' + 'h-32 w-32' */
+      .slot {
+        height: 8rem;
+        width: 8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: visible;
+        background: #ece9e1;
+        border: 1px solid #d8d2c8;
+        border-radius: 12px;
+      }
+      /* Tailwind utilities used inside UnityCallAvatar */
+      .flex {
+        display: flex;
+      }
+      .block {
+        display: block;
+      }
+      .h-full {
+        height: 100%;
+      }
+      .w-full {
+        width: 100%;
+      }
+      .items-center {
+        align-items: center;
+      }
+      .justify-center {
+        justify-content: center;
+      }
+      .overflow-visible {
+        overflow: visible;
+      }
+      .z-10 {
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <link rel="stylesheet" href="./bundle.css" />
+    <script src="./bundle.js"></script>
+  </body>
+</html>

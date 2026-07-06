@@ -9,8 +9,28 @@
 import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
-import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import {
+  login,
+  loginAndWaitForRedirect,
+  loginWithPreAuthApi,
+  switchToEmailTab,
+  waitForLoginSurface,
+} from '../auth/helpers';
 import { orchestraFetch as _orchestraFetch } from '../helpers/seeds/client';
+import {
+  deferCoordinatorAfterAssistantsLoad,
+  deferCoordinatorForUser,
+  deferCoordinatorOnboarding,
+  dismissCoordinatorOnboardingIfOpen,
+  ensureShellReady,
+  getCoordinatorAgentId,
+} from '../helpers/coordinator';
+import {
+  assistantRail,
+  railSection,
+  railUnitySwitcher,
+  waitForAssistantsRail,
+} from '../helpers/shell';
 
 export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -34,6 +54,14 @@ export {
   ensureVoicePreset,
   ensureProjectSync,
 } from '../helpers/seeds/client';
+export {
+  deferCoordinatorAfterAssistantsLoad,
+  deferCoordinatorForUser,
+  deferCoordinatorOnboarding,
+  dismissCoordinatorOnboardingIfOpen,
+  ensureShellReady,
+  getCoordinatorAgentId,
+} from '../helpers/coordinator';
 export type {
   SeededOrg,
   SeededAssistant,
@@ -47,62 +75,47 @@ export { login, switchToEmailTab };
 // Shared Auth — storageState
 // =============================================================================
 
-/**
- * Authenticate a seeded user via the dev quick-login panel.
- *
- * The local dev login page defaults to the OAuth tab (Google is configured),
- * so the password form is one tab-switch away and racier than the dev panel.
- * The dev panel mints a session with a single click, so it is the primary path;
- * we avoid `waitForURL` (which hangs the full timeout on any redirect race) and
- * force-navigate to `/assistants` instead, then confirm we left `/login`.
- */
 async function tryDevQuickLogin(page: Page, email: string): Promise<boolean> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await page.goto(attempt === 0 ? '/login?signout=true' : '/login');
-    await page.waitForLoadState('domcontentloaded');
-    const quickLoginButton = page
-      .getByTestId('dev-quick-login')
-      .locator('button', { hasText: email })
-      .first();
-    if (!(await quickLoginButton.isVisible({ timeout: 10_000 }).catch(() => false))) continue;
-
-    await quickLoginButton.click();
-    await page.waitForTimeout(800);
-    if (new URL(page.url()).pathname === '/login') {
-      await page.goto('/assistants');
-      await page.waitForLoadState('domcontentloaded');
-    }
-    if (new URL(page.url()).pathname !== '/login') return true;
+  const quickLoginButton = page
+    .getByTestId('dev-quick-login')
+    .getByRole('button', { name: new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) })
+    .first();
+  if (!(await quickLoginButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
+    return false;
   }
-  return false;
+
+  await quickLoginButton.scrollIntoViewIfNeeded();
+  await quickLoginButton.click();
+  await page.waitForTimeout(800);
+  if (new URL(page.url()).pathname === '/login') {
+    await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
+  }
+  return new URL(page.url()).pathname !== '/login';
 }
 
 /**
  * Authenticate a seeded user.
  *
- * Email+password is the primary path: it is deterministic and does not depend
- * on the dev quick-login panel (which queries Postgres for every `seed-%` user
- * and can be slow). The credentials submit occasionally bounces back to
- * `/login` locally, so we fall back to the dev panel. Throws if neither path
- * leaves `/login`.
+ * Prefers the pre-auth API (fast, works for users not yet listed in dev
+ * quick-login). Falls back to the dev panel, then the email form.
  */
 export async function authenticate(page: Page, email: string, password: string): Promise<void> {
-  // The dev server compiles routes on first hit and the seed-user lookup can be
-  // slow under load, so a cold first attempt occasionally times out or bounces
-  // back to /login. Retry the whole goto+login flow a few times with a bounded
-  // navigation timeout so a single cold start doesn't fail the run.
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await page.goto(attempt === 1 ? '/login?signout=true' : '/login', { timeout: 45_000 });
-      if (await tryDevQuickLogin(page, email)) return;
-      try {
-        await loginAndWaitForRedirect(page, email, password, 30_000);
-      } catch {
-        /* fall back to the dev quick-login panel below */
+      const loginPath = attempt === 1 ? '/login' : '/login?signout=true';
+      await page.goto(loginPath, { timeout: 45_000, waitUntil: 'domcontentloaded' });
+      if (attempt > 1) {
+        await waitForLoginSurface(page, 30_000);
       }
-      if (new URL(page.url()).pathname !== '/login') return;
+
+      if (await loginWithPreAuthApi(page, email, password, 30_000)) return;
+
+      await waitForLoginSurface(page, 15_000);
       if (await tryDevQuickLogin(page, email)) return;
+
+      await loginAndWaitForRedirect(page, email, password, 30_000);
+      if (new URL(page.url()).pathname !== '/login') return;
     } catch {
       /* navigation or login error — retry below */
     }
@@ -193,9 +206,9 @@ export async function loginAndSaveOrgState(
     });
   }, orgId);
 
-  await page.goto('/assistants');
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  await dismissCoordinatorOnboardingIfOpen(page);
 
   await page.close();
   await ctx.storageState({ path: stateFile });
@@ -224,11 +237,19 @@ export function createAssistantTest(user: {
         // ``absolute inset-0 z-50``) that intercepts every pointer event. The
         // legacy two-pane assistant flows assume the standard shell, so defer
         // onboarding once up front before the first authenticated page loads.
-        const coordinatorId = getCoordinatorAgentId(user.id);
-        if (coordinatorId) {
-          await deferCoordinatorOnboarding(user.apiKey, coordinatorId);
-        }
+        await deferCoordinatorForUser(user.id, user.apiKey);
         authFile = await loginAndSaveState(browser, user.email, user.password);
+        const warmCtx = await browser.newContext({
+          storageState: authFile,
+          permissions: ['clipboard-read', 'clipboard-write'],
+        });
+        const warmPage = await warmCtx.newPage();
+        await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
+        await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
+        await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await waitForAssistantsRail(warmPage);
+        await warmCtx.storageState({ path: authFile });
+        await warmCtx.close();
       }
       const ctx = await browser.newContext({
         storageState: authFile,
@@ -250,7 +271,10 @@ export function createAssistantTest(user: {
  * Navigate to the assistants page and wait for the page to settle.
  * Waits a beat after networkidle so React effects (auto-open dialog etc.) fire.
  */
-export async function navigateToAssistants(page: Page) {
+export async function navigateToAssistants(
+  page: Page,
+  opts?: { skipRailCheck?: boolean; userId?: string; apiKey?: string }
+) {
   // Suppress the post-hire onboarding wizard for every test that
   // doesn't explicitly opt into it. The wizard is an optional UX step
   // (the user can always skip it), and existing assistant flows assume
@@ -265,9 +289,16 @@ export async function navigateToAssistants(page: Page) {
       /* private mode — ignore */
     }
   });
-  await page.goto('/assistants');
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(2_000);
+  if (opts?.userId && opts?.apiKey) {
+    await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+  } else {
+    await dismissCoordinatorOnboardingIfOpen(page);
+  }
+  if (!opts?.skipRailCheck) {
+    await waitForAssistantsRail(page);
+  }
 }
 
 /**
@@ -313,11 +344,36 @@ export async function closeHireDialogIfOpen(page: Page) {
  * Open the rail's unity switcher popover (which hosts the assistant list,
  * search and the Onboard button). Idempotent — returns early if already open.
  */
-export async function openUnitySwitcher(page: Page) {
+export async function openUnitySwitcher(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
   if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
-  await page.getByTestId('rail-unity-switcher').click();
+  if (opts?.userId && opts?.apiKey) {
+    await ensureShellReady(page, opts.userId, opts.apiKey);
+  } else {
+    await dismissCoordinatorOnboardingIfOpen(page);
+  }
+  const switcher = railUnitySwitcher(page);
+  await expect(switcher).toBeVisible({ timeout: 10_000 });
+  await switcher.click();
   await expect(popover).toBeVisible({ timeout: 5_000 });
+  await waitForAssistantListReady(page);
+}
+
+/** Wait until the switcher popover list finished loading assistants. */
+export async function waitForAssistantListReady(page: Page, timeout = 45_000): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const search = page.getByPlaceholder(/Search assistants/i);
+        if (await search.isEnabled().catch(() => false)) return 'ready';
+        if ((await page.locator('[data-testid^="assistant-list-item-"]').count()) > 0) {
+          return 'ready';
+        }
+        return 'pending';
+      },
+      { timeout }
+    )
+    .toBe('ready');
 }
 
 /**
@@ -325,7 +381,7 @@ export async function openUnitySwitcher(page: Page) {
  * old in-pane `right-pane-tab-*` strip).
  */
 export async function openRailSection(page: Page, sectionId: string) {
-  await page.getByTestId(`rail-section-${sectionId}`).click();
+  await railSection(page, sectionId).click();
   await page.waitForTimeout(300);
 }
 
@@ -334,14 +390,14 @@ export async function openRailSection(page: Page, sectionId: string) {
  * rail's unity switcher popover. If the dialog is already open (e.g.
  * auto-opened on empty state), skip.
  */
-export async function openHireDialog(page: Page) {
+export async function openHireDialog(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const dialog = page.locator('[role="dialog"]');
   if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
     return;
   }
-  await openUnitySwitcher(page);
+  await openUnitySwitcher(page, opts);
   const onboardBtn = page.getByTestId('assistant-onboard-button');
-  await expect(onboardBtn).toBeEnabled({ timeout: 15_000 });
+  await expect(onboardBtn).toBeEnabled({ timeout: 30_000 });
   await onboardBtn.click();
   await page.waitForTimeout(1_000);
 }
@@ -354,6 +410,7 @@ export async function openHireDialog(page: Page) {
 export async function selectAssistantInList(page: Page, agentId: number) {
   await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(500);
 }
@@ -380,8 +437,16 @@ export async function openAccordionSection(
   // Try aria-label trigger first (hire/edit forms use these)
   let trigger = page.locator(`[aria-label="${section} trigger"]`);
   if (!(await trigger.isVisible({ timeout: 1_000 }).catch(() => false))) {
-    // Fall back to accordion trigger containing the section text
-    trigger = page.locator(`button[data-state]:has-text("${labels[section]}")`).first();
+    const formRoot = page
+      .getByRole('dialog')
+      .filter({ has: page.getByText(/Hire|Edit|Profile|Photo|Voice/) })
+      .last();
+    // Fall back to an exact section heading inside the form so shell buttons
+    // like the account/workspace trigger are never treated as accordion rows.
+    trigger = formRoot
+      .locator('button[data-state]')
+      .filter({ has: page.getByRole('heading', { name: labels[section], exact: true }) })
+      .first();
   }
   if (!(await trigger.isVisible({ timeout: 1_000 }).catch(() => false))) {
     return;
@@ -455,20 +520,16 @@ export async function fillProfileFields(
  * The first voice is auto-selected by default; this explicitly clicks one.
  */
 export async function selectVoice(page: Page, voiceNameSubstring?: string) {
+  await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
+    timeout: 10_000,
+  });
   await openAccordionSection(page, 'voice');
-  await page.waitForTimeout(1_000);
 
-  if (voiceNameSubstring) {
-    const voiceOption = page
-      .getByRole('option', { name: new RegExp(voiceNameSubstring, 'i') })
-      .first();
-    await voiceOption.scrollIntoViewIfNeeded();
-    await voiceOption.click();
-  } else {
-    const firstVoice = page.getByRole('option').first();
-    await firstVoice.scrollIntoViewIfNeeded();
-    await firstVoice.click();
-  }
+  const voiceOption = voiceNameSubstring
+    ? page.getByRole('option', { name: new RegExp(voiceNameSubstring, 'i') }).first()
+    : page.getByRole('option').first();
+  await expect(voiceOption).toBeVisible({ timeout: 15_000 });
+  await voiceOption.click();
   await page.waitForTimeout(300);
 }
 
@@ -498,8 +559,8 @@ export async function skipWorkspaceSetupIfPrompted(page: Page) {
 export async function clickHireButton(page: Page) {
   await skipWorkspaceSetupIfPrompted(page);
   const hireBtn = page.getByRole('button', { name: 'Onboard Teammate', exact: true });
-  await hireBtn.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
+  await expect(hireBtn).toBeVisible({ timeout: 10_000 });
+  await expect(hireBtn).toBeEnabled({ timeout: 10_000 });
   await hireBtn.click();
 }
 
@@ -624,45 +685,6 @@ export function getAssistantAgentIds(userId: string): number[] {
   );
   if (!result) return [];
   return result.split('\n').map((id) => parseInt(id, 10));
-}
-
-/** Agent ID of a user's personal (non-org) Coordinator, or null if none. */
-export function getCoordinatorAgentId(userId: string): number | null {
-  const result = dbExec(
-    `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND is_coordinator = TRUE AND organization_id IS NULL ORDER BY agent_id LIMIT 1`
-  );
-  const parsed = parseInt(result, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * Dismiss the Coordinator onboarding gate for a workspace.
- *
- * A freshly provisioned Coordinator resolves to ``mode: onboarding`` with
- * ``intro_watched: false``, so the assistants page renders the full-screen
- * onboarding intro overlay (``data-testid="coordinator-onboarding"``,
- * ``absolute inset-0 z-50``) that intercepts every pointer event. Legacy
- * assistant flows (list, chat, profile, hire, …) assume the standard shell,
- * so they defer onboarding up front. Setting ``onboarding_deferred`` clears
- * both the intro overlay and the coordinator focus layout in one shot,
- * leaving the regular two-pane list. Idempotent and one-way sticky for
- * ``intro_watched`` server-side.
- */
-export async function deferCoordinatorOnboarding(
-  apiKey: string,
-  coordinatorId: number
-): Promise<void> {
-  const res = await _orchestraFetch(
-    `/v0/assistant/${coordinatorId}/state`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ intro_watched: true, onboarding_deferred: true }),
-    },
-    apiKey
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to defer coordinator onboarding: ${res.status}`);
-  }
 }
 
 export function deleteAssistantFromDb(agentId: number): void {

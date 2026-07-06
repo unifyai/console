@@ -569,6 +569,10 @@ start_orchestra() {
     fi
   fi
 
+  if [[ -f "$SCRIPT_DIR/ensure-sibling-repo-branch.sh" && -n "$ORCHESTRA_REPO_PATH" ]]; then
+    bash "$SCRIPT_DIR/ensure-sibling-repo-branch.sh" "$ORCHESTRA_REPO_PATH" orchestra
+  fi
+
   log_info "Starting Orchestra via $ORCHESTRA_LOCAL_SCRIPT ..."
 
   # Pass the admin key so Orchestra authenticates Console's admin calls.

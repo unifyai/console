@@ -8,8 +8,11 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { TabToolbar } from '@/components/Pages/Assistants/Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '@/components/Pages/Assistants/Common/TabSegmentGroup';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
-import { ProviderIntegrationCard } from './ProviderIntegrationCard';
-import { IntegrationGalleryVirtualGrid } from './IntegrationGalleryVirtualGrid';
+import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
+import {
+  IntegrationGalleryCardGrid,
+  IntegrationGalleryVirtualGrid,
+} from './IntegrationGalleryVirtualGrid';
 import { integrationTypeFilterValue, integrationTypeLabel } from './integrationType';
 import type { IntegrationGalleryItem } from '@/types/integrations';
 import type { ProviderAppCatalogFacets } from '@/lib/client/integrations';
@@ -136,6 +139,20 @@ export function IntegrationGalleryShell({
     },
     [filters, onFiltersChange]
   );
+  const {
+    draft: searchDraft,
+    setDraft: setSearchDraft,
+    clear: clearSearchDraft,
+  } = useTabSearchCommit(filters.query);
+
+  const submitSearch = React.useCallback(() => {
+    setFilters((current) => ({ ...current, query: searchDraft.trim() }));
+  }, [searchDraft, setFilters]);
+
+  const clearSearch = React.useCallback(() => {
+    clearSearchDraft();
+    setFilters((current) => ({ ...current, query: '' }));
+  }, [clearSearchDraft, setFilters]);
   const filteredItems = React.useMemo(
     () => items.filter((item) => matchesFilters(item, filters)),
     [filters, items]
@@ -159,7 +176,7 @@ export function IntegrationGalleryShell({
     () => [...connectedItems, ...needsAttentionItems],
     [connectedItems, needsAttentionItems]
   );
-  const isInitialLoading = Boolean(isLoading && items.length === 0);
+  const isInitialLoading = Boolean((isLoading || isRefreshing) && items.length === 0);
   const hasConnectedSection = connectedItems.length > 0;
   const hasNeedsAttentionSection = needsAttentionItems.length > 0;
   const hasBrowsableSection = browsableItems.length > 0;
@@ -210,10 +227,13 @@ export function IntegrationGalleryShell({
             </TabSegmentGroup>
           </div>
         }
-        searchValue={filters.query}
-        onSearchChange={(query) => setFilters((current) => ({ ...current, query }))}
+        searchValue={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={submitSearch}
+        onSearchClear={clearSearch}
         searchPlaceholder={tabSearchPlaceholder('integrations')}
         searchTestId="integration-gallery-search"
+        searchClearTestId="integration-gallery-search-clear"
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
         refreshTitle="Refresh integrations"
@@ -272,17 +292,12 @@ export function IntegrationGalleryShell({
                         )}
                       </div>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                      {pinnedItems.map((item) => (
-                        <ProviderIntegrationCard
-                          key={`${item.source}:${item.id}`}
-                          item={item}
-                          busy={busySlug === item.canonicalSlug}
-                          onOpen={onOpen}
-                          onPrimaryAction={onPrimaryAction}
-                        />
-                      ))}
-                    </div>
+                    <IntegrationGalleryCardGrid
+                      items={pinnedItems}
+                      busySlug={busySlug}
+                      onOpen={onOpen}
+                      onPrimaryAction={onPrimaryAction}
+                    />
                   </section>
                 )
               ) : (
@@ -301,17 +316,12 @@ export function IntegrationGalleryShell({
                           {connectedItems.length} connected
                         </Badge>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                        {connectedItems.map((item) => (
-                          <ProviderIntegrationCard
-                            key={`${item.source}:${item.id}`}
-                            item={item}
-                            busy={busySlug === item.canonicalSlug}
-                            onOpen={onOpen}
-                            onPrimaryAction={onPrimaryAction}
-                          />
-                        ))}
-                      </div>
+                      <IntegrationGalleryCardGrid
+                        items={connectedItems}
+                        busySlug={busySlug}
+                        onOpen={onOpen}
+                        onPrimaryAction={onPrimaryAction}
+                      />
                     </section>
                   )}
 
@@ -334,17 +344,12 @@ export function IntegrationGalleryShell({
                           {needsAttentionItems.length} need attention
                         </Badge>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                        {needsAttentionItems.map((item) => (
-                          <ProviderIntegrationCard
-                            key={`${item.source}:${item.id}`}
-                            item={item}
-                            busy={busySlug === item.canonicalSlug}
-                            onOpen={onOpen}
-                            onPrimaryAction={onPrimaryAction}
-                          />
-                        ))}
-                      </div>
+                      <IntegrationGalleryCardGrid
+                        items={needsAttentionItems}
+                        busySlug={busySlug}
+                        onOpen={onOpen}
+                        onPrimaryAction={onPrimaryAction}
+                      />
                     </section>
                   )}
                 </>

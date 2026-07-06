@@ -4,13 +4,11 @@ import * as React from 'react';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
-import { useAppShellNavigation, useShellActivePath } from '@/lib/navigation/AppShellRouter';
-import {
-  AssistantCommunicationDialog,
-  useIsCoordinatorIntroAudioPlaying,
-} from './AssistantCommunicationDialog';
+import { useIsCoordinatorIntroAudioPlaying } from './AssistantCommunicationDialog';
 import { AssistantLiveKitAudioRenderer } from './AssistantLiveKitAudioRenderer';
+import { VoiceEnrollmentFallbackDialog } from './VoiceEnrollmentFallbackDialog';
 import type { AssistantActions } from '@/types/assistants/assistant';
+import { useVoiceEnrollmentFallbackPrompt } from '@/hooks/Assistants/useVoiceEnrollmentFallbackPrompt';
 
 /**
  * The action subset the call engine needs. Mirrors the shape the standalone
@@ -27,6 +25,7 @@ export type CallProviderActions = Pick<AssistantActions, 'call' | 'desktop' | 'c
 interface CallUserMeta {
   email: string | null | undefined;
   image: string | null | undefined;
+  voiceSample?: string | null;
 }
 
 type UseAssistantCallReturn = ReturnType<typeof useAssistantCall>;
@@ -52,9 +51,9 @@ export function useCallContext(): CallContextValue {
  * Owns the single LiveKit Room and the call lifecycle for the whole (home)
  * layout. Because the layout persists across client-side navigation between
  * (home) pages, a call started on /assistants stays connected as the user
- * moves to /account, /organizations, etc. Off /assistants the call shows here
- * as a small floating window; on /assistants the page renders its own
- * docked / popped-out surface from this same context.
+ * moves to /account, /organizations, etc. On /assistants the page renders the
+ * docked / popped-out call surface; off /assistants only background audio
+ * persists while the floating chat carries the visible UI.
  */
 export function CallProvider({
   callActions,
@@ -93,72 +92,33 @@ export function CallProvider({
     [call, isDocked, popOut, redock]
   );
 
-  const { navigateToAssistants } = useAppShellNavigation();
-  const shellActivePath = useShellActivePath();
   const isCoordinatorIntroAudioPlaying = useIsCoordinatorIntroAudioPlaying();
 
   const { activeCallAssistant } = call;
   const hasActiveCall = !!activeCallAssistant;
-  const showFloating = hasActiveCall && shellActivePath !== '/assistants';
+  const callLifecycleActive = call.isConnecting || call.isConnected;
+
+  const voiceEnrollmentFallback = useVoiceEnrollmentFallbackPrompt({
+    assistantId: activeCallAssistant?.agentId ?? null,
+    callLifecycleActive,
+    hasVoiceSample: !!userMeta.voiceSample,
+  });
 
   React.useEffect(() => {
     onCallLifecycleChange?.(call.isConnecting || call.isConnected);
   }, [call.isConnecting, call.isConnected, onCallLifecycleChange]);
 
-  // Docking the floating window means going back to where the docked surface
-  // lives, so the redock control returns the user to /assistants.
-  const handleFloatingRedock = React.useCallback(() => {
-    redock();
-    navigateToAssistants();
-  }, [redock, navigateToAssistants]);
-
   return (
     <CallContext.Provider value={value}>
       {children}
+      <VoiceEnrollmentFallbackDialog
+        open={voiceEnrollmentFallback.open}
+        onOpenChange={voiceEnrollmentFallback.onOpenChange}
+        onEnrolled={voiceEnrollmentFallback.onEnrolled}
+      />
       {hasActiveCall && activeCallAssistant && (
         <RoomContext.Provider value={room}>
-          {/* Single, persistent audio sink for the call. Living here (rather
-           *  than inside whichever dialog instance is mounted) keeps audio
-           *  continuous as the visible surface swaps during navigation. */}
           {!isCoordinatorIntroAudioPlaying && <AssistantLiveKitAudioRenderer />}
-          {showFloating && (
-            <AssistantCommunicationDialog
-              isOpen
-              defaultFloating
-              chatDisabled
-              onClose={call.disconnect}
-              onRedock={handleFloatingRedock}
-              assistant={activeCallAssistant}
-              assistantActions={callActions}
-              room={room}
-              chatHistories={{}}
-              setChatHistories={() => {}}
-              isConnecting={call.isConnecting}
-              userEmail={userMeta.email}
-              userImage={userMeta.image}
-              isWaitingForAssistant={call.isWaitingForAssistant}
-              isAssistantPreparing={call.isAssistantPreparing}
-              waitingMessage={call.waitingMessage}
-              isCallConnected={call.isConnected}
-              connectionError={call.connectionError}
-              onRetry={call.retryConnection}
-              isRemoteControlActive={call.isRemoteControlActive}
-              liveviewUrl={call.liveviewUrl}
-              isRemoteControlLoading={call.isRemoteControlLoading}
-              toggleRemoteControl={call.toggleRemoteControl}
-              isRemoteControlInteractive={call.isRemoteControlInteractive}
-              isRemoteControlInteractiveLoading={call.isRemoteControlInteractiveLoading}
-              toggleRemoteControlInteractive={call.toggleRemoteControlInteractive}
-              isDesktopReady={call.isDesktopReady}
-              callType={call.callType}
-              isSpeakerMuted={call.isSpeakerMuted}
-              onToggleSpeaker={call.toggleSpeakerMute}
-              avatarMood={call.avatarMood}
-              chatStreamConnectionStatus="connected"
-              reconnectChatStream={() => {}}
-              chatStreamActivitySignal={0}
-            />
-          )}
         </RoomContext.Provider>
       )}
     </CallContext.Provider>

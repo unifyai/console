@@ -25,7 +25,8 @@ import {
 } from '@/types/assistants/assistant';
 import { ContactType, type OAuthProvider } from '@/types/assistants/contact';
 import { toast } from 'sonner';
-import { Loader } from '@/components/Common/Loader';
+import { Loader2 } from 'lucide-react';
+import { AssistantSectionSkeleton } from '@/components/Common/Loaders/Skeletons';
 
 const AssistantHire = dynamic(
   () => import('./Hire/AssistantHire').then((m) => ({ default: m.AssistantHire })),
@@ -46,8 +47,11 @@ import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
+  COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
+  requestAssistantInfoPanelOpen,
   requestAssistantInfoPanelOpenAfterSelect,
   requestAssistantInfoPanelToggle,
+  type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
@@ -59,6 +63,7 @@ import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 import { useBillingEvents } from '@/hooks/Billing/useBillingEvents';
 import { AssistantsBanners } from './AssistantsBanners';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
+import { useRunningTaskSnapshot } from '@/hooks/Assistants/useRunningTaskSnapshot';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
@@ -67,7 +72,23 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, usePathname } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { isAssistantsPath } from '@/lib/navigation/appShellRoutes';
-import { usePendingShellNavigationTarget } from '@/lib/navigation/AppShellRouter';
+import {
+  pathnameFromHref,
+  usePendingAssistantSectionTarget,
+  usePendingShellNavigationTarget,
+  useAppShellNavigation,
+} from '@/lib/navigation/AppShellRouter';
+import {
+  OPEN_ASSISTANT_CHAT_EVENT,
+  type OpenAssistantChatDetail,
+} from '@/lib/navigation/openAssistantChat';
+import { AssistantFloatingChatHost } from '@/components/Pages/Assistants/Chat/AssistantFloatingChatHost';
+import { AssistantSwitcherBridgeSync } from '@/components/Layout/Shell/AssistantSwitcherBridgeSync';
+import { writeStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
+import {
+  PLATFORM_HOME_NAVIGATION_EVENT,
+  requestPlatformHomeNavigation,
+} from '@/lib/navigation/platformHome';
 import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
@@ -79,8 +100,20 @@ import {
   type CoordinatorWorkspaceScope,
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
+import { buildDisplayedAssistantStatuses } from '@/lib/assistants/coordinatorOnboardingPresence';
 import { debugConsole } from '@/lib/consoleDebug';
+import { wakeCoordinator } from '@/lib/client/coordinator';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
+import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
+import {
+  COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS,
+  COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS,
+} from '@/utils/assistants/coordinator-onboarding-intro';
+import {
+  clearCoordinatorOnboardingStaleFlag,
+  COORDINATOR_ONBOARDING_STALE_EVENT,
+  readCoordinatorOnboardingStaleAt,
+} from '@/lib/assistants/coordinatorOnboardingInvalidation';
 import {
   CoordinatorOnboardingProvider,
   type CoordinatorOnboardingContextValue,
@@ -91,7 +124,7 @@ import {
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
@@ -107,7 +140,10 @@ import {
   type TranscriptReconcilerPair,
 } from '@/hooks/Assistants/useAssistantTranscriptReconciler';
 import { useUnreadDocumentTitle } from '@/hooks/Assistants/useUnreadDocumentTitle';
-import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
+import type {
+  ParsedInboundChatMessage,
+  ParsedReactionUpdate,
+} from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { RoomContext } from '@livekit/components-react';
@@ -126,9 +162,14 @@ import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
+import {
+  appendRequestSentAck,
+  ONBOARDING_START_ACK_STEP_IDS,
+} from '@/utils/assistants/request-sent-ack';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
+const COORDINATOR_ONBOARDING_IDLE_POLL_MS = 30_000;
 const COORDINATOR_ONBOARDING_STEP_RETRY_MS = 30_000;
 type ContactManagerInitialTab = ContactType | 'slack';
 
@@ -182,12 +223,27 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
   const routePathname = usePathname();
+  const { navigateTo, navigateToAssistants } = useAppShellNavigation();
   const pendingShellNavigationTarget = usePendingShellNavigationTarget();
+  const { pendingAssistantSectionId, clearPendingAssistantSection } =
+    usePendingAssistantSectionTarget();
+  const pendingTargetPathname = pendingShellNavigationTarget
+    ? pathnameFromHref(pendingShellNavigationTarget)
+    : null;
+  const isAssistantsRouteActive = isAssistantsPath(routePathname);
+  const isPendingAssistantsTarget = pendingTargetPathname
+    ? isAssistantsPath(pendingTargetPathname)
+    : false;
+  const isPendingNonAssistantsTarget = pendingTargetPathname
+    ? !isAssistantsPath(pendingTargetPathname)
+    : false;
   // `Main` is mounted persistently by the app shell and only hidden when the
   // user is on another surface (settings/admin/etc). It must not write to the
   // URL while hidden, or its `?profile=` sync would yank navigation back to
   // `/assistants`. All URL writes target `/assistants` and are gated on this.
-  const isActiveSurface = isAssistantsPath(routePathname) && pendingShellNavigationTarget === null;
+  const isActiveSurface =
+    isPendingAssistantsTarget || (isAssistantsRouteActive && !isPendingNonAssistantsTarget);
+  const canWriteAssistantUrl = isAssistantsRouteActive && pendingShellNavigationTarget === null;
   const pathname = '/assistants';
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
@@ -215,7 +271,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       if (typeof window === 'undefined') return;
       // Only the visible assistants surface owns the URL. When hidden behind a
       // settings/admin route, skip the write so navigation is not hijacked.
-      if (!isActiveSurface) return;
+      if (!canWriteAssistantUrl) return;
 
       const currentProfile = searchParams.get('profile');
       if ((assistantId ?? null) === (currentProfile ?? null)) return;
@@ -231,7 +287,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       const nextUrl = nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname;
       router.replace(nextUrl, { scroll: false });
     },
-    [isActiveSurface, router, searchParams]
+    [canWriteAssistantUrl, router, searchParams]
   );
 
   // --- UI Panel Management ---
@@ -244,12 +300,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
+      writeStoredSelectedAssistantId(assistantId);
       syncProfileQueryParam(assistantId);
     },
     [setPanelProfileAssistant, syncProfileQueryParam]
   );
+  React.useEffect(() => {
+    if (!isActiveSurface || !profileAssistantId) return;
+    syncProfileQueryParam(profileAssistantId);
+  }, [isActiveSurface, profileAssistantId, syncProfileQueryParam]);
   const handleProfileClose = React.useCallback(() => {
     clearPanelProfileAssistant();
+    writeStoredSelectedAssistantId(null);
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
   const handleToggleAssistantInfo = React.useCallback(
@@ -264,25 +326,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [handleShowProfile, profileAssistantId]
   );
 
-  // Right-pane state (primary tab, optional secondary tab for split-view,
-  // splitter ratio) is lifted out of `RightPaneContainer` for two reasons:
-  //   1. Unread suppression below needs to know whether *either* slot is
-  //      showing the Chat tab to decide if the user is "viewing chat" for
-  //      the selected assistant.
-  //   2. Split layout / ratio is persisted across reloads via localStorage
-  //      so power users keep their preferred two-pane setup.
-  // Reset to single-Chat on assistant change — a fresh open should land
-  // on the conversation, not on whatever split the previous assistant
-  // had configured.
+  // Right-pane state lives above the tab host so it survives shell route
+  // transitions while the app stays mounted. Reloads and direct landings
+  // intentionally start from Chat.
   const RIGHT_PANE_STORAGE_KEY = 'console:assistants:rightPaneState';
   const [paneState, setPaneState] = React.useState<RightPaneState>(DEFAULT_RIGHT_PANE_STATE);
 
-  // Hydrate persisted layout post-mount (avoids SSR mismatch). On mobile
-  // we forcibly drop any persisted secondary slot — split is desktop-only,
-  // and surfacing a half-pane on a phone would be unusable.
+  // Hydrate only same-page-session state. Hard reload clears this key below,
+  // so cold `/assistants` entry lands on Chat.
   React.useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(RIGHT_PANE_STORAGE_KEY);
+      const stored = window.sessionStorage.getItem(RIGHT_PANE_STORAGE_KEY);
       if (!stored) return;
       const parsed = JSON.parse(stored) as Partial<RightPaneState> | null;
       if (!parsed || typeof parsed !== 'object') return;
@@ -308,18 +362,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         splitRatio: typeof parsed.splitRatio === 'number' ? parsed.splitRatio : 0.5,
       });
     } catch {
-      // localStorage may be unavailable (private mode, etc.) — ignore.
+      // Storage may be unavailable (private mode, etc.) — ignore.
     }
   }, []);
 
-  // Persist layout changes (best-effort; ignore quota/private-mode failures).
+  // Persist within the live tab only; remove it before a full page unload so
+  // reload/direct entry returns to Chat.
   React.useEffect(() => {
     try {
-      window.localStorage.setItem(RIGHT_PANE_STORAGE_KEY, JSON.stringify(paneState));
+      window.sessionStorage.setItem(RIGHT_PANE_STORAGE_KEY, JSON.stringify(paneState));
     } catch {
       /* ignore */
     }
   }, [paneState]);
+
+  React.useEffect(() => {
+    const clearStoredPaneState = () => {
+      try {
+        window.sessionStorage.removeItem(RIGHT_PANE_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('beforeunload', clearStoredPaneState);
+    window.addEventListener('pagehide', clearStoredPaneState);
+    return () => {
+      window.removeEventListener('beforeunload', clearStoredPaneState);
+      window.removeEventListener('pagehide', clearStoredPaneState);
+    };
+  }, []);
 
   // Collapse to primary-only on viewport shrink to mobile so a stored
   // split doesn't suddenly look broken when the user resizes their window.
@@ -334,15 +405,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     return () => mql.removeEventListener('change', handler);
   }, []);
 
-  React.useEffect(() => {
-    setActiveBrainSectionId(null);
-    setPaneState((prev) => ({
-      ...prev,
-      primary: { tab: 'chat' },
-      secondary: null,
-    }));
-  }, [profileAssistantId]);
-
   // --- Rail shell state ---
   // The active rail section is derived: for `view` sections the id equals the
   // right-pane tab, so we read it straight off `paneState`. Brain sections that
@@ -352,6 +414,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [activeBrainSectionId, setActiveBrainSectionId] = React.useState<string | null>(null);
   const activeSectionId = activeBrainSectionId ?? paneState.primary.tab;
   const activeSectionDef = SECTION_BY_ID[activeSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
+  const [hasVisitedBrainSection, setHasVisitedBrainSection] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!pendingAssistantSectionId) return;
+
+    const section = SECTION_BY_ID[pendingAssistantSectionId];
+    clearPendingAssistantSection();
+    if (!section || section.kind === 'action') return;
+
+    if (section.kind === 'brain-view' || section.kind === 'placeholder') {
+      setActiveBrainSectionId(section.id);
+      return;
+    }
+
+    const tab = section.tab;
+    if (tab) {
+      setActiveBrainSectionId(null);
+      setPaneState((prev) => ({ ...prev, primary: { tab } }));
+    }
+  }, [clearPendingAssistantSection, pendingAssistantSectionId]);
+
+  React.useEffect(() => {
+    if (activeSectionDef.kind === 'brain-view') {
+      setHasVisitedBrainSection(true);
+    }
+  }, [activeSectionDef.kind]);
 
   const { isBelowMobile, isBelowTablet } = useBreakpoint();
   const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
@@ -393,12 +481,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
+  // Match the rail's active section, not raw pane slots — a split secondary
+  // Chat tab must not suppress the floater while Tasks/Actions/etc. is selected.
+  const isFullPageAssistantChatVisible = activeSectionId === 'chat';
+
+  const [floatingChatExpanded, setFloatingChatExpanded] = React.useState(false);
+  const handleFloatingChatExpandedChange = React.useCallback((expanded: boolean) => {
+    setFloatingChatExpanded(expanded);
+  }, []);
 
   // --- Assistant Data & Actions ---
   const {
     assistants,
     setAssistants,
     isLoading: isLoadingAssistants,
+    isInitialLoading: isInitialLoadingAssistants,
+    isRefreshing: isRefreshingAssistants,
+    hasSettledOnce: hasSettledAssistants,
     error: assistantError,
     refreshAssistants,
     deleteAssistant,
@@ -435,12 +534,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [canonicalCoordinatorId, handleShowProfile, profileAssistantId]
   );
 
-  // Coordinator onboarding intro gate: on a fresh ``onboarding`` visit
-  // (``mode === 'onboarding'`` and the intro hasn't been watched yet) we
-  // overlay the call-vs-chat picker + animated intro on top of the
-  // regular /assistants shell. The layout itself never swaps — once the
-  // overlay dismisses the user is in the full platform with the
-  // onboarding checklist in the Coordinator's "Assistant info" panel.
+  // Coordinator onboarding intro gate: on a fresh visit with active
+  // onboarding and the intro not yet watched we overlay the call-vs-chat
+  // picker on top of the regular /assistants shell. The layout itself
+  // never swaps — once the overlay dismisses the user is in the full
+  // platform with the onboarding checklist in the Coordinator's
+  // "Assistant info" panel.
   //
   // The hook is enabled the moment a canonical coordinator is resolvable
   // — non-owner viewers of an org workspace fall through with
@@ -460,17 +559,25 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // doesn't pop back in after the picker is resolved (the ``intro_watched``
   // write is async + optimistic, but this keeps the dismissal instant).
   const [coordinatorIntroDismissed, setCoordinatorIntroDismissed] = React.useState(false);
+  // Set when the user picks chat on the onboarding overlay; drives a one-shot
+  // forced typing bubble until the scripted opener lands (see chat panel prop).
+  const [awaitingCoordinatorChatIntro, setAwaitingCoordinatorChatIntro] = React.useState(false);
+  const [showCoordinatorChatIntroTyping, setShowCoordinatorChatIntroTyping] = React.useState(false);
   // Global "do onboarding later" switch. When set, the whole Console
   // onboarding surface (intro overlay, focus layout, nudge dot) stands
   // down so the user can use the platform first — mirrored to the
   // Coordinator's prompts server-side. Per-step state is untouched.
-  const isCoordinatorOnboardingDeferred = coordinatorOnboardingState?.onboardingDeferred === true;
+  const isCoordinatorOnboardingActive = coordinatorOnboardingState?.onboardingActive === true;
+  useCoordinatorOnboardingInvalidation(
+    canonicalCoordinator?.agentId ?? null,
+    isCanonicalCoordinatorOwned && isCoordinatorOnboardingActive,
+    refetchCoordinatorOnboardingState
+  );
   const showCoordinatorOnboardingIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
     !coordinatorIntroDismissed &&
-    !isCoordinatorOnboardingDeferred &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
+    isCoordinatorOnboardingActive &&
     coordinatorOnboardingState?.introWatched === false;
   const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
     React.useState(0);
@@ -678,22 +785,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     },
     [updateCoordinatorOnboardingState]
   );
-  // Global defer toggle. Persists to the Coordinator/State row; the
-  // optimistic React Query update in the hook flips the layout instantly,
-  // and Orchestra suppresses every onboarding event the moment it lands.
-  const deferCoordinatorOnboarding = React.useCallback(() => {
-    void updateCoordinatorOnboardingState({ onboardingDeferred: true });
-  }, [updateCoordinatorOnboardingState]);
-  const resumeCoordinatorOnboarding = React.useCallback(() => {
-    void updateCoordinatorOnboardingState({ onboardingDeferred: false });
-  }, [updateCoordinatorOnboardingState]);
-  // Re-enter onboarding from working mode. Flipping ``mode`` back to
-  // ``onboarding`` lets Orchestra re-derive the progress render and the
-  // Coordinator's nudges re-engage; clearing the defer switch alongside
-  // guarantees a clean active flow (a no-op when it wasn't deferred).
-  const reactivateCoordinatorOnboarding = React.useCallback(() => {
-    void updateCoordinatorOnboardingState({ mode: 'onboarding', onboardingDeferred: false });
-  }, [updateCoordinatorOnboardingState]);
+  const setCoordinatorOnboardingActive = React.useCallback(
+    (active: boolean) => {
+      void updateCoordinatorOnboardingState({ onboardingActive: active });
+    },
+    [updateCoordinatorOnboardingState]
+  );
 
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({
@@ -706,11 +803,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepUnskipped,
       engagedStepIds,
       markStepEngaged,
-      onboardingDeferred: isCoordinatorOnboardingDeferred,
-      deferOnboarding: deferCoordinatorOnboarding,
-      resumeOnboarding: resumeCoordinatorOnboarding,
-      mode: coordinatorOnboardingState?.mode ?? null,
-      reactivateOnboarding: reactivateCoordinatorOnboarding,
+      onboardingActive: isCoordinatorOnboardingActive,
+      setOnboardingActive: setCoordinatorOnboardingActive,
       onboarding: coordinatorOnboardingState?.onboarding ?? null,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
@@ -725,11 +819,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepUnskipped,
       engagedStepIds,
       markStepEngaged,
-      isCoordinatorOnboardingDeferred,
-      deferCoordinatorOnboarding,
-      resumeCoordinatorOnboarding,
-      coordinatorOnboardingState?.mode,
-      reactivateCoordinatorOnboarding,
+      isCoordinatorOnboardingActive,
+      setCoordinatorOnboardingActive,
       coordinatorOnboardingState?.onboarding,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
@@ -754,7 +845,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // so neither branch fires again after the initial bootstrap.
   const isCoordinatorOnboardingResolvePending =
     ENABLE_COORDINATOR_ONBOARDING &&
-    ((isLoadingAssistants && !canonicalCoordinator) ||
+    ((isInitialLoadingAssistants && !canonicalCoordinator) ||
       (isCanonicalCoordinatorOwned &&
         coordinatorOnboardingState === null &&
         isCoordinatorOnboardingStateLoading));
@@ -763,8 +854,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   if (!isCoordinatorOnboardingResolvePending) {
     assistantsBootstrappedRef.current = true;
   }
-  const showWorkspaceBootstrapLoader =
-    isCoordinatorOnboardingResolvePending && !assistantsBootstrappedRef.current;
+  const showAssistantContentSkeleton =
+    canWriteAssistantUrl &&
+    !hasSettledAssistants &&
+    isCoordinatorOnboardingResolvePending &&
+    !assistantsBootstrappedRef.current;
 
   React.useEffect(() => {
     debugConsole('coordinator-onboarding', 'gate.evaluate', {
@@ -774,9 +868,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isCanonicalCoordinatorOwned,
       isCoordinatorOnboardingStateLoading,
       hasCoordinatorOnboardingState: coordinatorOnboardingState !== null,
-      mode: coordinatorOnboardingState?.mode ?? null,
-      introWatched: coordinatorOnboardingState?.introWatched ?? null,
-      onboardingDeferred: coordinatorOnboardingState?.onboardingDeferred ?? null,
+      onboardingActive: coordinatorOnboardingState?.onboardingActive ?? null,
       coordinatorIntroDismissed,
       isCoordinatorOnboardingResolvePending,
       showCoordinatorOnboardingIntro,
@@ -812,6 +904,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     toggleSpeakerMute,
     isWaitingForAssistant,
     isAssistantPreparing,
+    activeOpeningConfig,
     waitingMessage,
     connectionError,
     retryConnection,
@@ -828,6 +921,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     popOut,
     redock,
   } = useCallContext();
+
+  const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
+  React.useEffect(() => {
+    const wasActive = wasAssistantsSurfaceActiveRef.current;
+    wasAssistantsSurfaceActiveRef.current = isActiveSurface;
+    if (!wasActive && isActiveSurface && activeCallAssistant) {
+      redock();
+    }
+  }, [activeCallAssistant, isActiveSurface, redock]);
 
   React.useEffect(() => {
     if (!profileAssistantId || isLoadingAssistants) return;
@@ -904,9 +1006,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       requestCoordinatorOnboardingInfoClose();
     } else {
       requestCoordinatorOnboardingFocusLayout();
+      requestFirstLoginCommunicationEmailOpen();
     }
 
-    if (isActiveSurface) {
+    if (canWriteAssistantUrl) {
       const nextParams = new URLSearchParams(searchParams.toString());
       nextParams.delete('onboarding');
       const nextQuery = nextParams.toString();
@@ -916,20 +1019,67 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [
     canonicalCoordinatorId,
+    canWriteAssistantUrl,
     handleShowProfile,
-    isActiveSurface,
     isLoadingAssistants,
     onboardingFocusParam,
     pathname,
     requestCoordinatorOnboardingFocusLayout,
     requestCoordinatorOnboardingInfoClose,
+    requestFirstLoginCommunicationEmailOpen,
     router,
     searchParams,
   ]);
 
+  React.useEffect(() => {
+    const onCoordinatorOnboardingPanelRequest = (event: Event) => {
+      const detail = (event as CustomEvent<CoordinatorOnboardingPanelRequestDetail>).detail;
+      if (!detail?.assistantId || !canonicalCoordinatorId) return;
+      if (detail.assistantId !== canonicalCoordinatorId) return;
+      if (isLoadingAssistants) return;
+
+      setActiveBrainSectionId(null);
+      setPaneState((prev) => ({
+        ...prev,
+        primary: { tab: 'chat' },
+        secondary: null,
+      }));
+      handleShowProfile(canonicalCoordinatorId);
+
+      if (detail.action === 'close') {
+        requestCoordinatorOnboardingInfoClose();
+        return;
+      }
+
+      requestCoordinatorOnboardingFocusLayout();
+      requestFirstLoginCommunicationEmailOpen();
+      requestAssistantInfoPanelOpen(canonicalCoordinatorId);
+    };
+
+    window.addEventListener(
+      COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
+      onCoordinatorOnboardingPanelRequest
+    );
+    return () => {
+      window.removeEventListener(
+        COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
+        onCoordinatorOnboardingPanelRequest
+      );
+    };
+  }, [
+    canonicalCoordinatorId,
+    handleShowProfile,
+    isLoadingAssistants,
+    requestCoordinatorOnboardingFocusLayout,
+    requestCoordinatorOnboardingInfoClose,
+    requestFirstLoginCommunicationEmailOpen,
+  ]);
+
   // --- Assistant Status Polling ---
-  const { statuses: assistantStatuses, markOnline: markAssistantOnline } =
-    useAssistantStatus(assistants);
+  const { statuses: assistantStatuses, markOnline: markAssistantOnline } = useAssistantStatus(
+    assistants,
+    { enabled: isActiveSurface }
+  );
 
   // --- Billing Status & Credit Grant Link ---
   const {
@@ -940,7 +1090,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
     startPolling: startBillingPolling,
-  } = useBillingStatus();
+  } = useBillingStatus({ enabled: isActiveSurface });
   useBillingEvents();
   // Auto-claims any pending credit-grant link token on mount (promo links).
   useCreditGrantLink();
@@ -967,6 +1117,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- Dialogs & Forms ---
   const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
   const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
+  const [isEditFormReady, setIsEditFormReady] = React.useState(false);
   const [contactManagerAssistant, setContactManagerAssistant] = React.useState<Assistant | null>(
     null
   );
@@ -995,6 +1146,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     Record<string, ChatMessage[]>
   >({});
   const [callPillHistories, setCallPillHistories] = React.useState<Record<string, CallPill[]>>({});
+  const [requestAckHistories, setRequestAckHistories] = React.useState<
+    Record<string, RequestSentAck[]>
+  >({});
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro) {
+      setShowCoordinatorChatIntroTyping(false);
+      return;
+    }
+    const handle = window.setTimeout(
+      () => setShowCoordinatorChatIntroTyping(true),
+      COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS
+    );
+    return () => window.clearTimeout(handle);
+  }, [awaitingCoordinatorChatIntro]);
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro || canonicalCoordinatorId === null) return;
+    const messages = profileChatHistories[String(canonicalCoordinatorId)] ?? [];
+    if (messages.some((message) => message.role === 'assistant')) {
+      setAwaitingCoordinatorChatIntro(false);
+    }
+  }, [awaitingCoordinatorChatIntro, canonicalCoordinatorId, profileChatHistories]);
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro) return;
+    const handle = window.setTimeout(
+      () => setAwaitingCoordinatorChatIntro(false),
+      COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS
+    );
+    return () => window.clearTimeout(handle);
+  }, [awaitingCoordinatorChatIntro]);
 
   // --- Prefetch contact IDs, transcripts, AND call pills for all loaded assistants ---
   // Resolves contact IDs and fetches transcript history + meet call pills in
@@ -1017,7 +1200,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // assistant in the workspace. Drives (a) unread badges on the list, (b)
   // the currently-open chat panel's message history, (c) the typing
   // indicator via `activityCounters`, and (d) the per-assistant online
-  // status via `markAssistantOnline`.
+  // status via `handleAssistantLiveActivity` (any inbound SSE frame,
+  // including unify_meet_incoming rings, plus call-connect fallbacks).
   //
   // Pairs are assembled from the `resolvedContactIds` state that
   // `useContactIdPrefetch` maintains; as new IDs resolve, React batches the
@@ -1054,12 +1238,26 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [chatActivityCounters, setChatActivityCounters] = React.useState<Record<string, number>>(
     {}
   );
-  const handleChatActivity = React.useCallback((assistantId: string) => {
-    setChatActivityCounters((prev) => ({
-      ...prev,
-      [assistantId]: (prev[assistantId] ?? 0) + 1,
-    }));
-  }, []);
+  const handleChatActivity = React.useCallback(
+    (assistantId: string) => {
+      setChatActivityCounters((prev) => ({
+        ...prev,
+        [assistantId]: (prev[assistantId] ?? 0) + 1,
+      }));
+      if (canonicalCoordinatorId !== null && assistantId === String(canonicalCoordinatorId)) {
+        void refetchCoordinatorOnboardingState();
+      }
+    },
+    [canonicalCoordinatorId, refetchCoordinatorOnboardingState]
+  );
+
+  const handleAssistantLiveActivity = React.useCallback(
+    (assistantId: string) => {
+      handleChatActivity(assistantId);
+      markAssistantOnline(assistantId);
+    },
+    [handleChatActivity, markAssistantOnline]
+  );
 
   // `ackMessage` is returned by `useAssistantChatStream` below, but we need
   // to reference it from inside `handleChatStreamMessage`, which is passed
@@ -1216,6 +1414,37 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [handleChatActivity, markAssistantOnline]
   );
 
+  const handleChatStreamReaction = React.useCallback(
+    (assistantId: string, parsed: ParsedReactionUpdate) => {
+      setProfileChatHistories((prev) => {
+        const current = prev[assistantId];
+        if (!current) return prev;
+        const index = current.findIndex((msg) => msg.messageId === parsed.targetMessageId);
+        if (index === -1) return prev;
+        const updated = [...current];
+        updated[index] = {
+          ...updated[index],
+          reactions: parsed.reactions,
+        };
+        return { ...prev, [assistantId]: updated };
+      });
+
+      try {
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+        const payload: BroadcastMessagePayload = {
+          type: 'REACTION_UPDATE',
+          targetMessageId: parsed.targetMessageId,
+          reactions: parsed.reactions,
+        };
+        channel.postMessage(payload);
+        channel.close();
+      } catch {
+        /* BroadcastChannel unsupported */
+      }
+    },
+    []
+  );
+
   const handleChatStreamDesktopReady = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
       try {
@@ -1268,9 +1497,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     chatStreamPairs.length > 0,
     {
       onChatMessage: handleChatStreamMessage,
+      onReactionUpdate: handleChatStreamReaction,
       onDesktopReady: handleChatStreamDesktopReady,
       onUnifyMeetIncoming: handleUnifyMeetIncoming,
-      onMessageActivity: handleChatActivity,
+      onMessageActivity: handleAssistantLiveActivity,
     },
     {
       userEmail: userMeta.email ?? undefined,
@@ -1282,6 +1512,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // open, the call dialog's embedded side panel.
       activeAssistantId:
         (isChatVisibleInRightPane ? profileAssistantId : null) ??
+        (floatingChatExpanded &&
+        profileAssistantId &&
+        !isHireDialogOpen &&
+        !showCoordinatorOnboardingIntro
+          ? profileAssistantId
+          : null) ??
         activeCallAssistant?.agentId ??
         null,
       getCutoff: getChatStreamCutoff,
@@ -1310,9 +1546,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
     activeAssistantId:
       (isChatVisibleInRightPane ? profileAssistantId : null) ??
+      (floatingChatExpanded &&
+      profileAssistantId &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+        ? profileAssistantId
+        : null) ??
       activeCallAssistant?.agentId ??
       null,
-    enabled: reconcilerPairs.length > 0,
+    enabled: isActiveSurface && reconcilerPairs.length > 0,
     chatHistories: profileChatHistories,
     setChatHistories: setProfileChatHistories,
   });
@@ -1333,10 +1575,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     // chat (Chat tab present in either split slot + assistant selected).
     // Selecting an assistant while on a non-chat tab leaves the badge in
     // place; switching either slot to the Chat tab is what marks it read.
-    if (profileAssistantId && isChatVisibleInRightPane) {
+    if (isActiveSurface && profileAssistantId && isChatVisibleInRightPane) {
       markChatStreamRead(profileAssistantId);
     }
-  }, [profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+    if (
+      profileAssistantId &&
+      floatingChatExpanded &&
+      !isChatVisibleInRightPane &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+    ) {
+      markChatStreamRead(profileAssistantId);
+    }
+  }, [
+    isActiveSurface,
+    profileAssistantId,
+    isChatVisibleInRightPane,
+    floatingChatExpanded,
+    isHireDialogOpen,
+    showCoordinatorOnboardingIntro,
+    markChatStreamRead,
+  ]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -1359,9 +1618,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const userSpendingConfig = React.useMemo(
     () => ({
       setLimitAction: disabledAction,
-      enablePolling: true,
+      enablePolling: isActiveSurface,
     }),
-    [disabledAction]
+    [disabledAction, isActiveSurface]
   );
 
   const userSpendingData = useUserSpending(userSpendingConfig);
@@ -1378,9 +1637,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     return {
       orgId: userMeta.orgId,
       setLimitAction: disabledAction,
-      enablePolling: true,
+      enablePolling: isActiveSurface,
     };
-  }, [userMeta.orgId, disabledAction]);
+  }, [userMeta.orgId, disabledAction, isActiveSurface]);
 
   const orgSpendingData = useOrgSpending(orgSpendingConfig);
 
@@ -1435,11 +1694,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return;
       }
 
+      markAssistantOnline(assistant.agentId);
+
       // Fresh call: stay docked by default.
       redock();
       await startCall(assistant, callType, options);
     },
-    [startCall, redock, activeCallAssistant]
+    [startCall, redock, activeCallAssistant, markAssistantOnline]
   );
 
   const handleHangUp = React.useCallback(async () => {
@@ -1452,8 +1713,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setIncomingMeetCall(null);
     handleShowProfile(assistant.agentId);
     const openingConfig: CallOpeningConfig = {
-      mode: 'briefed',
-      systemContext: reason || 'Continuing our conversation on the live call.',
+      mode: 'opener',
+      openerText: reason || 'Continuing our conversation on the live call.',
       source: 'unify_meet_ring',
     };
     void handleStartCall(assistant, 'audio', {
@@ -1479,6 +1740,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     const timer = setTimeout(() => setIncomingMeetCall(null), 30000);
     return () => clearTimeout(timer);
   }, [incomingMeetCall, activeCallAssistant]);
+
+  React.useEffect(() => {
+    if (!activeCallAssistant || !isCallConnected || isWaitingForAssistant) return;
+    markAssistantOnline(activeCallAssistant.agentId);
+  }, [activeCallAssistant, isCallConnected, isWaitingForAssistant, markAssistantOnline]);
 
   const {
     setPresetAgeFilter,
@@ -1600,6 +1866,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     (updatedPayload?: Partial<AssistantUpdatePayload>) => {
       refreshAssistants(false);
       setAssistantToEdit(null);
+      setIsEditFormReady(false);
       setContactManagerAssistant(null);
       // Note: desktopMode is set at creation time only and cannot be updated,
       // so we no longer show setup instructions on update
@@ -1735,28 +2002,49 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     applyRandomUnityProfile,
   ]);
 
-  const handleOpenEditDialog = React.useCallback(
-    (assistant: Assistant) => {
+  React.useEffect(() => {
+    void import('./Edit/AssistantEdit');
+  }, []);
+
+  React.useEffect(() => {
+    if (!assistantToEdit) {
+      setIsEditFormReady(false);
+      return;
+    }
+
+    const assistant = assistantToEdit;
+    const frame = requestAnimationFrame(() => {
       loadAssistantForEdit(assistant);
-      setAssistantToEdit(assistant);
-    },
-    [loadAssistantForEdit]
-  );
+      setIsEditFormReady(true);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [assistantToEdit, loadAssistantForEdit]);
+
+  const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
+    setIsEditFormReady(false);
+    setAssistantToEdit(assistant);
+  }, []);
+
+  const handleCloseEditDialog = React.useCallback(() => {
+    setAssistantToEdit(null);
+    setIsEditFormReady(false);
+  }, []);
+
+  const isEditProfileOpening = Boolean(assistantToEdit && !isEditFormReady);
 
   const handleOpenContactManager = React.useCallback(
     (assistant: Assistant, tab: ContactManagerInitialTab = 'email') => {
-      loadAssistantForEdit(assistant);
       setContactManagerInitialTab(tab);
       setContactManagerAssistant(assistant);
     },
-    [loadAssistantForEdit]
+    []
   );
 
-  const handleOpenWorkspaceManager = (assistant: Assistant) => {
-    loadAssistantForEdit(assistant);
+  const handleOpenWorkspaceManager = React.useCallback((assistant: Assistant) => {
     setWorkspaceManagerInitialProvider(null);
     setWorkspaceManagerAssistant(assistant);
-  };
+  }, []);
 
   // Handler bag forwarded to the coordinator's assistant info
   // panel "Onboarding" sub-tab. ``connect-workspace`` is kept wired
@@ -1782,20 +2070,57 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [markStepEngaged]
   );
 
-  // Open the user's account settings in a new tab so the chat session
-  // isn't disrupted while they configure their profile. Optional `tab`
-  // mirrors the /account page's `?tab=` param (see SettingsView) so
-  // callers can deep-link straight to the relevant section.
-  const handleOpenUserSettings = React.useCallback((tab?: string) => {
-    if (typeof window === 'undefined') return;
-    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
-    try {
-      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
-    } catch {
-      /* private mode / quota — refresh just won't trigger */
-    }
-    window.open(url, '_blank', 'noopener');
-  }, []);
+  // Open the user's account settings. By default opens a new tab so the
+  // chat session isn't disrupted; pass `sameTab` to navigate in the
+  // current tab instead. Optional `tab` mirrors the /account page's
+  // `?tab=` param (see SettingsView) so callers can deep-link straight
+  // to the relevant section.
+  const handleOpenUserSettings = React.useCallback(
+    (tab?: string, sameTab = false) => {
+      if (typeof window === 'undefined') return;
+      requestCoordinatorOnboardingInfoClose();
+      const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
+      try {
+        window.localStorage.setItem(
+          'console:assistants:user-settings-opened-at',
+          String(Date.now())
+        );
+      } catch {
+        /* private mode / quota — refresh just won't trigger */
+      }
+      if (sameTab) {
+        router.push(url);
+      } else {
+        window.open(url, '_blank', 'noopener');
+      }
+    },
+    [requestCoordinatorOnboardingInfoClose, router]
+  );
+
+  const appendCoordinatorRequestSentAck = React.useCallback(
+    (label: string) => {
+      if (!canonicalCoordinator) return;
+      appendRequestSentAck(setRequestAckHistories, canonicalCoordinator.agentId, label);
+    },
+    [canonicalCoordinator]
+  );
+
+  const resolveOnboardingStepLabel = React.useCallback(
+    (stepId: string, chipId?: string): string | null => {
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return null;
+      if (chipId) {
+        const chip = [...step.chipsChat, ...step.chipsCall].find(
+          (candidate) => candidate.id === chipId
+        );
+        return chip?.label ?? step.title;
+      }
+      return step.title;
+    },
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
 
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
@@ -1803,14 +2128,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      if (ONBOARDING_START_ACK_STEP_IDS.has(stepId)) {
+        const label = resolveOnboardingStepLabel(stepId);
+        if (label) appendCoordinatorRequestSentAck(label);
+      }
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void updateCoordinatorOnboardingState({ onboardingStep: stepId });
     },
     [
+      appendCoordinatorRequestSentAck,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
       updateCoordinatorOnboardingState,
     ]
@@ -1827,6 +2158,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void (async () => {
@@ -1850,11 +2183,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
       updateCoordinatorOnboardingState,
     ]
@@ -1879,6 +2214,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId, chipId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(requestKey);
       void (async () => {
@@ -1897,23 +2234,123 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
+      shouldDispatchStepRequest,
+    ]
+  );
+
+  // Dispatch the graph-owned event for the Learning tutorial row. Row click
+  // starts the guided expenses-etl demo directly — no chips. Mirrors the Tasks
+  // beat path: Orchestra emits the canonical onboarding event to Unity and the
+  // user stays on the current surface — no pane navigation.
+  const handleCoordinatorDispatchLearningBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error('[Coordinator onboarding] Failed to dispatch learning beat event:', error);
+          toast.error('Could not start this learning exercise. Please try again.');
+        }
+      })();
+    },
+    [
+      appendCoordinatorRequestSentAck,
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
+      shouldDispatchStepRequest,
+    ]
+  );
+
+  // Dispatch the graph-owned event for the My Computer live demo row. Row click
+  // starts the call-anchored desktop errand directly — no pane navigation.
+  // Mirrors the Learning beat path: Orchestra emits the canonical onboarding
+  // event to Unity and the user stays on the current surface.
+  const handleCoordinatorDispatchMyComputerBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error(
+            '[Coordinator onboarding] Failed to dispatch My Computer beat event:',
+            error
+          );
+          toast.error('Could not start this demo. Please try again.');
+        }
+      })();
+    },
+    [
+      appendCoordinatorRequestSentAck,
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
     ]
   );
 
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
-    handleOpenUserSettings('contact-info');
+    handleOpenUserSettings('contact-info', true);
   }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
 
   const handleCoordinatorAddPhoneNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('phone-number');
-    handleOpenUserSettings('contact-info');
+    handleOpenUserSettings('contact-info', true);
+  }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
+
+  const handleCoordinatorAddDiscordId = React.useCallback(() => {
+    handleCoordinatorStartOnboardingStep('discord-id');
+    handleOpenUserSettings('contact-info', true);
   }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
 
   const handleCoordinatorConnectSlack = React.useCallback(() => {
@@ -1926,7 +2363,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (!canonicalCoordinator) return;
     handleCoordinatorStartOnboardingStep('discord-connect');
     handleOpenContactManager(canonicalCoordinator, 'discord');
-  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+    // ``discord-connect`` is no longer server-derivable: adding the public
+    // bot to a server is invisible to Orchestra, so opening the connect flow
+    // is the explicit user action that completes the step. Persist a durable
+    // manual completion (idempotent) and tick locally so the row settles
+    // immediately rather than after a refetch.
+    markStepCompleted('discord-connect');
+    void updateCoordinatorOnboardingState({
+      onboardingStepCompletion: { stepId: 'discord-connect', completed: true },
+    });
+  }, [
+    canonicalCoordinator,
+    handleCoordinatorStartOnboardingStep,
+    handleOpenContactManager,
+    markStepCompleted,
+    updateCoordinatorOnboardingState,
+  ]);
 
   // Whether the Coordinator still has an actionable onboarding step left.
   // Drives the "Assistant info" nudge dot and request-scoped onboarding
@@ -1934,18 +2386,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const coordinatorOnboardingOutstanding = React.useMemo(
     () =>
       isCanonicalCoordinatorOwned &&
-      !isCoordinatorOnboardingDeferred &&
+      isCoordinatorOnboardingActive &&
       hasOutstandingCoordinatorOnboarding(coordinatorOnboardingState?.onboarding ?? null),
     [
       isCanonicalCoordinatorOwned,
-      isCoordinatorOnboardingDeferred,
+      isCoordinatorOnboardingActive,
       coordinatorOnboardingState?.onboarding,
     ]
   );
   const canApplyCoordinatorOnboardingFocusLayout =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
+    isCoordinatorOnboardingActive &&
     coordinatorOnboardingOutstanding &&
     !showCoordinatorOnboardingIntro &&
     canonicalCoordinatorId !== null &&
@@ -1959,6 +2411,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (hasRequestedInitialCoordinatorFocusLayoutRef.current) return;
     if (isCoordinatorOnboardingResolvePending || isLoadingAssistants) return;
 
+    const pendingSection = pendingAssistantSectionId
+      ? SECTION_BY_ID[pendingAssistantSectionId]
+      : null;
+    const hasExplicitNonDefaultSection =
+      activeSectionId !== DEFAULT_SECTION_ID ||
+      (pendingSection &&
+        pendingSection.kind !== 'action' &&
+        pendingSection.id !== DEFAULT_SECTION_ID);
+    if (hasExplicitNonDefaultSection) {
+      hasRequestedInitialCoordinatorFocusLayoutRef.current = true;
+      return;
+    }
+
     const awaitingBareLandingSelection =
       !landedWithProfileDeepLinkRef.current && !!canonicalCoordinatorId && !profileAssistantId;
     if (awaitingBareLandingSelection) return;
@@ -1968,10 +2433,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       requestCoordinatorOnboardingFocusLayout();
     }
   }, [
+    activeSectionId,
     canApplyCoordinatorOnboardingFocusLayout,
     canonicalCoordinatorId,
     isCoordinatorOnboardingResolvePending,
     isLoadingAssistants,
+    pendingAssistantSectionId,
     profileAssistantId,
     requestCoordinatorOnboardingFocusLayout,
   ]);
@@ -2007,6 +2474,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onTriggerReferenceStep: handleCoordinatorTriggerReferenceStep,
       onAddWhatsappNumber: contactWhatsapp ? handleCoordinatorAddWhatsappNumber : undefined,
       onAddPhoneNumber: contactPhone ? handleCoordinatorAddPhoneNumber : undefined,
+      onAddDiscordId: contactDiscord ? handleCoordinatorAddDiscordId : undefined,
       onConnectSlack:
         userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
@@ -2022,6 +2490,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
       onSelectTaskChip: (stepId: string, chipId: string) =>
         handleCoordinatorDispatchTaskBeat(stepId, chipId),
+      onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
+      onMyComputerDemo: () => handleCoordinatorDispatchMyComputerBeat('my-computer-demo'),
+      appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -2030,14 +2501,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // otherwise.
       isOnCall:
         !!activeCallAssistant && activeCallAssistant.agentId === canonicalCoordinator.agentId,
+      isOnboardingActive: isCoordinatorOnboardingActive,
     };
-    // ``handleOpenWorkspaceManager`` isn't a useCallback (defined
-    // inline above) so it intentionally isn't in the deps — using
-    // its stable identity across renders would require lifting it
-    // to a ref, which is overkill for this rarely-reactive surface.
+    // ``handleOpenWorkspaceManager`` is stable (useCallback) but omitted from
+    // deps — this surface rarely re-reacts to handler identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isCanonicalCoordinatorOwned,
+    isCoordinatorOnboardingActive,
     canonicalCoordinator,
     profileAssistantId,
     activeCallAssistant,
@@ -2052,10 +2523,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorTriggerReferenceStep,
     handleCoordinatorAddWhatsappNumber,
     handleCoordinatorAddPhoneNumber,
+    handleCoordinatorAddDiscordId,
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
+    handleCoordinatorDispatchLearningBeat,
+    handleCoordinatorDispatchMyComputerBeat,
+    appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
@@ -2069,9 +2544,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     (assistant: Assistant, type: 'video' | 'audio', options?: AssistantCallConnectOptions) => {
       handleShowProfile(assistant.agentId);
       const isFreshOnboardingIntro =
-        coordinatorOnboardingState?.mode === 'onboarding' &&
-        coordinatorOnboardingState?.introWatched === false &&
-        coordinatorOnboardingState?.onboardingDeferred !== true;
+        coordinatorOnboardingState?.onboardingActive === true &&
+        coordinatorOnboardingState?.introWatched === false;
       const openingConfig: CallOpeningConfig = isFreshOnboardingIntro
         ? {
             mode: 'recorded',
@@ -2101,6 +2575,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     canonicalCoordinatorId,
     profileAssistantId,
     handleShowProfile,
+  ]);
+
+  React.useEffect(() => {
+    if (!showCoordinatorOnboardingIntro || !canonicalCoordinatorId) return;
+    void wakeCoordinator(canonicalCoordinatorId);
+  }, [showCoordinatorOnboardingIntro, canonicalCoordinatorId]);
+
+  React.useEffect(() => {
+    if (!canonicalCoordinatorId) return;
+    if (!showCoordinatorOnboardingIntro && !awaitingCoordinatorChatIntro) return;
+    markAssistantOnline(String(canonicalCoordinatorId));
+  }, [
+    awaitingCoordinatorChatIntro,
+    canonicalCoordinatorId,
+    markAssistantOnline,
+    showCoordinatorOnboardingIntro,
   ]);
 
   // Seed durable step completion from the server-derived
@@ -2135,8 +2625,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [clearStepRequests, serverSkippedStepIds, seedStepSkipped]);
   React.useEffect(() => {
     if (
-      coordinatorOnboardingState?.mode !== 'onboarding' ||
-      isCoordinatorOnboardingDeferred ||
+      !isActiveSurface ||
+      !isCoordinatorOnboardingActive ||
       !hasAccessibleCoordinatorOnboardingTargets
     ) {
       return;
@@ -2146,11 +2636,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }, COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS);
     return () => window.clearInterval(handle);
   }, [
-    coordinatorOnboardingState?.mode,
+    isActiveSurface,
+    isCoordinatorOnboardingActive,
     hasAccessibleCoordinatorOnboardingTargets,
-    isCoordinatorOnboardingDeferred,
     refetchCoordinatorOnboardingState,
   ]);
+  React.useEffect(() => {
+    if (!isActiveSurface || !isCanonicalCoordinatorOwned || !ENABLE_COORDINATOR_ONBOARDING) {
+      return;
+    }
+    const handle = window.setInterval(() => {
+      void refetchCoordinatorOnboardingState();
+    }, COORDINATOR_ONBOARDING_IDLE_POLL_MS);
+    return () => window.clearInterval(handle);
+  }, [isActiveSurface, isCanonicalCoordinatorOwned, refetchCoordinatorOnboardingState]);
   React.useEffect(() => {
     if (!activeCoordinatorOnboardingStep) return;
     if (
@@ -2254,6 +2753,29 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () => assistants.find((a) => a.agentId === profileAssistantId) || null,
     [assistants, profileAssistantId]
   );
+  const lastSettledProfileAssistantRef = React.useRef<Assistant | null>(null);
+  if (profileAssistant) {
+    lastSettledProfileAssistantRef.current = profileAssistant;
+  }
+  const lastSettledProfileAssistant = lastSettledProfileAssistantRef.current;
+  const canUseLastSettledProfileAssistant =
+    !profileAssistant &&
+    !!lastSettledProfileAssistant &&
+    profileAssistantId === lastSettledProfileAssistant.agentId &&
+    (isLoadingAssistants ||
+      isRefreshingAssistants ||
+      isPendingAssistantsTarget ||
+      isPendingNonAssistantsTarget);
+  const visibleProfileAssistant = canUseLastSettledProfileAssistant
+    ? lastSettledProfileAssistant
+    : profileAssistant;
+
+  const forceCoordinatorChatIntroTyping =
+    showCoordinatorChatIntroTyping &&
+    awaitingCoordinatorChatIntro &&
+    canonicalCoordinatorId !== null &&
+    profileAssistant?.isCoordinator === true &&
+    profileAssistant.agentId === String(canonicalCoordinatorId);
 
   // --- Setup roadmap derivations (live-derived from existing state) ---
   // True iff the user has sent ≥1 message in the currently-profiled
@@ -2349,7 +2871,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // teammate's assistant get the bare Profile layout instead;
   // they have no actionable steps to tick off here.
   const isAssistantOwner =
-    !!profileAssistant && !!currentUserId && profileAssistant.userId === currentUserId;
+    !!visibleProfileAssistant &&
+    !!currentUserId &&
+    visibleProfileAssistant.userId === currentUserId;
   // Open the desktop linker (registered-machine list + local setup
   // instructions). Surfaced from the assistant row's "Connect your
   // desktop" menu entry.
@@ -2370,26 +2894,48 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (typeof window === 'undefined') return;
     const FLAG_KEY = 'console:assistants:user-settings-opened-at';
     const TTL_MS = 10 * 60 * 1000;
-    const onFocus = () => {
+    const refreshAfterAccountRoundTrip = () => {
+      if (!canWriteAssistantUrl) return;
       let openedAt: number | null = null;
+      let onboardingStaleAt: number | null = readCoordinatorOnboardingStaleAt();
       try {
         const raw = window.localStorage.getItem(FLAG_KEY);
         openedAt = raw ? Number(raw) : null;
       } catch {
         return;
       }
-      if (!openedAt || Number.isNaN(openedAt)) return;
-      try {
-        window.localStorage.removeItem(FLAG_KEY);
-      } catch {
-        /* ignore */
+      const now = Date.now();
+      const shouldRefreshFromSettings =
+        openedAt !== null && !Number.isNaN(openedAt) && now - openedAt <= TTL_MS;
+      const shouldRefreshFromOnboardingStale =
+        onboardingStaleAt !== null && now - onboardingStaleAt <= TTL_MS;
+      if (!shouldRefreshFromSettings && !shouldRefreshFromOnboardingStale) return;
+      if (shouldRefreshFromSettings) {
+        try {
+          window.localStorage.removeItem(FLAG_KEY);
+        } catch {
+          /* ignore */
+        }
       }
-      if (Date.now() - openedAt > TTL_MS) return;
+      if (shouldRefreshFromOnboardingStale) {
+        clearCoordinatorOnboardingStaleFlag();
+      }
+      void refetchCoordinatorOnboardingState();
       router.refresh();
     };
+    const onFocus = () => {
+      refreshAfterAccountRoundTrip();
+    };
+    const onOnboardingStale = () => {
+      void refetchCoordinatorOnboardingState();
+    };
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [router]);
+    window.addEventListener(COORDINATOR_ONBOARDING_STALE_EVENT, onOnboardingStale);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener(COORDINATOR_ONBOARDING_STALE_EVENT, onOnboardingStale);
+    };
+  }, [canWriteAssistantUrl, refetchCoordinatorOnboardingState, router]);
 
   // A provider OAuth flow (workspace BYOD, integrations) runs in a separate
   // tab that bounces through ``/oauth/complete`` and broadcasts when it's
@@ -2460,7 +3006,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const activeCallId = activeCallAssistant?.agentId ?? null;
 
   // --- System error listener (assistant-level, above all interaction surfaces) ---
-  useAssistantSystemErrors(profileAssistant);
+  useAssistantSystemErrors(visibleProfileAssistant);
 
   const isFirstViewAfterHire = newlyHiredInfo?.assistant.agentId === profileAssistantId;
 
@@ -2473,7 +3019,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleSelectSection = React.useCallback(
     (section: SectionDef) => {
       if (section.kind === 'action') {
-        if (profileAssistant) handleOpenContactManager(profileAssistant);
+        if (visibleProfileAssistant) handleOpenContactManager(visibleProfileAssistant);
         return;
       }
       if (section.kind === 'brain-view' || section.kind === 'placeholder') {
@@ -2486,7 +3032,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         setPaneState((prev) => ({ ...prev, primary: { tab } }));
       }
     },
-    [profileAssistant, handleOpenContactManager]
+    [visibleProfileAssistant, handleOpenContactManager]
   );
 
   const handleOpenChatSection = React.useCallback(() => {
@@ -2502,45 +3048,177 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     );
   }, []);
 
+  const openAssistantChatFromNavigation = React.useCallback(
+    (assistantId: string) => {
+      const targetId = activeCallAssistant?.agentId ?? assistantId;
+      handleShowProfile(targetId);
+      handleOpenChatSection();
+      if (activeCallAssistant) {
+        redock();
+      }
+    },
+    [activeCallAssistant, handleOpenChatSection, handleShowProfile, redock]
+  );
+
+  React.useEffect(() => {
+    const onOpenAssistantChat = (event: Event) => {
+      const detail = (event as CustomEvent<OpenAssistantChatDetail>).detail;
+      if (!detail?.assistantId) return;
+      openAssistantChatFromNavigation(detail.assistantId);
+    };
+    window.addEventListener(OPEN_ASSISTANT_CHAT_EVENT, onOpenAssistantChat);
+    return () => window.removeEventListener(OPEN_ASSISTANT_CHAT_EVENT, onOpenAssistantChat);
+  }, [openAssistantChatFromNavigation]);
+
+  const goToPlatformHome = React.useCallback(() => {
+    setMobileRailOpen(false);
+    setActiveBrainSectionId(null);
+    setPaneState((prev) => ({
+      ...prev,
+      primary: { tab: 'chat' },
+      secondary: null,
+    }));
+
+    if (!canonicalCoordinatorId) {
+      clearPanelProfileAssistant();
+      if (canWriteAssistantUrl) {
+        router.replace(pathname, { scroll: false });
+      } else {
+        navigateToAssistants();
+      }
+      return;
+    }
+
+    requestAssistantInfoPanelOpen(canonicalCoordinatorId);
+    setPanelProfileAssistant(canonicalCoordinatorId);
+    if (!canWriteAssistantUrl) {
+      navigateTo({ surface: 'assistants', profile: canonicalCoordinatorId });
+      return;
+    }
+    router.replace(`${pathname}?profile=${encodeURIComponent(canonicalCoordinatorId)}`, {
+      scroll: false,
+    });
+  }, [
+    canonicalCoordinatorId,
+    canWriteAssistantUrl,
+    clearPanelProfileAssistant,
+    navigateTo,
+    navigateToAssistants,
+    pathname,
+    router,
+    setPanelProfileAssistant,
+  ]);
+
+  React.useEffect(() => {
+    const onPlatformHome = () => {
+      goToPlatformHome();
+    };
+    window.addEventListener(PLATFORM_HOME_NAVIGATION_EVENT, onPlatformHome);
+    return () => {
+      window.removeEventListener(PLATFORM_HOME_NAVIGATION_EVENT, onPlatformHome);
+    };
+  }, [goToPlatformHome]);
+
+  const coordinatorOnboardingPresenceContext = React.useMemo(
+    () => ({
+      canonicalCoordinatorId,
+      showCoordinatorOnboardingIntro,
+      awaitingCoordinatorChatIntro,
+    }),
+    [awaitingCoordinatorChatIntro, canonicalCoordinatorId, showCoordinatorOnboardingIntro]
+  );
+
+  const displayedAssistantStatuses = React.useMemo(
+    () => buildDisplayedAssistantStatuses(assistantStatuses, coordinatorOnboardingPresenceContext),
+    [assistantStatuses, coordinatorOnboardingPresenceContext]
+  );
+
   // The full prop bag the rail forwards to the embedded `AssistantList` (the
   // unity switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
   // popover list always renders expanded.
-  const railListProps: React.ComponentProps<typeof AssistantList> = {
-    assistants: sidebarAssistants,
-    assistantStatuses,
-    assistantError,
-    isLoading: isLoadingAssistants,
-    error: assistantError,
-    profileAssistantId,
-    onShowProfile: handleAssistantListSelect,
-    onToggleAssistantInfo: handleToggleAssistantInfo,
-    onOpenHireDialog: handleOpenHireDialog,
-    isFolded: false,
-    activeCallAssistantId: activeCallId,
-    canHire,
-    unreadCounts: chatStreamUnreadCounts,
-    currentUserId,
-    workspace: coordinatorWorkspace,
-    teamsById,
-  };
+  const railListProps: React.ComponentProps<typeof AssistantList> = React.useMemo(
+    () => ({
+      assistants: sidebarAssistants,
+      assistantStatuses: displayedAssistantStatuses,
+      assistantError,
+      isLoading: isInitialLoadingAssistants,
+      error: assistantError,
+      profileAssistantId,
+      onShowProfile: handleAssistantListSelect,
+      onToggleAssistantInfo: handleToggleAssistantInfo,
+      onOpenHireDialog: handleOpenHireDialog,
+      isFolded: false,
+      activeCallAssistantId: activeCallId,
+      canHire,
+      unreadCounts: chatStreamUnreadCounts,
+      currentUserId,
+      workspace: coordinatorWorkspace,
+      teamsById,
+    }),
+    [
+      sidebarAssistants,
+      displayedAssistantStatuses,
+      assistantError,
+      isInitialLoadingAssistants,
+      profileAssistantId,
+      handleAssistantListSelect,
+      handleToggleAssistantInfo,
+      handleOpenHireDialog,
+      activeCallId,
+      canHire,
+      chatStreamUnreadCounts,
+      currentUserId,
+      coordinatorWorkspace,
+      teamsById,
+    ]
+  );
 
-  const profileCanWrite = profileAssistant ? canWrite(profileAssistant) : undefined;
-  const profileChatStreamConnectionStatus = profileAssistant
-    ? (chatStreamConnectionStatusByAssistant[profileAssistant.agentId] ?? 'connecting')
+  const profileCanWrite = visibleProfileAssistant ? canWrite(visibleProfileAssistant) : undefined;
+  const isInitialAssistantIdentityLoading = !visibleProfileAssistant && isInitialLoadingAssistants;
+  const profileChatStreamConnectionStatus = visibleProfileAssistant
+    ? (chatStreamConnectionStatusByAssistant[visibleProfileAssistant.agentId] ?? 'connecting')
     : 'connecting';
   const profileHasIncompleteOnboarding =
-    isAssistantOwner && profileAssistant
-      ? profileAssistant.agentId === canonicalCoordinatorId
+    isAssistantOwner && visibleProfileAssistant
+      ? visibleProfileAssistant.agentId === canonicalCoordinatorId
         ? coordinatorOnboardingOutstanding
-        : !!onboardingIncompleteByAgentId[profileAssistant.agentId]
+        : !!onboardingIncompleteByAgentId[visibleProfileAssistant.agentId]
       : false;
   const profileInfoPanelFocusLayoutRequest =
     coordinatorOnboardingFocusLayoutRequest < 0 || canApplyCoordinatorOnboardingFocusLayout
       ? coordinatorOnboardingFocusLayoutRequest
       : 0;
+  const [hasUnreadActionActivity, setHasUnreadActionActivity] = React.useState(false);
+  React.useEffect(() => {
+    if (activeSectionId === 'actions') {
+      setHasUnreadActionActivity(false);
+    }
+  }, [activeSectionId]);
+  const { hasRunningTaskRun: hasOffTabRunningTaskRun } = useRunningTaskSnapshot({
+    assistant: visibleProfileAssistant,
+    enabled: isActiveSurface && activeSectionId !== 'tasks' && !!visibleProfileAssistant,
+  });
+  const railSectionActivity = React.useMemo(
+    () => ({
+      chat:
+        activeSectionId !== 'chat' &&
+        !!profileAssistantId &&
+        (chatStreamUnreadCounts[profileAssistantId] ?? 0) > 0,
+      actions: activeSectionId !== 'actions' && hasUnreadActionActivity,
+      tasks: activeSectionId !== 'tasks' && hasOffTabRunningTaskRun,
+    }),
+    [
+      activeSectionId,
+      chatStreamUnreadCounts,
+      hasOffTabRunningTaskRun,
+      hasUnreadActionActivity,
+      profileAssistantId,
+    ]
+  );
 
   return (
     <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>
+      <AssistantSwitcherBridgeSync activeUnity={profileAssistant} listProps={railListProps} />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
           credits={credits}
@@ -2553,66 +3231,70 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           billingMode={billingMode}
         />
 
-        {showWorkspaceBootstrapLoader ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-background">
-            <Loader size={64} label="Loading workspace" />
-          </div>
-        ) : (
-          <div className="relative flex min-h-0 flex-1 overflow-hidden">
-            <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
-              {isBelowMobile ? (
-                <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
-                  <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
-                    <AssistantRail
-                      activeUnity={profileAssistant}
-                      listProps={railListProps}
-                      activeSection={activeSectionId}
-                      onSelectSection={(section) => {
-                        handleSelectSection(section);
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+            {isBelowMobile ? (
+              <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
+                <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+                  <AssistantRail
+                    activeUnity={visibleProfileAssistant}
+                    isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
+                    listProps={railListProps}
+                    activeSection={activeSectionId}
+                    sectionActivity={railSectionActivity}
+                    onBrandClick={requestPlatformHomeNavigation}
+                    onSelectSection={(section) => {
+                      handleSelectSection(section);
+                      setMobileRailOpen(false);
+                    }}
+                    collapsed={false}
+                    onCollapsedChange={(next) => {
+                      if (next) {
                         setMobileRailOpen(false);
-                      }}
-                      collapsed={false}
-                      onCollapsedChange={(next) => {
-                        if (next) {
-                          setMobileRailOpen(false);
-                          return;
-                        }
-                        handleRailCollapsedChange(false);
-                      }}
-                    />
-                  </SheetContent>
-                </Sheet>
-              ) : (
-                <AssistantRail
-                  activeUnity={profileAssistant}
-                  listProps={railListProps}
-                  activeSection={activeSectionId}
-                  onSelectSection={handleSelectSection}
-                  collapsed={railCollapsed}
-                  onCollapsedChange={handleRailCollapsedChange}
-                />
-              )}
+                        return;
+                      }
+                      handleRailCollapsedChange(false);
+                    }}
+                  />
+                </SheetContent>
+              </Sheet>
+            ) : (
+              <AssistantRail
+                activeUnity={visibleProfileAssistant}
+                isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
+                listProps={railListProps}
+                activeSection={activeSectionId}
+                sectionActivity={railSectionActivity}
+                onBrandClick={requestPlatformHomeNavigation}
+                onSelectSection={handleSelectSection}
+                collapsed={railCollapsed}
+                onCollapsedChange={handleRailCollapsedChange}
+              />
+            )}
 
-              <SectionHost
-                section={activeSectionDef}
-                headerLeading={
-                  isBelowMobile ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      aria-label="Open navigation"
-                      data-testid="rail-mobile-toggle"
-                      onClick={() => setMobileRailOpen(true)}
-                    >
-                      <Menu className="h-4 w-4" />
-                    </Button>
-                  ) : undefined
-                }
-                renderView={() => (
+            <SectionHost
+              section={activeSectionDef}
+              headerLeading={
+                isBelowMobile ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    aria-label="Open navigation"
+                    data-testid="rail-mobile-toggle"
+                    onClick={() => setMobileRailOpen(true)}
+                  >
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                ) : undefined
+              }
+              renderView={() =>
+                showAssistantContentSkeleton ? (
+                  <AssistantSectionSkeleton sectionId={activeSectionDef.id} />
+                ) : (
                   <AssistantInfoPanelLayout
-                    assistant={profileAssistant}
+                    assistant={visibleProfileAssistant}
                     currentUserId={currentUserId}
                     userEmail={userMeta.email}
                     userPhoneNumber={userMeta.phoneNumber}
@@ -2624,6 +3306,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     spendingBlockedMessage={spendingGateStatus.blockedMessage}
                     onOpenContactManager={handleOpenContactManager}
                     onEditProfile={profileCanWrite ? handleOpenEditDialog : undefined}
+                    isEditProfileOpening={isEditProfileOpening}
                     onOpenWorkspaceManager={
                       profileCanWrite ? handleOpenWorkspaceManager : undefined
                     }
@@ -2637,11 +3320,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     infoPanelFocusLayoutRequest={profileInfoPanelFocusLayoutRequest}
                     coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                     onOpenChatSection={handleOpenChatSection}
+                    isActiveSurface={isActiveSurface}
                   >
                     {(infoPanel) => {
                       const rightPane = (
                         <RightPaneContainer
-                          assistant={profileAssistant}
+                          assistant={visibleProfileAssistant}
                           actions={assistantActions.actions || null}
                           dashboardActions={assistantActions.dashboards || null}
                           assistantActions={assistantActions}
@@ -2649,6 +3333,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           setChatHistories={setProfileChatHistories}
                           callPillHistories={callPillHistories}
                           setCallPillHistories={setCallPillHistories}
+                          requestAckHistories={requestAckHistories}
                           userEmail={userMeta.email}
                           isFirstView={isFirstViewAfterHire}
                           preHireChat={
@@ -2667,12 +3352,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           paneState={paneState}
                           onPaneStateChange={setPaneState}
                           workspacePaneObscured={activeBrainSectionId !== null}
+                          isActiveSurface={isActiveSurface}
                           infoPanel={infoPanel}
                           coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
+                          onActionsUnreadActivityChange={setHasUnreadActionActivity}
+                          forceCoordinatorChatIntroTyping={forceCoordinatorChatIntroTyping}
                           renderDockedCall={
                             activeCallAssistant &&
-                            profileAssistant &&
-                            activeCallAssistant.agentId === profileAssistant.agentId &&
+                            visibleProfileAssistant &&
+                            String(activeCallAssistant.agentId) ===
+                              String(visibleProfileAssistant.agentId) &&
                             isDocked
                               ? () => (
                                   <RoomContext.Provider value={room}>
@@ -2688,11 +3377,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                       setChatHistories={setProfileChatHistories}
                                       callPillHistories={callPillHistories}
                                       setCallPillHistories={setCallPillHistories}
+                                      requestAckHistories={requestAckHistories}
                                       isConnecting={isConnectingCall}
                                       userEmail={userMeta.email}
                                       userImage={userMeta.image}
                                       isWaitingForAssistant={isWaitingForAssistant}
                                       isAssistantPreparing={isAssistantPreparing}
+                                      activeOpeningConfig={activeOpeningConfig}
                                       waitingMessage={waitingMessage}
                                       isCallConnected={isCallConnected}
                                       connectionError={connectionError}
@@ -2732,7 +3423,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       );
 
                       const showBrainHost =
-                        activeSectionDef.kind === 'brain-view' && profileAssistant != null;
+                        activeSectionDef.kind === 'brain-view' && visibleProfileAssistant != null;
+                      const mountBrainHost =
+                        visibleProfileAssistant != null &&
+                        (showBrainHost || hasVisitedBrainSection);
 
                       return (
                         <div className="relative h-full min-h-0 w-full">
@@ -2745,12 +3439,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           >
                             {rightPane}
                           </div>
-                          {showBrainHost ? (
-                            <div className="relative z-10 h-full min-h-0 w-full">
+                          {mountBrainHost ? (
+                            <div
+                              className={cn(
+                                'relative z-10 h-full min-h-0 w-full',
+                                !showBrainHost && 'hidden'
+                              )}
+                              aria-hidden={!showBrainHost}
+                            >
                               <BrainSectionsHost
-                                assistant={profileAssistant}
-                                activeSectionId={activeSectionDef.id}
-                                onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                                assistant={visibleProfileAssistant}
+                                activeSectionId={activeBrainSectionId ?? ''}
+                                onManageContacts={() =>
+                                  handleOpenContactManager(visibleProfileAssistant)
+                                }
+                                isActiveSurface={isActiveSurface}
                               />
                             </div>
                           ) : null}
@@ -2758,25 +3461,29 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       );
                     }}
                   </AssistantInfoPanelLayout>
-                )}
+                )
+              }
+            />
+          </div>
+          {showCoordinatorOnboardingIntro && canonicalCoordinator && (
+            <div className="absolute inset-0 z-50">
+              <CoordinatorOnboarding
+                coordinator={canonicalCoordinator}
+                onStartCall={handleStartCoordinatorIntroCall}
+                onDiscardCall={handleHangUp}
+                onComplete={(medium) => {
+                  setCoordinatorIntroDismissed(true);
+                  if (medium === 'chat') {
+                    setAwaitingCoordinatorChatIntro(true);
+                  } else {
+                    requestCoordinatorOnboardingFocusLayout();
+                  }
+                  requestFirstLoginCommunicationEmailOpen();
+                }}
               />
             </div>
-            {showCoordinatorOnboardingIntro && canonicalCoordinator && (
-              <div className="absolute inset-0 z-50">
-                <CoordinatorOnboarding
-                  coordinator={canonicalCoordinator}
-                  onStartCall={handleStartCoordinatorIntroCall}
-                  onDiscardCall={handleHangUp}
-                  onComplete={() => {
-                    setCoordinatorIntroDismissed(true);
-                    requestCoordinatorOnboardingFocusLayout();
-                    requestFirstLoginCommunicationEmailOpen();
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Dialogs and Overlays */}
         {incomingMeetCall && !activeCallAssistant && (
@@ -2828,7 +3535,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           {assistantToEdit && (
             <AssistantEdit
               isOpen={!!assistantToEdit}
-              onClose={() => setAssistantToEdit(null)}
+              onClose={handleCloseEditDialog}
               assistant={assistantToEdit}
               formMethods={formMethods}
               onSubmit={initiateUpdate}
@@ -2839,29 +3546,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onDeleteAssistant={onDeleteAssistantSubmit}
               canDelete={canEndContract(assistantToEdit)}
             >
-              <HireForm
-                formMethods={formMethods}
-                onSubmit={initiateUpdate}
-                isSubmitting={isFormSubmitting}
-                assistantActions={assistantActions}
-                onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
-                onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
-                allDisplayableVoices={allDisplayableVoices}
-                isLoadingUserVoices={isLoadingUserVoices}
-                fetchUserVoices={fetchUserVoices}
-                handleDeleteVoice={handleDeleteVoice}
-                onNewMediaReady={onNewMediaReady}
-                mode="edit"
-                onAddPaymentMethod={goToBilling}
-                lockIdentityFields={assistantToEdit.isCoordinator}
-                lockAppearanceControls={assistantToEdit.isCoordinator}
-                onWorkspaceProviderSelect={(provider) => {
-                  if (!assistantToEdit) return;
-                  setWorkspaceManagerInitialProvider(provider);
-                  setWorkspaceManagerAssistant(assistantToEdit);
-                  setAssistantToEdit(null);
-                }}
-              />
+              {isEditFormReady ? (
+                <HireForm
+                  formMethods={formMethods}
+                  onSubmit={initiateUpdate}
+                  isSubmitting={isFormSubmitting}
+                  assistantActions={assistantActions}
+                  onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
+                  onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
+                  allDisplayableVoices={allDisplayableVoices}
+                  isLoadingUserVoices={isLoadingUserVoices}
+                  fetchUserVoices={fetchUserVoices}
+                  handleDeleteVoice={handleDeleteVoice}
+                  onNewMediaReady={onNewMediaReady}
+                  mode="edit"
+                  onAddPaymentMethod={goToBilling}
+                  lockIdentityFields={assistantToEdit.isCoordinator}
+                  lockAppearanceControls={assistantToEdit.isCoordinator}
+                  onWorkspaceProviderSelect={(provider) => {
+                    if (!assistantToEdit) return;
+                    setWorkspaceManagerInitialProvider(provider);
+                    setWorkspaceManagerAssistant(assistantToEdit);
+                    handleCloseEditDialog();
+                  }}
+                />
+              ) : (
+                <div className="flex h-full min-h-[40vh] items-center justify-center">
+                  <Loader2
+                    className="h-6 w-6 animate-spin text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
             </AssistantEdit>
           )}
           {contactManagerAssistant && (
@@ -2886,6 +3602,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               slackOwner={userMeta.slackOwner ?? null}
               slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
               slackInitialInstall={userMeta.slackInitialInstall ?? null}
+              onOpenUserSettings={handleOpenUserSettings}
             />
           )}
           {workspaceManagerAssistant && (
@@ -2915,11 +3632,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           />
         )}
 
-        {/* Page-level dialog — only mounted when the user has popped
-         *  the call out of its docked slot. The docked render lives
-         *  closer to the call's content (the chat panel in the base
-         *  /assistants view, or the Coordinator-onboarding shell)
-         *  so we don't need a guard for those shells here. */}
         {activeCallAssistant && !isDocked && (
           <RoomContext.Provider value={room}>
             <AssistantCommunicationDialog
@@ -2933,11 +3645,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               setChatHistories={setProfileChatHistories}
               callPillHistories={callPillHistories}
               setCallPillHistories={setCallPillHistories}
+              requestAckHistories={requestAckHistories}
               isConnecting={isConnectingCall}
               userEmail={userMeta.email}
               userImage={userMeta.image}
               isWaitingForAssistant={isWaitingForAssistant}
               isAssistantPreparing={isAssistantPreparing}
+              activeOpeningConfig={activeOpeningConfig}
               waitingMessage={waitingMessage}
               isCallConnected={isCallConnected}
               connectionError={connectionError}
@@ -2961,6 +3675,43 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
             />
           </RoomContext.Provider>
+        )}
+
+        {visibleProfileAssistant && (
+          <AssistantFloatingChatHost
+            pathname={routePathname ?? '/assistants'}
+            isBelowTablet={isBelowTablet}
+            isHireDialogOpen={isHireDialogOpen}
+            showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
+            isChatVisibleInRightPane={isFullPageAssistantChatVisible}
+            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            profileAssistant={visibleProfileAssistant}
+            assistantsBootstrapped={hasSettledAssistants}
+            assistant={visibleProfileAssistant}
+            assistantActions={assistantActions}
+            chatHistories={profileChatHistories}
+            setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
+            userEmail={userMeta.email}
+            userTimezone={userMeta.timezone}
+            spendingGate={spendingGateStatus}
+            chatStreamConnectionStatus={profileChatStreamConnectionStatus}
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={profileChatActivitySignal}
+            unreadCount={chatStreamUnreadCounts[visibleProfileAssistant.agentId] ?? 0}
+            hasActiveCall={!!activeCallAssistant && (isConnectingCall || isCallConnected)}
+            isInActiveCall={
+              !!activeCallAssistant &&
+              activeCallAssistant.agentId === visibleProfileAssistant.agentId &&
+              (isConnectingCall || isCallConnected)
+            }
+            activeCallAssistantId={activeCallAssistant?.agentId ?? null}
+            isCallConnected={isCallConnected}
+            onExpandedChange={handleFloatingChatExpandedChange}
+            redock={redock}
+          />
         )}
       </div>
     </CoordinatorOnboardingProvider>

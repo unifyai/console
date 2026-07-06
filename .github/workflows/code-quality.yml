@@ -228,3 +228,25 @@ jobs:
 
       - name: Check color compliance
         run: npm run check:colors:all
+
+  test-coverage:
+    name: E2E Coverage Map
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Check test coverage map
+        run: npm run check:test-coverage
+
+      - name: Check critical test inventory
+        run: npm run check:test-inventory

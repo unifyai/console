@@ -6,7 +6,7 @@
  * once and reuses the session for every test.
  */
 
-import { test as base, type Page, type Browser } from '@playwright/test';
+import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 import {
@@ -15,6 +15,12 @@ import {
   loginAndNavigateTo,
   switchToEmailTab,
 } from '../auth/helpers';
+import { waitForAssistantsRail } from '../helpers/shell';
+import {
+  deferCoordinatorForUser,
+  deferCoordinatorAfterAssistantsLoad,
+  dismissCoordinatorOnboardingIfOpen,
+} from '../helpers/coordinator';
 
 export { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -35,14 +41,94 @@ export type { SeededOrg } from '../helpers/seeds/types';
 export { login, loginAndNavigateTo, switchToEmailTab };
 
 // =============================================================================
+// App-shell navigation (assistants rail + coordinator overlay)
+// =============================================================================
+
+export async function navigateToAppShellRoute(
+  page: Page,
+  path: string,
+  opts: { userId: string; apiKey: string }
+) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('referral-banner-dismissed', '1');
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
+  await dismissCoordinatorOnboardingIfOpen(page);
+}
+
+export async function waitForSettingsShellReady(page: Page): Promise<void> {
+  await expect(page.getByTestId('settings-subrail')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+}
+
+export async function openAccountTab(
+  page: Page,
+  tab: string,
+  opts: { userId: string; apiKey: string }
+) {
+  await navigateToAppShellRoute(page, `/account?tab=${tab}`, opts);
+  await waitForSettingsShellReady(page);
+}
+
+export async function switchWorkspaceViaApi(page: Page, workspaceId: string | number) {
+  const res = await page.request.post('/api/session/workspace', {
+    data: { workspaceId: String(workspaceId) },
+  });
+  if (!res.ok()) {
+    throw new Error(`Failed to switch workspace to ${workspaceId}: ${res.status()}`);
+  }
+  await expect
+    .poll(async () => {
+      const cookies = await page.context().cookies();
+      return cookies.find((c) => c.name === 'unify_workspace_id')?.value ?? '';
+    })
+    .toBe(String(workspaceId));
+}
+
+export type OrgShellOpts = { userId: string; apiKey: string; orgId: number };
+
+/** Switch into an org workspace and open an organizations tab with overlays dismissed. */
+export async function openOrganizationsTab(
+  page: Page,
+  tab: 'members' | 'roles' | 'teams' | 'organization',
+  opts: OrgShellOpts
+) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('referral-banner-dismissed', '1');
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
+  await deferCoordinatorForUser(opts.userId, opts.apiKey);
+  await switchWorkspaceViaApi(page, opts.orgId);
+  await page.goto(`/organizations?tab=${tab}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await expect(page).toHaveURL(/\/organizations/, { timeout: 15_000 });
+}
+
+// =============================================================================
 // Shared Auth — storageState
 // =============================================================================
 
 export async function loginAndSaveState(
   browser: Browser,
   email: string,
-  password: string
+  password: string,
+  opts?: { userId?: string; apiKey?: string }
 ): Promise<string> {
+  if (opts?.userId && opts?.apiKey) {
+    await deferCoordinatorForUser(opts.userId, opts.apiKey);
+  }
+
   const stateFile = path.join(os.tmpdir(), `pw-account-${email.replace(/[^a-z0-9]/gi, '-')}.json`);
 
   const ctx = await browser.newContext();
@@ -75,17 +161,49 @@ export async function loginAndSaveState(
 // Fixture: createAccountTest
 // =============================================================================
 
-export function createAccountTest(user: { email: string; password: string }) {
+export function createAccountTest(user: {
+  id: string;
+  email: string;
+  password: string;
+  apiKey: string;
+}) {
   let authFile: string | undefined;
 
   return base.extend<{ authedPage: Page }>({
     authedPage: async ({ browser }, use, testInfo) => {
       if (!authFile) {
         testInfo.setTimeout(testInfo.timeout + 30_000);
-        authFile = await loginAndSaveState(browser, user.email, user.password);
+        authFile = await loginAndSaveState(browser, user.email, user.password, {
+          userId: user.id,
+          apiKey: user.apiKey,
+        });
+        const warmCtx = await browser.newContext({ storageState: authFile });
+        const warmPage = await warmCtx.newPage();
+        await warmPage.addInitScript(() => {
+          try {
+            window.localStorage.setItem('referral-banner-dismissed', '1');
+            window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+          } catch {
+            /* private mode — ignore */
+          }
+        });
+        await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
+        await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
+        await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await waitForAssistantsRail(warmPage);
+        await warmCtx.storageState({ path: authFile });
+        await warmCtx.close();
       }
       const ctx = await browser.newContext({ storageState: authFile });
       const page = await ctx.newPage();
+      await page.addInitScript(() => {
+        try {
+          window.localStorage.setItem('referral-banner-dismissed', '1');
+          window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+        } catch {
+          /* private mode — ignore */
+        }
+      });
       // eslint-disable-next-line react-hooks/rules-of-hooks
       await use(page);
       await ctx.close();

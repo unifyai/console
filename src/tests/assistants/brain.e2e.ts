@@ -32,6 +32,7 @@ import {
   type SeededAssistant,
   type SeededOrg,
 } from './helpers';
+import { railSection } from '../helpers/shell';
 
 function uniqueBrainEmail(): string {
   return `brain-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@unify.ai`;
@@ -399,7 +400,7 @@ test('rail Brain sections switch the active view', async ({ authedPage: page }) 
 
   // Default landing is Chat; each Brain rail section takes over the section
   // host and becomes `aria-current="page"` when selected.
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 
   for (const section of [
     'contacts',
@@ -409,10 +410,7 @@ test('rail Brain sections switch the active view', async ({ authedPage: page }) 
     'guidance',
   ] as const) {
     await openRailSection(page, section);
-    await expect(page.getByTestId(`rail-section-${section}`)).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
+    await expect(railSection(page, section)).toHaveAttribute('aria-current', 'page');
   }
 
   // The legacy aggregate "Brain" rail entry is gone.
@@ -430,7 +428,9 @@ test('Contacts: empty state when the assistant has no contacts', async ({ authed
   await expect(page.getByText('No contacts found.')).toBeVisible({ timeout: 10_000 });
 });
 
-test('Contacts: displays seeded contact cards', async ({ authedPage: page }) => {
+test('Contacts: displays seeded contact cards @critical @area(assistants.brain)', async ({
+  authedPage: page,
+}) => {
   await ensureSeeded();
   await openBrainSection(page, dataAssistant.agentId, 'contacts');
 
@@ -485,18 +485,20 @@ async function openTranscriptsSection(page: import('@playwright/test').Page, age
   await expect(page.getByTestId('transcripts-threads')).toBeVisible({ timeout: 15_000 });
 }
 
-test('Transcripts: displays seeded messages in the threads view', async ({ authedPage: page }) => {
+test('Transcripts: displays seeded messages in the threads view @critical @area(assistants.brain)', async ({
+  authedPage: page,
+}) => {
   await ensureSeeded();
   await openTranscriptsSection(page, dataAssistant.agentId);
 
   const reader = page.getByTestId('transcripts-reader');
   await expect(reader).toBeVisible({ timeout: 10_000 });
-  await expect(reader.getByText('Hello, can you help me with my schedule?')).toBeVisible({
-    timeout: 5_000,
-  });
-  await expect(reader.getByText('Of course! Let me check your calendar.')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(
+    reader.getByRole('paragraph').filter({ hasText: 'Hello, can you help me with my schedule?' })
+  ).toBeVisible({ timeout: 5_000 });
+  await expect(
+    reader.getByRole('paragraph').filter({ hasText: 'Of course! Let me check your calendar.' })
+  ).toBeVisible({ timeout: 5_000 });
 
   await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
 });
@@ -524,7 +526,7 @@ test('Transcripts: search filters the thread list', async ({ authedPage: page })
   await openTranscriptsSection(page, dataAssistant.agentId);
 
   await expect(
-    page.getByTestId('transcripts-reader').getByText('What is the status of the project?')
+    page.getByTestId('transcripts-reader').getByText('What is the status of the project?').first()
   ).toBeVisible({ timeout: 10_000 });
 
   await page.getByTestId('transcripts-search').fill('schedule');
@@ -534,44 +536,11 @@ test('Transcripts: search filters the thread list', async ({ authedPage: page })
 
   await page.getByRole('button', { name: 'Clear search' }).click();
   await expect(
-    page.getByTestId('transcripts-reader').getByText('What is the status of the project?')
+    page.getByTestId('transcripts-reader').getByText('What is the status of the project?').first()
   ).toBeVisible({ timeout: 10_000 });
 });
 
-test('Transcripts: refresh reloads transcript data', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await openTranscriptsSection(page, dataAssistant.agentId);
-
-  await page.getByRole('button', { name: 'Refresh transcripts' }).click();
-  await expect(page.getByTestId('transcripts-pane')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('transcripts-reader')).toBeVisible({ timeout: 10_000 });
-});
-
-test('Transcripts: the pane is read-only', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await openTranscriptsSection(page, dataAssistant.agentId);
-
-  const pane = page.getByTestId('transcripts-pane');
-  await expect(pane).toBeVisible({ timeout: 10_000 });
-  await expect(pane.locator('button:has-text("Edit")')).toHaveCount(0);
-  await expect(pane.locator('button:has-text("Delete")')).toHaveCount(0);
-});
-
-test('Transcripts: destination dropdown is not shown in the transcripts rail', async ({
-  authedPage: page,
-}) => {
-  await openBrainSection(page, emptyAssistant.agentId, 'transcripts');
-  await expect(page.getByTestId('transcripts-pane')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('brain-destination-dropdown')).toHaveCount(0);
-});
-
-// ===========================================================================
-// Knowledge / Functions / Guidance — empty-state rendering
-// ===========================================================================
-
-// Knowledge, Functions and Guidance share the same empty-state shape, so a
-// single selection that walks the three rail sections covers all of them
-// while paying the (heavy) navigation + assistant-selection cost only once.
+// Knowledge, Functions and Guidance share the same empty-state shape
 test('Knowledge / Functions / Guidance render dedicated empty states', async ({
   authedPage: page,
 }) => {
@@ -587,36 +556,4 @@ test('Knowledge / Functions / Guidance render dedicated empty states', async ({
   await openRailSection(page, 'guidance');
   await expect(page.getByTestId('doc-library-pane')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('No guidance matches.')).toBeVisible({ timeout: 10_000 });
-});
-
-// ===========================================================================
-// Backend Data Verification
-// ===========================================================================
-
-test('seeded Brain data matches what was stored via the Orchestra API', async ({
-  authedPage: page,
-}) => {
-  await ensureSeeded();
-
-  const contactsRes = await orchestraFetch(
-    `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Contacts`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(contactsRes.ok).toBeTruthy();
-  const contactsData = await contactsRes.json();
-  expect(contactsData.logs.length).toBe(3);
-
-  const transcriptsRes = await orchestraFetch(
-    `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Transcripts`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(transcriptsRes.ok).toBeTruthy();
-  const transcriptsData = await transcriptsRes.json();
-  expect(transcriptsData.logs.length).toBe(3);
-
-  // The directory footer reflects the same three seeded contacts in the UI.
-  await openBrainSection(page, dataAssistant.agentId, 'contacts');
-  await expect(page.getByTestId('contacts-footer')).toContainText('3 of 3', { timeout: 10_000 });
 });

@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import { cn } from '@/lib/utils';
 import { useBrainData } from '@/hooks/Assistants/useBrainData';
+import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { formatTimestamp } from '@/utils/assistants/brain';
 import { SkeletonText } from '@/components/Common/Loaders/Skeletons';
 import { Skeleton } from '@/components/UI/skeleton';
@@ -48,6 +49,7 @@ interface DocLibraryPaneProps {
   assistantId: string;
   /** Which library this pane renders. Defaults to guidance. */
   kind?: DocLibraryKind;
+  enabled?: boolean;
 }
 
 const KIND_META: Record<
@@ -189,24 +191,32 @@ export function DocLibraryPane({
   ownerId,
   assistantId,
   kind = 'guidance',
+  enabled = true,
 }: DocLibraryPaneProps) {
   const context = kind === 'knowledge' ? 'Knowledge' : 'Guidance';
-  const { guidance, knowledge, isLoading, error, refetch } = useBrainData({
+  const { guidance, knowledge, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
     contexts: kind === 'knowledge' ? (['Knowledge'] as const) : (['Guidance'] as const),
     initialContext: context,
+    enabled,
   });
 
   const meta = KIND_META[kind];
   const LibraryIcon = meta.icon;
 
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [query, setQuery] = useState('');
+  const {
+    draft: searchDraft,
+    setDraft: setSearchDraft,
+    committed: searchQuery,
+    submit: submitSearch,
+    clear: clearSearch,
+  } = useTabSearchCommit();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const isStackedLayout = useMatchesBelow('tablet');
+  const isStackedLayout = useMatchesBelow('shellCompact');
   // TODO(wire-backend): restore when guidance/knowledge creation is wired.
   // const [isAdding, setIsAdding] = useState(false);
 
@@ -247,7 +257,7 @@ export function DocLibraryPane({
   );
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
     return docs.filter((doc) => {
       if (q && !(doc.title + ' ' + doc.body).toLowerCase().includes(q)) return false;
       if (selectedScopes.size > 0 && !(doc.scope && selectedScopes.has(doc.scope))) return false;
@@ -255,7 +265,7 @@ export function DocLibraryPane({
         return false;
       return true;
     });
-  }, [docs, query, selectedScopes, selectedTags]);
+  }, [docs, searchQuery, selectedScopes, selectedTags]);
 
   const filteredGroups = useMemo(() => groupByCalendarDay(filtered), [filtered]);
 
@@ -296,11 +306,13 @@ export function DocLibraryPane({
   }
 
   return (
-    <div className="flex h-full flex-col" data-testid="doc-library-pane" data-kind={kind}>
+    <div className="flex h-full min-w-0 flex-col" data-testid="doc-library-pane" data-kind={kind}>
       <TabToolbar
         testId="doc-header"
-        searchValue={query}
-        onSearchChange={setQuery}
+        searchValue={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={submitSearch}
+        onSearchClear={clearSearch}
         searchPlaceholder={tabSearchPlaceholder(kind)}
         searchTestId="doc-search"
         searchClearTestId="doc-search-clear"
@@ -341,13 +353,14 @@ export function DocLibraryPane({
         paneId={`doc-library-${kind}`}
         defaultWidth={288}
         mobileMode="stack"
+        stackBelow="shellCompact"
         detailOpen={isStackedLayout ? selectedId !== null && active !== null : true}
         onDetailClose={() => setSelectedId(null)}
         mobileBackLabel="Documents"
         mobileBackTestId="doc-library-mobile-back"
         left={
-          <div className="flex h-full flex-col" data-testid="doc-list">
-            {isLoading && docs.length === 0 ? (
+          <div className="flex h-full min-w-0 flex-col" data-testid="doc-list">
+            {isLoading && !hasLoaded ? (
               <div className="flex flex-col gap-1.5 p-2" data-testid="doc-list-skeleton">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full rounded-md" />
@@ -436,14 +449,14 @@ export function DocLibraryPane({
         }
         right={
           <div className="h-full min-w-0" data-testid="doc-reader">
-            {isLoading && docs.length === 0 ? (
+            {isLoading && !hasLoaded ? (
               <div className="w-full px-6 pb-5 pt-3" data-testid="doc-reader-skeleton">
                 <Skeleton className="mb-4 h-7 w-1/2" />
                 <SkeletonText lines={6} />
               </div>
             ) : active ? (
-              <ScrollArea className="h-full">
-                <div className="w-full px-6 pb-5 pt-3">
+              <ScrollArea className="h-full min-w-0">
+                <div className="w-full min-w-0 px-6 pb-5 pt-3">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {active.scope && (
                       <span className="rounded-full bg-[color:var(--status-info-bg)] px-2 py-0.5 text-[10.5px] font-semibold text-[color:var(--status-info)]">

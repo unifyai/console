@@ -1,34 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
-import { Info, CheckCircle, LoaderCircle } from 'lucide-react';
-import React, { useRef, useCallback, useEffect } from 'react';
-
-// A custom component for our toasts to handle click-to-dismiss
-const CustomToast = ({
-  id,
-  Icon,
-  title,
-  description,
-  iconClassName,
-}: {
-  id: string | number;
-  Icon: React.ElementType;
-  title: string;
-  description?: string;
-  iconClassName?: string;
-}) => (
-  <div
-    onClick={() => toast.dismiss(id)}
-    className="flex h-full w-full cursor-pointer items-center gap-4 overflow-hidden rounded-lg border border-primary bg-background p-4 text-foreground shadow-lg"
-  >
-    <Icon className={`flex-shrink-0 text-primary ${iconClassName || ''}`} />
-    <div className="flex flex-col gap-0.5">
-      <p className="text-strong">{title}</p>
-      {description && <p className="text-body opacity-90">{description}</p>}
-    </div>
-  </div>
-);
+import { useRef, useCallback, useEffect } from 'react';
 
 /**
  * Ensure toast creation happens outside of React render but **still** returns the
@@ -41,8 +14,6 @@ const CustomToast = ({
 const scheduleToast = <T,>(fn: () => T): T => {
   const id = fn();
 
-  // Queue a no-op so that the actual DOM update still happens after the
-  // current React render cycle (avoids setState warnings in StrictMode)
   if (typeof queueMicrotask === 'function') {
     queueMicrotask(() => {});
   }
@@ -52,27 +23,15 @@ const scheduleToast = <T,>(fn: () => T): T => {
 
 export const showLoadingToast = (message: string) => {
   return scheduleToast(() =>
-    toast.custom(
-      (id) => (
-        <CustomToast
-          id={id}
-          Icon={LoaderCircle}
-          title={message}
-          description="This is taking longer than usual..."
-          iconClassName="animate-spin"
-        />
-      ),
-      {
-        className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
-        duration: Infinity, // Don't auto-dismiss loading toasts
-      }
-    )
-  ) as string | number;
+    toast.loading(message, {
+      description: 'This is taking longer than usual...',
+      duration: Infinity,
+    })
+  );
 };
 
-// Track recent error toasts to prevent duplicates
 const recentErrorToasts = new Map<string, number>();
-const ERROR_TOAST_DEDUPE_WINDOW = 2000; // 2 seconds
+const ERROR_TOAST_DEDUPE_WINDOW = 2000;
 
 export const showErrorToast = (
   error: any,
@@ -81,7 +40,6 @@ export const showErrorToast = (
 ) => {
   const errorMessage = (error as Error)?.message || '';
 
-  // Ignore cancellations (these are expected, not errors)
   if ((error as Error).name === 'AbortError' || errorMessage.includes('Connection closed')) {
     return;
   }
@@ -91,7 +49,6 @@ export const showErrorToast = (
   let message = defaultMessage;
   let title = 'Error';
 
-  // Special handling for timeout errors (504 Gateway Timeout)
   if (errorMessage.includes('timeout') || errorMessage.includes('504')) {
     title = 'Request Timeout';
     message = 'Save timed out. Please try again.';
@@ -105,7 +62,6 @@ export const showErrorToast = (
     message = error;
   }
 
-  // Deduplicate: prevent showing the same error toast multiple times in quick succession
   const dedupeKey = `${title}:${message}`;
   const now = Date.now();
   const lastShown = recentErrorToasts.get(dedupeKey);
@@ -115,48 +71,44 @@ export const showErrorToast = (
   }
   recentErrorToasts.set(dedupeKey, now);
 
-  // Clean up old entries to prevent memory leak
   setTimeout(() => {
     recentErrorToasts.delete(dedupeKey);
   }, ERROR_TOAST_DEDUPE_WINDOW);
 
   scheduleToast(() =>
-    toast.custom(
-      (toastId) => <CustomToast id={toastId} Icon={Info} title={title} description={message} />,
-      {
-        id,
-        duration: errorMessage.includes('timeout') || errorMessage.includes('504') ? 6000 : 4000, // Longer duration for timeouts
-        className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
-      }
-    )
+    toast.error(title, {
+      description: message,
+      id,
+      duration: errorMessage.includes('timeout') || errorMessage.includes('504') ? 6000 : 4000,
+    })
   );
 };
 
 export const showSuccessToast = (title: string, description?: string, id?: string | number) => {
   scheduleToast(() =>
-    toast.custom(
-      (toastId) => (
-        <CustomToast id={toastId} Icon={CheckCircle} title={title} description={description} />
-      ),
-      {
-        id,
-        duration: 2500,
-        className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
-      }
-    )
+    toast.success(title, {
+      description,
+      id,
+      duration: 2500,
+    })
   );
 };
 
-/**
- * Helper to show a toast around an async function, with default copy.
- */
+export function showToast(text: string, type: 'success' | 'error' = 'success') {
+  if (type === 'error') {
+    toast.error(text);
+    return;
+  }
+  toast.success(text);
+}
+
 export const withLoadingToastFn = async <T,>(
   fn: () => Promise<T>,
   options?: {
     loadingMessage?: string;
     successMessage?: string;
     errorMessage?: string;
-    onSuccess?: (result: T) => string | void; // Optionally return a custom success message
+    onSuccess?: (result: T) => string | void;
   }
 ): Promise<T> => {
   const loadingId = showLoadingToast(options?.loadingMessage || 'Processing...');
@@ -166,41 +118,30 @@ export const withLoadingToastFn = async <T,>(
 
     const successMessage = options?.onSuccess?.(result) || options?.successMessage || 'Done!';
 
-    toast.custom(
-      (toastId) => <CustomToast id={toastId} Icon={CheckCircle} title={successMessage} />,
-      {
-        id: loadingId,
-        duration: 2000,
-        className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
-      }
-    );
+    toast.success(successMessage, {
+      id: loadingId,
+      duration: 2000,
+    });
 
     return result;
   } catch (error) {
     showErrorToast(error, options?.errorMessage || 'Something went wrong.', loadingId);
-    throw error; // Re-throw to allow callers to handle as needed
+    throw error;
   }
 };
 
-/**
- * Enhanced version of withLoadingToast that creates its own AbortController
- * and cleans up automatically when the component unmounts or the operation completes.
- */
 export function useLoadingToast() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const executeWithToast = useCallback(
     async <T,>(
       action: (abortSignal?: AbortSignal) => Promise<T>,
-      messages: { loading: string; success: string; error: string },
-      delay: number = 3000
+      messages: { loading: string; success: string; error: string }
     ): Promise<T> => {
-      // Cancel any previous operation
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
-      // Create new AbortController
       abortControllerRef.current = new AbortController();
 
       try {
@@ -210,14 +151,12 @@ export function useLoadingToast() {
           errorMessage: messages.error,
         });
       } finally {
-        // Clean up after completion
         abortControllerRef.current = null;
       }
     },
     []
   );
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {

@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useShellResource } from '@/hooks/Common/useShellResource';
+import { fetchDashboardMetadata, fetchDashboardTileContent } from '@/lib/client/dashboard';
 import type { DashboardPaneData, DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -7,17 +8,18 @@ interface UseDashboardsOptions {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
-  getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
-  getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
+  getMetadata?: (assistant: Assistant) => Promise<DashboardPaneData>;
+  getTileContent?: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   shouldPoll: boolean;
 }
 
 interface UseDashboardsResult {
   dashboards: DashboardRecord[];
   tiles: TileRecord[];
-  isLoading: boolean;
+  isInitialLoading: boolean;
+  isRefreshing: boolean;
   error: Error | null;
-  refetch: () => void;
+  refetch: (options?: { blocking?: boolean }) => Promise<unknown>;
   dataUpdatedAt: number;
   /**
    * Lazily fetches a tile's htmlContent. Returns cached HTML if available,
@@ -34,15 +36,13 @@ export function useDashboards({
   getTileContent,
   shouldPoll,
 }: UseDashboardsOptions): UseDashboardsResult {
-  const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery<DashboardPaneData>({
-    queryKey: ['dashboards', ownerId, assistantId],
-    queryFn: () => getMetadata(assistant),
-    refetchInterval: shouldPoll ? 5000 : false,
-    enabled: !!ownerId && !!assistantId,
-    staleTime: Infinity,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data, isInitialLoading, isRefreshing, error, refresh, dataUpdatedAt } =
+    useShellResource<DashboardPaneData>({
+      queryKey: ['dashboards', ownerId, assistantId],
+      queryFn: () => (getMetadata ?? fetchDashboardMetadata)(assistant),
+      refetchInterval: shouldPoll ? 5000 : false,
+      enabled: !!ownerId && !!assistantId,
+    });
 
   const dashboards = React.useMemo(() => data?.dashboards ?? [], [data?.dashboards]);
   const tiles = React.useMemo(() => data?.tiles ?? [], [data?.tiles]);
@@ -75,11 +75,13 @@ export function useDashboards({
       const pending = pendingRef.current.get(token);
       if (pending) return pending;
 
-      const promise = getTileContent(assistant, token).then((html) => {
-        pendingRef.current.delete(token);
-        if (html) htmlCacheRef.current.set(token, html);
-        return html;
-      });
+      const promise = (getTileContent ?? fetchDashboardTileContent)(assistant, token).then(
+        (html) => {
+          pendingRef.current.delete(token);
+          if (html) htmlCacheRef.current.set(token, html);
+          return html;
+        }
+      );
 
       pendingRef.current.set(token, promise);
       return promise;
@@ -90,9 +92,10 @@ export function useDashboards({
   return {
     dashboards,
     tiles,
-    isLoading,
+    isInitialLoading,
+    isRefreshing,
     error: error as Error | null,
-    refetch,
+    refetch: refresh,
     dataUpdatedAt,
     getTileHtml,
   };

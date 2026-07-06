@@ -11,17 +11,17 @@
  *     drops the user into the regular platform (assistant list +
  *     right pane) with the Coordinator selected and the onboarding
  *     checklist living in its "Assistant info" panel.
- *   - Choosing "Start Call" connects the call directly (a brief
- *     "preparing" loader covers the audio handoff), then lands in the
- *     regular platform with the call docked in the Coordinator's
- *     right pane. There is no animated intro.
+ *   - Choosing "Start Call" dismisses the picker immediately and lands in
+ *     the regular platform with the call docked in the Coordinator's
+ *     right pane; the meet window shows the usual connecting states
+ *     while the call comes up.
  *   - Resolving the picker persists ``intro_watched`` on the
  *     Coordinator/State row, so a reload skips the picker and lands
  *     directly on the regular platform.
  *   - There is no "Skip onboarding" or "Resume onboarding" affordance
- *     anywhere. Once onboarding is exited (``mode === 'working'``) the
- *     checklist body offers a single "Reactivate onboarding" control that
- *     flips the row back to ``onboarding`` and repopulates the checklist.
+ *     anywhere. When onboarding is inactive (``onboarding_active === false``)
+ *     the checklist body offers a single "Return to onboarding" control that
+ *     flips the row back to active and repopulates the checklist.
  *
  * These tests share one workspace coordinator and run serially. Since
  * ``intro_watched`` is one-way sticky on the row, picker-expecting
@@ -37,7 +37,6 @@ import {
   createTestUser,
   cleanupUser,
   connectWorkspaceEmail,
-  createAssistant,
   createPersonalCoordinator,
   dbExec,
   deleteAllAssistantsForUser,
@@ -45,7 +44,6 @@ import {
   openAssistantInfoPanel,
   openRailSection,
   openUnitySwitcher,
-  selectAssistantInList,
 } from './helpers';
 
 const user = createTestUser({ name: 'CoordOnboard', lastName: 'E2E', credits: 50_000 });
@@ -144,18 +142,17 @@ async function expectComingSoonVisible(page: Page) {
  *
  * Resolving the picker latches ``intro_watched`` on the latest
  * Coordinator/State row (one-way sticky through the API). The shared test
- * fixture also defers onboarding up front (``onboarding_deferred: true``) so
+ * fixture also pauses onboarding up front (``onboarding_active: false``) so
  * legacy flows get the standard shell; the picker gate in ``Main.tsx`` stays
- * suppressed while that flag is set. Picker-expecting tests therefore reuse a
+ * suppressed while onboarding is inactive. Picker-expecting tests therefore reuse a
  * single coordinator and restore the genuine first-time state on the latest
- * row directly — both ``intro_watched`` and ``onboarding_deferred`` back to
- * false, mode left ``onboarding`` — so the next visit shows the picker exactly
- * like a first-time user.
+ * row directly — ``intro_watched`` back to false and ``onboarding_active``
+ * back to true — so the next visit shows the picker exactly like a first-time user.
  */
 function resetCoordinatorIntroWatched() {
   dbExec(
     `UPDATE log_event SET data = ` +
-      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_deferred}', 'false') ` +
+      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_active}', 'true') ` +
       `WHERE id = (SELECT le.id FROM log_event le ` +
       `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
       `JOIN context c ON c.id = lec.context_id ` +
@@ -185,10 +182,10 @@ function readPersistedOnboardingStep(coordinatorId: string | number): string {
   );
 }
 
-/** Read the latest persisted lifecycle ``mode`` for the user's coordinator. */
-function readPersistedMode(coordinatorId: string | number): string {
+/** Read the latest persisted ``onboarding_active`` flag for the user's coordinator. */
+function readPersistedOnboardingActive(coordinatorId: string | number): string {
   return dbExec(
-    `SELECT le.data->>'mode' FROM log_event le ` +
+    `SELECT le.data->>'onboarding_active' FROM log_event le ` +
       `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
       `JOIN context c ON c.id = lec.context_id ` +
       `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
@@ -230,7 +227,31 @@ async function seedCoordinatorOutboundTranscript(
   expect(response.ok).toBeTruthy();
 }
 
-test('picker shows on first visit with no skip or resume affordance', async ({
+/**
+ * Mark an onboarding step complete via the same Orchestra state PATCH the brain
+ * uses (``set_onboarding_task_state`` -> ``onboarding_step_completion``). This is
+ * how workspace demos — multi-part tasks that no longer auto-complete from an
+ * outbound — are finished: the assistant does the whole task, then explicitly
+ * sets the step done.
+ */
+async function markCoordinatorOnboardingStepComplete(
+  coordinatorId: string | number,
+  stepId: string
+) {
+  const response = await orchestraFetch(
+    `/v0/assistant/${coordinatorId}/state`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        onboarding_step_completion: { step_id: stepId, completed: true },
+      }),
+    },
+    user.apiKey
+  );
+  expect(response.ok).toBeTruthy();
+}
+
+test('picker shows on first visit with no skip or resume affordance @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -298,6 +319,19 @@ test('checklist allows independent sections to start out of order', async ({
   await expect(page.getByTestId('coordinator-onboarding-blocking-arrow-slack-connect')).toHaveText(
     '← Locked'
   );
+  await selectCoordinatorCommunicationSubgroup(page, 'discord');
+  await expect(page.getByTestId('coordinator-onboarding-item-discord-connect')).toHaveAttribute(
+    'data-status',
+    'locked'
+  );
+  await page.getByTestId('coordinator-onboarding-item-discord-reference').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-discord-reference')).toHaveAttribute(
+    'data-blocked-feedback',
+    'true'
+  );
+  await expect(
+    page.getByTestId('coordinator-onboarding-blocking-arrow-discord-connect')
+  ).toHaveText('← Locked');
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
@@ -310,7 +344,7 @@ test('checklist allows independent sections to start out of order', async ({
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 });
 
-test('picking chat lands in the full platform with the checklist in Assistant info', async ({
+test('picking chat lands in the full platform with the checklist in Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   // Simulate an earlier session's workspace OAuth so the checklist has a
@@ -372,6 +406,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     }
   });
   await emailReferenceRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(
     page.getByTestId('coordinator-onboarding-action-feedback-email-reference')
   ).toHaveText('Sending...');
@@ -412,6 +447,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   const emailReplyRow = page.getByTestId('coordinator-onboarding-item-email-reply').first();
   await expectChecklistItemClickable(page, 'email-reply');
   await emailReplyRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(page.getByTestId('coordinator-onboarding-action-feedback-email-reply')).toHaveText(
     'Checking...'
   );
@@ -439,14 +475,26 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
-test('workspace demos trigger a unify_message summary and complete from the outbound', async ({
+test('workspace demos complete only when the assistant explicitly marks them done', async ({
   authedPage: page,
 }) => {
   // Connecting the workspace email marks the ``workspace`` connect step
   // done (Orchestra derives it from the BYOD email contact), which unlocks
-  // the mailbox / drive / calendar demo steps that depend on it.
+  // the mailbox / drive / calendar demo steps that depend on it. The
+  // granted-scopes secret (written by the real OAuth flow) additionally
+  // gates the calendar demo, which only renders once calendar was granted;
+  // seed a grant that includes calendar so all three demos surface.
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  dbExec(
+    `INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value) ` +
+      `VALUES ('${user.id}', ${coordinator.agentId}, 'GOOGLE_GRANTED_SCOPES', ` +
+      `'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events ` +
+      `https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send ` +
+      `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify ` +
+      `https://www.googleapis.com/auth/userinfo.email') ` +
+      `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
+  );
   resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
@@ -472,17 +520,9 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   await expect(
     page.getByTestId('coordinator-onboarding-item-workspace-calendar').first()
   ).toBeVisible();
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-contacts').first()
-  ).toBeVisible();
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-workspace-tasks').first()
-  ).toBeVisible();
   await expectChecklistItemClickable(page, 'workspace-mailbox');
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
-  await expectChecklistItemClickable(page, 'workspace-contacts');
-  await expectChecklistItemClickable(page, 'workspace-tasks');
 
   let stepEventRequests = 0;
   let lastStepId: string | null = null;
@@ -500,6 +540,7 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   // Clicking the row dispatches a single graph-owned step event for the
   // demo and surfaces the in-flight feedback label.
   await mailboxRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(
     page.getByTestId('coordinator-onboarding-action-feedback-workspace-mailbox')
   ).toHaveText('Summarizing...');
@@ -507,31 +548,75 @@ test('workspace demos trigger a unify_message summary and complete from the outb
   expect(lastStepId).toBe('workspace-mailbox');
   await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
 
-  // An untagged unify_message is not proof of the demo.
+  // A workspace demo is a multi-part task: the assistant's summary outbound —
+  // even one tagged for the step — must NOT auto-complete it. Only an explicit
+  // set_onboarding_task_state call does. Seed both the untagged and tagged
+  // summaries and confirm neither flips the row to done.
   await seedCoordinatorOutboundTranscript(
     coordinator.agentId,
     'unify_message',
     'Untagged unify_message — not a workspace demo proof.'
   );
   await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
-
-  // The tagged unify_message summary the assistant delivers completes it.
   await seedCoordinatorOutboundTranscript(
     coordinator.agentId,
     'unify_message',
     "Here's a quick summary of your mailbox.",
     'workspace-mailbox'
   );
+  await expect(mailboxRow).not.toHaveAttribute('data-status', 'done');
+
+  // The assistant finishes the whole task and marks the step done via the
+  // Orchestra state PATCH — that is what completes the demo.
+  await markCoordinatorOnboardingStepComplete(coordinator.agentId, 'workspace-mailbox');
   await expect(mailboxRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
 
   // The other demos stay independently actionable.
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
-  await expectChecklistItemClickable(page, 'workspace-contacts');
-  await expectChecklistItemClickable(page, 'workspace-tasks');
 });
 
-test('starting a call connects and docks the call in the platform', async ({
+test('the calendar demo only renders once the calendar scope is granted', async ({
+  authedPage: page,
+}) => {
+  // A workspace connected without the calendar scope: the drive demo (which
+  // has no scope gate) still surfaces, but the calendar demo stays hidden
+  // until the user grants calendar access.
+  const coordinator = createPersonalCoordinator(user.id);
+  connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  dbExec(
+    `INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value) ` +
+      `VALUES ('${user.id}', ${coordinator.agentId}, 'GOOGLE_GRANTED_SCOPES', ` +
+      `'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send ` +
+      `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify ` +
+      `https://www.googleapis.com/auth/userinfo.email') ` +
+      `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
+  );
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await openUnitySwitcher(page);
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.keyboard.press('Escape');
+
+  await openOnboardingChecklist(page);
+  await selectCoordinatorOnboardingSection(page, 'workspace');
+
+  // Drive still renders; calendar is gated out until calendar is granted.
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-workspace-drive').first()
+  ).toBeVisible();
+  await expectChecklistItemClickable(page, 'workspace-drive');
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace-calendar')).toHaveCount(0);
+});
+
+test('starting a call connects and docks the call in the platform @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   await enableDevCalls(page);
@@ -541,39 +626,14 @@ test('starting a call connects and docks the call in the platform', async ({
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
 
-  // No animated intro: the picker hands straight off to the connecting
-  // call (a brief "preparing" loader covers the audio handoff).
+  // Picker dismisses immediately; the docked meet window handles connecting.
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-
-  // The overlay clears and the real call is docked in the Coordinator's
-  // regular right pane.
-  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
+
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
 
   // Hang up to leave a clean state for subsequent tests.
   await page.getByRole('button', { name: 'End call' }).click();
-});
-
-test('coordinator state exposes a voice intro briefing for onboarding narration', async () => {
-  // The first call now uses Unity's bundled recorded opener. The state
-  // endpoint still exposes the server-composed orientation briefing for
-  // dynamic onboarding narration and non-recorded fallback paths.
-  const coordinator = createPersonalCoordinator(user.id);
-  resetCoordinatorIntroWatched();
-
-  const res = await orchestraFetch(
-    `/v0/assistant/${coordinator.agentId}/state`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(res.ok).toBeTruthy();
-  const body = (await res.json()) as { info?: Record<string, unknown> } & Record<string, unknown>;
-  const info = body.info ?? body;
-  const briefing = String(info.voice_intro_briefing ?? info.voiceIntroBriefing ?? '');
-
-  expect(briefing.length).toBeGreaterThan(0);
-  expect(briefing).toContain('T dash W 1 N');
-  expect(briefing.toLowerCase()).toContain('pause onboarding');
 });
 
 test('mobile onboarding keeps the docked T-W1N call visible instead of auto-opening Assistant info', async ({
@@ -587,6 +647,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
 
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
@@ -595,7 +656,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('resolving the picker persists intro_watched and reload defaults to T-W1N + Assistant info', async ({
+test('resolving the picker persists intro_watched and reload lands on T-W1N without auto-opening Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -604,20 +665,14 @@ test('resolving the picker persists intro_watched and reload defaults to T-W1N +
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  // Resolving the picker latches ``intro_watched`` on the latest
-  // Coordinator/State row.
   await expect.poll(() => readPersistedIntroWatched(), { timeout: 10_000 }).toBe('true');
 
-  // A reload now lands directly on the regular platform: no picker, no
-  // intro overlay. The bare /assistants visit defaults to the Coordinator
-  // selected with its "Assistant info" onboarding card open — regardless
-  // of onboarding being already watched.
   await page.reload();
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0, {
     timeout: 15_000,
   });
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
@@ -635,7 +690,7 @@ test('keeps the onboarding checklist visible while navigating assistant sections
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
@@ -661,7 +716,7 @@ test('keeps the onboarding checklist visible while navigating assistant sections
   }
 });
 
-test('working mode offers a reactivate affordance that re-enters onboarding', async ({
+test('inactive onboarding offers a return affordance that re-enters onboarding', async ({
   authedPage: page,
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
@@ -674,64 +729,34 @@ test('working mode offers a reactivate affordance that re-enters onboarding', as
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  // Exit onboarding: flip the Coordinator/State row to working mode.
-  const promote = await orchestraFetch(
+  // Deactivate onboarding.
+  const deactivate = await orchestraFetch(
     `/v0/assistant/${coordinator.agentId}/state`,
-    { method: 'PATCH', body: JSON.stringify({ mode: 'working' }) },
+    { method: 'PATCH', body: JSON.stringify({ onboarding_active: false }) },
     user.apiKey
   );
-  expect(promote.ok).toBeTruthy();
+  expect(deactivate.ok).toBeTruthy();
 
-  // Reload so the client reads the working-mode snapshot, then open the
+  // Reload so the client reads the inactive snapshot, then open the
   // Coordinator's onboarding sub-tab.
   await gotoAssistants(page);
   await openOnboardingChecklist(page);
 
-  // Working mode shows the reactivate affordance instead of the checklist.
-  await expect(page.getByTestId('coordinator-onboarding-working')).toBeVisible({ timeout: 10_000 });
+  // Inactive onboarding shows the return affordance instead of the checklist.
+  await expect(page.getByTestId('coordinator-onboarding-inactive')).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toHaveCount(0);
-  const reactivate = page.getByTestId('coordinator-onboarding-reactivate');
-  await expect(reactivate).toBeVisible();
+  const returnButton = page.getByTestId('coordinator-onboarding-return');
+  await expect(returnButton).toBeVisible();
 
-  // Reactivating flips the row back to onboarding and repopulates the
-  // checklist directly from the server-derived render.
-  await reactivate.click();
+  // Returning flips the row back to active and repopulates the checklist
+  // directly from the server-derived render.
+  await returnButton.click();
   await expect
-    .poll(() => readPersistedMode(coordinator.agentId), { timeout: 10_000 })
-    .toBe('onboarding');
+    .poll(() => readPersistedOnboardingActive(coordinator.agentId), { timeout: 10_000 })
+    .toBe('true');
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
   });
-});
-
-test('switching back to T-W1N does not reapply the onboarding focus layout', async ({
-  authedPage: page,
-}) => {
-  const coordinator = createPersonalCoordinator(user.id);
-  const otherAssistant = createAssistant({
-    userId: user.id,
-    firstName: 'Switch',
-    surname: 'Unity',
-  });
-  resetCoordinatorIntroWatched();
-
-  await gotoAssistants(page);
-  await expectPickerVisible(page);
-  await page.getByTestId('coordinator-onboarding-pick-chat').click();
-  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
-
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('assistant-info-tab-onboarding')).toBeVisible();
-
-  // Close the Coordinator's info sheet, then bounce to another unity and
-  // back via the rail's unity switcher.
-  await openAssistantInfoPanel(page);
-  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
-
-  await selectAssistantInList(page, otherAssistant.agentId);
-  await selectAssistantInList(page, coordinator.agentId);
-
-  // Returning to Twin must not reapply the onboarding focus layout — the
-  // info sheet stays closed.
-  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 });

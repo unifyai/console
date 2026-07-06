@@ -13,6 +13,9 @@ import {
 } from '@/components/Common/Toasts/notifications';
 
 export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
+  const adminActionsRef = React.useRef(adminActions);
+  adminActionsRef.current = adminActions;
+
   // --- State and logic for generating a single link ---
   const [generatedLinkData, setGeneratedLinkData] = React.useState<OneTimeLinkResponse | null>(
     null
@@ -44,7 +47,7 @@ export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
       }
       setLinksError(null);
 
-      const result = await adminActions.listOneTimeLinks(pageSize, currentOffset);
+      const result = await adminActionsRef.current.listOneTimeLinks(pageSize, currentOffset);
 
       if (fetchIdRef.current !== currentFetchId) {
         // Check if this is still the latest fetch
@@ -79,7 +82,7 @@ export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
         setIsLoadingLinks(false);
       }
     },
-    [adminActions, pageSize]
+    [pageSize]
   );
 
   const refreshLinksList = React.useCallback(() => {
@@ -98,10 +101,11 @@ export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
     }
   }, [isLoadingMoreLinks, hasMoreLinks, offset, fetchLinksInternal]);
 
-  // Initial fetch for the list
+  // Initial fetch for the list — mount only; server-action props are kept in a ref.
   React.useEffect(() => {
     refreshLinksList();
-  }, [refreshLinksList]); // refreshLinksList is memoized
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Function to generate a new link
   const generateNewLink = async (
@@ -115,7 +119,7 @@ export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
     setGeneratedLinkData(null);
     const toastId = showLoadingToast('Generating credit grant link...');
 
-    const result = await adminActions.generateOneTimeLink(
+    const result = await adminActionsRef.current.generateOneTimeLink(
       expiresInDays,
       creditAmount,
       maxClaims,
@@ -153,7 +157,7 @@ export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
   // Function to delete a link from the list
   const deleteLink = async (linkId: string): Promise<boolean> => {
     const toastId = showLoadingToast(`Deleting link...`);
-    const result = await adminActions.deleteOneTimeLink(linkId);
+    const result = await adminActionsRef.current.deleteOneTimeLink(linkId);
     if ('detail' in result) {
       showErrorToast(
         `Failed: ${(result as ResponseProps).detail}`,

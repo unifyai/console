@@ -62,8 +62,7 @@ src/tests/
     chat.e2e.ts           Chat messaging + attachment tests
     edit.e2e.ts           Edit assistant profile tests
     delete.e2e.ts         Delete assistant tests
-    list.e2e.ts           Assistant list display tests
-    profile.e2e.ts        Profile panel tests
+    list.e2e.ts           Assistant list, deep link, menu tests
     call.e2e.ts           Voice/video call tests (dev-stubbed LiveKit)
     permissions.e2e.ts    Org role permission boundary tests
     contacts.e2e.ts       Contact management tests
@@ -91,6 +90,7 @@ src/tests/
 
 The `local.sh` script automatically:
 
+- Aligns the sibling Orchestra checkout to match Console's branch (`main`→`main`, `staging`→`staging`, other branches→`staging`)
 - Starts PostgreSQL (Docker) and Orchestra with `ORCHESTRA_ENVIRONMENT=dev`
 - Generates seed data (users, assistants, orgs)
 - Starts the Console dev server without cloud credentials (stubs activate)
@@ -131,7 +131,24 @@ npx playwright test src/tests/assistants/ --ui
 
 ## CI Pipeline
 
-E2E tests run in GitHub Actions via `.github/workflows/tests.yml`. The pipeline is triggered by `[run-tests]` in the commit message or PR title, or by `workflow_dispatch`.
+E2E tests run in GitHub Actions via `.github/workflows/tests.yml` in three tiers:
+
+| Tier           | Trigger                                                  | Jobs                                                                |
+| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Push Gate**  | Every branch push (no marker)                            | Sampled smoke: login, route-shell, push-gate                        |
+| **PR Gate**    | PRs targeting `staging` / `main`                         | Curated Assistants, Account, Billing (sharded), Auth, Shell & Admin |
+| **Exhaustive** | `[run-tests]` in commit/PR title, or `workflow_dispatch` | Full Playwright matrix + Vitest node/real                           |
+
+## CI architecture (read before changing tests)
+
+- **[CI_TESTING.md](./CI_TESTING.md)** — tiers, sampling, sharding, thresholds
+- **[AREA_PRIORITY.md](./AREA_PRIORITY.md)** — P0–P3 areas and coverage floors
+- **[ADDING_E2E_TESTS.md](./ADDING_E2E_TESTS.md)** — checklist for new/changed E2E tests
+- **[TEST_COVERAGE_MAP.md](./TEST_COVERAGE_MAP.md)** — capability registry (enforced)
+- **[TEST_INVENTORY.md](./TEST_INVENTORY.md)** — per-test audit log
+- **Manifest:** [`scripts/ci-playwright-manifest.json`](../../scripts/ci-playwright-manifest.json)
+
+Spec lists for push/PR live in `scripts/ci-playwright-tiers.sh`. Exhaustive tiers auto-discover via `find`.
 
 ### How CI works
 
@@ -187,4 +204,4 @@ To test full round-trip chat locally, use `./scripts/local.sh start --chat`.
 
 ## Coverage Status
 
-The `_interfaces` and `_visualization` test suites have not been converted to E2E and are excluded from CI.
+Vitest suites under `_interfaces` and `_visualization` run in the **Exhaustive** tier only (`npm run test:node`, `npm run test:real`). See `src/tests/TEST_INVENTORY.md`.

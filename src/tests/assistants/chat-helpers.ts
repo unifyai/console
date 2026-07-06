@@ -68,6 +68,7 @@ export interface SeedTranscriptOpts {
   selfContactId?: number;
   bossContactId?: number;
   authoringAssistantId?: number | null;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -101,6 +102,7 @@ export function createTranscriptSeeder(defaults: { selfContactId: number; bossCo
     if ('authoringAssistantId' in opts) {
       entries.authoring_assistant_id = opts.authoringAssistantId;
     }
+    if (opts.metadata) entries.metadata = opts.metadata;
     /* eslint-enable @typescript-eslint/naming-convention */
 
     const res = await orchestraFetch(
@@ -193,6 +195,24 @@ export async function publishUnifyMessageOutbound(
 }
 
 // ---------------------------------------------------------------------------
+// Chat surface locators
+// ---------------------------------------------------------------------------
+
+/** Main chat composer (not the About/bio field in the info panel). */
+export function chatComposer(page: Page) {
+  return page.getByRole('textbox', { name: 'Send a message...' });
+}
+
+/** Wait until contact resolution finished and the composer can send. */
+export async function waitForChatSendReady(page: Page, timeout = 60_000): Promise<void> {
+  const composer = chatComposer(page);
+  await expect(composer).toBeEnabled({ timeout });
+  await composer.fill('…');
+  await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled({ timeout });
+  await composer.fill('');
+}
+
+// ---------------------------------------------------------------------------
 // Navigation helpers
 // ---------------------------------------------------------------------------
 
@@ -213,5 +233,13 @@ export function createOpenAssistantChat(defaultAssistant: SeededAssistant) {
 
     const chatArea = page.getByTestId('chat-scroll-area');
     await expect(chatArea).toBeVisible({ timeout: 10_000 });
+
+    const closeInfo = page.getByRole('button', { name: 'Close assistant info' });
+    if (await closeInfo.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await closeInfo.click();
+    }
+
+    await expect(chatComposer(page)).toBeEnabled({ timeout: 20_000 });
+    await waitForChatSendReady(page);
   };
 }

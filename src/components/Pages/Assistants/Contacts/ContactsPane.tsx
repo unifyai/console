@@ -18,6 +18,7 @@ import {
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { cn } from '@/lib/utils';
 import { useBrainData } from '@/hooks/Assistants/useBrainData';
+import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
@@ -39,6 +40,7 @@ interface ContactsPaneProps {
   assistantId: string;
   /** Opens the channel-identity provisioning dialog (the live "Contacts" action). */
   onManageContacts?: () => void;
+  enabled?: boolean;
 }
 
 function RespondDot({ on }: { on: boolean }) {
@@ -161,17 +163,25 @@ export function ContactsPane({
   ownerId,
   assistantId,
   onManageContacts,
+  enabled = true,
 }: ContactsPaneProps) {
-  const { contacts, isLoading, error, refetch } = useBrainData({
+  const { contacts, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
     contexts: ['Contacts'] as const,
     initialContext: 'Contacts',
+    enabled,
   });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [query, setQuery] = useState('');
+  const {
+    draft: searchDraft,
+    setDraft: setSearchDraft,
+    committed: searchQuery,
+    submit: submitSearch,
+    clear: clearSearch,
+  } = useTabSearchCommit();
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<ContactCard | null>(null);
 
@@ -182,8 +192,8 @@ export function ContactsPane({
     [selectedKeys]
   );
   const filtered = useMemo(
-    () => filterContacts(cards, query, selectedTags),
-    [cards, query, selectedTags]
+    () => filterContacts(cards, searchQuery, selectedTags),
+    [cards, searchQuery, selectedTags]
   );
 
   const toggleKey = useCallback((key: string) => {
@@ -228,8 +238,10 @@ export function ContactsPane({
     <div className="flex h-full flex-col" data-testid="contacts-pane">
       <TabToolbar
         testId="contacts-header"
-        searchValue={query}
-        onSearchChange={setQuery}
+        searchValue={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={submitSearch}
+        onSearchClear={clearSearch}
         searchPlaceholder={tabSearchPlaceholder('contacts')}
         searchTestId="contacts-search"
         searchClearTestId="contacts-search-clear"
@@ -243,12 +255,8 @@ export function ContactsPane({
             clearTestId="contacts-filter-clear"
           />
         }
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        refreshTitle="Refresh contacts"
-        refreshTestId="contacts-refresh"
-        addAction={
-          onManageContacts && (
+        trailing={
+          onManageContacts ? (
             <Button
               size="sm"
               className="h-7 shrink-0"
@@ -257,12 +265,16 @@ export function ContactsPane({
             >
               <Plus className="mr-1 h-3.5 w-3.5" /> Add contact
             </Button>
-          )
+          ) : undefined
         }
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshTitle="Refresh contacts"
+        refreshTestId="contacts-refresh"
       />
 
       <div className="min-h-0 flex-1" data-testid="contacts-body">
-        {isLoading && cards.length === 0 ? (
+        {isLoading && !hasLoaded ? (
           <div
             className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3 p-3"
             data-testid="contacts-skeleton"

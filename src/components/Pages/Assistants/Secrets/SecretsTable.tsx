@@ -38,6 +38,7 @@ type SortState = { field: SortField; direction: SortDirection } | null;
 interface SecretsTableProps {
   secrets: Secret[];
   isLoading: boolean;
+  hasLoaded: boolean;
   canWrite: boolean;
   searchQuery: string;
   expandedFolders: Set<string>;
@@ -191,6 +192,7 @@ function CellTooltip({
 export function SecretsTable({
   secrets,
   isLoading,
+  hasLoaded,
   canWrite,
   searchQuery,
   expandedFolders,
@@ -251,7 +253,7 @@ export function SecretsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && secrets.length === 0 ? (
+            {isLoading && !hasLoaded ? (
               <SkeletonRows />
             ) : (
               rows.map((row) => {

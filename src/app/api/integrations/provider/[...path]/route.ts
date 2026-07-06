@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 import { buildOrchestraV0Url } from '../../_utils/orchestra-url';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
@@ -27,6 +28,29 @@ async function proxy(request: NextRequest, context: RouteContext) {
   }
   const target = buildOrchestraV0Url(`/integrations/${path.join('/')}`);
   request.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+
+  if (mockSimulationEnabled()) {
+    const { simulationFetch } = await import('@/lib/simulation/dispatch');
+    const init: RequestInit = {
+      method: request.method,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    };
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      init.body = await request.text();
+    }
+    const simResponse = await simulationFetch(target.toString(), init);
+    const text = await simResponse.text();
+    return new NextResponse(text, {
+      status: simResponse.status,
+      headers: {
+        'Content-Type': simResponse.headers.get('Content-Type') || 'application/json',
+      },
+    });
+  }
 
   const init: RequestInit = {
     method: request.method,

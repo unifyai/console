@@ -88,7 +88,9 @@ export async function getSession() {
     const sessionInfo = snakeToCamelObject<Session>(await sessionResponse.json());
     return sessionInfo;
   } else {
-    // Avoid caching here to ensure per-request cookies (e.g., console_auth) are respected
+    // Avoid caching here to ensure per-request cookies are respected.
+    // Do not route through getServerSessionCached — explicit getSession()
+    // callers need a live read; nested layouts dedupe via cache(getCurrentUser).
     const session = await getServerSession(authOptions);
     return session;
   }
@@ -125,10 +127,14 @@ export async function getExternalIdentityUser(): Promise<User | null> {
  * from the externally-injected dict. Otherwise resolves the user by the
  * session email via Orchestra (managed auth — cloud and self-host).
  *
+ * Wrapped in React `cache()` so nested layouts (Providers, home layout,
+ * app-shell bootstrap, route gates) share one Orchestra round-trip per RSC
+ * request instead of repeating `/admin/user/by-email` several times.
+ *
  * @returns {Promise<User | null>} The user information as a
  * User object if available, otherwise null.
  */
-export async function getCurrentUser(): Promise<User | null> {
+export const getCurrentUser = cache(async (): Promise<User | null> => {
   if (mockSimulationEnabled()) {
     const { scenario, workspaceId } = await getActiveSimulation();
     return buildMockUser(scenario, workspaceId);
@@ -298,7 +304,7 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   return user;
-}
+});
 
 /**
  * Returns the authenticated user's API key from the server session.

@@ -4,7 +4,7 @@ import { Loader2, Phone, Search } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
@@ -18,6 +18,7 @@ interface AssistantProfilePanelProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
@@ -44,6 +45,7 @@ export function AssistantProfilePanel({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   isFirstView = false,
   preHireChat,
@@ -156,6 +158,7 @@ export function AssistantProfilePanel({
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
+          requestAckHistories={requestAckHistories}
           userEmail={userEmail}
           userTimezone={userTimezone}
           isFirstView={isFirstView}

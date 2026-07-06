@@ -9,6 +9,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   projectsApi,
   logsApi,
+  contextsApi,
   uniqueName,
   safeDelete,
   realTestOptions,
@@ -173,6 +174,7 @@ describe('@real Logs API', () => {
     // This test verifies that the context parameter is passed correctly
     // to the backend (fix for Bug #14)
     const testContext = 'TestContext';
+    await contextsApi.create(testProject, testContext);
 
     // Get fields with a specific context
     // This should not return fields from other contexts

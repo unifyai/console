@@ -1,5 +1,5 @@
 export { DashboardsPane } from './DashboardsPane';
-export { DashboardsPaneHeader } from './DashboardsPaneHeader';
+export { DashboardViewSelector, DashboardCollapseAllButton } from './DashboardsPaneHeader';
 export { DashboardsPaneFooter } from './DashboardsPaneFooter';
 export { DashboardGrid } from './DashboardGrid';
 export { DashboardTileCard } from './DashboardTileCard';

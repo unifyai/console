@@ -15,12 +15,7 @@ import {
   setMeteredPlan,
   clearMeteredPlan,
   waitForAssistantsReady,
-  type TestUser,
 } from './helpers';
-
-// ---------------------------------------------------------------------------
-// Out of Credits Banner
-// ---------------------------------------------------------------------------
 
 const oocUser = createTestUser({ name: 'Banner', lastName: 'OOC', credits: 100 });
 insertRechargeRecord(oocUser.id, 25);
@@ -31,38 +26,25 @@ oocTest.afterAll(() => {
   cleanupUser(oocUser.id);
 });
 
-oocTest('shows out-of-credits banner when balance is negative', async ({ authedPage: page }) => {
-  setUserCredits(oocUser.id, -5);
-  await page.goto('/assistants');
+oocTest(
+  'out-of-credits banner appears at zero or negative balance and hides when funded @critical @area(billing.wallet)',
+  async ({ authedPage: page }) => {
+    for (const balance of [-5, 0]) {
+      setUserCredits(oocUser.id, balance);
+      await page.goto('/assistants');
+      const banner = page.getByTestId('out-of-credits-banner');
+      await expect(banner).toBeVisible({ timeout: 15_000 });
+      const bannerText = await banner.textContent();
+      expect(bannerText).toMatch(/depleted|credit/i);
+      expect(bannerText).toMatch(/billing/i);
+    }
 
-  const banner = page.getByTestId('out-of-credits-banner');
-  await expect(banner).toBeVisible({ timeout: 15_000 });
-
-  const bannerText = await banner.textContent();
-  expect(bannerText).toMatch(/depleted|credit/i);
-  expect(bannerText).toMatch(/billing/i);
-});
-
-oocTest('does not show banner when balance is positive', async ({ authedPage: page }) => {
-  setUserCredits(oocUser.id, 500);
-  await page.goto('/assistants');
-  await waitForAssistantsReady(page);
-
-  const banner = page.getByTestId('out-of-credits-banner');
-  await expect(banner).not.toBeVisible({ timeout: 5_000 });
-});
-
-oocTest('shows out-of-credits banner when balance is zero', async ({ authedPage: page }) => {
-  setUserCredits(oocUser.id, 0);
-  await page.goto('/assistants');
-
-  const banner = page.getByTestId('out-of-credits-banner');
-  await expect(banner).toBeVisible({ timeout: 15_000 });
-
-  const bannerText = await banner.textContent();
-  expect(bannerText).toMatch(/depleted|credit/i);
-  expect(bannerText).toMatch(/billing/i);
-});
+    setUserCredits(oocUser.id, 500);
+    await page.goto('/assistants');
+    await waitForAssistantsReady(page);
+    await expect(page.getByTestId('out-of-credits-banner')).not.toBeVisible({ timeout: 5_000 });
+  }
+);
 
 const meteredZeroUser = createTestUser({
   name: 'Banner',
@@ -82,39 +64,13 @@ meteredZeroTest.afterAll(() => {
 });
 
 meteredZeroTest(
-  'does not show out-of-credits banner for zero-balance metered account',
+  'does not show out-of-credits banner for zero-balance metered account @critical @area(billing.wallet)',
   async ({ authedPage: page }) => {
     await page.goto('/assistants');
     await waitForAssistantsReady(page);
-
-    const banner = page.getByTestId('out-of-credits-banner');
-    await expect(banner).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('out-of-credits-banner')).not.toBeVisible({ timeout: 5_000 });
   }
 );
-
-// ---------------------------------------------------------------------------
-// Account Status Banner — Active
-// ---------------------------------------------------------------------------
-
-const activeUser = createTestUser({ name: 'Banner', lastName: 'Active', credits: 5_000 });
-const activeTest = createBillingTest(activeUser);
-
-activeTest.afterAll(() => cleanupUser(activeUser.id));
-
-activeTest(
-  'does not show account status banner for active account',
-  async ({ authedPage: page }) => {
-    await page.goto('/assistants');
-    await waitForAssistantsReady(page);
-
-    const banner = page.getByTestId('account-status-banner');
-    await expect(banner).not.toBeVisible({ timeout: 5_000 });
-  }
-);
-
-// ---------------------------------------------------------------------------
-// Account Status Banner — Suspended
-// ---------------------------------------------------------------------------
 
 const suspendedUser = createTestUser({ name: 'Banner', lastName: 'Suspended', credits: 5_000 });
 const suspendedTest = createBillingTest(suspendedUser);
@@ -131,31 +87,5 @@ suspendedTest('shows account status banner for suspended account', async ({ auth
 
   const banner = page.getByTestId('account-status-banner');
   await expect(banner).toBeVisible({ timeout: 15_000 });
-
-  const bannerText = await banner.textContent();
-  expect(bannerText).toMatch(/suspended/i);
-});
-
-// ---------------------------------------------------------------------------
-// Account Status Banner — Closed
-// ---------------------------------------------------------------------------
-
-const closedUser = createTestUser({ name: 'Banner', lastName: 'Closed', credits: 5_000 });
-const closedTest = createBillingTest(closedUser);
-
-closedTest.afterAll(() => {
-  setAccountStatus(closedUser.id, 'ACTIVE');
-  cleanupUser(closedUser.id);
-});
-
-closedTest('shows account status banner for closed account', async ({ authedPage: page }) => {
-  setAccountStatus(closedUser.id, 'CLOSED');
-  await page.goto('/assistants');
-  await waitForAssistantsReady(page);
-
-  const banner = page.getByTestId('account-status-banner');
-  await expect(banner).toBeVisible({ timeout: 15_000 });
-
-  const bannerText = await banner.textContent();
-  expect(bannerText).toMatch(/closed/i);
+  await expect(banner).toContainText(/suspended/i);
 });

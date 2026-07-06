@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
-import { buildOrchestraV0Url } from '../../_utils/orchestra-url';
+import { buildOrchestraV0Url, getComposioOAuthCallbackUrl } from '../../_utils/orchestra-url';
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
@@ -27,12 +27,35 @@ async function proxy(request: NextRequest, context: RouteContext) {
   };
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    init.body = await request.text();
+    let bodyText = await request.text();
+    if (
+      request.method === 'PUT' &&
+      path.length === 3 &&
+      path[0] === 'backends' &&
+      path[2] === 'custom-auth' &&
+      bodyText
+    ) {
+      try {
+        const payload = JSON.parse(bodyText) as Record<string, unknown>;
+        if (!payload.oauth_redirect_uri) {
+          payload.oauth_redirect_uri = getComposioOAuthCallbackUrl();
+          bodyText = JSON.stringify(payload);
+        }
+      } catch {
+        // Pass through malformed bodies unchanged so Orchestra can reject them.
+      }
+    }
+    init.body = bodyText;
   }
 
   const response = await fetch(target, init);
   const text = await response.text();
-  return new NextResponse(text, {
+  // Null-body statuses (204/205/304) must not carry a body — passing even an
+  // empty string to the Response constructor throws a TypeError, which would
+  // turn a successful upstream 204 (e.g. DELETE custom-auth) into a proxy 500.
+  const isNullBodyStatus =
+    response.status === 204 || response.status === 205 || response.status === 304;
+  return new NextResponse(isNullBodyStatus || text === '' ? null : text, {
     status: response.status,
     headers: {
       'Content-Type': response.headers.get('Content-Type') || 'application/json',

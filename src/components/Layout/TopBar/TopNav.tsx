@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   User,
   CreditCard,
@@ -53,6 +53,7 @@ import AccountResetDialog from '@/components/Layout/TopBar/AccountResetDialog';
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
 import { AssistantsNavPanelShortcut } from '@/components/Layout/TopBar/AssistantsNavPanelShortcut';
+import { requestPlatformHomeNavigation } from '@/lib/navigation/platformHome';
 
 const getInitials = (name: string) =>
   name
@@ -77,6 +78,7 @@ function WorkspaceInitialBadge({ name, size }: { name: string; size: 'sm' | 'md'
 
 export default function TopNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const {
     billing: billingEnabled,
     support: supportEnabled,
@@ -281,13 +283,18 @@ export default function TopNav() {
 
         {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
-          <Link
-            href="/"
+          <button
+            type="button"
+            onClick={() => {
+              requestPlatformHomeNavigation();
+              router.push('/assistants');
+            }}
             className="flex h-full w-[42px] items-center rounded-md px-1"
-            aria-label="Unify Console"
+            aria-label="Unify Console home"
+            data-testid="platform-home-button"
           >
             <UnifyBlockMark className="scale-110" />
-          </Link>
+          </button>
           {selfHostResetControl}
 
           {/* Workspace Pill — hidden for personal-only users to avoid duplicating the profile avatar */}

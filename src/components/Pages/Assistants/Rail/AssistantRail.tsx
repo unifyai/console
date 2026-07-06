@@ -10,13 +10,16 @@ import type { SectionDef } from './sectionConfig';
 interface AssistantRailProps {
   /** Currently-open unity; drives the switcher card face. */
   activeUnity: Assistant | null;
+  isInitialAssistantIdentityLoading?: boolean;
   /** Full prop bag forwarded to the embedded `AssistantList` (the switcher). */
   listProps: React.ComponentProps<typeof AssistantList>;
   /** The active rail section id (a `SectionDef.id`). */
   activeSection: string;
+  sectionActivity?: Partial<Record<string, boolean>>;
   onSelectSection: (section: SectionDef) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  onBrandClick?: () => void;
 }
 
 /**
@@ -25,20 +28,30 @@ interface AssistantRailProps {
  */
 export function AssistantRail({
   activeUnity,
+  isInitialAssistantIdentityLoading = false,
   listProps,
   activeSection,
+  sectionActivity,
   onSelectSection,
   collapsed,
   onCollapsedChange,
+  onBrandClick,
 }: AssistantRailProps) {
   return (
     <AppRail
       activeSection={activeSection}
+      sectionActivity={sectionActivity}
       onSelectSection={onSelectSection}
       collapsed={collapsed}
       onCollapsedChange={onCollapsedChange}
+      onBrandClick={onBrandClick}
       switcher={
-        <AssistantSwitcher activeUnity={activeUnity} listProps={listProps} collapsed={collapsed} />
+        <AssistantSwitcher
+          activeUnity={activeUnity}
+          isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
+          listProps={listProps}
+          collapsed={collapsed}
+        />
       }
     />
   );

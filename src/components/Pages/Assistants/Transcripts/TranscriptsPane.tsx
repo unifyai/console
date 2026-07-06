@@ -9,6 +9,7 @@ import {
   MessageCircle,
   MessageSquare,
   Phone,
+  Slack,
   Smartphone,
   Users,
 } from 'lucide-react';
@@ -16,18 +17,22 @@ import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { ChatMarkdown } from '@/components/Chat/ChatMarkdown';
 import { ScrollArea } from '@/components/UI/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
+import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
+import { useShellResource } from '@/hooks/Common/useShellResource';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
-import {
-  invalidateTabDataCache,
-  readTabDataCache,
-  writeTabDataCache,
-} from '@/lib/assistants/tabDataCache';
 import type { ContactRow, TranscriptRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { brandAvatarToneFromId } from '@/utils/brand/avatarPalette';
@@ -47,6 +52,7 @@ interface TranscriptsPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  enabled?: boolean;
 }
 
 interface ChannelDef {
@@ -59,6 +65,11 @@ interface ChannelDef {
   cssVar: string;
 }
 
+interface TranscriptsResourceData {
+  transcriptRows: TranscriptRow[];
+  contactRows: ContactRow[];
+}
+
 const CHANNELS: ChannelDef[] = [
   {
     id: 'chat',
@@ -68,20 +79,39 @@ const CHANNELS: ChannelDef[] = [
     cssVar: 'var(--role-green)',
   },
   { id: 'email', label: 'Email', Icon: Mail, mediums: ['email'], cssVar: 'var(--role-cyan)' },
-  { id: 'call', label: 'Call', Icon: Phone, mediums: ['unify_meet'], cssVar: 'var(--role-purple)' },
-  { id: 'sms', label: 'SMS', Icon: Smartphone, mediums: ['sms'], cssVar: 'var(--role-orange)' },
+  {
+    id: 'call',
+    label: 'Call',
+    Icon: Phone,
+    mediums: ['unify_meet', 'phone_call', 'whatsapp_call', 'google_meet', 'teams_meet'],
+    cssVar: 'var(--role-purple)',
+  },
+  {
+    id: 'sms',
+    label: 'SMS',
+    Icon: Smartphone,
+    mediums: ['sms_message'],
+    cssVar: 'var(--role-orange)',
+  },
   {
     id: 'whatsapp',
     label: 'WhatsApp',
     Icon: MessageCircle,
-    mediums: ['whatsapp'],
+    mediums: ['whatsapp_message'],
     cssVar: 'var(--role-teal)',
+  },
+  {
+    id: 'slack',
+    label: 'Slack',
+    Icon: Slack,
+    mediums: ['slack_message', 'slack_channel_message'],
+    cssVar: 'var(--role-blue)',
   },
   {
     id: 'discord',
     label: 'Discord',
     Icon: Hash,
-    mediums: ['discord'],
+    mediums: ['discord_message', 'discord_channel_message'],
     cssVar: 'var(--role-purple)',
   },
 ];
@@ -158,50 +188,55 @@ async function fetchRows<T>(context: string): Promise<T[]> {
   }
 }
 
-export function TranscriptsPane({ assistant, ownerId, assistantId }: TranscriptsPaneProps) {
+export function TranscriptsPane({
+  assistant,
+  ownerId,
+  assistantId,
+  enabled = true,
+}: TranscriptsPaneProps) {
   const [viewMode, setViewMode] = React.useState<TranscriptViewMode>('threads');
   const [channel, setChannel] = React.useState<string>('all');
-  const [search, setSearch] = React.useState('');
-  const [transcripts, setTranscripts] = React.useState<TranscriptRow[]>([]);
-  const [contacts, setContacts] = React.useState<ContactRow[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const {
+    draft: searchDraft,
+    setDraft: setSearchDraft,
+    committed: searchQuery,
+    submit: submitSearch,
+    clear: clearSearch,
+  } = useTabSearchCommit();
   const [openThreadId, setOpenThreadId] = React.useState<string | number | null>(null);
-  const isStackedLayout = useMatchesBelow('tablet');
+  const isStackedLayout = useMatchesBelow('shellCompact');
 
-  const load = React.useCallback(async () => {
-    const cacheKey = `${ownerId}:${assistantId}:transcripts`;
+  const load = React.useCallback(async (): Promise<TranscriptsResourceData> => {
     const [transcriptRows, contactRows] = await Promise.all([
       fetchRows<TranscriptRow>(`${ownerId}/${assistantId}/Transcripts`),
       fetchRows<ContactRow>(`${ownerId}/${assistantId}/Contacts`),
     ]);
-    writeTabDataCache(cacheKey, { transcriptRows, contactRows });
-    setTranscripts(transcriptRows);
-    setContacts(contactRows);
+    return { transcriptRows, contactRows };
   }, [ownerId, assistantId]);
 
-  React.useEffect(() => {
-    const cacheKey = `${ownerId}:${assistantId}:transcripts`;
-    const cached = readTabDataCache<{
-      transcriptRows: TranscriptRow[];
-      contactRows: ContactRow[];
-    }>(cacheKey);
-    if (cached) {
-      setTranscripts(cached.transcriptRows);
-      setContacts(cached.contactRows);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    void load().finally(() => setIsLoading(false));
-  }, [ownerId, assistantId, load]);
+  const {
+    data: transcriptData,
+    isInitialLoading,
+    isRefreshing,
+    refresh,
+  } = useShellResource<TranscriptsResourceData>({
+    queryKey: ['assistant-transcripts', ownerId, assistantId],
+    queryFn: load,
+    enabled: enabled && !!ownerId && !!assistantId,
+  });
+
+  const transcripts = React.useMemo(
+    () => transcriptData?.transcriptRows ?? [],
+    [transcriptData?.transcriptRows]
+  );
+  const contacts = React.useMemo(
+    () => transcriptData?.contactRows ?? [],
+    [transcriptData?.contactRows]
+  );
 
   const handleRefresh = React.useCallback(async () => {
-    setIsRefreshing(true);
-    invalidateTabDataCache(`${ownerId}:${assistantId}:transcripts`);
-    await load();
-    setIsRefreshing(false);
-  }, [load, ownerId, assistantId]);
+    await refresh({ blocking: true });
+  }, [refresh]);
 
   const nameFor = React.useCallback(
     (contactId: number | null): string => {
@@ -267,15 +302,15 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       (a, b) =>
         new Date(b.last.timestamp ?? 0).getTime() - new Date(a.last.timestamp ?? 0).getTime()
     );
-    if (!search.trim()) return built;
-    const needle = search.trim().toLowerCase();
+    if (!searchQuery.trim()) return built;
+    const needle = searchQuery.trim().toLowerCase();
     return built.filter((thread) => {
       if (thread.subject.toLowerCase().includes(needle)) return true;
       if (thread.participantIds.some((id) => nameFor(id).toLowerCase().includes(needle)))
         return true;
       return thread.messages.some((m) => (m.content ?? '').toLowerCase().includes(needle));
     });
-  }, [sortedAsc, search, nameFor]);
+  }, [sortedAsc, searchQuery, nameFor]);
 
   // Keep a valid selection as filters/search change.
   React.useEffect(() => {
@@ -322,10 +357,13 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
     >
       {/* Toolbar: channel segments + search + refresh */}
       <TabToolbar
-        searchValue={search}
-        onSearchChange={setSearch}
+        searchValue={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={submitSearch}
+        onSearchClear={clearSearch}
         searchPlaceholder={tabSearchPlaceholder('transcripts')}
         searchTestId="transcripts-search"
+        searchClearTestId="transcripts-search-clear"
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
         refreshTitle="Refresh transcripts"
@@ -348,21 +386,24 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
               ))}
             </TabSegmentGroup>
             {isStackedLayout ? (
-              <select
-                value={channel}
-                onChange={(e) => setChannel(e.target.value)}
-                className="h-7 max-w-[9rem] shrink-0 rounded-md border border-border bg-transparent px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                data-testid="transcripts-channel-select"
-                aria-label="Filter by channel"
-              >
-                <option value="all">All ({channelCounts.all})</option>
-                {CHANNELS.map((channelDef) => (
-                  <option key={channelDef.id} value={channelDef.id}>
-                    {channelDef.label}
-                    {channelCounts[channelDef.id] ? ` (${channelCounts[channelDef.id]})` : ''}
-                  </option>
-                ))}
-              </select>
+              <Select value={channel} onValueChange={setChannel}>
+                <SelectTrigger
+                  className="h-7 w-[9.5rem] shrink-0"
+                  data-testid="transcripts-channel-select"
+                  aria-label="Filter by channel"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="all">All ({channelCounts.all})</SelectItem>
+                  {CHANNELS.map((channelDef) => (
+                    <SelectItem key={channelDef.id} value={channelDef.id}>
+                      {channelDef.label}
+                      {channelCounts[channelDef.id] ? ` (${channelCounts[channelDef.id]})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <TabSegmentGroup testId="transcripts-channel-seg" className="hidden md:flex">
                 <TabSegment
@@ -394,7 +435,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       />
 
       {/* Threads split: list + reader */}
-      {isLoading ? (
+      {isInitialLoading ? (
         <TabSplitSkeleton listRows={8} />
       ) : viewMode === 'feed' ? (
         <ScrollArea className="min-h-0 flex-1" viewportTestId="transcripts-feed">
@@ -452,6 +493,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
           paneId="transcripts-threads"
           defaultWidth={320}
           mobileMode="stack"
+          stackBelow="shellCompact"
           detailOpen={openThreadId !== null && activeThread !== null}
           onDetailClose={() => setOpenThreadId(null)}
           mobileBackLabel="Threads"

@@ -14,11 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { roots } from '@/lib/assistants/scope';
-import {
-  invalidateTabDataCache,
-  readTabDataCache,
-  writeTabDataCache,
-} from '@/lib/assistants/tabDataCache';
+import { useShellResource } from '@/hooks/Common/useShellResource';
 import { TabFooter } from '../Common/TabFooter';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
@@ -28,6 +24,7 @@ interface DataPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  enabled?: boolean;
 }
 
 /** Rows fetched per page; the leaf view appends pages via "Load more". */
@@ -189,7 +186,7 @@ function TreeRow({
   );
 }
 
-export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
+export function DataPane({ assistant, ownerId, assistantId, enabled = true }: DataPaneProps) {
   const dataRoots = React.useMemo<DataRoot[]>(
     () =>
       roots(assistant).map((r) =>
@@ -210,11 +207,9 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
     [dataRoots]
   );
 
-  const [tree, setTree] = React.useState<TreeNode | null>(null);
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leaf, setLeaf] = React.useState<LeafData | null>(null);
-  const [isLoadingTree, setIsLoadingTree] = React.useState(true);
   const [isLoadingLeaf, setIsLoadingLeaf] = React.useState(false);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
@@ -238,42 +233,31 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
     return publicColumnsFromFields(data);
   }, []);
 
-  const treeCacheKey = `${ownerId}:${assistantId}:data-tree`;
+  const loadTree = React.useCallback(async (): Promise<TreeNode> => {
+    const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
+    const raw: unknown = res.ok ? await res.json() : [];
+    const names = Array.isArray(raw)
+      ? raw
+          .map((c) => (typeof c === 'string' ? c : (c as { name?: string })?.name))
+          .filter((name): name is string => Boolean(name))
+      : [];
+    return buildTree(names, dataRoots);
+  }, [dataRoots]);
 
-  const loadTree = React.useCallback(async () => {
-    setIsLoadingTree(true);
-    try {
-      const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
-      const raw: unknown = res.ok ? await res.json() : [];
-      const names = Array.isArray(raw)
-        ? raw
-            .map((c) => (typeof c === 'string' ? c : (c as { name?: string })?.name))
-            .filter((name): name is string => Boolean(name))
-        : [];
-      const built = buildTree(names, dataRoots);
-      writeTabDataCache(treeCacheKey, built);
-      setTree(built);
-      // Expand the first level so the directory reads as a populated tree.
-      setExpanded(new Set(Array.from(built.children.values()).map((n) => n.context ?? n.name + 1)));
-    } catch {
-      setTree(newNode('root'));
-    } finally {
-      setIsLoadingTree(false);
-    }
-  }, [dataRoots, treeCacheKey]);
+  const {
+    data: tree,
+    isInitialLoading: isLoadingTree,
+    refresh: refreshTree,
+  } = useShellResource<TreeNode>({
+    queryKey: ['assistant-data-tree', ownerId, assistantId],
+    queryFn: loadTree,
+    enabled: enabled && !!ownerId && !!assistantId,
+  });
 
   React.useEffect(() => {
-    const cached = readTabDataCache<TreeNode>(treeCacheKey);
-    if (cached) {
-      setTree(cached);
-      setExpanded(
-        new Set(Array.from(cached.children.values()).map((n) => n.context ?? n.name + 1))
-      );
-      setIsLoadingTree(false);
-      return;
-    }
-    void loadTree();
-  }, [loadTree, treeCacheKey]);
+    if (!tree) return;
+    setExpanded(new Set(Array.from(tree.children.values()).map((n) => n.context ?? n.name + 1)));
+  }, [tree]);
 
   const fetchLeafPage = React.useCallback(
     async (
@@ -400,8 +384,7 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
                     <button
                       type="button"
                       onClick={() => {
-                        invalidateTabDataCache(treeCacheKey);
-                        void loadTree();
+                        void refreshTree({ blocking: true });
                       }}
                       className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       aria-label="Refresh data contexts"
@@ -509,8 +492,7 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            invalidateTabDataCache(treeCacheKey);
-                            void loadTree();
+                            void refreshTree({ blocking: true });
                           }}
                           className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           aria-label="Refresh data contexts"

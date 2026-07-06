@@ -472,6 +472,7 @@ export interface ActionNodeItemProps {
 function getLabelStyles(status: ActionNodeStatus): string {
   if (status === 'error') return 'text-error font-medium';
   if (status === 'running') return 'text-foreground font-medium animate-shimmer';
+  if (status === 'awaiting') return 'text-muted-foreground font-medium';
   return 'text-foreground font-medium';
 }
 
@@ -2643,19 +2644,26 @@ function RootStatusPill({ status }: { status: ActionNode['status'] }) {
           cls: 'border border-primary-tint-50 bg-primary-tint-10 text-primary',
           dot: true,
         }
-      : status === 'error'
+      : status === 'awaiting'
         ? {
-            label: 'Failed',
-            cls: 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]',
+            label: 'Waiting for input',
+            cls: 'border border-border bg-muted text-muted-foreground',
             dot: false,
           }
-        : {
-            label: 'Done',
-            cls: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
-            dot: false,
-          };
+        : status === 'error'
+          ? {
+              label: 'Failed',
+              cls: 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]',
+              dot: false,
+            }
+          : {
+              label: 'Done',
+              cls: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
+              dot: false,
+            };
   return (
     <span
+      data-testid="action-root-status-pill"
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full px-[9px] py-0.5 text-[11px] font-semibold capitalize',
         cfg.cls

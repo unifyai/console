@@ -72,6 +72,8 @@ interface IntegrationsPaneProps {
   secretActions: SecretActions;
   canWrite?: boolean;
   isVisible?: boolean;
+  /** When false, the assistants surface is hidden behind settings/admin routes. */
+  isActiveSurface?: boolean;
   /**
    * Notifies the parent of the number of "connected an app" signals — used
    * by the Coordinator onboarding flow to auto-mark the "Connect your
@@ -185,8 +187,10 @@ export function IntegrationsPane({
   secretActions,
   canWrite = false,
   isVisible = true,
+  isActiveSurface = true,
   onSecretsCountChange,
 }: IntegrationsPaneProps) {
+  const integrationsDataEnabled = isVisible && isActiveSurface;
   const {
     secrets,
     isSubmitting,
@@ -197,7 +201,9 @@ export function IntegrationsPane({
     cancelUploadJson,
     onSubmit,
     fetchSecrets,
-  } = useAssistantSecrets(assistantId, ownerId, secretActions);
+  } = useAssistantSecrets(assistantId, ownerId, secretActions, {
+    enabled: integrationsDataEnabled,
+  });
   const [galleryFilters, setGalleryFilters] =
     React.useState<IntegrationGalleryFilters>(DEFAULT_GALLERY_FILTERS);
   const catalogSourceType =
@@ -214,6 +220,7 @@ export function IntegrationsPane({
     query: galleryFilters.query,
     sourceType: catalogSourceType,
     statusGroups: catalogStatusGroups,
+    enabled: integrationsDataEnabled,
   });
   const {
     definitions: providerDefinitions,
@@ -805,7 +812,7 @@ export function IntegrationsPane({
       <div className="min-h-0 flex-1">
         <IntegrationGalleryShell
           items={shouldShowGallerySkeleton ? [] : galleryItems}
-          isLoading={shouldShowGallerySkeleton || isProviderCatalogLoading}
+          isLoading={shouldShowGallerySkeleton}
           isMock={isProviderCatalogMock}
           busySlug={providerConnectingSlug}
           isRefreshing={isProviderCatalogLoading}

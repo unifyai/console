@@ -10,9 +10,11 @@ import {
   type AssistantInfoSidePanelContentProps,
 } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
 import {
+  ASSISTANT_INFO_PANEL_OPEN_REQUEST_EVENT,
   ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT,
   consumePendingInfoPanelOpen,
   publishAssistantInfoPanelVisibility,
+  type AssistantInfoPanelOpenRequestDetail,
   type AssistantInfoPanelToggleRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import type { Assistant } from '@/types/assistants/assistant';
@@ -26,8 +28,8 @@ import { Pencil, X } from 'lucide-react';
 const INFO_PANEL_OPEN_KEY = 'console:assistants:info-panel-open';
 const INFO_PANEL_WIDTH_KEY = 'console:assistants:info-panel-width';
 const INFO_PANEL_DEFAULT_WIDTH = 360;
-const INFO_PANEL_MIN_WIDTH = 320;
-const INFO_PANEL_MIN_MAIN_WIDTH = 320;
+const INFO_PANEL_MIN_WIDTH = 280;
+const INFO_PANEL_MIN_MAIN_WIDTH = 280;
 
 function clampInfoPanelWidth(width: number, maxWidth = Number.POSITIVE_INFINITY): number {
   return Math.min(maxWidth, Math.max(INFO_PANEL_MIN_WIDTH, Math.round(width)));
@@ -44,6 +46,17 @@ function readInfoPanelOpen(): boolean {
     return raw === null ? true : raw !== 'false';
   } catch {
     return true;
+  }
+}
+
+/** Coordinator onboarding panel starts closed until the user opens it explicitly. */
+function readCoordinatorOnboardingInfoPanelOpen(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.localStorage.getItem(INFO_PANEL_OPEN_KEY);
+    return raw === 'true';
+  } catch {
+    return false;
   }
 }
 
@@ -107,6 +120,8 @@ interface AssistantInfoPanelLayoutProps {
   isSpendingBlocked?: boolean;
   spendingBlockedMessage?: string | null;
   onEditProfile?: (assistant: Assistant) => void;
+  /** True while the profile edit dialog is opening for this assistant. */
+  isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
@@ -119,6 +134,8 @@ interface AssistantInfoPanelLayoutProps {
   infoPanelFocusLayoutRequest?: number;
   coordinatorOnboarding?: AssistantInfoPanelCoordinatorOnboarding;
   onOpenChatSection?: () => void;
+  /** False when the assistants surface is hidden behind settings/admin routes. */
+  isActiveSurface?: boolean;
 }
 
 const noop = () => {};
@@ -136,6 +153,7 @@ export function AssistantInfoPanelLayout({
   isSpendingBlocked = false,
   spendingBlockedMessage,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
@@ -148,10 +166,12 @@ export function AssistantInfoPanelLayout({
   infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
   onOpenChatSection,
+  isActiveSurface = true,
 }: AssistantInfoPanelLayoutProps) {
   const { voiceCalls } = useFeatures();
   const { canOpenAssistantChat } = useAssistantPermissions();
-  const isBelowMobile = useMatchesBelow('mobile');
+  const isBelowShellCompact = useMatchesBelow('shellCompact');
+  const useOverlayInfoPanel = isBelowShellCompact || !isActiveSurface;
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
   const infoPanelContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [infoPanelWidth, setInfoPanelWidth] = React.useState(INFO_PANEL_DEFAULT_WIDTH);
@@ -204,10 +224,17 @@ export function AssistantInfoPanelLayout({
       event.preventDefault();
       setIsInfoOpenAndPersist(!isInfoOpen);
     };
+    const onOpenRequest = (event: Event) => {
+      const detail = (event as CustomEvent<AssistantInfoPanelOpenRequestDetail>).detail;
+      if (detail.assistantId !== assistantId) return;
+      setIsInfoOpenAndPersist(true);
+    };
 
     window.addEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, onToggleRequest);
+    window.addEventListener(ASSISTANT_INFO_PANEL_OPEN_REQUEST_EVENT, onOpenRequest);
     return () => {
       window.removeEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, onToggleRequest);
+      window.removeEventListener(ASSISTANT_INFO_PANEL_OPEN_REQUEST_EVENT, onOpenRequest);
     };
   }, [assistant?.agentId, isInfoOpen, setIsInfoOpenAndPersist]);
 
@@ -270,6 +297,11 @@ export function AssistantInfoPanelLayout({
 
     if (consumePendingInfoPanelOpen(assistant.agentId)) {
       setIsInfoOpenAndPersist(true);
+      return;
+    }
+
+    if (isCoordinatorOnboardingPanel) {
+      setIsInfoOpen(readCoordinatorOnboardingInfoPanelOpen());
       return;
     }
 
@@ -437,6 +469,7 @@ export function AssistantInfoPanelLayout({
       currentUserId={currentUserId}
       onClose={closeInfo}
       onEditProfile={onEditProfile}
+      isEditProfileOpening={isEditProfileOpening}
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
@@ -446,7 +479,8 @@ export function AssistantInfoPanelLayout({
       onStartCall={onStartCall}
       isStartCallDisabled={isCallButtonDisabled}
       startCallTooltip={callButtonTooltip}
-      hideHeaderEdit={isBelowMobile}
+      hideHeaderActions={useOverlayInfoPanel}
+      isActiveSurface={isActiveSurface}
       onRegisterFocusProfileTab={(focusProfileTab) => {
         focusProfileTabRef.current = focusProfileTab;
       }}
@@ -457,7 +491,7 @@ export function AssistantInfoPanelLayout({
     <div ref={infoPanelContainerRef} className="flex h-full min-h-0 w-full min-w-0">
       <div className="flex min-w-0 flex-1 flex-col">{mainContent}</div>
 
-      {isBelowMobile ? (
+      {useOverlayInfoPanel ? (
         <Sheet
           open={isInfoOpen}
           onOpenChange={(open) => {
@@ -466,7 +500,7 @@ export function AssistantInfoPanelLayout({
         >
           <SheetContent
             side="right"
-            className="flex w-full flex-col overflow-hidden p-0 sm:max-w-md [&>button.absolute]:hidden"
+            className="flex w-full max-w-[min(100vw,28rem)] flex-col overflow-hidden p-0 sm:max-w-md [&>button.absolute]:hidden"
             data-testid="assistant-info-sheet"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-2 py-2">

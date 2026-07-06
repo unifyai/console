@@ -19,23 +19,34 @@ import type { Table, Cell, Row, Column } from '@tanstack/react-table';
 // Mock Factories
 // =============================================================================
 
-function createMockCell(rowId: string, columnId: string): Cell<Record<string, unknown>, unknown> {
-  return {
-    id: `${rowId}_${columnId}`,
-    row: { id: rowId } as Row<Record<string, unknown>>,
-    column: { id: columnId } as Column<Record<string, unknown>, unknown>,
-    getIsPlaceholder: () => false,
-    getValue: () => `value_${rowId}_${columnId}`,
-  } as Cell<Record<string, unknown>, unknown>;
-}
-
 function createMockRow(rowId: string, columnIds: string[]): Row<Record<string, unknown>> {
-  const cells = columnIds.map((colId) => createMockCell(rowId, colId));
-  return {
+  const row = {
     id: rowId,
     getAllCells: () => cells,
     getVisibleCells: () => cells,
   } as unknown as Row<Record<string, unknown>>;
+
+  const cells = columnIds.map((colId) => {
+    const column = {
+      id: colId,
+      getIsVisible: () => true,
+    } as Column<Record<string, unknown>, unknown>;
+
+    return {
+      id: `${rowId}_${colId}`,
+      row,
+      column,
+      getIsPlaceholder: () => false,
+      getValue: () => `value_${rowId}_${colId}`,
+    } as Cell<Record<string, unknown>, unknown>;
+  });
+
+  return row;
+}
+
+function createMockCell(rowId: string, columnId: string): Cell<Record<string, unknown>, unknown> {
+  const row = createMockRow(rowId, [columnId]);
+  return row.getAllCells().find((cell) => cell.column.id === columnId)!;
 }
 
 function createMockTable(rowCount: number, columnIds: string[]): Table<Record<string, unknown>> {

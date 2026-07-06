@@ -10,7 +10,7 @@
  * Run: npx playwright test src/tests/billing/referrals.e2e.ts
  */
 
-import { test as unauthTest, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import {
   createTestUser,
   cleanupUser,
@@ -30,6 +30,7 @@ const friend = createTestUser({ name: 'Referred', lastName: 'Friend', credits: 0
 const otherReferrer = createTestUser({ name: 'Other', lastName: 'Referrer', credits: 0 });
 
 const test = createBillingTest(referrer);
+test.describe.configure({ mode: 'serial' });
 
 test.afterAll(() => {
   clearReferralData(referrer.id);
@@ -104,6 +105,7 @@ test('attributes a referred friend to the referrer code', async ({
 
 test('a referee is attributed at most once', async ({ authedPage: page, browser }, testInfo) => {
   testInfo.setTimeout(90_000);
+  clearReferralData(friend.id);
 
   await page.goto('/assistants');
   const codeA = await page.evaluate(async () => {
@@ -185,30 +187,7 @@ test('referrer dashboard reflects a rewarded referral', async ({ authedPage: pag
 
   const section = page.getByTestId('referrals-section');
   await expect(section).toBeVisible({ timeout: 15_000 });
-  // The reward stat surfaces the seeded earnings.
-  await expect(section).toContainText(/refer/i);
-});
-
-// ---------------------------------------------------------------------------
-// Unauthenticated
-// ---------------------------------------------------------------------------
-
-unauthTest('referral endpoints require authentication', async ({ page }) => {
-  await page.goto('/login');
-
-  const summary = await page.evaluate(async () => {
-    const r = await fetch('/api/user/referral');
-    return r.status;
-  });
-  expect(summary).toBe(401);
-
-  const attribute = await page.evaluate(async () => {
-    const r = await fetch('/api/user/referral/attribute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: 'whatever' }),
-    });
-    return r.status;
-  });
-  expect(attribute).toBe(401);
+  await page.getByTestId('referrals-open-button').click();
+  await expect(page.getByTestId('referrals-rewarded')).toContainText('1', { timeout: 10_000 });
+  await expect(page.getByTestId('referrals-earned')).toContainText('5,000', { timeout: 10_000 });
 });

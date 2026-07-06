@@ -176,11 +176,7 @@ export function resolveFeatures(
   // simulation is gated on it, so enabling these capabilities here is reachable
   // only under mock mode.
   const mockSim = env.NEXT_PUBLIC_MOCK_SIM === 'true';
-
-  // Manual-top-up mode is a deployment policy owned by Orchestra (staging).
-  // In this mode billing is enforced without Stripe, so the billing UI must
-  // render even when no publishable key is configured.
-  const manualTopup = localOrchestra || (authority.manualTopup ?? false);
+  const manualTopup = localOrchestra || mockSim || (authority.manualTopup ?? false);
 
   return {
     // Billing requires the consumer-side Stripe publishable key *and* Orchestra
@@ -191,7 +187,8 @@ export function resolveFeatures(
     // so behaviour degrades gracefully. Manual-top-up deployments (staging)
     // enforce billing without Stripe, so the key requirement is waived there.
     billing:
-      (stripeConfigured || manualTopup) && !environment.isSelfHost && (authority.billing ?? true),
+      mockSim ||
+      ((stripeConfigured || manualTopup) && !environment.isSelfHost && (authority.billing ?? true)),
     manualTopup,
     // Staging-only internal tool: only surfaced when Orchestra (the owner of
     // the staging/override policy) reports it on. No local env fallback — it

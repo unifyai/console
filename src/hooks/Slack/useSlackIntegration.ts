@@ -12,7 +12,7 @@
  * goes through the ``/api/slack/oauth/start`` route because it has
  * to mint a server-side cookie (the state nonce) — which a server
  * action can do too in principle, but having a dedicated POST route
- * lets the browser cleanly navigate to the returned authorize URL
+ * lets the browser open the returned authorize URL in a new tab
  * without flickering through an intermediate render.
  */
 
@@ -162,10 +162,11 @@ export function useSlackIntegration({
         owner,
         redirectAfter: redirectAfter ?? '/assistants',
       });
-      window.location.assign(authorizeUrl);
+      window.open(authorizeUrl, '_blank', 'noopener,noreferrer');
     } catch (err) {
       console.error('[slack] failed to start OAuth:', err);
       toast.error('Could not start the Slack install. Please try again.');
+    } finally {
       setIsConnecting(false);
     }
   }, [owner, redirectAfter]);

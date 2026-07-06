@@ -25,7 +25,8 @@ import {
 const personalWorkspace: MockScenario = {
   id: 'personal-workspace',
   label: 'Personal workspace',
-  description: 'Single user, T-W1N, and a couple of assistants.',
+  description:
+    'Single user with T-W1N. Populated workspace tabs (chat, actions, dashboards, tasks, integrations) and brain sub-tabs.',
   user: personalUser,
   assistants: personalAssistants,
   projects,
@@ -38,7 +39,8 @@ const personalWorkspace: MockScenario = {
 const orgMultiRole: MockScenario = {
   id: 'org-multi-role',
   label: 'Organization (owner)',
-  description: 'Org workspace with several assistants and a populated brain.',
+  description:
+    'Org workspace with several assistants, rich brain data, and a browsable integrations catalog.',
   user: orgOwnerUser,
   assistants: orgAssistants,
   projects,

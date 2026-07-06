@@ -4,10 +4,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Volume2, Loader2, Square, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
-import { Attachment } from '@/types/assistants/chat';
+import { Attachment, MessageReaction } from '@/types/assistants/chat';
 import { ChatMarkdown } from './ChatMarkdown';
 import { RenderContentWithEmbeds, containsEmbedUrl } from './InlineEmbed';
 import { MessageAttachmentList } from './ChatAttachments';
+import { EmojiReactionPicker } from './EmojiReactionPicker';
+import { MessageReactionsBar } from './MessageReactionsBar';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
@@ -16,6 +18,10 @@ import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/Uni
 import { useUnityAudioElementLipsync } from '@/utils/assistants/unity-lipsync';
 
 type ChatBubbleVariant = 'profile' | 'hire';
+
+const messageActionButtonClass =
+  'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors text-muted-foreground/50 hover:text-muted-foreground';
+const messageActionIconClass = 'h-3.5 w-3.5';
 
 // `Intl.DateTimeFormat` construction is surprisingly expensive (allocates an
 // ICU formatter under the hood). Long conversations call `formatMessageTime`
@@ -94,6 +100,11 @@ interface ChatMessageBubbleProps {
   onAssistantAvatarStartCall?: () => void;
   isAssistantAvatarStartCallDisabled?: boolean;
   assistantAvatarStartCallTooltip?: string;
+  transcriptMessageId?: number;
+  reactions?: MessageReaction[];
+  currentContactId?: number | null;
+  onToggleReaction?: (emoji: string) => void;
+  canReact?: boolean;
 }
 
 function ChatMessageBubbleImpl({
@@ -116,6 +127,11 @@ function ChatMessageBubbleImpl({
   onAssistantAvatarStartCall,
   isAssistantAvatarStartCallDisabled,
   assistantAvatarStartCallTooltip,
+  transcriptMessageId,
+  reactions,
+  currentContactId,
+  onToggleReaction,
+  canReact = false,
 }: ChatMessageBubbleProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -234,10 +250,23 @@ function ChatMessageBubbleImpl({
     return <div className="whitespace-pre-wrap">{message}</div>;
   };
 
+  const reactionControls =
+    !isUser && canReact && onToggleReaction ? (
+      <EmojiReactionPicker
+        disabled={transcriptMessageId === undefined}
+        onSelect={onToggleReaction}
+        className={cn(
+          messageActionButtonClass,
+          'inline-flex hover:bg-transparent disabled:cursor-not-allowed disabled:opacity-50'
+        )}
+        iconClassName={messageActionIconClass}
+      />
+    ) : null;
+
   if (isUser) {
     return (
       <div
-        className="flex min-w-0 justify-end"
+        className="group flex min-w-0 justify-end"
         data-testid={isProfile ? 'message-bubble' : undefined}
         data-role={isProfile ? 'user' : undefined}
         data-index={isProfile ? index : undefined}
@@ -251,20 +280,22 @@ function ChatMessageBubbleImpl({
           {attachments && attachments.length > 0 && (
             <MessageAttachmentList attachments={attachments} />
           )}
-          <div
-            className={cn(
-              'break-words rounded-lg p-2.5 font-sans text-sm leading-snug',
-              isProfile
-                ? 'border border-primary-tint-30 bg-accent-soft text-foreground'
-                : 'bg-accent'
-            )}
-          >
-            {bubbleContent()}
-            {timeString && (
-              <time className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
-                {timeString}
-              </time>
-            )}
+          <div className="flex items-end justify-end gap-1">
+            <div
+              className={cn(
+                'break-words rounded-lg p-2.5 font-sans text-sm leading-snug',
+                isProfile
+                  ? 'border border-primary-tint-30 bg-accent-soft text-foreground'
+                  : 'bg-accent'
+              )}
+            >
+              {bubbleContent()}
+              {timeString && (
+                <time className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
+                  {timeString}
+                </time>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -276,7 +307,7 @@ function ChatMessageBubbleImpl({
       data-testid={isProfile ? 'message-bubble' : undefined}
       data-role={isProfile ? 'assistant' : undefined}
       data-index={isProfile ? index : undefined}
-      className={cn('min-w-0', isProfile && 'md:max-w-[66.6667%]')}
+      className={cn('group min-w-0', isProfile && 'md:max-w-[66.6667%]')}
     >
       <div className="mb-2.5 flex items-center gap-2">
         {assistantAvatarNode}
@@ -284,73 +315,84 @@ function ChatMessageBubbleImpl({
         {timeString && (
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>
         )}
-        {onPlayAudio && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={
-                    audioState === 'playing'
-                      ? onStopAudio
-                      : () => onPlayAudio(messageId ?? '', message)
-                  }
-                  disabled={audioState === 'generating'}
-                  className={cn(
-                    'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
-                    audioState === 'playing'
-                      ? 'text-primary hover:text-primary-tint-80'
-                      : 'text-muted-foreground/50 hover:text-muted-foreground'
-                  )}
-                >
-                  {audioState === 'generating' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
-                  {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>
-                  {audioState === 'generating'
-                    ? 'Generating audio'
-                    : audioState === 'playing'
-                      ? 'Stop audio'
-                      : 'Play audio'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {canCopy && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  aria-label={isCopied ? 'Message copied' : 'Copy message'}
-                  data-testid="message-copy-button"
-                  data-copied={isCopied || undefined}
-                  className={cn(
-                    'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded pt-0.5 transition-colors',
-                    isCopied
-                      ? 'text-primary'
-                      : 'text-muted-foreground/50 hover:text-muted-foreground'
-                  )}
-                >
-                  {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{isCopied ? 'Message copied' : 'Copy message'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        {(onPlayAudio || canCopy || reactionControls) && (
+          <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            {onPlayAudio && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={
+                        audioState === 'playing'
+                          ? onStopAudio
+                          : () => onPlayAudio(messageId ?? '', message)
+                      }
+                      disabled={audioState === 'generating'}
+                      className={cn(
+                        messageActionButtonClass,
+                        audioState === 'playing' && 'text-primary hover:text-primary-tint-80'
+                      )}
+                    >
+                      {audioState === 'generating' && (
+                        <Loader2 className={cn(messageActionIconClass, 'animate-spin')} />
+                      )}
+                      {audioState === 'playing' && (
+                        <Square className={cn(messageActionIconClass, 'fill-current')} />
+                      )}
+                      {audioState === 'idle' && <Volume2 className={messageActionIconClass} />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>
+                      {audioState === 'generating'
+                        ? 'Generating audio'
+                        : audioState === 'playing'
+                          ? 'Stop audio'
+                          : 'Play audio'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {canCopy && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      aria-label={isCopied ? 'Message copied' : 'Copy message'}
+                      data-testid="message-copy-button"
+                      data-copied={isCopied || undefined}
+                      className={cn(messageActionButtonClass, isCopied && 'text-primary')}
+                    >
+                      {isCopied ? (
+                        <Check className={messageActionIconClass} />
+                      ) : (
+                        <Copy className={messageActionIconClass} />
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>{isCopied ? 'Message copied' : 'Copy message'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {reactionControls}
+          </div>
         )}
       </div>
       {attachments && attachments.length > 0 && (
         <MessageAttachmentList attachments={attachments} isAssistant />
       )}
       <div className="min-w-0 break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
+      <MessageReactionsBar
+        reactions={reactions}
+        currentContactId={currentContactId}
+        onToggleReaction={onToggleReaction}
+      />
     </div>
   );
 }

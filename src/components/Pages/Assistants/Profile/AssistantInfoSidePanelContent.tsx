@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock, X, ChevronRight } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock, X, ChevronRight, Loader2 } from 'lucide-react';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
@@ -49,6 +49,8 @@ export interface AssistantInfoSidePanelContentProps {
   onClose: () => void;
   /** Open the edit-profile dialog. Hidden when absent or when editing is not allowed. */
   onEditProfile?: (assistant: Assistant) => void;
+  /** True while the profile edit dialog is opening. */
+  isEditProfileOpening?: boolean;
   /** Open the contact manager dialog, optionally on a specific channel tab. */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   /** Open the workspace manager dialog. */
@@ -87,8 +89,8 @@ export interface AssistantInfoSidePanelContentProps {
     onSeedChatDraft: (text: string) => void;
   };
   /** Coordinator-specific onboarding wiring. When this assistant is
-   * the canonical workspace Coordinator and ``Coordinator/State.mode
-   * === 'onboarding'``, the info panel surfaces an "Onboarding"
+   * the canonical workspace Coordinator and ``Coordinator/State.onboarding_active``
+   * is true, the info panel surfaces an "Onboarding"
    * sub-tab that renders the gradual-onboarding steps (the same
    * one that lives in ``CoordinatorOnboarding`` while the alternate
    * /assistants shell is mounted). The hook bag carries the action
@@ -101,6 +103,7 @@ export interface AssistantInfoSidePanelContentProps {
     onTriggerReferenceStep?: (stepId: string) => void;
     onAddWhatsappNumber?: () => void;
     onAddPhoneNumber?: () => void;
+    onAddDiscordId?: () => void;
     onConnectSlack?: () => void;
     onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
@@ -113,18 +116,28 @@ export interface AssistantInfoSidePanelContentProps {
      * (``create-scheduled-task`` / ``create-triggerable-task``); ``chipId``
      * the chip's id. */
     onSelectTaskChip?: (stepId: string, chipId: string) => void;
+    /** Dispatches the Learning tutorial beat event to Unity. */
+    onLearnFromCorrection?: () => void;
+    /** Dispatches the My Computer live demo beat event to Unity. */
+    onMyComputerDemo?: () => void;
+    /** Echo a checklist trigger acknowledgement into the coordinator chat. */
+    appendRequestSentAck?: (label: string) => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
      * call- vs chat-flavoured "Ask T-W1N to do something" chips. */
     isOnCall?: boolean;
+    /** Whether the onboarding surface is actively running. */
+    isOnboardingActive?: boolean;
   };
+  /** When false, suppresses background task polling for coordinator onboarding beats. */
+  isActiveSurface?: boolean;
   onStartCall?: (assistant: Assistant, type: 'audio' | 'video') => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
   className?: string;
-  /** When true, the header pencil is omitted (e.g. mobile sheet toolbar owns edit). */
-  hideHeaderEdit?: boolean;
+  /** When true, close/edit header actions are omitted (overlay sheet toolbar owns them). */
+  hideHeaderActions?: boolean;
   /** Registers the header "show profile" action for surfaces that host the panel chrome separately (mobile sheet toolbar). */
   onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
 }
@@ -141,26 +154,40 @@ function nudgeElement(element: HTMLElement | null) {
   element.classList.add('animate-nudge');
 }
 
+function shimmerProfileSectionTiles(section: HTMLElement | null) {
+  if (!section) return;
+  section.querySelectorAll<HTMLElement>('[data-profile-section-tile]').forEach((tile) => {
+    tile.classList.remove('animate-tile-shimmer');
+    void tile.offsetWidth;
+    tile.classList.add('animate-tile-shimmer');
+  });
+}
+
 function useProfileTabHeaderFocus(
   showProfileTab: boolean,
   activeTab: CoordinatorPanelTab,
   setActiveTab: React.Dispatch<React.SetStateAction<CoordinatorPanelTab>>,
-  profileSectionTitleRef: React.MutableRefObject<HTMLHeadingElement | null>
+  profileTabTriggerRef: React.MutableRefObject<HTMLButtonElement | null>,
+  profileSectionsRef: React.MutableRefObject<HTMLElement | null>
 ) {
   const focusProfileFromHeader = React.useCallback(() => {
     if (showProfileTab && activeTab !== 'profile') {
       setActiveTab('profile');
       return;
     }
-    nudgeElement(profileSectionTitleRef.current);
-  }, [activeTab, profileSectionTitleRef, setActiveTab, showProfileTab]);
+    if (showProfileTab) {
+      nudgeElement(profileTabTriggerRef.current);
+      shimmerProfileSectionTiles(profileSectionsRef.current);
+    }
+  }, [activeTab, profileSectionsRef, profileTabTriggerRef, setActiveTab, showProfileTab]);
 
   return focusProfileFromHeader;
 }
 
-function ProfileTabTrigger() {
+function ProfileTabTrigger({ triggerRef }: { triggerRef?: React.Ref<HTMLButtonElement> }) {
   return (
     <TabsTrigger
+      ref={triggerRef}
       value="profile"
       data-testid="assistant-info-tab-profile"
       className={PANEL_TAB_TRIGGER_CLASS}
@@ -198,6 +225,7 @@ export function AssistantInfoSidePanelContent({
         assistant={assistant}
         onClose={props.onClose}
         onEditProfile={props.onEditProfile}
+        isEditProfileOpening={props.isEditProfileOpening}
         className={props.className}
         onOpenContactManager={props.onOpenContactManager}
         onOpenWorkspaceManager={props.onOpenWorkspaceManager}
@@ -207,7 +235,8 @@ export function AssistantInfoSidePanelContent({
         onStartCall={props.onStartCall}
         isStartCallDisabled={props.isStartCallDisabled}
         startCallTooltip={props.startCallTooltip}
-        hideHeaderEdit={props.hideHeaderEdit}
+        hideHeaderActions={props.hideHeaderActions}
+        isActiveSurface={props.isActiveSurface}
         onRegisterFocusProfileTab={onRegisterFocusProfileTab}
       />
     );
@@ -226,6 +255,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   assistant,
   onClose,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
@@ -235,12 +265,14 @@ function CoordinatorAssistantInfoSidePanelContent({
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
-  hideHeaderEdit = false,
+  hideHeaderActions = false,
   onRegisterFocusProfileTab,
+  isActiveSurface = true,
 }: {
   assistant: Assistant;
   onClose: () => void;
   onEditProfile?: (assistant: Assistant) => void;
+  isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
@@ -250,22 +282,39 @@ function CoordinatorAssistantInfoSidePanelContent({
   onStartCall?: AssistantInfoSidePanelContentProps['onStartCall'];
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
-  hideHeaderEdit?: boolean;
+  hideHeaderActions?: boolean;
   onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
+  isActiveSurface?: boolean;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
-  const taskBeats = useCoordinatorTaskBeats(assistant, { enabled: showOnboardingTab });
+  const taskBeats = useCoordinatorTaskBeats(assistant, {
+    enabled: showOnboardingTab,
+    isActiveSurface,
+    isOnboardingActive: coordinatorOnboarding?.isOnboardingActive === true,
+  });
+
+  const appendRequestSentAck = coordinatorOnboarding?.appendRequestSentAck;
+
+  const handleTestTriggerableTask = React.useCallback(
+    async (taskId: number) => {
+      appendRequestSentAck?.('Test triggerable task');
+      await taskBeats.testTriggerableTask(taskId);
+    },
+    [appendRequestSentAck, taskBeats]
+  );
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
-  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const profileSectionsRef = React.useRef<HTMLElement>(null);
   const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
     setActiveTab,
-    profileSectionTitleRef
+    profileTabTriggerRef,
+    profileSectionsRef
   );
   React.useEffect(() => {
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
@@ -308,7 +357,8 @@ function CoordinatorAssistantInfoSidePanelContent({
         isIdCopied={isIdCopied}
         onCopyId={copyId}
         onClose={onClose}
-        onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileFromHeader : undefined}
+        onFocusProfileTab={!hideHeaderActions && canWrite ? focusProfileFromHeader : undefined}
+        hideHeaderActions={hideHeaderActions}
         onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
         isStartCallDisabled={isStartCallDisabled}
         startCallTooltip={startCallTooltip}
@@ -334,7 +384,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             >
               Onboarding
             </TabsTrigger>
-            <ProfileTabTrigger />
+            <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
           </TabsList>
           {coordinatorOnboarding && (
             <TabsContent
@@ -346,6 +396,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
                 onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
                 onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
+                onAddDiscordId={coordinatorOnboarding.onAddDiscordId}
                 onConnectSlack={coordinatorOnboarding.onConnectSlack}
                 onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
@@ -354,7 +405,9 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onCreateScheduledTask={coordinatorOnboarding.onCreateScheduledTask}
                 onCreateTriggerableTask={coordinatorOnboarding.onCreateTriggerableTask}
                 onSelectTaskChip={coordinatorOnboarding.onSelectTaskChip}
-                onTestTriggerableTask={taskBeats.testTriggerableTask}
+                onLearnFromCorrection={coordinatorOnboarding.onLearnFromCorrection}
+                onMyComputerDemo={coordinatorOnboarding.onMyComputerDemo}
+                onTestTriggerableTask={handleTestTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}
                 onSkipSection={coordinatorOnboarding.onSkipSection}
@@ -363,15 +416,16 @@ function CoordinatorAssistantInfoSidePanelContent({
               />
             </TabsContent>
           )}
-          <TabsContent value="profile" className="mt-0">
+          <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
             <ProfileSectionsPanel
               assistant={assistant}
               onEditProfile={onEditProfile}
+              isEditProfileOpening={isEditProfileOpening}
               onOpenContactManager={onOpenContactManager}
               onOpenWorkspaceManager={onOpenWorkspaceManager}
               onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
-              profileSectionTitleRef={profileSectionTitleRef}
+              sectionsRef={profileSectionsRef}
             />
           </TabsContent>
         </Tabs>
@@ -380,11 +434,12 @@ function CoordinatorAssistantInfoSidePanelContent({
           <ProfileSectionsPanel
             assistant={assistant}
             onEditProfile={onEditProfile}
+            isEditProfileOpening={isEditProfileOpening}
             onOpenContactManager={onOpenContactManager}
             onOpenWorkspaceManager={onOpenWorkspaceManager}
             onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
-            profileSectionTitleRef={profileSectionTitleRef}
+            sectionsRef={profileSectionsRef}
           />
         </ScrollArea>
       )}
@@ -396,6 +451,7 @@ function RegularAssistantInfoSidePanelContent({
   assistant,
   onClose,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
@@ -406,7 +462,7 @@ function RegularAssistantInfoSidePanelContent({
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
-  hideHeaderEdit = false,
+  hideHeaderActions = false,
   onRegisterFocusProfileTab,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
@@ -436,12 +492,14 @@ function RegularAssistantInfoSidePanelContent({
   const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile'>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
-  const profileSectionTitleRef = React.useRef<HTMLHeadingElement>(null);
+  const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const profileSectionsRef = React.useRef<HTMLElement>(null);
   const focusProfileFromHeader = useProfileTabHeaderFocus(
     showOnboardingTab,
     activeTab,
     setActiveTab,
-    profileSectionTitleRef
+    profileTabTriggerRef,
+    profileSectionsRef
   );
   React.useEffect(() => {
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
@@ -473,11 +531,12 @@ function RegularAssistantInfoSidePanelContent({
     <ProfileSectionsPanel
       assistant={assistant}
       onEditProfile={onEditProfile}
+      isEditProfileOpening={isEditProfileOpening}
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
       canWrite={canWrite}
-      profileSectionTitleRef={profileSectionTitleRef}
+      sectionsRef={profileSectionsRef}
     />
   );
 
@@ -493,7 +552,8 @@ function RegularAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onClose={onClose}
-          onFocusProfileTab={!hideHeaderEdit && canWrite ? focusProfileFromHeader : undefined}
+          onFocusProfileTab={!hideHeaderActions && canWrite ? focusProfileFromHeader : undefined}
+          hideHeaderActions={hideHeaderActions}
           onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
           isStartCallDisabled={isStartCallDisabled}
           startCallTooltip={startCallTooltip}
@@ -523,7 +583,7 @@ function RegularAssistantInfoSidePanelContent({
                   {onboardingState.totalSteps - onboardingState.resolvedSteps}
                 </span>
               </TabsTrigger>
-              <ProfileTabTrigger />
+              <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
             </TabsList>
             <TabsContent value="onboarding" className="mt-0">
               <AssistantSetupRoadmap
@@ -537,7 +597,7 @@ function RegularAssistantInfoSidePanelContent({
                 userPhoneNumber={roadmap.userPhoneNumber}
               />
             </TabsContent>
-            <TabsContent value="profile" className="mt-0">
+            <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
               {profileBody()}
             </TabsContent>
           </Tabs>
@@ -563,6 +623,7 @@ interface IdentityHeaderProps {
   onCopyId: () => void;
   onClose: () => void;
   onFocusProfileTab?: () => void;
+  hideHeaderActions?: boolean;
   onStartCall?: () => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
@@ -579,6 +640,7 @@ function IdentityHeader({
   onCopyId,
   onClose,
   onFocusProfileTab,
+  hideHeaderActions = false,
   onStartCall,
   isStartCallDisabled,
   startCallTooltip,
@@ -649,9 +711,29 @@ function IdentityHeader({
           </span>
         </button>
       </div>
-      <TooltipProvider delayDuration={100}>
-        <div className="-mr-1 -mt-1 flex flex-shrink-0 items-center gap-1">
-          {onFocusProfileTab && (
+      {!hideHeaderActions && (
+        <TooltipProvider delayDuration={100}>
+          <div className="-mr-1 -mt-1 flex flex-shrink-0 items-center gap-1">
+            {onFocusProfileTab && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={onFocusProfileTab}
+                    data-testid="assistant-info-edit-profile"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Edit</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -659,38 +741,20 @@ function IdentityHeader({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={onFocusProfileTab}
-                  data-testid="assistant-info-edit-profile"
-                  aria-label="Edit"
+                  onClick={onClose}
+                  data-testid="assistant-info-close"
+                  aria-label="Close assistant info"
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">
-                <p>Edit</p>
+                <p>Close</p>
               </TooltipContent>
             </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-foreground"
-                onClick={onClose}
-                data-testid="assistant-info-close"
-                aria-label="Close assistant info"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Close</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </TooltipProvider>
+          </div>
+        </TooltipProvider>
+      )}
     </div>
   );
 }
@@ -698,11 +762,12 @@ function IdentityHeader({
 interface ProfileSectionsPanelProps {
   assistant: Assistant;
   onEditProfile?: (assistant: Assistant) => void;
+  isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   canWrite: boolean;
-  profileSectionTitleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
+  sectionsRef?: React.MutableRefObject<HTMLElement | null>;
 }
 
 const DESKTOP_OS_LABELS: Record<string, string> = {
@@ -781,9 +846,13 @@ function ProfileSummary({ assistant }: { assistant: Assistant }) {
 }
 
 function getWorkspaceProviderKind(assistant: Assistant): WorkspaceProviderKind | null {
-  const provider = assistant.emailProvider?.trim().toLowerCase();
-  if (provider === 'google_workspace' || provider === 'google') return 'google';
-  if (provider === 'microsoft_365' || provider === 'microsoft') return 'microsoft';
+  // The connected-workspace provider is the OAuth grant (`workspaceProvider`),
+  // not the mailbox tenant (`emailProvider`). A Coordinator keeps a platform
+  // Google mailbox while connecting a Microsoft workspace, so keying off
+  // `emailProvider` here would disagree with the workspace dialog.
+  const provider = assistant.workspaceProvider?.trim().toLowerCase();
+  if (provider === 'google') return 'google';
+  if (provider === 'microsoft') return 'microsoft';
   return null;
 }
 
@@ -797,18 +866,6 @@ function getWorkspaceStatusDescription(assistant: Assistant): {
   }
   if (providerKind === 'microsoft') {
     return { text: 'Microsoft 365 connected', provider: 'microsoft' };
-  }
-
-  if (assistant.isCoordinator && assistant.email?.trim()) {
-    return { text: 'T-W1N email configured', provider: null };
-  }
-
-  if (assistant.email?.trim() && assistant.emailProvisionedBy === 'platform') {
-    return { text: 'Platform email configured', provider: null };
-  }
-
-  if (assistant.email?.trim()) {
-    return { text: 'Email configured', provider: null };
   }
 
   return { text: 'No workspace connected yet', provider: null };
@@ -827,26 +884,31 @@ function getDesktopStatusDescription(assistant: Assistant): string {
 function ProfileSectionsPanel({
   assistant,
   onEditProfile,
+  isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
   canWrite,
-  profileSectionTitleRef,
+  sectionsRef,
 }: ProfileSectionsPanelProps) {
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
 
   return (
-    <section className="flex flex-col gap-2" data-testid="assistant-info-profile-sections">
+    <section
+      ref={sectionsRef}
+      className="flex flex-col gap-2"
+      data-testid="assistant-info-profile-sections"
+    >
       <ProfileSectionTile
         title="Profile"
         description={<ProfileSummary assistant={assistant} />}
         descriptionClassName="mt-0.5"
         canEdit={canWrite && !!onEditProfile}
+        isOpening={isEditProfileOpening}
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
-        titleRef={profileSectionTitleRef}
       />
       <ProfileSectionTile
         title="Workspace"
@@ -918,10 +980,10 @@ interface ProfileSectionTileProps {
   description: React.ReactNode;
   descriptionClassName?: string;
   canEdit: boolean;
+  isOpening?: boolean;
   onEdit?: () => void;
   editTestId: string;
   editAriaLabel: string;
-  titleRef?: React.MutableRefObject<HTMLHeadingElement | null>;
   /** When true, the tile stays mouse-clickable but omits button semantics (nested controls own keyboard/a11y). */
   suppressTileButtonSemantics?: boolean;
 }
@@ -931,20 +993,12 @@ function ProfileSectionTile({
   description,
   descriptionClassName,
   canEdit,
+  isOpening = false,
   onEdit,
   editTestId,
   editAriaLabel,
-  titleRef,
   suppressTileButtonSemantics = false,
 }: ProfileSectionTileProps) {
-  const assignTitleRef = React.useCallback(
-    (element: HTMLHeadingElement | null) => {
-      if (titleRef) {
-        titleRef.current = element;
-      }
-    },
-    [titleRef]
-  );
   const isInteractive = canEdit && !!onEdit;
   const useTileButtonSemantics = isInteractive && !suppressTileButtonSemantics;
 
@@ -963,31 +1017,40 @@ function ProfileSectionTile({
   return (
     <div
       className={cn(
-        'group/tile flex flex-col gap-1 rounded-lg border px-3 py-2.5 transition-[background-color,border-color,box-shadow]',
+        'profile-section-tile group/tile flex flex-col gap-1 rounded-lg border px-3 py-2.5 transition-[background-color,border-color,box-shadow]',
         isInteractive
           ? 'cursor-pointer border-border bg-card shadow-sm hover:border-primary-tint-40 hover:bg-[var(--surface-hover)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:border-primary-tint-50 active:bg-secondary'
           : 'border-border/70 bg-card/60'
       )}
+      data-profile-section-tile
       data-testid={editTestId}
       role={useTileButtonSemantics ? 'button' : undefined}
       tabIndex={useTileButtonSemantics ? 0 : undefined}
       aria-label={useTileButtonSemantics ? editAriaLabel : undefined}
-      onClick={isInteractive ? activate : undefined}
+      aria-busy={isOpening || undefined}
+      onClick={isInteractive && !isOpening ? activate : undefined}
       onKeyDown={handleKeyDown}
     >
       <div className="flex items-start justify-between gap-2">
         <h3
-          ref={titleRef ? assignTitleRef : undefined}
           className="text-label text-semibold"
           data-testid={title === 'Profile' ? 'assistant-info-profile-section-title' : undefined}
         >
           {title}
         </h3>
-        {isInteractive && (
-          <ChevronRight
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70 transition-[opacity,transform] group-focus-within/tile:opacity-100 group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"
+        {isOpening ? (
+          <Loader2
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground"
+            data-testid="assistant-info-edit-profile-section-loading"
             aria-hidden="true"
           />
+        ) : (
+          isInteractive && (
+            <ChevronRight
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-70 transition-[opacity,transform] group-focus-within/tile:opacity-100 group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"
+              aria-hidden="true"
+            />
+          )
         )}
       </div>
       <div className={cn('text-caption text-muted-foreground', descriptionClassName)}>

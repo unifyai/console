@@ -6,12 +6,13 @@ import { Input } from '@/components/UI/input';
 import PhoneInput from '@/components/UI/phone-input';
 import { Label } from '@/components/UI/label';
 import { Button } from '@/components/UI/button';
-import { Loader2, CheckCircle2, AlertCircle, Send, Mail } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Mail } from 'lucide-react';
+import SixDigitCodeInput from '@/components/UI/six-digit-code-input';
 import { WhatsApp } from '@mui/icons-material';
 import { FaDiscord } from 'react-icons/fa';
-import { cn } from '@/lib/utils';
 // Verification is handled server-side via orchestra endpoints
 import { toast } from 'sonner';
+import { markCoordinatorOnboardingStale } from '@/lib/assistants/coordinatorOnboardingInvalidation';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useAutoSave } from '@/hooks/Account/useAutoSave';
 import { SaveStatus } from './SaveStatus';
@@ -51,7 +52,7 @@ interface VerificationFieldProps {
   onValueChange: (value: string) => void;
   onVerify: (isRetry?: boolean) => void;
   onCancel: () => void;
-  onSubmitCode: () => void;
+  onSubmitCode: (code?: string) => void;
   onCodeChange: (value: string) => void;
   onEdit: () => void;
   onRemove: () => void;
@@ -109,15 +110,20 @@ const VerificationField = ({
               Remove
             </Button>
           </>
+        ) : state.isVerifying ? (
+          !isFlowActive && (
+            <Button type="button" variant="outline" className="h-9" disabled>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sending...
+            </Button>
+          )
         ) : (
           <Button
             type="button"
             variant="outline"
             className="h-9"
-            onClick={() => (state.isVerifying ? onCancel() : onVerify(false))}
-            disabled={
-              state.isVerifying ? state.isSaving || state.verificationConfirmed : !isValidFormat
-            }
+            onClick={() => onVerify(false)}
+            disabled={!isValidFormat}
           >
             Verify
           </Button>
@@ -130,60 +136,45 @@ const VerificationField = ({
         </p>
       )}
       {isFlowActive && (
-        <div className="flex items-start gap-3 border-l-2 border-muted pl-4">
-          <div className="flex-1 space-y-1">
-            {state.verificationConfirmed ? (
-              <div className="flex items-center gap-2">
-                <p className="text-body-muted">
-                  {state.isSaving
-                    ? 'Code accepted. Saving this number...'
-                    : 'Code accepted. Save to finish.'}
-                </p>
-                {!state.isSaving && (
-                  <Button type="button" variant="outline" size="sm" onClick={onSubmitCode}>
-                    Retry save
-                  </Button>
+        <div className="space-y-3 border-l-2 border-muted pl-4">
+          {state.verificationConfirmed ? (
+            <div className="flex items-center gap-2">
+              <p className="text-body-muted">
+                {state.isSaving
+                  ? 'Code accepted. Saving this number...'
+                  : 'Code accepted. Save to finish.'}
+              </p>
+              {!state.isSaving && (
+                <Button type="button" variant="outline" size="sm" onClick={() => onSubmitCode()}>
+                  Retry save
+                </Button>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-body-muted">Enter the 6-digit code we sent to this number.</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <SixDigitCodeInput
+                  value={state.verificationInput}
+                  onChange={onCodeChange}
+                  onComplete={onSubmitCode}
+                  disabled={state.isSaving}
+                  invalid={!!state.verificationError}
+                  autoFocus
+                />
+                {state.isSaving && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Enter verification code..."
-                  value={state.verificationInput}
-                  onChange={(e) => onCodeChange(e.target.value)}
-                  disabled={state.isSaving}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      onSubmitCode();
-                    }
-                  }}
-                  className={cn('h-9', state.verificationError && 'border-destructive')}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 flex-shrink-0"
-                  onClick={onSubmitCode}
-                  disabled={state.isSaving}
-                >
-                  {state.isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            )}
-            {state.verificationError && (
-              <p className="text-body text-strong mt-1 flex items-center gap-1.5 text-destructive">
-                <AlertCircle className="h-3.5 w-3.5" />
-                {state.verificationError}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 pt-0">
+            </>
+          )}
+          {state.verificationError && (
+            <p className="text-body text-strong flex items-center gap-1.5 text-destructive">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {state.verificationError}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -269,7 +260,12 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     async (field: ContactField, value: string, force = false): Promise<boolean> => {
       if (!force && value === savedRef.current[field]) return true;
       const ok = await save({ [field]: value });
-      if (ok) savedRef.current[field] = value;
+      if (ok) {
+        savedRef.current[field] = value;
+        if (field === 'phoneNumber' || field === 'whatsappNumber' || field === 'discordId') {
+          markCoordinatorOnboardingStale();
+        }
+      }
       return ok;
     },
     [save]
@@ -302,6 +298,10 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     ) => {
       if (isRetry && state.cooldown > 0) {
         toast.info(`Please wait ${state.cooldown}s before retrying.`);
+        return;
+      }
+
+      if (!isRetry && state.isVerifying) {
         return;
       }
 
@@ -360,16 +360,20 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     async (
       setter: React.Dispatch<React.SetStateAction<VerificationState>>,
       state: VerificationState,
-      platform: 'phone' | 'whatsapp'
+      platform: 'phone' | 'whatsapp',
+      code?: string
     ) => {
       if (!state.codeSent || state.isSaving) return;
-      if (!state.verificationConfirmed && !state.verificationInput.trim()) return;
+
+      const verificationCode = code ?? state.verificationInput;
+      if (!state.verificationConfirmed && !verificationCode.trim()) return;
 
       try {
         setter((prev) => ({
           ...prev,
           isSaving: true,
           verificationError: null,
+          ...(code ? { verificationInput: code } : {}),
         }));
 
         if (!state.verificationConfirmed) {
@@ -379,7 +383,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
             body: JSON.stringify({
               phoneNumber: state.value,
               phoneType: platform,
-              code: state.verificationInput,
+              code: verificationCode,
             }),
           });
 
@@ -390,6 +394,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
               ...prev,
               isSaving: false,
               verificationError: data.detail || 'Incorrect code. Please try again.',
+              verificationInput: '',
             }));
             return;
           }
@@ -523,25 +528,6 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         <Input type="email" value={user.email} disabled className="mt-2" />
       </div>
 
-      {contactPhone && (
-        <VerificationField
-          label="Phone Number"
-          icon={<span className="text-muted-foreground">📱</span>}
-          inputId="phone-number-input"
-          countryTestId="phone-country-select"
-          state={phoneState}
-          onValueChange={(v) => handleValueChange(setPhoneState, 'phoneNumber', whatsappState, v)}
-          onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
-          onCancel={() => handleCancel(setPhoneState)}
-          onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
-          onCodeChange={(v) =>
-            setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
-          }
-          onEdit={() => handleEdit(setPhoneState)}
-          onRemove={() => handleRemove(setPhoneState, 'phoneNumber')}
-        />
-      )}
-
       {contactWhatsapp && (
         <VerificationField
           label="WhatsApp Number"
@@ -554,12 +540,33 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           }
           onVerify={(isRetry) => handleVerify(setWhatsappState, 'whatsapp', whatsappState, isRetry)}
           onCancel={() => handleCancel(setWhatsappState)}
-          onSubmitCode={() => handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp')}
+          onSubmitCode={(code) =>
+            handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp', code)
+          }
           onCodeChange={(v) =>
             setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
           }
           onEdit={() => handleEdit(setWhatsappState)}
           onRemove={() => handleRemove(setWhatsappState, 'whatsappNumber')}
+        />
+      )}
+
+      {contactPhone && (
+        <VerificationField
+          label="Phone Number"
+          icon={<span className="text-muted-foreground">📱</span>}
+          inputId="phone-number-input"
+          countryTestId="phone-country-select"
+          state={phoneState}
+          onValueChange={(v) => handleValueChange(setPhoneState, 'phoneNumber', whatsappState, v)}
+          onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
+          onCancel={() => handleCancel(setPhoneState)}
+          onSubmitCode={(code) => handleSubmitCode(setPhoneState, phoneState, 'phone', code)}
+          onCodeChange={(v) =>
+            setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+          }
+          onEdit={() => handleEdit(setPhoneState)}
+          onRemove={() => handleRemove(setPhoneState, 'phoneNumber')}
         />
       )}
 
@@ -576,8 +583,10 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           onBlur={handleDiscordBlur}
         />
         <p className="text-body-muted">
-          Your Discord user ID (numeric snowflake). Enable Developer Mode in Discord settings, then
-          right-click your profile to copy it.
+          Your Discord user ID (numeric snowflake). Open Discord settings (cog icon beside your
+          profile/name), then scroll to the bottom of the left pane, click "Developer" and turn on
+          "Developer Mode". Once done, close the dialog. Click on your profile photo and click "Copy
+          User ID".
         </p>
       </div>
     </div>

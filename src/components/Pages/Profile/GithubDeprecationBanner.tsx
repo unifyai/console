@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { AlertTriangle } from 'lucide-react';
 
@@ -28,9 +29,9 @@ export function GithubDeprecationBanner() {
         <span className="font-medium">GitHub sign-in is being retired</span>
         {' — '}
         Please sign in with another provider or{' '}
-        <a href="/account?tab=security" className="font-medium underline underline-offset-2">
+        <Link href="/account?tab=security" className="font-medium underline underline-offset-2">
           set a password
-        </a>{' '}
+        </Link>{' '}
         to keep access.
       </p>
     </div>

@@ -44,7 +44,9 @@ export function useDesktopReady(
   getLiveviewUrl:
     | ((id: string) => Promise<{ liveviewUrl?: string } | { detail: string }>)
     | undefined,
-  initialValue = false
+  initialValue = false,
+  pollIntervalMs = DESKTOP_READY_FALLBACK_INTERVAL,
+  resetSignal = 0
 ): DesktopReadyState {
   const [isDesktopReady, setIsDesktopReady] = React.useState(
     () => initialValue || !!readStoredDesktopReady(assistantId)
@@ -53,12 +55,12 @@ export function useDesktopReady(
     () => readStoredDesktopReady(assistantId)?.url ?? null
   );
 
-  // Reset when assistant changes — re-read sessionStorage synchronously.
+  // Reset when assistant changes or the caller explicitly retries startup.
   React.useEffect(() => {
     const stored = readStoredDesktopReady(assistantId);
     setIsDesktopReady(initialValue || !!stored);
     setEventLiveviewUrl(stored?.url ?? null);
-  }, [assistantId, initialValue]);
+  }, [assistantId, initialValue, resetSignal]);
 
   // Real-time: listen for BroadcastChannel events from useAssistantProfileChat
   React.useEffect(() => {
@@ -83,9 +85,11 @@ export function useDesktopReady(
 
     const check = async () => {
       try {
-        const result = await getLiveviewUrl(assistantId);
+        const result = await getLiveviewUrl(assistantId).catch(() => null);
         if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
           setIsDesktopReady(true);
+          const url = result.liveviewUrl;
+          setEventLiveviewUrl((current) => current ?? url);
         }
       } catch {
         // not ready yet
@@ -93,13 +97,13 @@ export function useDesktopReady(
     };
 
     check();
-    const interval = setInterval(check, DESKTOP_READY_FALLBACK_INTERVAL);
+    const interval = setInterval(check, pollIntervalMs);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [assistantId, getLiveviewUrl, isDesktopReady]);
+  }, [assistantId, getLiveviewUrl, isDesktopReady, pollIntervalMs]);
 
   return { isDesktopReady, eventLiveviewUrl };
 }

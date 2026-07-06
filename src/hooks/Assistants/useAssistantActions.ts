@@ -25,6 +25,7 @@ import type {
   LoadChildrenFn,
 } from '@/types/assistants/action';
 import type { ResponseProps } from '@/types/common';
+import { fetchManagerMethodEvents } from '@/lib/client/actions';
 
 // =============================================================================
 // Types
@@ -42,6 +43,9 @@ export interface UseAssistantActionsOptions {
 
   /** @deprecated Use initialLookbackMs instead */
   initialTimeWindow?: number;
+
+  /** Whether the Actions tab body is currently visible to the user. */
+  isPaneVisible?: boolean;
 }
 
 export interface UseAssistantActionsResult {
@@ -58,6 +62,9 @@ export interface UseAssistantActionsResult {
 
   /** Whether the initial load is in progress */
   isLoading: boolean;
+
+  /** Whether the initial action snapshot has completed for this assistant. */
+  hasLoaded: boolean;
 
   /** Error message if any */
   error: string | null;
@@ -79,6 +86,12 @@ export interface UseAssistantActionsResult {
 
   /** Current connection status (streaming via SSE or error) */
   connectionStatus: ActionConnectionStatus;
+
+  /** Whether root-level live activity arrived while Actions was hidden. */
+  hasUnreadLiveActivity: boolean;
+
+  /** Clear the off-tab live activity marker. */
+  clearUnreadLiveActivity: () => void;
 }
 
 // =============================================================================
@@ -100,10 +113,10 @@ const SSE_ERROR_WINDOW_MS = 60_000;
 export function useAssistantActions(
   ownerId: string,
   assistantId: string,
-  actions: AssistantActionActions,
+  _actions: AssistantActionActions,
   options: UseAssistantActionsOptions = {}
 ): UseAssistantActionsResult {
-  const { enabled = false, initialLookbackMs, initialTimeWindow } = options;
+  const { enabled = false, initialLookbackMs, initialTimeWindow, isPaneVisible = true } = options;
 
   const lookbackMs = initialLookbackMs ?? initialTimeWindow ?? ACTION_LOOKBACK_MS;
 
@@ -116,6 +129,7 @@ export function useAssistantActions(
   const [hasMore, setHasMore] = React.useState(true);
   const [connectionStatus, setConnectionStatus] = React.useState<ActionConnectionStatus>('idle');
   const [isInitialLoadDone, setIsInitialLoadDone] = React.useState(false);
+  const [hasUnreadLiveActivity, setHasUnreadLiveActivity] = React.useState(false);
 
   // Refs
   const nodeMapRef = React.useRef<Map<string, ActionNode>>(new Map());
@@ -130,6 +144,7 @@ export function useAssistantActions(
   const prevAssistantIdRef = React.useRef(assistantId);
   const sseErrorTimestampsRef = React.useRef<number[]>([]);
   const loadGenerationRef = React.useRef(0);
+  const isPaneVisibleRef = React.useRef(isPaneVisible);
 
   // SSE event batching: buffer events and flush on a short debounce
   const BATCH_FLUSH_MS = 100;
@@ -141,6 +156,15 @@ export function useAssistantActions(
   React.useEffect(() => {
     nodeMapRef.current = nodeMap;
   }, [nodeMap]);
+
+  React.useEffect(() => {
+    isPaneVisibleRef.current = isPaneVisible;
+    if (isPaneVisible) setHasUnreadLiveActivity(false);
+  }, [isPaneVisible]);
+
+  const clearUnreadLiveActivity = React.useCallback(() => {
+    setHasUnreadLiveActivity(false);
+  }, []);
 
   const hasActiveAction = React.useMemo(() => hasActiveRootAction(roots), [roots]);
   const [lastCommsActivityAt, setLastCommsActivityAt] = React.useState<number | null>(null);
@@ -371,7 +395,7 @@ export function useAssistantActions(
       // Single targeted API call for all root-level events (incoming + outgoing
       // + action). Includes action events so interactions (interject, stop, ask)
       // are captured for root nodes.
-      const rootResponse = await actions.getManagerMethodEvents(
+      const rootResponse = await fetchManagerMethodEvents(
         ownerId,
         assistantId,
         startTime,
@@ -440,7 +464,7 @@ export function useAssistantActions(
         setIsLoading(false);
       }
     }
-  }, [actions, ownerId, assistantId, lookbackMs]);
+  }, [ownerId, assistantId, lookbackMs]);
 
   // ===========================================================================
   // SSE Connection
@@ -492,7 +516,12 @@ export function useAssistantActions(
         }
 
         if (parsed.type === 'ManagerMethod') {
-          if (entries?.phase !== 'incoming' && entries?.phase !== 'outgoing') {
+          if (
+            entries?.phase !== 'incoming' &&
+            entries?.phase !== 'outgoing' &&
+            entries?.phase !== 'awaiting_input' &&
+            entries?.phase !== 'resumed'
+          ) {
             return;
           }
 
@@ -510,6 +539,9 @@ export function useAssistantActions(
           }
 
           const log = parsed.data as ManagerMethodLog;
+          if (!isPaneVisibleRef.current && Array.isArray(entries?.hierarchy)) {
+            if (entries.hierarchy.length === 1) setHasUnreadLiveActivity(true);
+          }
           managerBatchRef.current.push(log);
           scheduleFlush();
         } else if (parsed.type === 'ToolLoop') {
@@ -599,7 +631,7 @@ export function useAssistantActions(
 
       // Fetch only root-level events for the extended time window.
       // Children are lazy-loaded on expand, same as current roots.
-      const response = await actions.getManagerMethodEvents(
+      const response = await fetchManagerMethodEvents(
         ownerId,
         assistantId,
         startTime,
@@ -641,7 +673,7 @@ export function useAssistantActions(
         setIsLoading(false);
       }
     }
-  }, [actions, ownerId, assistantId, hasMore]);
+  }, [ownerId, assistantId, hasMore]);
 
   // ===========================================================================
   // Lazy children loading
@@ -663,7 +695,7 @@ export function useAssistantActions(
         );
 
       try {
-        const response = await actions.getManagerMethodEvents(
+        const response = await fetchManagerMethodEvents(
           ownerId,
           assistantId,
           null,
@@ -723,7 +755,7 @@ export function useAssistantActions(
         console.warn('[useAssistantActions] Load children error:', err);
       }
     },
-    [actions, ownerId, assistantId]
+    [ownerId, assistantId]
   );
 
   // ===========================================================================
@@ -742,6 +774,7 @@ export function useAssistantActions(
         orphanOutgoingRef.current = new Map();
         orphanToolLoopRef.current = new Map();
         seenEventIdsRef.current = new Set();
+        setIsInitialLoadDone(false);
         setIsLoading(true);
       }
       await initialLoad();
@@ -782,6 +815,7 @@ export function useAssistantActions(
       setError(null);
       setLastUpdated(null);
       setConnectionStatus('idle');
+      setHasUnreadLiveActivity(false);
       isInitialLoadDoneRef.current = false;
       setIsInitialLoadDone(false);
 
@@ -851,6 +885,7 @@ export function useAssistantActions(
     hasActiveAction,
     lastCommsActivityAt,
     isLoading,
+    hasLoaded: isInitialLoadDone,
     error,
     refresh,
     loadMore,
@@ -858,5 +893,7 @@ export function useAssistantActions(
     hasMore,
     lastUpdated,
     connectionStatus,
+    hasUnreadLiveActivity,
+    clearUnreadLiveActivity,
   };
 }

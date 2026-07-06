@@ -1,17 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { fetchAssistants } from '@/lib/client/assistant';
 import { resolveCanonicalWorkspaceCoordinator } from '@/lib/assistants/coordinatorIdentity';
 import { type OnboardingRender } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { cn } from '@/lib/utils';
+import { isAssistantInfoPanelShortcutPath } from '@/lib/navigation/appShellRoutes';
 import {
   ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
   readAssistantInfoPanelVisibility,
   requestAssistantInfoPanelToggle,
+  requestCoordinatorOnboardingPanel,
   type AssistantInfoPanelVisibilityDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 
@@ -89,7 +91,7 @@ export function useCoordinatorOnboardingShortcutVisible(): boolean {
   const pathname = usePathname();
   const coordinatorId = useWorkspaceCoordinatorId();
   const { state: coordinatorOnboardingState } = useCoordinatorOnboarding(coordinatorId);
-  const isOnAssistantsPage = pathname === '/assistants' || pathname.startsWith('/assistants/');
+  const showOnAssistantPanelRoutes = isAssistantInfoPanelShortcutPath(pathname);
 
   const onboardingProgress = React.useMemo(
     () => coordinatorOnboardingProgress(coordinatorOnboardingState?.onboarding ?? null),
@@ -97,10 +99,9 @@ export function useCoordinatorOnboardingShortcutVisible(): boolean {
   );
 
   return (
-    isOnAssistantsPage &&
+    showOnAssistantPanelRoutes &&
     !!coordinatorId &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
-    coordinatorOnboardingState.onboardingDeferred !== true &&
+    coordinatorOnboardingState?.onboardingActive === true &&
     !!coordinatorOnboardingState.onboarding &&
     onboardingProgress.total > 0 &&
     onboardingProgress.completed < onboardingProgress.total
@@ -109,12 +110,9 @@ export function useCoordinatorOnboardingShortcutVisible(): boolean {
 
 /** Opens the workspace Coordinator onboarding panel when onboarding is in progress. */
 export function OnboardingProgressShortcut({ className }: { className?: string }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const coordinatorId = useWorkspaceCoordinatorId();
   const { state: coordinatorOnboardingState } = useCoordinatorOnboarding(coordinatorId);
   const [isOnboardingPanelOpen, setIsOnboardingPanelOpen] = React.useState(false);
-  const isOnAssistantsPage = pathname === '/assistants' || pathname.startsWith('/assistants/');
 
   const onboardingProgress = React.useMemo(
     () => coordinatorOnboardingProgress(coordinatorOnboardingState?.onboarding ?? null),
@@ -124,7 +122,7 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
   const showOnboardingShortcut = useCoordinatorOnboardingShortcutVisible();
 
   React.useEffect(() => {
-    if (!coordinatorId || !isOnAssistantsPage) {
+    if (!coordinatorId) {
       setIsOnboardingPanelOpen(false);
       return;
     }
@@ -145,26 +143,21 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
     return () => {
       window.removeEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
     };
-  }, [coordinatorId, isOnAssistantsPage]);
+  }, [coordinatorId]);
 
-  const isShortcutActive = showOnboardingShortcut && isOnAssistantsPage && isOnboardingPanelOpen;
+  const isShortcutActive = showOnboardingShortcut && isOnboardingPanelOpen;
 
   const openOnboarding = React.useCallback(() => {
     if (!coordinatorId) return;
     const currentVisibility = readAssistantInfoPanelVisibility();
     const canToggleCurrentPanel =
-      isOnAssistantsPage &&
-      currentVisibility?.assistantId === coordinatorId &&
-      currentVisibility.isCoordinatorOnboarding;
+      currentVisibility?.assistantId === coordinatorId && currentVisibility.isCoordinatorOnboarding;
     if (canToggleCurrentPanel && requestAssistantInfoPanelToggle({ assistantId: coordinatorId })) {
       return;
     }
 
-    const action = isShortcutActive ? 'close' : 'open';
-    router.push(
-      `/assistants?profile=${encodeURIComponent(coordinatorId)}&onboarding=${action}:${Date.now()}`
-    );
-  }, [coordinatorId, isOnAssistantsPage, isShortcutActive, router]);
+    requestCoordinatorOnboardingPanel(isShortcutActive ? 'close' : 'open', coordinatorId);
+  }, [coordinatorId, isShortcutActive]);
 
   if (!showOnboardingShortcut) return null;
 

@@ -14,13 +14,6 @@ import {
 } from '@/lib/client/integrations';
 import type { IntegrationGalleryItem } from '@/types/integrations';
 
-/**
- * Composio's OAuth callback that a bring-your-own OAuth app must whitelist as
- * its authorized redirect URI in the provider's developer portal. Kept in sync
- * with ``ComposioProviderAdapter.default_oauth_callback_url`` in Orchestra.
- */
-const COMPOSIO_OAUTH_CALLBACK_URL = 'https://backend.composio.dev/api/v3.1/toolkits/auth/callback';
-
 function toolkitSlugFor(item: IntegrationGalleryItem): string {
   return String(item.sourceMetadata?.providerAppId || item.canonicalSlug || '').trim();
 }
@@ -59,6 +52,7 @@ export function ProviderCustomOAuthSection({
 
   const [existing, setExisting] = React.useState<ProviderCustomAuthConfig | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [oauthCallbackUrl, setOauthCallbackUrl] = React.useState<string | null>(null);
   const [clientId, setClientId] = React.useState('');
   const [clientSecret, setClientSecret] = React.useState('');
   const [scopes, setScopes] = React.useState('');
@@ -93,7 +87,30 @@ export function ProviderCustomOAuthSection({
     void refresh();
   }, [refresh, supportsOAuth, toolkitSlug]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/integrations/composio-oauth-callback-url', {
+          cache: 'no-store',
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { oauthRedirectUri?: string };
+        if (!cancelled && payload.oauthRedirectUri) {
+          setOauthCallbackUrl(payload.oauthRedirectUri);
+        }
+      } catch {
+        // Display falls back to the stored config value when available.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (!supportsOAuth || !toolkitSlug) return null;
+
+  const redirectUri = existing?.oauthRedirectUri || oauthCallbackUrl || 'Loading redirect URI…';
 
   const canSubmit = clientId.trim().length > 0 && clientSecret.trim().length > 0 && !submitting;
 
@@ -160,7 +177,7 @@ export function ProviderCustomOAuthSection({
             Set this as the redirect/callback URI in your provider developer portal before saving:
           </p>
           <code className="mt-1 block break-all rounded bg-background px-2 py-1 font-mono text-[11px]">
-            {existing?.oauthRedirectUri || COMPOSIO_OAUTH_CALLBACK_URL}
+            {redirectUri}
           </code>
         </AlertDescription>
       </Alert>

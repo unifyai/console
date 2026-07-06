@@ -5,7 +5,7 @@ import { ResponseProps } from '@/types/common';
 import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 import { isSelfHost } from '@/lib/environment/environment';
 import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
@@ -182,6 +182,56 @@ export async function buildLiveviewUrl(
 }
 export async function checkLiveviewHealth(liveviewUrl: string): Promise<boolean> {
   return isLiveviewReachable(liveviewUrl);
+}
+
+/**
+ * Best-effort: ask adapters to start (or resume) the assistant's runtime so its
+ * desktop VM can come up. Mirrors Orchestra's internal ``wake_up_assistant``
+ * call — a ``200`` only means the wakeup webhook was accepted; desktop
+ * readiness still arrives asynchronously via ``assistant_desktop_ready`` or
+ * ``getLiveviewUrl``.
+ */
+export async function wakeAssistantSession(assistantId: string): Promise<ResponseProps> {
+  try {
+    await requireUserApiKey();
+    const parsedId = Number.parseInt(assistantId, 10);
+    if (!Number.isFinite(parsedId)) {
+      return { detail: 'Invalid assistant id.' };
+    }
+
+    const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
+    if (!adminKey) {
+      return { detail: 'Server configuration error: admin key not set.' };
+    }
+
+    if (!process.env.LOCAL_ADAPTERS_URL && !process.env.UNITY_ADAPTERS_URL && isSelfHost()) {
+      return { info: 'Self-host runtime start skipped (no adapters configured).' };
+    }
+
+    const wakeUpUrl = `${getAdaptersBaseUrl({
+      localAdaptersUrl: process.env.LOCAL_ADAPTERS_URL,
+    })}/assistant/wakeup`;
+    const wakeUpParams = new URLSearchParams();
+    wakeUpParams.set('assistant_id', String(parsedId));
+    const response = await fetch(wakeUpUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminKey}` },
+      body: wakeUpParams,
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => 'Failed to start assistant session.');
+      return { detail };
+    }
+    return { info: 'Assistant session start requested.' };
+  } catch (e: unknown) {
+    console.error(
+      `[wakeAssistantSession] Failed to wake assistant ${assistantId}:`,
+      e instanceof Error ? e.message : e
+    );
+    return {
+      detail: e instanceof Error ? e.message : 'Failed to start assistant session.',
+    };
+  }
 }
 export type SystemEventType =
   | 'assistant_screen_share_started'

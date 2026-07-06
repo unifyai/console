@@ -31,8 +31,10 @@ function resolveTablePath(ctx: SimContext): string | null {
 function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null): IdRow[] {
   if (!filterExpr) return rows;
 
-  // Tasks "running" gate — there are never live runs in mock mode.
-  if (/state\s*==\s*["']running["']/.test(filterExpr)) return [];
+  // Tasks "running" gate — return rows whose run state is still active.
+  if (/state\s*==\s*["']running["']/.test(filterExpr)) {
+    return rows.filter((r) => r.entries.state === 'running');
+  }
 
   // Chat contact resolution by email → return the matching contact (or the
   // first non-system contact) so the optimistic chat flow has a contactId.

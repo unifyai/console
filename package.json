@@ -9,9 +9,12 @@
     "generate:api": "openapi-typescript https://api.unify.ai/v0/openapi.json -o src/lib/orchestra/schema.d.ts",
     "predev": "node scripts/guard-next-live-stack.mjs predev",
     "dev": "next dev",
+    "dev:mock": "NEXT_PUBLIC_MOCK_SIM=true npm run dev",
     "prebuild": "node scripts/guard-next-live-stack.mjs prebuild",
     "build": "npm run check:styles:all && next build",
+    "build:mock": "NEXT_PUBLIC_MOCK_SIM=true npm run build",
     "start": "next start",
+    "start:mock": "NEXT_PUBLIC_MOCK_SIM=true npm run start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
@@ -35,7 +38,9 @@
     "check:colors": "npx tsx scripts/check-colors.ts",
     "check:colors:all": "npx tsx scripts/check-colors.ts",
     "check:styles": "npm run check:fonts && npm run check:colors",
-    "check:styles:all": "npm run check:fonts:all && npm run check:colors:all"
+    "check:styles:all": "npm run check:fonts:all && npm run check:colors:all",
+    "check:test-coverage": "tsx scripts/check-test-coverage-map.ts",
+    "check:test-inventory": "tsx scripts/check-test-inventory-sync.ts"
   },
   "lint-staged": {
     "package.json": "prettier --write",
@@ -101,6 +106,7 @@
     "cmdk": "^1.0.0",
     "d3": "^7.9.0",
     "date-fns": "^3.6.0",
+    "emoji-picker-react": "^4.19.1",
     "exceljs": "^4.4.0",
     "framer-motion": "^11.11.11",
     "fuse.js": "^7.1.0",

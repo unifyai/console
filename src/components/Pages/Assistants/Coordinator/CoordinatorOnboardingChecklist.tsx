@@ -45,6 +45,10 @@ import type {
   OnboardingStepStatus,
 } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
+import {
+  readCoordinatorOnboardingFoldState,
+  writeCoordinatorOnboardingFoldState,
+} from '@/lib/assistants/coordinatorOnboardingFoldState';
 
 export type ChecklistAction =
   | 'trigger-email-reference'
@@ -62,6 +66,7 @@ export type ChecklistAction =
   | 'connect-slack'
   | 'trigger-slack-reference'
   | 'start-slack-message'
+  | 'add-discord-id'
   | 'connect-discord'
   | 'trigger-discord-reference'
   | 'start-discord-message'
@@ -69,12 +74,12 @@ export type ChecklistAction =
   | 'trigger-workspace-mailbox'
   | 'trigger-workspace-drive'
   | 'trigger-workspace-calendar'
-  | 'trigger-workspace-contacts'
-  | 'trigger-workspace-tasks'
   | 'connect-apps'
   | 'act'
   | 'create-scheduled-task'
-  | 'create-triggerable-task';
+  | 'create-triggerable-task'
+  | 'learn-from-correction'
+  | 'my-computer-demo';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -123,6 +128,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'slack-connect': 'connect-slack',
   'slack-reference': 'trigger-slack-reference',
   'slack-message': 'start-slack-message',
+  'discord-id': 'add-discord-id',
   'discord-connect': 'connect-discord',
   'discord-reference': 'trigger-discord-reference',
   'discord-message': 'start-discord-message',
@@ -130,12 +136,12 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'workspace-mailbox': 'trigger-workspace-mailbox',
   'workspace-drive': 'trigger-workspace-drive',
   'workspace-calendar': 'trigger-workspace-calendar',
-  'workspace-contacts': 'trigger-workspace-contacts',
-  'workspace-tasks': 'trigger-workspace-tasks',
   apps: 'connect-apps',
   act: 'act',
   'create-scheduled-task': 'create-scheduled-task',
   'create-triggerable-task': 'create-triggerable-task',
+  'learn-from-correction': 'learn-from-correction',
+  'my-computer-demo': 'my-computer-demo',
 };
 
 const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
@@ -156,10 +162,10 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-mailbox': 'Summarizing...',
   'trigger-workspace-drive': 'Summarizing...',
   'trigger-workspace-calendar': 'Summarizing...',
-  'trigger-workspace-contacts': 'Summarizing...',
-  'trigger-workspace-tasks': 'Summarizing...',
   'create-scheduled-task': 'Starting...',
   'create-triggerable-task': 'Starting...',
+  'learn-from-correction': 'Starting...',
+  'my-computer-demo': 'Starting...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -167,6 +173,7 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
   locked: boolean;
+  inProgress?: boolean;
   comingSoon?: boolean;
   status: 'pending' | 'done' | 'skipped';
   sectionSkipped?: boolean;
@@ -218,6 +225,8 @@ function resolveLocalStepStatuses(
       statuses.set(step.id, 'skipped');
     } else if (step.status === 'coming_soon') {
       statuses.set(step.id, 'coming_soon');
+    } else if (step.status === 'in_progress') {
+      statuses.set(step.id, 'in_progress');
     } else {
       statuses.set(step.id, step.status === 'locked' ? 'locked' : 'available');
     }
@@ -228,7 +237,14 @@ function resolveLocalStepStatuses(
     changed = false;
     for (const step of render.steps) {
       const current = statuses.get(step.id);
-      if (current === 'done' || current === 'skipped' || current === 'coming_soon') continue;
+      if (
+        current === 'done' ||
+        current === 'skipped' ||
+        current === 'coming_soon' ||
+        current === 'in_progress'
+      ) {
+        continue;
+      }
       const next = step.dependencies.every((dependency) =>
         isOnboardingDependencySatisfied(
           statuses.get(dependency.id) ?? dependency.status,
@@ -282,6 +298,7 @@ function buildVisibleChecklist(
     const phaseSkipped = skippedPhases.has(step.phase);
     const localStatus = localStatuses.get(step.id) ?? step.status;
     const action = STEP_ACTIONS[step.id];
+    const inProgress = localStatus === 'in_progress';
     const isUnavailableAction =
       localStatus === 'available' && !!action && !isActionWired(action) && !phaseSkipped;
     const comingSoon = localStatus === 'coming_soon' || isUnavailableAction;
@@ -309,6 +326,7 @@ function buildVisibleChecklist(
       done: status === 'done',
       skipped: status === 'skipped',
       locked,
+      inProgress,
       comingSoon,
       status,
     };
@@ -376,7 +394,7 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   {
     id: 'discord',
     title: 'Discord',
-    stepIds: ['discord-connect', 'discord-reference', 'discord-message'],
+    stepIds: ['discord-id', 'discord-connect', 'discord-reference', 'discord-message'],
   },
 ];
 
@@ -513,7 +531,13 @@ function findNextActionableId(
       if (inner) return inner;
       continue;
     }
-    if (!item.locked && item.status === 'pending' && item.action && isActionWired(item.action)) {
+    if (
+      !item.locked &&
+      item.status === 'pending' &&
+      !item.inProgress &&
+      item.action &&
+      isActionWired(item.action)
+    ) {
       return item.id;
     }
   }
@@ -536,14 +560,15 @@ export interface CoordinatorOnboardingChecklistProps {
   onTriggerReferenceStep?: (stepId: string) => void;
   onAddWhatsappNumber?: () => void;
   onAddPhoneNumber?: () => void;
+  onAddDiscordId?: () => void;
   onConnectSlack?: () => void;
   onConnectDiscord?: () => void;
-  /** Opens the workspace OAuth dialog. Hung off the "Give me
+  /** Opens the workspace OAuth dialog. Hung off the "Give T-W1N
    * access to your workspace" sub-item. Unset means
    * the row degrades to a static checklist entry. */
   onConnectWorkspace?: () => void;
   /** Opens the Integrations pane in the current surface. Hung off
-   * "Connect me with your apps". Unset means the
+   * "Connect T-W1N with your apps". Unset means the
    * row degrades to a static entry. */
   onConnectApps?: () => void;
   /** Opens the live Actions viewer in the current surface. Hung off
@@ -564,6 +589,12 @@ export interface CoordinatorOnboardingChecklistProps {
    * (``create-scheduled-task`` / ``create-triggerable-task``); ``chipId`` the
    * chip's id. Unset leaves the chips as read-only inspiration. */
   onSelectTaskChip?: (stepId: string, chipId: string) => void;
+  /** Dispatches the Learning tutorial beat event to Unity. Hung off
+   * ``learn-from-correction``. Unset means the row degrades to a static entry. */
+  onLearnFromCorrection?: () => void;
+  /** Dispatches the My Computer live demo beat event to Unity. Hung off
+   * ``my-computer-demo``. Unset means the row degrades to a static entry. */
+  onMyComputerDemo?: () => void;
   /** Deterministically fire the armed triggerable task by id — powers the
    * inline "Test it" affordance under the ``create-triggerable-task`` row.
    * Unset (or a null ``armedTriggerableTaskId``) hides the affordance. */
@@ -590,6 +621,7 @@ export function CoordinatorOnboardingChecklist({
   onTriggerReferenceStep,
   onAddWhatsappNumber,
   onAddPhoneNumber,
+  onAddDiscordId,
   onConnectSlack,
   onConnectDiscord,
   onConnectWorkspace,
@@ -598,6 +630,8 @@ export function CoordinatorOnboardingChecklist({
   onCreateScheduledTask,
   onCreateTriggerableTask,
   onSelectTaskChip,
+  onLearnFromCorrection,
+  onMyComputerDemo,
   onTestTriggerableTask,
   armedTriggerableTaskId = null,
   nextScheduledTaskDueAt = null,
@@ -608,11 +642,8 @@ export function CoordinatorOnboardingChecklist({
 }: CoordinatorOnboardingChecklistProps) {
   const ctx = useCoordinatorOnboardingContext();
   const resetStepProgress = ctx?.resetStepProgress;
-  const onboardingDeferred = ctx?.onboardingDeferred ?? false;
-  const deferOnboarding = ctx?.deferOnboarding;
-  const resumeOnboarding = ctx?.resumeOnboarding;
-  const coordinatorMode = ctx?.mode ?? null;
-  const reactivateOnboarding = ctx?.reactivateOnboarding;
+  const onboardingActive = ctx?.onboardingActive ?? false;
+  const setOnboardingActive = ctx?.setOnboardingActive;
   const onboarding = ctx?.onboarding ?? null;
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
@@ -620,10 +651,15 @@ export function CoordinatorOnboardingChecklist({
   const firstLoginCommunicationEmailOpenRequest = ctx?.firstLoginCommunicationEmailOpenRequest ?? 0;
   const acknowledgeFirstLoginCommunicationEmailOpen =
     ctx?.acknowledgeFirstLoginCommunicationEmailOpen;
-  const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
-  const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(
-    () => new Set()
-  );
+  const storedFoldStateRef = React.useRef(readCoordinatorOnboardingFoldState());
+  const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => {
+    const stored = storedFoldStateRef.current;
+    return stored?.sectionIds.length ? new Set(stored.sectionIds) : new Set();
+  });
+  const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(() => {
+    const stored = storedFoldStateRef.current;
+    return stored?.subgroupIds.length ? new Set(stored.subgroupIds) : new Set();
+  });
   const [blockedFeedback, setBlockedFeedback] = React.useState<{
     stepId: string;
     token: number;
@@ -636,6 +672,8 @@ export function CoordinatorOnboardingChecklist({
     new Map()
   );
   const didInitializeOpenSectionRef = React.useRef(false);
+  const didInitializeOpenSubgroupRef = React.useRef(false);
+  const foldStateHydratedRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockedFeedbackTokenRef = React.useRef(0);
 
@@ -659,6 +697,7 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'connect-slack') onConnectSlack?.();
       else if (action === 'trigger-slack-reference') onTriggerReferenceStep?.('slack-reference');
       else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
+      else if (action === 'add-discord-id') onAddDiscordId?.();
       else if (action === 'connect-discord') onConnectDiscord?.();
       else if (action === 'trigger-discord-reference')
         onTriggerReferenceStep?.('discord-reference');
@@ -669,19 +708,19 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'trigger-workspace-drive') onTriggerReferenceStep?.('workspace-drive');
       else if (action === 'trigger-workspace-calendar')
         onTriggerReferenceStep?.('workspace-calendar');
-      else if (action === 'trigger-workspace-contacts')
-        onTriggerReferenceStep?.('workspace-contacts');
-      else if (action === 'trigger-workspace-tasks') onTriggerReferenceStep?.('workspace-tasks');
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
       else if (action === 'create-scheduled-task') onCreateScheduledTask?.();
       else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
+      else if (action === 'learn-from-correction') onLearnFromCorrection?.();
+      else if (action === 'my-computer-demo') onMyComputerDemo?.();
     },
     [
       onStartOnboardingStep,
       onTriggerReferenceStep,
       onAddWhatsappNumber,
       onAddPhoneNumber,
+      onAddDiscordId,
       onConnectSlack,
       onConnectDiscord,
       onConnectWorkspace,
@@ -689,6 +728,8 @@ export function CoordinatorOnboardingChecklist({
       onActNow,
       onCreateScheduledTask,
       onCreateTriggerableTask,
+      onLearnFromCorrection,
+      onMyComputerDemo,
     ]
   );
 
@@ -785,15 +826,14 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'start-discord-message') return !!onStartOnboardingStep && !!onConnectDiscord;
       if (action === 'add-whatsapp-number') return !!onAddWhatsappNumber;
       if (action === 'add-phone-number') return !!onAddPhoneNumber;
+      if (action === 'add-discord-id') return !!onAddDiscordId;
       if (action === 'connect-slack') return !!onConnectSlack;
       if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
       if (
         action === 'trigger-workspace-mailbox' ||
         action === 'trigger-workspace-drive' ||
-        action === 'trigger-workspace-calendar' ||
-        action === 'trigger-workspace-contacts' ||
-        action === 'trigger-workspace-tasks'
+        action === 'trigger-workspace-calendar'
       ) {
         return !!onTriggerReferenceStep && !!onConnectWorkspace;
       }
@@ -801,6 +841,8 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'act') return !!onActNow;
       if (action === 'create-scheduled-task') return !!onCreateScheduledTask;
       if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
+      if (action === 'learn-from-correction') return !!onLearnFromCorrection;
+      if (action === 'my-computer-demo') return !!onMyComputerDemo;
       return false;
     },
     [
@@ -808,6 +850,7 @@ export function CoordinatorOnboardingChecklist({
       onTriggerReferenceStep,
       onAddWhatsappNumber,
       onAddPhoneNumber,
+      onAddDiscordId,
       onConnectSlack,
       onConnectDiscord,
       onConnectWorkspace,
@@ -815,6 +858,8 @@ export function CoordinatorOnboardingChecklist({
       onActNow,
       onCreateScheduledTask,
       onCreateTriggerableTask,
+      onLearnFromCorrection,
+      onMyComputerDemo,
     ]
   );
 
@@ -880,12 +925,37 @@ export function CoordinatorOnboardingChecklist({
 
   React.useEffect(() => {
     if (didInitializeOpenSectionRef.current || !resolved.length) return;
-    const defaultSection = nextActionableId
-      ? resolved.find((section) => containsLeafId(section, nextActionableId))
-      : null;
-    setOpenSectionIds(new Set([defaultSection?.id ?? resolved[0].id]));
-    didInitializeOpenSectionRef.current = true;
+    const validSectionIds = new Set(resolved.map((section) => section.id));
+    setOpenSectionIds((current) => {
+      const filtered = new Set(
+        Array.from(current).filter((sectionId) => validSectionIds.has(sectionId))
+      );
+      if (filtered.size > 0) {
+        didInitializeOpenSectionRef.current = true;
+        foldStateHydratedRef.current = true;
+        return filtered.size === current.size ? current : filtered;
+      }
+      const communicationSection = resolved.find(
+        (section) => section.id === COMMUNICATION_SECTION_ID
+      );
+      const defaultSection =
+        communicationSection ??
+        (nextActionableId
+          ? resolved.find((section) => containsLeafId(section, nextActionableId))
+          : null);
+      didInitializeOpenSectionRef.current = true;
+      foldStateHydratedRef.current = true;
+      return new Set([defaultSection?.id ?? resolved[0].id]);
+    });
   }, [nextActionableId, resolved]);
+
+  React.useEffect(() => {
+    if (!foldStateHydratedRef.current) return;
+    writeCoordinatorOnboardingFoldState({
+      sectionIds: [...openSectionIds],
+      subgroupIds: [...openSubgroupIds],
+    });
+  }, [openSectionIds, openSubgroupIds]);
 
   const hasVisibleEmailSubgroup = React.useMemo(() => {
     const communicationSection = resolved.find(
@@ -896,6 +966,24 @@ export function CoordinatorOnboardingChecklist({
       (group) => group.id === 'email'
     );
   }, [resolved]);
+
+  React.useEffect(() => {
+    if (!foldStateHydratedRef.current || didInitializeOpenSubgroupRef.current) return;
+    if (!hasVisibleEmailSubgroup) return;
+    if ((storedFoldStateRef.current?.subgroupIds.length ?? 0) > 0) {
+      didInitializeOpenSubgroupRef.current = true;
+      return;
+    }
+    if (!openSectionIds.has(COMMUNICATION_SECTION_ID)) return;
+    setOpenSubgroupIds((current) => {
+      if (current.size > 0) {
+        didInitializeOpenSubgroupRef.current = true;
+        return current;
+      }
+      didInitializeOpenSubgroupRef.current = true;
+      return new Set(['email']);
+    });
+  }, [hasVisibleEmailSubgroup, openSectionIds]);
 
   React.useEffect(() => {
     if (firstLoginCommunicationEmailOpenRequest <= 0 || !hasVisibleEmailSubgroup) return;
@@ -914,14 +1002,37 @@ export function CoordinatorOnboardingChecklist({
     hasVisibleEmailSubgroup,
   ]);
 
-  const toggleSection = React.useCallback((sectionId: string) => {
-    setOpenSectionIds((current) => {
-      const next = new Set(current);
-      if (next.has(sectionId)) next.delete(sectionId);
-      else next.add(sectionId);
-      return next;
-    });
-  }, []);
+  const toggleSection = React.useCallback(
+    (sectionId: string) => {
+      const section = resolved.find((entry) => entry.id === sectionId);
+      const subgroupIds =
+        section?.children && sectionId === COMMUNICATION_SECTION_ID
+          ? communicationSubgroups(section.children).map((group) => group.id)
+          : [];
+
+      setOpenSectionIds((current) => {
+        const opening = !current.has(sectionId);
+        const next = new Set(current);
+        if (opening) next.add(sectionId);
+        else next.delete(sectionId);
+
+        if (subgroupIds.length > 0) {
+          setOpenSubgroupIds((subgroups) => {
+            const nextSubgroups = new Set(subgroups);
+            if (opening) {
+              for (const subgroupId of subgroupIds) nextSubgroups.add(subgroupId);
+            } else {
+              for (const subgroupId of subgroupIds) nextSubgroups.delete(subgroupId);
+            }
+            return nextSubgroups;
+          });
+        }
+
+        return next;
+      });
+    },
+    [resolved]
+  );
   const toggleSubgroup = React.useCallback((subgroupId: string) => {
     setOpenSubgroupIds((current) => {
       const next = new Set(current);
@@ -931,50 +1042,30 @@ export function CoordinatorOnboardingChecklist({
     });
   }, []);
 
-  // Global "do onboarding later" collapses the whole checklist to a
-  // single resume affordance. The underlying per-step state is
-  // untouched, so resuming brings the user back exactly where they were.
-  // Only relevant while actively onboarding; once the row is in working
-  // mode the reactivate affordance below is the canonical re-entry, so a
-  // stale deferral flag never strands the user on an empty resume panel.
-  if (onboardingDeferred && coordinatorMode === 'onboarding') {
+  if (!onboardingActive) {
     return (
       <div
         className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}
-        data-testid="coordinator-onboarding-deferred"
+        data-testid="coordinator-onboarding-inactive"
       >
         <div className="rounded-control bg-muted/40 px-2.5 py-2">
           <p className="text-body-sm text-muted-foreground">
-            Onboarding paused — you can{' '}
-            {resumeOnboarding ? (
-              <button
-                type="button"
-                onClick={resumeOnboarding}
-                className={cn(
-                  'rounded-control font-medium text-primary',
-                  'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                )}
-              >
-                resume
-              </button>
-            ) : (
-              <span className="font-medium text-primary">resume</span>
-            )}{' '}
-            anytime.
+            Onboarding is paused. You can return to the setup checklist anytime (here or by asking
+            T-W1N to resume setup after confirming).
           </p>
         </div>
         <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
-          {resumeOnboarding ? (
+          {setOnboardingActive ? (
             <button
               type="button"
-              onClick={resumeOnboarding}
+              onClick={() => setOnboardingActive(true)}
               className={cn(
                 'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
                 'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
               )}
-              data-testid="coordinator-onboarding-resume"
+              data-testid="coordinator-onboarding-return"
             >
-              Resume onboarding
+              Return to onboarding
             </button>
           ) : null}
         </div>
@@ -982,49 +1073,12 @@ export function CoordinatorOnboardingChecklist({
     );
   }
 
-  // Working mode: onboarding has been exited, so Orchestra reports no
-  // active render. Rather than an empty tab, offer a single affordance to
-  // re-enter onboarding — flipping the row back to ``onboarding`` mode
-  // repopulates this checklist and re-engages the Coordinator's nudges
-  // from wherever the durable domain state leaves off.
   if (!resolved.length) {
-    if (coordinatorMode === 'working') {
-      return (
-        <div
-          className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}
-          data-testid="coordinator-onboarding-working"
-        >
-          <div className="rounded-control bg-muted/40 px-2.5 py-2">
-            <p className="text-body-sm text-muted-foreground">
-              Onboarding complete. You can revisit the setup checklist anytime.
-            </p>
-          </div>
-          <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
-            {reactivateOnboarding ? (
-              <button
-                type="button"
-                onClick={reactivateOnboarding}
-                className={cn(
-                  'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
-                  'hover:bg-primary-tint-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                )}
-                data-testid="coordinator-onboarding-reactivate"
-              >
-                Reactivate onboarding
-              </button>
-            ) : null}
-          </div>
-        </div>
-      );
-    }
-    // No coordinator state yet (or non-coordinator surface) — the panel
-    // falls back to its other tabs.
     return null;
   }
 
-  // Offer the global defer only while there's still onboarding left to
-  // do — once everything resolves there's nothing to postpone.
-  const canDeferAll = !!deferOnboarding && nextActionableId !== null;
+  // Offer pause only while there's still onboarding left to do.
+  const canPauseAll = !!setOnboardingActive && nextActionableId !== null;
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
       <ScrollArea className="min-h-0 flex-1" viewportTestId="coordinator-onboarding-checklist">
@@ -1136,15 +1190,15 @@ export function CoordinatorOnboardingChecklist({
         </ul>
       </ScrollArea>
       <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
-        {canDeferAll ? (
+        {canPauseAll ? (
           <button
             type="button"
-            onClick={deferOnboarding}
+            onClick={() => setOnboardingActive?.(false)}
             className={cn(
               'text-caption rounded-control whitespace-nowrap px-1.5 py-0.5 text-muted-foreground',
               'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             )}
-            data-testid="coordinator-onboarding-defer-all"
+            data-testid="coordinator-onboarding-pause-all"
           >
             Pause onboarding for now
           </button>
@@ -1321,7 +1375,9 @@ function ChecklistRow({
   const shouldJiggle = blockedFeedbackStepId === item.id;
   const blockingHint = blockingStepHints.get(item.id);
   const showActionFeedback =
-    !!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled;
+    item.inProgress ||
+    (!!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled);
+  const actionFeedbackLabel = item.inProgress ? 'In progress' : actionFeedback;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -1453,7 +1509,7 @@ function ChecklistRow({
             aria-live="polite"
             data-testid={`coordinator-onboarding-action-feedback-${item.id}`}
           >
-            {actionFeedback}
+            {actionFeedbackLabel}
           </span>
         ) : blockingHint ? (
           <span
@@ -1499,6 +1555,7 @@ function ChecklistRow({
         }}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
+        data-status={item.inProgress ? 'in_progress' : undefined}
         data-next={isNext ? 'true' : undefined}
       >
         {rowBody('actionable')}
@@ -1559,8 +1616,9 @@ function ChecklistRow({
   const showSuggestions =
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
   const chipsClickable =
-    !!onSelectTaskChip &&
-    (item.id === 'create-scheduled-task' || item.id === 'create-triggerable-task');
+    item.id === 'create-scheduled-task' || item.id === 'create-triggerable-task'
+      ? !!onSelectTaskChip
+      : false;
 
   // Beat-specific affordances that sit under their row while it's the
   // active step: a countdown once a scheduled task is set, and a

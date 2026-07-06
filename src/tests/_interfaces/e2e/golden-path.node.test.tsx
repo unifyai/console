@@ -1,6 +1,37 @@
 import React, { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
+
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>();
+  return {
+    ...actual,
+    cache: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+  };
+});
+
+vi.mock('@/components/Pages/Providers/WorkspaceProvider', () => ({
+  useWorkspace: () => ({
+    user: null,
+    workspaces: [],
+    activeWorkspace: { id: 'personal', name: 'Personal', type: 'personal', image: null },
+    activeOrganization: null,
+    currentUserId: 'test-user',
+    isUnifyAdmin: false,
+    isUnifyMember: false,
+    isWorkspaceSwitchable: true,
+    isSwitchingWorkspace: false,
+    switchWorkspace: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
+vi.mock('@/components/Pages/Providers/EnvironmentProvider', () => ({
+  useEnvironment: () => ({
+    deployment: 'dev',
+    authMode: 'managed',
+  }),
+  useFeatures: () => ({}),
+}));
 import { renderWithProviders } from '@/tests/_interfaces/utils/render-with-providers';
 import Interface from '@/components/Pages/Interfaces/Interface/Interface';
 import { useQueryState } from 'nuqs'; // Will be mocked

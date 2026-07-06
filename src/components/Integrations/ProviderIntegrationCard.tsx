@@ -54,8 +54,8 @@ export function ProviderIntegrationCard({
     >
       <div className="absolute inset-x-0 top-0 h-1 bg-primary-tint-60 opacity-70" />
       <CardContent className="flex h-full flex-col p-4 pt-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
             <div className="bg-muted/40 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border">
               {item.iconUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -71,7 +71,7 @@ export function ProviderIntegrationCard({
               <p className="text-caption truncate">{integrationTypeLabel(item)}</p>
             </div>
           </div>
-          <IntegrationStatusBadge status={item.status} />
+          <IntegrationStatusBadge status={item.status} className="shrink-0 self-start" />
         </div>
 
         <p className="text-body-muted mt-3 line-clamp-2 min-h-[2.5rem]">

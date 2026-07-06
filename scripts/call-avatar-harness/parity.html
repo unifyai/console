@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Laptop parity harness</title>
+    <style>
+      *,
+      ::before,
+      ::after {
+        box-sizing: border-box;
+      }
+      img,
+      svg,
+      video {
+        display: block;
+        vertical-align: middle;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.45 system-ui,
+          sans-serif;
+        background: #f4f1ea;
+        color: #1b1b1b;
+      }
+      /* All vertical metrics are integer px so every slot lands on identical
+     device-pixel phase in both rows — required for a clean pixel diff. */
+      /* All metrics are integer px and text boxes have fixed heights so every
+     slot lands on identical device-pixel phase in both rows — required for a
+     clean pixel diff. */
+      .board {
+        padding: 28px 28px 140px;
+        display: flex;
+        flex-direction: column;
+        gap: 130px;
+      }
+      h2 {
+        font-size: 16px;
+        line-height: 24px;
+        height: 24px;
+        overflow: hidden;
+        margin: 0 0 64px;
+      }
+      .grid {
+        display: flex;
+        gap: 72px;
+      }
+      .cell {
+        width: 150px;
+        margin: 0;
+      }
+      /* Outline (not border) keeps the slot's content box at exactly 128px, the
+     size the slot-lift math is computed against. */
+      .slot {
+        position: relative;
+        height: 128px;
+        width: 128px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: visible;
+        background: #ece9e1;
+        outline: 1px solid #d8d2c8;
+        border-radius: 12px;
+      }
+      .working {
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .lift {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      figcaption {
+        margin-top: 96px;
+        font-size: 12px;
+        line-height: 18px;
+        height: 18px;
+        overflow: hidden;
+        color: #666;
+      }
+      /* Deterministic pixels for diffing. */
+      .hub-laptop-key {
+        animation: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <link rel="stylesheet" href="./parity-bundle.css" />
+    <script src="./parity-bundle.js"></script>
+  </body>
+</html>

@@ -13,8 +13,10 @@ import {
   ChatMessage,
   Attachment,
   CallPill,
+  RequestSentAck,
   TimelineItem,
   isCallPill,
+  isRequestSentAck,
 } from '@/types/assistants/chat';
 import {
   PendingAttachmentList,
@@ -23,6 +25,7 @@ import {
   ChatDateDivider,
   isSameDay,
   CallPillBubble,
+  RequestSentAckBubble,
   CallTranscriptDialog,
   ChatSearchDialog,
   OlderMessagesBanner,
@@ -62,6 +65,7 @@ interface AssistantProfileChatPanelProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   userTimezone?: string | null;
   isFirstView?: boolean;
@@ -111,6 +115,7 @@ export function AssistantProfileChatPanel({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   userTimezone,
   isFirstView,
@@ -145,6 +150,7 @@ export function AssistantProfileChatPanel({
     messages,
     inputValue,
     isLoading,
+    hasLoadedInitialHistory,
     initialLoadError,
     retryInitialLoad,
     isAssistantReplying,
@@ -162,6 +168,7 @@ export function AssistantProfileChatPanel({
     isRetryingContactId,
     reconnectSSE,
     currentContactId,
+    toggleReaction,
   } = useAssistantProfileChat(
     assistant,
     assistantActions,
@@ -292,14 +299,19 @@ export function AssistantProfileChatPanel({
   // lives in `useAssistantProfileChat`), and re-sorting hundreds of
   // messages per keystroke is one of the dominant typing-lag contributors
   // in long conversations.
+  const requestAcks = React.useMemo(
+    () => requestAckHistories?.[assistant.agentId] ?? [],
+    [requestAckHistories, assistant.agentId]
+  );
+
   const liveTimeline = React.useMemo<TimelineItem[]>(() => {
     const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
       ? [...messages, ...getMockEmbedMessages()]
       : messages;
-    return [...baseMessages, ...callPills].sort(
+    return [...baseMessages, ...callPills, ...requestAcks].sort(
       (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
     );
-  }, [messages, callPills]);
+  }, [messages, callPills, requestAcks]);
 
   const historicalTimeline = React.useMemo<TimelineItem[]>(() => {
     if (!historicalView) return [];
@@ -307,6 +319,11 @@ export function AssistantProfileChatPanel({
       (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
     );
   }, [historicalView]);
+
+  const awaitingAssistantReply = React.useMemo(
+    () => messages.length === 0 || messages[messages.length - 1].role === 'user',
+    [messages]
+  );
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
@@ -580,6 +597,30 @@ export function AssistantProfileChatPanel({
     prevScrollHeightRef.current = scrollHeight;
   }, [messages, isAssistantReplying, isLoadingMore]);
 
+  /* Pin to the latest messages once the initial transcript snapshot lands. */
+  const prevHasLoadedInitialHistoryRef = React.useRef(false);
+  React.useEffect(() => {
+    const justLoaded = hasLoadedInitialHistory && !prevHasLoadedInitialHistoryRef.current;
+    prevHasLoadedInitialHistoryRef.current = hasLoadedInitialHistory;
+    if (!justLoaded || isHistoricalMode || messages.length === 0) return;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollChatToBottom();
+        const viewport = getChatViewport();
+        if (viewport) {
+          prevScrollHeightRef.current = viewport.scrollHeight;
+        }
+      });
+    });
+  }, [
+    getChatViewport,
+    hasLoadedInitialHistory,
+    isHistoricalMode,
+    messages.length,
+    scrollChatToBottom,
+  ]);
+
   /* Scroll to anchor message when historical view loads */
   const prevAnchorRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -710,7 +751,7 @@ export function AssistantProfileChatPanel({
               Retry
             </Button>
           </div>
-        ) : isLoading && messages.length === 0 ? (
+        ) : isLoading && !hasLoadedInitialHistory ? (
           <ChatMessageSkeletons />
         ) : (
           <div className="space-y-6 py-4" style={{ width: '100%' }}>
@@ -749,6 +790,17 @@ export function AssistantProfileChatPanel({
                       );
                     }
 
+                    if (isRequestSentAck(item)) {
+                      return (
+                        <React.Fragment key={item.id}>
+                          {showDivider && (
+                            <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                          )}
+                          <RequestSentAckBubble ack={item} timezone={userTimezone} />
+                        </React.Fragment>
+                      );
+                    }
+
                     return (
                       <React.Fragment key={item.id}>
                         {showDivider && (
@@ -772,6 +824,15 @@ export function AssistantProfileChatPanel({
                             onAssistantAvatarStartCall={onAssistantAvatarStartCall}
                             isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
                             assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
+                            transcriptMessageId={item.messageId}
+                            reactions={item.reactions}
+                            currentContactId={currentContactId}
+                            canReact={canChat && !isSpendingBlocked}
+                            onToggleReaction={
+                              item.messageId !== undefined
+                                ? (emoji) => toggleReaction(item.messageId!, emoji)
+                                : undefined
+                            }
                           />
                         </div>
                       </React.Fragment>
@@ -831,6 +892,17 @@ export function AssistantProfileChatPanel({
                     );
                   }
 
+                  if (isRequestSentAck(item)) {
+                    return (
+                      <React.Fragment key={item.id}>
+                        {showDivider && (
+                          <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                        )}
+                        <RequestSentAckBubble ack={item} timezone={userTimezone} />
+                      </React.Fragment>
+                    );
+                  }
+
                   const msg = item;
                   // Pass `playMessage` directly (not a per-render `() => …`
                   // closure) so `React.memo` on `ChatMessageBubble` actually
@@ -861,11 +933,20 @@ export function AssistantProfileChatPanel({
                         onAssistantAvatarStartCall={onAssistantAvatarStartCall}
                         isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
                         assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
+                        transcriptMessageId={msg.messageId}
+                        reactions={msg.reactions}
+                        currentContactId={currentContactId}
+                        canReact={canChat && !isSpendingBlocked}
+                        onToggleReaction={
+                          msg.messageId !== undefined
+                            ? (emoji) => toggleReaction(msg.messageId!, emoji)
+                            : undefined
+                        }
                       />
                     </React.Fragment>
                   );
                 })}
-                {(isAssistantReplying || forceTypingIndicator) && (
+                {(forceTypingIndicator || (isAssistantReplying && awaitingAssistantReply)) && (
                   <ChatMessageBubble
                     message=""
                     isUser={false}

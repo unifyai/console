@@ -71,6 +71,10 @@ if [[ -z "$ORCHESTRA_REPO_PATH" || ! -f "$ORCHESTRA_REPO_PATH/scripts/local.sh" 
 fi
 log_success "Orchestra repo: $ORCHESTRA_REPO_PATH"
 
+if [[ -f "$SCRIPT_DIR/ensure-sibling-repo-branch.sh" && -n "$ORCHESTRA_REPO_PATH" ]]; then
+  bash "$SCRIPT_DIR/ensure-sibling-repo-branch.sh" "$ORCHESTRA_REPO_PATH" orchestra || true
+fi
+
 # Propagate the resolved paths to later workflow steps. GitHub Actions runs each
 # step in a fresh shell, so a value computed here is invisible to the test-run
 # step unless written to $GITHUB_ENV. Without this the test process re-derives
@@ -145,13 +149,43 @@ export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
 export ORCHESTRA_PORT="$ORCHESTRA_PORT"
 export UNIFY_CONSOLE_FRONTEND_URL="http://localhost:${CONSOLE_PORT}"
 
-if ! ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_REPO_PATH/scripts/local.sh" start; then
-  log_error "Orchestra failed to start"
-  log_info "Check logs: /tmp/orchestra-local-server.log"
+_orchestra_attempt=0
+_orchestra_max_attempts=3
+while (( _orchestra_attempt < _orchestra_max_attempts )); do
+  if ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_REPO_PATH/scripts/local.sh" start; then
+    break
+  fi
+  ((_orchestra_attempt++)) || true
+  if (( _orchestra_attempt >= _orchestra_max_attempts )); then
+    log_error "Orchestra failed to start after ${_orchestra_max_attempts} attempts"
+    log_info "Check logs: /tmp/orchestra-local-server.log"
+    exit 1
+  fi
+  log_info "Orchestra start failed — retrying ($((_orchestra_attempt + 1))/${_orchestra_max_attempts})..."
+  sleep 5
+done
+
+log_success "Orchestra ready at http://127.0.0.1:${ORCHESTRA_PORT}"
+
+# Vitest ``@real`` specs call Orchestra directly and need a valid local API key.
+DB_CONTAINER="${ORCHESTRA_DB_CONTAINER:-orchestra-local-db}"
+VITE_TEST_API_KEY="$(docker exec "$DB_CONTAINER" psql -U orchestra -d orchestra -tAc \
+  "SELECT key FROM api_key WHERE organization_id IS NULL ORDER BY id LIMIT 1;" 2>/dev/null | tr -d '[:space:]')"
+
+if [[ -z "$VITE_TEST_API_KEY" ]]; then
+  log_error "Could not resolve VITE_TEST_API_KEY from local Orchestra DB"
   exit 1
 fi
 
-log_success "Orchestra ready at http://127.0.0.1:${ORCHESTRA_PORT}"
+export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+export VITE_TEST_API_KEY
+echo "VITE_TEST_API_KEY=${VITE_TEST_API_KEY}" >> "$CONSOLE_DIR/.env.local"
+
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "ORCHESTRA_URL=http://127.0.0.1:${ORCHESTRA_PORT}" >> "$GITHUB_ENV"
+  echo "VITE_TEST_API_KEY=${VITE_TEST_API_KEY}" >> "$GITHUB_ENV"
+fi
+log_success "Vitest real-integration credentials provisioned"
 
 # ── 4. Start Pub/Sub emulator ─────────────────────────────────────────
 
