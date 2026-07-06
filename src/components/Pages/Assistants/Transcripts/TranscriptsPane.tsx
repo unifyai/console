@@ -235,7 +235,7 @@ export function TranscriptsPane({
   );
 
   const handleRefresh = React.useCallback(async () => {
-    await refresh();
+    await refresh({ blocking: true });
   }, [refresh]);
 
   const nameFor = React.useCallback(

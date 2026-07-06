@@ -384,7 +384,7 @@ export function DataPane({ assistant, ownerId, assistantId, enabled = true }: Da
                     <button
                       type="button"
                       onClick={() => {
-                        void refreshTree();
+                        void refreshTree({ blocking: true });
                       }}
                       className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       aria-label="Refresh data contexts"
@@ -492,7 +492,7 @@ export function DataPane({ assistant, ownerId, assistantId, enabled = true }: Da
                         <button
                           type="button"
                           onClick={() => {
-                            void refreshTree();
+                            void refreshTree({ blocking: true });
                           }}
                           className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           aria-label="Refresh data contexts"
