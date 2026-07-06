@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -212,12 +213,12 @@ const ProfileContactRequiredNotice: React.FC<{
           {linkLabel}
         </button>
       ) : (
-        <a
+        <Link
           href="/account?tab=contact-info"
           className="text-primary underline hover:text-primary-tint-80"
         >
           {linkLabel}
-        </a>
+        </Link>
       )}{' '}
       {suffix}
     </p>

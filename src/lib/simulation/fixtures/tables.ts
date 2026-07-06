@@ -959,6 +959,18 @@ const taskRuns: MockRow[] = [
     startedAt: isoMinutesAgo(220),
     completedAt: isoMinutesAgo(219),
   },
+  {
+    taskId: 2004,
+    taskName: 'Weekly competitive scan',
+    taskDescription: 'Scan competitor pricing pages and summarize changes.',
+    sourceType: 'scheduled',
+    state: 'running',
+    scheduledFor: isoMinutesAgo(5),
+    sourceMedium: null,
+    sourceContactDisplayName: null,
+    startedAt: isoMinutesAgo(2),
+    completedAt: null,
+  },
 ];
 
 // ManagerMethod root events (incoming + outgoing pairs) so the Actions tree renders.
@@ -1919,7 +1931,7 @@ function integrationApp(
   };
 }
 
-const integrationsApps: MockRow[] = [
+const integrationsAppsCore: MockRow[] = [
   integrationApp(
     'gmail',
     'Gmail',
@@ -1989,6 +2001,59 @@ const integrationsApps: MockRow[] = [
     { toolCount: 4, authModes: ['oauth'] }
   ),
 ];
+
+const CATALOG_SUFFIXES = [
+  'risk',
+  'chat',
+  'cloud',
+  'docs',
+  'forms',
+  'hub',
+  'kit',
+  'labs',
+  'ops',
+  'sync',
+  'vault',
+  'watch',
+];
+
+function buildBrowsableIntegrationApps(): MockRow[] {
+  const rows: MockRow[] = [];
+  for (let index = 0; index < 96; index += 1) {
+    const slug = `catalog_app_${String(index + 1).padStart(3, '0')}`;
+    const label = `Catalog App ${index + 1}`;
+    rows.push(
+      integrationApp(
+        slug,
+        label,
+        index % 3 === 0 ? 'CRM' : index % 3 === 1 ? 'Productivity' : 'Finance',
+        `Mock ${label} integration for catalog browsing.`,
+        {
+          toolCount: 4 + (index % 9),
+          authModes: index % 4 === 0 ? ['api_key'] : ['oauth'],
+        }
+      )
+    );
+  }
+  for (let index = 0; index < 24; index += 1) {
+    const suffix = CATALOG_SUFFIXES[index % CATALOG_SUFFIXES.length];
+    const slug = `browse_${suffix}_${index + 1}`;
+    rows.push(
+      integrationApp(
+        slug,
+        `${suffix.charAt(0).toUpperCase()}${suffix.slice(1)} Suite ${index + 1}`,
+        'Developer',
+        `Developer tooling mock for the ${suffix} integration family.`,
+        {
+          toolCount: 3 + (index % 6),
+        }
+      )
+    );
+  }
+  return rows;
+}
+
+const integrationsApps: MockRow[] = [...integrationsAppsCore, ...buildBrowsableIntegrationApps()];
 
 function richTables(): MockTables {
   return {

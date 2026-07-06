@@ -109,6 +109,8 @@ interface RightPaneContainerProps {
   workspacePaneObscured?: boolean;
   /** False when the assistants surface is hidden behind settings/admin routes. */
   isActiveSurface?: boolean;
+  /** Reports root-level Actions SSE activity that arrived while Actions was inactive. */
+  onActionsUnreadActivityChange?: (hasUnread: boolean) => void;
 }
 
 /**
@@ -149,6 +151,7 @@ export function RightPaneContainer({
   forceCoordinatorChatIntroTyping = false,
   workspacePaneObscured = false,
   isActiveSurface = true,
+  onActionsUnreadActivityChange,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. The Actions body owns the
@@ -283,6 +286,7 @@ export function RightPaneContainer({
           className="h-full"
           isPaneVisible={isActionsPaneVisible}
           onHasActiveActionChange={handleActiveActionChange}
+          onUnreadLiveActivityChange={onActionsUnreadActivityChange}
         />
       </TabsContent>
     </Tabs>

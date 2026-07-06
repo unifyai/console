@@ -162,7 +162,7 @@ export function FunctionsPane({
     clear: clearSearch,
   } = useTabSearchCommit();
 
-  const { skills, total, isLoading, isLoadingMore, hasMore, error, loadMore, refetch } =
+  const { skills, total, hasLoaded, isLoading, isLoadingMore, hasMore, error, loadMore, refetch } =
     useFunctionsCatalog({
       assistant,
       kind,
@@ -221,7 +221,7 @@ export function FunctionsPane({
       />
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="functions-body">
-        {isLoading && skills.length === 0 ? (
+        {isLoading && !hasLoaded ? (
           <div className={FUNCTIONS_GRID_CLASS} data-testid="functions-skeleton">
             {Array.from({ length: 8 }).map((_, i) => (
               <SkeletonCard key={i} lines={2} />

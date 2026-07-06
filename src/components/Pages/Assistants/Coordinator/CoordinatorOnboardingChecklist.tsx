@@ -973,14 +973,37 @@ export function CoordinatorOnboardingChecklist({
     hasVisibleEmailSubgroup,
   ]);
 
-  const toggleSection = React.useCallback((sectionId: string) => {
-    setOpenSectionIds((current) => {
-      const next = new Set(current);
-      if (next.has(sectionId)) next.delete(sectionId);
-      else next.add(sectionId);
-      return next;
-    });
-  }, []);
+  const toggleSection = React.useCallback(
+    (sectionId: string) => {
+      const section = resolved.find((entry) => entry.id === sectionId);
+      const subgroupIds =
+        section?.children && sectionId === COMMUNICATION_SECTION_ID
+          ? communicationSubgroups(section.children).map((group) => group.id)
+          : [];
+
+      setOpenSectionIds((current) => {
+        const opening = !current.has(sectionId);
+        const next = new Set(current);
+        if (opening) next.add(sectionId);
+        else next.delete(sectionId);
+
+        if (subgroupIds.length > 0) {
+          setOpenSubgroupIds((subgroups) => {
+            const nextSubgroups = new Set(subgroups);
+            if (opening) {
+              for (const subgroupId of subgroupIds) nextSubgroups.add(subgroupId);
+            } else {
+              for (const subgroupId of subgroupIds) nextSubgroups.delete(subgroupId);
+            }
+            return nextSubgroups;
+          });
+        }
+
+        return next;
+      });
+    },
+    [resolved]
+  );
   const toggleSubgroup = React.useCallback((subgroupId: string) => {
     setOpenSubgroupIds((current) => {
       const next = new Set(current);

@@ -51,18 +51,32 @@ export function useAssistants(
 
   const [assistants, setAssistants] = React.useState<Assistant[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [hasSettledOnce, setHasSettledOnce] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const assistantsRef = React.useRef<Assistant[]>([]);
+  const hasSettledOnceRef = React.useRef(false);
+  const workspaceKey = `${workspace.type}:${workspace.organizationId ?? 'personal'}`;
+  const previousWorkspaceKeyRef = React.useRef(workspaceKey);
 
   React.useEffect(() => {
     assistantsRef.current = assistants;
   }, [assistants]);
 
+  React.useEffect(() => {
+    hasSettledOnceRef.current = hasSettledOnce;
+  }, [hasSettledOnce]);
+
   const isOrgContext = workspace.type === 'organization';
 
   const fetchAssistantsWithDetails = React.useCallback(
     async (shouldShowLoadingToast = true) => {
-      setIsLoading(true);
+      const hasSettled = hasSettledOnceRef.current;
+      if (hasSettled) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
 
       let toastId: string | number | undefined;
@@ -78,7 +92,9 @@ export function useAssistants(
           if ((listResult as any).status === 403) {
             setAssistants([]); // Treat as an empty list, not an error
             setError(null);
+            setHasSettledOnce(true);
             setIsLoading(false);
+            setIsRefreshing(false);
             if (toastId) toast.dismiss(toastId);
             return;
           }
@@ -177,7 +193,9 @@ export function useAssistants(
         });
 
         setAssistants(assistantsWithImmediateSignedUrls);
+        setHasSettledOnce(true);
         setIsLoading(false);
+        setIsRefreshing(false);
         if (toastId) toast.dismiss(toastId);
 
         // Step 3: Resolve only media paths still missing from cache.
@@ -213,8 +231,12 @@ export function useAssistants(
             ? err.message
             : 'An unknown error occurred while fetching assistants.';
         setError(errorMsg);
-        setAssistants([]);
+        if (!hasSettledOnceRef.current) {
+          setAssistants([]);
+          setHasSettledOnce(true);
+        }
         setIsLoading(false);
+        setIsRefreshing(false);
         if (toastId) {
           toast.error('Failed to load assistants', { id: toastId });
         } else if (shouldShowLoadingToast) {
@@ -226,8 +248,18 @@ export function useAssistants(
   );
 
   React.useEffect(() => {
+    if (previousWorkspaceKeyRef.current !== workspaceKey) {
+      previousWorkspaceKeyRef.current = workspaceKey;
+      setAssistants([]);
+      assistantsRef.current = [];
+      setHasSettledOnce(false);
+      hasSettledOnceRef.current = false;
+      setIsLoading(true);
+      setIsRefreshing(false);
+      setError(null);
+    }
     fetchAssistantsWithDetails(false);
-  }, [fetchAssistantsWithDetails]);
+  }, [fetchAssistantsWithDetails, workspaceKey]);
 
   /**
    * Pre-emptive signed-URL refresh.
@@ -410,6 +442,9 @@ export function useAssistants(
     assistants,
     setAssistants,
     isLoading,
+    isInitialLoading: isLoading && !hasSettledOnce,
+    isRefreshing,
+    hasSettledOnce,
     error,
     refreshAssistants: fetchAssistantsWithDetails,
     deleteAssistant,

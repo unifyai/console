@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { AssistantSectionSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
-import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 import type { Assistant } from '@/types/assistants/assistant';
 
 const ContactsPane = React.lazy(() =>
@@ -32,15 +32,20 @@ const BRAIN_SECTION_IDS = [
 
 type BrainSectionId = (typeof BRAIN_SECTION_IDS)[number];
 
+const preloadBrainPaneById = {
+  contacts: () => import('../Contacts/ContactsPane'),
+  functions: () => import('../Functions/FunctionsPane'),
+  guidance: () => import('../DocLibrary/DocLibraryPane'),
+  knowledge: () => import('../DocLibrary/DocLibraryPane'),
+  data: () => import('../Data/DataPane'),
+  transcripts: () => import('../Transcripts/TranscriptsPane'),
+} satisfies Record<BrainSectionId, () => Promise<unknown>>;
+
 interface BrainSectionsHostProps {
   assistant: Assistant;
   activeSectionId: string;
   onManageContacts: () => void;
   isActiveSurface?: boolean;
-}
-
-function BrainPaneFallback() {
-  return <SectionBodySkeleton className="h-full" />;
 }
 
 /**
@@ -79,20 +84,38 @@ export function BrainSectionsHost({
     });
   }, [activeSectionId]);
 
+  React.useEffect(() => {
+    if (!BRAIN_SECTION_IDS.includes(activeSectionId as BrainSectionId)) return;
+    void preloadBrainPaneById[activeSectionId as BrainSectionId]();
+  }, [activeSectionId]);
+
+  React.useEffect(() => {
+    if (!isActiveSurface) return;
+    const handle = window.setTimeout(() => {
+      BRAIN_SECTION_IDS.forEach((sectionId) => {
+        void preloadBrainPaneById[sectionId]();
+      });
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [isActiveSurface]);
+
   const renderPane = (sectionId: BrainSectionId, sectionActive: boolean) => {
+    const paneEnabled = sectionActive && isActiveSurface;
     switch (sectionId) {
       case 'contacts':
-        return <ContactsPane {...brainProps} onManageContacts={onManageContacts} />;
+        return (
+          <ContactsPane {...brainProps} onManageContacts={onManageContacts} enabled={paneEnabled} />
+        );
       case 'functions':
         return <FunctionsPane {...brainProps} isActiveSurface={sectionActive && isActiveSurface} />;
       case 'guidance':
-        return <DocLibraryPane {...brainProps} kind="guidance" />;
+        return <DocLibraryPane {...brainProps} kind="guidance" enabled={paneEnabled} />;
       case 'knowledge':
-        return <DocLibraryPane {...brainProps} kind="knowledge" />;
+        return <DocLibraryPane {...brainProps} kind="knowledge" enabled={paneEnabled} />;
       case 'data':
-        return <DataPane {...brainProps} />;
+        return <DataPane {...brainProps} enabled={paneEnabled} />;
       case 'transcripts':
-        return <TranscriptsPane {...brainProps} />;
+        return <TranscriptsPane {...brainProps} enabled={paneEnabled} />;
       default:
         return null;
     }
@@ -112,7 +135,9 @@ export function BrainSectionsHost({
             aria-hidden={!isActive}
           >
             {isMounted ? (
-              <React.Suspense fallback={<BrainPaneFallback />}>
+              <React.Suspense
+                fallback={<AssistantSectionSkeleton sectionId={sectionId} className="h-full" />}
+              >
                 {renderPane(sectionId, isActive)}
               </React.Suspense>
             ) : null}

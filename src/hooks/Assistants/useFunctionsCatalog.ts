@@ -15,11 +15,24 @@ import {
   type FunctionKindFilter,
   type FunctionSkill,
 } from '@/utils/assistants/functions';
+import {
+  invalidateTabDataCache,
+  readTabDataCache,
+  writeTabDataCache,
+} from '@/lib/assistants/tabDataCache';
 
 interface SubContextCursor {
   offset: number;
   hasMore: boolean;
   total: number;
+}
+
+interface FunctionsCatalogCacheEntry {
+  rows: FunctionRow[];
+  skills: FunctionSkill[];
+  total: number;
+  cursors: Record<string, SubContextCursor>;
+  hasMoreServer: boolean;
 }
 
 interface UseFunctionsCatalogOptions {
@@ -65,15 +78,24 @@ export function useFunctionsCatalog({
   query = '',
   enabled = true,
 }: UseFunctionsCatalogOptions) {
-  const [rows, setRows] = React.useState<FunctionRow[]>([]);
-  const [skills, setSkills] = React.useState<FunctionSkill[]>([]);
-  const [total, setTotal] = React.useState(0);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const trimmedQuery = query.trim();
+  const searchFilter = trimmedQuery ? buildFunctionSearchFilterExpr(trimmedQuery) : undefined;
+  const subContexts = React.useMemo(() => functionSubContextsForKind(kind), [kind]);
+  const cacheKey = `${assistant.userId}:${assistant.agentId}:functionsCatalog:${kind}:${trimmedQuery}`;
+  const initialCachedCatalog = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
+  const [rows, setRows] = React.useState<FunctionRow[]>(initialCachedCatalog?.rows ?? []);
+  const [skills, setSkills] = React.useState<FunctionSkill[]>(initialCachedCatalog?.skills ?? []);
+  const [total, setTotal] = React.useState(initialCachedCatalog?.total ?? 0);
+  const [isLoading, setIsLoading] = React.useState(enabled && !initialCachedCatalog);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [hasLoaded, setHasLoaded] = React.useState(false);
+  const [hasLoaded, setHasLoaded] = React.useState(!!initialCachedCatalog);
   const [error, setError] = React.useState<string | null>(null);
-  const [cursors, setCursors] = React.useState<Record<string, SubContextCursor>>({});
-  const [hasMoreServer, setHasMoreServer] = React.useState(false);
+  const [cursors, setCursors] = React.useState<Record<string, SubContextCursor>>(
+    initialCachedCatalog?.cursors ?? {}
+  );
+  const [hasMoreServer, setHasMoreServer] = React.useState(
+    initialCachedCatalog?.hasMoreServer ?? false
+  );
   const isLoadingMoreRef = React.useRef(false);
   const cursorsRef = React.useRef(cursors);
   const hasMoreServerRef = React.useRef(hasMoreServer);
@@ -84,10 +106,20 @@ export function useFunctionsCatalog({
   isLoadingRef.current = isLoading;
   rowsRef.current = rows;
 
-  const trimmedQuery = query.trim();
-  const searchFilter = trimmedQuery ? buildFunctionSearchFilterExpr(trimmedQuery) : undefined;
-  const subContexts = React.useMemo(() => functionSubContextsForKind(kind), [kind]);
   const hasMore = hasLoaded && hasMoreServer;
+
+  React.useEffect(() => {
+    const cached = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
+    if (!cached) return;
+    setRows(cached.rows);
+    setSkills(cached.skills);
+    setTotal(cached.total);
+    setCursors(cached.cursors);
+    setHasMoreServer(cached.hasMoreServer);
+    setHasLoaded(true);
+    setError(null);
+    setIsLoading(false);
+  }, [cacheKey]);
 
   const assistantRef = React.useRef(assistant);
   assistantRef.current = assistant;
@@ -141,16 +173,23 @@ export function useFunctionsCatalog({
 
       const dedupedRows = mergeFunctionRows([], mergedRows);
       const hasMore = Object.values(nextCursors).some((cursor) => cursor.hasMore);
+      const nextSkills = normalizeFunctionSkills(dedupedRows);
+      const nextTotal = searchFilter
+        ? resolveCatalogTotalFromPages(pageResults, dedupedRows.length, hasMore)
+        : Math.max(catalogTotal, dedupedRows.length);
       setCursors(nextCursors);
       setRows(dedupedRows);
-      setSkills(normalizeFunctionSkills(dedupedRows));
-      setTotal(
-        searchFilter
-          ? resolveCatalogTotalFromPages(pageResults, dedupedRows.length, hasMore)
-          : Math.max(catalogTotal, dedupedRows.length)
-      );
+      setSkills(nextSkills);
+      setTotal(nextTotal);
       setHasMoreServer(hasMore);
       setHasLoaded(true);
+      writeTabDataCache<FunctionsCatalogCacheEntry>(cacheKey, {
+        rows: dedupedRows,
+        skills: nextSkills,
+        total: nextTotal,
+        cursors: nextCursors,
+        hasMoreServer: hasMore,
+      });
     } catch (fetchError) {
       console.error('[useFunctionsCatalog] Failed to load functions catalog', fetchError);
       setError('Could not load functions. Please try again.');
@@ -158,11 +197,13 @@ export function useFunctionsCatalog({
     } finally {
       setIsLoading(false);
     }
-  }, [assistantAgentId, assistantUserId, enabled, kind, searchFilter, subContexts]);
+  }, [assistantAgentId, assistantUserId, enabled, kind, searchFilter, subContexts, cacheKey]);
 
   React.useEffect(() => {
+    const cached = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
+    if (cached) return;
     void fetchCatalog();
-  }, [fetchCatalog]);
+  }, [cacheKey, fetchCatalog]);
 
   const loadMore = React.useCallback(async () => {
     if (
@@ -211,19 +252,38 @@ export function useFunctionsCatalog({
 
       const incoming = pageResults.flatMap((page) => page.rows);
       const merged = mergeFunctionRows(rowsRef.current, incoming);
+      const nextSkills = normalizeFunctionSkills(merged);
       setRows(merged);
-      setSkills(normalizeFunctionSkills(merged));
+      setSkills(nextSkills);
       setTotal((prev) => {
         if (searchFilter) {
-          if (!stillHasMore) return merged.length;
-          const reported = pageResults.reduce((sum, page) => sum + page.count, 0);
-          return Math.max(prev, merged.length, reported);
+          const nextTotal = (() => {
+            if (!stillHasMore) return merged.length;
+            const reported = pageResults.reduce((sum, page) => sum + page.count, 0);
+            return Math.max(prev, merged.length, reported);
+          })();
+          writeTabDataCache<FunctionsCatalogCacheEntry>(cacheKey, {
+            rows: merged,
+            skills: nextSkills,
+            total: nextTotal,
+            cursors: nextCursors,
+            hasMoreServer: stillHasMore,
+          });
+          return nextTotal;
         }
-        return Math.max(
+        const nextTotal = Math.max(
           prev,
           merged.length,
           ...Object.values(nextCursors).map((cursor) => cursor.total)
         );
+        writeTabDataCache<FunctionsCatalogCacheEntry>(cacheKey, {
+          rows: merged,
+          skills: nextSkills,
+          total: nextTotal,
+          cursors: nextCursors,
+          hasMoreServer: stillHasMore,
+        });
+        return nextTotal;
       });
     } catch (loadError) {
       console.error('[useFunctionsCatalog] Failed to load more functions', loadError);
@@ -231,17 +291,20 @@ export function useFunctionsCatalog({
       isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [assistantAgentId, assistantUserId, enabled, searchFilter, subContexts]);
+  }, [assistantAgentId, assistantUserId, enabled, searchFilter, subContexts, cacheKey]);
 
   return {
     skills,
     total,
-    isLoading,
+    isLoading: isLoading || (enabled && !hasLoaded),
     isLoadingMore,
     hasMore,
     hasLoaded,
     error,
     loadMore,
-    refetch: fetchCatalog,
+    refetch: () => {
+      invalidateTabDataCache(cacheKey);
+      return fetchCatalog();
+    },
   };
 }

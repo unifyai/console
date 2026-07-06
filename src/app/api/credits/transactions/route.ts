@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
@@ -46,6 +47,16 @@ export async function GET(request: NextRequest) {
   if (startDate) params.set('start_date', startDate);
   if (endDate) params.set('end_date', endDate);
   if (groupBy) params.set('group_by', groupBy);
+
+  if (mockSimulationEnabled()) {
+    const { simulationFetch } = await import('@/lib/simulation/dispatch');
+    const simResponse = await simulationFetch(
+      `http://mock.local/v0/credits/transactions?${params.toString()}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    const simData = await simResponse.json().catch(() => ({ transactions: [] }));
+    return NextResponse.json(snakeToCamelObject(simData), { status: simResponse.status });
+  }
 
   try {
     const response = await fetch(`${ORCHESTRA_URL}/v0/credits/transactions?${params.toString()}`, {

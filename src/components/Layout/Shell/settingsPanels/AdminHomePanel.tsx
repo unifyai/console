@@ -1,27 +1,11 @@
-/**
- * Admin Index
- *
- * Lightweight landing page that links to the available admin tools.
- * This isn't a full nav system — it's just the discovery surface for
- * Unify admins so the new managed-billing pages aren't URL-only.
- *
- * Access: Unify organization Owner or Admin only (enforced by the
- * /admin layout).
- */
+'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
-import { Building2, Tag, Sparkles, Link2, ChevronRight, Receipt } from 'lucide-react';
+import { Building2, ChevronRight, Link2, Receipt, Sparkles, Tag } from 'lucide-react';
 import { Card } from '@/components/UI/card';
+import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 
-interface AdminTool {
-  href: string;
-  title: string;
-  blurb: string;
-  Icon: React.ComponentType<{ className?: string }>;
-}
-
-const TOOLS: AdminTool[] = [
+const tools = [
   {
     href: '/admin/organizations',
     title: 'Organizations',
@@ -33,14 +17,14 @@ const TOOLS: AdminTool[] = [
     href: '/admin/plans',
     title: 'Billing Plans & Groups',
     blurb:
-      'Catalog of BillingPlanTemplate rows (create / deprecate / multi-currency) and curated BillingPlanGroup bundles that scope the customer-facing self-serve plan switch.',
+      'Catalog of BillingPlanTemplate rows and curated BillingPlanGroup bundles for self-serve plan switching.',
     Icon: Tag,
   },
   {
     href: '/admin/invoices',
     title: 'Invoices',
     blurb:
-      'All invoices across billing accounts — historical recharges plus projected month-end totals for active METERED plans, with filters by status, currency, plan, and date range.',
+      'All invoices across billing accounts, including historical recharges and projected month-end totals.',
     Icon: Receipt,
   },
   {
@@ -52,17 +36,24 @@ const TOOLS: AdminTool[] = [
   {
     href: '/admin/demo',
     title: 'Demo Assistants',
-    blurb: 'Assistants used for demos and engaging lead generation.',
+    blurb: 'Assistants used for demos and lead generation.',
     Icon: Sparkles,
   },
 ];
 
-export default function AdminIndexPage() {
+export default function AdminHomePanel() {
+  const { navigateTo } = useAppShellNavigation();
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-1 space-y-2 overflow-auto p-4">
-        {TOOLS.map(({ href, title, blurb, Icon }) => (
-          <Link key={href} href={href} className="block">
+        {tools.map(({ href, title, blurb, Icon }) => (
+          <button
+            key={href}
+            type="button"
+            onClick={() => navigateTo(href)}
+            className="block w-full text-left"
+          >
             <Card className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:border-primary-tint-40">
               <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
@@ -71,7 +62,7 @@ export default function AdminIndexPage() {
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </Card>
-          </Link>
+          </button>
         ))}
       </div>
     </div>

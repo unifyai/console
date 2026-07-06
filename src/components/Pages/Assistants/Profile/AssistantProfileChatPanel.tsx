@@ -150,6 +150,7 @@ export function AssistantProfileChatPanel({
     messages,
     inputValue,
     isLoading,
+    hasLoadedInitialHistory,
     initialLoadError,
     retryInitialLoad,
     isAssistantReplying,
@@ -596,6 +597,30 @@ export function AssistantProfileChatPanel({
     prevScrollHeightRef.current = scrollHeight;
   }, [messages, isAssistantReplying, isLoadingMore]);
 
+  /* Pin to the latest messages once the initial transcript snapshot lands. */
+  const prevHasLoadedInitialHistoryRef = React.useRef(false);
+  React.useEffect(() => {
+    const justLoaded = hasLoadedInitialHistory && !prevHasLoadedInitialHistoryRef.current;
+    prevHasLoadedInitialHistoryRef.current = hasLoadedInitialHistory;
+    if (!justLoaded || isHistoricalMode || messages.length === 0) return;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollChatToBottom();
+        const viewport = getChatViewport();
+        if (viewport) {
+          prevScrollHeightRef.current = viewport.scrollHeight;
+        }
+      });
+    });
+  }, [
+    getChatViewport,
+    hasLoadedInitialHistory,
+    isHistoricalMode,
+    messages.length,
+    scrollChatToBottom,
+  ]);
+
   /* Scroll to anchor message when historical view loads */
   const prevAnchorRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -726,7 +751,7 @@ export function AssistantProfileChatPanel({
               Retry
             </Button>
           </div>
-        ) : isLoading && messages.length === 0 ? (
+        ) : isLoading && !hasLoadedInitialHistory ? (
           <ChatMessageSkeletons />
         ) : (
           <div className="space-y-6 py-4" style={{ width: '100%' }}>

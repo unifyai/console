@@ -24,6 +24,7 @@ interface AppRailProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onBrandClick?: () => void;
+  sectionActivity?: Partial<Record<string, boolean>>;
 }
 
 /**
@@ -39,6 +40,7 @@ export function AppRail({
   collapsed,
   onCollapsedChange,
   onBrandClick,
+  sectionActivity,
 }: AppRailProps) {
   const renderSection = (s: SectionDef) => (
     <RailNavButton
@@ -47,6 +49,7 @@ export function AppRail({
       label={s.label}
       collapsed={collapsed}
       active={activeSection === s.id}
+      showActivityDot={activeSection !== s.id && sectionActivity?.[s.id] === true}
       onClick={() => onSelectSection(s)}
       testId={`rail-section-${s.id}`}
     />

@@ -1,7 +1,7 @@
 export function DashboardEmptyState() {
   return (
     <div
-      className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground"
+      className="flex flex-col items-center justify-center gap-3 text-center text-muted-foreground"
       data-testid="dashboards-empty"
     >
       <div className="space-y-1 text-center">

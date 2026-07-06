@@ -5,11 +5,13 @@ import { Menu } from 'lucide-react';
 import { AppRail, RAIL_COLLAPSED_STORAGE_KEY } from './AppRail';
 import { GlobalUnitySwitcher } from './GlobalUnitySwitcher';
 import { MobileShellRailProvider, useMobileShellRail } from './MobileShellRailContext';
+import type { SectionDef } from '@/components/Pages/Assistants/Rail/sectionConfig';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
 import { Sheet, SheetContent } from '@/components/UI/sheet';
 import { Button } from '@/components/UI/button';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 import { requestPlatformHomeNavigation } from '@/lib/navigation/platformHome';
+import { cn } from '@/lib/utils';
 
 interface HomeShellProps {
   children: React.ReactNode;
@@ -55,10 +57,13 @@ export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) 
     window.localStorage.setItem(RAIL_COLLAPSED_STORAGE_KEY, next ? '1' : '0');
   }, []);
 
-  const handleSelectSection = React.useCallback(() => {
-    navigateToAssistants();
-    setMobileRailOpen(false);
-  }, [navigateToAssistants]);
+  const handleSelectSection = React.useCallback(
+    (section: SectionDef) => {
+      navigateToAssistants({ sectionId: section.id });
+      setMobileRailOpen(false);
+    },
+    [navigateToAssistants]
+  );
 
   const handleBrandClick = React.useCallback(() => {
     requestPlatformHomeNavigation();
@@ -88,24 +93,25 @@ export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) 
         openMobileRail: () => setMobileRailOpen(true),
       }}
     >
-      {hideGlobalRail ? (
-        <div className="h-full min-h-0 w-full overflow-hidden">{children}</div>
-      ) : (
-        <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
-          {isBelowMobile ? (
-            <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
-              <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
-                {rail}
-              </SheetContent>
-            </Sheet>
-          ) : (
-            rail
-          )}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-            {children}
+      <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
+        {isBelowMobile ? (
+          <Sheet open={!hideGlobalRail && mobileRailOpen} onOpenChange={setMobileRailOpen}>
+            <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+              {rail}
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <div
+            className={cn('h-full shrink-0', hideGlobalRail && 'hidden')}
+            aria-hidden={hideGlobalRail}
+          >
+            {rail}
           </div>
+        )}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+          {children}
         </div>
-      )}
+      </div>
     </MobileShellRailProvider>
   );
 }

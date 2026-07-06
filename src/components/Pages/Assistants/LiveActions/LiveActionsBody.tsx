@@ -42,6 +42,10 @@ export interface LiveActionsBodyProps {
   loadChildren?: LoadChildrenFn;
   /** Whether data is loading */
   isLoading: boolean;
+  /** Whether the initial snapshot has completed. */
+  hasLoaded: boolean;
+  /** Whether this tab body is visible to the user. */
+  isPaneVisible?: boolean;
   /** Error message if fetch failed */
   error: string | null;
   /** Callback to retry after error */
@@ -74,6 +78,8 @@ export function LiveActionsBody({
   getToolLoopEvents,
   loadChildren,
   isLoading,
+  hasLoaded,
+  isPaneVisible = true,
   error,
   onRetry,
   isLoadingMore = false,
@@ -160,6 +166,7 @@ export function LiveActionsBody({
   }, [hasRoots]);
 
   const hasSearchNoMatches = hasActiveSearch && filteredRoots.length === 0 && roots.length > 0;
+  const showBlockingLoad = isPaneVisible && isLoading && (!hasLoaded || roots.length === 0);
 
   // No assistant selected state
   if (!hasAssistant) {
@@ -176,9 +183,9 @@ export function LiveActionsBody({
     );
   }
 
-  // Loading state (initial load only) — skeleton rows that approximate the
-  // action timeline so navigation paints an on-brand loader, not a bare spinner.
-  if (isLoading && roots.length === 0) {
+  // Loading state — skeleton rows during first load, time-window changes, and
+  // manual refresh so the pane never flashes "No actions found" mid-fetch.
+  if (showBlockingLoad) {
     return (
       <div
         className={cn('flex flex-1 flex-col gap-2 overflow-hidden p-3', className)}
@@ -272,13 +279,6 @@ export function LiveActionsBody({
           />
         </div>
       </ScrollArea>
-
-      {/* Subtle loading indicator when refreshing with data */}
-      {isLoading && roots.length > 0 && (
-        <div className="absolute right-3 top-3">
-          <Loader2 className="text-muted-foreground/50 h-4 w-4 animate-spin" />
-        </div>
-      )}
     </div>
   );
 }

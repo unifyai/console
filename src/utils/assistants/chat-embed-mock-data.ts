@@ -10,13 +10,14 @@
  */
 
 import type { ChatMessage } from '@/types/assistants/chat';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-/** Enable mock embed mode - set to true to inject mock embed messages into chat */
-export const USE_MOCK_EMBEDS = false;
+/** Enable mock embed mode - injects table/plot sample messages into chat panels. */
+export const USE_MOCK_EMBEDS = mockSimulationEnabled();
 
 /** 12-hex-char tokens that pass the /^[a-f0-9]{12}$/ validation in fetchTableData / fetchPlotData */
 export const MOCK_TABLE_TOKEN = 'aabb00112233';

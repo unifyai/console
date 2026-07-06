@@ -19,6 +19,91 @@ function columnsForWidth(width: number): number {
   return 1;
 }
 
+function IntegrationCardRow({
+  items,
+  columns,
+  busySlug,
+  onOpen,
+  onPrimaryAction,
+}: {
+  items: IntegrationGalleryItem[];
+  columns: number;
+  busySlug?: string | null;
+  onOpen: (item: IntegrationGalleryItem) => void;
+  onPrimaryAction: (item: IntegrationGalleryItem) => void;
+}) {
+  return (
+    <div
+      className="grid gap-3"
+      data-testid="integration-card-row"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {items.map((item) => (
+        <ProviderIntegrationCard
+          key={`${item.source}:${item.id}`}
+          item={item}
+          busy={busySlug === item.canonicalSlug}
+          onOpen={onOpen}
+          onPrimaryAction={onPrimaryAction}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Static card grid — same column math as the virtual catalog list. */
+export function IntegrationGalleryCardGrid({
+  items,
+  busySlug,
+  onOpen,
+  onPrimaryAction,
+  className,
+}: {
+  items: IntegrationGalleryItem[];
+  busySlug?: string | null;
+  onOpen: (item: IntegrationGalleryItem) => void;
+  onPrimaryAction: (item: IntegrationGalleryItem) => void;
+  className?: string;
+}) {
+  const parentRef = React.useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = React.useState(1);
+
+  React.useEffect(() => {
+    const element = parentRef.current;
+    if (!element) return;
+    const updateColumns = () => setColumns(columnsForWidth(element.clientWidth || 0));
+    updateColumns();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateColumns);
+      return () => window.removeEventListener('resize', updateColumns);
+    }
+    const observer = new ResizeObserver(updateColumns);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const rowCount = Math.ceil(items.length / columns);
+
+  return (
+    <div ref={parentRef} className={className ?? 'mx-2 flex flex-col gap-3'}>
+      {Array.from({ length: rowCount }).map((_, rowIndex) => {
+        const startIndex = rowIndex * columns;
+        const rowItems = items.slice(startIndex, startIndex + columns);
+        return (
+          <IntegrationCardRow
+            key={rowIndex}
+            items={rowItems}
+            columns={columns}
+            busySlug={busySlug}
+            onOpen={onOpen}
+            onPrimaryAction={onPrimaryAction}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function IntegrationGalleryVirtualGrid({
   items,
   busySlug,
@@ -96,25 +181,22 @@ export function IntegrationGalleryVirtualGrid({
             <div
               key={virtualRow.key}
               ref={rowVirtualizer.measureElement}
-              className="absolute left-0 right-0 grid gap-3"
+              className="absolute left-0 right-0"
               data-index={virtualRow.index}
               data-testid="integration-virtual-row"
               style={{
-                gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                 minHeight: ESTIMATED_CARD_HEIGHT_PX + CARD_ROW_GAP_PX,
                 paddingBottom: CARD_ROW_GAP_PX,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              {rowItems.map((item) => (
-                <ProviderIntegrationCard
-                  key={`${item.source}:${item.id}`}
-                  item={item}
-                  busy={busySlug === item.canonicalSlug}
-                  onOpen={onOpen}
-                  onPrimaryAction={onPrimaryAction}
-                />
-              ))}
+              <IntegrationCardRow
+                items={rowItems}
+                columns={columns}
+                busySlug={busySlug}
+                onOpen={onOpen}
+                onPrimaryAction={onPrimaryAction}
+              />
             </div>
           );
         })}

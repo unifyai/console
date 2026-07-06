@@ -43,6 +43,7 @@ export function SecretsPane({
   const {
     secrets,
     isLoading,
+    hasLoaded,
     isSubmitting,
     formMethods,
     handleSelectSecret,
@@ -244,6 +245,7 @@ export function SecretsPane({
         <SecretsTable
           secrets={secrets}
           isLoading={isLoading}
+          hasLoaded={hasLoaded}
           canWrite={canWrite}
           searchQuery={searchQuery}
           expandedFolders={expandedFolders}

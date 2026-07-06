@@ -812,7 +812,7 @@ export function IntegrationsPane({
       <div className="min-h-0 flex-1">
         <IntegrationGalleryShell
           items={shouldShowGallerySkeleton ? [] : galleryItems}
-          isLoading={shouldShowGallerySkeleton || isProviderCatalogLoading}
+          isLoading={shouldShowGallerySkeleton}
           isMock={isProviderCatalogMock}
           busySlug={providerConnectingSlug}
           isRefreshing={isProviderCatalogLoading}

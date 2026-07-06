@@ -24,6 +24,7 @@ import {
 import { LiveActionsBody } from './LiveActionsBody';
 import { LiveActionsFooter } from './LiveActionsFooter';
 import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
+import { fetchToolLoopEvents } from '@/lib/client/actions';
 import {
   countActionNodes,
   areAllNodesExpanded,
@@ -46,6 +47,8 @@ export interface LiveActionsViewerProps {
   onHasActiveActionChange?: (active: boolean) => void;
   /** True when the Actions tab body is the active right-pane tab */
   isPaneVisible?: boolean;
+  /** Reports root-level live activity that arrived while the pane was hidden. */
+  onUnreadLiveActivityChange?: (hasUnread: boolean) => void;
 }
 
 function timeWindowStorageKey(agentId: string): string {
@@ -67,6 +70,7 @@ export function LiveActionsViewer({
   className,
   onHasActiveActionChange,
   isPaneVisible = true,
+  onUnreadLiveActivityChange,
 }: LiveActionsViewerProps) {
   // ==========================================================================
   // State
@@ -117,12 +121,14 @@ export function LiveActionsViewer({
     roots,
     hasActiveAction,
     isLoading,
+    hasLoaded,
     error,
     refresh,
     loadMore,
     loadChildren,
     hasMore,
     connectionStatus,
+    hasUnreadLiveActivity,
   } = useAssistantActions(
     hasAssistant ? assistant.userId : '',
     hasAssistant ? assistant.agentId : '',
@@ -130,12 +136,17 @@ export function LiveActionsViewer({
     {
       enabled: shouldSubscribe,
       initialLookbackMs: lookbackMs,
+      isPaneVisible,
     }
   );
 
   React.useEffect(() => {
     onHasActiveActionChange?.(hasActiveAction);
   }, [hasActiveAction, onHasActiveActionChange]);
+
+  React.useEffect(() => {
+    onUnreadLiveActivityChange?.(hasUnreadLiveActivity);
+  }, [hasUnreadLiveActivity, onUnreadLiveActivityChange]);
 
   // Track loading more state separately for UI
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
@@ -249,7 +260,7 @@ export function LiveActionsViewer({
     suppressAutoExpandRef.current = true;
     setExpandedNodeIds(new Set());
     try {
-      await refresh();
+      await refresh(true);
     } finally {
       setIsManualRefreshing(false);
     }
@@ -386,11 +397,13 @@ export function LiveActionsViewer({
         searchTerm={searchTerm.trim() !== '' ? searchTerm : undefined}
         ownerId={assistant?.userId || null}
         assistantId={assistant?.agentId || null}
-        getToolLoopEvents={actions?.getToolLoopEvents}
+        getToolLoopEvents={hasAssistant ? fetchToolLoopEvents : undefined}
         loadChildren={loadChildren}
         isLoading={isLoading}
+        hasLoaded={hasLoaded}
+        isPaneVisible={isPaneVisible}
         error={error}
-        onRetry={refresh}
+        onRetry={() => void refresh(true)}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         onLoadMore={handleLoadMore}

@@ -451,6 +451,19 @@ export const capabilities: CapabilityDef[] = [
     ],
   },
   {
+    id: 'shell.route.unified-navigation',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Unified shell navigation preserves assistant state',
+    matchers: [
+      {
+        files: ['src/tests/shell/unified-shell-navigation.e2e.ts'],
+        titleIncludes:
+          'settings/admin/assistants switch without document reload and preserve assistant state',
+      },
+    ],
+  },
+  {
     id: 'assistants.list.select',
     areaId: 'assistants.core',
     priority: 'P0',

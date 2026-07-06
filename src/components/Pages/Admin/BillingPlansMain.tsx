@@ -33,6 +33,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { showToast as toast } from '@/components/Common/Toasts/notifications';
 import {
   Loader2,
@@ -524,9 +525,9 @@ export default function BillingPlansAdminMain({ actions }: Props) {
           <p className="text-caption min-w-0">
             Plan templates and the groups that scope self-serve switching. Per-account assignments
             live on{' '}
-            <a href="/admin/organizations" className="underline">
+            <Link href="/admin/organizations" className="underline">
               Organizations
-            </a>
+            </Link>
             .
           </p>
           {/* Tab switcher lives in the header so the page chrome doesn't
