@@ -98,6 +98,8 @@ interface AssistantContactManagerProps {
   slackCanManageInstall?: boolean;
   /** Server-prefetched shared Slack install for the active workspace. */
   slackInitialInstall?: SlackInstall | null;
+  /** Open the user's account settings in a new tab (closes onboarding panel). */
+  onOpenUserSettings?: (tab?: string) => void;
 }
 
 /**
@@ -197,16 +199,27 @@ const ProfileContactRequiredNotice: React.FC<{
   message: string;
   linkLabel: string;
   suffix: string;
-}> = ({ message, linkLabel, suffix }) => (
+  onOpenUserSettings?: (tab?: string) => void;
+}> = ({ message, linkLabel, suffix, onOpenUserSettings }) => (
   <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
     <p className="text-body text-muted-foreground">
       {message}{' '}
-      <Link
-        href="/account?tab=contact-info"
-        className="text-primary underline hover:text-primary-tint-80"
-      >
-        {linkLabel}
-      </Link>{' '}
+      {onOpenUserSettings ? (
+        <button
+          type="button"
+          className="text-primary underline hover:text-primary-tint-80"
+          onClick={() => onOpenUserSettings('contact-info')}
+        >
+          {linkLabel}
+        </button>
+      ) : (
+        <Link
+          href="/account?tab=contact-info"
+          className="text-primary underline hover:text-primary-tint-80"
+        >
+          {linkLabel}
+        </Link>
+      )}{' '}
       {suffix}
     </p>
   </div>
@@ -368,6 +381,7 @@ export function AssistantContactManager({
   slackOwner = null,
   slackCanManageInstall = false,
   slackInitialInstall = null,
+  onOpenUserSettings,
 }: AssistantContactManagerProps) {
   const {
     // Self-contained form methods from the hook
@@ -646,6 +660,22 @@ export function AssistantContactManager({
                 {renderContactActions('email')}
               </ContactSection>
 
+              {contactWhatsapp && (
+                <ContactSection
+                  type="whatsapp"
+                  icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
+                  label="WhatsApp"
+                >
+                  <WhatsAppTabContent
+                    assistant={assistant}
+                    canWrite={canWrite}
+                    userWhatsappNumber={userWhatsappNumber}
+                    onOpenUserSettings={onOpenUserSettings}
+                  />
+                  {renderContactActions('whatsapp')}
+                </ContactSection>
+              )}
+
               {contactPhone && (
                 <ContactSection
                   type="phone"
@@ -663,38 +693,11 @@ export function AssistantContactManager({
                     isLoadingPhoneCountries={isLoadingPhoneCountries}
                     availablePhoneCountries={availablePhoneCountries}
                     userPhoneNumber={userPhoneNumber}
+                    onOpenUserSettings={onOpenUserSettings}
                   />
                   {renderContactActions('phone')}
                 </ContactSection>
               )}
-
-              {contactWhatsapp && (
-                <ContactSection
-                  type="whatsapp"
-                  icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
-                  label="WhatsApp"
-                >
-                  <WhatsAppTabContent
-                    assistant={assistant}
-                    canWrite={canWrite}
-                    userWhatsappNumber={userWhatsappNumber}
-                  />
-                  {renderContactActions('whatsapp')}
-                </ContactSection>
-              )}
-
-              <ContactSection
-                type="discord"
-                icon={<FaDiscord className="h-4 w-4 text-muted-foreground" />}
-                label="Discord"
-              >
-                <DiscordTabContent
-                  assistant={assistant}
-                  canWrite={canWrite}
-                  userDiscordId={userDiscordId}
-                />
-                {renderContactActions('discord')}
-              </ContactSection>
 
               {slackAvailable && slackOwner && assistantActions.slack && (
                 <ContactSection
@@ -711,6 +714,20 @@ export function AssistantContactManager({
                   />
                 </ContactSection>
               )}
+
+              <ContactSection
+                type="discord"
+                icon={<FaDiscord className="h-4 w-4 text-muted-foreground" />}
+                label="Discord"
+              >
+                <DiscordTabContent
+                  assistant={assistant}
+                  canWrite={canWrite}
+                  userDiscordId={userDiscordId}
+                  onOpenUserSettings={onOpenUserSettings}
+                />
+                {renderContactActions('discord')}
+              </ContactSection>
             </div>
           )}
         </FormProvider>
@@ -766,6 +783,7 @@ const PhoneTabContent: React.FC<{
   isLoadingPhoneCountries: boolean;
   availablePhoneCountries: { code: string; name: string; flag: string }[];
   userPhoneNumber?: string | null;
+  onOpenUserSettings?: (tab?: string) => void;
 }> = ({
   assistant,
   canWrite,
@@ -777,6 +795,7 @@ const PhoneTabContent: React.FC<{
   isLoadingPhoneCountries,
   availablePhoneCountries,
   userPhoneNumber,
+  onOpenUserSettings,
 }) => {
   if (assistant.isCoordinator) {
     if (!assistant.phone) {
@@ -863,6 +882,7 @@ const PhoneTabContent: React.FC<{
           message="No phone number set in your profile."
           linkLabel="Add your phone number"
           suffix="to enable phone interactions with your assistant."
+          onOpenUserSettings={onOpenUserSettings}
         />
       )}
     </div>
@@ -873,7 +893,8 @@ const WhatsAppTabContent: React.FC<{
   assistant: Assistant;
   canWrite: boolean;
   userWhatsappNumber?: string | null;
-}> = ({ assistant, canWrite, userWhatsappNumber }) => {
+  onOpenUserSettings?: (tab?: string) => void;
+}> = ({ assistant, canWrite, userWhatsappNumber, onOpenUserSettings }) => {
   if (assistant.assistantWhatsappNumber) {
     return (
       <div className="space-y-2">
@@ -911,6 +932,7 @@ const WhatsAppTabContent: React.FC<{
           message="No WhatsApp number set in your profile."
           linkLabel="Add your WhatsApp number"
           suffix="to enable WhatsApp messaging with your assistant."
+          onOpenUserSettings={onOpenUserSettings}
         />
       )}
     </div>
@@ -921,17 +943,26 @@ const DiscordTabContent: React.FC<{
   assistant: Assistant;
   canWrite: boolean;
   userDiscordId?: string | null;
-}> = ({ assistant, canWrite, userDiscordId }) => {
+  onOpenUserSettings?: (tab?: string) => void;
+}> = ({ assistant, canWrite, userDiscordId, onOpenUserSettings }) => {
   if (assistant.assistantDiscordBotId) {
     const installUrl = `https://discord.com/oauth2/authorize?client_id=${assistant.assistantDiscordBotId}&scope=bot&permissions=309237763072`;
     return (
       <div className="space-y-3">
         <ContactReadyMessage>Discord bot is configured.</ContactReadyMessage>
+        {!userDiscordId && (
+          <ProfileContactRequiredNotice
+            message="No Discord ID set in your profile."
+            linkLabel="Add your Discord ID"
+            suffix="so your assistant can message you on Discord."
+            onOpenUserSettings={onOpenUserSettings}
+          />
+        )}
         {canWrite && (
           <Button asChild className="gap-2">
             <a href={installUrl} target="_blank" rel="noopener noreferrer">
               <FaDiscord className="h-4 w-4" />
-              Add to your server
+              Connect Discord
               <ExternalLink className="h-3.5 w-3.5 opacity-70" />
             </a>
           </Button>
@@ -965,6 +996,7 @@ const DiscordTabContent: React.FC<{
           message="No Discord ID set in your profile."
           linkLabel="Link your Discord account"
           suffix="to enable Discord messaging with your assistant."
+          onOpenUserSettings={onOpenUserSettings}
         />
       )}
     </div>

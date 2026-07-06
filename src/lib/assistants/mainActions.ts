@@ -27,6 +27,7 @@ import {
 import {
   getTranscripts,
   messageAssistant,
+  reactToMessage,
   getContactIdByEmail,
   getAssistantOwnerById,
   uploadAttachment,
@@ -107,6 +108,7 @@ export const assistantMainActions: AssistantActions = {
     getContactId: getContactIdByEmail,
     getTranscripts,
     message: messageAssistant,
+    reactToMessage,
     getAssistantOwnerById,
     uploadAttachment,
   },

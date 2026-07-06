@@ -66,6 +66,7 @@ export type ChecklistAction =
   | 'connect-slack'
   | 'trigger-slack-reference'
   | 'start-slack-message'
+  | 'add-discord-id'
   | 'connect-discord'
   | 'trigger-discord-reference'
   | 'start-discord-message'
@@ -126,6 +127,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'slack-connect': 'connect-slack',
   'slack-reference': 'trigger-slack-reference',
   'slack-message': 'start-slack-message',
+  'discord-id': 'add-discord-id',
   'discord-connect': 'connect-discord',
   'discord-reference': 'trigger-discord-reference',
   'discord-message': 'start-discord-message',
@@ -377,7 +379,7 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   {
     id: 'discord',
     title: 'Discord',
-    stepIds: ['discord-connect', 'discord-reference', 'discord-message'],
+    stepIds: ['discord-id', 'discord-connect', 'discord-reference', 'discord-message'],
   },
 ];
 
@@ -537,14 +539,15 @@ export interface CoordinatorOnboardingChecklistProps {
   onTriggerReferenceStep?: (stepId: string) => void;
   onAddWhatsappNumber?: () => void;
   onAddPhoneNumber?: () => void;
+  onAddDiscordId?: () => void;
   onConnectSlack?: () => void;
   onConnectDiscord?: () => void;
-  /** Opens the workspace OAuth dialog. Hung off the "Give me
+  /** Opens the workspace OAuth dialog. Hung off the "Give T-W1N
    * access to your workspace" sub-item. Unset means
    * the row degrades to a static checklist entry. */
   onConnectWorkspace?: () => void;
   /** Opens the Integrations pane in the current surface. Hung off
-   * "Connect me with your apps". Unset means the
+   * "Connect T-W1N with your apps". Unset means the
    * row degrades to a static entry. */
   onConnectApps?: () => void;
   /** Opens the live Actions viewer in the current surface. Hung off
@@ -594,6 +597,7 @@ export function CoordinatorOnboardingChecklist({
   onTriggerReferenceStep,
   onAddWhatsappNumber,
   onAddPhoneNumber,
+  onAddDiscordId,
   onConnectSlack,
   onConnectDiscord,
   onConnectWorkspace,
@@ -643,6 +647,7 @@ export function CoordinatorOnboardingChecklist({
     new Map()
   );
   const didInitializeOpenSectionRef = React.useRef(false);
+  const didInitializeOpenSubgroupRef = React.useRef(false);
   const foldStateHydratedRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockedFeedbackTokenRef = React.useRef(0);
@@ -667,6 +672,7 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'connect-slack') onConnectSlack?.();
       else if (action === 'trigger-slack-reference') onTriggerReferenceStep?.('slack-reference');
       else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
+      else if (action === 'add-discord-id') onAddDiscordId?.();
       else if (action === 'connect-discord') onConnectDiscord?.();
       else if (action === 'trigger-discord-reference')
         onTriggerReferenceStep?.('discord-reference');
@@ -688,6 +694,7 @@ export function CoordinatorOnboardingChecklist({
       onTriggerReferenceStep,
       onAddWhatsappNumber,
       onAddPhoneNumber,
+      onAddDiscordId,
       onConnectSlack,
       onConnectDiscord,
       onConnectWorkspace,
@@ -792,6 +799,7 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'start-discord-message') return !!onStartOnboardingStep && !!onConnectDiscord;
       if (action === 'add-whatsapp-number') return !!onAddWhatsappNumber;
       if (action === 'add-phone-number') return !!onAddPhoneNumber;
+      if (action === 'add-discord-id') return !!onAddDiscordId;
       if (action === 'connect-slack') return !!onConnectSlack;
       if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
@@ -814,6 +822,7 @@ export function CoordinatorOnboardingChecklist({
       onTriggerReferenceStep,
       onAddWhatsappNumber,
       onAddPhoneNumber,
+      onAddDiscordId,
       onConnectSlack,
       onConnectDiscord,
       onConnectWorkspace,
@@ -897,9 +906,14 @@ export function CoordinatorOnboardingChecklist({
         foldStateHydratedRef.current = true;
         return filtered.size === current.size ? current : filtered;
       }
-      const defaultSection = nextActionableId
-        ? resolved.find((section) => containsLeafId(section, nextActionableId))
-        : null;
+      const communicationSection = resolved.find(
+        (section) => section.id === COMMUNICATION_SECTION_ID
+      );
+      const defaultSection =
+        communicationSection ??
+        (nextActionableId
+          ? resolved.find((section) => containsLeafId(section, nextActionableId))
+          : null);
       didInitializeOpenSectionRef.current = true;
       foldStateHydratedRef.current = true;
       return new Set([defaultSection?.id ?? resolved[0].id]);
@@ -923,6 +937,24 @@ export function CoordinatorOnboardingChecklist({
       (group) => group.id === 'email'
     );
   }, [resolved]);
+
+  React.useEffect(() => {
+    if (!foldStateHydratedRef.current || didInitializeOpenSubgroupRef.current) return;
+    if (!hasVisibleEmailSubgroup) return;
+    if ((storedFoldStateRef.current?.subgroupIds.length ?? 0) > 0) {
+      didInitializeOpenSubgroupRef.current = true;
+      return;
+    }
+    if (!openSectionIds.has(COMMUNICATION_SECTION_ID)) return;
+    setOpenSubgroupIds((current) => {
+      if (current.size > 0) {
+        didInitializeOpenSubgroupRef.current = true;
+        return current;
+      }
+      didInitializeOpenSubgroupRef.current = true;
+      return new Set(['email']);
+    });
+  }, [hasVisibleEmailSubgroup, openSectionIds]);
 
   React.useEffect(() => {
     if (firstLoginCommunicationEmailOpenRequest <= 0 || !hasVisibleEmailSubgroup) return;

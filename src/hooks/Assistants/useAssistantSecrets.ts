@@ -81,10 +81,15 @@ export function useAssistantSecrets(
   });
   const { reset } = formMethods;
 
+  const secretActionsRef = React.useRef(secretActions);
+  secretActionsRef.current = secretActions;
+
   const fetchSecrets = React.useCallback(
-    async (request?: { isStale?: () => boolean }) => {
+    async (request?: { isStale?: () => boolean; showLoading?: boolean }) => {
       if (!assistantId || !ownerId) return;
-      setIsLoading(true);
+      if (request?.showLoading) {
+        setIsLoading(true);
+      }
       setError(null);
       try {
         const sortingParam = sorting
@@ -94,7 +99,12 @@ export function useAssistantSecrets(
         const filterExprParam = trimmedQuery
           ? buildSearchFilterExpr(trimmedQuery, SEARCH_FIELDS)
           : undefined;
-        const result = await secretActions.get(assistantId, ownerId, sortingParam, filterExprParam);
+        const result = await secretActionsRef.current.get(
+          assistantId,
+          ownerId,
+          sortingParam,
+          filterExprParam
+        );
         if (request?.isStale?.()) return;
         if ('detail' in result) throw new Error((result as ResponseProps).detail);
         const fetched = result as Secret[];
@@ -113,17 +123,19 @@ export function useAssistantSecrets(
         setHasLoaded(true);
         toast.error('Failed to load secrets.');
       } finally {
-        if (!request?.isStale?.()) setIsLoading(false);
+        if (!request?.isStale?.()) {
+          setIsLoading(false);
+        }
       }
     },
-    [assistantId, ownerId, secretActions, sorting, searchQuery, requestKey]
+    [assistantId, ownerId, sorting, searchQuery, requestKey]
   );
 
   React.useEffect(() => {
     if (!assistantId || !enabled) return;
     if (loadedRequestKeyRef.current === requestKey) return;
     let stale = false;
-    void fetchSecrets({ isStale: () => stale });
+    void fetchSecrets({ isStale: () => stale, showLoading: true });
     return () => {
       stale = true;
     };
@@ -197,7 +209,7 @@ export function useAssistantSecrets(
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret deleted.', { id: toastId });
-      await fetchSecrets();
+      await fetchSecrets({ showLoading: false });
     } catch (err: any) {
       toast.error(`Failed to delete secret. Please try again.`, { id: toastId });
     }
@@ -222,7 +234,7 @@ export function useAssistantSecrets(
     } else {
       toast.warning(`Deleted ${deleted}, failed ${failed}.`, { id: toastId });
     }
-    await fetchSecrets();
+    await fetchSecrets({ showLoading: false });
     setIsSubmitting(false);
   };
 
@@ -330,7 +342,7 @@ export function useAssistantSecrets(
       }
 
       setPendingUpload(null);
-      await fetchSecrets();
+      await fetchSecrets({ showLoading: false });
     } catch (err: any) {
       toast.error(err.message || 'Failed to upload secrets.', { id: toastId });
     } finally {
@@ -362,7 +374,7 @@ export function useAssistantSecrets(
         if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
         toast.success('Secret updated.', { id: toastId });
-        await fetchSecrets();
+        await fetchSecrets({ showLoading: false });
       } catch (err: any) {
         toast.error(`Failed to update secret. Please try again.`, { id: toastId });
       } finally {
@@ -389,7 +401,7 @@ export function useAssistantSecrets(
         if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
         toast.success('Secret created.', { id: toastId });
-        await fetchSecrets();
+        await fetchSecrets({ showLoading: false });
       } catch (err: any) {
         toast.error(`Failed to create secret. Please try again.`, { id: toastId });
       } finally {

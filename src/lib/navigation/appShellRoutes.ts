@@ -4,6 +4,7 @@ export {
   UNIFIED_SHELL_PATHS,
   hrefForShellRoute,
   isAssistantsPath,
+  isAssistantInfoPanelShortcutPath,
   isLibraryPath,
   isPersistentMainShellPath,
   isRoutedShellPath,

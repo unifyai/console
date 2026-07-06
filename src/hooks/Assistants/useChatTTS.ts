@@ -5,6 +5,7 @@ import {
   GenerateSpeechPayload,
   VoiceProvider,
 } from '@/types/assistants/assistant';
+import { normalizeElevenLabsTwinPronunciation } from '@/utils/assistants/tts-text';
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -99,8 +100,13 @@ export function useChatTTS({ voiceId, voiceProvider, generateSpeechAction }: Use
 
       setGeneratingMessageId(messageId);
 
+      let ttsText = stripMarkdown(text);
+      if (voiceProvider === 'elevenlabs') {
+        ttsText = normalizeElevenLabsTwinPronunciation(ttsText);
+      }
+
       const payload: GenerateSpeechPayload = {
-        text: stripMarkdown(text),
+        text: ttsText,
         provider: voiceProvider,
         voiceId,
         outputFormat: 'mp3',

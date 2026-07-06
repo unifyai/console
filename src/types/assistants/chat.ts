@@ -64,6 +64,12 @@ export function createAttachmentWithMetadata(
   return { ...base, ...metadata };
 }
 
+export interface MessageReaction {
+  contactId: number;
+  emoji: string;
+  updatedAt?: Date;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'assistant' | 'user';
@@ -76,6 +82,7 @@ export interface ChatMessage {
   /** Pub/Sub ack ID for client-side acknowledgement after display */
   __ackId?: string;
   attachments?: Attachment[];
+  reactions?: MessageReaction[];
 }
 
 export type ChatRole = 'user' | 'system' | 'assistant';
@@ -92,10 +99,16 @@ export interface OutboundMessagePayload {
   event: ChatCompletionMessage;
 }
 
-export type BroadcastMessagePayload = {
-  type: 'NEW_MESSAGE';
-  message: ChatMessage;
-};
+export type BroadcastMessagePayload =
+  | {
+      type: 'NEW_MESSAGE';
+      message: ChatMessage;
+    }
+  | {
+      type: 'REACTION_UPDATE';
+      targetMessageId: number;
+      reactions: MessageReaction[];
+    };
 
 export interface ChatCompletionRequest {
   model: string;
@@ -117,10 +130,23 @@ export interface CallPill {
   recordingUrl?: string;
 }
 
-export type TimelineItem = ChatMessage | CallPill;
+/** Ephemeral onboarding/checklist trigger acknowledgement shown in chat. */
+export interface RequestSentAck {
+  id: string;
+  type: 'request_sent_ack';
+  timestamp: Date;
+  /** Checklist row title or chip label the user triggered. */
+  label: string;
+}
+
+export type TimelineItem = ChatMessage | CallPill | RequestSentAck;
 
 export function isCallPill(item: TimelineItem): item is CallPill {
   return 'type' in item && item.type === 'call_pill';
+}
+
+export function isRequestSentAck(item: TimelineItem): item is RequestSentAck {
+  return 'type' in item && item.type === 'request_sent_ack';
 }
 
 export interface CallTranscriptUtterance {
@@ -180,4 +206,11 @@ export interface UnifyMessage {
   message: string;
   /** Attachments with full metadata for transcript logging */
   attachments?: Attachment[];
+}
+
+export interface UnifyMessageReaction {
+  assistantId: number;
+  contactId: number;
+  targetMessageId: number;
+  emoji: string | null;
 }

@@ -2,6 +2,8 @@ export const ASSISTANT_INFO_PANEL_VISIBILITY_EVENT = 'console:assistant-info-pan
 export const ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT =
   'console:assistant-info-panel-toggle-request';
 export const ASSISTANT_INFO_PANEL_OPEN_REQUEST_EVENT = 'console:assistant-info-panel-open-request';
+export const COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT =
+  'console:coordinator-onboarding-panel-request';
 
 export interface AssistantInfoPanelVisibilityDetail {
   assistantId: string;
@@ -16,6 +18,13 @@ export interface AssistantInfoPanelToggleRequestDetail {
 
 export interface AssistantInfoPanelOpenRequestDetail {
   assistantId: string;
+}
+
+export type CoordinatorOnboardingPanelAction = 'open' | 'close';
+
+export interface CoordinatorOnboardingPanelRequestDetail {
+  assistantId: string;
+  action: CoordinatorOnboardingPanelAction;
 }
 
 let pendingInfoPanelOpenAssistantId: string | null = null;
@@ -74,4 +83,17 @@ export function requestAssistantInfoPanelToggle(
     cancelable: true,
   });
   return !window.dispatchEvent(event);
+}
+
+/** Opens or closes the Coordinator onboarding panel without leaving the current route. */
+export function requestCoordinatorOnboardingPanel(
+  action: CoordinatorOnboardingPanelAction,
+  assistantId: string
+): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT, {
+      detail: { assistantId, action },
+    })
+  );
 }

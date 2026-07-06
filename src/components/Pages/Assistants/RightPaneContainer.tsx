@@ -14,7 +14,7 @@ import type {
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { DashboardPaneData } from '@/types/assistants/dashboard';
-import type { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import {
   type SpendingGateStatus,
   DEFAULT_SPENDING_GATE_STATUS,
@@ -62,6 +62,7 @@ interface RightPaneContainerProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories: Record<string, CallPill[]>;
   setCallPillHistories: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
@@ -102,6 +103,8 @@ interface RightPaneContainerProps {
    * *this* assistant and hasn't been popped out.
    */
   renderDockedCall?: () => React.ReactNode;
+  /** Onboarding-only: show typing while the scripted chat opener is in flight. */
+  forceCoordinatorChatIntroTyping?: boolean;
   /** True while a Brain section overlay hides the workspace pane (Actions SSE stays live). */
   workspacePaneObscured?: boolean;
   /** False when the assistants surface is hidden behind settings/admin routes. */
@@ -126,6 +129,7 @@ export function RightPaneContainer({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   isFirstView = false,
   preHireChat,
@@ -144,6 +148,7 @@ export function RightPaneContainer({
   infoPanel,
   coordinatorOnboarding,
   renderDockedCall,
+  forceCoordinatorChatIntroTyping = false,
   workspacePaneObscured = false,
   isActiveSurface = true,
   onActionsUnreadActivityChange,
@@ -207,6 +212,7 @@ export function RightPaneContainer({
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
+          requestAckHistories={requestAckHistories}
           userEmail={userEmail}
           userTimezone={userTimezone}
           isFirstView={isFirstView}
@@ -224,6 +230,7 @@ export function RightPaneContainer({
           isCallButtonDisabled={infoPanel.isCallButtonDisabled}
           callButtonTooltip={infoPanel.callButtonTooltip}
           renderDockedCall={renderDockedCall}
+          forceCoordinatorChatIntroTyping={forceCoordinatorChatIntroTyping}
         />
       </TabsContent>
 

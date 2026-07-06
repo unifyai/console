@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { DroidOnboardIcon } from '@/components/Brand';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import {
@@ -45,35 +46,6 @@ function OnboardPlusIcon({ className }: { className?: string }) {
         stroke="currentColor"
         strokeLinecap="round"
         strokeWidth={2.4}
-      />
-    </svg>
-  );
-}
-
-function UnityOnboardIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Antenna */}
-      <circle cx={9.5} cy={3.3} r={1.1} />
-      <rect x={8.9} y={4.1} width={1.2} height={2.4} />
-      {/* Cuboidal head with square eyes cut out */}
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M3.5 6.5h12v12.5h-12ZM6 10.5h2.5v2.5H6ZM10.5 10.5h2.5v2.5h-2.5Z"
-      />
-      {/* Add badge */}
-      <path
-        d="M20.2 1.4v4.8M22.6 3.8h-4.8"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth={2}
       />
     </svg>
   );
@@ -473,7 +445,7 @@ export function AssistantList({
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
               >
-                <UnityOnboardIcon className="h-5 w-5" />
+                <DroidOnboardIcon className="h-5 w-5" />
                 Onboard
               </Button>
             )}

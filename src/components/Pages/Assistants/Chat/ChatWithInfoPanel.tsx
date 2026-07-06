@@ -6,13 +6,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Phone, Search, Loader2 } from 'lucide-react';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import type { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
 import type { ChatDraftSeed } from '@/components/Pages/Assistants/Layout/AssistantInfoPanelLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
+import { cn } from '@/lib/utils';
 
 /**
  * Chat tab body: hosts the conversation panel and the chat-scoped toolbar.
@@ -28,6 +29,7 @@ export interface ChatWithInfoPanelProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail: string | null | undefined;
   userTimezone?: string | null;
   isFirstView?: boolean;
@@ -55,6 +57,8 @@ export interface ChatWithInfoPanelProps {
    * during the conversation.
    */
   renderDockedCall?: () => React.ReactNode;
+  /** Onboarding-only: show typing while the scripted chat opener is in flight. */
+  forceCoordinatorChatIntroTyping?: boolean;
 }
 
 export function ChatWithInfoPanel({
@@ -64,6 +68,7 @@ export function ChatWithInfoPanel({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   userTimezone,
   isFirstView,
@@ -81,6 +86,7 @@ export function ChatWithInfoPanel({
   isCallButtonDisabled,
   callButtonTooltip,
   renderDockedCall,
+  forceCoordinatorChatIntroTyping = false,
 }: ChatWithInfoPanelProps) {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const isInThisCall = activeCallAssistantId === assistant.agentId;
@@ -94,6 +100,7 @@ export function ChatWithInfoPanel({
       setChatHistories={setChatHistories}
       callPillHistories={callPillHistories}
       setCallPillHistories={setCallPillHistories}
+      requestAckHistories={requestAckHistories}
       userEmail={userEmail}
       userTimezone={userTimezone}
       isFirstView={isFirstView}
@@ -110,6 +117,7 @@ export function ChatWithInfoPanel({
       onAssistantAvatarStartCall={onStartAudioCall}
       isAssistantAvatarStartCallDisabled={isCallButtonDisabled}
       assistantAvatarStartCallTooltip={callButtonTooltip}
+      forceTypingIndicator={forceCoordinatorChatIntroTyping}
     />
   );
 
@@ -169,35 +177,28 @@ export function ChatWithInfoPanel({
             </div>
           </div>
           <div className="flex min-h-0 flex-1 flex-col">
-            {renderDockedCall ? (
-              isBelowCompact ? (
-                <>
-                  <div
-                    className="flex min-h-[40vh] shrink-0 flex-col border-b"
-                    data-testid="assistant-call-docked-region"
-                  >
-                    {renderDockedCall()}
-                  </div>
-                  <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
-                    {chatPanel}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    className="min-h-0 flex-1 border-b"
-                    data-testid="assistant-call-docked-region"
-                  >
-                    {renderDockedCall()}
-                  </div>
-                  <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
-                    {chatPanel}
-                  </div>
-                </>
-              )
-            ) : (
-              chatPanel
-            )}
+            {/* Keep the chat panel at a stable tree position so its composer
+                state survives hanging up (mount/unmount would reset inputValue). */}
+            <div
+              className={cn(
+                'flex-col border-b',
+                renderDockedCall
+                  ? isBelowCompact
+                    ? 'flex min-h-[40vh] shrink-0'
+                    : 'flex min-h-0 flex-1'
+                  : 'hidden'
+              )}
+              data-testid="assistant-call-docked-region"
+              aria-hidden={!renderDockedCall}
+            >
+              {renderDockedCall?.()}
+            </div>
+            <div
+              className="flex min-h-0 flex-1 flex-col"
+              data-testid="assistant-chat-during-call-region"
+            >
+              {chatPanel}
+            </div>
           </div>
         </div>
       </div>

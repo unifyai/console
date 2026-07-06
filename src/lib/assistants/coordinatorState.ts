@@ -148,6 +148,12 @@ export interface CoordinatorStateSnapshot {
    */
   introWatched: boolean;
   /**
+   * Durable intent for Unity to deliver the scripted chat opener via the
+   * slow brain. Cleared server-side after the opener is sent.
+   */
+  pendingChatIntro: boolean;
+  chatIntroArmedAt: string | null;
+  /**
    * Server-computed onboarding rendering (steps + statuses + valid next
    * targets). ``null`` when ``onboarding_active`` is false. Drives the
    * checklist directly — the client no longer computes step availability.
@@ -170,6 +176,8 @@ export interface CoordinatorStatePatch {
   skipOnboardingPhase?: string;
   unskipOnboardingPhase?: string;
   introWatched?: boolean;
+  pendingChatIntro?: boolean;
+  onboardingStepCompletion?: { stepId: string; completed: boolean };
 }
 
 function normalizeStep(value: unknown): string | null {
@@ -338,6 +346,8 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     skippedStepIds: normalizeStepIds(record.skippedStepIds ?? record.skipped_step_ids),
     skippedPhaseIds: normalizeStepIds(record.skippedPhaseIds ?? record.skipped_phase_ids),
     introWatched: (record.introWatched ?? record.intro_watched) === true,
+    pendingChatIntro: (record.pendingChatIntro ?? record.pending_chat_intro) === true,
+    chatIntroArmedAt: normalizeString(record.chatIntroArmedAt ?? record.chat_intro_armed_at),
     onboarding: normalizeOnboardingRender(record.onboarding),
     voiceIntroBriefing:
       normalizeString(record.voiceIntroBriefing ?? record.voice_intro_briefing) ?? '',
@@ -391,6 +401,9 @@ export async function updateCoordinatorState(
   if (patch.unskipOnboardingPhase !== undefined)
     body.unskipOnboardingPhase = patch.unskipOnboardingPhase;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
+  if (patch.pendingChatIntro !== undefined) body.pendingChatIntro = patch.pendingChatIntro;
+  if (patch.onboardingStepCompletion !== undefined)
+    body.onboardingStepCompletion = patch.onboardingStepCompletion;
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.patch(`/assistant/${numericId}/state`, body);

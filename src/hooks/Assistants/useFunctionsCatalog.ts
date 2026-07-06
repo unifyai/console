@@ -121,8 +121,13 @@ export function useFunctionsCatalog({
     setIsLoading(false);
   }, [cacheKey]);
 
+  const assistantRef = React.useRef(assistant);
+  assistantRef.current = assistant;
+  const assistantAgentId = assistant.agentId;
+  const assistantUserId = assistant.userId;
+
   const fetchCatalog = React.useCallback(async () => {
-    if (!enabled || !assistant.agentId) return;
+    if (!enabled || !assistantAgentId || !assistantUserId) return;
     setIsLoading(true);
     setIsLoadingMore(false);
     setHasLoaded(false);
@@ -137,7 +142,7 @@ export function useFunctionsCatalog({
       const pageResults = await Promise.all(
         subContexts.map((subContext) =>
           listFunctionsPage({
-            assistant,
+            assistant: assistantRef.current,
             subContext,
             limit: FUNCTIONS_PAGE_SIZE,
             offset: 0,
@@ -149,7 +154,7 @@ export function useFunctionsCatalog({
       const catalogTotal = searchFilter
         ? 0
         : await resolveFunctionsCatalogTotal({
-            assistant,
+            assistant: assistantRef.current,
             kind,
           });
 
@@ -192,7 +197,7 @@ export function useFunctionsCatalog({
     } finally {
       setIsLoading(false);
     }
-  }, [assistant, enabled, kind, searchFilter, subContexts, cacheKey]);
+  }, [assistantAgentId, assistantUserId, enabled, kind, searchFilter, subContexts, cacheKey]);
 
   React.useEffect(() => {
     const cached = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
@@ -203,7 +208,8 @@ export function useFunctionsCatalog({
   const loadMore = React.useCallback(async () => {
     if (
       !enabled ||
-      !assistant.agentId ||
+      !assistantAgentId ||
+      !assistantUserId ||
       isLoadingMoreRef.current ||
       isLoadingRef.current ||
       !hasMoreServerRef.current
@@ -221,7 +227,7 @@ export function useFunctionsCatalog({
       const pageResults = await Promise.all(
         pendingContexts.map((subContext) =>
           listFunctionsPage({
-            assistant,
+            assistant: assistantRef.current,
             subContext,
             limit: FUNCTIONS_PAGE_SIZE,
             offset: cursorsRef.current[subContext]?.offset ?? 0,
@@ -285,7 +291,7 @@ export function useFunctionsCatalog({
       isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [assistant, enabled, searchFilter, subContexts, cacheKey]);
+  }, [assistantAgentId, assistantUserId, enabled, searchFilter, subContexts, cacheKey]);
 
   return {
     skills,

@@ -37,6 +37,7 @@ import { isManagerExcluded } from '@/lib/assistants/event-filters';
 import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { encodeOnboardingInvalidationSse } from '@/lib/assistants/onboarding-stream-frame';
+import { encodeVoiceEnrollmentSuggestedSse } from '@/lib/assistants/voice-enrollment-stream-frame';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,6 +87,11 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
         if (lifecycle.closed) return;
         try {
           const payload = (rawEvent ?? {}) as Record<string, unknown>;
+          const voiceEnrollmentSuggested = encodeVoiceEnrollmentSuggestedSse(payload);
+          if (voiceEnrollmentSuggested) {
+            controller.enqueue(encoder.encode(voiceEnrollmentSuggested));
+            return;
+          }
           const invalidation = encodeOnboardingInvalidationSse(payload);
           if (invalidation) {
             controller.enqueue(encoder.encode(invalidation));
@@ -190,6 +196,18 @@ function createPubSubStream(
           if (onboardingInvalidation) {
             try {
               controller.enqueue(encoder.encode(onboardingInvalidation));
+            } catch {
+              message.nack();
+              return;
+            }
+            message.ack();
+            return;
+          }
+
+          const voiceEnrollmentSuggested = encodeVoiceEnrollmentSuggestedSse(payload);
+          if (voiceEnrollmentSuggested) {
+            try {
+              controller.enqueue(encoder.encode(voiceEnrollmentSuggested));
             } catch {
               message.nack();
               return;

@@ -13,7 +13,7 @@ import {
 import { Label } from '@/components/UI/label';
 import { AssistantProfileChatPanel } from '../Profile/AssistantProfileChatPanel';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
 interface AssistantCommunicationSidePanelProps {
@@ -34,6 +34,7 @@ interface AssistantCommunicationSidePanelProps {
   setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   userEmail?: string | null;
   userImage?: string | null;
   assistantPhoto?: string | null;
@@ -60,6 +61,7 @@ export function AssistantCommunicationSidePanel({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   userEmail,
   userImage,
   assistantPhoto,
@@ -195,6 +197,7 @@ export function AssistantCommunicationSidePanel({
               setChatHistories={setChatHistories}
               callPillHistories={callPillHistories}
               setCallPillHistories={setCallPillHistories}
+              requestAckHistories={requestAckHistories}
               userEmail={userEmail}
               chatStreamConnectionStatus={chatStreamConnectionStatus}
               reconnectChatStream={reconnectChatStream}

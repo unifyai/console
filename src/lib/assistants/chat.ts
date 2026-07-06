@@ -9,6 +9,7 @@ import {
   ChatMessage,
   UnifyMessage,
   AttachmentUploadResponse,
+  UnifyMessageReaction,
 } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
@@ -18,6 +19,7 @@ import type { Assistant } from '@/types/assistants/assistant';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
+import { isReactionAuditMedium, mapTranscriptReactions } from '@/utils/assistants/chat-reactions';
 import {
   contactScopedRootQueries,
   roleFromRootSenderId,
@@ -170,6 +172,9 @@ export async function getTranscripts(
           console.warn('[getTranscripts] Skipping invalid log entry:', log);
           return null;
         }
+        if (isReactionAuditMedium(entries.medium)) {
+          return null;
+        }
         const senderId = entries.senderId as number;
         return {
           id: String(id),
@@ -190,6 +195,7 @@ export async function getTranscripts(
                 })
               )
             : [],
+          reactions: mapTranscriptReactions(entries.metadata),
         };
       })
       .filter((msg): msg is ChatMessage => msg !== null);
@@ -229,6 +235,32 @@ export async function messageAssistant(
     return { detail: message };
   }
 }
+
+export async function reactToMessage(
+  payload: UnifyMessageReaction
+): Promise<ResponseProps & { info?: string }> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const snakeCasePayload = camelToSnakeObject(payload);
+    const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/message/reaction`, {
+      method: 'POST',
+      headers: {
+        apiKey: apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(snakeCasePayload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { detail: data.detail || `Failed to react to message: ${response.statusText}` };
+    }
+    return data as ResponseProps & { info?: string };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error reacting to message.';
+    return { detail: message };
+  }
+}
+
 /**
  * Upload an attachment for a Unify message.
  * Returns metadata including gs_url for transcript logging.

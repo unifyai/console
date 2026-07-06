@@ -23,12 +23,13 @@ import {
   useMediaDeviceSelect,
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophoneActivity';
 import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
+import { useFloatingShellGeometry } from '@/components/Common/FloatingShell/useFloatingShellGeometry';
 
 /**
  * The call surface only touches the chat + desktop action groups (and,
@@ -174,6 +175,7 @@ interface AssistantCommunicationDialogContentProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
@@ -220,6 +222,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   assistantActions,
   isConnecting,
   userEmail,
@@ -629,6 +632,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 setChatHistories={setChatHistories}
                 callPillHistories={callPillHistories}
                 setCallPillHistories={setCallPillHistories}
+                requestAckHistories={requestAckHistories}
                 userEmail={userEmail}
                 userImage={userImage}
                 assistantPhoto={assistantPhoto}
@@ -669,42 +673,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   );
 };
 
-const MIN_FLOATING_WIDTH = 200;
-const MIN_FLOATING_HEIGHT = 160;
 const COMPACT_WIDTH_THRESHOLD = 480;
 const COMPACT_HEIGHT_THRESHOLD = 380;
-const DEFAULT_FLOATING_WIDTH = 240;
-const DEFAULT_FLOATING_HEIGHT = 280;
-
-type FloatingGeometry = {
-  pos: { x: number; y: number };
-  size: { width: number; height: number };
-};
-
-const EMPTY_FLOATING_GEOMETRY: FloatingGeometry = {
-  pos: { x: 0, y: 0 },
-  size: { width: 0, height: 0 },
-};
-
-function getDefaultFloatingGeometry(): FloatingGeometry {
-  if (typeof window === 'undefined') return EMPTY_FLOATING_GEOMETRY;
-
-  const width = Math.min(
-    DEFAULT_FLOATING_WIDTH,
-    Math.max(MIN_FLOATING_WIDTH, window.innerWidth - 32)
-  );
-  const height = Math.min(
-    DEFAULT_FLOATING_HEIGHT,
-    Math.max(MIN_FLOATING_HEIGHT, window.innerHeight - 32)
-  );
-  return {
-    pos: {
-      x: Math.max(16, window.innerWidth - width - 16),
-      y: Math.max(16, window.innerHeight - height - 16),
-    },
-    size: { width, height },
-  };
-}
 
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
@@ -737,6 +707,7 @@ interface AssistantCommunicationDialogProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  requestAckHistories?: Record<string, RequestSentAck[]>;
   assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
@@ -809,6 +780,7 @@ export function AssistantCommunicationDialog({
   setChatHistories,
   callPillHistories,
   setCallPillHistories,
+  requestAckHistories,
   isConnecting,
   userEmail,
   userImage,
@@ -847,18 +819,17 @@ export function AssistantCommunicationDialog({
     defaultFloating ? 'floating' : 'modal'
   );
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const initialFloatingGeometryRef = React.useRef<FloatingGeometry | null>(null);
-  if (initialFloatingGeometryRef.current === null) {
-    initialFloatingGeometryRef.current = defaultFloating
-      ? getDefaultFloatingGeometry()
-      : EMPTY_FLOATING_GEOMETRY;
-  }
 
-  const [floatingPos, setFloatingPos] = React.useState(initialFloatingGeometryRef.current.pos);
-  const [floatingSize, setFloatingSize] = React.useState(initialFloatingGeometryRef.current.size);
-  const floatingPosRef = React.useRef(initialFloatingGeometryRef.current.pos);
-  const floatingSizeRef = React.useRef(initialFloatingGeometryRef.current.size);
-  const [isResizing, setIsResizing] = React.useState(false);
+  const {
+    floatingPos,
+    floatingSize,
+    seedDefaultGeometry,
+    captureGeometryFromRect,
+    handleHeaderPointerDown: shellHeaderPointerDown,
+    handleCornerResize,
+    handleEdgeResize,
+    handleResizeEnd,
+  } = useFloatingShellGeometry({ preset: 'call', seedOnMount: false });
 
   const isModal = mode === 'modal';
 
@@ -872,27 +843,17 @@ export function AssistantCommunicationDialog({
   // dialog opens (it never transitions from a modal, so it has no rect to copy).
   React.useEffect(() => {
     if (!defaultFloating || !isOpen) return;
-    if (floatingSizeRef.current.width > 0) return;
-    const geometry = getDefaultFloatingGeometry();
-    floatingPosRef.current = geometry.pos;
-    floatingSizeRef.current = geometry.size;
-    setFloatingPos(geometry.pos);
-    setFloatingSize(geometry.size);
-  }, [defaultFloating, isOpen]);
+    seedDefaultGeometry();
+  }, [defaultFloating, isOpen, seedDefaultGeometry]);
 
   // --- Transition helpers ---
   const transitionToFloating = React.useCallback(() => {
     const rect = contentRef.current?.getBoundingClientRect();
     if (rect) {
-      const pos = { x: rect.x, y: rect.y };
-      const size = { width: rect.width, height: rect.height };
-      floatingPosRef.current = pos;
-      floatingSizeRef.current = size;
-      setFloatingPos(pos);
-      setFloatingSize(size);
+      captureGeometryFromRect(rect);
     }
     setMode('floating');
-  }, []);
+  }, [captureGeometryFromRect]);
 
   // Escape key: modal → floating (keeps the call alive).
   // Suppressed in docked mode — the call is part of the surrounding
@@ -910,118 +871,18 @@ export function AssistantCommunicationDialog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isModal, docked, transitionToFloating]);
 
-  // --- Header drag ---
   const handleHeaderPointerDown = React.useCallback(
     (e: React.PointerEvent) => {
-      const startX = e.clientX;
-      const startY = e.clientY;
-      let dragStarted = false;
-
-      // Pre-compute cursor offset from the window's top-left corner.
-      const rect = contentRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const offsetX = startX - rect.x;
-      const offsetY = startY - rect.y;
-
-      const handleMove = (moveEvent: PointerEvent) => {
-        const dx = moveEvent.clientX - startX;
-        const dy = moveEvent.clientY - startY;
-
-        if (!dragStarted && Math.abs(dx) + Math.abs(dy) > 5) {
-          dragStarted = true;
-          if (isModal) {
-            // Capture current computed size and switch mode in one batch.
-            const r = contentRef.current?.getBoundingClientRect();
-            if (r) {
-              floatingSizeRef.current = { width: r.width, height: r.height };
-              setFloatingSize({ width: r.width, height: r.height });
-            }
-            setMode('floating');
-          }
+      shellHeaderPointerDown(e, contentRef, () => {
+        if (isModal) {
+          const r = contentRef.current?.getBoundingClientRect();
+          if (r) captureGeometryFromRect(r);
+          setMode('floating');
         }
-
-        if (dragStarted) {
-          const newPos = {
-            x: moveEvent.clientX - offsetX,
-            y: moveEvent.clientY - offsetY,
-          };
-          floatingPosRef.current = newPos;
-          setFloatingPos(newPos);
-        }
-      };
-
-      const handleUp = () => {
-        window.removeEventListener('pointermove', handleMove);
-        window.removeEventListener('pointerup', handleUp);
-        document.body.style.userSelect = '';
-      };
-
-      document.body.style.userSelect = 'none';
-      window.addEventListener('pointermove', handleMove);
-      window.addEventListener('pointerup', handleUp);
+      });
     },
-    [isModal]
+    [shellHeaderPointerDown, isModal, captureGeometryFromRect]
   );
-
-  // --- Corner resize (floating mode) ---
-  const handleCornerResize = React.useCallback(
-    (corner: 'tl' | 'tr' | 'bl' | 'br') =>
-      (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        setIsResizing(true);
-        const prev = floatingSizeRef.current;
-        const prevPos = floatingPosRef.current;
-
-        const dw = corner === 'tl' || corner === 'bl' ? -info.delta.x : info.delta.x;
-        const dh = corner === 'tl' || corner === 'tr' ? -info.delta.y : info.delta.y;
-
-        const newWidth = Math.max(MIN_FLOATING_WIDTH, prev.width + dw);
-        const newHeight = Math.max(MIN_FLOATING_HEIGHT, prev.height + dh);
-        const actualDw = newWidth - prev.width;
-        const actualDh = newHeight - prev.height;
-
-        let newX = prevPos.x;
-        let newY = prevPos.y;
-        if (corner === 'tl' || corner === 'bl') newX -= actualDw;
-        if (corner === 'tl' || corner === 'tr') newY -= actualDh;
-
-        floatingSizeRef.current = { width: newWidth, height: newHeight };
-        floatingPosRef.current = { x: newX, y: newY };
-        setFloatingSize({ width: newWidth, height: newHeight });
-        setFloatingPos({ x: newX, y: newY });
-      },
-    []
-  );
-
-  // --- Edge resize (floating mode) ---
-  const handleEdgeResize = React.useCallback(
-    (edge: 't' | 'r' | 'b' | 'l') =>
-      (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        setIsResizing(true);
-        const prev = floatingSizeRef.current;
-        const prevPos = floatingPosRef.current;
-
-        const dw = edge === 'l' ? -info.delta.x : edge === 'r' ? info.delta.x : 0;
-        const dh = edge === 't' ? -info.delta.y : edge === 'b' ? info.delta.y : 0;
-
-        const newWidth = Math.max(MIN_FLOATING_WIDTH, prev.width + dw);
-        const newHeight = Math.max(MIN_FLOATING_HEIGHT, prev.height + dh);
-        const actualDw = newWidth - prev.width;
-        const actualDh = newHeight - prev.height;
-
-        let newX = prevPos.x;
-        let newY = prevPos.y;
-        if (edge === 'l') newX -= actualDw;
-        if (edge === 't') newY -= actualDh;
-
-        floatingSizeRef.current = { width: newWidth, height: newHeight };
-        floatingPosRef.current = { x: newX, y: newY };
-        setFloatingSize({ width: newWidth, height: newHeight });
-        setFloatingPos({ x: newX, y: newY });
-      },
-    []
-  );
-
-  const handleResizeEnd = React.useCallback(() => setIsResizing(false), []);
 
   // Docked mode: inline surface that fills its parent. No backdrop,
   // no positioning chrome, no drag/resize/floating — the dialog is
@@ -1049,6 +910,7 @@ export function AssistantCommunicationDialog({
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
           setCallPillHistories={setCallPillHistories}
+          requestAckHistories={requestAckHistories}
           assistantActions={assistantActions}
           isConnecting={isConnecting}
           userEmail={userEmail}
@@ -1166,6 +1028,7 @@ export function AssistantCommunicationDialog({
             setChatHistories={setChatHistories}
             callPillHistories={callPillHistories}
             setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
             assistantActions={assistantActions}
             isConnecting={isConnecting}
             userEmail={userEmail}

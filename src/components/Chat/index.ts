@@ -46,6 +46,8 @@ export { CameraCapture } from './CameraCapture';
 
 export { CallPillBubble } from './CallPill';
 
+export { RequestSentAckBubble } from './RequestSentAckBubble';
+
 export { CallTranscriptDialog } from './CallTranscriptDialog';
 
 export { ChatSearchDialog } from './ChatSearchDialog';

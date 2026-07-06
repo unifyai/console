@@ -47,9 +47,11 @@ import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
+  COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
   requestAssistantInfoPanelOpen,
   requestAssistantInfoPanelOpenAfterSelect,
   requestAssistantInfoPanelToggle,
+  type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
@@ -77,6 +79,13 @@ import {
   useAppShellNavigation,
 } from '@/lib/navigation/AppShellRouter';
 import {
+  OPEN_ASSISTANT_CHAT_EVENT,
+  type OpenAssistantChatDetail,
+} from '@/lib/navigation/openAssistantChat';
+import { AssistantFloatingChatHost } from '@/components/Pages/Assistants/Chat/AssistantFloatingChatHost';
+import { AssistantSwitcherBridgeSync } from '@/components/Layout/Shell/AssistantSwitcherBridgeSync';
+import { writeStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
+import {
   PLATFORM_HOME_NAVIGATION_EVENT,
   requestPlatformHomeNavigation,
 } from '@/lib/navigation/platformHome';
@@ -91,9 +100,15 @@ import {
   type CoordinatorWorkspaceScope,
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
+import { buildDisplayedAssistantStatuses } from '@/lib/assistants/coordinatorOnboardingPresence';
 import { debugConsole } from '@/lib/consoleDebug';
+import { wakeCoordinator } from '@/lib/client/coordinator';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
+import {
+  COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS,
+  COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS,
+} from '@/utils/assistants/coordinator-onboarding-intro';
 import {
   clearCoordinatorOnboardingStaleFlag,
   COORDINATOR_ONBOARDING_STALE_EVENT,
@@ -109,7 +124,7 @@ import {
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
@@ -125,7 +140,10 @@ import {
   type TranscriptReconcilerPair,
 } from '@/hooks/Assistants/useAssistantTranscriptReconciler';
 import { useUnreadDocumentTitle } from '@/hooks/Assistants/useUnreadDocumentTitle';
-import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
+import type {
+  ParsedInboundChatMessage,
+  ParsedReactionUpdate,
+} from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { RoomContext } from '@livekit/components-react';
@@ -144,6 +162,10 @@ import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
+import {
+  appendRequestSentAck,
+  ONBOARDING_START_ACK_STEP_IDS,
+} from '@/utils/assistants/request-sent-ack';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
@@ -278,12 +300,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
+      writeStoredSelectedAssistantId(assistantId);
       syncProfileQueryParam(assistantId);
     },
     [setPanelProfileAssistant, syncProfileQueryParam]
   );
+  React.useEffect(() => {
+    if (!isActiveSurface || !profileAssistantId) return;
+    syncProfileQueryParam(profileAssistantId);
+  }, [isActiveSurface, profileAssistantId, syncProfileQueryParam]);
   const handleProfileClose = React.useCallback(() => {
     clearPanelProfileAssistant();
+    writeStoredSelectedAssistantId(null);
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
   const handleToggleAssistantInfo = React.useCallback(
@@ -454,6 +482,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
 
+  const [floatingChatExpanded, setFloatingChatExpanded] = React.useState(false);
+  const handleFloatingChatExpandedChange = React.useCallback((expanded: boolean) => {
+    setFloatingChatExpanded(expanded);
+  }, []);
+
   // --- Assistant Data & Actions ---
   const {
     assistants,
@@ -523,6 +556,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // doesn't pop back in after the picker is resolved (the ``intro_watched``
   // write is async + optimistic, but this keeps the dismissal instant).
   const [coordinatorIntroDismissed, setCoordinatorIntroDismissed] = React.useState(false);
+  // Set when the user picks chat on the onboarding overlay; drives a one-shot
+  // forced typing bubble until the scripted opener lands (see chat panel prop).
+  const [awaitingCoordinatorChatIntro, setAwaitingCoordinatorChatIntro] = React.useState(false);
+  const [showCoordinatorChatIntroTyping, setShowCoordinatorChatIntroTyping] = React.useState(false);
   // Global "do onboarding later" switch. When set, the whole Console
   // onboarding surface (intro overlay, focus layout, nudge dot) stands
   // down so the user can use the platform first — mirrored to the
@@ -882,6 +919,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     redock,
   } = useCallContext();
 
+  const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
+  React.useEffect(() => {
+    const wasActive = wasAssistantsSurfaceActiveRef.current;
+    wasAssistantsSurfaceActiveRef.current = isActiveSurface;
+    if (!wasActive && isActiveSurface && activeCallAssistant) {
+      redock();
+    }
+  }, [activeCallAssistant, isActiveSurface, redock]);
+
   React.useEffect(() => {
     if (!profileAssistantId || isLoadingAssistants) return;
     const selectedAssistantStillVisible = assistants.some(
@@ -957,6 +1003,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       requestCoordinatorOnboardingInfoClose();
     } else {
       requestCoordinatorOnboardingFocusLayout();
+      requestFirstLoginCommunicationEmailOpen();
     }
 
     if (canWriteAssistantUrl) {
@@ -976,8 +1023,53 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     pathname,
     requestCoordinatorOnboardingFocusLayout,
     requestCoordinatorOnboardingInfoClose,
+    requestFirstLoginCommunicationEmailOpen,
     router,
     searchParams,
+  ]);
+
+  React.useEffect(() => {
+    const onCoordinatorOnboardingPanelRequest = (event: Event) => {
+      const detail = (event as CustomEvent<CoordinatorOnboardingPanelRequestDetail>).detail;
+      if (!detail?.assistantId || !canonicalCoordinatorId) return;
+      if (detail.assistantId !== canonicalCoordinatorId) return;
+      if (isLoadingAssistants) return;
+
+      setActiveBrainSectionId(null);
+      setPaneState((prev) => ({
+        ...prev,
+        primary: { tab: 'chat' },
+        secondary: null,
+      }));
+      handleShowProfile(canonicalCoordinatorId);
+
+      if (detail.action === 'close') {
+        requestCoordinatorOnboardingInfoClose();
+        return;
+      }
+
+      requestCoordinatorOnboardingFocusLayout();
+      requestFirstLoginCommunicationEmailOpen();
+      requestAssistantInfoPanelOpen(canonicalCoordinatorId);
+    };
+
+    window.addEventListener(
+      COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
+      onCoordinatorOnboardingPanelRequest
+    );
+    return () => {
+      window.removeEventListener(
+        COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
+        onCoordinatorOnboardingPanelRequest
+      );
+    };
+  }, [
+    canonicalCoordinatorId,
+    handleShowProfile,
+    isLoadingAssistants,
+    requestCoordinatorOnboardingFocusLayout,
+    requestCoordinatorOnboardingInfoClose,
+    requestFirstLoginCommunicationEmailOpen,
   ]);
 
   // --- Assistant Status Polling ---
@@ -1051,6 +1143,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     Record<string, ChatMessage[]>
   >({});
   const [callPillHistories, setCallPillHistories] = React.useState<Record<string, CallPill[]>>({});
+  const [requestAckHistories, setRequestAckHistories] = React.useState<
+    Record<string, RequestSentAck[]>
+  >({});
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro) {
+      setShowCoordinatorChatIntroTyping(false);
+      return;
+    }
+    const handle = window.setTimeout(
+      () => setShowCoordinatorChatIntroTyping(true),
+      COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS
+    );
+    return () => window.clearTimeout(handle);
+  }, [awaitingCoordinatorChatIntro]);
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro || canonicalCoordinatorId === null) return;
+    const messages = profileChatHistories[String(canonicalCoordinatorId)] ?? [];
+    if (messages.some((message) => message.role === 'assistant')) {
+      setAwaitingCoordinatorChatIntro(false);
+    }
+  }, [awaitingCoordinatorChatIntro, canonicalCoordinatorId, profileChatHistories]);
+
+  React.useEffect(() => {
+    if (!awaitingCoordinatorChatIntro) return;
+    const handle = window.setTimeout(
+      () => setAwaitingCoordinatorChatIntro(false),
+      COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS
+    );
+    return () => window.clearTimeout(handle);
+  }, [awaitingCoordinatorChatIntro]);
 
   // --- Prefetch contact IDs, transcripts, AND call pills for all loaded assistants ---
   // Resolves contact IDs and fetches transcript history + meet call pills in
@@ -1287,6 +1411,37 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [handleChatActivity, markAssistantOnline]
   );
 
+  const handleChatStreamReaction = React.useCallback(
+    (assistantId: string, parsed: ParsedReactionUpdate) => {
+      setProfileChatHistories((prev) => {
+        const current = prev[assistantId];
+        if (!current) return prev;
+        const index = current.findIndex((msg) => msg.messageId === parsed.targetMessageId);
+        if (index === -1) return prev;
+        const updated = [...current];
+        updated[index] = {
+          ...updated[index],
+          reactions: parsed.reactions,
+        };
+        return { ...prev, [assistantId]: updated };
+      });
+
+      try {
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+        const payload: BroadcastMessagePayload = {
+          type: 'REACTION_UPDATE',
+          targetMessageId: parsed.targetMessageId,
+          reactions: parsed.reactions,
+        };
+        channel.postMessage(payload);
+        channel.close();
+      } catch {
+        /* BroadcastChannel unsupported */
+      }
+    },
+    []
+  );
+
   const handleChatStreamDesktopReady = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
       try {
@@ -1339,6 +1494,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     chatStreamPairs.length > 0,
     {
       onChatMessage: handleChatStreamMessage,
+      onReactionUpdate: handleChatStreamReaction,
       onDesktopReady: handleChatStreamDesktopReady,
       onUnifyMeetIncoming: handleUnifyMeetIncoming,
       onMessageActivity: handleAssistantLiveActivity,
@@ -1353,6 +1509,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // open, the call dialog's embedded side panel.
       activeAssistantId:
         (isChatVisibleInRightPane ? profileAssistantId : null) ??
+        (floatingChatExpanded &&
+        profileAssistantId &&
+        !isHireDialogOpen &&
+        !showCoordinatorOnboardingIntro
+          ? profileAssistantId
+          : null) ??
         activeCallAssistant?.agentId ??
         null,
       getCutoff: getChatStreamCutoff,
@@ -1381,6 +1543,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
     activeAssistantId:
       (isChatVisibleInRightPane ? profileAssistantId : null) ??
+      (floatingChatExpanded &&
+      profileAssistantId &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+        ? profileAssistantId
+        : null) ??
       activeCallAssistant?.agentId ??
       null,
     enabled: isActiveSurface && reconcilerPairs.length > 0,
@@ -1407,7 +1575,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (isActiveSurface && profileAssistantId && isChatVisibleInRightPane) {
       markChatStreamRead(profileAssistantId);
     }
-  }, [isActiveSurface, profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+    if (
+      profileAssistantId &&
+      floatingChatExpanded &&
+      !isChatVisibleInRightPane &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+    ) {
+      markChatStreamRead(profileAssistantId);
+    }
+  }, [
+    isActiveSurface,
+    profileAssistantId,
+    isChatVisibleInRightPane,
+    floatingChatExpanded,
+    isHireDialogOpen,
+    showCoordinatorOnboardingIntro,
+    markChatStreamRead,
+  ]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -1525,8 +1710,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setIncomingMeetCall(null);
     handleShowProfile(assistant.agentId);
     const openingConfig: CallOpeningConfig = {
-      mode: 'briefed',
-      systemContext: reason || 'Continuing our conversation on the live call.',
+      mode: 'opener',
+      openerText: reason || 'Continuing our conversation on the live call.',
       source: 'unify_meet_ring',
     };
     void handleStartCall(assistant, 'audio', {
@@ -1882,20 +2067,57 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [markStepEngaged]
   );
 
-  // Open the user's account settings in a new tab so the chat session
-  // isn't disrupted while they configure their profile. Optional `tab`
-  // mirrors the /account page's `?tab=` param (see SettingsView) so
-  // callers can deep-link straight to the relevant section.
-  const handleOpenUserSettings = React.useCallback((tab?: string) => {
-    if (typeof window === 'undefined') return;
-    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
-    try {
-      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
-    } catch {
-      /* private mode / quota — refresh just won't trigger */
-    }
-    window.open(url, '_blank', 'noopener');
-  }, []);
+  // Open the user's account settings. By default opens a new tab so the
+  // chat session isn't disrupted; pass `sameTab` to navigate in the
+  // current tab instead. Optional `tab` mirrors the /account page's
+  // `?tab=` param (see SettingsView) so callers can deep-link straight
+  // to the relevant section.
+  const handleOpenUserSettings = React.useCallback(
+    (tab?: string, sameTab = false) => {
+      if (typeof window === 'undefined') return;
+      requestCoordinatorOnboardingInfoClose();
+      const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
+      try {
+        window.localStorage.setItem(
+          'console:assistants:user-settings-opened-at',
+          String(Date.now())
+        );
+      } catch {
+        /* private mode / quota — refresh just won't trigger */
+      }
+      if (sameTab) {
+        router.push(url);
+      } else {
+        window.open(url, '_blank', 'noopener');
+      }
+    },
+    [requestCoordinatorOnboardingInfoClose, router]
+  );
+
+  const appendCoordinatorRequestSentAck = React.useCallback(
+    (label: string) => {
+      if (!canonicalCoordinator) return;
+      appendRequestSentAck(setRequestAckHistories, canonicalCoordinator.agentId, label);
+    },
+    [canonicalCoordinator]
+  );
+
+  const resolveOnboardingStepLabel = React.useCallback(
+    (stepId: string, chipId?: string): string | null => {
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return null;
+      if (chipId) {
+        const chip = [...step.chipsChat, ...step.chipsCall].find(
+          (candidate) => candidate.id === chipId
+        );
+        return chip?.label ?? step.title;
+      }
+      return step.title;
+    },
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
 
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
@@ -1903,14 +2125,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      if (ONBOARDING_START_ACK_STEP_IDS.has(stepId)) {
+        const label = resolveOnboardingStepLabel(stepId);
+        if (label) appendCoordinatorRequestSentAck(label);
+      }
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void updateCoordinatorOnboardingState({ onboardingStep: stepId });
     },
     [
+      appendCoordinatorRequestSentAck,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
       updateCoordinatorOnboardingState,
     ]
@@ -1927,6 +2155,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void (async () => {
@@ -1950,11 +2180,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
       updateCoordinatorOnboardingState,
     ]
@@ -1979,6 +2211,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId, chipId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(requestKey);
       void (async () => {
@@ -1997,11 +2231,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
     ]
   );
@@ -2021,6 +2257,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         void refetchCoordinatorOnboardingState();
         return;
       }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
       markStepRequested(stepId);
       void (async () => {
@@ -2038,23 +2276,30 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       })();
     },
     [
+      appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
     ]
   );
 
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
-    handleOpenUserSettings('contact-info');
+    handleOpenUserSettings('contact-info', true);
   }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
 
   const handleCoordinatorAddPhoneNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('phone-number');
-    handleOpenUserSettings('contact-info');
+    handleOpenUserSettings('contact-info', true);
+  }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
+
+  const handleCoordinatorAddDiscordId = React.useCallback(() => {
+    handleCoordinatorStartOnboardingStep('discord-id');
+    handleOpenUserSettings('contact-info', true);
   }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
 
   const handleCoordinatorConnectSlack = React.useCallback(() => {
@@ -2067,7 +2312,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (!canonicalCoordinator) return;
     handleCoordinatorStartOnboardingStep('discord-connect');
     handleOpenContactManager(canonicalCoordinator, 'discord');
-  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+    // ``discord-connect`` is no longer server-derivable: adding the public
+    // bot to a server is invisible to Orchestra, so opening the connect flow
+    // is the explicit user action that completes the step. Persist a durable
+    // manual completion (idempotent) and tick locally so the row settles
+    // immediately rather than after a refetch.
+    markStepCompleted('discord-connect');
+    void updateCoordinatorOnboardingState({
+      onboardingStepCompletion: { stepId: 'discord-connect', completed: true },
+    });
+  }, [
+    canonicalCoordinator,
+    handleCoordinatorStartOnboardingStep,
+    handleOpenContactManager,
+    markStepCompleted,
+    updateCoordinatorOnboardingState,
+  ]);
 
   // Whether the Coordinator still has an actionable onboarding step left.
   // Drives the "Assistant info" nudge dot and request-scoped onboarding
@@ -2163,6 +2423,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onTriggerReferenceStep: handleCoordinatorTriggerReferenceStep,
       onAddWhatsappNumber: contactWhatsapp ? handleCoordinatorAddWhatsappNumber : undefined,
       onAddPhoneNumber: contactPhone ? handleCoordinatorAddPhoneNumber : undefined,
+      onAddDiscordId: contactDiscord ? handleCoordinatorAddDiscordId : undefined,
       onConnectSlack:
         userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
@@ -2179,6 +2440,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSelectTaskChip: (stepId: string, chipId: string) =>
         handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
+      appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -2209,11 +2471,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorTriggerReferenceStep,
     handleCoordinatorAddWhatsappNumber,
     handleCoordinatorAddPhoneNumber,
+    handleCoordinatorAddDiscordId,
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
     handleCoordinatorDispatchLearningBeat,
+    appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
@@ -2258,6 +2522,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     canonicalCoordinatorId,
     profileAssistantId,
     handleShowProfile,
+  ]);
+
+  React.useEffect(() => {
+    if (!showCoordinatorOnboardingIntro || !canonicalCoordinatorId) return;
+    void wakeCoordinator(canonicalCoordinatorId);
+  }, [showCoordinatorOnboardingIntro, canonicalCoordinatorId]);
+
+  React.useEffect(() => {
+    if (!canonicalCoordinatorId) return;
+    if (!showCoordinatorOnboardingIntro && !awaitingCoordinatorChatIntro) return;
+    markAssistantOnline(String(canonicalCoordinatorId));
+  }, [
+    awaitingCoordinatorChatIntro,
+    canonicalCoordinatorId,
+    markAssistantOnline,
+    showCoordinatorOnboardingIntro,
   ]);
 
   // Seed durable step completion from the server-derived
@@ -2436,6 +2716,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const visibleProfileAssistant = canUseLastSettledProfileAssistant
     ? lastSettledProfileAssistant
     : profileAssistant;
+
+  const forceCoordinatorChatIntroTyping =
+    showCoordinatorChatIntroTyping &&
+    awaitingCoordinatorChatIntro &&
+    canonicalCoordinatorId !== null &&
+    profileAssistant?.isCoordinator === true &&
+    profileAssistant.agentId === String(canonicalCoordinatorId);
 
   // --- Setup roadmap derivations (live-derived from existing state) ---
   // True iff the user has sent ≥1 message in the currently-profiled
@@ -2708,6 +2995,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     );
   }, []);
 
+  const openAssistantChatFromNavigation = React.useCallback(
+    (assistantId: string) => {
+      const targetId = activeCallAssistant?.agentId ?? assistantId;
+      handleShowProfile(targetId);
+      handleOpenChatSection();
+      if (activeCallAssistant) {
+        redock();
+      }
+    },
+    [activeCallAssistant, handleOpenChatSection, handleShowProfile, redock]
+  );
+
+  React.useEffect(() => {
+    const onOpenAssistantChat = (event: Event) => {
+      const detail = (event as CustomEvent<OpenAssistantChatDetail>).detail;
+      if (!detail?.assistantId) return;
+      openAssistantChatFromNavigation(detail.assistantId);
+    };
+    window.addEventListener(OPEN_ASSISTANT_CHAT_EVENT, onOpenAssistantChat);
+    return () => window.removeEventListener(OPEN_ASSISTANT_CHAT_EVENT, onOpenAssistantChat);
+  }, [openAssistantChatFromNavigation]);
+
   const goToPlatformHome = React.useCallback(() => {
     setMobileRailOpen(false);
     setActiveBrainSectionId(null);
@@ -2757,27 +3066,59 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     };
   }, [goToPlatformHome]);
 
+  const coordinatorOnboardingPresenceContext = React.useMemo(
+    () => ({
+      canonicalCoordinatorId,
+      showCoordinatorOnboardingIntro,
+      awaitingCoordinatorChatIntro,
+    }),
+    [awaitingCoordinatorChatIntro, canonicalCoordinatorId, showCoordinatorOnboardingIntro]
+  );
+
+  const displayedAssistantStatuses = React.useMemo(
+    () => buildDisplayedAssistantStatuses(assistantStatuses, coordinatorOnboardingPresenceContext),
+    [assistantStatuses, coordinatorOnboardingPresenceContext]
+  );
+
   // The full prop bag the rail forwards to the embedded `AssistantList` (the
   // unity switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
   // popover list always renders expanded.
-  const railListProps: React.ComponentProps<typeof AssistantList> = {
-    assistants: sidebarAssistants,
-    assistantStatuses,
-    assistantError,
-    isLoading: isInitialLoadingAssistants,
-    error: assistantError,
-    profileAssistantId,
-    onShowProfile: handleAssistantListSelect,
-    onToggleAssistantInfo: handleToggleAssistantInfo,
-    onOpenHireDialog: handleOpenHireDialog,
-    isFolded: false,
-    activeCallAssistantId: activeCallId,
-    canHire,
-    unreadCounts: chatStreamUnreadCounts,
-    currentUserId,
-    workspace: coordinatorWorkspace,
-    teamsById,
-  };
+  const railListProps: React.ComponentProps<typeof AssistantList> = React.useMemo(
+    () => ({
+      assistants: sidebarAssistants,
+      assistantStatuses: displayedAssistantStatuses,
+      assistantError,
+      isLoading: isInitialLoadingAssistants,
+      error: assistantError,
+      profileAssistantId,
+      onShowProfile: handleAssistantListSelect,
+      onToggleAssistantInfo: handleToggleAssistantInfo,
+      onOpenHireDialog: handleOpenHireDialog,
+      isFolded: false,
+      activeCallAssistantId: activeCallId,
+      canHire,
+      unreadCounts: chatStreamUnreadCounts,
+      currentUserId,
+      workspace: coordinatorWorkspace,
+      teamsById,
+    }),
+    [
+      sidebarAssistants,
+      displayedAssistantStatuses,
+      assistantError,
+      isInitialLoadingAssistants,
+      profileAssistantId,
+      handleAssistantListSelect,
+      handleToggleAssistantInfo,
+      handleOpenHireDialog,
+      activeCallId,
+      canHire,
+      chatStreamUnreadCounts,
+      currentUserId,
+      coordinatorWorkspace,
+      teamsById,
+    ]
+  );
 
   const profileCanWrite = visibleProfileAssistant ? canWrite(visibleProfileAssistant) : undefined;
   const isInitialAssistantIdentityLoading = !visibleProfileAssistant && isInitialLoadingAssistants;
@@ -2824,6 +3165,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   return (
     <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>
+      <AssistantSwitcherBridgeSync activeUnity={profileAssistant} listProps={railListProps} />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
           credits={credits}
@@ -2938,6 +3280,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           setChatHistories={setProfileChatHistories}
                           callPillHistories={callPillHistories}
                           setCallPillHistories={setCallPillHistories}
+                          requestAckHistories={requestAckHistories}
                           userEmail={userMeta.email}
                           isFirstView={isFirstViewAfterHire}
                           preHireChat={
@@ -2960,10 +3303,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           infoPanel={infoPanel}
                           coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                           onActionsUnreadActivityChange={setHasUnreadActionActivity}
+                          forceCoordinatorChatIntroTyping={forceCoordinatorChatIntroTyping}
                           renderDockedCall={
                             activeCallAssistant &&
                             visibleProfileAssistant &&
-                            activeCallAssistant.agentId === visibleProfileAssistant.agentId &&
+                            String(activeCallAssistant.agentId) ===
+                              String(visibleProfileAssistant.agentId) &&
                             isDocked
                               ? () => (
                                   <RoomContext.Provider value={room}>
@@ -2979,6 +3324,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                       setChatHistories={setProfileChatHistories}
                                       callPillHistories={callPillHistories}
                                       setCallPillHistories={setCallPillHistories}
+                                      requestAckHistories={requestAckHistories}
                                       isConnecting={isConnectingCall}
                                       userEmail={userMeta.email}
                                       userImage={userMeta.image}
@@ -3072,9 +3418,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 coordinator={canonicalCoordinator}
                 onStartCall={handleStartCoordinatorIntroCall}
                 onDiscardCall={handleHangUp}
-                onComplete={() => {
+                onComplete={(medium) => {
                   setCoordinatorIntroDismissed(true);
-                  requestCoordinatorOnboardingFocusLayout();
+                  if (medium === 'chat') {
+                    setAwaitingCoordinatorChatIntro(true);
+                  } else {
+                    requestCoordinatorOnboardingFocusLayout();
+                  }
                   requestFirstLoginCommunicationEmailOpen();
                 }}
               />
@@ -3199,6 +3549,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               slackOwner={userMeta.slackOwner ?? null}
               slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
               slackInitialInstall={userMeta.slackInitialInstall ?? null}
+              onOpenUserSettings={handleOpenUserSettings}
             />
           )}
           {workspaceManagerAssistant && (
@@ -3228,11 +3579,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           />
         )}
 
-        {/* Page-level dialog — only mounted when the user has popped
-         *  the call out of its docked slot. The docked render lives
-         *  closer to the call's content (the chat panel in the base
-         *  /assistants view, or the Coordinator-onboarding shell)
-         *  so we don't need a guard for those shells here. */}
         {activeCallAssistant && !isDocked && (
           <RoomContext.Provider value={room}>
             <AssistantCommunicationDialog
@@ -3246,6 +3592,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               setChatHistories={setProfileChatHistories}
               callPillHistories={callPillHistories}
               setCallPillHistories={setCallPillHistories}
+              requestAckHistories={requestAckHistories}
               isConnecting={isConnectingCall}
               userEmail={userMeta.email}
               userImage={userMeta.image}
@@ -3275,6 +3622,44 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
             />
           </RoomContext.Provider>
+        )}
+
+        {profileAssistant && (
+          <AssistantFloatingChatHost
+            pathname={routePathname ?? '/assistants'}
+            isBelowTablet={isBelowTablet}
+            isHireDialogOpen={isHireDialogOpen}
+            showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
+            isCoordinatorOnboardingFocusLayout={isCoordinatorOnboardingFocusLayout}
+            isChatVisibleInRightPane={isChatVisibleInRightPane}
+            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            profileAssistant={profileAssistant}
+            assistantsBootstrapped={!isLoadingAssistants}
+            assistant={profileAssistant}
+            assistantActions={assistantActions}
+            chatHistories={profileChatHistories}
+            setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
+            userEmail={userMeta.email}
+            userTimezone={userMeta.timezone}
+            spendingGate={spendingGateStatus}
+            chatStreamConnectionStatus={profileChatStreamConnectionStatus}
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={profileChatActivitySignal}
+            unreadCount={chatStreamUnreadCounts[profileAssistant.agentId] ?? 0}
+            hasActiveCall={!!activeCallAssistant && (isConnectingCall || isCallConnected)}
+            isInActiveCall={
+              !!activeCallAssistant &&
+              activeCallAssistant.agentId === profileAssistant.agentId &&
+              (isConnectingCall || isCallConnected)
+            }
+            activeCallAssistantId={activeCallAssistant?.agentId ?? null}
+            isCallConnected={isCallConnected}
+            onExpandedChange={handleFloatingChatExpandedChange}
+            redock={redock}
+          />
         )}
       </div>
     </CoordinatorOnboardingProvider>

@@ -68,6 +68,7 @@ export interface SeedTranscriptOpts {
   selfContactId?: number;
   bossContactId?: number;
   authoringAssistantId?: number | null;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -101,6 +102,7 @@ export function createTranscriptSeeder(defaults: { selfContactId: number; bossCo
     if ('authoringAssistantId' in opts) {
       entries.authoring_assistant_id = opts.authoringAssistantId;
     }
+    if (opts.metadata) entries.metadata = opts.metadata;
     /* eslint-enable @typescript-eslint/naming-convention */
 
     const res = await orchestraFetch(

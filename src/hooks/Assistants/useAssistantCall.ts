@@ -288,7 +288,6 @@ export function useAssistantCall(
       expectsReadyToSpeakRef.current =
         !optionsWithSession.openingConfig ||
         optionsWithSession.openingConfig.mode === 'speak' ||
-        optionsWithSession.openingConfig.mode === 'briefed' ||
         optionsWithSession.openingConfig.mode === 'recorded';
       const shouldWaitForAssistantReady =
         optionsWithSession.waitForAssistantReady === true && expectsReadyToSpeakRef.current;

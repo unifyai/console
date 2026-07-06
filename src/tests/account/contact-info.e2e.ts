@@ -9,6 +9,7 @@
  */
 
 import { expect } from '@playwright/test';
+import { enterVerificationCode } from '@/tests/auth/helpers';
 import { createTestUser, cleanupUser, createAccountTest, dbExec } from './helpers';
 
 const user = createTestUser({ name: 'Contact', lastName: 'Info', credits: 5_000 });
@@ -50,9 +51,10 @@ async function captureSentNumber(
   return captured;
 }
 
-async function selectCountry(page: import('@playwright/test').Page, name: RegExp) {
+async function selectCountry(page: import('@playwright/test').Page, query: string) {
   await page.getByTestId('phone-country-select').click();
-  await page.getByRole('option', { name }).click();
+  await page.getByPlaceholder('Search country or code…').fill(query);
+  await page.getByRole('option', { name: new RegExp(query, 'i') }).click();
 }
 
 test('phone number defaults to +1 and constructs the full E.164 number', async ({
@@ -85,7 +87,7 @@ test('selecting a country changes the dial code in the constructed number', asyn
   const phoneInput = page.locator('#phone-number-input');
   await expect(phoneInput).toBeVisible({ timeout: 15_000 });
 
-  await selectCountry(page, /United Kingdom/);
+  await selectCountry(page, 'United Kingdom');
   await phoneInput.fill('7911123456');
 
   const verifyBtn = page.getByRole('button', { name: 'Verify' }).first();
@@ -142,10 +144,8 @@ test('verifying a number eagerly persists it with no Save button', async ({ auth
 
   await page.getByRole('button', { name: 'Verify' }).first().click();
 
-  const codeInput = page.getByPlaceholder('Enter verification code...');
-  await expect(codeInput).toBeVisible({ timeout: 10_000 });
-  await codeInput.fill('123456');
-  await codeInput.press('Enter');
+  await expect(page.getByTestId('six-digit-code-input')).toBeVisible({ timeout: 10_000 });
+  await enterVerificationCode(page, '123456');
 
   // Verification triggers persistence with the full E.164 number, but the UI must
   // wait for that write to complete before presenting the number as verified.
@@ -234,14 +234,13 @@ test('clicking Verify again while the code section is open does not collapse it'
 
   await page.getByRole('button', { name: 'Verify' }).first().click();
 
-  const codeInput = page.getByPlaceholder('Enter verification code...');
-  await expect(codeInput).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('six-digit-code-input')).toBeVisible({ timeout: 10_000 });
   const resendBtn = page.getByRole('button', { name: /Resend/ });
   await expect(resendBtn).toBeVisible();
 
   await expect(resendBtn).toBeEnabled({ timeout: 65_000 });
   await resendBtn.click();
-  await expect(codeInput).toBeVisible();
+  await expect(page.getByTestId('six-digit-code-input')).toBeVisible();
   await expect(resendBtn).toBeVisible();
 });
 

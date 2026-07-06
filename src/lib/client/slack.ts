@@ -14,9 +14,8 @@ import type { SlackInstallOwner, SlackOAuthStartResponse } from '@/types/slack/i
  * Ask Console to mint a Slack authorize URL for the given owner (org
  * or personal user). The route signs an owner-scoped state JWT, sets
  * the matching nonce cookie, and returns the URL the browser should
- * navigate to. The caller is expected to
- * ``window.location.assign(authorizeUrl)`` — the cookie won't be
- * available until after this fetch resolves.
+ * navigate to. The caller should open the URL in a new tab — the
+ * cookie won't be available until after this fetch resolves.
  */
 export async function startSlackOAuth(args: {
   owner: SlackInstallOwner;

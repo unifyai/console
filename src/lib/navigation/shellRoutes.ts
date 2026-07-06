@@ -167,6 +167,11 @@ export function isPersistentMainShellPath(pathname: string | null | undefined): 
   return isUnifiedShellPath(pathname) || isLibraryPath(pathname);
 }
 
+/** Routes where the top-nav assistant info / onboarding shortcuts can drive the panel. */
+export function isAssistantInfoPanelShortcutPath(pathname: string | null | undefined): boolean {
+  return isPersistentMainShellPath(pathname);
+}
+
 export function resolveSettingsPanel(pathname: string | null | undefined): SettingsPanelId | null {
   const normalized = normalizePathname(pathname);
   if (normalized === '/account') return 'account';

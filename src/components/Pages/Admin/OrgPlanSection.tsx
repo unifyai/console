@@ -27,7 +27,7 @@
  * curl when an operator actually needs it.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, Layers, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
@@ -156,6 +156,14 @@ export default function OrgPlanSection({
   notify,
   planGroupId,
 }: Props) {
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+  const notifyRef = useRef(notify);
+  notifyRef.current = notify;
+  const onActivePlanChangeRef = useRef(onActivePlanChange);
+  onActivePlanChangeRef.current = onActivePlanChange;
+  const hasInitiallyLoadedRef = useRef(false);
+
   // ── Active plan ──────────────────────────────────────────────────────
   const [active, setActive] = useState<AdminActivePlanResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -170,7 +178,7 @@ export default function OrgPlanSection({
 
   useEffect(() => {
     let cancelled = false;
-    actions
+    actionsRef.current
       .listPlanGroups({ includeInactive: false })
       .then((result) => {
         if (cancelled) return;
@@ -184,7 +192,7 @@ export default function OrgPlanSection({
     return () => {
       cancelled = true;
     };
-  }, [actions]);
+  }, []);
 
   // ── Change-group dialog state ────────────────────────────────────────
   const [changeGroupOpen, setChangeGroupOpen] = useState(false);
@@ -211,13 +219,13 @@ export default function OrgPlanSection({
     }
     let cancelled = false;
     setLoadingPendingDetail(true);
-    actions
+    actionsRef.current
       .getPlanGroup(pendingGroupId)
       .then((result) => {
         if (cancelled) return;
         if (isError(result)) {
           setPendingGroupDetail(null);
-          notify(result.detail, 'error');
+          notifyRef.current(result.detail, 'error');
           return;
         }
         setPendingGroupDetail(result as AdminPlanGroupDetail);
@@ -231,22 +239,22 @@ export default function OrgPlanSection({
     return () => {
       cancelled = true;
     };
-  }, [actions, changeGroupOpen, pendingGroupId, notify]);
+  }, [changeGroupOpen, pendingGroupId]);
 
   const handleConfirmGroupChange = useCallback(async () => {
     if (pendingGroupId === null) return;
     setSavingGroup(true);
-    const result = await actions.assignPlanGroupToOrg(orgId, pendingGroupId);
+    const result = await actionsRef.current.assignPlanGroupToOrg(orgId, pendingGroupId);
     setSavingGroup(false);
     if (isError(result)) {
-      notify(result.detail, 'error');
+      notifyRef.current(result.detail, 'error');
       return;
     }
     setCurrentGroupId(result.planGroupId);
-    notify(`Plan group set to ${result.planGroupName ?? pendingGroupId}`);
+    notifyRef.current(`Plan group set to ${result.planGroupName ?? pendingGroupId}`);
     setChangeGroupOpen(false);
     onAccountUpdated?.();
-  }, [actions, orgId, pendingGroupId, notify, onAccountUpdated]);
+  }, [orgId, pendingGroupId, onAccountUpdated]);
 
   // ── Templates (lazily loaded for the Set-plan dialog) ────────────────
   const [templates, setTemplates] = useState<AdminBillingPlanTemplate[]>([]);
@@ -263,37 +271,41 @@ export default function OrgPlanSection({
 
   // ── Loaders ──────────────────────────────────────────────────────────
   const refresh = useCallback(async () => {
-    setIsLoading(true);
-    const activeResult = await actions.getActivePlan(orgId);
+    if (!hasInitiallyLoadedRef.current) {
+      setIsLoading(true);
+    }
+    const activeResult = await actionsRef.current.getActivePlan(orgId);
     if (isError(activeResult)) {
-      notify(activeResult.detail, 'error');
+      notifyRef.current(activeResult.detail, 'error');
       setActive(null);
-      onActivePlanChange?.(null);
+      onActivePlanChangeRef.current?.(null);
     } else {
       const next = activeResult as AdminActivePlanResponse;
       setActive(next);
-      onActivePlanChange?.(next);
+      onActivePlanChangeRef.current?.(next);
     }
+    hasInitiallyLoadedRef.current = true;
     setIsLoading(false);
-  }, [actions, orgId, notify, onActivePlanChange]);
+  }, [orgId]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    hasInitiallyLoadedRef.current = false;
+    void refresh();
+  }, [orgId, refresh]);
 
   const loadTemplates = useCallback(async () => {
     if (templatesLoaded) return;
     // Both catalog (is_custom=false) and bespoke (is_custom=true) templates
     // are assignable. Deprecated rows (is_active=false) are filtered server-side
     // by default so we don't need to pass `include_inactive`.
-    const result = await actions.listTemplatesForAssignment();
+    const result = await actionsRef.current.listTemplatesForAssignment();
     if (isError(result)) {
-      notify(result.detail, 'error');
+      notifyRef.current(result.detail, 'error');
       return;
     }
     setTemplates(result as AdminBillingPlanTemplate[]);
     setTemplatesLoaded(true);
-  }, [actions, templatesLoaded, notify]);
+  }, [templatesLoaded]);
 
   // ── Set-plan handlers ────────────────────────────────────────────────
 
@@ -313,7 +325,7 @@ export default function OrgPlanSection({
 
   const handleSubmitOp = async () => {
     if (!opTemplateId) {
-      notify('Pick a template', 'error');
+      notifyRef.current('Pick a template', 'error');
       return;
     }
     const templateId = Number(opTemplateId);
@@ -322,15 +334,17 @@ export default function OrgPlanSection({
     // No auto-create-stripe escape any more: the parent's Business
     // Profile + Provision flow guarantees a Stripe Customer exists
     // before the operator gets to assign a METERED template here.
-    const result = await actions.setPlan(orgId, templateId, {
+    const result = await actionsRef.current.setPlan(orgId, templateId, {
       effectiveAt: effectiveAtIso,
       changeReason: opReason || undefined,
     });
     if (isError(result)) {
-      notify(result.detail, 'error');
+      notifyRef.current(result.detail, 'error');
     } else {
       const status = (result as { status?: string }).status;
-      notify(status === 'noop' ? 'No change — account already on this template' : 'Plan updated');
+      notifyRef.current(
+        status === 'noop' ? 'No change — account already on this template' : 'Plan updated'
+      );
       setSetPlanOpen(false);
       refresh();
       onAccountUpdated?.();

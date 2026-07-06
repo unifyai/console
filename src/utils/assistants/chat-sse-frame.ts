@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Attachment, ChatMessage } from '@/types/assistants/chat';
+import type { Attachment, ChatMessage, MessageReaction } from '@/types/assistants/chat';
 import { snakeToCamelObject } from '@/utils/casing';
+import { mapTranscriptReactions } from '@/utils/assistants/chat-reactions';
 
 /**
  * Pure parser for a single Pub/Sub → SSE frame coming from the page-level
@@ -35,6 +36,17 @@ export interface ParsedInboundChatMessage {
   hasServerMessageId: boolean;
 }
 
+export interface ParsedReactionUpdate {
+  targetMessageId: number;
+  contactId: number;
+  emoji: string | null;
+  action: 'added' | 'changed' | 'removed';
+  reactions: MessageReaction[];
+  rootKey: string;
+  sourceContext?: string;
+  publishTime?: string;
+}
+
 export type ParsedChatFrame =
   | {
       kind: 'chat';
@@ -53,6 +65,13 @@ export type ParsedChatFrame =
       kind: 'meet-incoming';
       eventData: Record<string, unknown>;
       ackId?: string;
+    }
+  | {
+      kind: 'reaction';
+      parsed: ParsedReactionUpdate;
+      ackId?: string;
+      thread: string;
+      msgId: string;
     }
   | {
       kind: 'filtered';
@@ -177,6 +196,43 @@ export function parseChatSseFrame(
       kind: 'meet-incoming',
       ackId,
       eventData: (eventObj ?? {}) as Record<string, unknown>,
+    };
+  }
+
+  if (thread === 'unify_message_reaction_outbound') {
+    const targetMessageId = Number(eventObj?.target_message_id ?? eventObj?.targetMessageId);
+    if (!Number.isFinite(targetMessageId)) {
+      return { kind: 'error', error: 'reaction: missing target_message_id' };
+    }
+    const rawReactions = eventObj?.reactions;
+    const reactions =
+      mapTranscriptReactions({ reactions: rawReactions }) ??
+      (Array.isArray(rawReactions) ? (rawReactions as MessageReaction[]) : []);
+    const emojiRaw = eventObj?.emoji;
+    const emoji = typeof emojiRaw === 'string' && emojiRaw.trim() ? emojiRaw : null;
+    const actionRaw = eventObj?.action;
+    const action =
+      actionRaw === 'removed' || actionRaw === 'changed' || actionRaw === 'added'
+        ? actionRaw
+        : emoji
+          ? 'added'
+          : 'removed';
+
+    return {
+      kind: 'reaction',
+      ackId,
+      thread,
+      msgId: String(targetMessageId),
+      parsed: {
+        targetMessageId,
+        contactId: opts.myContactId,
+        emoji,
+        action,
+        reactions,
+        rootKey: opts.rootKey,
+        sourceContext: opts.sourceContext,
+        publishTime: publishTimeStr,
+      },
     };
   }
 

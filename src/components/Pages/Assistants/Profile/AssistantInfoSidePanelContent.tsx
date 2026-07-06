@@ -103,6 +103,7 @@ export interface AssistantInfoSidePanelContentProps {
     onTriggerReferenceStep?: (stepId: string) => void;
     onAddWhatsappNumber?: () => void;
     onAddPhoneNumber?: () => void;
+    onAddDiscordId?: () => void;
     onConnectSlack?: () => void;
     onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
@@ -117,6 +118,8 @@ export interface AssistantInfoSidePanelContentProps {
     onSelectTaskChip?: (stepId: string, chipId: string) => void;
     /** Dispatches the Learning tutorial beat event to Unity. */
     onLearnFromCorrection?: () => void;
+    /** Echo a checklist trigger acknowledgement into the coordinator chat. */
+    appendRequestSentAck?: (label: string) => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -288,6 +291,16 @@ function CoordinatorAssistantInfoSidePanelContent({
     isOnboardingActive: coordinatorOnboarding?.isOnboardingActive === true,
   });
 
+  const appendRequestSentAck = coordinatorOnboarding?.appendRequestSentAck;
+
+  const handleTestTriggerableTask = React.useCallback(
+    async (taskId: number) => {
+      appendRequestSentAck?.('Test triggerable task');
+      await taskBeats.testTriggerableTask(taskId);
+    },
+    [appendRequestSentAck, taskBeats]
+  );
+
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
     showOnboardingTab ? 'onboarding' : 'profile'
@@ -381,6 +394,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
                 onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
                 onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
+                onAddDiscordId={coordinatorOnboarding.onAddDiscordId}
                 onConnectSlack={coordinatorOnboarding.onConnectSlack}
                 onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
@@ -390,7 +404,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onCreateTriggerableTask={coordinatorOnboarding.onCreateTriggerableTask}
                 onSelectTaskChip={coordinatorOnboarding.onSelectTaskChip}
                 onLearnFromCorrection={coordinatorOnboarding.onLearnFromCorrection}
-                onTestTriggerableTask={taskBeats.testTriggerableTask}
+                onTestTriggerableTask={handleTestTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}
                 onSkipSection={coordinatorOnboarding.onSkipSection}
@@ -849,18 +863,6 @@ function getWorkspaceStatusDescription(assistant: Assistant): {
   }
   if (providerKind === 'microsoft') {
     return { text: 'Microsoft 365 connected', provider: 'microsoft' };
-  }
-
-  if (assistant.isCoordinator && assistant.email?.trim()) {
-    return { text: 'T-W1N email configured', provider: null };
-  }
-
-  if (assistant.email?.trim() && assistant.emailProvisionedBy === 'platform') {
-    return { text: 'Platform email configured', provider: null };
-  }
-
-  if (assistant.email?.trim()) {
-    return { text: 'Email configured', provider: null };
   }
 
   return { text: 'No workspace connected yet', provider: null };

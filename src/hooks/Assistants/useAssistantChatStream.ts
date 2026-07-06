@@ -3,6 +3,7 @@ import { clientLog, setLogContext, getSessionId } from '@/lib/logging/client-log
 import {
   parseChatSseFrame,
   type ParsedInboundChatMessage,
+  type ParsedReactionUpdate,
 } from '@/utils/assistants/chat-sse-frame';
 
 /**
@@ -70,6 +71,8 @@ export interface UseAssistantChatStreamCallbacks {
    * cross-tab `BroadcastChannel` when another tab receives it first.
    */
   onChatMessage: (assistantId: string, parsed: ParsedInboundChatMessage) => void;
+  /** Fires for parsed `unify_message_reaction_outbound` frames. */
+  onReactionUpdate?: (assistantId: string, parsed: ParsedReactionUpdate) => void;
   /** Fires when an `assistant_desktop_ready` frame arrives. */
   onDesktopReady?: (assistantId: string, eventData: Record<string, unknown>) => void;
   /**
@@ -749,6 +752,11 @@ export function useAssistantChatStream(
             callbacksRef.current.onUnifyMeetIncoming?.(assistantId, frame.eventData);
             // Ack immediately: the ring is an idempotent lifecycle signal; the
             // no-answer fallback is owned by the runtime, not by redelivery.
+            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
+            return;
+          }
+          case 'reaction': {
+            callbacksRef.current.onReactionUpdate?.(assistantId, frame.parsed);
             if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }

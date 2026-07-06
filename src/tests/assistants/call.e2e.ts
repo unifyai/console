@@ -246,6 +246,29 @@ test('hanging up closes the dialog and returns to the chat view @critical @area(
   await expect(listItem).toBeVisible();
 });
 
+test('unsent chat draft survives hanging up a docked call', async ({ authedPage: page }) => {
+  await openAssistantProfile(page, assistant.agentId);
+
+  const audioBtn = page.getByTestId('call-audio-button');
+  await audioBtn.click();
+
+  const header = page.locator('text=Talk to Caller TestBot');
+  await expect(header).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('assistant-chat-during-call-region')).toBeVisible();
+
+  const draftText = 'Follow up after the call';
+  const composer = page
+    .getByTestId('assistant-chat-during-call-region')
+    .getByPlaceholder('Send a message...');
+  await composer.fill(draftText);
+
+  const endCallBtn = page.getByRole('button', { name: 'End call' });
+  await endCallBtn.click();
+  await expect(header).not.toBeVisible({ timeout: 10_000 });
+
+  await expect(composer).toHaveValue(draftText);
+});
+
 test('call button is disabled when credits are exhausted and re-enables after funding', async ({
   authedPage: page,
 }) => {
@@ -305,7 +328,7 @@ test('hanging up and re-calling the same assistant works', async ({ authedPage: 
   await expect(headerAgain).not.toBeVisible({ timeout: 10_000 });
 });
 
-test('call persists as a floating window across page navigation and redocks on return', async ({
+test('call persists with mini chat across page navigation and redocks on return', async ({
   authedPage: page,
 }) => {
   await openAssistantProfile(page, assistant.agentId);
@@ -322,28 +345,33 @@ test('call persists as a floating window across page navigation and redocks on r
   // Navigate to /account via client-side nav. A full page load would tear down
   // the (home) layout and kill the call, so the test must exercise real SPA
   // navigation.
+  await page.keyboard.press('Escape');
   await page.getByTestId('rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
 
-  // The call survives the page change as a floating window: the call header and
-  // hang-up control are still on screen, the docked surface is gone, and the
-  // in-call chat toggle is suppressed off /assistants.
-  await expect(header).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole('button', { name: 'Hang up' })).toBeVisible({ timeout: 10_000 });
+  // Off /assistants the call UI is suppressed; audio continues and the floating
+  // chat launcher carries the visible surface.
+  await expect(header).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByRole('button', { name: 'Hang up' })).toHaveCount(0);
   await expect(page.getByTestId('assistant-call-docked')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Toggle chat' })).toHaveCount(0);
+  await expect
+    .poll(async () => page.evaluate(() => sessionStorage.getItem('console:call-active')), {
+      timeout: 15_000,
+    })
+    .toBe('1');
 
-  // Returning to /assistants via the platform home control automatically
-  // redocks the call into its chat slot.
-  await page.getByTestId('platform-home-button').click();
+  const launcher = page.getByTestId('floating-chat-launcher');
+  await expect(launcher).toBeVisible({ timeout: 10_000 });
+  await launcher.click();
+  await page.getByTestId('floating-chat-back-to-full').click();
+
   await expect(page).toHaveURL(/\/assistants/, { timeout: 15_000 });
-  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 30_000 });
   await expect(header).toBeVisible({ timeout: 10_000 });
 
   // Cleanup.
-  const endCallBtn = page.getByRole('button', { name: 'End call' });
-  await endCallBtn.click();
-  await expect(header).not.toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('assistant-call-docked').getByRole('button', { name: 'End call' }).click();
+  await expect(header).not.toBeVisible({ timeout: 15_000 });
 });
 
 // ---------------------------------------------------------------------------

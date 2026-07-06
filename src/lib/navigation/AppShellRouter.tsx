@@ -11,6 +11,7 @@ import {
   isSettingsFamilyPath,
 } from '@/lib/navigation/appShellRoutes';
 import type { ShellRouteDescriptor } from '@/lib/navigation/shellRoutes';
+import { dispatchOpenAssistantChat } from '@/lib/navigation/openAssistantChat';
 
 interface AppShellNavigationContextValue {
   pendingTargetHref: string | null;
@@ -86,7 +87,10 @@ export function usePendingAssistantSectionTarget(): {
  *
  * Unified shell surfaces use native Next.js navigation against one catch-all
  * page owner. Same-path query changes can use the browser History API because
- * they do not swap surfaces.
+ * they do not swap surfaces. Settings, admin, interfaces, and favourites keep
+ * their route segments and loading boundaries. The assistants runtime (`Main`)
+ * stays mounted once by the shell layout so SSE, live calls, and action streams
+ * survive cross-surface hops via `router.push`.
  */
 export function useAppShellNavigation() {
   const router = useRouter();
@@ -131,6 +135,15 @@ export function useAppShellNavigation() {
     [navigateTo, navigationContext]
   );
 
+  const navigateToAssistantChat = React.useCallback(
+    (assistantId: string) => {
+      navigationContext?.setPendingTargetHref(null);
+      dispatchOpenAssistantChat(assistantId);
+      router.push('/assistants');
+    },
+    [navigationContext, router]
+  );
+
   const pushShellQuery = React.useCallback((href: string) => {
     if (typeof window === 'undefined') return;
     const targetPathname = pathnameFromHref(href);
@@ -147,6 +160,7 @@ export function useAppShellNavigation() {
     showRoutedSurface: isSettingsFamilyPath(pathname) || isLibraryPath(pathname),
     assistantsSurfaceActive: isAssistantsPath(pathname),
     navigateToAssistants,
+    navigateToAssistantChat,
     navigateTo,
     pushShellQuery,
   };

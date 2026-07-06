@@ -11,10 +11,10 @@
  *     drops the user into the regular platform (assistant list +
  *     right pane) with the Coordinator selected and the onboarding
  *     checklist living in its "Assistant info" panel.
- *   - Choosing "Start Call" connects the call directly (a brief
- *     "preparing" loader covers the audio handoff), then lands in the
- *     regular platform with the call docked in the Coordinator's
- *     right pane. There is no animated intro.
+ *   - Choosing "Start Call" dismisses the picker immediately and lands in
+ *     the regular platform with the call docked in the Coordinator's
+ *     right pane; the meet window shows the usual connecting states
+ *     while the call comes up.
  *   - Resolving the picker persists ``intro_watched`` on the
  *     Coordinator/State row, so a reload skips the picker and lands
  *     directly on the regular platform.
@@ -406,6 +406,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     }
   });
   await emailReferenceRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(
     page.getByTestId('coordinator-onboarding-action-feedback-email-reference')
   ).toHaveText('Sending...');
@@ -446,6 +447,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   const emailReplyRow = page.getByTestId('coordinator-onboarding-item-email-reply').first();
   await expectChecklistItemClickable(page, 'email-reply');
   await emailReplyRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(page.getByTestId('coordinator-onboarding-action-feedback-email-reply')).toHaveText(
     'Checking...'
   );
@@ -538,6 +540,7 @@ test('workspace demos complete only when the assistant explicitly marks them don
   // Clicking the row dispatches a single graph-owned step event for the
   // demo and surfaces the in-flight feedback label.
   await mailboxRow.click();
+  await expect(page.getByTestId('request-sent-ack-label').last()).toContainText('Request sent:');
   await expect(
     page.getByTestId('coordinator-onboarding-action-feedback-workspace-mailbox')
   ).toHaveText('Summarizing...');
@@ -623,14 +626,11 @@ test('starting a call connects and docks the call in the platform @critical @are
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
 
-  // No animated intro: the picker hands straight off to the connecting
-  // call (a brief "preparing" loader covers the audio handoff).
+  // Picker dismisses immediately; the docked meet window handles connecting.
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-
-  // The overlay clears and the real call is docked in the Coordinator's
-  // regular right pane.
-  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
+
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
 
   // Hang up to leave a clean state for subsequent tests.
   await page.getByRole('button', { name: 'End call' }).click();
@@ -647,6 +647,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
 
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
@@ -655,7 +656,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('resolving the picker persists intro_watched and reload defaults to T-W1N + Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
+test('resolving the picker persists intro_watched and reload lands on T-W1N without auto-opening Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -671,7 +672,7 @@ test('resolving the picker persists intro_watched and reload defaults to T-W1N +
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0, {
     timeout: 15_000,
   });
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
@@ -689,7 +690,7 @@ test('keeps the onboarding checklist visible while navigating assistant sections
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
-  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
