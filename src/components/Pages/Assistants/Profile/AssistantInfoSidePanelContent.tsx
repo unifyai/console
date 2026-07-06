@@ -122,6 +122,8 @@ export interface AssistantInfoSidePanelContentProps {
     /** Whether the Coordinator is currently on a voice call — selects
      * call- vs chat-flavoured "Ask T-W1N to do something" chips. */
     isOnCall?: boolean;
+    /** Whether the onboarding surface is actively running. */
+    isOnboardingActive?: boolean;
   };
   /** When false, suppresses background task polling for coordinator onboarding beats. */
   isActiveSurface?: boolean;
@@ -283,6 +285,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   const taskBeats = useCoordinatorTaskBeats(assistant, {
     enabled: showOnboardingTab,
     isActiveSurface,
+    isOnboardingActive: coordinatorOnboarding?.isOnboardingActive === true,
   });
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);

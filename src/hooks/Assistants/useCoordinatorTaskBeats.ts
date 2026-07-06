@@ -64,9 +64,13 @@ export interface CoordinatorTaskBeats {
 
 export function useCoordinatorTaskBeats(
   assistant: Assistant,
-  { enabled, isActiveSurface = true }: { enabled: boolean; isActiveSurface?: boolean }
+  {
+    enabled,
+    isActiveSurface = true,
+    isOnboardingActive = false,
+  }: { enabled: boolean; isActiveSurface?: boolean; isOnboardingActive?: boolean }
 ): CoordinatorTaskBeats {
-  const tasksDataEnabled = enabled && isActiveSurface;
+  const tasksDataEnabled = enabled && isActiveSurface && isOnboardingActive;
   const { tasks, refetch } = useTasksData({
     assistant,
     ownerId: assistant.userId,
