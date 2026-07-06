@@ -774,6 +774,7 @@ export function useAssistantActions(
         orphanOutgoingRef.current = new Map();
         orphanToolLoopRef.current = new Map();
         seenEventIdsRef.current = new Set();
+        setIsInitialLoadDone(false);
         setIsLoading(true);
       }
       await initialLoad();

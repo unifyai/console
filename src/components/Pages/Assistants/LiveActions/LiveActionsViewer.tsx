@@ -260,7 +260,7 @@ export function LiveActionsViewer({
     suppressAutoExpandRef.current = true;
     setExpandedNodeIds(new Set());
     try {
-      await refresh();
+      await refresh(true);
     } finally {
       setIsManualRefreshing(false);
     }
@@ -403,7 +403,7 @@ export function LiveActionsViewer({
         hasLoaded={hasLoaded}
         isPaneVisible={isPaneVisible}
         error={error}
-        onRetry={refresh}
+        onRetry={() => void refresh(true)}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         onLoadMore={handleLoadMore}
