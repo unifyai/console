@@ -19,7 +19,7 @@ interface UseDashboardsResult {
   isInitialLoading: boolean;
   isRefreshing: boolean;
   error: Error | null;
-  refetch: () => Promise<unknown>;
+  refetch: (options?: { blocking?: boolean }) => Promise<unknown>;
   dataUpdatedAt: number;
   /**
    * Lazily fetches a tile's htmlContent. Returns cached HTML if available,

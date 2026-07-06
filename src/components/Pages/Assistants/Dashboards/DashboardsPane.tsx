@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { DashboardGridSkeleton } from '@/components/Common/Loaders/Skeletons';
-import { Skeleton } from '@/components/UI/skeleton';
 import { useDashboards } from '@/hooks/Assistants/useDashboards';
 import { DashboardsPaneHeader } from './DashboardsPaneHeader';
 import { DashboardsPaneFooter } from './DashboardsPaneFooter';
@@ -10,6 +9,9 @@ import { DashboardSummaryCard } from './DashboardSummaryCard';
 import { DashboardGrid } from './DashboardGrid';
 import { DashboardTileCard } from './DashboardTileCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
+import { TabToolbar } from '../Common/TabToolbar';
+import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
   USE_MOCK_DASHBOARDS,
   getMockDashboardMetadata,
@@ -39,9 +41,6 @@ export function DashboardsPane({
   assistantId,
   shouldPoll,
 }: DashboardsPaneProps) {
-  // In mock mode, override the server actions so mock data flows through
-  // the same lazy-loading path (metadata without htmlContent, content fetched
-  // on demand with a simulated delay).
   const effectiveGetMetadata = useMemo(
     () => (USE_MOCK_DASHBOARDS ? () => Promise.resolve(getMockDashboardMetadata()) : undefined),
     []
@@ -83,6 +82,7 @@ export function DashboardsPane({
   );
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [searchValue, setSearchValue] = useState('');
 
   const defaultKey = sortedDashboards[0]
     ? `dash:${sortedDashboards[0].token}`
@@ -118,89 +118,105 @@ export function DashboardsPane({
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await refetch();
+      await refetch({ blocking: true });
     } finally {
       setIsRefreshing(false);
     }
   }, [refetch]);
 
   const showRefreshing = isRefreshing || isResourceRefreshing;
-
-  if (isInitialLoading) {
-    return (
-      <div className="flex h-full flex-col" data-testid="dashboards-loading">
-        <div className="border-b border-border px-3 py-2">
-          <Skeleton className="h-7 w-full max-w-md rounded-md" />
-        </div>
-        <DashboardGridSkeleton className="min-h-0 flex-1" />
-      </div>
-    );
-  }
-
-  if (dashboards.length === 0 && tiles.length === 0) {
-    return <DashboardEmptyState />;
-  }
+  const isEmpty = dashboards.length === 0 && tiles.length === 0;
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header — refresh, searchable combobox, collapse/expand */}
-      <DashboardsPaneHeader
-        dashboards={sortedDashboards}
-        tiles={tiles}
-        selectedKey={activeKey}
-        onSelect={setSelectedKey}
-        allCollapsed={allCollapsed === true}
-        onToggleCollapseAll={toggleCollapseAll}
-        onRefresh={handleRefresh}
-        isRefreshing={showRefreshing}
-      />
+    <div className="flex h-full flex-col" data-testid="dashboards-pane">
+      {isEmpty ? (
+        <TabToolbar
+          testId="dashboards-header"
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          searchPlaceholder={tabSearchPlaceholder('dashboards')}
+          onRefresh={handleRefresh}
+          isRefreshing={showRefreshing}
+          refreshTitle="Refresh dashboards"
+          refreshTestId="dashboards-refresh"
+        />
+      ) : (
+        <DashboardsPaneHeader
+          dashboards={sortedDashboards}
+          tiles={tiles}
+          selectedKey={activeKey}
+          onSelect={setSelectedKey}
+          allCollapsed={allCollapsed === true}
+          onToggleCollapseAll={toggleCollapseAll}
+          onRefresh={handleRefresh}
+          isRefreshing={showRefreshing}
+        />
+      )}
 
-      {/* Body */}
       <div className="min-h-0 flex-1 overflow-y-auto" data-testid="dashboards-body">
-        {/* Dashboard summary + tile list */}
-        {activeDashboard && (
-          <section className="px-3 py-3" data-testid="dashboard-summary-section">
-            <DashboardSummaryCard dashboard={activeDashboard} getTileHtml={getTileHtml}>
-              <DashboardGrid
-                positions={positions}
-                tiles={tiles}
-                onTileRefresh={handleRefresh}
-                defaultCollapsed={allCollapsed}
-              />
-            </DashboardSummaryCard>
-          </section>
-        )}
+        {isInitialLoading ? (
+          <DashboardGridSkeleton className="min-h-0 flex-1" />
+        ) : isEmpty ? (
+          <DashboardEmptyState />
+        ) : (
+          <>
+            {activeDashboard && (
+              <section className="px-3 py-3" data-testid="dashboard-summary-section">
+                <DashboardSummaryCard dashboard={activeDashboard} getTileHtml={getTileHtml}>
+                  <DashboardGrid
+                    positions={positions}
+                    tiles={tiles}
+                    onTileRefresh={handleRefresh}
+                    defaultCollapsed={allCollapsed}
+                  />
+                </DashboardSummaryCard>
+              </section>
+            )}
 
-        {/* Standalone tile — collapsible card that fills the pane */}
-        {activeTile && (
-          <section className="flex h-full flex-col px-3 py-3" data-testid="standalone-tile-section">
-            <DashboardTileCard
-              key={activeTile.token}
-              token={activeTile.token}
-              title={activeTile.title}
-              htmlContent={activeTile.htmlContent}
-              description={activeTile.description}
-              createdAt={activeTile.createdAt}
-              updatedAt={activeTile.updatedAt}
-              hasDataBindings={activeTile.hasDataBindings}
-              fillHeight
-              onRefresh={activeTile.hasDataBindings ? handleRefresh : undefined}
-              defaultCollapsed={allCollapsed}
-            />
-          </section>
+            {activeTile && (
+              <section
+                className="flex h-full flex-col px-3 py-3"
+                data-testid="standalone-tile-section"
+              >
+                <DashboardTileCard
+                  key={activeTile.token}
+                  token={activeTile.token}
+                  title={activeTile.title}
+                  htmlContent={activeTile.htmlContent}
+                  description={activeTile.description}
+                  createdAt={activeTile.createdAt}
+                  updatedAt={activeTile.updatedAt}
+                  hasDataBindings={activeTile.hasDataBindings}
+                  fillHeight
+                  onRefresh={activeTile.hasDataBindings ? handleRefresh : undefined}
+                  defaultCollapsed={allCollapsed}
+                />
+              </section>
+            )}
+          </>
         )}
       </div>
 
-      {/* Footer — status bar */}
-      <DashboardsPaneFooter
-        dashboardCount={dashboards.length}
-        tileCount={tiles.length}
-        dataUpdatedAt={dataUpdatedAt}
-        isPolling={shouldPoll}
-        isRefreshing={showRefreshing}
-        isMockData={USE_MOCK_DASHBOARDS}
-        onRefresh={handleRefresh}
-      />
+      {isEmpty ? (
+        <TabFooter
+          testId="dashboards-footer"
+          right={
+            <span className="text-caption" data-testid="dashboards-table-footer">
+              0 dashboards · 0 tiles
+            </span>
+          }
+        />
+      ) : (
+        <DashboardsPaneFooter
+          dashboardCount={dashboards.length}
+          tileCount={tiles.length}
+          dataUpdatedAt={dataUpdatedAt}
+          isPolling={shouldPoll}
+          isRefreshing={showRefreshing}
+          isMockData={USE_MOCK_DASHBOARDS}
+          onRefresh={handleRefresh}
+        />
+      )}
     </div>
   );
 }
