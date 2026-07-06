@@ -2260,7 +2260,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (!canonicalCoordinator) return;
     handleCoordinatorStartOnboardingStep('discord-connect');
     handleOpenContactManager(canonicalCoordinator, 'discord');
-  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+    // ``discord-connect`` is no longer server-derivable: adding the public
+    // bot to a server is invisible to Orchestra, so opening the connect flow
+    // is the explicit user action that completes the step. Persist a durable
+    // manual completion (idempotent) and tick locally so the row settles
+    // immediately rather than after a refetch.
+    markStepCompleted('discord-connect');
+    void updateCoordinatorOnboardingState({
+      onboardingStepCompletion: { stepId: 'discord-connect', completed: true },
+    });
+  }, [
+    canonicalCoordinator,
+    handleCoordinatorStartOnboardingStep,
+    handleOpenContactManager,
+    markStepCompleted,
+    updateCoordinatorOnboardingState,
+  ]);
 
   // Whether the Coordinator still has an actionable onboarding step left.
   // Drives the "Assistant info" nudge dot and request-scoped onboarding

@@ -177,6 +177,7 @@ export interface CoordinatorStatePatch {
   unskipOnboardingPhase?: string;
   introWatched?: boolean;
   pendingChatIntro?: boolean;
+  onboardingStepCompletion?: { stepId: string; completed: boolean };
 }
 
 function normalizeStep(value: unknown): string | null {
@@ -401,6 +402,8 @@ export async function updateCoordinatorState(
     body.unskipOnboardingPhase = patch.unskipOnboardingPhase;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
   if (patch.pendingChatIntro !== undefined) body.pendingChatIntro = patch.pendingChatIntro;
+  if (patch.onboardingStepCompletion !== undefined)
+    body.onboardingStepCompletion = patch.onboardingStepCompletion;
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.patch(`/assistant/${numericId}/state`, body);
