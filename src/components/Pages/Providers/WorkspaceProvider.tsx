@@ -1,14 +1,7 @@
 'use client';
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { User, UserOrganization, UserWorkspace } from '@/types/user';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
 import { userFullName } from '@/utils/user/profileDisplay';
@@ -38,7 +31,8 @@ export function WorkspaceProvider({
   children: React.ReactNode;
   user: User | null;
 }) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
 
   // 1. Derive Workspaces from User Object
   const workspaces = useMemo<UserWorkspace[]>(() => {
@@ -72,10 +66,42 @@ export function WorkspaceProvider({
   // `getCurrentUser()` may override the raw workspace cookie (for example, to
   // lock non-Unify members into their org workspace). Use that resolved state
   // everywhere rather than re-deriving active workspace from the cookie.
-  const { activeOrganization, activeWorkspace, isWorkspaceSwitchable } = useMemo(
-    () => resolveWorkspaceContext(user),
-    [user]
-  );
+  const serverWorkspaceContext = useMemo(() => resolveWorkspaceContext(user), [user]);
+
+  useEffect(() => {
+    setSelectedWorkspaceId(null);
+  }, [user]);
+
+  const effectiveWorkspaceId =
+    selectedWorkspaceId ?? serverWorkspaceContext.activeWorkspace?.id ?? null;
+  const activeOrganization = useMemo(() => {
+    if (!effectiveWorkspaceId || effectiveWorkspaceId === 'personal') return null;
+    return (
+      user?.organizations?.find(
+        (organization) => organization.id.toString() === effectiveWorkspaceId
+      ) ?? null
+    );
+  }, [effectiveWorkspaceId, user?.organizations]);
+  const activeWorkspace = useMemo<UserWorkspace | null>(() => {
+    if (activeOrganization) {
+      return {
+        id: activeOrganization.id.toString(),
+        name: activeOrganization.name,
+        type: 'organization',
+        image: activeOrganization.image ?? null,
+      };
+    }
+    if (effectiveWorkspaceId === 'personal') {
+      return workspaces.find((workspace) => workspace.id === 'personal') ?? null;
+    }
+    return serverWorkspaceContext.activeWorkspace;
+  }, [
+    activeOrganization,
+    effectiveWorkspaceId,
+    serverWorkspaceContext.activeWorkspace,
+    workspaces,
+  ]);
+  const isWorkspaceSwitchable = serverWorkspaceContext.isWorkspaceSwitchable;
 
   // 2c. Current User ID
   const currentUserId = user?.id || null;
@@ -95,13 +121,6 @@ export function WorkspaceProvider({
 
   // 3. Switcher Logic
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (!isPending) {
-      setIsSwitchingWorkspace(false);
-    }
-  }, [isPending]);
 
   const switchWorkspace = async (workspaceId: string) => {
     if (activeWorkspace?.id === workspaceId) return;
@@ -117,12 +136,27 @@ export function WorkspaceProvider({
         throw new Error('Failed to switch workspace');
       }
 
-      startTransition(() => {
-        // Refresh keeps the current pathname/query so assistant profile deep-links
-        // (for example ?profile=<coordinatorId>) survive workspace switches.
-        router.refresh();
+      setSelectedWorkspaceId(workspaceId);
+      await queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = String(query.queryKey[0] ?? '');
+          return [
+            'assistants',
+            'assistant',
+            'billing',
+            'usage',
+            'organizations',
+            'organization',
+            'teams',
+            'roles',
+            'dashboard',
+            'spending',
+          ].some((prefix) => key.includes(prefix));
+        },
       });
-    } catch {
+      setIsSwitchingWorkspace(false);
+    } catch (error) {
+      console.error('Could not switch workspace', error);
       setIsSwitchingWorkspace(false);
     }
   };

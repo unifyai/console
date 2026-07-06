@@ -28,12 +28,12 @@ export default async function Providers({ children }: { children: React.ReactNod
         <SidebarProvider>
           <SessionProvider>
             <EnvironmentProvider config={envConfig}>
-              <WorkspaceProvider user={user}>
-                <QueryProvider>
+              <QueryProvider>
+                <WorkspaceProvider user={user}>
                   <CallSoundPreloader />
                   <AuthErrorBoundary>{children}</AuthErrorBoundary>
-                </QueryProvider>
-              </WorkspaceProvider>
+                </WorkspaceProvider>
+              </QueryProvider>
             </EnvironmentProvider>
           </SessionProvider>
         </SidebarProvider>
