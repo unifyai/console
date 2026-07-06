@@ -118,7 +118,10 @@ export function SkeletonStat({ className }: { className?: string }) {
  */
 export function SectionBodySkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn('mx-auto w-full max-w-5xl space-y-6 p-6', className)}>
+    <div
+      className={cn('mx-auto w-full max-w-5xl space-y-6 p-6', className)}
+      data-testid="section-body-skeleton"
+    >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SkeletonStat />
         <SkeletonStat />
@@ -126,6 +129,173 @@ export function SectionBodySkeleton({ className }: { className?: string }) {
       </div>
       <SkeletonCard lines={4} />
       <SkeletonCard lines={2} />
+    </div>
+  );
+}
+
+function ChatPaneSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="min-h-0 flex-1 space-y-5 overflow-hidden px-6 py-5">
+        <div className="mr-auto max-w-[72%] rounded-2xl border border-border bg-card p-4">
+          <Skeleton className="mb-3 h-4 w-40" />
+          <SkeletonText lines={3} lastLineWidth="45%" />
+        </div>
+        <div className="ml-auto max-w-[66%] rounded-2xl border border-border bg-accent-soft p-4">
+          <Skeleton className="mb-3 h-4 w-32" />
+          <SkeletonText lines={2} lastLineWidth="55%" />
+        </div>
+        <div className="mr-auto max-w-[78%] rounded-2xl border border-border bg-card p-4">
+          <Skeleton className="mb-3 h-4 w-52" />
+          <SkeletonText lines={4} lastLineWidth="35%" />
+        </div>
+      </div>
+      <div className="border-t border-border bg-card p-4">
+        <div className="flex items-end gap-3 rounded-2xl border border-border bg-background p-3">
+          <Skeleton className="h-9 flex-1 rounded-xl" />
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <Skeleton className="h-9 w-20 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TasksPaneSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card p-3">
+        <Skeleton className="h-9 w-48 rounded-xl" />
+        <Skeleton className="h-9 w-24 rounded-xl" />
+        <Skeleton className="ml-auto h-9 w-28 rounded-xl" />
+      </div>
+      <div className="min-h-0 flex-1 space-y-3 overflow-hidden p-4">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start gap-3">
+              <Skeleton className="h-5 w-5 rounded-md" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContactsPaneSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card p-3">
+        <Skeleton className="h-9 flex-1 rounded-xl" />
+        <Skeleton className="h-9 w-28 rounded-xl" />
+        <Skeleton className="h-9 w-24 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3 overflow-hidden p-3">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <SkeletonCard key={index} lines={2} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FunctionsPaneSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card p-3">
+        <Skeleton className="h-9 w-56 rounded-xl" />
+        <Skeleton className="ml-auto h-9 w-64 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 gap-3 overflow-hidden p-3 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 9 }).map((_, index) => (
+          <SkeletonCard key={index} lines={2} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DataPaneSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 overflow-hidden bg-background">
+      <div className="w-72 shrink-0 border-r border-border bg-card p-3">
+        <Skeleton className="mb-3 h-9 rounded-xl" />
+        {Array.from({ length: 8 }).map((_, index) => (
+          <Skeleton key={index} className="mb-2 h-8 rounded-lg" />
+        ))}
+      </div>
+      <div className="min-w-0 flex-1 p-4">
+        <Skeleton className="mb-4 h-8 w-64" />
+        <SkeletonTable rows={8} cols={5} />
+      </div>
+    </div>
+  );
+}
+
+function TranscriptsPaneSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card p-3">
+        <Skeleton className="h-9 w-56 rounded-xl" />
+        <Skeleton className="ml-auto h-9 w-64 rounded-xl" />
+      </div>
+      <TabSplitSkeleton className="min-h-0 flex-1" listRows={8} />
+    </div>
+  );
+}
+
+export function AssistantSectionSkeleton({
+  sectionId,
+  className,
+}: {
+  sectionId: string;
+  className?: string;
+}) {
+  const body = (() => {
+    switch (sectionId) {
+      case 'chat':
+        return <ChatPaneSkeleton />;
+      case 'actions':
+        return (
+          <div className="space-y-2 overflow-hidden p-3">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <ActionCardSkeleton key={index} />
+            ))}
+          </div>
+        );
+      case 'dashboards':
+        return <DashboardGridSkeleton className="h-full overflow-hidden" />;
+      case 'tasks':
+        return <TasksPaneSkeleton />;
+      case 'integrations':
+        return <IntegrationGridSkeleton className="m-4" />;
+      case 'contacts':
+        return <ContactsPaneSkeleton />;
+      case 'transcripts':
+        return <TranscriptsPaneSkeleton />;
+      case 'knowledge':
+      case 'guidance':
+        return <TabSplitSkeleton className="h-full" listRows={7} />;
+      case 'functions':
+        return <FunctionsPaneSkeleton />;
+      case 'data':
+        return <DataPaneSkeleton />;
+      default:
+        return <SectionBodySkeleton className="h-full" />;
+    }
+  })();
+
+  return (
+    <div
+      className={cn('h-full min-h-0 bg-background', className)}
+      data-testid="assistant-section-skeleton"
+    >
+      {body}
     </div>
   );
 }
