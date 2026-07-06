@@ -103,6 +103,7 @@ export interface AssistantInfoSidePanelContentProps {
     onTriggerReferenceStep?: (stepId: string) => void;
     onAddWhatsappNumber?: () => void;
     onAddPhoneNumber?: () => void;
+    onAddDiscordId?: () => void;
     onConnectSlack?: () => void;
     onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
@@ -390,6 +391,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
                 onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
                 onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
+                onAddDiscordId={coordinatorOnboarding.onAddDiscordId}
                 onConnectSlack={coordinatorOnboarding.onConnectSlack}
                 onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
