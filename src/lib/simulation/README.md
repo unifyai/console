@@ -10,15 +10,33 @@ without a full local stack or the right seeded scenario.
 Set the single build-time flag and (re)start the server:
 
 ```bash
+npm run dev:mock
+# or explicitly
 NEXT_PUBLIC_MOCK_SIM=true npm run dev
-# or for a production-style run
-NEXT_PUBLIC_MOCK_SIM=true npm run build && NEXT_PUBLIC_MOCK_SIM=true npm run start
+
+# production-style run (flag must be present at build time)
+npm run build:mock && npm run start:mock
 ```
 
 Then open **`/mock`** to pick a scenario + persona. Selecting one establishes the
 mock session (via cookies) and drops you into the real shell at `/assistants`.
 A persistent **MOCK** badge (bottom-right) shows the active scenario/persona and
 links back to `/mock` to switch.
+
+### Quick walkthrough (unified shell)
+
+After entering a scenario, exercise the refactored assistant shell:
+
+| Area               | What to check                                               |
+| ------------------ | ----------------------------------------------------------- |
+| **Workspace rail** | Chat, Actions, Dashboards, Tasks, Integrations              |
+| **Brain rail**     | Contacts, Transcripts, Knowledge, Functions, Guidance, Data |
+| **Settings**       | Account, Billing, Usage (billing + ledger mocked)           |
+| **Chat**           | History from fixtures; sample table/plot embed messages     |
+| **Actions**        | ManagerMethod + ToolLoop tree from fixtures                 |
+| **Dashboards**     | Layout + HTML tiles                                         |
+| **Tasks**          | Task cards, run history, optional running-task rail dot     |
+| **Integrations**   | Connected apps + paginated catalog browse                   |
 
 The flag is read through `process.env.NEXT_PUBLIC_MOCK_SIM`, so it inlines at
 build time. When it is off (the default, and in every prod/CI build) **none of
