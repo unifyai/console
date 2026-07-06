@@ -32,7 +32,7 @@ export function TabHeader({ section, leading, right }: TabHeaderProps) {
             <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
           </span>
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="text-h2 min-w-0 truncate text-foreground">{section.label}</span>
+            <h2 className="text-h2 min-w-0 truncate text-foreground">{section.label}</h2>
             <button
               type="button"
               onClick={() => setInfo((v) => !v)}

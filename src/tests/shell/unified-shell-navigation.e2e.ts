@@ -18,7 +18,7 @@ import {
   selectAssistantInList,
 } from '../assistants/helpers';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
-import { assistantRail, railSection } from '../helpers/shell';
+import { assistantRail, railSection, visibleShellTestId } from '../helpers/shell';
 
 const user = createTestUser({ name: 'UnifiedShell', lastName: 'Navigator', credits: 50_000 });
 ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
@@ -157,7 +157,7 @@ test('settings/admin/assistants switch without document reload and preserve assi
   });
   const initialNavigationCount = await navigationEntryCount(page);
 
-  await page.getByTestId('rail-nav-settings').click();
+  await visibleShellTestId(page, 'rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/);
   await expect(page.getByTestId('settings-subrail')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
@@ -190,7 +190,7 @@ test('settings/admin/assistants switch without document reload and preserve assi
   expect(await stopAdminToTasksObserver()).toEqual([]);
 
   const stopTasksToAccountObserver = await observeSkeletonFlicker(page);
-  await page.getByTestId('rail-nav-settings').click();
+  await visibleShellTestId(page, 'rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/);
   await expectNoSectionBodySkeleton(page);
   expect(await stopTasksToAccountObserver()).toEqual([]);

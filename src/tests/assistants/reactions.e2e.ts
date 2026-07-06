@@ -87,16 +87,19 @@ test('user can add and remove a reaction optimistically in the chat UI @push @ar
     timeout: 30_000,
   });
 
+  // The unified shell can keep a hidden duplicate chat surface mounted, so
+  // scope the hover/click/assert chain to the visible bubble only — page-wide
+  // locators can hit the hidden copy, whose state never updates.
   const assistantBubble = page
-    .locator('[data-testid="message-bubble"][data-role="assistant"]')
+    .locator('[data-testid="message-bubble"][data-role="assistant"]:visible')
     .first();
   await assistantBubble.hover();
-  await page.getByTestId('chat-reaction-picker').first().click();
+  await assistantBubble.getByTestId('chat-reaction-picker').click();
   await page.getByTestId('chat-reaction-👍').click();
-  await expect(page.getByTestId('chat-message-reactions').first()).toContainText('👍');
+  await expect(assistantBubble.getByTestId('chat-message-reactions')).toContainText('👍');
 
-  await page.getByTestId('chat-reaction-chip-👍').first().click();
-  await expect(page.getByTestId('chat-message-reactions')).toHaveCount(0);
+  await assistantBubble.getByTestId('chat-reaction-chip-👍').click();
+  await expect(assistantBubble.getByTestId('chat-message-reactions')).toHaveCount(0);
 });
 
 test('user can pick a custom emoji from the expanded reaction picker @push @area(assistants.chat)', async ({
@@ -116,14 +119,17 @@ test('user can pick a custom emoji from the expanded reaction picker @push @area
   });
 
   const assistantBubble = page
-    .locator('[data-testid="message-bubble"][data-role="assistant"]')
+    .locator('[data-testid="message-bubble"][data-role="assistant"]:visible')
     .first();
   await assistantBubble.hover();
-  await page.getByTestId('chat-reaction-picker').first().click();
+  await assistantBubble.getByTestId('chat-reaction-picker').click();
   await page.getByTestId('chat-reaction-expand').click();
-  await expect(page.getByPlaceholder('Search')).toBeVisible();
+  // Multiple Search inputs exist across mounted shell surfaces; scope to the
+  // emoji picker portal.
+  const emojiSearch = page.locator('.EmojiPickerReact').getByPlaceholder('Search');
+  await expect(emojiSearch).toBeVisible();
 
-  await page.getByPlaceholder('Search').fill('tada');
+  await emojiSearch.fill('tada');
   await page.locator('.EmojiPickerReact button').filter({ hasText: '🎉' }).first().click();
-  await expect(page.getByTestId('chat-message-reactions').first()).toContainText('🎉');
+  await expect(assistantBubble.getByTestId('chat-message-reactions')).toContainText('🎉');
 });
