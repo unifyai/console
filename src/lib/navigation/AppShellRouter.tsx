@@ -3,15 +3,20 @@
 import * as React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
+  LIBRARY_ROUTE_PREFIXES,
+  UNIFIED_SHELL_PATHS,
+  hrefForShellRoute,
   isAssistantsPath,
+  isLibraryPath,
   isSettingsFamilyPath,
-  isRoutedShellPath,
-  SETTINGS_ROUTE_PREFIXES,
 } from '@/lib/navigation/appShellRoutes';
+import type { ShellRouteDescriptor } from '@/lib/navigation/shellRoutes';
 
 interface AppShellNavigationContextValue {
   pendingTargetHref: string | null;
   setPendingTargetHref: (href: string | null) => void;
+  pendingAssistantSectionId: string | null;
+  setPendingAssistantSectionId: (sectionId: string | null) => void;
 }
 
 const AppShellNavigationContext = React.createContext<AppShellNavigationContextValue | null>(null);
@@ -24,19 +29,30 @@ export function pathnameFromHref(href: string): string {
 export function AppShellNavigationProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/assistants';
   const [pendingTargetHref, setPendingTargetHref] = React.useState<string | null>(null);
+  const [pendingAssistantSectionId, setPendingAssistantSectionId] = React.useState<string | null>(
+    null
+  );
 
   React.useEffect(() => {
     if (!pendingTargetHref) return;
 
     const pendingPathname = pathnameFromHref(pendingTargetHref);
-    if (pathname === pendingPathname || !isAssistantsPath(pathname)) {
+    if (
+      pathname === pendingPathname ||
+      (!isAssistantsPath(pendingPathname) && !isAssistantsPath(pathname))
+    ) {
       setPendingTargetHref(null);
     }
   }, [pathname, pendingTargetHref]);
 
   const value = React.useMemo(
-    () => ({ pendingTargetHref, setPendingTargetHref }),
-    [pendingTargetHref]
+    () => ({
+      pendingTargetHref,
+      setPendingTargetHref,
+      pendingAssistantSectionId,
+      setPendingAssistantSectionId,
+    }),
+    [pendingAssistantSectionId, pendingTargetHref]
   );
 
   return (
@@ -50,18 +66,27 @@ export function usePendingShellNavigationTarget(): string | null {
   return React.useContext(AppShellNavigationContext)?.pendingTargetHref ?? null;
 }
 
+export function usePendingAssistantSectionTarget(): {
+  pendingAssistantSectionId: string | null;
+  clearPendingAssistantSection: () => void;
+} {
+  const navigationContext = React.useContext(AppShellNavigationContext);
+  const clearPendingAssistantSection = React.useCallback(() => {
+    navigationContext?.setPendingAssistantSectionId(null);
+  }, [navigationContext]);
+
+  return {
+    pendingAssistantSectionId: navigationContext?.pendingAssistantSectionId ?? null,
+    clearPendingAssistantSection,
+  };
+}
+
 /**
  * Navigation for the authenticated app shell.
  *
- * Settings, admin, interfaces, and favourites render through their own route
- * segments via native Next.js navigation, so they keep their `loading.tsx`
- * skeletons and the browser's back/forward semantics.
- *
- * The assistants surface is different: its runtime (`Main`) is mounted once by
- * the shell layout and only ever hidden, so SSE, live calls, and action streams
- * survive. When the user is already inside the shell on a routed surface,
- * returning to `/assistants` can reveal that existing runtime without a server
- * round-trip.
+ * Unified shell surfaces use native Next.js navigation against one catch-all
+ * page owner. Same-path query changes can use the browser History API because
+ * they do not swap surfaces.
  */
 export function useAppShellNavigation() {
   const router = useRouter();
@@ -69,20 +94,25 @@ export function useAppShellNavigation() {
   const navigationContext = React.useContext(AppShellNavigationContext);
 
   const navigateTo = React.useCallback(
-    (href: string) => {
+    (target: string | ShellRouteDescriptor) => {
+      const href = typeof target === 'string' ? target : hrefForShellRoute(target);
       const targetPathname = pathnameFromHref(href);
+      const isCrossSurfaceNavigation =
+        targetPathname !== pathname &&
+        (isAssistantsPath(targetPathname) ||
+          isAssistantsPath(pathname) ||
+          isSettingsFamilyPath(targetPathname) ||
+          isSettingsFamilyPath(pathname) ||
+          isLibraryPath(targetPathname) ||
+          isLibraryPath(pathname));
 
       if (isAssistantsPath(targetPathname)) {
-        navigationContext?.setPendingTargetHref(null);
-        if (typeof window !== 'undefined' && isRoutedShellPath(pathname)) {
-          window.history.pushState(null, '', href);
-          return;
-        }
+        navigationContext?.setPendingTargetHref(isCrossSurfaceNavigation ? href : null);
         router.push(href);
         return;
       }
 
-      if (isAssistantsPath(pathname) && isRoutedShellPath(targetPathname)) {
+      if (isCrossSurfaceNavigation) {
         navigationContext?.setPendingTargetHref(href);
       } else {
         navigationContext?.setPendingTargetHref(null);
@@ -93,23 +123,32 @@ export function useAppShellNavigation() {
     [navigationContext, pathname, router]
   );
 
-  const navigateToAssistants = React.useCallback(() => {
-    navigationContext?.setPendingTargetHref(null);
-    if (typeof window !== 'undefined' && isRoutedShellPath(pathname)) {
-      window.history.pushState(null, '', '/assistants');
-      return;
+  const navigateToAssistants = React.useCallback(
+    (options?: { sectionId?: string | null; profile?: string | null }) => {
+      navigationContext?.setPendingAssistantSectionId(options?.sectionId ?? null);
+      navigateTo({ surface: 'assistants', profile: options?.profile ?? null });
+    },
+    [navigateTo, navigationContext]
+  );
+
+  const pushShellQuery = React.useCallback((href: string) => {
+    if (typeof window === 'undefined') return;
+    const targetPathname = pathnameFromHref(href);
+    if (targetPathname !== window.location.pathname) {
+      throw new Error('pushShellQuery only supports same-path query updates');
     }
-    router.push('/assistants');
-  }, [navigationContext, pathname, router]);
+    window.history.pushState(null, '', href);
+  }, []);
 
   return {
     activeHref: pathname,
     showAssistants: isAssistantsPath(pathname),
     showSettings: isSettingsFamilyPath(pathname),
-    showRoutedSurface: isRoutedShellPath(pathname),
+    showRoutedSurface: isSettingsFamilyPath(pathname) || isLibraryPath(pathname),
     assistantsSurfaceActive: isAssistantsPath(pathname),
     navigateToAssistants,
     navigateTo,
+    pushShellQuery,
   };
 }
 
@@ -125,8 +164,7 @@ export function useShellActivePath(): string {
 export function useAppShellPrefetch(): void {
   const router = useRouter();
   React.useEffect(() => {
-    router.prefetch('/assistants');
-    for (const prefix of SETTINGS_ROUTE_PREFIXES) {
+    for (const prefix of [...UNIFIED_SHELL_PATHS, ...LIBRARY_ROUTE_PREFIXES]) {
       router.prefetch(prefix);
     }
   }, [router]);
