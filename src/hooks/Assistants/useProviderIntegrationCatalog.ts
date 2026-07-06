@@ -343,6 +343,15 @@ export function useProviderIntegrationCatalog(
     statusGroups,
   ]);
 
+  const refresh = React.useCallback(async () => {
+    if (!enabled || !assistantId) return;
+    setDefinitions([]);
+    setPinnedDefinitions([]);
+    setHasLoaded(false);
+    hasLoadedRef.current = false;
+    await fetchCatalog();
+  }, [assistantId, enabled, fetchCatalog]);
+
   React.useEffect(() => {
     if (loadedRequestKeyRef.current === requestKey) return;
     void fetchCatalog();
@@ -523,7 +532,7 @@ export function useProviderIntegrationCatalog(
     generatedAt,
     isDetailLoading,
     isConnecting,
-    refresh: fetchCatalog,
+    refresh,
     loadMore,
     fetchDetails,
     startConnect,

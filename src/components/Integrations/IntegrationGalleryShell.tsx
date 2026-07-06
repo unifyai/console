@@ -88,6 +88,9 @@ function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGaller
   return true;
 }
 
+const INTEGRATION_CARD_GRID_CLASS =
+  'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4';
+
 function GallerySkeleton() {
   return <IntegrationGridSkeleton />;
 }
@@ -174,7 +177,7 @@ export function IntegrationGalleryShell({
     () => [...connectedItems, ...needsAttentionItems],
     [connectedItems, needsAttentionItems]
   );
-  const isInitialLoading = Boolean(isLoading && items.length === 0);
+  const isInitialLoading = Boolean((isLoading || isRefreshing) && items.length === 0);
   const hasConnectedSection = connectedItems.length > 0;
   const hasNeedsAttentionSection = needsAttentionItems.length > 0;
   const hasBrowsableSection = browsableItems.length > 0;
@@ -290,7 +293,7 @@ export function IntegrationGalleryShell({
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
+                    <div className={INTEGRATION_CARD_GRID_CLASS}>
                       {pinnedItems.map((item) => (
                         <ProviderIntegrationCard
                           key={`${item.source}:${item.id}`}
@@ -319,7 +322,7 @@ export function IntegrationGalleryShell({
                           {connectedItems.length} connected
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
+                      <div className={INTEGRATION_CARD_GRID_CLASS}>
                         {connectedItems.map((item) => (
                           <ProviderIntegrationCard
                             key={`${item.source}:${item.id}`}
@@ -352,7 +355,7 @@ export function IntegrationGalleryShell({
                           {needsAttentionItems.length} need attention
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
+                      <div className={INTEGRATION_CARD_GRID_CLASS}>
                         {needsAttentionItems.map((item) => (
                           <ProviderIntegrationCard
                             key={`${item.source}:${item.id}`}
