@@ -30,6 +30,7 @@ const friend = createTestUser({ name: 'Referred', lastName: 'Friend', credits: 0
 const otherReferrer = createTestUser({ name: 'Other', lastName: 'Referrer', credits: 0 });
 
 const test = createBillingTest(referrer);
+test.describe.configure({ mode: 'serial' });
 
 test.afterAll(() => {
   clearReferralData(referrer.id);
@@ -104,6 +105,7 @@ test('attributes a referred friend to the referrer code', async ({
 
 test('a referee is attributed at most once', async ({ authedPage: page, browser }, testInfo) => {
   testInfo.setTimeout(90_000);
+  clearReferralData(friend.id);
 
   await page.goto('/assistants');
   const codeA = await page.evaluate(async () => {

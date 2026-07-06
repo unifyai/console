@@ -21,6 +21,7 @@ import {
   ensureProjectSync,
 } from '../assistants/helpers';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
+import { assistantRail } from '../helpers/shell';
 
 const user = createTestUser({ name: 'ShellRoutes', lastName: 'Smoke', credits: 50_000 });
 ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
@@ -53,7 +54,7 @@ test('/favourites renders inside the rail shell with its section header @push @c
   await gotoAppShellRoute(page, '/favourites');
 
   await expect(page).toHaveURL(/\/favourites/);
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 15_000 });
   // Page body heading (TabHeader also shows the section label in the rail chrome).
   await expect(page.getByRole('heading', { name: 'Favourites' })).toBeVisible();
   // Favourites body streamed in.
@@ -65,7 +66,7 @@ test('/interfaces renders inside the rail shell for a Unify member @push @critic
 }) => {
   await gotoAppShellRoute(page, '/interfaces');
 
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   // Project picker is part of the interfaces nav chrome; interface picker only mounts when
   // the selected project has at least one interface.
   await expect(page.getByTestId('project-picker-trigger')).toBeVisible({ timeout: 25_000 });

@@ -21,6 +21,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
 } from './helpers';
+import { assistantRail } from '../helpers/shell';
 
 const user = createTestUser({ name: 'ShellE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -48,7 +49,7 @@ test('the rail renders with the brand and unity switcher', async ({ authedPage: 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const rail = page.getByTestId('assistant-rail');
+  const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 15_000 });
   await expect(rail.getByText('Unify', { exact: true })).toBeVisible();
   await expect(page.getByTestId('rail-unity-switcher')).toBeVisible();
@@ -106,10 +107,10 @@ test('mobile viewport exposes rail navigation via the menu toggle', async ({
   await closeHireDialogIfOpen(page);
 
   await expect(page.getByTestId('rail-mobile-toggle')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('assistant-rail')).toHaveCount(0);
+  await expect(assistantRail(page)).toHaveCount(0);
 
   await page.getByTestId('rail-mobile-toggle').click();
-  const rail = page.getByTestId('assistant-rail');
+  const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('rail-section-chat')).toBeVisible();
   await expect(page.getByTestId('chat-search-trigger')).toBeVisible();

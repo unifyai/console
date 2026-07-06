@@ -8,7 +8,7 @@ Legend: **keep** · **delete** · **`@push`** = runs every branch push · **`@cr
 
 ## Push Gate (`push-gate`)
 
-Platform-entry blockers: login → shell → routes → list → chat → billing guard. All `@push` tests run on every push (~13 tests).
+Platform-entry blockers: login → shell → routes → list → chat → billing guard. All `@push` tests run on every push (~18 tests).
 
 | File                                    | Tier | Verdict | Notes                                 |
 | --------------------------------------- | ---- | ------- | ------------------------------------- |
@@ -20,6 +20,8 @@ Platform-entry blockers: login → shell → routes → list → chat → billin
 | `assistants/shell.e2e.ts`               | push | keep    | Unity switcher `@push`                |
 | `assistants/list.e2e.ts`                | push | keep    | Onboard + seeded list `@push`         |
 | `assistants/chat.e2e.ts`                | push | keep    | Send message `@push`                  |
+| `assistants/floating-chat.e2e.ts`       | push | keep    | Settings floater `@push`              |
+| `assistants/reactions.e2e.ts`           | push | keep    | Chat reactions `@push`                |
 | `billing/billable-action-guard.e2e.ts`  | push | keep    | Enabled with credits `@push`          |
 | `billing/access-control.e2e.ts`         | push | keep    | Billing page sections `@push`         |
 | `account/workspace-context.e2e.ts`      | push | keep    | Org workspace balance `@push`         |

@@ -23,6 +23,7 @@ import {
   dbExec,
 } from './helpers';
 import { deferCoordinatorForUser, ensureShellReady } from '../helpers/coordinator';
+import { assistantRail } from '../helpers/shell';
 import { openUnitySwitcher, closeHireDialogIfOpen } from '../assistants/helpers';
 
 // =============================================================================
@@ -263,7 +264,7 @@ test.describe('Onboarding', () => {
     );
     expect(managedOrgTeamCount).toBe('0');
 
-    await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 15_000 });
+    await expect(assistantRail(page)).toBeVisible({ timeout: 15_000 });
     await closeHireDialogIfOpen(page);
     await openUnitySwitcher(page, { userId, apiKey });
     await expect(page.getByTestId('rail-unity-switcher-popover')).toBeVisible({

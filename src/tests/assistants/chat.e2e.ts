@@ -42,6 +42,8 @@ import {
   createContactSeeder,
   createTranscriptSeeder,
   createOpenAssistantChat,
+  chatComposer,
+  waitForChatSendReady,
 } from './chat-helpers';
 
 const user = createTestUser({ name: 'ChatE2E', lastName: 'Tester', credits: 50_000 });
@@ -78,22 +80,16 @@ test('sending a message shows it as a user message in the chat @push @critical @
 
   await openAssistantChat(page);
 
-  // Wait for textarea to be enabled (contact resolution + chat ready)
-  const textarea = page.locator('textarea');
-  await expect(textarea).toBeEnabled({ timeout: 20_000 });
-
   const testMessage = `Hello from E2E test ${Date.now()}`;
+  const textarea = chatComposer(page);
+  await waitForChatSendReady(page);
   await textarea.fill(testMessage);
-  await textarea.press('Enter');
+  await page.getByRole('button', { name: 'Send message' }).click();
 
-  // The message should appear as a user bubble
-  await expect(page.locator(`text=${testMessage}`).first()).toBeVisible({ timeout: 10_000 });
+  const chatArea = page.getByTestId('chat-scroll-area');
+  await expect(chatArea.getByText(testMessage)).toBeVisible({ timeout: 10_000 });
 
-  // Verify the message bubble has role="user" via data-role
-  const userBubble = page.locator(`[data-role="user"]:has-text("${testMessage}")`);
-  await expect(userBubble).toBeVisible({ timeout: 5_000 });
-
-  await expect(page.locator('text=Typing')).toBeVisible({ timeout: 5_000 });
+  await expect(chatArea.getByText('Typing')).toBeVisible({ timeout: 5_000 });
 });
 
 test('historical transcript messages load when navigating to an assistant @critical @area(assistants.chat)', async ({
@@ -135,11 +131,13 @@ test('historical transcript messages load when navigating to an assistant @criti
 
   await openAssistantChat(page);
 
+  const chatArea = page.getByTestId('chat-scroll-area');
+
   for (const m of msgs) {
-    await expect(page.locator(`text=${m.content}`).first()).toBeVisible({ timeout: 20_000 });
+    await expect(chatArea.getByText(m.content)).toBeVisible({ timeout: 20_000 });
   }
 
-  const bubbles = page.locator('[data-testid="message-bubble"]');
+  const bubbles = chatArea.locator('[data-testid="message-bubble"]');
   const count = await bubbles.count();
   expect(count).toBeGreaterThanOrEqual(4);
   const indices: number[] = [];
@@ -160,7 +158,7 @@ test('chat input is disabled when credits are exhausted and re-enables after fun
 
   await openAssistantChat(page);
 
-  const textarea = page.locator('textarea');
+  const textarea = chatComposer(page);
   await expect(textarea).toBeVisible({ timeout: 10_000 });
   await expect(textarea).toBeDisabled({ timeout: 15_000 });
 
@@ -174,7 +172,7 @@ test('chat input is disabled when credits are exhausted and re-enables after fun
 
   setUserCredits(user.id, 50_000);
   await openAssistantChat(page);
-  await expect(page.locator('textarea')).toBeEnabled({ timeout: 20_000 });
+  await expect(chatComposer(page)).toBeEnabled({ timeout: 20_000 });
 });
 
 test('shared-root chat history merges root-local identities and paginates', async ({

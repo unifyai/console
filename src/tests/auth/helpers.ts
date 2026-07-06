@@ -38,6 +38,17 @@ export type { SeededOrg } from '../helpers/seeds/types';
 // UI Helpers
 // =============================================================================
 
+/** Wait until the login page leaves the sign-out / session-loading spinner. */
+export async function waitForLoginSurface(page: Page, timeout = 30_000): Promise<void> {
+  await expect(
+    page
+      .locator(
+        '[data-testid="dev-quick-login"], [data-testid="email-auth-tab"], [data-testid="email-login-form"]'
+      )
+      .first()
+  ).toBeVisible({ timeout });
+}
+
 /** Switch to the email sign-in form (the surface may open on OAuth or register). */
 export async function switchToEmailTab(page: Page) {
   if (!page.url().includes('/login')) return;
@@ -60,6 +71,7 @@ export async function switchToEmailTab(page: Page) {
 
   // Surfaces that show OAuth buttons gate the email form behind an "email" tab.
   if (await emailTab.isVisible().catch(() => false)) {
+    await emailTab.scrollIntoViewIfNeeded();
     try {
       await emailTab.click({ timeout: 5_000 });
     } catch {
@@ -93,6 +105,49 @@ export async function login(page: Page, email: string, password: string) {
 }
 
 /**
+ * Mint a session via the pre-auth API + NextAuth credentials callback.
+ *
+ * Avoids the login UI, which can push the email tab off-screen when the dev
+ * quick-login panel lists many seeded users. Returns false when Orchestra rejects
+ * the credentials so callers can fall back to the browser form.
+ */
+export async function loginWithPreAuthApi(
+  page: Page,
+  email: string,
+  password: string,
+  timeout = 30_000
+): Promise<boolean> {
+  const origin = process.env.BASE_URL || 'http://localhost:3000';
+
+  const authRes = await page.request.post(`${origin}/api/auth/email/authenticate`, {
+    data: { email, password },
+  });
+  if (!authRes.ok()) return false;
+
+  const { preAuthToken } = (await authRes.json()) as { preAuthToken?: string };
+  if (!preAuthToken) return false;
+
+  const csrfRes = await page.request.get(`${origin}/api/auth/csrf`);
+  const { csrfToken } = (await csrfRes.json()) as { csrfToken?: string };
+  if (!csrfToken) return false;
+
+  const callbackRes = await page.request.post(`${origin}/api/auth/callback/credentials`, {
+    form: {
+      csrfToken,
+      email,
+      password,
+      preAuthToken,
+      callbackUrl: `${origin}/assistants`,
+      json: 'true',
+    },
+  });
+  if (!callbackRes.ok()) return false;
+
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded', timeout });
+  return new URL(page.url()).pathname !== '/login';
+}
+
+/**
  * Submit the email login form and wait for the post-login redirect.
  *
  * Use this in fixtures that expect authentication to succeed. It starts
@@ -105,6 +160,8 @@ export async function loginAndWaitForRedirect(
   password: string,
   timeout = 30_000
 ) {
+  if (await loginWithPreAuthApi(page, email, password, timeout)) return;
+
   await fillLoginForm(page, email, password);
   if (!page.url().includes('/login')) return;
   const loginFormHidden = page

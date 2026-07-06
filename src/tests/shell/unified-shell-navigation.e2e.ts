@@ -18,6 +18,7 @@ import {
   selectAssistantInList,
 } from '../assistants/helpers';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
+import { assistantRail } from '../helpers/shell';
 
 const user = createTestUser({ name: 'UnifiedShell', lastName: 'Navigator', credits: 50_000 });
 ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
@@ -126,7 +127,7 @@ test('direct assistants entry settles into the assistant shell @push @area(assis
 }) => {
   await navigateToAssistants(page, { userId: user.id, apiKey: user.apiKey });
   await closeHireDialogIfOpen(page);
-  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 15_000 });
+  await expect(assistantRail(page)).toBeVisible({ timeout: 15_000 });
   await expectNoWorkspaceCube(page);
 });
 

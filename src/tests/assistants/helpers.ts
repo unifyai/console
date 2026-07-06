@@ -9,7 +9,13 @@
 import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
-import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import {
+  login,
+  loginAndWaitForRedirect,
+  loginWithPreAuthApi,
+  switchToEmailTab,
+  waitForLoginSurface,
+} from '../auth/helpers';
 import { orchestraFetch as _orchestraFetch } from '../helpers/seeds/client';
 import {
   deferCoordinatorAfterAssistantsLoad,
@@ -19,6 +25,7 @@ import {
   ensureShellReady,
   getCoordinatorAgentId,
 } from '../helpers/coordinator';
+import { assistantRail, waitForAssistantsRail } from '../helpers/shell';
 
 export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -63,62 +70,47 @@ export { login, switchToEmailTab };
 // Shared Auth — storageState
 // =============================================================================
 
-/**
- * Authenticate a seeded user via the dev quick-login panel.
- *
- * The local dev login page defaults to the OAuth tab (Google is configured),
- * so the password form is one tab-switch away and racier than the dev panel.
- * The dev panel mints a session with a single click, so it is the primary path;
- * we avoid `waitForURL` (which hangs the full timeout on any redirect race) and
- * force-navigate to `/assistants` instead, then confirm we left `/login`.
- */
 async function tryDevQuickLogin(page: Page, email: string): Promise<boolean> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await page.goto(attempt === 0 ? '/login?signout=true' : '/login');
-    await page.waitForLoadState('domcontentloaded');
-    const quickLoginButton = page
-      .getByTestId('dev-quick-login')
-      .locator('button', { hasText: email })
-      .first();
-    if (!(await quickLoginButton.isVisible({ timeout: 10_000 }).catch(() => false))) continue;
-
-    await quickLoginButton.click();
-    await page.waitForTimeout(800);
-    if (new URL(page.url()).pathname === '/login') {
-      await page.goto('/assistants');
-      await page.waitForLoadState('domcontentloaded');
-    }
-    if (new URL(page.url()).pathname !== '/login') return true;
+  const quickLoginButton = page
+    .getByTestId('dev-quick-login')
+    .getByRole('button', { name: new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) })
+    .first();
+  if (!(await quickLoginButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
+    return false;
   }
-  return false;
+
+  await quickLoginButton.scrollIntoViewIfNeeded();
+  await quickLoginButton.click();
+  await page.waitForTimeout(800);
+  if (new URL(page.url()).pathname === '/login') {
+    await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
+  }
+  return new URL(page.url()).pathname !== '/login';
 }
 
 /**
  * Authenticate a seeded user.
  *
- * Email+password is the primary path: it is deterministic and does not depend
- * on the dev quick-login panel (which queries Postgres for every `seed-%` user
- * and can be slow). The credentials submit occasionally bounces back to
- * `/login` locally, so we fall back to the dev panel. Throws if neither path
- * leaves `/login`.
+ * Prefers the pre-auth API (fast, works for users not yet listed in dev
+ * quick-login). Falls back to the dev panel, then the email form.
  */
 export async function authenticate(page: Page, email: string, password: string): Promise<void> {
-  // The dev server compiles routes on first hit and the seed-user lookup can be
-  // slow under load, so a cold first attempt occasionally times out or bounces
-  // back to /login. Retry the whole goto+login flow a few times with a bounded
-  // navigation timeout so a single cold start doesn't fail the run.
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await page.goto(attempt === 1 ? '/login?signout=true' : '/login', { timeout: 45_000 });
-      if (await tryDevQuickLogin(page, email)) return;
-      try {
-        await loginAndWaitForRedirect(page, email, password, 30_000);
-      } catch {
-        /* fall back to the dev quick-login panel below */
+      const loginPath = attempt === 1 ? '/login' : '/login?signout=true';
+      await page.goto(loginPath, { timeout: 45_000, waitUntil: 'domcontentloaded' });
+      if (attempt > 1) {
+        await waitForLoginSurface(page, 30_000);
       }
-      if (new URL(page.url()).pathname !== '/login') return;
+
+      if (await loginWithPreAuthApi(page, email, password, 30_000)) return;
+
+      await waitForLoginSurface(page, 15_000);
       if (await tryDevQuickLogin(page, email)) return;
+
+      await loginAndWaitForRedirect(page, email, password, 30_000);
+      if (new URL(page.url()).pathname !== '/login') return;
     } catch {
       /* navigation or login error — retry below */
     }
@@ -250,6 +242,7 @@ export function createAssistantTest(user: {
         await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
         await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
         await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await waitForAssistantsRail(warmPage);
         await warmCtx.storageState({ path: authFile });
         await warmCtx.close();
       }
@@ -299,7 +292,7 @@ export async function navigateToAssistants(
     await dismissCoordinatorOnboardingIfOpen(page);
   }
   if (!opts?.skipRailCheck) {
-    await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+    await waitForAssistantsRail(page);
   }
 }
 
@@ -358,6 +351,24 @@ export async function openUnitySwitcher(page: Page, opts?: { userId?: string; ap
   await expect(switcher).toBeVisible({ timeout: 10_000 });
   await switcher.click();
   await expect(popover).toBeVisible({ timeout: 5_000 });
+  await waitForAssistantListReady(page);
+}
+
+/** Wait until the switcher popover list finished loading assistants. */
+export async function waitForAssistantListReady(page: Page, timeout = 45_000): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const search = page.getByPlaceholder(/Search assistants/i);
+        if (await search.isEnabled().catch(() => false)) return 'ready';
+        if ((await page.locator('[data-testid^="assistant-list-item-"]').count()) > 0) {
+          return 'ready';
+        }
+        return 'pending';
+      },
+      { timeout }
+    )
+    .toBe('ready');
 }
 
 /**
@@ -374,14 +385,14 @@ export async function openRailSection(page: Page, sectionId: string) {
  * rail's unity switcher popover. If the dialog is already open (e.g.
  * auto-opened on empty state), skip.
  */
-export async function openHireDialog(page: Page) {
+export async function openHireDialog(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const dialog = page.locator('[role="dialog"]');
   if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
     return;
   }
-  await openUnitySwitcher(page);
+  await openUnitySwitcher(page, opts);
   const onboardBtn = page.getByTestId('assistant-onboard-button');
-  await expect(onboardBtn).toBeEnabled({ timeout: 15_000 });
+  await expect(onboardBtn).toBeEnabled({ timeout: 30_000 });
   await onboardBtn.click();
   await page.waitForTimeout(1_000);
 }

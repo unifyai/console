@@ -15,6 +15,7 @@ import {
   loginAndNavigateTo,
   switchToEmailTab,
 } from '../auth/helpers';
+import { waitForAssistantsRail } from '../helpers/shell';
 import {
   deferCoordinatorForUser,
   deferCoordinatorAfterAssistantsLoad,
@@ -175,6 +176,7 @@ export function createAccountTest(user: {
         await warmPage.goto('/assistants', { waitUntil: 'domcontentloaded' });
         await deferCoordinatorAfterAssistantsLoad(warmPage, user.id, user.apiKey);
         await dismissCoordinatorOnboardingIfOpen(warmPage);
+        await waitForAssistantsRail(warmPage);
         await warmCtx.storageState({ path: authFile });
         await warmCtx.close();
       }

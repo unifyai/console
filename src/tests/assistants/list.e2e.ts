@@ -59,10 +59,10 @@ test('the Onboard button opens the hire dialog @push @critical @area(assistants.
   // dialog from the Onboard button (the surviving user-initiated entry point).
   createAssistant({ userId: user.id, firstName: 'Existing', surname: 'Unity' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
-  await openHireDialog(page);
+  await openHireDialog(page, shellOpts);
 
   const dialog = page.locator('[role="dialog"]');
   await expect(dialog).toBeVisible({ timeout: 10_000 });
@@ -79,7 +79,7 @@ test('seeded assistants appear in the list with correct names @push @critical @a
   const a1 = createAssistant({ userId: user.id, firstName: 'Alpha', surname: 'ListTest' });
   const a2 = createAssistant({ userId: user.id, firstName: 'Beta', surname: 'ListTest' });
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
   // The list now lives inside the rail's unity switcher popover.
@@ -106,7 +106,7 @@ test('clicking an assistant in the list selects it and shows the Chat tab @criti
   const agentId = seeded.agentId;
   const dbAssistant = getAssistantFromDb(agentId);
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
   // Selecting from the switcher opens the unity in the section host with the
@@ -133,10 +133,12 @@ test('deep link ?profile=agentId opens the correct assistant', async ({ authedPa
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
 
-  await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText(dbAssistant.firstName, {
     timeout: 10_000,
   });
-  await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText(dbAssistant.surname, {
+    timeout: 5_000,
+  });
 });
 
 test('assistant list item info toggle exposes profile and contact sections', async ({
@@ -187,7 +189,7 @@ test('list updates after hiring a new assistant without page reload @critical @a
   createAssistant({ userId: user.id, firstName: 'Baseline', surname: 'Unity' });
   const firstName = `Fresh${Date.now()}`;
 
-  await navigateToAssistants(page);
+  await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
   // The list lives inside the rail's unity switcher popover — open it to
@@ -199,7 +201,7 @@ test('list updates after hiring a new assistant without page reload @critical @a
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
 
-  await openHireDialog(page);
+  await openHireDialog(page, shellOpts);
   await fillProfileFields(page, {
     firstName,
     lastName: 'ListNew',

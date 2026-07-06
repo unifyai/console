@@ -51,6 +51,7 @@ import {
   deferCoordinatorForUser,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
+import { assistantRail, waitForAssistantsRail } from '../helpers/shell';
 export { login, switchToEmailTab };
 
 /** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
@@ -66,7 +67,7 @@ export async function waitForAssistantsReady(
     }
   });
   await page.goto('/assistants');
-  await expect(page.getByTestId('assistant-rail').first()).toBeVisible({ timeout: 20_000 });
+  await waitForAssistantsRail(page);
   if (opts) {
     await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
     await dismissCoordinatorOnboardingIfOpen(page);
