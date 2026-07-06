@@ -19,7 +19,13 @@
 import { getCurrentUser } from '@/lib/user/user';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
-export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked' | 'coming_soon';
+export type OnboardingStepStatus =
+  | 'done'
+  | 'skipped'
+  | 'available'
+  | 'in_progress'
+  | 'locked'
+  | 'coming_soon';
 
 /** A read-only suggestion chip shown under the act/schedule rows. */
 export interface OnboardingChip {
@@ -78,6 +84,8 @@ export interface OnboardingStep {
   phaseId?: string | null;
   canSkip: boolean;
   manuallyCompleted?: boolean;
+  /** ISO timestamp when the user last dispatched this beat row (server-owned). */
+  dispatchedAt?: string | null;
   description: string;
   estimatedTime: string;
   flowNote?: string;
@@ -197,6 +205,7 @@ const ONBOARDING_STEP_STATUSES: ReadonlySet<string> = new Set([
   'done',
   'skipped',
   'available',
+  'in_progress',
   'locked',
   'coming_soon',
 ]);
@@ -274,6 +283,7 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
   if (!id) return null;
   const status = r.status;
   const estimatedTime = r.estimatedTime ?? r.estimated_time;
+  const dispatchedAt = r.dispatchedAt ?? r.dispatched_at;
   return {
     id,
     title: typeof r.title === 'string' ? r.title : id,
@@ -284,6 +294,7 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
         : 'locked',
     canSkip: (r.canSkip ?? r.can_skip) === true,
     manuallyCompleted: (r.manuallyCompleted ?? r.manually_completed) === true,
+    dispatchedAt: typeof dispatchedAt === 'string' && dispatchedAt.trim() ? dispatchedAt : null,
     description: typeof r.description === 'string' ? r.description : '',
     estimatedTime: typeof estimatedTime === 'string' ? estimatedTime : '',
     chipsChat: normalizeChips(r.chipsChat ?? r.chips_chat),
