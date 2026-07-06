@@ -12,7 +12,7 @@ Capability registry enforced by `npm run check:test-coverage`. Source of truth f
 | `billing.subscription` | subscribed account shows current tier; changing tier keeps a confirm dialog; cancel keeps access until period end; PAST_DUE shows a soft banner                                                                    |
 | `billing.access`       | billing page redirects unauthenticated users to login; billing page shows all main sections                                                                                                                        |
 | `workspace`            | personal and org workspaces expose distinct API keys; switching to org workspace returns org billing balance; creating a team via UI adds it to the database                                                       |
-| `assistants.core`      | rail renders with brand and unity switcher; list updates after hiring; Onboard button opens the hire dialog; clicking an assistant in the list selects it                                                          |
+| `assistants.core`      | rail renders with brand and unity switcher; list updates after hiring; Onboard button opens the hire dialog; clicking an assistant in the list selects it; unified shell navigation preserves assistant state      |
 | `admin.impersonation`  | Unify member can view as another user and return                                                                                                                                                                   |
 
 ## P1 areas

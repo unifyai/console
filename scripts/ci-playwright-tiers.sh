@@ -14,6 +14,7 @@ src/tests/auth/login.e2e.ts
 src/tests/auth/session.e2e.ts
 src/tests/shell/push-gate.e2e.ts
 src/tests/shell/route-shell-smoke.e2e.ts
+src/tests/shell/unified-shell-navigation.e2e.ts
 src/tests/assistants/shell.e2e.ts
 src/tests/assistants/list.e2e.ts
 src/tests/assistants/chat.e2e.ts
@@ -78,6 +79,7 @@ EOF
 pr_shell_admin_specs() {
   cat <<'EOF'
 src/tests/shell/route-shell-smoke.e2e.ts
+src/tests/shell/unified-shell-navigation.e2e.ts
 src/tests/admin/billing-plans.e2e.ts
 src/tests/impersonation/view-as.e2e.ts
 EOF

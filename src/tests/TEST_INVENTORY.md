@@ -10,18 +10,19 @@ Legend: **keep** · **delete** · **`@push`** = runs every branch push · **`@cr
 
 Platform-entry blockers: login → shell → routes → list → chat → billing guard. All `@push` tests run on every push (~13 tests).
 
-| File                                   | Tier | Verdict | Notes                                 |
-| -------------------------------------- | ---- | ------- | ------------------------------------- |
-| `auth/login.e2e.ts`                    | push | keep    | 1 `@push` valid login                 |
-| `auth/session.e2e.ts`                  | push | keep    | 1 `@push` stale session signout       |
-| `shell/push-gate.e2e.ts`               | push | keep    | Rail + switcher `@push`               |
-| `shell/route-shell-smoke.e2e.ts`       | push | keep    | `/favourites` + `/interfaces` `@push` |
-| `assistants/shell.e2e.ts`              | push | keep    | Unity switcher `@push`                |
-| `assistants/list.e2e.ts`               | push | keep    | Onboard + seeded list `@push`         |
-| `assistants/chat.e2e.ts`               | push | keep    | Send message `@push`                  |
-| `billing/billable-action-guard.e2e.ts` | push | keep    | Enabled with credits `@push`          |
-| `billing/access-control.e2e.ts`        | push | keep    | Billing page sections `@push`         |
-| `account/workspace-context.e2e.ts`     | push | keep    | Org workspace balance `@push`         |
+| File                                    | Tier | Verdict | Notes                                 |
+| --------------------------------------- | ---- | ------- | ------------------------------------- |
+| `auth/login.e2e.ts`                     | push | keep    | 1 `@push` valid login                 |
+| `auth/session.e2e.ts`                   | push | keep    | 1 `@push` stale session signout       |
+| `shell/push-gate.e2e.ts`                | push | keep    | Rail + switcher `@push`               |
+| `shell/route-shell-smoke.e2e.ts`        | push | keep    | `/favourites` + `/interfaces` `@push` |
+| `shell/unified-shell-navigation.e2e.ts` | push | keep    | No-reload unified shell nav `@push`   |
+| `assistants/shell.e2e.ts`               | push | keep    | Unity switcher `@push`                |
+| `assistants/list.e2e.ts`                | push | keep    | Onboard + seeded list `@push`         |
+| `assistants/chat.e2e.ts`                | push | keep    | Send message `@push`                  |
+| `billing/billable-action-guard.e2e.ts`  | push | keep    | Enabled with credits `@push`          |
+| `billing/access-control.e2e.ts`         | push | keep    | Billing page sections `@push`         |
+| `account/workspace-context.e2e.ts`      | push | keep    | Org workspace balance `@push`         |
 
 ## PR Gate — Billing (`pr-billing`, 14 files, 3 shards)
 
@@ -72,11 +73,12 @@ All auth PR specs kept; login trimmed to 4 @critical; signup trimmed (whitespace
 
 ## PR Gate — Shell & Admin (`pr-shell-admin`)
 
-| File                             | Verdict |
-| -------------------------------- | ------- |
-| `shell/route-shell-smoke.e2e.ts` | keep    |
-| `admin/billing-plans.e2e.ts`     | keep    |
-| `impersonation/view-as.e2e.ts`   | keep    |
+| File                                    | Verdict |
+| --------------------------------------- | ------- |
+| `shell/route-shell-smoke.e2e.ts`        | keep    |
+| `shell/unified-shell-navigation.e2e.ts` | keep    |
+| `admin/billing-plans.e2e.ts`            | keep    |
+| `impersonation/view-as.e2e.ts`          | keep    |
 
 ## Exhaustive-only (P1/P2 — kept, not on PR lists)
 
