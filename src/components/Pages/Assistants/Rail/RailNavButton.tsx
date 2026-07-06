@@ -13,6 +13,7 @@ interface RailNavButtonProps {
   collapsed?: boolean;
   onClick?: () => void;
   testId?: string;
+  showActivityDot?: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export function RailNavButton({
   collapsed = false,
   onClick,
   testId,
+  showActivityDot = false,
 }: RailNavButtonProps) {
   const button = (
     <button
@@ -50,6 +52,16 @@ export function RailNavButton({
         <Icon className="h-4 w-4" strokeWidth={RAIL_ICON_STROKE} aria-hidden="true" />
       </span>
       {!collapsed && <span className="text-[13px] font-normal">{label}</span>}
+      {showActivityDot && (
+        <span
+          className={cn(
+            'h-1.5 w-1.5 animate-pulse rounded-full bg-primary',
+            collapsed ? 'absolute right-3 top-2' : 'ml-auto'
+          )}
+          aria-hidden="true"
+          data-testid={testId ? `${testId}-activity-dot` : undefined}
+        />
+      )}
       {!collapsed && active && (
         <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
       )}
