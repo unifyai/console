@@ -25,7 +25,7 @@ execFileSync(
     '--jsx=automatic',
     '--define:process.env.NODE_ENV="production"',
   ],
-  { cwd: repoRoot, stdio: 'inherit' },
+  { cwd: repoRoot, stdio: 'inherit' }
 );
 
 await mkdir(outDir, { recursive: true });
@@ -50,7 +50,7 @@ try {
         w: slot.width,
         h: slot.height,
       };
-    }),
+    })
   );
   const PAD = 40;
   // Per-cell clipped captures (the page is fully static): each clip rasterizes
@@ -60,7 +60,12 @@ try {
   for (const cell of cells) {
     crops[cell.slug] = (
       await page.screenshot({
-        clip: { x: cell.x - PAD, y: cell.y - PAD, width: cell.w + 2 * PAD, height: cell.h + 2 * PAD },
+        clip: {
+          x: cell.x - PAD,
+          y: cell.y - PAD,
+          width: cell.w + 2 * PAD,
+          height: cell.h + 2 * PAD,
+        },
       })
     ).toString('base64');
   }
@@ -111,7 +116,9 @@ try {
         const hd = hctx.getImageData(0, 0, a.w, a.h);
         for (let i = 0; i < da.length; i += 4) {
           const d =
-            Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]);
+            Math.abs(da[i] - db[i]) +
+            Math.abs(da[i + 1] - db[i + 1]) +
+            Math.abs(da[i + 2] - db[i + 2]);
           if (d > threshold) {
             diff++;
             hd.data[i] = 255;
@@ -184,7 +191,7 @@ try {
             max = Math.max(
               max,
               Math.abs(A[i][j][0] - B[i][j][0]),
-              Math.abs(A[i][j][1] - B[i][j][1]),
+              Math.abs(A[i][j][1] - B[i][j][1])
             );
           }
         }
@@ -200,7 +207,7 @@ try {
           const d = Math.max(
             Math.abs(da[i] - db[i]),
             Math.abs(da[i + 1] - db[i + 1]),
-            Math.abs(da[i + 2] - db[i + 2]),
+            Math.abs(da[i + 2] - db[i + 2])
           );
           if (d > max) max = d;
         }
@@ -222,7 +229,7 @@ try {
       }
       return out;
     },
-    { crops },
+    { crops }
   );
 
   await writeFile(resolve(outDir, 'board.png'), board);
@@ -232,7 +239,7 @@ try {
   for (const [slug, d] of Object.entries(result.diffs)) {
     await writeFile(resolve(outDir, `diff-${slug}.png`), Buffer.from(d.heat, 'base64'));
     console.log(
-      `${slug}: vector ${JSON.stringify(d.vertices)} | max display-pixel delta ${d.maxDelta1x}/255 | edge-pixel flags raw@3x ${d.rawPct}%`,
+      `${slug}: vector ${JSON.stringify(d.vertices)} | max display-pixel delta ${d.maxDelta1x}/255 | edge-pixel flags raw@3x ${d.rawPct}%`
     );
   }
 } finally {

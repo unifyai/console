@@ -27,7 +27,7 @@ execFileSync(
     '--jsx=automatic',
     '--define:process.env.NODE_ENV="production"',
   ],
-  { cwd: repoRoot, stdio: 'inherit' },
+  { cwd: repoRoot, stdio: 'inherit' }
 );
 
 await mkdir(outDir, { recursive: true });
@@ -41,7 +41,10 @@ try {
   await page.goto(`file://${resolve(here, 'index.html')}`);
   // Let the lid-hinge animation and the ResizeObserver-driven lift settle.
   await page.waitForTimeout(1500);
-  const board = await page.screenshot({ path: resolve(outDir, 'live-harness.png'), fullPage: true });
+  const board = await page.screenshot({
+    path: resolve(outDir, 'live-harness.png'),
+    fullPage: true,
+  });
 
   // Every close-up is cropped from the SAME full-page frame (not re-shot), so
   // the animated parts (key beep, blinks) can never differ between artifacts.
@@ -57,7 +60,7 @@ try {
         w: slot.width,
         h: slot.height,
       };
-    }),
+    })
   );
   const PAD = 40;
   const SCALE = 3; // deviceScaleFactor above
@@ -81,7 +84,7 @@ try {
       }
       return out;
     },
-    { png: board.toString('base64'), cells, PAD, SCALE },
+    { png: board.toString('base64'), cells, PAD, SCALE }
   );
   const { writeFile } = await import('node:fs/promises');
   for (const [slug, b64] of Object.entries(crops)) {
