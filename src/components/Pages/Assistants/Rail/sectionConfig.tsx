@@ -10,6 +10,7 @@ import {
   Braces,
   Compass,
   Database,
+  MonitorPlay,
   type LucideIcon,
 } from 'lucide-react';
 import type { RightPaneTab } from '@/components/Pages/Assistants/RightPaneContainer';
@@ -100,6 +101,19 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
       ['Filter the list', 'Switch between All, Active, and Paused to narrow what you see.'],
       ['Search tasks', 'Find a workflow by name or description.'],
       ['Expand a task', 'Open a card to read its definition and past run history in one place.'],
+    ],
+  },
+  {
+    id: 'desktop',
+    label: 'Desktop',
+    Icon: MonitorPlay,
+    kind: 'view',
+    tab: 'desktop',
+    desc: "Watch your teammate's desktop live — or take control — the same screen share the call exposes, without a call.",
+    steps: [
+      ['Open the desktop', 'The live view connects automatically once the teammate has a session.'],
+      ['Take control', 'Switch from view-only to interactive to drive the desktop yourself.'],
+      ['Refresh', 'Reconnect the stream if the session restarts or the view goes stale.'],
     ],
   },
   {

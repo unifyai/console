@@ -7,6 +7,7 @@ import { DashboardsPane } from './Dashboards';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
+import { AssistantDesktopPane } from './Desktop/AssistantDesktopPane';
 import type {
   AssistantInfoPanelCoordinatorOnboarding,
   AssistantInfoPanelLayoutContext,
@@ -30,7 +31,13 @@ const TAB_CONTENT_CLASS = 'min-h-0 flex-1 overflow-hidden data-[state=inactive]:
  * stay typed end-to-end. The active tab is owned by the rail; this
  * container renders the matching body.
  */
-export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'integrations' | 'actions';
+export type RightPaneTab =
+  | 'chat'
+  | 'tasks'
+  | 'dashboards'
+  | 'integrations'
+  | 'actions'
+  | 'desktop';
 
 /**
  * What the right pane is showing. `secondary`/`splitRatio` remain on the
@@ -276,6 +283,15 @@ export function RightPaneContainer({
                 }
               : undefined
           }
+        />
+      </TabsContent>
+
+      <TabsContent value="desktop" className={TAB_CONTENT_CLASS} forceMount>
+        <AssistantDesktopPane
+          assistant={assistant}
+          desktopActions={assistantActions.desktop}
+          isVisible={activeTab === 'desktop'}
+          isActiveSurface={isActiveSurface}
         />
       </TabsContent>
 

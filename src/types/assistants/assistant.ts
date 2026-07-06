@@ -627,6 +627,7 @@ export interface AssistantActions {
       organizationId: number | null
     ) => Promise<{ liveviewUrl: string }>;
     checkLiveviewHealth: (liveviewUrl: string) => Promise<boolean>;
+    wakeAssistantSession: (assistantId: string) => Promise<ResponseProps>;
     sendSystemEvent: (
       assistantId: string,
       eventType: import('@/lib/assistants/desktop').SystemEventType,
