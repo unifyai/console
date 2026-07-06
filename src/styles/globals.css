@@ -1213,13 +1213,36 @@
     }
   }
 
+  @keyframes rail-activity-dot-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 50%, transparent);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.12);
+      box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 0%, transparent);
+    }
+  }
+
   .animate-onboarding-ring-pulse {
     animation: onboarding-ring-pulse 2.4s ease-in-out infinite;
     transform-origin: center;
   }
 
+  .animate-rail-activity-dot {
+    animation: rail-activity-dot-pulse 1.8s ease-in-out infinite;
+    transform-origin: center;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-onboarding-ring-pulse {
+      animation: none;
+    }
+
+    .animate-rail-activity-dot {
       animation: none;
     }
   }

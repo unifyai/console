@@ -9,7 +9,6 @@ export interface FloatingChatVisibilityInput {
   isBelowTablet: boolean;
   isHireDialogOpen: boolean;
   showCoordinatorOnboardingIntro: boolean;
-  isCoordinatorOnboardingFocusLayout: boolean;
   isChatVisibleInRightPane: boolean;
   hasActiveCallPoppedOut: boolean;
   profileAssistant: Assistant | null;
@@ -60,7 +59,6 @@ export function useFloatingChatVisibility(input: FloatingChatVisibilityInput): b
     isBelowTablet,
     isHireDialogOpen,
     showCoordinatorOnboardingIntro,
-    isCoordinatorOnboardingFocusLayout,
     isChatVisibleInRightPane,
     hasActiveCallPoppedOut,
     profileAssistant,
@@ -71,7 +69,7 @@ export function useFloatingChatVisibility(input: FloatingChatVisibilityInput): b
     if (isBelowTablet) return false;
     if (!assistantsBootstrapped || !profileAssistant) return false;
     if (isHireDialogOpen) return false;
-    if (showCoordinatorOnboardingIntro || isCoordinatorOnboardingFocusLayout) return false;
+    if (showCoordinatorOnboardingIntro) return false;
     if (hasActiveCallPoppedOut) return false;
     if (isAssistantsPath(pathname) && isChatVisibleInRightPane) return false;
     return true;
@@ -80,7 +78,6 @@ export function useFloatingChatVisibility(input: FloatingChatVisibilityInput): b
     hasActiveCallPoppedOut,
     isBelowTablet,
     isChatVisibleInRightPane,
-    isCoordinatorOnboardingFocusLayout,
     isHireDialogOpen,
     pathname,
     profileAssistant,

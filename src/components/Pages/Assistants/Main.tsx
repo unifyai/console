@@ -481,7 +481,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
-  const isFullPageAssistantChatVisible = activeBrainSectionId === null && isChatVisibleInRightPane;
+  // Match the rail's active section, not raw pane slots — a split secondary
+  // Chat tab must not suppress the floater while Tasks/Actions/etc. is selected.
+  const isFullPageAssistantChatVisible = activeSectionId === 'chat';
 
   const [floatingChatExpanded, setFloatingChatExpanded] = React.useState(false);
   const handleFloatingChatExpandedChange = React.useCallback((expanded: boolean) => {
@@ -3681,7 +3683,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             isBelowTablet={isBelowTablet}
             isHireDialogOpen={isHireDialogOpen}
             showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
-            isCoordinatorOnboardingFocusLayout={isCoordinatorOnboardingFocusLayout}
             isChatVisibleInRightPane={isFullPageAssistantChatVisible}
             hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
             profileAssistant={visibleProfileAssistant}

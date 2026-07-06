@@ -55,8 +55,8 @@ export function RailNavButton({
       {showActivityDot && (
         <span
           className={cn(
-            'h-1.5 w-1.5 animate-pulse rounded-full bg-primary',
-            collapsed ? 'absolute right-3 top-2' : 'ml-auto'
+            'animate-rail-activity-dot h-2 w-2 shrink-0 rounded-full bg-primary ring-1 ring-primary-tint-30',
+            collapsed ? 'absolute right-2.5 top-2' : 'ml-auto'
           )}
           aria-hidden="true"
           data-testid={testId ? `${testId}-activity-dot` : undefined}
