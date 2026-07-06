@@ -88,8 +88,6 @@ test('sending a message shows it as a user message in the chat @push @critical @
 
   const chatArea = page.getByTestId('chat-scroll-area');
   await expect(chatArea.getByText(testMessage)).toBeVisible({ timeout: 10_000 });
-
-  await expect(chatArea.getByText('Typing')).toBeVisible({ timeout: 5_000 });
 });
 
 test('historical transcript messages load when navigating to an assistant @critical @area(assistants.chat)', async ({

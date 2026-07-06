@@ -51,7 +51,7 @@ import {
   deferCoordinatorForUser,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail, waitForAssistantsRail } from '../helpers/shell';
+import { assistantRail, railUnitySwitcher, waitForAssistantsRail } from '../helpers/shell';
 export { login, switchToEmailTab };
 
 /** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
@@ -72,7 +72,7 @@ export async function waitForAssistantsReady(
     await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
     await dismissCoordinatorOnboardingIfOpen(page);
   }
-  await expect(page.getByTestId('rail-unity-switcher')).toBeVisible({ timeout: 10_000 });
+  await expect(railUnitySwitcher(page)).toBeVisible({ timeout: 10_000 });
 }
 
 /** Wait until the billing page has loaded (credits self-serve or metered plan layout). */
@@ -122,7 +122,7 @@ async function openUnitySwitcherPopover(page: Page, opts?: { userId: string; api
       await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
     }
     await dismissCoordinatorOnboardingIfOpen(page);
-    const switcher = page.getByTestId('rail-unity-switcher');
+    const switcher = railUnitySwitcher(page);
     await expect(switcher).toBeVisible({ timeout: 10_000 });
     await switcher.click({ timeout: 10_000 });
   }

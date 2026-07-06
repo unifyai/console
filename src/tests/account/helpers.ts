@@ -63,6 +63,20 @@ export async function navigateToAppShellRoute(
   await dismissCoordinatorOnboardingIfOpen(page);
 }
 
+export async function waitForSettingsShellReady(page: Page): Promise<void> {
+  await expect(page.getByTestId('settings-subrail')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+}
+
+export async function openAccountTab(
+  page: Page,
+  tab: string,
+  opts: { userId: string; apiKey: string }
+) {
+  await navigateToAppShellRoute(page, `/account?tab=${tab}`, opts);
+  await waitForSettingsShellReady(page);
+}
+
 export async function switchWorkspaceViaApi(page: Page, workspaceId: string | number) {
   const res = await page.request.post('/api/session/workspace', {
     data: { workspaceId: String(workspaceId) },

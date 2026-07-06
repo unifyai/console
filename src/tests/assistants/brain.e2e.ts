@@ -32,6 +32,7 @@ import {
   type SeededAssistant,
   type SeededOrg,
 } from './helpers';
+import { railSection } from '../helpers/shell';
 
 function uniqueBrainEmail(): string {
   return `brain-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@unify.ai`;
@@ -399,7 +400,7 @@ test('rail Brain sections switch the active view', async ({ authedPage: page }) 
 
   // Default landing is Chat; each Brain rail section takes over the section
   // host and becomes `aria-current="page"` when selected.
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
+  await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 
   for (const section of [
     'contacts',
@@ -409,10 +410,7 @@ test('rail Brain sections switch the active view', async ({ authedPage: page }) 
     'guidance',
   ] as const) {
     await openRailSection(page, section);
-    await expect(page.getByTestId(`rail-section-${section}`)).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
+    await expect(railSection(page, section)).toHaveAttribute('aria-current', 'page');
   }
 
   // The legacy aggregate "Brain" rail entry is gone.

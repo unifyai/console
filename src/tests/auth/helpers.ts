@@ -542,6 +542,11 @@ export async function enterTOTPWithRetry(page: Page, totpSecret: string) {
   await enterTOTP(page, code);
 }
 
+export async function waitForSecurityTabReady(page: Page): Promise<void> {
+  await expect(page.getByTestId('open-password-modal-btn')).toBeEnabled({ timeout: 30_000 });
+  await expect(page.getByTestId('open-2fa-modal-btn')).toBeVisible({ timeout: 10_000 });
+}
+
 export async function loginAndNavigateTo(
   page: Page,
   email: string,
@@ -561,4 +566,8 @@ export async function loginAndNavigateTo(
   }
 
   await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+
+  if (targetUrl.includes('/account') && targetUrl.includes('tab=security')) {
+    await waitForSecurityTabReady(page);
+  }
 }

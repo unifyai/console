@@ -25,7 +25,12 @@ import {
   ensureShellReady,
   getCoordinatorAgentId,
 } from '../helpers/coordinator';
-import { assistantRail, waitForAssistantsRail } from '../helpers/shell';
+import {
+  assistantRail,
+  railSection,
+  railUnitySwitcher,
+  waitForAssistantsRail,
+} from '../helpers/shell';
 
 export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -347,7 +352,7 @@ export async function openUnitySwitcher(page: Page, opts?: { userId?: string; ap
   } else {
     await dismissCoordinatorOnboardingIfOpen(page);
   }
-  const switcher = page.locator('[data-testid="rail-unity-switcher"]:visible').first();
+  const switcher = railUnitySwitcher(page);
   await expect(switcher).toBeVisible({ timeout: 10_000 });
   await switcher.click();
   await expect(popover).toBeVisible({ timeout: 5_000 });
@@ -376,7 +381,7 @@ export async function waitForAssistantListReady(page: Page, timeout = 45_000): P
  * old in-pane `right-pane-tab-*` strip).
  */
 export async function openRailSection(page: Page, sectionId: string) {
-  await page.getByTestId(`rail-section-${sectionId}`).click();
+  await railSection(page, sectionId).click();
   await page.waitForTimeout(300);
 }
 

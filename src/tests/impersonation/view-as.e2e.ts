@@ -27,7 +27,7 @@ import {
   deferCoordinatorForUser,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail } from '../helpers/shell';
+import { assistantRail, railAccountTrigger, railUnitySwitcher } from '../helpers/shell';
 
 // ---------------------------------------------------------------------------
 // Seed (module scope, synchronous)
@@ -118,8 +118,8 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   await dismissCoordinatorOnboardingIfOpen(page);
 
   // Open the rail account menu and start impersonation.
-  await expect(page.getByTestId('rail-account-trigger')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId('rail-account-trigger').click({ timeout: 15_000 });
+  await expect(railAccountTrigger(page)).toBeVisible({ timeout: 30_000 });
+  await railAccountTrigger(page).click({ timeout: 15_000 });
   await page.getByTestId('view-as-user-menu-item').click();
 
   const dialog = page.getByTestId('impersonate-dialog');
@@ -164,5 +164,5 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   // The target's assistant is no longer in view once we are back as the admin.
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('impersonation-banner')).toBeHidden({ timeout: 30_000 });
-  await expect(page.getByTestId('rail-unity-switcher')).not.toContainText('Solo');
+  await expect(railUnitySwitcher(page)).not.toContainText('Solo');
 });

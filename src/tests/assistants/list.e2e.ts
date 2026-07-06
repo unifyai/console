@@ -28,6 +28,7 @@ import {
   openAssistantInfoPanelFromList,
   openAssistantInfoPanel,
 } from './helpers';
+import { railSection, railUnitySwitcher } from '../helpers/shell';
 
 const user = createTestUser({ name: 'ListE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -113,7 +114,7 @@ test('clicking an assistant in the list selects it and shows the Chat tab @criti
   // Chat section active by default (the rail owns section nav now).
   await selectAssistantInList(page, agentId);
 
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page', {
+  await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page', {
     timeout: 10_000,
   });
   await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
@@ -133,10 +134,11 @@ test('deep link ?profile=agentId opens the correct assistant', async ({ authedPa
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
 
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText(dbAssistant.firstName, {
+  const switcher = railUnitySwitcher(page);
+  await expect(switcher).toContainText(dbAssistant.firstName, {
     timeout: 10_000,
   });
-  await expect(page.getByTestId('rail-unity-switcher')).toContainText(dbAssistant.surname, {
+  await expect(switcher).toContainText(dbAssistant.surname, {
     timeout: 5_000,
   });
 });
