@@ -173,6 +173,7 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
   locked: boolean;
+  inProgress?: boolean;
   comingSoon?: boolean;
   status: 'pending' | 'done' | 'skipped';
   sectionSkipped?: boolean;
@@ -224,6 +225,8 @@ function resolveLocalStepStatuses(
       statuses.set(step.id, 'skipped');
     } else if (step.status === 'coming_soon') {
       statuses.set(step.id, 'coming_soon');
+    } else if (step.status === 'in_progress') {
+      statuses.set(step.id, 'in_progress');
     } else {
       statuses.set(step.id, step.status === 'locked' ? 'locked' : 'available');
     }
@@ -234,7 +237,14 @@ function resolveLocalStepStatuses(
     changed = false;
     for (const step of render.steps) {
       const current = statuses.get(step.id);
-      if (current === 'done' || current === 'skipped' || current === 'coming_soon') continue;
+      if (
+        current === 'done' ||
+        current === 'skipped' ||
+        current === 'coming_soon' ||
+        current === 'in_progress'
+      ) {
+        continue;
+      }
       const next = step.dependencies.every((dependency) =>
         isOnboardingDependencySatisfied(
           statuses.get(dependency.id) ?? dependency.status,
@@ -288,6 +298,7 @@ function buildVisibleChecklist(
     const phaseSkipped = skippedPhases.has(step.phase);
     const localStatus = localStatuses.get(step.id) ?? step.status;
     const action = STEP_ACTIONS[step.id];
+    const inProgress = localStatus === 'in_progress';
     const isUnavailableAction =
       localStatus === 'available' && !!action && !isActionWired(action) && !phaseSkipped;
     const comingSoon = localStatus === 'coming_soon' || isUnavailableAction;
@@ -315,6 +326,7 @@ function buildVisibleChecklist(
       done: status === 'done',
       skipped: status === 'skipped',
       locked,
+      inProgress,
       comingSoon,
       status,
     };
@@ -519,7 +531,13 @@ function findNextActionableId(
       if (inner) return inner;
       continue;
     }
-    if (!item.locked && item.status === 'pending' && item.action && isActionWired(item.action)) {
+    if (
+      !item.locked &&
+      item.status === 'pending' &&
+      !item.inProgress &&
+      item.action &&
+      isActionWired(item.action)
+    ) {
       return item.id;
     }
   }
@@ -1357,7 +1375,9 @@ function ChecklistRow({
   const shouldJiggle = blockedFeedbackStepId === item.id;
   const blockingHint = blockingStepHints.get(item.id);
   const showActionFeedback =
-    !!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled;
+    item.inProgress ||
+    (!!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled);
+  const actionFeedbackLabel = item.inProgress ? 'In progress' : actionFeedback;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -1489,7 +1509,7 @@ function ChecklistRow({
             aria-live="polite"
             data-testid={`coordinator-onboarding-action-feedback-${item.id}`}
           >
-            {actionFeedback}
+            {actionFeedbackLabel}
           </span>
         ) : blockingHint ? (
           <span
@@ -1535,6 +1555,7 @@ function ChecklistRow({
         }}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
+        data-status={item.inProgress ? 'in_progress' : undefined}
         data-next={isNext ? 'true' : undefined}
       >
         {rowBody('actionable')}
