@@ -481,6 +481,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
+  const isFullPageAssistantChatVisible = activeBrainSectionId === null && isChatVisibleInRightPane;
 
   const [floatingChatExpanded, setFloatingChatExpanded] = React.useState(false);
   const handleFloatingChatExpandedChange = React.useCallback((expanded: boolean) => {
@@ -3624,18 +3625,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           </RoomContext.Provider>
         )}
 
-        {profileAssistant && (
+        {visibleProfileAssistant && (
           <AssistantFloatingChatHost
             pathname={routePathname ?? '/assistants'}
             isBelowTablet={isBelowTablet}
             isHireDialogOpen={isHireDialogOpen}
             showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
             isCoordinatorOnboardingFocusLayout={isCoordinatorOnboardingFocusLayout}
-            isChatVisibleInRightPane={isChatVisibleInRightPane}
+            isChatVisibleInRightPane={isFullPageAssistantChatVisible}
             hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
-            profileAssistant={profileAssistant}
-            assistantsBootstrapped={!isLoadingAssistants}
-            assistant={profileAssistant}
+            profileAssistant={visibleProfileAssistant}
+            assistantsBootstrapped={hasSettledAssistants}
+            assistant={visibleProfileAssistant}
             assistantActions={assistantActions}
             chatHistories={profileChatHistories}
             setChatHistories={setProfileChatHistories}
@@ -3648,11 +3649,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             chatStreamConnectionStatus={profileChatStreamConnectionStatus}
             reconnectChatStream={reconnectChatStream}
             chatStreamActivitySignal={profileChatActivitySignal}
-            unreadCount={chatStreamUnreadCounts[profileAssistant.agentId] ?? 0}
+            unreadCount={chatStreamUnreadCounts[visibleProfileAssistant.agentId] ?? 0}
             hasActiveCall={!!activeCallAssistant && (isConnectingCall || isCallConnected)}
             isInActiveCall={
               !!activeCallAssistant &&
-              activeCallAssistant.agentId === profileAssistant.agentId &&
+              activeCallAssistant.agentId === visibleProfileAssistant.agentId &&
               (isConnectingCall || isCallConnected)
             }
             activeCallAssistantId={activeCallAssistant?.agentId ?? null}
