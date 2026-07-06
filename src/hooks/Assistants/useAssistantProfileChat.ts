@@ -866,6 +866,7 @@ export function useAssistantProfileChat(
     messages,
     inputValue,
     isLoading: phase === 'resolving_contact' || phase === 'loading_transcripts',
+    hasLoadedInitialHistory: assistantId ? chatHistories[assistantId] !== undefined : false,
     initialLoadError,
     retryInitialLoad,
     isAssistantReplying,

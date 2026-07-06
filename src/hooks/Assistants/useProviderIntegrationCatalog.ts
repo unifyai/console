@@ -130,6 +130,8 @@ export function useProviderIntegrationCatalog(
     () => (statusGroupsKey ? (statusGroupsKey.split(',') as ProviderAppStatusGroup[]) : []),
     [statusGroupsKey]
   );
+  const requestKey = `${assistantId}:${ownerScope}:${query}:${sourceType ?? 'all'}:${statusGroupsKey}`;
+  const loadedRequestKeyRef = React.useRef<string | null>(null);
   const [definitions, setDefinitions] = React.useState<IntegrationDefinition[]>([]);
   // Connected + needs-attention apps, fetched independently of the browse
   // pagination so they always surface at the top under the "All" filter even
@@ -152,8 +154,13 @@ export function useProviderIntegrationCatalog(
   const [generatedAt, setGeneratedAt] = React.useState<string | null>(null);
   const providerConnectionsRef = React.useRef<IntegrationConnection[]>([]);
   const isLoadingMoreRef = React.useRef(false);
+  const hasLoadedRef = React.useRef(hasLoaded);
 
   const hasMore = !isMock && hasLoaded && hasMoreServer;
+
+  React.useEffect(() => {
+    hasLoadedRef.current = hasLoaded;
+  }, [hasLoaded]);
 
   const fetchCatalog = React.useCallback(async () => {
     if (!enabled || !assistantId) return;
@@ -174,12 +181,16 @@ export function useProviderIntegrationCatalog(
       setPinnedDefinitions([]);
       providerConnectionsRef.current = [];
       isLoadingMoreRef.current = false;
+      loadedRequestKeyRef.current = requestKey;
       return;
     }
     setIsLoading(true);
     setIsLoadingMore(false);
-    setHasLoaded(false);
-    setDefinitions([]);
+    if (!hasLoadedRef.current) {
+      setHasLoaded(false);
+      setDefinitions([]);
+      setPinnedDefinitions([]);
+    }
     isLoadingMoreRef.current = false;
     // Only the "All" view needs the pinned connected/needs-attention rows; the
     // dedicated status filters already scope the main list to those apps.
@@ -260,11 +271,14 @@ export function useProviderIntegrationCatalog(
       );
       setCatalogVersion(page.catalogVersion);
       setGeneratedAt(page.generatedAt);
+      loadedRequestKeyRef.current = requestKey;
     } catch (error) {
       console.error('Failed to load provider integration catalog', error);
       toast.error('Could not load integrations. Please try again.');
-      setDefinitions([]);
-      setPinnedDefinitions([]);
+      if (!hasLoadedRef.current) {
+        setDefinitions([]);
+        setPinnedDefinitions([]);
+      }
       setTotal(0);
       setNextOffset(0);
       setHasMoreServer(false);
@@ -275,7 +289,7 @@ export function useProviderIntegrationCatalog(
       setIsLoading(false);
       setHasLoaded(true);
     }
-  }, [assistantId, enabled, ownerScope, query, sourceType, statusGroups]);
+  }, [assistantId, enabled, ownerScope, query, sourceType, statusGroups, requestKey]);
 
   const loadMore = React.useCallback(async () => {
     if (!assistantId || isMock || isLoadingMoreRef.current || isLoading || !hasMoreServer) {
@@ -330,8 +344,9 @@ export function useProviderIntegrationCatalog(
   ]);
 
   React.useEffect(() => {
+    if (loadedRequestKeyRef.current === requestKey) return;
     void fetchCatalog();
-  }, [fetchCatalog]);
+  }, [fetchCatalog, requestKey]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;

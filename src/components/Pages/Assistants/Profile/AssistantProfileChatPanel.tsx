@@ -145,6 +145,7 @@ export function AssistantProfileChatPanel({
     messages,
     inputValue,
     isLoading,
+    hasLoadedInitialHistory,
     initialLoadError,
     retryInitialLoad,
     isAssistantReplying,
@@ -710,7 +711,7 @@ export function AssistantProfileChatPanel({
               Retry
             </Button>
           </div>
-        ) : isLoading && messages.length === 0 ? (
+        ) : isLoading && !hasLoadedInitialHistory ? (
           <ChatMessageSkeletons />
         ) : (
           <div className="space-y-6 py-4" style={{ width: '100%' }}>

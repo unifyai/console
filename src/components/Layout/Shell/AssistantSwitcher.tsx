@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
+import { Skeleton } from '@/components/UI/skeleton';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
@@ -38,6 +39,7 @@ function UnityAvatar({ assistant, sizeClass }: { assistant: Assistant; sizeClass
 interface AssistantSwitcherProps {
   /** Currently-open unity; drives the switcher card face. */
   activeUnity: Assistant | null;
+  isInitialAssistantIdentityLoading?: boolean;
   /** Full prop bag forwarded to the embedded `AssistantList` (the switcher). */
   listProps: React.ComponentProps<typeof AssistantList>;
   collapsed: boolean;
@@ -48,9 +50,15 @@ interface AssistantSwitcherProps {
  * popover hosting the full `AssistantList` for picking/hiring Unitys. Selecting
  * a unity switches to it and dismisses the popover.
  */
-export function AssistantSwitcher({ activeUnity, listProps, collapsed }: AssistantSwitcherProps) {
+export function AssistantSwitcher({
+  activeUnity,
+  isInitialAssistantIdentityLoading = false,
+  listProps,
+  collapsed,
+}: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
 
+  const showSkeletonFace = !activeUnity && isInitialAssistantIdentityLoading;
   const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a teammate';
   const unitySub = activeUnity
     ? activeUnity.isCoordinator
@@ -83,7 +91,15 @@ export function AssistantSwitcher({ activeUnity, listProps, collapsed }: Assista
               : 'mx-3.5 mb-2 rounded-xl border border-border bg-card px-3 py-2 hover:bg-muted'
           )}
         >
-          {activeUnity ? (
+          {showSkeletonFace ? (
+            <Skeleton
+              data-testid="rail-unity-switcher-skeleton"
+              className={cn(
+                'rounded-control shrink-0',
+                collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'
+              )}
+            />
+          ) : activeUnity ? (
             <span className="relative shrink-0">
               <UnityAvatar
                 assistant={activeUnity}
@@ -101,14 +117,23 @@ export function AssistantSwitcher({ activeUnity, listProps, collapsed }: Assista
           )}
           {!collapsed && (
             <>
-              <div className="min-w-0 text-left">
-                <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
-                {unitySub ? (
-                  <div className="truncate text-[11.5px] capitalize text-muted-foreground">
-                    {unitySub}
+              {showSkeletonFace ? (
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              ) : (
+                <div className="min-w-0 text-left">
+                  <div className="truncate font-display text-[14.5px] font-semibold">
+                    {unityName}
                   </div>
-                ) : null}
-              </div>
+                  {unitySub ? (
+                    <div className="truncate text-[11.5px] capitalize text-muted-foreground">
+                      {unitySub}
+                    </div>
+                  ) : null}
+                </div>
+              )}
               <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
             </>
           )}

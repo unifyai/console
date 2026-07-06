@@ -64,6 +64,7 @@ export function useAssistantSecrets(
   // won't call the fetcher, but the skeleton stays up in that edge case which
   // is fine — it's consistent with Brain/Tasks.
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [hasLoaded, setHasLoaded] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pendingUpload, setPendingUpload] = React.useState<PendingUpload | null>(null);
@@ -72,6 +73,8 @@ export function useAssistantSecrets(
   // is alphabetic. Search defaults to empty (no filter).
   const [sorting, setSorting] = React.useState<SecretsSortState>(DEFAULT_SORT);
   const [searchQuery, setSearchQuery] = React.useState<string>('');
+  const requestKey = `${ownerId ?? ''}:${assistantId ?? ''}:${sorting ? `${sorting.field}:${sorting.direction}` : 'default'}:${searchQuery}`;
+  const loadedRequestKeyRef = React.useRef<string | null>(null);
 
   const formMethods = useForm<SecretFormData>({
     defaultValues: { name: '', value: '', description: '' },
@@ -102,25 +105,29 @@ export function useAssistantSecrets(
           if (!prev) return null;
           return fetched.find((s) => s.logId === prev.logId) || null;
         });
+        setHasLoaded(true);
+        loadedRequestKeyRef.current = requestKey;
       } catch (err: any) {
         if (request?.isStale?.()) return;
         setError(err.message);
+        setHasLoaded(true);
         toast.error('Failed to load secrets.');
       } finally {
         if (!request?.isStale?.()) setIsLoading(false);
       }
     },
-    [assistantId, ownerId, secretActions, sorting, searchQuery]
+    [assistantId, ownerId, secretActions, sorting, searchQuery, requestKey]
   );
 
   React.useEffect(() => {
     if (!assistantId || !enabled) return;
+    if (loadedRequestKeyRef.current === requestKey) return;
     let stale = false;
     void fetchSecrets({ isStale: () => stale });
     return () => {
       stale = true;
     };
-  }, [assistantId, enabled, fetchSecrets]);
+  }, [assistantId, enabled, fetchSecrets, requestKey]);
 
   // Clear the cached rows and flip loading on synchronously so there's no
   // intermediate "No secrets found" flash between the state change and the
@@ -395,6 +402,7 @@ export function useAssistantSecrets(
     secrets,
     selectedSecret,
     isLoading,
+    hasLoaded: loadedRequestKeyRef.current === requestKey && hasLoaded,
     isSubmitting,
     error,
     formMethods,

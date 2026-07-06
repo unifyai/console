@@ -55,7 +55,7 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
       type="button"
       data-testid="rail-unity-switcher"
       title={collapsed ? name : undefined}
-      onClick={navigateToAssistants}
+      onClick={() => navigateToAssistants()}
       className={cn(
         'flex items-center gap-3 transition-colors',
         collapsed

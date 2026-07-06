@@ -6,7 +6,10 @@ const POLLING_INTERVAL = 60000;
 /** Keep optimistic online through slow backend status polls after live signals. */
 const OPTIMISTIC_ONLINE_GRACE_MS = 30_000;
 
-export function useAssistantStatus(assistants: Assistant[]) {
+export function useAssistantStatus(
+  assistants: Assistant[],
+  { enabled = true }: { enabled?: boolean } = {}
+) {
   const [statuses, setStatuses] = React.useState<Map<string, AssistantStatus | null>>(new Map());
   const pollerRef = React.useRef<NodeJS.Timeout | null>(null);
   const optimisticOnlineUntilRef = React.useRef<Map<string, number>>(new Map());
@@ -75,12 +78,21 @@ export function useAssistantStatus(assistants: Assistant[]) {
         next.set(assistantId, { running: true, jobName: existing?.jobName ?? null });
         return next;
       });
-      restartPoller();
+      if (enabled) {
+        restartPoller();
+      }
     },
-    [restartPoller]
+    [enabled, restartPoller]
   );
 
   React.useEffect(() => {
+    if (!enabled) {
+      if (pollerRef.current) {
+        clearInterval(pollerRef.current);
+        pollerRef.current = null;
+      }
+      return;
+    }
     fetchAllStatuses();
     restartPoller();
 
@@ -89,7 +101,7 @@ export function useAssistantStatus(assistants: Assistant[]) {
         clearInterval(pollerRef.current);
       }
     };
-  }, [assistantIdsKey, fetchAllStatuses, restartPoller]);
+  }, [assistantIdsKey, enabled, fetchAllStatuses, restartPoller]);
 
   return { statuses, markOnline };
 }

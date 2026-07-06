@@ -128,14 +128,16 @@ const POLL_TIMEOUT_MS = 30_000;
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useBillingStatus(): UseBillingStatusReturn {
+export function useBillingStatus({
+  enabled = true,
+}: { enabled?: boolean } = {}): UseBillingStatusReturn {
   const { billing: billingEnabled } = useFeatures();
   const [pollInterval, setPollInterval] = React.useState<number | false>(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: BILLING_STATUS_QUERY_KEY,
     queryFn: fetchBillingStatus,
-    enabled: billingEnabled,
+    enabled: billingEnabled && enabled,
     staleTime: 60_000, // 1 minute
     refetchOnWindowFocus: true,
     refetchInterval: pollInterval || 60_000,
