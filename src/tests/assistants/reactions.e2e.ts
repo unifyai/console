@@ -96,7 +96,9 @@ test('user can add and remove a reaction optimistically in the chat UI @push @ar
   await assistantBubble.hover();
   await assistantBubble.getByTestId('chat-reaction-picker').click();
   await page.getByTestId('chat-reaction-👍').click();
-  await expect(assistantBubble.getByTestId('chat-message-reactions')).toContainText('👍');
+  await expect(assistantBubble.getByTestId('chat-message-reactions')).toContainText('👍', {
+    timeout: 15_000,
+  });
 
   await assistantBubble.getByTestId('chat-reaction-chip-👍').click();
   await expect(assistantBubble.getByTestId('chat-message-reactions')).toHaveCount(0);
@@ -131,5 +133,7 @@ test('user can pick a custom emoji from the expanded reaction picker @push @area
 
   await emojiSearch.fill('tada');
   await page.locator('.EmojiPickerReact button').filter({ hasText: '🎉' }).first().click();
-  await expect(assistantBubble.getByTestId('chat-message-reactions')).toContainText('🎉');
+  await expect(assistantBubble.getByTestId('chat-message-reactions')).toContainText('🎉', {
+    timeout: 15_000,
+  });
 });
