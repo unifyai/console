@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { DashboardGridSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { useDashboards } from '@/hooks/Assistants/useDashboards';
-import { DashboardsPaneHeader } from './DashboardsPaneHeader';
+import { DashboardCollapseAllButton, DashboardViewSelector } from './DashboardsPaneHeader';
 import { DashboardsPaneFooter } from './DashboardsPaneFooter';
 import { DashboardSummaryCard } from './DashboardSummaryCard';
 import { DashboardGrid } from './DashboardGrid';
@@ -129,29 +129,37 @@ export function DashboardsPane({
 
   return (
     <div className="flex h-full flex-col" data-testid="dashboards-pane">
-      {isEmpty ? (
-        <TabToolbar
-          testId="dashboards-header"
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          searchPlaceholder={tabSearchPlaceholder('dashboards')}
-          onRefresh={handleRefresh}
-          isRefreshing={showRefreshing}
-          refreshTitle="Refresh dashboards"
-          refreshTestId="dashboards-refresh"
-        />
-      ) : (
-        <DashboardsPaneHeader
-          dashboards={sortedDashboards}
-          tiles={tiles}
-          selectedKey={activeKey}
-          onSelect={setSelectedKey}
-          allCollapsed={allCollapsed === true}
-          onToggleCollapseAll={toggleCollapseAll}
-          onRefresh={handleRefresh}
-          isRefreshing={showRefreshing}
-        />
-      )}
+      <TabToolbar
+        testId="dashboards-header"
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        searchPlaceholder={tabSearchPlaceholder('dashboards')}
+        searchTestId="dashboards-search"
+        searchClearTestId="dashboards-search-clear"
+        leading={
+          !isEmpty ? (
+            <DashboardViewSelector
+              dashboards={sortedDashboards}
+              tiles={tiles}
+              selectedKey={activeKey}
+              onSelect={setSelectedKey}
+              filterQuery={searchValue}
+            />
+          ) : undefined
+        }
+        trailing={
+          !isEmpty ? (
+            <DashboardCollapseAllButton
+              allCollapsed={allCollapsed === true}
+              onToggleCollapseAll={toggleCollapseAll}
+            />
+          ) : undefined
+        }
+        onRefresh={handleRefresh}
+        isRefreshing={showRefreshing}
+        refreshTitle="Refresh dashboards"
+        refreshTestId="dashboards-refresh"
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-testid="dashboards-body">
         {isInitialLoading ? (
@@ -214,9 +222,7 @@ export function DashboardsPane({
           tileCount={tiles.length}
           dataUpdatedAt={dataUpdatedAt}
           isPolling={shouldPoll}
-          isRefreshing={showRefreshing}
           isMockData={USE_MOCK_DASHBOARDS}
-          onRefresh={handleRefresh}
         />
       )}
     </div>

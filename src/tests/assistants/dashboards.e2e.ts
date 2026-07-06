@@ -200,14 +200,11 @@ test('renders searchable combobox selector when dashboards exist', async ({ auth
   const selector = page.getByTestId('dashboard-selector');
   await expect(selector).toBeVisible({ timeout: 10_000 });
 
-  await selector.click();
-  await page.waitForTimeout(500);
-
-  await expect(
-    page.locator(`input[placeholder="${tabSearchPlaceholder('dashboards')}"]`)
-  ).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(page.getByTestId('dashboards-search')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('dashboards-search')).toHaveAttribute(
+    'placeholder',
+    tabSearchPlaceholder('dashboards')
+  );
 });
 
 test('renders dashboard summary card with metadata, actions, and footer counts', async ({
