@@ -584,7 +584,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         />
         <p className="text-body-muted">
           Your Discord user ID (numeric snowflake). Enable Developer Mode in Discord settings, then
-          right-click your profile to copy it.
+          click your profile to copy it.
         </p>
       </div>
     </div>

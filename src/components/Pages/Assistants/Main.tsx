@@ -2245,6 +2245,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleOpenUserSettings('contact-info', true);
   }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
 
+  const handleCoordinatorAddDiscordId = React.useCallback(() => {
+    handleCoordinatorStartOnboardingStep('discord-id');
+    handleOpenUserSettings('contact-info', true);
+  }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
+
   const handleCoordinatorConnectSlack = React.useCallback(() => {
     if (!canonicalCoordinator) return;
     handleCoordinatorStartOnboardingStep('slack-connect');
@@ -2314,6 +2319,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onTriggerReferenceStep: handleCoordinatorTriggerReferenceStep,
       onAddWhatsappNumber: contactWhatsapp ? handleCoordinatorAddWhatsappNumber : undefined,
       onAddPhoneNumber: contactPhone ? handleCoordinatorAddPhoneNumber : undefined,
+      onAddDiscordId: contactDiscord ? handleCoordinatorAddDiscordId : undefined,
       onConnectSlack:
         userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
@@ -2359,6 +2365,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorTriggerReferenceStep,
     handleCoordinatorAddWhatsappNumber,
     handleCoordinatorAddPhoneNumber,
+    handleCoordinatorAddDiscordId,
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,

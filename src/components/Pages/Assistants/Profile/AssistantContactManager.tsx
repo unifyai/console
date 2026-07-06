@@ -949,11 +949,19 @@ const DiscordTabContent: React.FC<{
     return (
       <div className="space-y-3">
         <ContactReadyMessage>Discord bot is configured.</ContactReadyMessage>
+        {!userDiscordId && (
+          <ProfileContactRequiredNotice
+            message="No Discord ID set in your profile."
+            linkLabel="Add your Discord ID"
+            suffix="so your assistant can message you on Discord."
+            onOpenUserSettings={onOpenUserSettings}
+          />
+        )}
         {canWrite && (
           <Button asChild className="gap-2">
             <a href={installUrl} target="_blank" rel="noopener noreferrer">
               <FaDiscord className="h-4 w-4" />
-              Add to your server
+              Connect Discord
               <ExternalLink className="h-3.5 w-3.5 opacity-70" />
             </a>
           </Button>
