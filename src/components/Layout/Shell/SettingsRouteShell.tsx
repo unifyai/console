@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { SettingsShell } from './SettingsShell';
 import { SettingsNavigationProvider } from './SettingsNavigationContext';
 import type { ShellSectionId } from './shellSections';
+import { SettingsWorkspaceHost } from './SettingsWorkspaceHost';
+import { isSettingsFamilyPath } from '@/lib/navigation/appShellRoutes';
 
 function sectionIdForPath(pathname: string): ShellSectionId {
   if (pathname === '/admin' || pathname.startsWith('/admin/')) return 'admin';
@@ -29,15 +31,27 @@ function fillForPath(pathname: string): boolean {
  * settings-family routes, so cross-section navigation only swaps the content
  * column (the sub-rail and header stay put).
  */
-export function SettingsRouteShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname() ?? '/account';
+export function SettingsRouteShell({
+  pathnameOverride = null,
+}: {
+  pathnameOverride?: string | null;
+}) {
+  const livePathname = usePathname() ?? '/account';
+  const lastSettingsPathnameRef = React.useRef('/account');
+  const liveSettingsPathname = isSettingsFamilyPath(livePathname) ? livePathname : null;
+  const pathname = pathnameOverride ?? liveSettingsPathname ?? lastSettingsPathnameRef.current;
+  React.useEffect(() => {
+    if (isSettingsFamilyPath(pathname)) {
+      lastSettingsPathnameRef.current = pathname;
+    }
+  }, [pathname]);
   const sectionId = sectionIdForPath(pathname);
   const fill = fillForPath(pathname);
 
   return (
     <SettingsNavigationProvider>
       <SettingsShell sectionId={sectionId} fill={fill}>
-        {children}
+        <SettingsWorkspaceHost pathnameOverride={pathname} />
       </SettingsShell>
     </SettingsNavigationProvider>
   );

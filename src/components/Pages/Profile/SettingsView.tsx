@@ -38,9 +38,24 @@ export function SettingsView({
 
   return (
     <div className="w-full max-w-[900px] px-6 py-5">
-      {active === 'profile' && <ProfileForm externalIdentity={externalIdentity} user={user} />}
-      {active === 'contact-info' && <ContactInfoTab user={user} />}
-      {active === 'security' && <SecurityTab user={user} apiKey={user.apiKey} />}
+      <div
+        className={active !== 'profile' ? 'hidden' : undefined}
+        aria-hidden={active !== 'profile'}
+      >
+        <ProfileForm externalIdentity={externalIdentity} user={user} />
+      </div>
+      <div
+        className={active !== 'contact-info' ? 'hidden' : undefined}
+        aria-hidden={active !== 'contact-info'}
+      >
+        <ContactInfoTab user={user} />
+      </div>
+      <div
+        className={active !== 'security' ? 'hidden' : undefined}
+        aria-hidden={active !== 'security'}
+      >
+        <SecurityTab user={user} apiKey={user.apiKey} />
+      </div>
     </div>
   );
 }

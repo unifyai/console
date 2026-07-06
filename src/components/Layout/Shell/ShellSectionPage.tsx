@@ -20,8 +20,8 @@ interface ShellSectionPageProps {
  * title, guided steps, global actions) above the route body. Lets each migrated
  * route render its existing content beneath a consistent header.
  *
- * Settings-family routes (`/account`, `/organizations`, `/usage`, `/billing`)
- * mount the shared shell in `app/(home)/(settings)/layout.tsx` instead.
+ * Settings-family routes render through `SettingsWorkspaceHost` inside the
+ * persistent app shell.
  */
 export function ShellSectionPage({
   sectionId,
