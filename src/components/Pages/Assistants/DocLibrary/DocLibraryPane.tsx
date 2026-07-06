@@ -49,6 +49,7 @@ interface DocLibraryPaneProps {
   assistantId: string;
   /** Which library this pane renders. Defaults to guidance. */
   kind?: DocLibraryKind;
+  enabled?: boolean;
 }
 
 const KIND_META: Record<
@@ -190,14 +191,16 @@ export function DocLibraryPane({
   ownerId,
   assistantId,
   kind = 'guidance',
+  enabled = true,
 }: DocLibraryPaneProps) {
   const context = kind === 'knowledge' ? 'Knowledge' : 'Guidance';
-  const { guidance, knowledge, isLoading, error, refetch } = useBrainData({
+  const { guidance, knowledge, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
     contexts: kind === 'knowledge' ? (['Knowledge'] as const) : (['Guidance'] as const),
     initialContext: context,
+    enabled,
   });
 
   const meta = KIND_META[kind];
@@ -357,7 +360,7 @@ export function DocLibraryPane({
         mobileBackTestId="doc-library-mobile-back"
         left={
           <div className="flex h-full min-w-0 flex-col" data-testid="doc-list">
-            {isLoading && docs.length === 0 ? (
+            {isLoading && !hasLoaded ? (
               <div className="flex flex-col gap-1.5 p-2" data-testid="doc-list-skeleton">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full rounded-md" />
@@ -446,7 +449,7 @@ export function DocLibraryPane({
         }
         right={
           <div className="h-full min-w-0" data-testid="doc-reader">
-            {isLoading && docs.length === 0 ? (
+            {isLoading && !hasLoaded ? (
               <div className="w-full px-6 pb-5 pt-3" data-testid="doc-reader-skeleton">
                 <Skeleton className="mb-4 h-7 w-1/2" />
                 <SkeletonText lines={6} />

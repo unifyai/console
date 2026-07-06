@@ -40,6 +40,7 @@ interface ContactsPaneProps {
   assistantId: string;
   /** Opens the channel-identity provisioning dialog (the live "Contacts" action). */
   onManageContacts?: () => void;
+  enabled?: boolean;
 }
 
 function RespondDot({ on }: { on: boolean }) {
@@ -162,13 +163,15 @@ export function ContactsPane({
   ownerId,
   assistantId,
   onManageContacts,
+  enabled = true,
 }: ContactsPaneProps) {
-  const { contacts, isLoading, error, refetch } = useBrainData({
+  const { contacts, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
     contexts: ['Contacts'] as const,
     initialContext: 'Contacts',
+    enabled,
   });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -271,7 +274,7 @@ export function ContactsPane({
       />
 
       <div className="min-h-0 flex-1" data-testid="contacts-body">
-        {isLoading && cards.length === 0 ? (
+        {isLoading && !hasLoaded ? (
           <div
             className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3 p-3"
             data-testid="contacts-skeleton"

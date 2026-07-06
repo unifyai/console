@@ -62,6 +62,7 @@ interface UseBrainDataOptions {
   contexts?: readonly BrainTabContext[];
   /** Initial active context (defaults to the first requested context). */
   initialContext?: BrainTabContext;
+  enabled?: boolean;
 }
 
 interface SortState {
@@ -86,6 +87,7 @@ export interface UseBrainDataResult {
   knowledge: ContextState<KnowledgeRow>;
   guidance: ContextState<GuidanceRow>;
   functions: ContextState<FunctionRow>;
+  hasLoaded: boolean;
   isLoading: boolean;
   error: string | null;
   activeContext: BrainTabContext;
@@ -192,6 +194,7 @@ export function useBrainData({
   root = null,
   contexts,
   initialContext,
+  enabled = true,
 }: UseBrainDataOptions): UseBrainDataResult {
   // Stable signature so inline-array `contexts` props don't retrigger fetches.
   const contextsKey = (contexts ?? ALL_CONTEXTS).join(',');
@@ -200,23 +203,25 @@ export function useBrainData({
     [contextsKey]
   );
   const defaultContext = initialContext ?? requestedContexts[0];
+  const identityKey = `${ownerId}:${assistantId}`;
+  const cacheKey = brainCacheKey(ownerId, assistantId, contextsKey, root);
+  const initialCachedStates = readTabDataCache<ContextStates>(cacheKey);
 
   const [states, setStates] = React.useState<ContextStates>({
-    Contacts: emptyState(),
-    Transcripts: emptyState(),
-    Knowledge: emptyState(),
-    Guidance: emptyState(),
-    Functions: emptyState(),
+    Contacts: initialCachedStates?.Contacts ?? emptyState(),
+    Transcripts: initialCachedStates?.Transcripts ?? emptyState(),
+    Knowledge: initialCachedStates?.Knowledge ?? emptyState(),
+    Guidance: initialCachedStates?.Guidance ?? emptyState(),
+    Functions: initialCachedStates?.Functions ?? emptyState(),
   });
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(!initialCachedStates);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [activeContext, setActiveContext] = React.useState<BrainTabContext>(defaultContext);
-  const identityKey = `${ownerId}:${assistantId}`;
-  const cacheKey = brainCacheKey(ownerId, assistantId, contextsKey, root);
   const previousIdentityKey = React.useRef(identityKey);
   const requestSequence = React.useRef(0);
   const pageRequestSequence = React.useRef(0);
+  const hasLoaded = requestedContexts.every((context) => states[context].lastLoadedAt !== null);
 
   const nextRequestId = React.useCallback(() => {
     requestSequence.current += 1;
@@ -241,7 +246,7 @@ export function useBrainData({
   }, []);
 
   const fetchAll = React.useCallback(async () => {
-    if (!ownerId || !assistantId) return;
+    if (!enabled || !ownerId || !assistantId) return;
 
     const requestId = nextRequestId();
     setIsLoading(true);
@@ -283,6 +288,7 @@ export function useBrainData({
   }, [
     ownerId,
     assistantId,
+    enabled,
     assistant,
     root,
     requestedContexts,
@@ -310,8 +316,13 @@ export function useBrainData({
       return;
     }
 
-    void fetchAllRef.current();
-  }, [identityKey, defaultContext, invalidatePageRequests, cacheKey]);
+    if (enabled) {
+      setIsLoading(true);
+      void fetchAllRef.current();
+      return;
+    }
+    setIsLoading(false);
+  }, [identityKey, defaultContext, invalidatePageRequests, cacheKey, enabled]);
 
   const sort = React.useCallback(
     async (field: string, direction: 'asc' | 'desc' | null) => {
@@ -530,8 +541,15 @@ export function useBrainData({
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
     invalidateTabDataCache(cacheKey);
+    setStates((prev) => {
+      const next = { ...prev };
+      requestedContexts.forEach((context) => {
+        next[context] = emptyState() as any;
+      });
+      return next;
+    });
     await fetchAllRef.current();
-  }, [ownerId, assistantId, cacheKey]);
+  }, [ownerId, assistantId, cacheKey, requestedContexts]);
 
   return {
     contacts: states.Contacts,
@@ -539,6 +557,7 @@ export function useBrainData({
     knowledge: states.Knowledge,
     guidance: states.Guidance,
     functions: states.Functions,
+    hasLoaded,
     isLoading,
     isLoadingMore,
     error,

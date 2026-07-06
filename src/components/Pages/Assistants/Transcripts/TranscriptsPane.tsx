@@ -26,17 +26,13 @@ import {
 } from '@/components/UI/select';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
+import { useShellResource } from '@/hooks/Common/useShellResource';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
-import {
-  invalidateTabDataCache,
-  readTabDataCache,
-  writeTabDataCache,
-} from '@/lib/assistants/tabDataCache';
 import type { ContactRow, TranscriptRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { brandAvatarToneFromId } from '@/utils/brand/avatarPalette';
@@ -56,6 +52,7 @@ interface TranscriptsPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  enabled?: boolean;
 }
 
 interface ChannelDef {
@@ -66,6 +63,11 @@ interface ChannelDef {
   mediums: string[];
   /** Brand accent token used as the per-channel highlight color. */
   cssVar: string;
+}
+
+interface TranscriptsResourceData {
+  transcriptRows: TranscriptRow[];
+  contactRows: ContactRow[];
 }
 
 const CHANNELS: ChannelDef[] = [
@@ -186,7 +188,12 @@ async function fetchRows<T>(context: string): Promise<T[]> {
   }
 }
 
-export function TranscriptsPane({ assistant, ownerId, assistantId }: TranscriptsPaneProps) {
+export function TranscriptsPane({
+  assistant,
+  ownerId,
+  assistantId,
+  enabled = true,
+}: TranscriptsPaneProps) {
   const [viewMode, setViewMode] = React.useState<TranscriptViewMode>('threads');
   const [channel, setChannel] = React.useState<string>('all');
   const {
@@ -196,46 +203,40 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
     submit: submitSearch,
     clear: clearSearch,
   } = useTabSearchCommit();
-  const [transcripts, setTranscripts] = React.useState<TranscriptRow[]>([]);
-  const [contacts, setContacts] = React.useState<ContactRow[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [openThreadId, setOpenThreadId] = React.useState<string | number | null>(null);
   const isStackedLayout = useMatchesBelow('shellCompact');
 
-  const load = React.useCallback(async () => {
-    const cacheKey = `${ownerId}:${assistantId}:transcripts`;
+  const load = React.useCallback(async (): Promise<TranscriptsResourceData> => {
     const [transcriptRows, contactRows] = await Promise.all([
       fetchRows<TranscriptRow>(`${ownerId}/${assistantId}/Transcripts`),
       fetchRows<ContactRow>(`${ownerId}/${assistantId}/Contacts`),
     ]);
-    writeTabDataCache(cacheKey, { transcriptRows, contactRows });
-    setTranscripts(transcriptRows);
-    setContacts(contactRows);
+    return { transcriptRows, contactRows };
   }, [ownerId, assistantId]);
 
-  React.useEffect(() => {
-    const cacheKey = `${ownerId}:${assistantId}:transcripts`;
-    const cached = readTabDataCache<{
-      transcriptRows: TranscriptRow[];
-      contactRows: ContactRow[];
-    }>(cacheKey);
-    if (cached) {
-      setTranscripts(cached.transcriptRows);
-      setContacts(cached.contactRows);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    void load().finally(() => setIsLoading(false));
-  }, [ownerId, assistantId, load]);
+  const {
+    data: transcriptData,
+    isInitialLoading,
+    isRefreshing,
+    refresh,
+  } = useShellResource<TranscriptsResourceData>({
+    queryKey: ['assistant-transcripts', ownerId, assistantId],
+    queryFn: load,
+    enabled: enabled && !!ownerId && !!assistantId,
+  });
+
+  const transcripts = React.useMemo(
+    () => transcriptData?.transcriptRows ?? [],
+    [transcriptData?.transcriptRows]
+  );
+  const contacts = React.useMemo(
+    () => transcriptData?.contactRows ?? [],
+    [transcriptData?.contactRows]
+  );
 
   const handleRefresh = React.useCallback(async () => {
-    setIsRefreshing(true);
-    invalidateTabDataCache(`${ownerId}:${assistantId}:transcripts`);
-    await load();
-    setIsRefreshing(false);
-  }, [load, ownerId, assistantId]);
+    await refresh();
+  }, [refresh]);
 
   const nameFor = React.useCallback(
     (contactId: number | null): string => {
@@ -434,7 +435,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       />
 
       {/* Threads split: list + reader */}
-      {isLoading ? (
+      {isInitialLoading ? (
         <TabSplitSkeleton listRows={8} />
       ) : viewMode === 'feed' ? (
         <ScrollArea className="min-h-0 flex-1" viewportTestId="transcripts-feed">
