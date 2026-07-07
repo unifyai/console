@@ -102,6 +102,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: LayoutDashboard,
     kind: 'view',
     tab: 'dashboards',
+    appliesTo: ['assistant', 'team'],
     desc: 'Live tiles and reports your teammate builds for you, on request.',
     steps: [
       ['Switch dashboard', 'Use the picker to jump between dashboards saved for this teammate.'],

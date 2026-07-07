@@ -1,4 +1,4 @@
-import { rootContext, roots } from '@/lib/assistants/scope';
+import { rootContext, roots, type ContextRoot } from '@/lib/assistants/scope';
 import { escapeFilterValue } from '@/utils/assistants/filterExpressions';
 import { snakeToCamelObject } from '@/utils/casing';
 import type { Assistant } from '@/types/assistants/assistant';
@@ -43,21 +43,26 @@ async function fetchContext(
 async function readAcrossDashboardRoots<T>(
   assistant: Assistant,
   table: string,
-  options?: { fromFields?: string; filterExpr?: string }
+  options?: { fromFields?: string; filterExpr?: string; root?: ContextRoot | null }
 ): Promise<T[]> {
+  const readableRoots = options?.root ? [options.root] : roots(assistant);
   const results = await Promise.all(
-    roots(assistant).map((root) =>
+    readableRoots.map((root) =>
       fetchContext(rootContext(root, assistant.userId, assistant.agentId, table), options)
     )
   );
   return results.flat() as T[];
 }
 
-export async function fetchDashboardMetadata(assistant: Assistant): Promise<DashboardPaneData> {
+export async function fetchDashboardMetadata(
+  assistant: Assistant,
+  root: ContextRoot | null = null
+): Promise<DashboardPaneData> {
   const [dashboards, tiles] = await Promise.all([
-    readAcrossDashboardRoots<DashboardRecord>(assistant, 'Dashboards/Layouts'),
+    readAcrossDashboardRoots<DashboardRecord>(assistant, 'Dashboards/Layouts', { root }),
     readAcrossDashboardRoots<TileRecord>(assistant, 'Dashboards/Tiles', {
       fromFields: TILE_METADATA_FIELDS,
+      root,
     }),
   ]);
 
@@ -66,13 +71,15 @@ export async function fetchDashboardMetadata(assistant: Assistant): Promise<Dash
 
 export async function fetchDashboardTileContent(
   assistant: Assistant,
-  tileToken: string
+  tileToken: string,
+  root: ContextRoot | null = null
 ): Promise<string | null> {
   if (!tileToken || tileToken === 'undefined') return null;
 
   const rows = await readAcrossDashboardRoots<TileRecord>(assistant, 'Dashboards/Tiles', {
     fromFields: 'token&html_content',
     filterExpr: `token == '${escapeFilterValue(tileToken)}'`,
+    root,
   });
 
   return rows[0]?.htmlContent ?? null;

@@ -24,9 +24,13 @@ const TranscriptsPane = React.lazy(() =>
 const TasksPane = React.lazy(() =>
   import('../Tasks/TasksPane').then((m) => ({ default: m.TasksPane }))
 );
+const DashboardsPane = React.lazy(() =>
+  import('../Dashboards/DashboardsPane').then((m) => ({ default: m.DashboardsPane }))
+);
 
 const TEAM_SECTION_IDS = [
   'tasks',
+  'dashboards',
   'contacts',
   'transcripts',
   'knowledge',
@@ -110,6 +114,8 @@ export function TeamBrainSectionsHost({
         return (
           <TasksPane {...paneProps} isVisible={sectionActive} isActiveSurface={isActiveSurface} />
         );
+      case 'dashboards':
+        return <DashboardsPane {...paneProps} shouldPoll={false} />;
       case 'contacts':
         return <ContactsPane {...paneProps} enabled={paneEnabled} />;
       case 'functions':

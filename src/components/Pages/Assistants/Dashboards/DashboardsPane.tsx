@@ -24,14 +24,17 @@ import type {
   TileRecord,
 } from '@/types/assistants/dashboard';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ContextRoot } from '@/lib/assistants/scope';
 import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
 
 interface DashboardsPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
-  getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
-  getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
+  /** Scope override: a team root reads `Teams/{id}/Dashboards/…` only. */
+  root?: ContextRoot | null;
+  getMetadata?: (assistant: Assistant) => Promise<DashboardPaneData>;
+  getTileContent?: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   shouldPoll: boolean;
 }
 
@@ -39,6 +42,7 @@ export function DashboardsPane({
   assistant,
   ownerId,
   assistantId,
+  root = null,
   shouldPoll,
 }: DashboardsPaneProps) {
   const effectiveGetMetadata = useMemo(
@@ -66,6 +70,7 @@ export function DashboardsPane({
     assistant,
     ownerId,
     assistantId,
+    root,
     getMetadata: effectiveGetMetadata,
     getTileContent: effectiveGetTileContent,
     shouldPoll,
