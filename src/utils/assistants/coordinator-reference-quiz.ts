@@ -30,10 +30,11 @@ export async function dispatchCoordinatorOnboardingStepEvent(
   step: OnboardingStep,
   chipId?: string
 ): Promise<OnboardingEventSpec | null> {
-  // The row itself must carry an event (its graph-owned trigger). A chip click
-  // reuses the owning row's event as the guard, but Orchestra resolves the
-  // chip-specific event server-side from ``chipId``.
-  if (!step.event) return null;
+  // Row clicks must carry their graph-owned event. Chip clicks only need the
+  // owning step id: Orchestra resolves the chip-specific event server-side from
+  // ``chipId``. This lets connect rows like ``apps`` keep no row event while
+  // still having clickable chips.
+  if (!step.event && !chipId) return null;
 
   const response = await fetch('/api/coordinator-onboarding-step-event', {
     method: 'POST',
@@ -48,5 +49,12 @@ export async function dispatchCoordinatorOnboardingStepEvent(
   if (!response.ok) {
     throw new Error('Failed to dispatch coordinator onboarding event');
   }
-  return step.event;
+  return (
+    step.event ?? {
+      eventType: 'coordinator_onboarding_event',
+      message: '',
+      subtype: 'chip_event_requested',
+      details: { stepId: step.id, chipId },
+    }
+  );
 }

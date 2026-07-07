@@ -75,6 +75,8 @@ export type ChecklistAction =
   | 'trigger-workspace-drive'
   | 'trigger-workspace-calendar'
   | 'connect-apps'
+  | 'trigger-integration-read'
+  | 'trigger-integration-action'
   | 'act'
   | 'create-scheduled-task'
   | 'create-triggerable-task'
@@ -137,6 +139,8 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'workspace-drive': 'trigger-workspace-drive',
   'workspace-calendar': 'trigger-workspace-calendar',
   apps: 'connect-apps',
+  'integration-read': 'trigger-integration-read',
+  'integration-action': 'trigger-integration-action',
   act: 'act',
   'create-scheduled-task': 'create-scheduled-task',
   'create-triggerable-task': 'create-triggerable-task',
@@ -162,6 +166,8 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-mailbox': 'Summarizing...',
   'trigger-workspace-drive': 'Summarizing...',
   'trigger-workspace-calendar': 'Summarizing...',
+  'trigger-integration-read': 'Reading...',
+  'trigger-integration-action': 'Working...',
   'create-scheduled-task': 'Starting...',
   'create-triggerable-task': 'Starting...',
   'learn-from-correction': 'Starting...',
@@ -723,6 +729,9 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'trigger-workspace-calendar')
         onTriggerReferenceStep?.('workspace-calendar');
       else if (action === 'connect-apps') onConnectApps?.();
+      else if (action === 'trigger-integration-read') onTriggerReferenceStep?.('integration-read');
+      else if (action === 'trigger-integration-action')
+        onTriggerReferenceStep?.('integration-action');
       else if (action === 'act') onActNow?.();
       else if (action === 'create-scheduled-task') onCreateScheduledTask?.();
       else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
@@ -852,6 +861,9 @@ export function CoordinatorOnboardingChecklist({
         return !!onTriggerReferenceStep && !!onConnectWorkspace;
       }
       if (action === 'connect-apps') return !!onConnectApps;
+      if (action === 'trigger-integration-read' || action === 'trigger-integration-action') {
+        return !!onTriggerReferenceStep;
+      }
       if (action === 'act') return !!onActNow;
       if (action === 'create-scheduled-task') return !!onCreateScheduledTask;
       if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
@@ -1406,7 +1418,7 @@ interface ChecklistRowProps {
   armedTriggerableTaskId?: number | null;
   /** Nearest upcoming scheduled task due time (ISO), for the countdown. */
   nextScheduledTaskDueAt?: string | null;
-  /** Dispatch a Tasks-phase chip event. Unset leaves chips read-only. */
+  /** Dispatch a graph-owned chip event. Unset leaves chips read-only. */
   onSelectTaskChip?: (stepId: string, chipId: string) => void;
 }
 
@@ -1669,10 +1681,10 @@ function ChecklistRow({
   // scheduled/event prompts for the Tasks beats). Rendered only while the row
   // is still pending; hidden rows never reach this component.
   //
-  // The Tasks beats (``create-scheduled-task`` / ``create-triggerable-task``)
-  // wire an ``onSelectTaskChip`` handler: clicking a chip dispatches a system
-  // event that asks Twin to set up that specific task. ``act`` and every other
-  // step pass no handler, so their chips stay read-only inspiration.
+  // Tasks beats and Integrations onboarding rows wire an ``onSelectTaskChip``
+  // handler: clicking a chip dispatches a system event that asks Twin to act on
+  // that specific server-owned example. ``act`` and every other step pass no
+  // handler, so their chips stay read-only inspiration.
   //
   // Suggestion chips come from the server render (sourced from the canonical
   // graph). The chat/call split lives in the data: ``act`` carries distinct
@@ -1682,7 +1694,11 @@ function ChecklistRow({
   const showSuggestions =
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
   const chipsClickable =
-    item.id === 'create-scheduled-task' || item.id === 'create-triggerable-task'
+    item.id === 'create-scheduled-task' ||
+    item.id === 'create-triggerable-task' ||
+    item.id === 'apps' ||
+    item.id === 'integration-read' ||
+    item.id === 'integration-action'
       ? !!onSelectTaskChip
       : false;
 

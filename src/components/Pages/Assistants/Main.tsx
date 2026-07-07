@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import {
   RightPaneContainer,
   DEFAULT_RIGHT_PANE_STATE,
+  type RightPaneIntegrationsState,
   type RightPaneState,
   type RightPaneTab,
 } from '@/components/Pages/Assistants/RightPaneContainer';
@@ -103,6 +104,7 @@ import {
 import { buildDisplayedAssistantStatuses } from '@/lib/assistants/coordinatorOnboardingPresence';
 import { debugConsole } from '@/lib/consoleDebug';
 import { wakeCoordinator } from '@/lib/client/coordinator';
+import { ENABLE_INTEGRATION_LABEL_FILTER } from '@/lib/integrations/integrationLabelFilter';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
 import {
@@ -2057,10 +2059,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // happens. The coordinator is already the selected profile while its
   // onboarding card is open, so the tab renders against it.
   const handleCoordinatorOpenPaneTab = React.useCallback(
-    (tab: RightPaneTab, stepId: string) => {
+    (tab: RightPaneTab, stepId: string, integrations?: RightPaneIntegrationsState) => {
       markStepEngaged(stepId);
       setActiveBrainSectionId(null);
-      setPaneState((prev) => ({ ...prev, primary: { tab } }));
+      setPaneState((prev) => ({
+        ...prev,
+        primary: tab === 'integrations' ? { tab, integrations } : { tab },
+      }));
     },
     [markStepEngaged]
   );
@@ -2143,25 +2148,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   const handleCoordinatorTriggerReferenceStep = React.useCallback(
-    (stepId: string) => {
+    (stepId: string, chipId?: string) => {
       if (!canonicalCoordinator) return;
       const step = coordinatorOnboardingState?.onboarding?.steps.find(
         (candidate) => candidate.id === stepId
       );
       if (!step) return;
-      if (!shouldDispatchStepRequest(stepId)) {
+      const requestKey = chipId ? `${stepId}:${chipId}` : stepId;
+      if (!shouldDispatchStepRequest(requestKey)) {
         void refetchCoordinatorOnboardingState();
         return;
       }
-      const label = resolveOnboardingStepLabel(stepId);
+      const label = resolveOnboardingStepLabel(stepId, chipId);
       if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
-      markStepRequested(stepId);
+      markStepRequested(requestKey);
       void (async () => {
         try {
           const event = await dispatchCoordinatorOnboardingStepEvent(
             canonicalCoordinator.agentId,
-            step
+            step,
+            chipId
           );
           if (!event) return;
 
@@ -2190,6 +2197,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  const resolveIntegrationChipFilters = React.useCallback(
+    (stepId: string, chipId?: string): RightPaneIntegrationsState | undefined => {
+      if (stepId !== 'apps' || !chipId) return undefined;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      const chip = step
+        ? [...step.chipsChat, ...step.chipsCall].find((item) => item.id === chipId)
+        : null;
+      const searchQuery = typeof chip?.searchQuery === 'string' ? chip.searchQuery : undefined;
+      if (!ENABLE_INTEGRATION_LABEL_FILTER) {
+        return searchQuery ? { query: searchQuery } : undefined;
+      }
+      const galleryCategory =
+        typeof chip?.galleryCategory === 'string' ? chip.galleryCategory : undefined;
+      if (galleryCategory === 'productivity') {
+        return { semanticCategory: 'productivity', query: searchQuery };
+      }
+      if (galleryCategory === 'crm_sales') {
+        return { semanticCategory: 'crm', query: searchQuery };
+      }
+      return searchQuery ? { query: searchQuery, semanticCategory: 'all' } : undefined;
+    },
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
+
   // Dispatch the graph-owned event for a Tasks-phase beat. Clicking the row
   // (no ``chipId``) asks Twin to open a freeform conversation about that kind
   // of standing work; clicking one of its example chips (``chipId`` set) asks
@@ -2204,6 +2237,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         (candidate) => candidate.id === stepId
       );
       if (!step) return;
+      if (stepId === 'apps') {
+        handleCoordinatorOpenPaneTab(
+          'integrations',
+          stepId,
+          resolveIntegrationChipFilters(stepId, chipId)
+        );
+      }
       const requestKey = chipId ? `${stepId}:${chipId}` : stepId;
       if (!shouldDispatchStepRequest(requestKey)) {
         void refetchCoordinatorOnboardingState();
@@ -2232,9 +2272,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
+      handleCoordinatorOpenPaneTab,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveIntegrationChipFilters,
       resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
     ]
@@ -2484,7 +2526,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onCreateScheduledTask: () => handleCoordinatorDispatchTaskBeat('create-scheduled-task'),
       onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
       onSelectTaskChip: (stepId: string, chipId: string) =>
-        handleCoordinatorDispatchTaskBeat(stepId, chipId),
+        stepId === 'integration-read' || stepId === 'integration-action'
+          ? handleCoordinatorTriggerReferenceStep(stepId, chipId)
+          : handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
       onMyComputerDemo: () => handleCoordinatorDispatchMyComputerBeat('my-computer-demo'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
