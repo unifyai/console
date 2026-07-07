@@ -368,6 +368,20 @@ const CHECKLIST_CONTROL_GRID_CLASS =
   '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem] gap-1 px-1.5';
 const COMMUNICATION_SECTION_ID = 'communication';
 
+/** Overview pages for each onboarding section in the public docs site. */
+const ONBOARDING_SECTION_DOCS_URLS: Readonly<Record<string, string>> = {
+  communication: 'https://docs.unify.ai/communication/overview',
+  workspace: 'https://docs.unify.ai/workspace/overview',
+  integrations: 'https://docs.unify.ai/integrations/overview',
+  tasks: 'https://docs.unify.ai/tasks/overview',
+  learning: 'https://docs.unify.ai/learning/overview',
+  canvas: 'https://docs.unify.ai/canvas/overview',
+  'your-computer': 'https://docs.unify.ai/their-computer/overview',
+  'my-computer': 'https://docs.unify.ai/your-computer/overview',
+  teams: 'https://docs.unify.ai/teams/overview',
+  hiring: 'https://docs.unify.ai/hiring/overview',
+};
+
 const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   id: string;
   title: string;
@@ -1237,33 +1251,74 @@ function CompactProgress({ completed, total }: { completed: number; total: numbe
 
 function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHeaderProps) {
   const label = `${index + 1}. ${section.title}`;
+  const docsUrl = ONBOARDING_SECTION_DOCS_URLS[section.id];
+  const toggleProps = {
+    type: 'button' as const,
+    onClick: onToggle,
+    'aria-expanded': isOpen,
+  };
+
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={isOpen}
+    <div
       className={cn(
         CHECKLIST_CONTROL_GRID_CLASS,
-        'group/onboarding-section rounded-control cursor-pointer items-center py-3 text-left',
-        'bg-transparent transition-colors',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        'group/onboarding-section rounded-control items-center py-3'
       )}
+      aria-expanded={isOpen}
       data-testid={`coordinator-onboarding-section-${section.id}`}
     >
-      <span
-        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-section:text-muted-foreground group-focus-visible/onboarding-section:text-muted-foreground"
-        data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <button
+          {...toggleProps}
+          className={cn(
+            'text-body-sm min-w-0 truncate text-left font-medium text-foreground transition-colors',
+            'rounded-sm bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'group-hover/onboarding-section:text-muted-foreground'
+          )}
+          data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
+        >
+          {label}
+        </button>
+        {docsUrl ? (
+          <a
+            href={docsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              'text-caption w-fit text-muted-foreground underline-offset-2 transition-colors',
+              'rounded-sm hover:text-foreground hover:underline',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            )}
+            data-testid={`coordinator-onboarding-section-${section.id}-docs`}
+          >
+            Docs
+          </a>
+        ) : null}
+      </div>
+      <button
+        {...toggleProps}
+        className={cn(
+          'flex w-16 flex-col gap-1 justify-self-center rounded-sm bg-transparent',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${section.title}`}
       >
-        {label}
-      </span>
-      <CompactProgress completed={progress.completed} total={progress.total} />
-      <span className="flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground">
+        <CompactProgress completed={progress.completed} total={progress.total} />
+      </button>
+      <button
+        {...toggleProps}
+        className={cn(
+          'flex h-6 w-6 items-center justify-center justify-self-center rounded-sm bg-transparent text-muted-foreground',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${section.title}`}
+      >
         <ChevronDown
           className={cn('h-3.5 w-3.5 transition-transform', !isOpen && '-rotate-90')}
           aria-hidden="true"
         />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 
