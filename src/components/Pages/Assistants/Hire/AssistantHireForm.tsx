@@ -42,6 +42,11 @@ import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
+import {
+  useDefaultModelOptions,
+  encodeDefaultModelValue,
+  decodeDefaultModelValue,
+} from '@/hooks/Assistants/useDefaultModelOptions';
 import { buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
 import { type CreatureAntenna, type CreatureEyes } from '@/components/Brand/TeammateCreature';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
@@ -351,6 +356,19 @@ export function HireForm({
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
+  const { options: defaultModelOptions } = useDefaultModelOptions();
+  const watchedDefaultModel = useWatch({ control, name: 'defaultModel' });
+  const watchedDefaultReasoningEffort = useWatch({ control, name: 'defaultReasoningEffort' });
+  // The catalog's first entry is the platform default; show it when the
+  // assistant has no explicit selection.
+  const selectedDefaultModelValue =
+    encodeDefaultModelValue(watchedDefaultModel, watchedDefaultReasoningEffort) ||
+    (defaultModelOptions.length > 0
+      ? encodeDefaultModelValue(
+          defaultModelOptions[0].model,
+          defaultModelOptions[0].reasoningEffort
+        )
+      : '');
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
   const selectedUnityEyes = DEFAULT_COORDINATOR_APPEARANCE.eyes;
@@ -672,6 +690,61 @@ export function HireForm({
                               {errors.timezone.message}
                             </p>
                           )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex flex-row items-center gap-2">
+                            <Label htmlFor="defaultModel">Default model</Label>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <InfoSquareButton />
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="right"
+                                  align="end"
+                                  className="text-caption max-w-xs"
+                                >
+                                  <p>
+                                    The model this teammate thinks with by default. Premium models
+                                    (GPT-5.5, Claude Opus 4.8, Claude Fable 5) are substantially
+                                    more capable but cost more per task.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <Select
+                            value={selectedDefaultModelValue}
+                            onValueChange={(value) => {
+                              const { model, reasoningEffort } = decodeDefaultModelValue(value);
+                              setValue('defaultModel', model, { shouldDirty: true });
+                              setValue('defaultReasoningEffort', reasoningEffort, {
+                                shouldDirty: true,
+                              });
+                            }}
+                            disabled={isSubmitting || defaultModelOptions.length === 0}
+                          >
+                            <SelectTrigger id="defaultModel" className="bg-card">
+                              <SelectValue placeholder="Loading models..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {defaultModelOptions.map((option) => (
+                                <SelectItem
+                                  key={encodeDefaultModelValue(
+                                    option.model,
+                                    option.reasoningEffort
+                                  )}
+                                  value={encodeDefaultModelValue(
+                                    option.model,
+                                    option.reasoningEffort
+                                  )}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 

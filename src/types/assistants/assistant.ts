@@ -113,6 +113,10 @@ export interface Assistant {
   // Voice fields
   voiceId: string | null; // Provider Voice ID
   voiceProvider: VoiceProvider | null;
+  // Default LLM fields. The model is a unillm 'model@provider' endpoint paired
+  // with a reasoning-effort level; null means the platform default applies.
+  defaultModel: string | null;
+  defaultReasoningEffort: string | null;
   // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
   emailProvider?: string | null;
@@ -201,6 +205,8 @@ export type AssistantPreset = Omit<
   | 'contactIdentityRoots'
   | 'voiceId'
   | 'voiceProvider'
+  | 'defaultModel'
+  | 'defaultReasoningEffort'
   | 'timezone'
   | 'profileVideo'
   | 'phoneCountry'
@@ -378,12 +384,24 @@ export interface AssistantUpdatePayload {
   userWhatsappNumber?: string | null;
   voiceId?: string | null;
   voiceProvider?: VoiceProvider | null;
+  defaultModel?: string | null;
+  defaultReasoningEffort?: string | null;
   phoneCountry?: string | null;
   timezone?: string | null;
   profilePhoto?: string | null;
   profileVideo?: string | null;
   // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated.
   // User-desktop links are managed via the dedicated desktop link/unlink actions, not here.
+}
+
+/**
+ * One selectable per-assistant default LLM option, served by Orchestra's
+ * curated multimodal catalog (GET /api/assistant/default-model-options).
+ */
+export interface DefaultModelOption {
+  model: string;
+  reasoningEffort: string | null;
+  label: string;
 }
 
 // Assistant voice types
