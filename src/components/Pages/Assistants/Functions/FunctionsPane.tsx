@@ -19,6 +19,7 @@ import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { AssistantMarkdown, fencedCode } from '../Common/AssistantMarkdown';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -155,6 +156,7 @@ export function FunctionsPane({
   root = null,
   isActiveSurface = true,
 }: FunctionsPaneProps) {
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root, includeAll: false });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [kind, setKind] = useState<FunctionKindFilter>('All');
   const [selected, setSelected] = useState<FunctionSkill | null>(null);
@@ -171,7 +173,7 @@ export function FunctionsPane({
       assistant,
       kind,
       query: searchQuery,
-      root,
+      root: scope.root ?? { kind: 'personal' },
       enabled: isActiveSurface,
     });
 
@@ -224,6 +226,7 @@ export function FunctionsPane({
         refreshTitle="Refresh functions"
         refreshTestId="functions-refresh"
       />
+      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="functions-body">
         {isLoading && !hasLoaded ? (

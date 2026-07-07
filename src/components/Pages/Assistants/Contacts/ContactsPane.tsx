@@ -21,6 +21,7 @@ import { useBrainData } from '@/hooks/Assistants/useBrainData';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -170,11 +171,12 @@ export function ContactsPane({
   root = null,
   enabled = true,
 }: ContactsPaneProps) {
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const { contacts, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
-    root,
+    root: scope.root,
     contexts: ['Contacts'] as const,
     initialContext: 'Contacts',
     enabled,
@@ -278,6 +280,7 @@ export function ContactsPane({
         refreshTitle="Refresh contacts"
         refreshTestId="contacts-refresh"
       />
+      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 flex-1" data-testid="contacts-body">
         {isLoading && !hasLoaded ? (

@@ -10,6 +10,7 @@ import { DashboardGrid } from './DashboardGrid';
 import { DashboardTileCard } from './DashboardTileCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
@@ -45,6 +46,7 @@ export function DashboardsPane({
   root = null,
   shouldPoll,
 }: DashboardsPaneProps) {
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const effectiveGetMetadata = useMemo(
     () => (USE_MOCK_DASHBOARDS ? () => Promise.resolve(getMockDashboardMetadata()) : undefined),
     []
@@ -70,7 +72,7 @@ export function DashboardsPane({
     assistant,
     ownerId,
     assistantId,
-    root,
+    root: scope.root,
     getMetadata: effectiveGetMetadata,
     getTileContent: effectiveGetTileContent,
     shouldPoll,
@@ -165,6 +167,7 @@ export function DashboardsPane({
         refreshTitle="Refresh dashboards"
         refreshTestId="dashboards-refresh"
       />
+      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-testid="dashboards-body">
         {isInitialLoading ? (

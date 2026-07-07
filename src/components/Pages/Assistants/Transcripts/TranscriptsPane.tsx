@@ -28,6 +28,7 @@ import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { useShellResource } from '@/hooks/Common/useShellResource';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -211,7 +212,11 @@ export function TranscriptsPane({
   const [openThreadId, setOpenThreadId] = React.useState<string | number | null>(null);
   const isStackedLayout = useMatchesBelow('shellCompact');
 
-  const scopeRoot = React.useMemo<ContextRoot>(() => root ?? { kind: 'personal' }, [root]);
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root, includeAll: false });
+  const scopeRoot = React.useMemo<ContextRoot>(
+    () => scope.root ?? { kind: 'personal' },
+    [scope.root]
+  );
   const load = React.useCallback(async (): Promise<TranscriptsResourceData> => {
     const [transcriptRows, contactRows] = await Promise.all([
       fetchRows<TranscriptRow>(rootContext(scopeRoot, ownerId, assistantId, 'Transcripts')),
@@ -439,6 +444,7 @@ export function TranscriptsPane({
           </div>
         }
       />
+      <BrainScopeChips scope={scope} />
 
       {/* Threads split: list + reader */}
       {isInitialLoading ? (

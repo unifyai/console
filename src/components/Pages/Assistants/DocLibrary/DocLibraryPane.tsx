@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantMarkdown } from '../Common/AssistantMarkdown';
 import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -199,11 +200,12 @@ export function DocLibraryPane({
   enabled = true,
 }: DocLibraryPaneProps) {
   const context = kind === 'knowledge' ? 'Knowledge' : 'Guidance';
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const { guidance, knowledge, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
-    root,
+    root: scope.root,
     contexts: kind === 'knowledge' ? (['Knowledge'] as const) : (['Guidance'] as const),
     initialContext: context,
     enabled,
@@ -354,6 +356,7 @@ export function DocLibraryPane({
         //   </Button>
         // }
       />
+      <BrainScopeChips scope={scope} />
 
       <SplitPaneLayout
         paneId={`doc-library-${kind}`}
