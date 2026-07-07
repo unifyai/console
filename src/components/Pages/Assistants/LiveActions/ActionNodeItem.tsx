@@ -2,7 +2,7 @@
  * ActionNodeItem - Displays a single action node in the tree.
  *
  * Features:
- * - Shimmer text for running nodes, red-tinted text for errors, muted text for completed
+ * - Shimmer text (ai-elements) for running nodes, red-tinted text for errors, muted text for completed
  * - Hover-only right-side chevrons for expand/collapse
  * - Request text from first ToolLoop user message as the node label
  * - Duration display
@@ -471,7 +471,7 @@ export interface ActionNodeItemProps {
  */
 function getLabelStyles(status: ActionNodeStatus): string {
   if (status === 'error') return 'text-error font-medium';
-  if (status === 'running') return 'text-foreground font-medium animate-shimmer';
+  if (status === 'running') return 'text-foreground font-medium shimmer';
   if (status === 'awaiting') return 'text-muted-foreground font-medium';
   return 'text-foreground font-medium';
 }
@@ -589,7 +589,7 @@ const NodeIconBox = React.forwardRef<
       )}
       style={{ backgroundColor: tone.bg, color: tone.fg }}
     >
-      <Icon className={cn('h-3.5 w-3.5', status === 'running' && 'animate-shimmer')} />
+      <Icon className={cn('h-3.5 w-3.5', status === 'running' && 'icon-shimmer')} />
     </button>
   );
 });
@@ -1223,7 +1223,7 @@ function SteeringSubRow({
       <span className={cn('shrink-0', style.color)}>
         <style.Icon className="h-2.5 w-2.5" />
       </span>
-      <span className={cn('min-w-0 truncate', style.color, pending && 'animate-shimmer')}>
+      <span className={cn('min-w-0 truncate', style.color, pending && 'shimmer')}>
         {label}
       </span>
       <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
@@ -1330,7 +1330,7 @@ function ToolCallRow({
       >
         {actionIcon}
         <span
-          className={cn('min-w-0 truncate text-muted-foreground', isPending && 'animate-shimmer')}
+          className={cn('min-w-0 truncate text-muted-foreground', isPending && 'shimmer')}
         >
           <HighlightText text={entry.label} term={searchTerm} />
           {!isOpen && formattedArgs && (
@@ -1780,7 +1780,7 @@ function ToolLoopMessage({
           <span
             className={cn(
               'min-w-0 truncate text-muted-foreground',
-              isNodeOrDescendantRunning(child) && 'animate-shimmer'
+              isNodeOrDescendantRunning(child) && 'shimmer'
             )}
           >
             {childLabel}
@@ -1921,7 +1921,7 @@ function ToolLoopMessage({
             thought
           </TooltipContent>
         </Tooltip>
-        <span className="animate-shimmer truncate text-muted-foreground">Thinking</span>
+        <span className="shimmer truncate text-muted-foreground">Thinking</span>
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
         </span>
@@ -2077,7 +2077,7 @@ function ToolLoopMessage({
                 'min-w-0 truncate text-muted-foreground',
                 resolvedToolCallIds &&
                   !resolvedToolCallIds.has(codeBlocks[0].toolCallId) &&
-                  'animate-shimmer'
+                  'shimmer'
               )}
             >
               Run code
@@ -3475,7 +3475,7 @@ export function ActionNodeItem({
                       node.status === 'error'
                         ? 'text-error'
                         : node.status === 'running'
-                          ? 'animate-shimmer text-muted-foreground'
+                          ? 'icon-shimmer text-muted-foreground'
                           : 'text-muted-foreground'
                     )}
                   />
