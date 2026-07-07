@@ -35,6 +35,7 @@ interface UseProviderIntegrationCatalogOptions {
   ownerScope?: IntegrationOwnerScope;
   query?: string;
   sourceType?: ProviderCatalogSourceType | null;
+  category?: string | null;
   statusGroups?: ProviderAppStatusGroup[];
   enabled?: boolean;
 }
@@ -125,12 +126,13 @@ export function useProviderIntegrationCatalog(
   const ownerScope = options.ownerScope ?? 'assistant';
   const query = options.query ?? '';
   const sourceType = options.sourceType ?? null;
+  const category = options.category ?? null;
   const statusGroupsKey = (options.statusGroups ?? []).join(',');
   const statusGroups = React.useMemo(
     () => (statusGroupsKey ? (statusGroupsKey.split(',') as ProviderAppStatusGroup[]) : []),
     [statusGroupsKey]
   );
-  const requestKey = `${assistantId}:${ownerScope}:${query}:${sourceType ?? 'all'}:${statusGroupsKey}`;
+  const requestKey = `${assistantId}:${ownerScope}:${query}:${sourceType ?? 'all'}:${category ?? 'all'}:${statusGroupsKey}`;
   const loadedRequestKeyRef = React.useRef<string | null>(null);
   const [definitions, setDefinitions] = React.useState<IntegrationDefinition[]>([]);
   // Connected + needs-attention apps, fetched independently of the browse
@@ -206,6 +208,7 @@ export function useProviderIntegrationCatalog(
             assistantId,
             query,
             sourceType,
+            category,
             statusGroups,
             detailLevel: 'summary',
             limit: PROVIDER_CATALOG_PAGE_SIZE,
@@ -225,6 +228,7 @@ export function useProviderIntegrationCatalog(
                 ownerScope,
                 assistantId,
                 sourceType,
+                category,
                 statusGroups,
               }).catch((error) => {
                 console.error('Failed to load provider integration catalog count', error);
@@ -236,6 +240,7 @@ export function useProviderIntegrationCatalog(
                 assistantId,
                 query,
                 sourceType,
+                category,
                 statusGroups: PINNED_STATUS_GROUPS,
                 detailLevel: 'summary',
                 limit: PROVIDER_CATALOG_PAGE_SIZE,
@@ -294,7 +299,7 @@ export function useProviderIntegrationCatalog(
         setHasLoaded(true);
       }
     },
-    [assistantId, enabled, ownerScope, query, sourceType, statusGroups, requestKey]
+    [assistantId, category, enabled, ownerScope, query, sourceType, statusGroups, requestKey]
   );
 
   const loadMore = React.useCallback(async () => {
@@ -309,6 +314,7 @@ export function useProviderIntegrationCatalog(
         assistantId,
         query,
         sourceType,
+        category,
         statusGroups,
         detailLevel: 'summary',
         limit: PROVIDER_CATALOG_PAGE_SIZE,
@@ -339,6 +345,7 @@ export function useProviderIntegrationCatalog(
     }
   }, [
     assistantId,
+    category,
     hasMoreServer,
     isLoading,
     isMock,

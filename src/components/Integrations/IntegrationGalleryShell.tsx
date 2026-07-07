@@ -20,12 +20,14 @@ import type { ProviderAppCatalogFacets } from '@/lib/client/integrations';
 export interface IntegrationGalleryFilters {
   query: string;
   category: string;
+  semanticCategory: string;
   status: 'all' | 'connected' | 'needs_attention' | 'not_connected';
 }
 
 const DEFAULT_FILTERS: IntegrationGalleryFilters = {
   query: '',
   category: 'all',
+  semanticCategory: 'all',
   status: 'all',
 };
 
@@ -42,8 +44,24 @@ const CATEGORY_SEGMENTS = [
   ['third_party', 'Third-party'],
 ] as const;
 
+function semanticCategoryValue(value: string | null | undefined): string {
+  return value?.trim().toLowerCase() || '';
+}
+
+function semanticCategoryValues(item: IntegrationGalleryItem): string[] {
+  const labelKeys = item.labels?.categories.map((category) => category.key).filter(Boolean);
+  if (labelKeys && labelKeys.length > 0) return labelKeys;
+  const fallback = semanticCategoryValue(item.category);
+  return fallback ? [fallback] : [];
+}
+
 function isConnectedItem(item: IntegrationGalleryItem): boolean {
   return item.status === 'connected' || item.status === 'configured';
+}
+
+function orSearchTerms(query: string): string[] {
+  if (!query.includes('|')) return [];
+  return [...new Set(query.split('|').map((term) => term.trim().toLowerCase()).filter(Boolean))];
 }
 
 function isNeedsAttentionItem(item: IntegrationGalleryItem): boolean {
@@ -58,13 +76,18 @@ function isNeedsAttentionItem(item: IntegrationGalleryItem): boolean {
   ].includes(item.status);
 }
 
-function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGalleryFilters): boolean {
+function matchesFilters(
+  item: IntegrationGalleryItem,
+  filters: IntegrationGalleryFilters,
+  enableSemanticCategoryFilter: boolean
+): boolean {
   const query = filters.query.trim().toLowerCase();
   if (query) {
     const haystack = [
       item.displayName,
       item.description,
       item.category,
+      ...(item.labels?.tags.map((label) => label.label) ?? []),
       integrationTypeLabel(item),
       item.canonicalSlug,
       item.sourceMetadata.providerAppId,
@@ -74,10 +97,19 @@ function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGaller
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
-    if (!haystack.includes(query)) return false;
+    const terms = orSearchTerms(filters.query);
+    const matches = terms.length > 1 ? terms.some((term) => haystack.includes(term)) : haystack.includes(query);
+    if (!matches) return false;
   }
   if (filters.category !== 'all' && integrationTypeFilterValue(item) !== filters.category)
     return false;
+  if (
+    enableSemanticCategoryFilter &&
+    filters.semanticCategory !== 'all' &&
+    !semanticCategoryValues(item).includes(filters.semanticCategory)
+  ) {
+    return false;
+  }
   if (filters.status === 'connected') {
     return item.status === 'connected' || item.status === 'configured';
   }
@@ -110,6 +142,7 @@ export function IntegrationGalleryShell({
   isLoadingMore,
   onLoadMore,
   facets,
+  enableSemanticCategoryFilter = false,
 }: {
   items: IntegrationGalleryItem[];
   isLoading?: boolean;
@@ -127,6 +160,7 @@ export function IntegrationGalleryShell({
   isLoadingMore?: boolean;
   onLoadMore?: () => void | Promise<void>;
   facets?: ProviderAppCatalogFacets | null;
+  enableSemanticCategoryFilter?: boolean;
 }) {
   const [localFilters, setLocalFilters] =
     React.useState<IntegrationGalleryFilters>(DEFAULT_FILTERS);
@@ -154,9 +188,34 @@ export function IntegrationGalleryShell({
     setFilters((current) => ({ ...current, query: '' }));
   }, [clearSearchDraft, setFilters]);
   const filteredItems = React.useMemo(
-    () => items.filter((item) => matchesFilters(item, filters)),
-    [filters, items]
+    () => items.filter((item) => matchesFilters(item, filters, enableSemanticCategoryFilter)),
+    [enableSemanticCategoryFilter, filters, items]
   );
+  const semanticCategorySegments = React.useMemo(() => {
+    if (!enableSemanticCategoryFilter) return [];
+    const fromFacets =
+      facets?.categories?.map((category) => [category.value, category.label] as const) ?? [];
+    if (fromFacets.length > 0)
+      return [['all', 'All categories'] as const, ...fromFacets.slice(0, 8)];
+    const byValue = new Map<string, string>();
+    for (const item of items) {
+      const labels = item.labels?.categories ?? [];
+      if (labels.length > 0) {
+        for (const label of labels) {
+          if (label.key && !byValue.has(label.key)) byValue.set(label.key, label.label);
+        }
+        continue;
+      }
+      const value = semanticCategoryValue(item.category);
+      if (value && !byValue.has(value)) byValue.set(value, item.category ?? value);
+    }
+    return [
+      ['all', 'All categories'] as const,
+      ...Array.from(byValue.entries())
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .slice(0, 8),
+    ];
+  }, [enableSemanticCategoryFilter, facets?.categories, items]);
   const connectedItems = React.useMemo(
     () => filteredItems.filter(isConnectedItem),
     [filteredItems]
@@ -225,6 +284,23 @@ export function IntegrationGalleryShell({
                 />
               ))}
             </TabSegmentGroup>
+            {enableSemanticCategoryFilter && semanticCategorySegments.length > 1 ? (
+              <TabSegmentGroup testId="integration-semantic-category-filter">
+                {semanticCategorySegments.map(([value, label]) => (
+                  <TabSegment
+                    key={value}
+                    label={label}
+                    active={filters.semanticCategory === value}
+                    onClick={() =>
+                      setFilters((current) => ({
+                        ...current,
+                        semanticCategory: value,
+                      }))
+                    }
+                  />
+                ))}
+              </TabSegmentGroup>
+            ) : null}
           </div>
         }
         searchValue={searchDraft}

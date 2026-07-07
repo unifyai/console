@@ -42,6 +42,11 @@ import {
   type ProviderAppStatusGroup,
 } from '@/lib/client/integrations';
 import { buildStaticIntegrationDefinitions } from '@/utils/integrations/static-package-adapter';
+import {
+  ENABLE_INTEGRATION_LABEL_FILTER,
+  effectiveSemanticCategory,
+  semanticCategoryFilterActive,
+} from '@/lib/integrations/integrationLabelFilter';
 import { openPendingOAuthTab, subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { SecretFormDialog } from '../Secrets/SecretFormDialog';
 import { JsonUploadPreviewDialog } from '../Secrets/JsonUploadPreviewDialog';
@@ -85,6 +90,9 @@ interface IntegrationsPaneProps {
    * falsely complete the step. Receives ``0`` while nothing qualifies or the
    * list is still loading. */
   onSecretsCountChange?: (count: number) => void;
+  initialGalleryFilters?: Partial<
+    Pick<IntegrationGalleryFilters, 'query' | 'category' | 'semanticCategory'>
+  >;
 }
 
 type PendingDelete = {
@@ -101,6 +109,7 @@ type IntegrationDialog = null | {
 const DEFAULT_GALLERY_FILTERS: IntegrationGalleryFilters = {
   query: '',
   category: 'all',
+  semanticCategory: 'all',
   status: 'all',
 };
 
@@ -119,6 +128,13 @@ function sourceTypeForDefinition(definition: IntegrationDefinition): 'native' | 
   return definition.source === 'provider_backed' || definition.source === 'overlay_curated'
     ? 'third_party'
     : 'native';
+}
+
+function semanticCategoryKeysForDefinition(definition: IntegrationDefinition): string[] {
+  const labelKeys = definition.labels?.categories.map((category) => category.key).filter(Boolean);
+  if (labelKeys && labelKeys.length > 0) return labelKeys;
+  const fallback = definition.category?.trim().toLowerCase();
+  return fallback ? [fallback] : [];
 }
 
 function definitionNeedsAttention(definition: IntegrationDefinition): boolean {
@@ -143,6 +159,7 @@ function staticDefinitionMatchesFilters(
       definition.displayName,
       definition.description,
       definition.category,
+      ...(definition.labels?.tags.map((label) => label.label) ?? []),
       definition.canonicalSlug,
       definition.sourceMetadata.label,
       definition.sourceMetadata.providerAppId,
@@ -154,6 +171,12 @@ function staticDefinitionMatchesFilters(
     if (!haystack.includes(query)) return false;
   }
   if (filters.category !== 'all' && sourceTypeForDefinition(definition) !== filters.category) {
+    return false;
+  }
+  if (
+    semanticCategoryFilterActive(filters.semanticCategory) &&
+    !semanticCategoryKeysForDefinition(definition).includes(filters.semanticCategory)
+  ) {
     return false;
   }
   if (filters.status === 'connected') {
@@ -189,6 +212,7 @@ export function IntegrationsPane({
   isVisible = true,
   isActiveSurface = true,
   onSecretsCountChange,
+  initialGalleryFilters,
 }: IntegrationsPaneProps) {
   const integrationsDataEnabled = isVisible && isActiveSurface;
   const {
@@ -206,12 +230,25 @@ export function IntegrationsPane({
   });
   const [galleryFilters, setGalleryFilters] =
     React.useState<IntegrationGalleryFilters>(DEFAULT_GALLERY_FILTERS);
+  React.useEffect(() => {
+    if (!initialGalleryFilters) return;
+    setGalleryFilters((current) => ({
+      ...current,
+      ...initialGalleryFilters,
+      semanticCategory: effectiveSemanticCategory(
+        initialGalleryFilters.semanticCategory ?? current.semanticCategory
+      )
+        ? (initialGalleryFilters.semanticCategory ?? current.semanticCategory)
+        : 'all',
+    }));
+  }, [initialGalleryFilters]);
   const catalogSourceType =
     galleryFilters.category === 'native'
       ? 'native'
       : galleryFilters.category === 'third_party'
         ? 'third_party'
         : null;
+  const catalogSemanticCategory = effectiveSemanticCategory(galleryFilters.semanticCategory);
   const catalogStatusGroups = React.useMemo(
     () => statusGroupsForFilter(galleryFilters.status),
     [galleryFilters.status]
@@ -219,6 +256,7 @@ export function IntegrationsPane({
   const providerCatalog = useProviderIntegrationCatalog(assistantId, {
     query: galleryFilters.query,
     sourceType: catalogSourceType,
+    category: catalogSemanticCategory,
     statusGroups: catalogStatusGroups,
     enabled: integrationsDataEnabled,
   });
@@ -818,6 +856,7 @@ export function IntegrationsPane({
           isRefreshing={isProviderCatalogLoading}
           filters={galleryFilters}
           onFiltersChange={setGalleryFilters}
+          enableSemanticCategoryFilter={ENABLE_INTEGRATION_LABEL_FILTER}
           total={providerCatalogTotal + filteredStaticDefinitions.length}
           facets={providerCatalogFacets}
           hasMore={hasMoreProviderIntegrations}
