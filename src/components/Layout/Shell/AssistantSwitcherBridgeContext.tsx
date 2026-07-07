@@ -3,11 +3,13 @@
 import * as React from 'react';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
+import type { ActiveEntityFace } from '@/components/Layout/Shell/AssistantSwitcher';
 
 export const SELECTED_ASSISTANT_STORAGE_KEY = 'console:selected-assistant-id';
 
 export type AssistantSwitcherBridgeValue = {
   activeUnity: Assistant | null;
+  activeEntityFace?: ActiveEntityFace | null;
   listProps: React.ComponentProps<typeof AssistantList> | null;
 };
 

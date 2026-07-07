@@ -3,21 +3,24 @@
 import * as React from 'react';
 import type { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ActiveEntityFace } from '@/components/Layout/Shell/AssistantSwitcher';
 import { useAssistantSwitcherBridgePublisher } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
 
 export function AssistantSwitcherBridgeSync({
   activeUnity,
+  activeEntityFace = null,
   listProps,
 }: {
   activeUnity: Assistant | null;
+  activeEntityFace?: ActiveEntityFace | null;
   listProps: React.ComponentProps<typeof AssistantList>;
 }) {
   const setBridge = useAssistantSwitcherBridgePublisher();
 
   React.useEffect(() => {
-    setBridge({ activeUnity, listProps });
+    setBridge({ activeUnity, activeEntityFace, listProps });
     return () => setBridge(null);
-  }, [activeUnity, listProps, setBridge]);
+  }, [activeUnity, activeEntityFace, listProps, setBridge]);
 
   return null;
 }
