@@ -33,6 +33,7 @@ import {
 } from '@/utils/assistants/contacts';
 import { ContactAvatar } from '../Common/ContactAvatar';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ContextRoot } from '@/lib/assistants/scope';
 
 interface ContactsPaneProps {
   assistant: Assistant;
@@ -40,6 +41,9 @@ interface ContactsPaneProps {
   assistantId: string;
   /** Opens the channel-identity provisioning dialog (the live "Contacts" action). */
   onManageContacts?: () => void;
+  /** Scope override: a team root reads `Teams/{id}/…` instead of merging the
+   *  assistant's readable roots. */
+  root?: ContextRoot | null;
   enabled?: boolean;
 }
 
@@ -163,12 +167,14 @@ export function ContactsPane({
   ownerId,
   assistantId,
   onManageContacts,
+  root = null,
   enabled = true,
 }: ContactsPaneProps) {
   const { contacts, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
+    root,
     contexts: ['Contacts'] as const,
     initialContext: 'Contacts',
     enabled,

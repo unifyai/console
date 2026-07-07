@@ -16,11 +16,9 @@ interface TeamWorkspaceProps {
   humansById: Record<string, RosterHuman>;
   assistantsById: Record<string, TeamWorkspaceAssistant>;
   currentUserId: string | null;
-  /** Which section to render: 'chat' | 'members' | 'data'. */
+  /** Which section to render: 'chat' | 'members'. */
   activeSectionId: string;
   chat: ReturnType<typeof useOrgChat>;
-  /** Rendered when `activeSectionId === 'data'`. */
-  dataPane?: React.ReactNode;
 }
 
 function initials(name: string): string {
@@ -45,7 +43,6 @@ export function TeamWorkspace({
   currentUserId,
   activeSectionId,
   chat,
-  dataPane,
 }: TeamWorkspaceProps) {
   const { loadTeamHistory, sendTeamMessage, teamMessages } = chat;
 
@@ -177,13 +174,6 @@ export function TeamWorkspace({
           </div>
         </div>
       )}
-
-      {activeSectionId === 'data' &&
-        (dataPane ?? (
-          <div className="text-body-muted flex min-h-0 flex-1 items-center justify-center">
-            No data views for this team yet.
-          </div>
-        ))}
     </div>
   );
 }

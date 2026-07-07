@@ -20,6 +20,7 @@ import {
   readTabDataCache,
   writeTabDataCache,
 } from '@/lib/assistants/tabDataCache';
+import type { ContextRoot } from '@/lib/assistants/scope';
 
 interface SubContextCursor {
   offset: number;
@@ -39,6 +40,8 @@ interface UseFunctionsCatalogOptions {
   assistant: Assistant;
   kind: FunctionKindFilter;
   query?: string;
+  /** Scope override: a team root reads `Teams/{id}/Functions/…`. */
+  root?: ContextRoot | null;
   enabled?: boolean;
 }
 
@@ -76,12 +79,14 @@ export function useFunctionsCatalog({
   assistant,
   kind,
   query = '',
+  root = null,
   enabled = true,
 }: UseFunctionsCatalogOptions) {
   const trimmedQuery = query.trim();
   const searchFilter = trimmedQuery ? buildFunctionSearchFilterExpr(trimmedQuery) : undefined;
   const subContexts = React.useMemo(() => functionSubContextsForKind(kind), [kind]);
-  const cacheKey = `${assistant.userId}:${assistant.agentId}:functionsCatalog:${kind}:${trimmedQuery}`;
+  const rootCacheKey = root?.kind === 'team' ? `team-${root.teamId}` : 'personal';
+  const cacheKey = `${assistant.userId}:${assistant.agentId}:functionsCatalog:${kind}:${rootCacheKey}:${trimmedQuery}`;
   const initialCachedCatalog = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
   const [rows, setRows] = React.useState<FunctionRow[]>(initialCachedCatalog?.rows ?? []);
   const [skills, setSkills] = React.useState<FunctionSkill[]>(initialCachedCatalog?.skills ?? []);
@@ -147,6 +152,7 @@ export function useFunctionsCatalog({
             limit: FUNCTIONS_PAGE_SIZE,
             offset: 0,
             filterExpr: searchFilter,
+            root: root ?? undefined,
           })
         )
       );
@@ -156,6 +162,7 @@ export function useFunctionsCatalog({
         : await resolveFunctionsCatalogTotal({
             assistant: assistantRef.current,
             kind,
+            root: root ?? undefined,
           });
 
       const nextCursors: Record<string, SubContextCursor> = {};
@@ -197,7 +204,7 @@ export function useFunctionsCatalog({
     } finally {
       setIsLoading(false);
     }
-  }, [assistantAgentId, assistantUserId, enabled, kind, searchFilter, subContexts, cacheKey]);
+  }, [assistantAgentId, assistantUserId, enabled, kind, searchFilter, subContexts, cacheKey, root]);
 
   React.useEffect(() => {
     const cached = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
@@ -232,6 +239,7 @@ export function useFunctionsCatalog({
             limit: FUNCTIONS_PAGE_SIZE,
             offset: cursorsRef.current[subContext]?.offset ?? 0,
             filterExpr: searchFilter,
+            root: root ?? undefined,
           })
         )
       );
@@ -291,7 +299,7 @@ export function useFunctionsCatalog({
       isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [assistantAgentId, assistantUserId, enabled, searchFilter, subContexts, cacheKey]);
+  }, [assistantAgentId, assistantUserId, enabled, searchFilter, subContexts, cacheKey, root]);
 
   return {
     skills,

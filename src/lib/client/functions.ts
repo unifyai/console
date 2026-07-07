@@ -138,6 +138,7 @@ export async function resolveFunctionsCatalogTotal(args: {
   assistant: Assistant;
   kind: FunctionKindFilter;
   filterExpr?: string;
+  root?: ContextRoot;
 }): Promise<number> {
   const subContexts = functionSubContextsForKind(args.kind);
   if (args.filterExpr) {
@@ -149,6 +150,7 @@ export async function resolveFunctionsCatalogTotal(args: {
           limit: 1,
           offset: 0,
           filterExpr: args.filterExpr,
+          root: args.root,
         })
       )
     );
@@ -160,6 +162,7 @@ export async function resolveFunctionsCatalogTotal(args: {
       getFunctionsSubContextCount({
         assistant: args.assistant,
         subContext,
+        root: args.root,
       }).catch(() => null)
     )
   );
@@ -173,6 +176,7 @@ export async function resolveFunctionsCatalogTotal(args: {
         subContext,
         limit: FUNCTIONS_PAGE_SIZE,
         offset: 0,
+        root: args.root,
       })
     )
   );

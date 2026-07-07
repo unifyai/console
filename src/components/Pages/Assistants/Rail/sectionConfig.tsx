@@ -115,6 +115,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: ListTodo,
     kind: 'view',
     tab: 'tasks',
+    appliesTo: ['assistant', 'team'],
     desc: 'Scheduled, recurring, triggered, and continuous workflows — definition and run history together.',
     steps: [
       ['Filter the list', 'Switch between All, Active, and Paused to narrow what you see.'],
@@ -166,6 +167,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
 export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   {
     id: 'contacts',
+    appliesTo: ['assistant', 'team'],
     label: 'Contacts',
     Icon: Contact,
     kind: 'brain-view',
@@ -178,6 +180,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'transcripts',
+    appliesTo: ['assistant', 'team'],
     label: 'Transcripts',
     Icon: MessagesSquare,
     kind: 'brain-view',
@@ -193,6 +196,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'knowledge',
+    appliesTo: ['assistant', 'team'],
     label: 'Knowledge',
     Icon: BookOpen,
     kind: 'brain-view',
@@ -205,6 +209,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'functions',
+    appliesTo: ['assistant', 'team'],
     label: 'Functions',
     Icon: Braces,
     kind: 'brain-view',
@@ -220,6 +225,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'guidance',
+    appliesTo: ['assistant', 'team'],
     label: 'Guidance',
     Icon: Compass,
     kind: 'brain-view',
@@ -232,6 +238,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'data',
+    appliesTo: ['assistant', 'team'],
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',

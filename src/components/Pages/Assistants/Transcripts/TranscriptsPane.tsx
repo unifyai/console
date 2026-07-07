@@ -39,6 +39,7 @@ import { brandAvatarToneFromId } from '@/utils/brand/avatarPalette';
 import { ContactAvatar } from '../Common/ContactAvatar';
 import { contactIsAssistantSelf } from '@/utils/assistants/contactAvatar';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import { rootContext, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 
 type TranscriptViewMode = 'threads' | 'feed';
 
@@ -52,6 +53,9 @@ interface TranscriptsPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  /** Scope override: a team root reads `Teams/{id}/…` instead of the
+   *  assistant's personal root. */
+  root?: ContextRoot | null;
   enabled?: boolean;
 }
 
@@ -192,6 +196,7 @@ export function TranscriptsPane({
   assistant,
   ownerId,
   assistantId,
+  root = null,
   enabled = true,
 }: TranscriptsPaneProps) {
   const [viewMode, setViewMode] = React.useState<TranscriptViewMode>('threads');
@@ -206,13 +211,14 @@ export function TranscriptsPane({
   const [openThreadId, setOpenThreadId] = React.useState<string | number | null>(null);
   const isStackedLayout = useMatchesBelow('shellCompact');
 
+  const scopeRoot = React.useMemo<ContextRoot>(() => root ?? { kind: 'personal' }, [root]);
   const load = React.useCallback(async (): Promise<TranscriptsResourceData> => {
     const [transcriptRows, contactRows] = await Promise.all([
-      fetchRows<TranscriptRow>(`${ownerId}/${assistantId}/Transcripts`),
-      fetchRows<ContactRow>(`${ownerId}/${assistantId}/Contacts`),
+      fetchRows<TranscriptRow>(rootContext(scopeRoot, ownerId, assistantId, 'Transcripts')),
+      fetchRows<ContactRow>(rootContext(scopeRoot, ownerId, assistantId, 'Contacts')),
     ]);
     return { transcriptRows, contactRows };
-  }, [ownerId, assistantId]);
+  }, [ownerId, assistantId, scopeRoot]);
 
   const {
     data: transcriptData,
@@ -220,7 +226,7 @@ export function TranscriptsPane({
     isRefreshing,
     refresh,
   } = useShellResource<TranscriptsResourceData>({
-    queryKey: ['assistant-transcripts', ownerId, assistantId],
+    queryKey: ['assistant-transcripts', ownerId, assistantId, rootKey(scopeRoot)],
     queryFn: load,
     enabled: enabled && !!ownerId && !!assistantId,
   });

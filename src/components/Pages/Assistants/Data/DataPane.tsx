@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
-import { roots } from '@/lib/assistants/scope';
+import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 import { useShellResource } from '@/hooks/Common/useShellResource';
 import { TabFooter } from '../Common/TabFooter';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
@@ -24,6 +24,9 @@ interface DataPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  /** Scope override: a team root browses only `Teams/{id}/…` (ungrouped)
+   *  instead of the assistant's personal + team roots. */
+  root?: ContextRoot | null;
   enabled?: boolean;
 }
 
@@ -186,16 +189,23 @@ function TreeRow({
   );
 }
 
-export function DataPane({ assistant, ownerId, assistantId, enabled = true }: DataPaneProps) {
-  const dataRoots = React.useMemo<DataRoot[]>(
-    () =>
-      roots(assistant).map((r) =>
-        r.kind === 'personal'
-          ? { prefix: `${ownerId}/${assistantId}/`, group: null }
-          : { prefix: `Teams/${r.teamId}/`, group: `Team ${r.teamId}` }
-      ),
-    [assistant, ownerId, assistantId]
-  );
+export function DataPane({
+  assistant,
+  ownerId,
+  assistantId,
+  root = null,
+  enabled = true,
+}: DataPaneProps) {
+  const dataRoots = React.useMemo<DataRoot[]>(() => {
+    if (root?.kind === 'team') {
+      return [{ prefix: `Teams/${root.teamId}/`, group: null }];
+    }
+    return roots(assistant).map((r) =>
+      r.kind === 'personal'
+        ? { prefix: `${ownerId}/${assistantId}/`, group: null }
+        : { prefix: `Teams/${r.teamId}/`, group: `Team ${r.teamId}` }
+    );
+  }, [assistant, ownerId, assistantId, root]);
 
   const stripRootPrefix = React.useCallback(
     (full: string): string => {
@@ -249,7 +259,7 @@ export function DataPane({ assistant, ownerId, assistantId, enabled = true }: Da
     isInitialLoading: isLoadingTree,
     refresh: refreshTree,
   } = useShellResource<TreeNode>({
-    queryKey: ['assistant-data-tree', ownerId, assistantId],
+    queryKey: ['assistant-data-tree', ownerId, assistantId, rootKey(root ?? { kind: 'personal' })],
     queryFn: loadTree,
     enabled: enabled && !!ownerId && !!assistantId,
   });

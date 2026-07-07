@@ -13,6 +13,7 @@ import {
 } from '@/components/UI/sheet';
 import { cn } from '@/lib/utils';
 import { useFunctionsCatalog } from '@/hooks/Assistants/useFunctionsCatalog';
+import type { ContextRoot } from '@/lib/assistants/scope';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
@@ -32,6 +33,8 @@ interface FunctionsPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  /** Scope override: a team root reads `Teams/{id}/Functions/…`. */
+  root?: ContextRoot | null;
   isActiveSurface?: boolean;
 }
 
@@ -149,6 +152,7 @@ export function FunctionsPane({
   assistant,
   ownerId: _ownerId,
   assistantId: _assistantId,
+  root = null,
   isActiveSurface = true,
 }: FunctionsPaneProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -167,6 +171,7 @@ export function FunctionsPane({
       assistant,
       kind,
       query: searchQuery,
+      root,
       enabled: isActiveSurface,
     });
 

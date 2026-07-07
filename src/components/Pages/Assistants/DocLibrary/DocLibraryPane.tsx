@@ -28,6 +28,7 @@ import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import type { DocLibraryKind } from './docLibraryKind';
 import type { GuidanceRow, KnowledgeRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ContextRoot } from '@/lib/assistants/scope';
 
 interface DocLibraryDoc {
   id: string;
@@ -49,6 +50,9 @@ interface DocLibraryPaneProps {
   assistantId: string;
   /** Which library this pane renders. Defaults to guidance. */
   kind?: DocLibraryKind;
+  /** Scope override: a team root reads `Teams/{id}/…` instead of merging the
+   *  assistant's readable roots. */
+  root?: ContextRoot | null;
   enabled?: boolean;
 }
 
@@ -191,6 +195,7 @@ export function DocLibraryPane({
   ownerId,
   assistantId,
   kind = 'guidance',
+  root = null,
   enabled = true,
 }: DocLibraryPaneProps) {
   const context = kind === 'knowledge' ? 'Knowledge' : 'Guidance';
@@ -198,6 +203,7 @@ export function DocLibraryPane({
     assistant,
     ownerId,
     assistantId,
+    root,
     contexts: kind === 'knowledge' ? (['Knowledge'] as const) : (['Guidance'] as const),
     initialContext: context,
     enabled,

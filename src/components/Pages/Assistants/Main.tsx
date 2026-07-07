@@ -33,6 +33,10 @@ import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
 import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
+import {
+  TeamBrainSectionsHost,
+  isTeamBrainSectionId,
+} from '@/components/Pages/Assistants/OrgChat/TeamBrainSectionsHost';
 import type { ActiveEntityFace } from '@/components/Layout/Shell/AssistantSwitcher';
 import {
   Assistant,
@@ -3367,6 +3371,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     return byId;
   }, [sidebarAssistants]);
 
+  // Identity carrier for team-scoped section panes: prefer an assistant that
+  // is actually on the team, fall back to any visible assistant (reads are
+  // pinned to the explicit team root either way).
+  const teamCarrierAssistant = React.useMemo(() => {
+    if (!selectedTeam) return null;
+    const memberIds = new Set(selectedTeam.assistantMemberIds.map(String));
+    return (
+      sidebarAssistants.find((candidate) => memberIds.has(String(candidate.agentId))) ??
+      sidebarAssistants[0] ??
+      null
+    );
+  }, [selectedTeam, sidebarAssistants]);
+
   const activeEntityFace = React.useMemo<ActiveEntityFace | null>(() => {
     if (selectedEntity?.kind === 'human') {
       if (!selectedHuman) return { kind: 'human', label: 'Team member' };
@@ -3527,6 +3544,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     );
                   }
                   if (selectedEntity?.kind === 'team' && selectedTeam && activeOrganizationId) {
+                    if (isTeamBrainSectionId(entitySectionId)) {
+                      return (
+                        <TeamBrainSectionsHost
+                          carrierAssistant={teamCarrierAssistant}
+                          teamId={selectedTeam.teamId}
+                          activeSectionId={entitySectionId}
+                          isActiveSurface={isActiveSurface}
+                        />
+                      );
+                    }
                     return (
                       <TeamWorkspace
                         team={selectedTeam}
