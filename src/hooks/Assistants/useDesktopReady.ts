@@ -61,8 +61,8 @@ function applyDesktopReadyPayload(
  * 2. BroadcastChannel (real-time) — the SSE handler broadcasts the scoped
  *    payload for tabs that are already listening.
  *
- * 3. Low-frequency fallback poll via `getLiveviewUrl` — only when a session
- *    scope (binding or job name) is known so startup_events can be filtered.
+ * 3. Low-frequency fallback poll via `getLiveviewUrl` when a session scope
+ *    (binding id from SSE or job name from runtime status) is known.
  */
 export function useDesktopReady(
   assistantId: string | undefined,
@@ -75,7 +75,8 @@ export function useDesktopReady(
   initialValue = false,
   pollIntervalMs = DESKTOP_READY_FALLBACK_INTERVAL,
   resetSignal = 0,
-  sessionScope?: string | null
+  sessionScope?: string | null,
+  runtimePollScope?: DesktopSessionScope | null
 ): DesktopReadyState {
   const storedInitial = readStoredDesktopReady(assistantId, sessionScope ?? undefined);
   const [isDesktopReady, setIsDesktopReady] = React.useState(
@@ -122,8 +123,14 @@ export function useDesktopReady(
     if (eventBindingId) {
       return { bindingId: eventBindingId };
     }
+    if (runtimePollScope?.jobName) {
+      return { jobName: runtimePollScope.jobName };
+    }
+    if (runtimePollScope?.bindingId) {
+      return { bindingId: runtimePollScope.bindingId };
+    }
     return null;
-  }, [eventBindingId]);
+  }, [eventBindingId, runtimePollScope]);
 
   React.useEffect(() => {
     if (!assistantId || !getLiveviewUrl || isDesktopReady) return;

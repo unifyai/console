@@ -11,6 +11,7 @@ import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import type { DesktopSessionScope } from '@/lib/assistants/desktopSessionScope';
 import { clearDesktopReadyCache } from '@/lib/assistants/desktopSessionScope';
+import { fetchAssistantStatus } from '@/lib/client/assistant';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
@@ -29,6 +30,7 @@ const CALL_DISPATCH_TIMEOUT = 12000;
 // dispatch leaves the caller waiting on an assistant that was never summoned.
 const ASSISTANT_INITIAL_REDISPATCH_DELAY = 12000;
 const ASSISTANT_INITIAL_JOIN_TIMEOUT = 60000;
+const RUNTIME_JOB_NAME_POLL_INTERVAL_MS = 15000;
 const CALL_AUDIO_CAPTURE_OPTIONS: AudioCaptureOptions = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -586,6 +588,41 @@ export function useAssistantCall(
     assistantActions.call,
   ]);
 
+  const [runtimeJobName, setRuntimeJobName] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const assistantId = activeCallAssistant?.agentId;
+    if (!assistantId) {
+      setRuntimeJobName(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const refreshRuntimeJobName = async () => {
+      try {
+        const status = await fetchAssistantStatus(assistantId);
+        if (cancelled || !status?.jobName) return;
+        setRuntimeJobName(status.jobName);
+      } catch {
+        // Status is best-effort; desktop-ready polling retries on its own cadence.
+      }
+    };
+
+    refreshRuntimeJobName();
+    const interval = setInterval(refreshRuntimeJobName, RUNTIME_JOB_NAME_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [activeCallAssistant?.agentId]);
+
+  const runtimePollScope = React.useMemo<DesktopSessionScope | null>(
+    () => (runtimeJobName ? { jobName: runtimeJobName } : null),
+    [runtimeJobName]
+  );
+
   const boundGetLiveviewUrl = React.useCallback(
     (id: string, scope?: DesktopSessionScope | null) =>
       assistantActions.desktop.getLiveviewUrl(
@@ -603,8 +640,19 @@ export function useAssistantCall(
     false,
     undefined,
     0,
-    activeCallSessionId
+    activeCallSessionId,
+    runtimePollScope
   );
+
+  const scopedLiveviewLookup = React.useCallback((): DesktopSessionScope | null => {
+    if (eventBindingId) {
+      return { bindingId: eventBindingId };
+    }
+    if (runtimeJobName) {
+      return { jobName: runtimeJobName };
+    }
+    return null;
+  }, [eventBindingId, runtimeJobName]);
 
   const refreshRemoteControlUrl = React.useCallback(async () => {
     if (!activeCallAssistant || !eventLiveviewUrl) return;
@@ -680,14 +728,11 @@ export function useAssistantCall(
         );
         resolvedUrl = built.liveviewUrl;
       } else {
-        const pollScope: DesktopSessionScope | null = eventBindingId
-          ? { bindingId: eventBindingId }
-          : null;
         const result = await assistantActions.desktop.getLiveviewUrl(
           activeCallAssistant.agentId,
           activeCallAssistant.userId,
           activeCallAssistant.organizationId ?? null,
-          pollScope
+          scopedLiveviewLookup()
         );
         if ('liveviewUrl' in result) {
           resolvedUrl = result.liveviewUrl;
@@ -738,8 +783,8 @@ export function useAssistantCall(
     assistantActions.desktop,
     activeCallAssistant,
     eventLiveviewUrl,
-    eventBindingId,
     isDesktopReady,
+    scopedLiveviewLookup,
   ]);
 
   const toggleRemoteControlInteractive = React.useCallback(async () => {
