@@ -369,6 +369,10 @@ export function HireForm({
           defaultModelOptions[0].reasoningEffort
         )
       : '');
+  const selectedDefaultModelOption = defaultModelOptions.find(
+    (option) =>
+      encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedDefaultModelValue
+  );
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
   const selectedUnityEyes = DEFAULT_COORDINATOR_APPEARANCE.eyes;
@@ -707,8 +711,8 @@ export function HireForm({
                                 >
                                   <p>
                                     The model this teammate thinks with by default. Premium models
-                                    (GPT-5.5, Claude Opus 4.8, Claude Fable 5) are substantially
-                                    more capable but cost more per task.
+                                    are substantially more capable but cost more per task. Credit
+                                    figures are rough per-task estimates — real tasks vary widely.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -740,11 +744,30 @@ export function HireForm({
                                     option.reasoningEffort
                                   )}
                                 >
-                                  {option.label}
+                                  <div className="flex flex-col items-start">
+                                    <span>{option.label}</span>
+                                    <span className="text-caption text-muted-foreground">
+                                      ~
+                                      {new Intl.NumberFormat('en-US').format(
+                                        option.approxCreditsPerTask
+                                      )}{' '}
+                                      credits / typical task
+                                    </span>
+                                  </div>
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          {selectedDefaultModelOption && (
+                            <a
+                              href={selectedDefaultModelOption.artificialAnalysisUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-caption text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                            >
+                              View benchmarks on Artificial Analysis ↗
+                            </a>
+                          )}
                         </div>
                       </div>
 

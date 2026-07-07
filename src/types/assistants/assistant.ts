@@ -402,6 +402,10 @@ export interface DefaultModelOption {
   model: string;
   reasoningEffort: string | null;
   label: string;
+  /** Order-of-magnitude credits estimate for one typical task (display-only). */
+  approxCreditsPerTask: number;
+  /** Artificial Analysis benchmark page for the model. */
+  artificialAnalysisUrl: string;
 }
 
 // Assistant voice types
