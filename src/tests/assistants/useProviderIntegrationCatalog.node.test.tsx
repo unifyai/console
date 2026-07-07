@@ -171,9 +171,7 @@ describe('useProviderIntegrationCatalog', () => {
       query: 'github|linear|jira|hr|ops',
     });
 
-    const logsCall = fetchSpy.mock.calls.find(([input]) =>
-      String(input).startsWith('/api/logs?')
-    );
+    const logsCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
     expect(logsCall).toBeDefined();
     const params = new URL(String(logsCall?.[0]), window.location.origin).searchParams;
     const filterExpr = params.get('filterExpr') ?? '';
@@ -207,9 +205,7 @@ describe('useProviderIntegrationCatalog', () => {
       query: 'github linear jira hr ops',
     });
 
-    const logsCall = fetchSpy.mock.calls.find(([input]) =>
-      String(input).startsWith('/api/logs?')
-    );
+    const logsCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
     expect(logsCall).toBeDefined();
     const params = new URL(String(logsCall?.[0]), window.location.origin).searchParams;
     const filterExpr = params.get('filterExpr') ?? '';

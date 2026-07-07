@@ -61,7 +61,14 @@ function isConnectedItem(item: IntegrationGalleryItem): boolean {
 
 function orSearchTerms(query: string): string[] {
   if (!query.includes('|')) return [];
-  return [...new Set(query.split('|').map((term) => term.trim().toLowerCase()).filter(Boolean))];
+  return [
+    ...new Set(
+      query
+        .split('|')
+        .map((term) => term.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
 }
 
 function isNeedsAttentionItem(item: IntegrationGalleryItem): boolean {
@@ -98,7 +105,8 @@ function matchesFilters(
       .join(' ')
       .toLowerCase();
     const terms = orSearchTerms(filters.query);
-    const matches = terms.length > 1 ? terms.some((term) => haystack.includes(term)) : haystack.includes(query);
+    const matches =
+      terms.length > 1 ? terms.some((term) => haystack.includes(term)) : haystack.includes(query);
     if (!matches) return false;
   }
   if (filters.category !== 'all' && integrationTypeFilterValue(item) !== filters.category)

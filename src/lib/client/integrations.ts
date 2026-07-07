@@ -567,7 +567,14 @@ function quoteFilterValue(value: string): string {
 
 function orSearchTerms(query: string | undefined): string[] {
   if (!query?.includes('|')) return [];
-  return [...new Set(query.split('|').map((term) => term.trim().toLowerCase()).filter(Boolean))];
+  return [
+    ...new Set(
+      query
+        .split('|')
+        .map((term) => term.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
 }
 
 function categoryFilterExpr(category: string): string {

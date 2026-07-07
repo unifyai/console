@@ -1093,19 +1093,14 @@
   .shimmer {
     --_spread: var(--shimmer-spread, calc(3ch + 40px));
     --_base: currentColor;
-    --_highlight: var(
-      --shimmer-color,
-      oklch(from currentColor l c h / calc(alpha * 0.2))
-    );
+    --_highlight: var(--shimmer-color, oklch(from currentColor l c h / calc(alpha * 0.2)));
 
     background-image: linear-gradient(
       calc(90deg + var(--shimmer-angle)),
       var(--_base) calc(50% - var(--_spread)),
-      color-mix(in oklch, var(--_highlight), var(--_base) 50%)
-        calc(50% - var(--_spread) * 0.5),
+      color-mix(in oklch, var(--_highlight), var(--_base) 50%) calc(50% - var(--_spread) * 0.5),
       var(--_highlight) 50%,
-      color-mix(in oklch, var(--_highlight), var(--_base) 50%)
-        calc(50% + var(--_spread) * 0.5),
+      color-mix(in oklch, var(--_highlight), var(--_base) 50%) calc(50% + var(--_spread) * 0.5),
       var(--_base) calc(50% + var(--_spread))
     );
     background-repeat: no-repeat;

@@ -1223,9 +1223,7 @@ function SteeringSubRow({
       <span className={cn('shrink-0', style.color)}>
         <style.Icon className="h-2.5 w-2.5" />
       </span>
-      <span className={cn('min-w-0 truncate', style.color, pending && 'shimmer')}>
-        {label}
-      </span>
+      <span className={cn('min-w-0 truncate', style.color, pending && 'shimmer')}>{label}</span>
       <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
         {time}
       </span>
@@ -1329,9 +1327,7 @@ function ToolCallRow({
         }
       >
         {actionIcon}
-        <span
-          className={cn('min-w-0 truncate text-muted-foreground', isPending && 'shimmer')}
-        >
+        <span className={cn('min-w-0 truncate text-muted-foreground', isPending && 'shimmer')}>
           <HighlightText text={entry.label} term={searchTerm} />
           {!isOpen && formattedArgs && (
             <span className="text-muted-foreground/40">
