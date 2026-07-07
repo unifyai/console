@@ -670,7 +670,7 @@ export function AssistantList({
       {soloGroup
         ? renderSection(
             'section:solo',
-            'Team',
+            'Assistants',
             soloRows.length,
             <div className="min-w-0 space-y-1">
               {soloRows.map((entry) =>
