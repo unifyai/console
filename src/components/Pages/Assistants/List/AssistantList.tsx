@@ -650,7 +650,7 @@ export function AssistantList({
       {filteredHumans.length > 0 && onSelectHuman
         ? renderSection(
             'section:people',
-            'People',
+            'Real',
             filteredHumans.length,
             <div className="min-w-0 space-y-1">
               {filteredHumans.map((human) => (
@@ -670,7 +670,7 @@ export function AssistantList({
       {soloGroup
         ? renderSection(
             'section:solo',
-            'Assistants',
+            'Virtual',
             soloRows.length,
             <div className="min-w-0 space-y-1">
               {soloRows.map((entry) =>
