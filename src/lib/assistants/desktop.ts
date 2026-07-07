@@ -11,6 +11,11 @@ import { isSelfHost } from '@/lib/environment/environment';
 import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 import { extractTunnelId } from '@/utils/assistants/tunnel';
 import { getCurrentUser } from '@/lib/user/user';
+import {
+  type DesktopSessionScope,
+  findScopedStartupLiveviewLog,
+  liveviewHealthProbeUrl,
+} from '@/lib/assistants/desktopSessionScope';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
@@ -55,12 +60,11 @@ async function isLiveviewReachable(liveviewUrl: string): Promise<boolean> {
   if (isSelfHost()) {
     return isSelfHostDesktopHealthy();
   }
-  try {
-    const urlObj = new URL(liveviewUrl);
-    return isUrlReachable(`${urlObj.protocol}//${urlObj.host}/`);
-  } catch {
+  const probeUrl = liveviewHealthProbeUrl(liveviewUrl);
+  if (!probeUrl) {
     return false;
   }
+  return isUrlReachable(probeUrl);
 }
 
 async function isUrlReachable(url: string): Promise<boolean> {
@@ -86,7 +90,8 @@ async function isUrlReachable(url: string): Promise<boolean> {
 export async function getLiveviewUrl(
   assistantId: string,
   ownerId: string,
-  organizationId: number | null
+  organizationId: number | null,
+  sessionScope?: DesktopSessionScope | null
 ): Promise<{ liveviewUrl?: string } | ResponseProps> {
   try {
     if (isSelfHost()) {
@@ -139,11 +144,10 @@ export async function getLiveviewUrl(
     }
 
     const logsResponse = data as LogsResponseProps;
-    const latestLog = (logsResponse.logs as LogProps[])?.[0];
+    const scopedLog = findScopedStartupLiveviewLog(logsResponse.logs as LogProps[], sessionScope);
+    const liveviewUrlValue = scopedLog?.entries?.liveviewUrl || scopedLog?.entries?.liveview_url;
 
-    const liveviewUrlValue = latestLog?.entries?.liveviewUrl || latestLog?.entries?.liveview_url;
-
-    if (latestLog && latestLog.entries && typeof liveviewUrlValue === 'string') {
+    if (scopedLog && scopedLog.entries && typeof liveviewUrlValue === 'string') {
       const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
       const urlObj = new URL(liveviewUrlValue);
       urlObj.searchParams.set('password', ownerKey);

@@ -619,7 +619,8 @@ export interface AssistantActions {
     getLiveviewUrl: (
       assistantId: string,
       ownerId: string,
-      organizationId: number | null
+      organizationId: number | null,
+      sessionScope?: import('@/lib/assistants/desktopSessionScope').DesktopSessionScope | null
     ) => Promise<{ liveviewUrl?: string } | ResponseProps>;
     buildLiveviewUrl: (
       rawUrl: string,
