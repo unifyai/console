@@ -17,7 +17,7 @@
  */
 
 import * as React from 'react';
-import { Check, ChevronDown, Lock, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, ExternalLink, Lock, RotateCcw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1134,6 +1134,14 @@ export function CoordinatorOnboardingChecklist({
                 />
                 {isOpen ? (
                   <ul>
+                    {ONBOARDING_SECTION_DOCS_URLS[section.id] ? (
+                      <li>
+                        <SectionDocsLink
+                          sectionId={section.id}
+                          href={ONBOARDING_SECTION_DOCS_URLS[section.id]}
+                        />
+                      </li>
+                    ) : null}
                     {section.id === COMMUNICATION_SECTION_ID
                       ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
                           <CommunicationSubgroup
@@ -1249,9 +1257,27 @@ function CompactProgress({ completed, total }: { completed: number; total: numbe
   );
 }
 
+function SectionDocsLink({ sectionId, href }: { sectionId: string; href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        'text-caption inline-flex items-center gap-1 py-1 pl-5 text-muted-foreground underline-offset-2 transition-colors',
+        'rounded-sm hover:text-foreground hover:underline',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+      )}
+      data-testid={`coordinator-onboarding-section-${sectionId}-docs`}
+    >
+      Read docs
+      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+    </a>
+  );
+}
+
 function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHeaderProps) {
   const label = `${index + 1}. ${section.title}`;
-  const docsUrl = ONBOARDING_SECTION_DOCS_URLS[section.id];
   const toggleProps = {
     type: 'button' as const,
     onClick: onToggle,
@@ -1279,21 +1305,6 @@ function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHe
         >
           {label}
         </button>
-        {docsUrl ? (
-          <a
-            href={docsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              'text-caption w-fit text-muted-foreground underline-offset-2 transition-colors',
-              'rounded-sm hover:text-foreground hover:underline',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-            )}
-            data-testid={`coordinator-onboarding-section-${section.id}-docs`}
-          >
-            Docs
-          </a>
-        ) : null}
       </div>
       <button
         {...toggleProps}
