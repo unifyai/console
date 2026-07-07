@@ -1448,11 +1448,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleChatStreamDesktopReady = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
       try {
-        sessionStorage.setItem(`desktop-ready-${assistantId}`, JSON.stringify(eventData));
-      } catch {
-        /* quota / SSR */
-      }
-      try {
         const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
         desktopChannel.postMessage(eventData);
         desktopChannel.close();
