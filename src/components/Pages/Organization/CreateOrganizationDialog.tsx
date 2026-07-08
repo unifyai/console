@@ -20,8 +20,8 @@ interface CreateOrgDialogProps {
 const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogProps) => {
   const [open, setOpen] = useState(false);
   const [orgName, setOrgName] = useState('');
-  const [dataSharingMode, setDataSharingMode] = useState<DataSharingMode>('private');
-  const dataSharingModeRef = useRef<DataSharingMode>('private');
+  const [dataSharingMode, setDataSharingMode] = useState<DataSharingMode>('shared');
+  const dataSharingModeRef = useRef<DataSharingMode>('shared');
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
@@ -67,7 +67,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
       onCreate(trimmedName, submittedDataSharingMode);
       setOpen(false);
       setOrgName('');
-      handleDataSharingModeChange('private');
+      handleDataSharingModeChange('shared');
     } catch (err) {
       console.error(err);
       setError('An unexpected error occurred.');
@@ -80,7 +80,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
     setOpen(isOpen);
     if (!isOpen) {
       setOrgName('');
-      handleDataSharingModeChange('private');
+      handleDataSharingModeChange('shared');
       setError(null);
     }
   };

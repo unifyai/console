@@ -171,7 +171,7 @@ export const useOrganization = (
     return [...activeMembers, ...pendingInvites];
   }, [members, invites]);
 
-  const handleCreateOrg = async (name: string, dataSharingMode: DataSharingMode = 'private') => {
+  const handleCreateOrg = async (name: string, dataSharingMode: DataSharingMode = 'shared') => {
     setIsLoading(true);
     try {
       const result = await actions.createOrg(name, dataSharingMode);

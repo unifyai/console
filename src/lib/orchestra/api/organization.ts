@@ -75,7 +75,7 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
 
 export async function createOrganizationAction(
   name: string,
-  dataSharingMode: DataSharingMode = 'private'
+  dataSharingMode: DataSharingMode = 'shared'
 ): Promise<Organization | ResponseProps> {
   const apiKey = await requireUserApiKey();
   return safeFetch(
@@ -95,7 +95,7 @@ export async function createOrganizationAction(
 
 export async function createOrgAction(
   name: string,
-  dataSharingMode: DataSharingMode = 'private'
+  dataSharingMode: DataSharingMode = 'shared'
 ): Promise<Organization | ResponseProps> {
   const user = await getCurrentUser();
   if (!user?.apiKey) {
@@ -380,7 +380,7 @@ export async function transferOwnershipAction(
 export async function adminCreateOrganizationAction(
   creatorUserId: string,
   name: string,
-  dataSharingMode: DataSharingMode = 'private'
+  dataSharingMode: DataSharingMode = 'shared'
 ): Promise<Organization | ResponseProps> {
   return safeFetch(
     `${backendUrl}/admin/organizations`,
