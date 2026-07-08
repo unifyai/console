@@ -170,13 +170,6 @@ function formatTime(ts: string | null): string {
   });
 }
 
-function formatDay(ts: string | null): string {
-  if (!ts) return '';
-  const date = new Date(ts);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
 /** Thread key: chat messages share one ongoing thread; other mediums group by
  *  exchange. Namespaced by source root so merged views cannot collide. */
 function threadKeyForRow(row: ScopedTranscriptRow): string {
@@ -584,7 +577,7 @@ export function TranscriptsPane({
       ) : (
         <SplitPaneLayout
           paneId="transcripts-threads"
-          defaultWidth={320}
+          defaultWidth={288}
           mobileMode="stack"
           stackBelow="shellCompact"
           detailOpen={openThreadId !== null && activeThread !== null}
@@ -592,12 +585,16 @@ export function TranscriptsPane({
           mobileBackLabel="Threads"
           mobileBackTestId="transcripts-mobile-back"
           left={
-            <ScrollArea className="h-full" viewportTestId="transcripts-threads">
-              <div className="flex flex-col gap-1 p-3">
+            <ScrollArea
+              className="h-full min-w-0"
+              viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
+              viewportTestId="transcripts-threads"
+            >
+              <div className="flex flex-col gap-1 p-2">
                 {threadGroups.map((group) => (
                   <React.Fragment key={group.sortKey}>
                     {group.sortKey === '__undated' ? (
-                      <div className="mb-1 mt-2.5 flex items-center gap-2.5 px-1 first:mt-0">
+                      <div className="mb-1 mt-2.5 flex min-w-0 items-center gap-2.5 px-1 first:mt-0">
                         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                           Undated
                         </span>
@@ -655,9 +652,6 @@ export function TranscriptsPane({
                               ) : null}
                             </div>
                           </div>
-                          <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground">
-                            {formatDay(thread.last.timestamp)}
-                          </span>
                         </button>
                       );
                     })}

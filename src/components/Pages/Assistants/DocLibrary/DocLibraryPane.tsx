@@ -11,7 +11,9 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import { cn } from '@/lib/utils';
 import { useBrainData } from '@/hooks/Assistants/useBrainData';
+import { useFunctionsCatalog } from '@/hooks/Assistants/useFunctionsCatalog';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
+import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 import { formatTimestamp } from '@/utils/assistants/brain';
 import { SkeletonText } from '@/components/Common/Loaders/Skeletons';
 import { Skeleton } from '@/components/UI/skeleton';
@@ -110,12 +112,18 @@ function readScope(raw: Record<string, unknown>): string | null {
 }
 
 function readUpdated(raw: Record<string, unknown>): string | null {
-  const value = readField(raw, 'updated_at', 'updatedAt') ?? raw.updated;
+  const value =
+    readField(raw, 'updated_at', 'updatedAt') ??
+    raw.updated ??
+    (typeof raw.ts === 'string' ? raw.ts : null);
   return typeof value === 'string' && value.trim().length > 0 ? formatTimestamp(value) : null;
 }
 
 function readCreated(raw: Record<string, unknown>): string | null {
-  const value = readField(raw, 'created_at', 'createdAt') ?? raw.created;
+  const value =
+    readField(raw, 'created_at', 'createdAt') ??
+    raw.created ??
+    (typeof raw.ts === 'string' ? raw.ts : null);
   return typeof value === 'string' && value.trim().length > 0 ? formatTimestamp(value) : null;
 }
 
@@ -124,7 +132,8 @@ function readSortTimestamp(raw: Record<string, unknown>): string | null {
     readField(raw, 'updated_at', 'updatedAt') ??
     readField(raw, 'created_at', 'createdAt') ??
     raw.updated ??
-    raw.created;
+    raw.created ??
+    (typeof raw.ts === 'string' ? raw.ts : null);
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
@@ -185,12 +194,6 @@ function mapKnowledgeRow(row: KnowledgeRow, index: number): DocLibraryDoc {
   };
 }
 
-function docListDateLabel(doc: DocLibraryDoc): string | null {
-  if (doc.updated) return doc.updated;
-  if (doc.created) return doc.created;
-  return null;
-}
-
 export function DocLibraryPane({
   assistant,
   ownerId,
@@ -213,6 +216,24 @@ export function DocLibraryPane({
 
   const meta = KIND_META[kind];
   const LibraryIcon = meta.icon;
+  const { openBrainFunction } = useAppShellNavigation();
+
+  const { skills: functionSkills } = useFunctionsCatalog({
+    assistant,
+    kind: 'All',
+    root: scope.root,
+    enabled: enabled && kind === 'guidance',
+  });
+
+  const functionNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const skill of functionSkills) {
+      if (skill.functionId !== null) {
+        map.set(skill.functionId, skill.name);
+      }
+    }
+    return map;
+  }, [functionSkills]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const {
@@ -446,11 +467,6 @@ export function DocLibraryPane({
                                   built-in
                                 </span>
                               )}
-                              {docListDateLabel(doc) && (
-                                <span className="font-mono text-[10px] text-muted-foreground">
-                                  {docListDateLabel(doc)}
-                                </span>
-                              )}
                             </span>
                           </span>
                         </button>
@@ -483,13 +499,6 @@ export function DocLibraryPane({
                         built-in · read-only
                       </span>
                     )}
-                    {active.functionIds.length > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        <Link2 className="h-3 w-3" />
-                        {active.functionIds.length} linked function
-                        {active.functionIds.length > 1 ? 's' : ''}
-                      </span>
-                    )}
                     {active.updated ? (
                       <span className="font-mono text-[11px] text-muted-foreground">
                         Updated {active.updated}
@@ -512,6 +521,30 @@ export function DocLibraryPane({
                       />
                     </div>
                   </div>
+                  {kind === 'guidance' && active.functionIds.length > 0 && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                        Linked functions
+                      </span>
+                      {active.functionIds.map((functionId) => {
+                        const name = functionNameById.get(functionId);
+                        const label = name ?? `fn #${functionId}`;
+                        return (
+                          <button
+                            key={functionId}
+                            type="button"
+                            onClick={() => openBrainFunction(functionId)}
+                            title={name ? `${name} (${functionId})` : String(functionId)}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary-tint-20"
+                            data-testid={`guidance-function-chip-${functionId}`}
+                          >
+                            <Link2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate font-mono">{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   {active.tags.length > 0 && (
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">

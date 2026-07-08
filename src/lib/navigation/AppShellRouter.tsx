@@ -18,6 +18,8 @@ interface AppShellNavigationContextValue {
   setPendingTargetHref: (href: string | null) => void;
   pendingAssistantSectionId: string | null;
   setPendingAssistantSectionId: (sectionId: string | null) => void;
+  pendingFunctionId: number | null;
+  setPendingFunctionId: (functionId: number | null) => void;
 }
 
 const AppShellNavigationContext = React.createContext<AppShellNavigationContextValue | null>(null);
@@ -33,6 +35,7 @@ export function AppShellNavigationProvider({ children }: { children: React.React
   const [pendingAssistantSectionId, setPendingAssistantSectionId] = React.useState<string | null>(
     null
   );
+  const [pendingFunctionId, setPendingFunctionId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (!pendingTargetHref) return;
@@ -52,8 +55,10 @@ export function AppShellNavigationProvider({ children }: { children: React.React
       setPendingTargetHref,
       pendingAssistantSectionId,
       setPendingAssistantSectionId,
+      pendingFunctionId,
+      setPendingFunctionId,
     }),
-    [pendingAssistantSectionId, pendingTargetHref]
+    [pendingAssistantSectionId, pendingFunctionId, pendingTargetHref]
   );
 
   return (
@@ -65,6 +70,21 @@ export function AppShellNavigationProvider({ children }: { children: React.React
 
 export function usePendingShellNavigationTarget(): string | null {
   return React.useContext(AppShellNavigationContext)?.pendingTargetHref ?? null;
+}
+
+export function usePendingFunctionTarget(): {
+  pendingFunctionId: number | null;
+  clearPendingFunction: () => void;
+} {
+  const navigationContext = React.useContext(AppShellNavigationContext);
+  const clearPendingFunction = React.useCallback(() => {
+    navigationContext?.setPendingFunctionId(null);
+  }, [navigationContext]);
+
+  return {
+    pendingFunctionId: navigationContext?.pendingFunctionId ?? null,
+    clearPendingFunction,
+  };
 }
 
 export function usePendingAssistantSectionTarget(): {
@@ -135,6 +155,14 @@ export function useAppShellNavigation() {
     [navigateTo, navigationContext]
   );
 
+  const openBrainFunction = React.useCallback(
+    (functionId: number) => {
+      navigationContext?.setPendingFunctionId(functionId);
+      navigateToAssistants({ sectionId: 'functions' });
+    },
+    [navigateToAssistants, navigationContext]
+  );
+
   const navigateToAssistantChat = React.useCallback(
     (assistantId: string) => {
       navigationContext?.setPendingTargetHref(null);
@@ -161,6 +189,7 @@ export function useAppShellNavigation() {
     assistantsSurfaceActive: isAssistantsPath(pathname),
     navigateToAssistants,
     navigateToAssistantChat,
+    openBrainFunction,
     navigateTo,
     pushShellQuery,
   };
