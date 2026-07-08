@@ -156,7 +156,7 @@ export function FunctionsPane({
   root = null,
   isActiveSurface = true,
 }: FunctionsPaneProps) {
-  const scope = useBrainScopeFilter(assistant, { fixedRoot: root, includeAll: false });
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [kind, setKind] = useState<FunctionKindFilter>('All');
   const [selected, setSelected] = useState<FunctionSkill | null>(null);
@@ -173,7 +173,7 @@ export function FunctionsPane({
       assistant,
       kind,
       query: searchQuery,
-      root: scope.root ?? { kind: 'personal' },
+      root: scope.root,
       enabled: isActiveSurface,
     });
 
