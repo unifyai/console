@@ -48,6 +48,7 @@ import {
   semanticCategoryFilterActive,
 } from '@/lib/integrations/integrationLabelFilter';
 import { openPendingOAuthTab, subscribeOAuthComplete } from '@/utils/assistants/oauth';
+import { subscribeIntegrationDisconnectSettled } from '@/lib/assistants/coordinatorIntegrationConnect';
 import { SecretFormDialog } from '../Secrets/SecretFormDialog';
 import { JsonUploadPreviewDialog } from '../Secrets/JsonUploadPreviewDialog';
 import type { SecretActions } from '@/types/assistants/secret';
@@ -412,6 +413,20 @@ export function IntegrationsPane({
       }
     });
   }, [fetchDetails, refreshProviderCatalog, selectedIntegration]);
+
+  React.useEffect(() => {
+    return subscribeIntegrationDisconnectSettled((detail) => {
+      if (detail.assistantId !== assistantId) return;
+      refreshProviderCatalog();
+      if (
+        selectedIntegration &&
+        (selectedIntegration.source === 'provider_backed' ||
+          selectedIntegration.source === 'overlay_curated')
+      ) {
+        window.setTimeout(() => void fetchDetails(selectedIntegration), 900);
+      }
+    });
+  }, [assistantId, fetchDetails, refreshProviderCatalog, selectedIntegration]);
 
   // Report how many *app integrations* are actually wired up — used by the
   // Coordinator onboarding flow to auto-complete the "connect apps" step.

@@ -131,7 +131,12 @@ import { ENABLE_INTEGRATION_LABEL_FILTER } from '@/lib/integrations/integrationL
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
 import { useCoordinatorAppsConnectFlow } from '@/hooks/Assistants/useCoordinatorAppsConnectFlow';
-import { schedulePostIntegrationConnectRefetches } from '@/lib/assistants/coordinatorIntegrationConnect';
+import {
+  APPS_ONBOARDING_STEP_ID,
+  broadcastIntegrationDisconnectSettled,
+  disconnectConnectedIntegrationsForAppsReset,
+  schedulePostIntegrationConnectRefetches,
+} from '@/lib/assistants/coordinatorIntegrationConnect';
 import {
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS,
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS,
@@ -895,13 +900,40 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return next.size === prev.size ? prev : next;
       });
       clearStepRequests(ids);
+      const resetAppsIntegrations = async () => {
+        if (resetStepId !== APPS_ONBOARDING_STEP_ID || canonicalCoordinatorId == null) {
+          return;
+        }
+        const disconnectedIds = await disconnectConnectedIntegrationsForAppsReset({
+          coordinatorId: canonicalCoordinatorId,
+        });
+        if (disconnectedIds.length > 0) {
+          broadcastIntegrationDisconnectSettled({
+            assistantId: String(canonicalCoordinatorId),
+            reason: 'apps_step_reset',
+            connectionIds: disconnectedIds,
+          });
+        }
+      };
       if (resetStepId) {
-        void updateCoordinatorOnboardingState({ resetOnboardingStep: resetStepId });
+        void (async () => {
+          try {
+            await resetAppsIntegrations();
+            await updateCoordinatorOnboardingState({ resetOnboardingStep: resetStepId });
+          } catch (error) {
+            console.error('Failed to reset onboarding step', error);
+          }
+        })();
       } else if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
         void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
       }
     },
-    [activeCoordinatorOnboardingStep, clearStepRequests, updateCoordinatorOnboardingState]
+    [
+      activeCoordinatorOnboardingStep,
+      canonicalCoordinatorId,
+      clearStepRequests,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const visibleCompletedStepIds = React.useMemo<ReadonlySet<string>>(() => {
     if (resetStepIds.size === 0) return completedStepIds;
