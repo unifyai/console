@@ -108,10 +108,10 @@ export async function listFunctionsFederatedPage(args: {
   const logs = data?.logs ?? [];
   const rows = logs.map((log) => {
     const entries = { ...(log.entries ?? {}) };
-    const source = String(entries._federated_source ?? '');
+    const source = String(entries._federatedSource ?? '');
     const subContext = source.includes(':') ? source.slice(source.indexOf(':') + 1) : source;
-    delete entries._federated_source;
-    delete entries._federated_context;
+    delete entries._federatedSource;
+    delete entries._federatedContext;
     return {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       _table: subContext,

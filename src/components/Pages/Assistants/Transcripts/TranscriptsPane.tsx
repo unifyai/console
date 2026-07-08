@@ -40,12 +40,12 @@ import { brandAvatarToneFromId } from '@/utils/brand/avatarPalette';
 import { ContactAvatar } from '../Common/ContactAvatar';
 import { contactIsAssistantSelf } from '@/utils/assistants/contactAvatar';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
-import { rootContext, rootKey, type ContextRoot } from '@/lib/assistants/scope';
+import { rootContext, rootKey, roots, type ContextRoot } from '@/lib/assistants/scope';
 
 type TranscriptViewMode = 'threads' | 'feed';
 
 interface FlatMessage {
-  message: TranscriptRow;
+  message: ScopedTranscriptRow;
   threadSubject: string;
   channel: ChannelDef | null;
 }
@@ -70,9 +70,14 @@ interface ChannelDef {
   cssVar: string;
 }
 
+/** Transcript row plus the scope root it was read from (merged "All" view). */
+type ScopedTranscriptRow = TranscriptRow & { rootKey: string };
+
 interface TranscriptsResourceData {
-  transcriptRows: TranscriptRow[];
-  contactRows: ContactRow[];
+  transcriptRows: ScopedTranscriptRow[];
+  /** Contacts per source root: contact ids are root-local, so sender names
+   *  must resolve against the row's own root first. */
+  contactsByRoot: Record<string, ContactRow[]>;
 }
 
 const CHANNELS: ChannelDef[] = [
@@ -175,19 +180,47 @@ function formatDay(ts: string | null): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/** Thread key: chat messages share one ongoing thread; other mediums group by exchange. */
-function threadKeyForRow(row: TranscriptRow): string | number {
-  if (row.medium === 'unify_message') return 'thread:chat';
-  return row.exchangeId ?? row.messageId;
+/** Thread key: chat messages share one ongoing thread; other mediums group by
+ *  exchange. Namespaced by source root so merged views cannot collide. */
+function threadKeyForRow(row: ScopedTranscriptRow): string {
+  const local = row.medium === 'unify_message' ? 'thread:chat' : (row.exchangeId ?? row.messageId);
+  return `${row.rootKey}:${local}`;
 }
 
-async function fetchRows<T>(context: string): Promise<T[]> {
-  const params = new URLSearchParams({ projectName: 'Assistants', context, limit: '200' });
+/** One federated read of `{root}/{table}` across every scoped root, tagging
+ *  each row with the root it came from. */
+async function fetchRowsAcrossRoots<T>(args: {
+  scopedRoots: readonly ContextRoot[];
+  ownerId: string;
+  assistantId: string;
+  table: string;
+  limit: number;
+  sortField?: string;
+}): Promise<Array<T & { rootKey: string }>> {
   try {
-    const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+    const res = await fetch('/api/logs/federated', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: 'Assistants',
+        contexts: args.scopedRoots.map((root) => ({
+          context: rootContext(root, args.ownerId, args.assistantId, args.table),
+          source: rootKey(root),
+        })),
+        sorting: args.sortField ? [{ field: args.sortField, direction: 'descending' }] : [],
+        limit: args.limit,
+      }),
+      cache: 'no-store',
+    });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.logs ?? []).map((log: { entries?: T }) => log.entries ?? ({} as T));
+    return (data.logs ?? []).map((log: { entries?: Record<string, unknown> }) => {
+      const entries = { ...(log.entries ?? {}) };
+      const source = String(entries._federatedSource ?? 'personal');
+      delete entries._federatedSource;
+      delete entries._federatedContext;
+      return { ...entries, rootKey: source } as T & { rootKey: string };
+    });
   } catch {
     return [];
   }
@@ -209,21 +242,40 @@ export function TranscriptsPane({
     submit: submitSearch,
     clear: clearSearch,
   } = useTabSearchCommit();
-  const [openThreadId, setOpenThreadId] = React.useState<string | number | null>(null);
+  const [openThreadId, setOpenThreadId] = React.useState<string | null>(null);
   const isStackedLayout = useMatchesBelow('shellCompact');
 
-  const scope = useBrainScopeFilter(assistant, { fixedRoot: root, includeAll: false });
-  const scopeRoot = React.useMemo<ContextRoot>(
-    () => scope.root ?? { kind: 'personal' },
-    [scope.root]
-  );
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
+  const scopeKey = scope.root ? rootKey(scope.root) : 'all';
+  const scopeRootRef = React.useRef(scope.root);
+  scopeRootRef.current = scope.root;
+  const assistantRef = React.useRef(assistant);
+  assistantRef.current = assistant;
   const load = React.useCallback(async (): Promise<TranscriptsResourceData> => {
+    const scopedRoots = scopeRootRef.current ? [scopeRootRef.current] : roots(assistantRef.current);
     const [transcriptRows, contactRows] = await Promise.all([
-      fetchRows<TranscriptRow>(rootContext(scopeRoot, ownerId, assistantId, 'Transcripts')),
-      fetchRows<ContactRow>(rootContext(scopeRoot, ownerId, assistantId, 'Contacts')),
+      fetchRowsAcrossRoots<TranscriptRow>({
+        scopedRoots,
+        ownerId,
+        assistantId,
+        table: 'Transcripts',
+        limit: 200,
+        sortField: 'timestamp',
+      }),
+      fetchRowsAcrossRoots<ContactRow>({
+        scopedRoots,
+        ownerId,
+        assistantId,
+        table: 'Contacts',
+        limit: 1000,
+      }),
     ]);
-    return { transcriptRows, contactRows };
-  }, [ownerId, assistantId, scopeRoot]);
+    const contactsByRoot: Record<string, ContactRow[]> = {};
+    for (const contact of contactRows) {
+      (contactsByRoot[contact.rootKey] ??= []).push(contact);
+    }
+    return { transcriptRows, contactsByRoot };
+  }, [ownerId, assistantId]);
 
   const {
     data: transcriptData,
@@ -231,7 +283,7 @@ export function TranscriptsPane({
     isRefreshing,
     refresh,
   } = useShellResource<TranscriptsResourceData>({
-    queryKey: ['assistant-transcripts', ownerId, assistantId, rootKey(scopeRoot)],
+    queryKey: ['assistant-transcripts', ownerId, assistantId, scopeKey],
     queryFn: load,
     enabled: enabled && !!ownerId && !!assistantId,
   });
@@ -240,9 +292,9 @@ export function TranscriptsPane({
     () => transcriptData?.transcriptRows ?? [],
     [transcriptData?.transcriptRows]
   );
-  const contacts = React.useMemo(
-    () => transcriptData?.contactRows ?? [],
-    [transcriptData?.contactRows]
+  const contactsByRoot = React.useMemo(
+    () => transcriptData?.contactsByRoot ?? {},
+    [transcriptData?.contactsByRoot]
   );
 
   const handleRefresh = React.useCallback(async () => {
@@ -250,17 +302,33 @@ export function TranscriptsPane({
   }, [refresh]);
 
   const nameFor = React.useCallback(
-    (contactId: number | null): string => {
+    (contactId: number | null, contactRootKey?: string): string => {
       if (contactId === null) return 'Unknown';
       if (contactIsAssistantSelf(assistant, contactId)) {
         return assistantDisplayName(assistant);
       }
-      const contact = contacts.find((c) => c.contactId === contactId);
-      if (contact)
-        return [contact.firstName, contact.surname].filter(Boolean).join(' ') || 'Unknown';
+      // Contact ids are root-local: prefer the row's own root, then fall back
+      // to any root (covers rows that predate per-root contact provisioning).
+      const pools = contactRootKey
+        ? [contactsByRoot[contactRootKey] ?? [], ...Object.values(contactsByRoot)]
+        : Object.values(contactsByRoot);
+      for (const pool of pools) {
+        const contact = pool.find((c) => c.contactId === contactId);
+        if (contact) {
+          return [contact.firstName, contact.surname].filter(Boolean).join(' ') || 'Unknown';
+        }
+      }
       return `#${contactId}`;
     },
-    [contacts, assistant]
+    [contactsByRoot, assistant]
+  );
+
+  const scopeLabelFor = React.useCallback(
+    (key: string): string | null => {
+      if (scope.root !== null || !scope.showFilter) return null;
+      return scope.options.find((option) => option.key === key)?.label ?? key;
+    },
+    [scope.root, scope.showFilter, scope.options]
   );
 
   const channelCounts = React.useMemo(() => {
@@ -287,7 +355,7 @@ export function TranscriptsPane({
   );
 
   const threads = React.useMemo(() => {
-    const byExchange = new Map<string | number, TranscriptRow[]>();
+    const byExchange = new Map<string, ScopedTranscriptRow[]>();
     for (const row of sortedAsc) {
       const key = threadKeyForRow(row);
       if (!byExchange.has(key)) byExchange.set(key, []);
@@ -302,6 +370,7 @@ export function TranscriptsPane({
       });
       return {
         threadId,
+        rootKey: last.rootKey,
         messages,
         last,
         channel: channelForMedium(last.medium),
@@ -317,7 +386,11 @@ export function TranscriptsPane({
     const needle = searchQuery.trim().toLowerCase();
     return built.filter((thread) => {
       if (thread.subject.toLowerCase().includes(needle)) return true;
-      if (thread.participantIds.some((id) => nameFor(id).toLowerCase().includes(needle)))
+      if (
+        thread.participantIds.some((id) =>
+          nameFor(id, thread.rootKey).toLowerCase().includes(needle)
+        )
+      )
         return true;
       return thread.messages.some((m) => (m.content ?? '').toLowerCase().includes(needle));
     });
@@ -349,7 +422,7 @@ export function TranscriptsPane({
     const rows = [...filtered].sort(
       (a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime()
     );
-    const subjectByKey = new Map<string | number, string>();
+    const subjectByKey = new Map<string, string>();
     for (const thread of threads) subjectByKey.set(thread.threadId, thread.subject);
     return rows.map((message) => {
       const key = threadKeyForRow(message);
@@ -457,7 +530,7 @@ export function TranscriptsPane({
                 const isAssistant = contactIsAssistantSelf(assistant, message.senderId);
                 const senderName = isAssistant
                   ? assistantDisplayName(assistant)
-                  : nameFor(message.senderId);
+                  : nameFor(message.senderId, message.rootKey);
                 return (
                   <button
                     key={message.messageId}
@@ -551,6 +624,9 @@ export function TranscriptsPane({
                         <div className="text-caption mt-0.5 truncate">
                           <span style={{ color: ch }}>{channelDef?.label ?? 'Other'}</span> ·{' '}
                           {thread.messages.length} msg · {thread.participantIds.length} people
+                          {scopeLabelFor(thread.rootKey) ? (
+                            <> · {scopeLabelFor(thread.rootKey)}</>
+                          ) : null}
                         </div>
                       </div>
                       <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground">
@@ -590,11 +666,11 @@ export function TranscriptsPane({
                       <div className="min-w-0 flex-1">
                         <div className="text-h2 break-words">{activeThread.subject}</div>
                         <div className="text-caption mt-0.5">
-                          {activeThread.channel?.label ?? 'Other'} ·{' '}
-                          {typeof activeThread.threadId === 'number'
-                            ? `exchange #${activeThread.threadId}`
-                            : 'thread'}{' '}
-                          · {activeThread.messages.length} messages
+                          {activeThread.channel?.label ?? 'Other'} · {activeThread.messages.length}{' '}
+                          messages
+                          {scopeLabelFor(activeThread.rootKey) ? (
+                            <> · {scopeLabelFor(activeThread.rootKey)}</>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -610,8 +686,8 @@ export function TranscriptsPane({
                           <ContactAvatar
                             assistant={assistant}
                             contactId={id}
-                            displayName={nameFor(id)}
-                            initials={initialsFor(nameFor(id))}
+                            displayName={nameFor(id, activeThread.rootKey)}
+                            initials={initialsFor(nameFor(id, activeThread.rootKey))}
                             toneColor={
                               contactIsAssistantSelf(assistant, id) ? 'var(--primary)' : toneFor(id)
                             }
@@ -619,7 +695,7 @@ export function TranscriptsPane({
                             textClassName="text-[9px]"
                             shape="circle"
                           />
-                          {nameFor(id)}
+                          {nameFor(id, activeThread.rootKey)}
                         </span>
                       ))}
                     </div>
@@ -631,7 +707,7 @@ export function TranscriptsPane({
                       const out = message.senderId !== null && !isAssistant;
                       const senderName = isAssistant
                         ? assistantDisplayName(assistant)
-                        : nameFor(message.senderId);
+                        : nameFor(message.senderId, message.rootKey);
                       const receivers = message.receiverIds ?? [];
                       return (
                         <TranscriptMessageRow
@@ -646,7 +722,7 @@ export function TranscriptsPane({
                           }
                           receiverSummary={
                             receivers.length > 0
-                              ? `to ${receivers.map((id) => nameFor(id)).join(', ')}`
+                              ? `to ${receivers.map((id) => nameFor(id, message.rootKey)).join(', ')}`
                               : null
                           }
                           timeLabel={formatTime(message.timestamp)}

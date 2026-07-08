@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
@@ -84,7 +85,8 @@ export async function POST(request: NextRequest) {
         { status: response.status }
       );
     }
-    return NextResponse.json(data);
+    // Match /api/logs: Orchestra speaks snake_case, the frontend camelCase.
+    return NextResponse.json(snakeToCamelObject(data as Record<string, unknown>));
   } catch (error) {
     console.error('[api/logs/federated] proxy error', error);
     return NextResponse.json({ error: 'Federated logs read failed' }, { status: 502 });

@@ -28,8 +28,8 @@ function federatedResponse(items: FederatedItem[], count = items.length) {
       logs: items.map(({ entries, source }) => ({
         entries: {
           ...entries,
-          _federated_source: source,
-          _federated_context: source,
+          _federatedSource: source,
+          _federatedContext: source,
         },
       })),
       count,

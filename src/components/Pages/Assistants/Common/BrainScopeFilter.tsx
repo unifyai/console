@@ -19,8 +19,8 @@ interface UseBrainScopeFilterOptions {
    */
   fixedRoot?: ContextRoot | null;
   /**
-   * Whether the merged "All" scope is offered. Panes whose data replicates
-   * across roots (Transcripts) or paginates per root (Functions) exclude it.
+   * Whether the merged "All" scope is offered. Panes reading through the
+   * federated logs endpoint get an exact cross-root merge and include it.
    */
   includeAll?: boolean;
 }
