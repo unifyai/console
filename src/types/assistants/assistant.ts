@@ -4,6 +4,7 @@ import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@/types/ass
 import { ChatMessage, UnifyMessage, UnifyMessageReaction, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import type { SlackInstallActions } from '../slack/install';
+import type { MsTeamsBotInstallActions } from '../ms-teams-bot/install';
 import { ConnectionDetails } from './call';
 import {
   ContactCosts,
@@ -624,6 +625,14 @@ export interface AssistantActions {
    * actions operate on the workspace install, not a per-assistant row.
    */
   slack?: SlackInstallActions;
+  /**
+   * Microsoft Teams **bot** install bind handshake (org-scoped).
+   * Optional — only bound in an organization context. Distinct from the
+   * per-assistant BYOD delegated-Graph "Teams" workspace integration: the
+   * bot is a single shared tenant install claimed via a bind nonce, and
+   * every assistant in the bound org becomes reachable through it.
+   */
+  msTeamsBot?: MsTeamsBotInstallActions;
   call: {
     getConnectionDetails: (
       assistantId: string,

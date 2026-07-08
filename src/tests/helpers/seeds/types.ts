@@ -83,6 +83,19 @@ export interface SeededUserDesktop {
   url: string;
 }
 
+export interface SeededMsTeamsBotInstall {
+  /** ms_teams_bot_installs.id primary key */
+  id: number;
+  /** Microsoft tenant id the bot is installed into */
+  tenantId: string;
+  tenantName: string | null;
+  botAppId: string;
+  /** Handshake nonce for a pending (unbound) install; null once bound */
+  bindNonce: string | null;
+  /** Bound org id (null while pending) */
+  organizationId: number | null;
+}
+
 // =============================================================================
 // Credential Bag
 // =============================================================================

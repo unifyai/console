@@ -4,6 +4,11 @@ import { getCurrentUser } from '@/lib/user/user';
 import { getActiveOrganization } from '@/lib/user/workspace';
 import { canManageOrgSlackInstall, getSlackInstallAction } from '@/lib/slack/install';
 import { isSlackInstall } from '@/types/slack/install';
+import {
+  canManageOrgMsTeamsBotInstall,
+  getOrgInstallStatusAction,
+} from '@/lib/ms-teams-bot/install';
+import { isMsTeamsBotInstall } from '@/types/ms-teams-bot/install';
 import type { AssistantsMainUserMeta } from '@/types/assistants/main';
 
 export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMeta | null> {
@@ -27,6 +32,15 @@ export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMe
       : slackConfigured;
   const installResult = slackOwner ? await getSlackInstallAction(slackOwner) : null;
 
+  // MS Teams bot bind handshake is org-scoped: only surface it in an org
+  // context, gated to owners/admins. Unlike Slack it needs no provider
+  // OAuth client — the bind only talks to Orchestra via the admin key —
+  // so it is available whenever there is an active organization.
+  const msTeamsBotOrgId = orgId;
+  const msTeamsBotCanManage = orgId != null && canManageOrgMsTeamsBotInstall(activeOrganization);
+  const teamsInstallResult =
+    orgId != null && msTeamsBotCanManage ? await getOrgInstallStatusAction(orgId) : null;
+
   return {
     image: user.image,
     timezone: user.timezone,
@@ -41,5 +55,8 @@ export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMe
     slackOwner,
     slackCanManageInstall,
     slackInitialInstall: isSlackInstall(installResult) ? installResult : null,
+    msTeamsBotOrgId,
+    msTeamsBotCanManage,
+    msTeamsBotInitialInstall: isMsTeamsBotInstall(teamsInstallResult) ? teamsInstallResult : null,
   };
 }

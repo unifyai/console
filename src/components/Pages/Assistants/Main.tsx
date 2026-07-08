@@ -171,6 +171,7 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
+import type { MsTeamsBotInstall } from '@/types/ms-teams-bot/install';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -219,6 +220,14 @@ interface MainProps {
     slackCanManageInstall?: boolean;
     /** Server-prefetched shared Slack install for the active workspace. */
     slackInitialInstall?: SlackInstall | null;
+    /** Org id whose MS Teams bot install can be bound (org context only;
+     *  null hides the Teams bot entry). */
+    msTeamsBotOrgId?: number | null;
+    /** Whether the current user (org owner/admin) may bind the Teams bot
+     *  install. */
+    msTeamsBotCanManage?: boolean;
+    /** Server-prefetched current MS Teams bot install for the active org. */
+    msTeamsBotInitialInstall?: MsTeamsBotInstall | null;
   };
 }
 
@@ -3879,6 +3888,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               slackOwner={userMeta.slackOwner ?? null}
               slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
               slackInitialInstall={userMeta.slackInitialInstall ?? null}
+              msTeamsBotOrgId={userMeta.msTeamsBotOrgId ?? null}
+              msTeamsBotCanManage={userMeta.msTeamsBotCanManage ?? false}
+              msTeamsBotInitialInstall={userMeta.msTeamsBotInitialInstall ?? null}
               onOpenUserSettings={handleOpenUserSettings}
             />
           )}

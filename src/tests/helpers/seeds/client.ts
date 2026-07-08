@@ -21,6 +21,7 @@ import type {
   SeededSecret,
   SeededTeam,
   SeededUserDesktop,
+  SeededMsTeamsBotInstall,
 } from './types';
 import {
   approvedCharacterVoiceMetadata,
@@ -1033,6 +1034,114 @@ VALUES (
 )
 ON CONFLICT DO NOTHING;
 `);
+}
+
+// =============================================================================
+// MS Teams bot installs (Teams Store bot; org bind handshake)
+// =============================================================================
+
+export interface CreateMsTeamsBotInstallOpts {
+  /** Microsoft tenant id. Defaults to a unique seed value. */
+  tenantId?: string;
+  tenantName?: string;
+  /** Azure bot registration app id. Defaults to a fixed seed value. */
+  botAppId?: string;
+  serviceUrl?: string;
+  /** Handshake nonce for the pending row. Defaults to a unique value. */
+  bindNonce?: string;
+  /**
+   * Bind the install to an org up front (skips the pending state).
+   * Leave undefined to seed a *pending* install that a bind flow claims.
+   */
+  organizationId?: number;
+}
+
+/**
+ * Seed an MS Teams bot install row, mirroring what Orchestra's
+ * ``ensure_pending_install`` writes when the bot is first added to a
+ * Microsoft tenant. Defaults to a **pending** row (no owner) carrying a
+ * ``bind_nonce`` so the tenant→org bind handshake is reachable.
+ *
+ * Idempotent on the tenant: an existing active (non-revoked) row for the
+ * same tenant is returned unchanged, respecting the partial unique index
+ * ``ux_ms_teams_bot_install_active_tenant``.
+ */
+export function createMsTeamsBotInstall(
+  opts: CreateMsTeamsBotInstallOpts = {}
+): SeededMsTeamsBotInstall {
+  const tenantId = opts.tenantId ?? `seed-tenant-${randomUUID().slice(0, 12)}`;
+  const tenantName = opts.tenantName ?? 'Seed Microsoft Tenant';
+  const botAppId = opts.botAppId ?? 'seed-teams-bot-app-id';
+  const serviceUrl = opts.serviceUrl ?? 'https://smba.trafficmanager.net/seed/';
+  const bindNonce = opts.organizationId != null ? null : (opts.bindNonce ?? randomUUID());
+  const orgId = opts.organizationId ?? null;
+
+  const existing = dbExec(
+    `SELECT id, COALESCE(bind_nonce, ''), COALESCE(organization_id::text, '') FROM ms_teams_bot_installs WHERE tenant_id = ${sqlLiteral(tenantId)} AND revoked_at IS NULL LIMIT 1;`
+  );
+  if (existing) {
+    const [idRaw, nonceRaw, orgRaw] = existing.split('|');
+    return {
+      id: parseInt(idRaw, 10),
+      tenantId,
+      tenantName,
+      botAppId,
+      bindNonce: nonceRaw === '' ? null : nonceRaw,
+      organizationId: orgRaw === '' ? null : parseInt(orgRaw, 10),
+    };
+  }
+
+  dbExecBlock(`
+INSERT INTO ms_teams_bot_installs (organization_id, tenant_id, tenant_name, bot_app_id, service_url, bind_nonce, bound_at)
+VALUES (
+  ${sqlLiteral(orgId)},
+  ${sqlLiteral(tenantId)},
+  ${sqlLiteral(tenantName)},
+  ${sqlLiteral(botAppId)},
+  ${sqlLiteral(serviceUrl)},
+  ${sqlLiteral(bindNonce)},
+  ${orgId != null ? 'NOW()' : 'NULL'}
+);
+`);
+
+  const idStr = dbExec(
+    `SELECT id FROM ms_teams_bot_installs WHERE tenant_id = ${sqlLiteral(tenantId)} ORDER BY id DESC LIMIT 1;`
+  );
+  const id = parseInt(idStr, 10);
+  if (!Number.isFinite(id)) {
+    throw new Error(
+      `Failed to parse seeded MS Teams bot install id for tenant ${tenantId}: ${idStr}`
+    );
+  }
+
+  return { id, tenantId, tenantName, botAppId, bindNonce, organizationId: orgId };
+}
+
+/** Read an MS Teams bot install's owner + pending/revoked state (for assertions). */
+export function getMsTeamsBotInstallState(installId: number): {
+  organizationId: number | null;
+  pending: boolean;
+  revoked: boolean;
+} | null {
+  const row = dbExec(
+    `SELECT COALESCE(organization_id::text, ''), (organization_id IS NULL AND user_id IS NULL), (revoked_at IS NOT NULL) FROM ms_teams_bot_installs WHERE id = ${installId};`
+  );
+  if (!row) return null;
+  const [orgRaw, pendingRaw, revokedRaw] = row.split('|');
+  return {
+    organizationId: orgRaw === '' ? null : parseInt(orgRaw, 10),
+    pending: pendingRaw === 't',
+    revoked: revokedRaw === 't',
+  };
+}
+
+/** Delete an MS Teams bot install (cleanup). */
+export function deleteMsTeamsBotInstall(installId: number): void {
+  try {
+    dbExec(`DELETE FROM ms_teams_bot_installs WHERE id = ${installId};`);
+  } catch {
+    /* best effort */
+  }
 }
 
 // =============================================================================
