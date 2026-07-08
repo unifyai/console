@@ -4,6 +4,7 @@ import * as React from 'react';
 import { AssistantSectionSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ContextRoot } from '@/lib/assistants/scope';
 
 const ContactsPane = React.lazy(() =>
   import('../Contacts/ContactsPane').then((m) => ({ default: m.ContactsPane }))
@@ -59,10 +60,18 @@ export function BrainSectionsHost({
   onManageContacts,
   isActiveSurface = true,
 }: BrainSectionsHostProps) {
+  // Team-owned assistants have no personal root: every brain surface is
+  // pinned to the owning team's shared root (mirrors TeamBrainSectionsHost).
+  const ownerTeamId = assistant.ownerTeamId ?? null;
+  const fixedRoot = React.useMemo<ContextRoot | null>(
+    () => (ownerTeamId !== null ? { kind: 'team', teamId: ownerTeamId } : null),
+    [ownerTeamId]
+  );
   const brainProps = {
     assistant,
     ownerId: assistant.userId,
     assistantId: assistant.agentId,
+    root: fixedRoot,
   };
 
   const [mountedSections, setMountedSections] = React.useState<Set<BrainSectionId>>(() => {

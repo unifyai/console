@@ -437,6 +437,7 @@ export function AssistantList({
           unreadCount={unreadCounts?.[entry.assistant.agentId] ?? 0}
           isPrimary={entry.isPrimaryTeamListing}
           alsoInTeamLabels={entry.alsoInTeamLabels}
+          isTeamOwned={entry.isTeamOwnedListing ?? false}
         />
       );
 

@@ -745,7 +745,8 @@ export function useAssistantForm(
         voiceProviderVal,
         isUserDesktop,
         desktopModePayload,
-        formattedPreHireChat
+        formattedPreHireChat,
+        data.ownerTeamId ?? null
       );
 
       if (!('assistant' in assistantCreationResult) || !assistantCreationResult.assistant) {

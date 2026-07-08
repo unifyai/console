@@ -271,6 +271,11 @@ export interface HireFormProps {
   showWorkspaceWarning?: boolean;
   lockIdentityFields?: boolean;
   lockAppearanceControls?: boolean;
+  /**
+   * Teams offered as the owning team (team-first hiring). When present, the
+   * selector defaults to a team and "Personal" is the explicit opt-out.
+   */
+  hireTeams?: Array<{ teamId: number; name: string }>;
 }
 
 export function HireForm({
@@ -295,6 +300,7 @@ export function HireForm({
   lockIdentityFields = false,
   lockAppearanceControls = false,
   userHasChangedPreset = false,
+  hireTeams = [],
 }: HireFormProps) {
   const {
     register,
@@ -663,6 +669,62 @@ export function HireForm({
                             </p>
                           )}
                         </div>
+
+                        {mode === 'hire' && hireTeams.length > 0 && (
+                          <div className="space-y-1.5">
+                            <div className="flex flex-row items-center gap-2">
+                              <Label htmlFor="ownerTeamId">Owning team</Label>
+                              <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <InfoSquareButton />
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="right"
+                                    align="end"
+                                    className="text-caption max-w-xs"
+                                  >
+                                    <p>
+                                      A team-owned teammate belongs to the whole team: everyone can
+                                      work with it and everything it learns is shared with the team.
+                                      Choose Personal only if this teammate should report to you
+                                      alone.
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                            <Controller
+                              name="ownerTeamId"
+                              control={control}
+                              render={({ field }) => (
+                                <Select
+                                  value={field.value != null ? String(field.value) : 'personal'}
+                                  onValueChange={(value) =>
+                                    field.onChange(value === 'personal' ? null : Number(value))
+                                  }
+                                  disabled={isSubmitting}
+                                >
+                                  <SelectTrigger
+                                    id="ownerTeamId"
+                                    className="bg-card"
+                                    data-testid="hire-owner-team-select"
+                                  >
+                                    <SelectValue placeholder="Select an owning team..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {hireTeams.map((team) => (
+                                      <SelectItem key={team.teamId} value={String(team.teamId)}>
+                                        {team.name}
+                                      </SelectItem>
+                                    ))}
+                                    <SelectItem value="personal">Personal (only you)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                          </div>
+                        )}
 
                         <div className="space-y-1.5">
                           <Label htmlFor="timezone">Timezone</Label>
