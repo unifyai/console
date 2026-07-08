@@ -18,6 +18,7 @@ import {
   shouldUseMockProviderIntegrations,
 } from '@/utils/assistants/provider-integration-mock-data';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
+import { broadcastIntegrationConnectSettled } from '@/lib/assistants/coordinatorIntegrationConnect';
 import type {
   IntegrationConnection,
   IntegrationDefinition,
@@ -488,6 +489,10 @@ export function useProviderIntegrationCatalog(
           toast.success(`Started ${definition.displayName} connection.`);
         }
         if (!data.connectUrl && data.connection.status === 'connected') {
+          broadcastIntegrationConnectSettled({
+            assistantId: String(assistantId),
+            authMode: 'api_key',
+          });
           void requestUnityIntegrationToolsSync({
             assistantId,
             connection: data.connection,

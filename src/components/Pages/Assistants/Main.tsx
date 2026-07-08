@@ -130,6 +130,8 @@ import { wakeCoordinator } from '@/lib/client/coordinator';
 import { ENABLE_INTEGRATION_LABEL_FILTER } from '@/lib/integrations/integrationLabelFilter';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
+import { useCoordinatorAppsConnectFlow } from '@/hooks/Assistants/useCoordinatorAppsConnectFlow';
+import { schedulePostIntegrationConnectRefetches } from '@/lib/assistants/coordinatorIntegrationConnect';
 import {
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS,
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS,
@@ -680,10 +682,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // down so the user can use the platform first — mirrored to the
   // Coordinator's prompts server-side. Per-step state is untouched.
   const isCoordinatorOnboardingActive = coordinatorOnboardingState?.onboardingActive === true;
+  const handleOpenChatSection = React.useCallback(() => {
+    setActiveBrainSectionId(null);
+    setPaneState((prev) =>
+      prev.primary.tab === 'chat' && prev.secondary === null
+        ? prev
+        : {
+            ...prev,
+            primary: { tab: 'chat' },
+            secondary: null,
+          }
+    );
+  }, []);
+  const {
+    beginAppsConnectFlow,
+    onConnectSettled: onAppsConnectSettled,
+    appsConnectSettling,
+  } = useCoordinatorAppsConnectFlow({
+    coordinatorId: canonicalCoordinatorId,
+    enabled: isCanonicalCoordinatorOwned && isCoordinatorOnboardingActive,
+    completedStepIds: coordinatorOnboardingState?.completedStepIds,
+    refreshAssistants,
+    refetchCoordinatorOnboardingState,
+    updateCoordinatorOnboardingState,
+    onOpenChatSection: handleOpenChatSection,
+  });
   useCoordinatorOnboardingInvalidation(
     canonicalCoordinator?.agentId ?? null,
     isCanonicalCoordinatorOwned && isCoordinatorOnboardingActive,
-    refetchCoordinatorOnboardingState
+    () => {
+      void refetchCoordinatorOnboardingState();
+      onAppsConnectSettled();
+    }
   );
   const showCoordinatorOnboardingIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
@@ -920,6 +950,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onboarding: coordinatorOnboardingState?.onboarding ?? null,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
+      appsConnectSettling,
     }),
     [
       visibleCompletedStepIds,
@@ -936,6 +967,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       coordinatorOnboardingState?.onboarding,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
+      appsConnectSettling,
     ]
   );
   // While the state read is still in flight we can't make a confident
@@ -2351,6 +2383,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       );
       if (!step) return;
       if (stepId === 'apps') {
+        beginAppsConnectFlow();
         handleCoordinatorOpenPaneTab(
           'integrations',
           stepId,
@@ -2385,6 +2418,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
+      beginAppsConnectFlow,
       handleCoordinatorOpenPaneTab,
       markStepEngaged,
       markStepRequested,
@@ -2634,7 +2668,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             handleOpenWorkspaceManager(canonicalCoordinator);
           }
         : undefined,
-      onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
+      onConnectApps: () => {
+        beginAppsConnectFlow();
+        handleCoordinatorOpenPaneTab('integrations', 'apps');
+      },
       onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
       onCreateScheduledTask: () => handleCoordinatorDispatchTaskBeat('create-scheduled-task'),
       onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
@@ -2670,6 +2707,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     contactWhatsapp,
     userMeta.slackOwner,
     markStepEngaged,
+    beginAppsConnectFlow,
     markStepCompleted,
     handleCoordinatorStartOnboardingStep,
     handleCoordinatorTriggerReferenceStep,
@@ -2753,8 +2791,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // before the picker renders — the layout already blocks on that
   // read via ``isCoordinatorOnboardingResolvePending``. Live
   // in-session completion still comes from the pane observers
-  // (``onSecretsCountChange`` / ``onTasksCountChange`` /
-  // ``onHasActiveActionChange``) plus the OAuth-complete refetch;
+  // (``onTasksCountChange`` / ``onHasActiveActionChange``) plus the
+  // OAuth-complete refetch and SSE ``OnboardingStateUpdated`` events;
   // ``markStepCompleted`` is idempotent so the two sources compose
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
@@ -3098,47 +3136,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // a couple of times. For the workspace flow we also dismiss the connect
   // dialogs, which the user left open in the original tab.
   React.useEffect(() => {
-    const retryTimers: ReturnType<typeof setTimeout>[] = [];
+    const cleanupTimers: Array<() => void> = [];
     const unsubscribe = subscribeOAuthComplete((detail) => {
-      const refetch = () => {
-        refreshAssistants(false);
-        // Re-read Coordinator/State so the server-derived
-        // ``completedStepIds`` picks up the credential that just
-        // landed (workspace OAuth → ``workspace``, integration
-        // OAuth → ``apps``) and the onboarding checklist advances.
-        void refetchCoordinatorOnboardingState();
-      };
-      refetch();
-      retryTimers.push(setTimeout(refetch, 1500));
-      if (detail.kind === 'workspace') {
-        // The OAuth itself succeeded, but the contact row write may have
-        // failed (e.g. the mailbox is already connected to another
-        // assistant). Surface that instead of a false "connected" — and
-        // keep the dialog open so the user can retry with another account.
-        const params = new URLSearchParams(detail.query || '');
-        const contactError = params.get('contact_error');
-        if (contactError || params.get('success') === 'false') {
-          toast.error(
-            contactError === 'email_in_use'
-              ? 'That mailbox is already connected to an assistant. Disconnect it there first, or connect a different account.'
-              : "Couldn't finish connecting the workspace. Please try again."
-          );
-        } else {
-          // Keep the workspace dialog open so it transitions into the
-          // connected view (where the file-access step lives). The
-          // ``assistants`` re-sync effect below repoints the held snapshot at
-          // the freshly-connected assistant once the refetch lands.
-          setWorkspaceManagerInitialProvider(null);
-          setContactManagerAssistant(null);
-          toast.success('Workspace connected. Choose which files to share below.');
-        }
+      if (detail.kind !== 'workspace') return;
+      cleanupTimers.push(
+        schedulePostIntegrationConnectRefetches({
+          coordinatorId: canonicalCoordinatorId,
+          refreshAssistants,
+          refetchCoordinatorOnboardingState,
+        })
+      );
+      const params = new URLSearchParams(detail.query || '');
+      const contactError = params.get('contact_error');
+      if (contactError || params.get('success') === 'false') {
+        toast.error(
+          contactError === 'email_in_use'
+            ? 'That mailbox is already connected to an assistant. Disconnect it there first, or connect a different account.'
+            : "Couldn't finish connecting the workspace. Please try again."
+        );
+      } else {
+        setWorkspaceManagerInitialProvider(null);
+        setContactManagerAssistant(null);
+        toast.success('Workspace connected. Choose which files to share below.');
       }
     });
     return () => {
       unsubscribe();
-      retryTimers.forEach(clearTimeout);
+      for (const cleanup of cleanupTimers) cleanup();
     };
-  }, [refreshAssistants, refetchCoordinatorOnboardingState]);
+  }, [canonicalCoordinatorId, refreshAssistants, refetchCoordinatorOnboardingState]);
 
   // Keep the open workspace dialog's held assistant in sync with the refreshed
   // list so a just-connected mailbox/provider surfaces (and the file-access
@@ -3204,19 +3230,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const railActiveSectionId = isNonAssistantSelection ? entitySectionId : activeSectionId;
   const railActiveSectionDef =
     SECTION_BY_ID[railActiveSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
-
-  const handleOpenChatSection = React.useCallback(() => {
-    setActiveBrainSectionId(null);
-    setPaneState((prev) =>
-      prev.primary.tab === 'chat' && prev.secondary === null
-        ? prev
-        : {
-            ...prev,
-            primary: { tab: 'chat' },
-            secondary: null,
-          }
-    );
-  }, []);
 
   const openAssistantChatFromNavigation = React.useCallback(
     (assistantId: string) => {

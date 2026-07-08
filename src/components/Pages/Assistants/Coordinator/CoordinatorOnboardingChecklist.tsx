@@ -168,6 +168,7 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-calendar': 'Summarizing...',
   'trigger-integration-read': 'Reading...',
   'trigger-integration-action': 'Working...',
+  'connect-apps': 'Connecting...',
   'create-scheduled-task': 'Starting...',
   'create-triggerable-task': 'Starting...',
   'learn-from-correction': 'Starting...',
@@ -1455,7 +1456,13 @@ function ChecklistRow({
   const showActionFeedback =
     item.inProgress ||
     (!!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled);
-  const actionFeedbackLabel = item.inProgress ? 'In progress' : actionFeedback;
+  const onboardingCtx = useCoordinatorOnboardingContext();
+  const actionFeedbackLabel =
+    item.id === 'apps' && item.inProgress && onboardingCtx?.appsConnectSettling
+      ? 'Finishing connection...'
+      : item.inProgress
+        ? 'In progress'
+        : actionFeedback;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
