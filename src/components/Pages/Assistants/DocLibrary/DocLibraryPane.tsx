@@ -378,7 +378,10 @@ export function DocLibraryPane({
             ) : filtered.length === 0 ? (
               <div className="text-caption p-3">{meta.emptyMatch}</div>
             ) : (
-              <ScrollArea className="h-full">
+              <ScrollArea
+                className="h-full min-w-0"
+                viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
+              >
                 <div className="flex flex-col gap-0.5 p-2">
                   {filteredGroups.map((group) => (
                     <React.Fragment key={group.sortKey}>
@@ -399,7 +402,7 @@ export function DocLibraryPane({
                         <button
                           key={doc.id}
                           className={cn(
-                            'flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                            'flex w-full min-w-0 items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
                             active?.id === doc.id
                               ? 'bg-accent-soft text-accent-soft-foreground'
                               : 'text-ink-2 hover:bg-muted hover:text-foreground'
@@ -415,8 +418,11 @@ export function DocLibraryPane({
                           <span className="min-w-0 flex-1">
                             <span
                               className={cn(
-                                'text-body-dense line-clamp-2 block font-semibold leading-snug',
-                                kind === 'knowledge' && 'font-mono'
+                                'text-body-dense block font-semibold leading-snug',
+                                kind === 'knowledge' && 'font-mono',
+                                isStackedLayout
+                                  ? 'line-clamp-2'
+                                  : 'break-words [overflow-wrap:anywhere]'
                               )}
                             >
                               {doc.title}
