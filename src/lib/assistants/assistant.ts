@@ -208,7 +208,8 @@ export async function createAssistant(
   voiceProvider: VoiceProvider | null,
   isUserDesktop: boolean,
   desktopMode: DesktopMode | null,
-  preHireChat?: PreHireChatMessage[]
+  preHireChat?: PreHireChatMessage[],
+  ownerTeamId?: number | null
 ): Promise<ResponseProps & { assistant?: Assistant }> {
   const apiKey = await requireUserApiKey();
   try {
@@ -237,6 +238,7 @@ export async function createAssistant(
         weeklyLimit: 40,
         createInfra: true,
         preHireChat: preHireChat,
+        ownerTeamId: ownerTeamId ?? undefined,
       }),
     });
 

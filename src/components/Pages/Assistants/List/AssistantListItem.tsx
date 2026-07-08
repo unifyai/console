@@ -35,6 +35,8 @@ interface AssistantListItemProps {
   unreadCount?: number;
   isPrimary?: boolean;
   alsoInTeamLabels?: string[];
+  /** Row is under the assistant's owning team (team-owned hire). */
+  isTeamOwned?: boolean;
 }
 
 export function AssistantListItem({
@@ -48,6 +50,7 @@ export function AssistantListItem({
   unreadCount = 0,
   isPrimary = true,
   alsoInTeamLabels = [],
+  isTeamOwned = false,
 }: AssistantListItemProps) {
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
@@ -199,6 +202,29 @@ export function AssistantListItem({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {isTeamOwned && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Badge
+                    variant="outline"
+                    className="h-5 cursor-default px-1.5 text-[10px] font-medium"
+                    data-testid={`assistant-team-owned-badge-${assistant.agentId}`}
+                  >
+                    Team-owned
+                  </Badge>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>
+                  Owned by this team: everyone can work with it and everything it learns is shared
+                  with the team.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {alsoInTeamLabels.length > 0 && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>

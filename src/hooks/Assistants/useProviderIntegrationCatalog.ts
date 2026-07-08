@@ -18,7 +18,10 @@ import {
   shouldUseMockProviderIntegrations,
 } from '@/utils/assistants/provider-integration-mock-data';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
-import { broadcastIntegrationConnectSettled } from '@/lib/assistants/coordinatorIntegrationConnect';
+import {
+  broadcastIntegrationConnectSettled,
+  subscribeIntegrationDisconnectSettled,
+} from '@/lib/assistants/coordinatorIntegrationConnect';
 import type {
   IntegrationConnection,
   IntegrationDefinition,
@@ -398,6 +401,14 @@ export function useProviderIntegrationCatalog(
       window.setTimeout(() => void fetchCatalog({ background: true }), 1600);
     });
   }, [fetchCatalog]);
+
+  React.useEffect(() => {
+    return subscribeIntegrationDisconnectSettled((detail) => {
+      if (detail.assistantId !== assistantId) return;
+      void fetchCatalog({ background: true });
+      window.setTimeout(() => void fetchCatalog({ background: true }), 800);
+    });
+  }, [assistantId, fetchCatalog]);
 
   const fetchDetails = React.useCallback(
     async (definition: IntegrationDefinition): Promise<IntegrationDefinition | null> => {

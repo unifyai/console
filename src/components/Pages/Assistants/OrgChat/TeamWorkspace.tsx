@@ -1,6 +1,8 @@
 import * as React from 'react';
+import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { Button } from '@/components/UI/button';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
 import { ChatMention, RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
@@ -19,6 +21,8 @@ interface TeamWorkspaceProps {
   /** Which section to render: 'chat' | 'members'. */
   activeSectionId: string;
   chat: ReturnType<typeof useOrgChat>;
+  /** Opens the hire dialog with this team preset as the owning team. */
+  onHireForTeam?: () => void;
 }
 
 function initials(name: string): string {
@@ -43,6 +47,7 @@ export function TeamWorkspace({
   currentUserId,
   activeSectionId,
   chat,
+  onHireForTeam,
 }: TeamWorkspaceProps) {
   const { loadTeamHistory, sendTeamMessage, teamMessages } = chat;
 
@@ -135,6 +140,19 @@ export function TeamWorkspace({
       {activeSectionId === 'members' && (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <div className="flex flex-col gap-3">
+            {onHireForTeam && (
+              <div className="flex justify-end">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onHireForTeam}
+                  data-testid="team-hire-button"
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Hire for this team
+                </Button>
+              </div>
+            )}
             {humanMembers.map((human) => (
               <div key={human.userId} className="flex items-center gap-3">
                 <div className="relative">

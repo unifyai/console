@@ -13,6 +13,7 @@ import {
 } from '@/components/UI/sheet';
 import { cn } from '@/lib/utils';
 import { useFunctionsCatalog } from '@/hooks/Assistants/useFunctionsCatalog';
+import { usePendingFunctionTarget } from '@/lib/navigation/AppShellRouter';
 import type { ContextRoot } from '@/lib/assistants/scope';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
@@ -176,6 +177,22 @@ export function FunctionsPane({
       root: scope.root,
       enabled: isActiveSurface,
     });
+
+  const { pendingFunctionId, clearPendingFunction } = usePendingFunctionTarget();
+
+  React.useEffect(() => {
+    if (!pendingFunctionId) return;
+    setKind('All');
+  }, [pendingFunctionId]);
+
+  React.useEffect(() => {
+    if (!pendingFunctionId || !hasLoaded || kind !== 'All') return;
+    const skill = skills.find((item) => item.functionId === pendingFunctionId);
+    if (skill) {
+      setSelected(skill);
+    }
+    clearPendingFunction();
+  }, [clearPendingFunction, hasLoaded, kind, pendingFunctionId, skills]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);

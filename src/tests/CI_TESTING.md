@@ -70,6 +70,7 @@ Scripts:
 ## Troubleshooting
 
 - **Push and PR are separate workflow runs.** A push run shows PR Gate jobs as _skipped_ — that is normal. Filter Actions by `event: pull_request` for PR Gate results.
+- **Promotion PRs (`staging` → `main`) do not auto-run PR Gate on every `staging` push.** When the PR head is `staging` or `main`, the `pull_request` workflow is skipped so a direct push to the integration branch only runs Push Gate. Run PR Gate manually before merge: `gh workflow run Tests -f tier=pr`, or add `[run-tests]` to the PR title for an exhaustive sweep.
 - **`pull_request` workflows do not run when the PR has merge conflicts** with its base branch. GitHub cannot build `refs/pull/N/merge`. Resolve conflicts with `staging`/`main`, or run `gh workflow run Tests -f tier=pr`.
 - Check PR merge state: `gh pr view <n> --json mergeable,mergeStateStatus`
 

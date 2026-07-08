@@ -24,6 +24,7 @@ function normalizeAssistantRows(assistants: readonly Assistant[]): Assistant[] {
       isCoordinator: assistant.isCoordinator === true,
       teamIds: assistant.teamIds ?? [],
       teamSummaries: assistant.teamSummaries ?? [],
+      ownerTeamId: assistant.ownerTeamId ?? null,
     });
   }
 

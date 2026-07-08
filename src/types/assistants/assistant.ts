@@ -90,6 +90,12 @@ export interface Assistant {
   agentId: string;
   userId: string; // ID of the user who created/owns the assistant - used for permission checks
   organizationId: number | null; // Organization ID if org assistant, null for personal - reserved for future use
+  /**
+   * Owning team for team-owned assistants (null = user-owned). A team-owned
+   * assistant's entire memory is its owning team's shared root: it has no
+   * personal contexts, and `userId` records only the hiring member.
+   */
+  ownerTeamId?: number | null;
   isCoordinator: boolean;
   userFirstName?: string | null; // Owner's first name
   userLastName?: string | null; // Owner's last name
@@ -496,7 +502,8 @@ export interface AssistantActions {
       voiceProvider: VoiceProvider | null,
       isUserDesktop: boolean,
       desktopMode: DesktopMode | null,
-      preHireChat?: PreHireChatMessage[]
+      preHireChat?: PreHireChatMessage[],
+      ownerTeamId?: number | null
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (
       assistantId: string,

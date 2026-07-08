@@ -22,6 +22,15 @@ export function formatCalendarDayLabel(timestamp: string): string {
   });
 }
 
+/** Local calendar-day bucket key for grouping (YYYY-MM-DD). */
+export function calendarDaySortKey(timestamp: string): string {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /** Date divider rule shown between calendar-day groups (Actions, Guidance, etc.). */
 export function TimelineDateSeparator({
   timestamp,
@@ -31,8 +40,8 @@ export function TimelineDateSeparator({
   className?: string;
 }) {
   return (
-    <div className={cn('mb-1 mt-2.5 flex items-center gap-2.5 first:mt-0', className)}>
-      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+    <div className={cn('mb-1 mt-2.5 flex min-w-0 items-center gap-2.5 first:mt-0', className)}>
+      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
         {formatCalendarDayLabel(timestamp)}
       </span>
       <span className="h-px flex-1 bg-border" />
@@ -56,7 +65,7 @@ export function groupByCalendarDay<T extends { sortTimestamp: string | null }>(
 
   const groups: Array<{ label: string; sortKey: string; items: T[] }> = [];
   for (const item of sorted) {
-    const sortKey = item.sortTimestamp ?? '__undated';
+    const sortKey = item.sortTimestamp ? calendarDaySortKey(item.sortTimestamp) : '__undated';
     const label = item.sortTimestamp ? formatCalendarDayLabel(item.sortTimestamp) : 'Undated';
     const last = groups[groups.length - 1];
     if (last && last.sortKey === sortKey) {

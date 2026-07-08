@@ -6,6 +6,8 @@ export interface AssistantListEntry {
   assistant: Assistant;
   isPrimaryTeamListing: boolean;
   alsoInTeamLabels: string[];
+  /** True on the row under the assistant's owning team (team-owned hires). */
+  isTeamOwnedListing?: boolean;
 }
 
 export type AssistantListGroup =
@@ -86,7 +88,13 @@ export function groupAssistantsByTeam(
       continue;
     }
 
+    const ownerTeamId = assistant.ownerTeamId ?? null;
     const teamIds = currentTeamIds(assistant);
+    if (ownerTeamId !== null && !teamIds.includes(ownerTeamId)) {
+      // The owning team is structural membership even if the membership
+      // payload hasn't refreshed yet.
+      teamIds.unshift(ownerTeamId);
+    }
     if (teamIds.length === 0) {
       soloRows.push({
         assistant,
@@ -96,11 +104,13 @@ export function groupAssistantsByTeam(
       continue;
     }
 
-    const primaryTeamId = teamIds[0];
+    // A team-owned assistant's primary listing is its owning team.
+    const primaryTeamId = ownerTeamId ?? teamIds[0];
     for (const teamId of teamIds) {
       rowsForTeam(rowsByTeam, teamId).push({
         assistant,
         isPrimaryTeamListing: teamId === primaryTeamId,
+        isTeamOwnedListing: ownerTeamId !== null && teamId === ownerTeamId,
         alsoInTeamLabels: teamIds
           .filter((otherTeamId) => otherTeamId !== teamId)
           .map((otherTeamId) => teamLabel(otherTeamId, teamsById)),

@@ -30,7 +30,8 @@ function parseLogsResponse<T extends BrainRow>(data: any): BrainContextData<T> {
   const rows = logs.map((log: any) => {
     const entries = log.entries ?? {};
     Object.keys(entries).forEach((k) => fields.add(k));
-    return entries as T;
+    const ts = typeof log.ts === 'string' ? log.ts : null;
+    return { ...entries, ...(ts ? { ts } : {}) } as T;
   });
 
   return { rows, count, fields: Array.from(fields) };

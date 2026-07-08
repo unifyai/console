@@ -1,3 +1,4 @@
+import { resolvePublicCatalogApps } from '@/lib/client/provider-resolution';
 import { camelToSnake, camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import type {
   IntegrationApiKeyField,
@@ -861,10 +862,12 @@ export async function listProviderIntegrationDefinitionsPage(args: {
           assistantId: args.assistantId,
         }).catch(() => []);
   const bySlug = connectionsBySlug(pageConnections);
-  const items = (data.logs ?? [])
-    .map((log) => log.entries)
-    .filter(Boolean)
-    .map((app) => overlayAppConnections(app as ProviderAppPayload, bySlug));
+  const items = resolvePublicCatalogApps(
+    (data.logs ?? [])
+      .map((log) => log.entries)
+      .filter(Boolean)
+      .map((app) => overlayAppConnections(app as ProviderAppPayload, bySlug))
+  );
   return {
     definitions: items.map(mapProviderAppToDefinition),
     total: typeof data.count === 'number' ? data.count : items.length,

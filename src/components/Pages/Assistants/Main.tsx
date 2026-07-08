@@ -131,7 +131,12 @@ import { ENABLE_INTEGRATION_LABEL_FILTER } from '@/lib/integrations/integrationL
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
 import { useCoordinatorAppsConnectFlow } from '@/hooks/Assistants/useCoordinatorAppsConnectFlow';
-import { schedulePostIntegrationConnectRefetches } from '@/lib/assistants/coordinatorIntegrationConnect';
+import {
+  APPS_ONBOARDING_STEP_ID,
+  broadcastIntegrationDisconnectSettled,
+  disconnectConnectedIntegrationsForAppsReset,
+  schedulePostIntegrationConnectRefetches,
+} from '@/lib/assistants/coordinatorIntegrationConnect';
 import {
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS,
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS,
@@ -895,13 +900,40 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return next.size === prev.size ? prev : next;
       });
       clearStepRequests(ids);
+      const resetAppsIntegrations = async () => {
+        if (resetStepId !== APPS_ONBOARDING_STEP_ID || canonicalCoordinatorId == null) {
+          return;
+        }
+        const disconnectedIds = await disconnectConnectedIntegrationsForAppsReset({
+          coordinatorId: canonicalCoordinatorId,
+        });
+        if (disconnectedIds.length > 0) {
+          broadcastIntegrationDisconnectSettled({
+            assistantId: String(canonicalCoordinatorId),
+            reason: 'apps_step_reset',
+            connectionIds: disconnectedIds,
+          });
+        }
+      };
       if (resetStepId) {
-        void updateCoordinatorOnboardingState({ resetOnboardingStep: resetStepId });
+        void (async () => {
+          try {
+            await resetAppsIntegrations();
+            await updateCoordinatorOnboardingState({ resetOnboardingStep: resetStepId });
+          } catch (error) {
+            console.error('Failed to reset onboarding step', error);
+          }
+        })();
       } else if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
         void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
       }
     },
-    [activeCoordinatorOnboardingStep, clearStepRequests, updateCoordinatorOnboardingState]
+    [
+      activeCoordinatorOnboardingStep,
+      canonicalCoordinatorId,
+      clearStepRequests,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const visibleCompletedStepIds = React.useMemo<ReadonlySet<string>>(() => {
     if (resetStepIds.size === 0) return completedStepIds;
@@ -2083,32 +2115,57 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [needsPresetSelection, setNeedsPresetSelection] = React.useState(false);
   const [userHasChangedPreset, setUserHasChangedPreset] = React.useState(false);
 
-  const handleOpenHireDialog = React.useCallback(() => {
-    resetHireFormInternal();
-    setPresetAgeFilter('all');
-    setPresetNationalityFilter('all');
-    setPresetGenderFilter('all');
-    setPresetLanguageFilter('all');
-    setIsDialogBusyProcessingVoice(false);
-    setHireWorkspaceProvider(null);
-    // No configurable workspace provider → pre-skip so the flow isn't blocked.
-    setSkipHireWorkspaceSetup(!workspaceConnectAvailable);
-    setShowHireWorkspaceWarning(false);
+  const hireTeams = React.useMemo(
+    () =>
+      (roster?.teams ?? []).map((team) => ({
+        teamId: team.teamId,
+        name: team.name,
+        isOrgWideSharing: team.isOrgWideSharing,
+      })),
+    [roster?.teams]
+  );
 
-    // Mark that we need to select a preset once they're loaded
-    setNeedsPresetSelection(true);
-    setUserHasChangedPreset(false);
+  const handleOpenHireDialog = React.useCallback(
+    (presetOwnerTeamId?: number) => {
+      resetHireFormInternal();
+      setPresetAgeFilter('all');
+      setPresetNationalityFilter('all');
+      setPresetGenderFilter('all');
+      setPresetLanguageFilter('all');
+      setIsDialogBusyProcessingVoice(false);
+      setHireWorkspaceProvider(null);
+      // No configurable workspace provider → pre-skip so the flow isn't blocked.
+      setSkipHireWorkspaceSetup(!workspaceConnectAvailable);
+      setShowHireWorkspaceWarning(false);
 
-    // Open the dialog - this triggers lazy loading of presets
-    setIsHireDialogOpen(true);
-  }, [
-    resetHireFormInternal,
-    setPresetAgeFilter,
-    setPresetNationalityFilter,
-    setPresetGenderFilter,
-    setPresetLanguageFilter,
-    workspaceConnectAvailable,
-  ]);
+      // Team-first hiring: default the owning team to the workspace the hire
+      // started from, else the managed org-wide team, else the first team.
+      // Skipping (choosing "Personal") yields a personally-supervised hire.
+      const defaultOwnerTeamId =
+        presetOwnerTeamId ??
+        hireTeams.find((team) => team.isOrgWideSharing)?.teamId ??
+        hireTeams[0]?.teamId ??
+        null;
+      formMethods.setValue('ownerTeamId', defaultOwnerTeamId);
+
+      // Mark that we need to select a preset once they're loaded
+      setNeedsPresetSelection(true);
+      setUserHasChangedPreset(false);
+
+      // Open the dialog - this triggers lazy loading of presets
+      setIsHireDialogOpen(true);
+    },
+    [
+      resetHireFormInternal,
+      setPresetAgeFilter,
+      setPresetNationalityFilter,
+      setPresetGenderFilter,
+      setPresetLanguageFilter,
+      workspaceConnectAvailable,
+      hireTeams,
+      formMethods,
+    ]
+  );
 
   const applyRandomUnityProfile = React.useCallback(() => {
     const profile = createRandomUnityProfile();
@@ -3584,6 +3641,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                         currentUserId={currentUserId}
                         activeSectionId={entitySectionId}
                         chat={orgChat}
+                        onHireForTeam={
+                          canHire ? () => handleOpenHireDialog(selectedTeam.teamId) : undefined
+                        }
                       />
                     );
                   }
@@ -3820,6 +3880,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onNewMediaReady={onNewMediaReady}
               mode="hire"
               onAddPaymentMethod={goToBilling}
+              hireTeams={hireTeams}
               userHasChangedPreset={userHasChangedPreset}
               onRandomizeProfile={handleRandomizeProfile}
               onRegisterRandomize={registerHireRandomize}
