@@ -61,6 +61,17 @@ export interface IntegrationCapabilityGroup {
   policyLabels?: string[];
 }
 
+export interface IntegrationLabel {
+  key: string;
+  label: string;
+}
+
+export interface IntegrationLabels {
+  primaryCategory?: IntegrationLabel | null;
+  categories: IntegrationLabel[];
+  tags: IntegrationLabel[];
+}
+
 export interface IntegrationToolPreview {
   id: string;
   name: string;
@@ -138,6 +149,7 @@ export interface IntegrationDefinition {
   displayName: string;
   description?: string | null;
   category?: string | null;
+  labels?: IntegrationLabels | null;
   iconUrl?: string | null;
   authModes: IntegrationAuthMode[];
   status: IntegrationConnectionStatus;

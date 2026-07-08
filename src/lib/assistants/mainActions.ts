@@ -76,6 +76,7 @@ import {
 } from '@/lib/assistants/action';
 import { getDashboardMetadata, getDashboardTileContent } from '@/lib/assistants/dashboard';
 import { getSlackInstallAction, revokeSlackInstallAction } from '@/lib/assistants/slackActions';
+import { getOrgInstallStatusAction, bindInstallAction } from '@/lib/assistants/msTeamsBotActions';
 import type { AssistantActions } from '@/types/assistants/assistant';
 
 export const assistantMainActions: AssistantActions = {
@@ -139,6 +140,10 @@ export const assistantMainActions: AssistantActions = {
   slack: {
     getInstall: getSlackInstallAction,
     revokeInstall: revokeSlackInstallAction,
+  },
+  msTeamsBot: {
+    getInstall: getOrgInstallStatusAction,
+    bindInstall: bindInstallAction,
   },
   call: {
     getConnectionDetails: getCallConnectionDetails,

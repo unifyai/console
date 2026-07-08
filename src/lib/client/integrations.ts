@@ -6,6 +6,8 @@ import type {
   IntegrationConnection,
   IntegrationConnectionStatus,
   IntegrationDefinition,
+  IntegrationLabel,
+  IntegrationLabels,
   IntegrationOwnerScope,
   IntegrationToolBehaviorHint,
   IntegrationScope,
@@ -30,6 +32,7 @@ const BUILTINS_APP_PUBLIC_FIELDS = [
   'source_label',
   'description',
   'category',
+  'labels',
   'icon_url',
   'auth_modes',
   'available_scopes',
@@ -82,6 +85,7 @@ interface ProviderAppPayload {
   sourceLabel?: string | null;
   description?: string | null;
   category?: string | null;
+  labels?: IntegrationLabels | null;
   iconUrl?: string | null;
   authModes?: string[];
   availableScopes?: ProviderScopePayload[];
@@ -141,6 +145,11 @@ export interface ProviderAppCatalogFacets {
     needsAttention: number;
     notConnected: number;
   };
+  categories?: Array<{
+    value: string;
+    label: string;
+    count: number;
+  }>;
 }
 
 export interface ProviderIntegrationDefinitionsPage {
@@ -260,6 +269,37 @@ function normalizeScope(scope: ProviderScopePayload | string, index: number): In
     description: scope.description ?? null,
     required: scope.required,
   };
+}
+
+function normalizeIntegrationLabel(value: unknown): IntegrationLabel | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as UnknownRecord;
+  const key = typeof record.key === 'string' ? record.key.trim() : '';
+  const label =
+    typeof record.label === 'string'
+      ? record.label.trim()
+      : typeof record.name === 'string'
+        ? record.name.trim()
+        : key;
+  if (!key || !label) return null;
+  return { key, label };
+}
+
+function normalizeIntegrationLabels(value: unknown): IntegrationLabels | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as UnknownRecord;
+  const categories = asArray<unknown>(record.categories)
+    .map(normalizeIntegrationLabel)
+    .filter((label): label is IntegrationLabel => Boolean(label));
+  const tags = asArray<unknown>(record.tags)
+    .map(normalizeIntegrationLabel)
+    .filter((label): label is IntegrationLabel => Boolean(label));
+  const primaryCategory =
+    normalizeIntegrationLabel(record.primaryCategory ?? record.primary_category) ??
+    categories[0] ??
+    null;
+  if (!primaryCategory && categories.length === 0 && tags.length === 0) return null;
+  return { primaryCategory, categories, tags };
 }
 
 function normalizeApiKeySchema(
@@ -474,6 +514,7 @@ export function mapProviderAppToDefinition(app: ProviderAppPayload): Integration
     displayName: app.displayName,
     description: app.description ?? null,
     category: app.category ?? null,
+    labels: normalizeIntegrationLabels(app.labels),
     iconUrl: app.iconUrl ?? null,
     authModes: (app.authModes || []).map(
       (mode) => mode as IntegrationDefinition['authModes'][number]
@@ -524,6 +565,26 @@ function quoteFilterValue(value: string): string {
   return JSON.stringify(value);
 }
 
+function orSearchTerms(query: string | undefined): string[] {
+  if (!query?.includes('|')) return [];
+  return [
+    ...new Set(
+      query
+        .split('|')
+        .map((term) => term.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+}
+
+function categoryFilterExpr(category: string): string {
+  const quoted = quoteFilterValue(category);
+  return `(${[
+    `category.lower() == ${quoted}`,
+    `len([label for label in labels["categories"] if label["key"] == ${quoted}]) > 0`,
+  ].join(' or ')})`;
+}
+
 function toolAppSlugFilter(slug: string): string {
   return `metadata["integration"]["app_slug"] == ${quoteFilterValue(slug)}`;
 }
@@ -564,26 +625,34 @@ function slugMembershipFilter(slugs: string[], negate = false): string | null {
 function catalogFilterExpr(args: {
   query?: string;
   sourceType?: 'native' | 'third_party' | null;
+  category?: string | null;
   statuses?: IntegrationConnectionStatus[];
   statusGroups?: ProviderAppStatusGroup[];
   connections?: IntegrationConnection[];
 }): string | undefined {
   const filters: string[] = [];
   if (args.sourceType) filters.push(`source_type == ${quoteFilterValue(args.sourceType)}`);
+  const category = args.category?.trim().toLowerCase();
+  if (category) filters.push(categoryFilterExpr(category));
   const query = args.query?.trim().toLowerCase();
   if (query) {
     // Match against the identity/description fields only. Broader fields like
     // category/source_label produce noisy, over-broad matches. This is an
     // indexed `contains` over a small catalogue (~1k rows) and stays sub-second;
-    // the result set is the search result, so its inline count is exact.
-    const quoted = quoteFilterValue(query);
-    filters.push(
-      `(${[
+    // the result set is the search result, so its inline count is exact. Plain
+    // user searches keep phrase semantics; generated onboarding searches can
+    // opt into OR matching with a pipe-separated query.
+    const terms = orSearchTerms(args.query);
+    const values = terms.length > 1 ? terms : [query];
+    const searchFilters = values.flatMap((value) => {
+      const quoted = quoteFilterValue(value);
+      return [
         `display_name.lower().contains(${quoted})`,
         `canonical_app_slug.lower().contains(${quoted})`,
         `description.lower().contains(${quoted})`,
-      ].join(' or ')})`
-    );
+      ];
+    });
+    filters.push(`(${searchFilters.join(' or ')})`);
   }
 
   const statuses = new Set(args.statuses ?? []);
@@ -664,7 +733,8 @@ function connectionsBySlug(
 
 function facetsFromConnections(
   total: number,
-  connections: IntegrationConnection[]
+  connections: IntegrationConnection[],
+  apps: ProviderAppPayload[] = []
 ): ProviderAppCatalogFacets {
   const bySlug = connectionStatusBySlug(connections);
   const status = {
@@ -709,7 +779,34 @@ function facetsFromConnections(
       needsAttention,
       notConnected: status.notConnected,
     },
+    categories: categoryFacetsFromApps(apps),
   };
+}
+
+function categoryFacetsFromApps(
+  apps: ProviderAppPayload[]
+): ProviderAppCatalogFacets['categories'] {
+  const byValue = new Map<string, { value: string; label: string; count: number }>();
+  for (const app of apps) {
+    const labels = normalizeIntegrationLabels(app.labels);
+    const categories =
+      labels?.categories && labels.categories.length > 0
+        ? labels.categories
+        : app.category?.trim()
+          ? [{ key: app.category.trim().toLowerCase(), label: app.category.trim() }]
+          : [];
+    const seenForApp = new Set<string>();
+    for (const category of categories) {
+      if (!category.key || seenForApp.has(category.key)) continue;
+      seenForApp.add(category.key);
+      const current = byValue.get(category.key);
+      if (current) current.count += 1;
+      else byValue.set(category.key, { value: category.key, label: category.label, count: 1 });
+    }
+  }
+  return Array.from(byValue.values()).sort(
+    (a, b) => b.count - a.count || a.label.localeCompare(b.label)
+  );
 }
 
 export async function listProviderIntegrationDefinitions(args: {
@@ -730,6 +827,7 @@ export async function listProviderIntegrationDefinitionsPage(args: {
   assistantId?: string | number;
   query?: string;
   sourceType?: 'native' | 'third_party' | null;
+  category?: string | null;
   statuses?: IntegrationConnectionStatus[];
   statusGroups?: ProviderAppStatusGroup[];
   detailLevel?: ProviderAppDetailLevel;
@@ -774,7 +872,8 @@ export async function listProviderIntegrationDefinitionsPage(args: {
     offset,
     facets: facetsFromConnections(
       typeof data.count === 'number' ? data.count : items.length,
-      pageConnections
+      pageConnections,
+      items
     ),
     catalogVersion: null,
     generatedAt: null,
@@ -795,6 +894,7 @@ export async function getProviderIntegrationCatalogCount(args: {
   ownerScope: IntegrationOwnerScope;
   assistantId?: string | number;
   sourceType?: 'native' | 'third_party' | null;
+  category?: string | null;
   statuses?: IntegrationConnectionStatus[];
   statusGroups?: ProviderAppStatusGroup[];
 }): Promise<number | null> {

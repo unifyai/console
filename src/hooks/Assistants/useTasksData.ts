@@ -16,6 +16,7 @@ import type {
 } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { fetchBrainContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/brain';
+import type { ContextRoot } from '@/lib/assistants/scope';
 import { fetchHasRunningTaskRun } from '@/lib/client/tasks';
 import {
   invalidateTabDataCache,
@@ -26,6 +27,8 @@ import {
 const PAGE_SIZE = 50;
 
 interface UseTasksDataOptions {
+  /** Scope override: a team root reads `Teams/{id}/Tasks…` only. */
+  root?: ContextRoot | null;
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
@@ -118,7 +121,8 @@ function fetchForKey(
   stateKey: StateKey,
   sorting: SortState | null,
   offset = 0,
-  filterExpr?: string | null
+  filterExpr?: string | null,
+  root: ContextRoot | null = null
 ) {
   const apiContext = STATE_KEY_TO_API[stateKey];
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
@@ -127,7 +131,8 @@ function fetchForKey(
     offset,
     sorting: sortingParam,
     filterExpr: filterExpr ?? undefined,
-    readAcrossRoots: stateKey === 'tasks',
+    root,
+    readAcrossRoots: root ? false : stateKey === 'tasks',
   });
 }
 
@@ -135,9 +140,11 @@ export function useTasksData({
   assistant,
   ownerId,
   assistantId,
+  root = null,
   enabled = true,
 }: UseTasksDataOptions): UseTasksDataResult {
-  const cacheKey = `${ownerId}:${assistantId}:tasks`;
+  const rootCacheKey = root?.kind === 'team' ? `team-${root.teamId}` : 'personal';
+  const cacheKey = `${ownerId}:${assistantId}:tasks:${rootCacheKey}`;
   const initialCachedState = readTabDataCache<{
     tasks: TaskStates['tasks'];
     taskRuns: TaskStates['taskRuns'];
@@ -166,8 +173,8 @@ export function useTasksData({
 
     try {
       const [td, tr, hasRunning] = await Promise.all([
-        fetchForKey(assistant, 'tasks', null),
-        fetchForKey(assistant, 'taskRuns', null),
+        fetchForKey(assistant, 'tasks', null, 0, null, root),
+        fetchForKey(assistant, 'taskRuns', null, 0, null, root),
         fetchHasRunningTaskRun(assistant),
       ]);
       const loadedAt = Date.now();
@@ -189,7 +196,7 @@ export function useTasksData({
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, assistant, cacheKey]);
+  }, [ownerId, assistantId, assistant, cacheKey, root]);
 
   const fetchAllRef = React.useRef(fetchAll);
   fetchAllRef.current = fetchAll;
@@ -230,7 +237,14 @@ export function useTasksData({
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(assistant, activeKey, newSorting, 0, current.filterExpr);
+        const data = await fetchForKey(
+          assistant,
+          activeKey,
+          newSorting,
+          0,
+          current.filterExpr,
+          root
+        );
         setStates((prev) => ({
           ...prev,
           [activeKey]: contextStateFromData(
@@ -246,7 +260,7 @@ export function useTasksData({
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeKey, states, assistant]
+    [ownerId, assistantId, activeKey, states, assistant, root]
   );
 
   const search = React.useCallback(
@@ -265,7 +279,7 @@ export function useTasksData({
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(assistant, activeKey, currentSorting, 0, filterExpr);
+        const data = await fetchForKey(assistant, activeKey, currentSorting, 0, filterExpr, root);
         setStates((prev) => ({
           ...prev,
           [activeKey]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
@@ -276,7 +290,7 @@ export function useTasksData({
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeKey, states, assistant]
+    [ownerId, assistantId, activeKey, states, assistant, root]
   );
 
   const clearSearch = React.useCallback(async () => {
@@ -291,7 +305,7 @@ export function useTasksData({
     setIsLoading(true);
 
     try {
-      const data = await fetchForKey(assistant, activeKey, currentSorting, 0, null);
+      const data = await fetchForKey(assistant, activeKey, currentSorting, 0, null, root);
       setStates((prev) => ({
         ...prev,
         [activeKey]: contextStateFromData(data as any, currentSorting, null, ''),
@@ -301,7 +315,7 @@ export function useTasksData({
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, activeKey, states, assistant]);
+  }, [ownerId, assistantId, activeKey, states, assistant, root]);
 
   const loadMore = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -318,7 +332,8 @@ export function useTasksData({
         activeKey,
         current.sorting,
         offset,
-        current.filterExpr
+        current.filterExpr,
+        root
       );
 
       setStates((prev) => {
@@ -341,7 +356,7 @@ export function useTasksData({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [ownerId, assistantId, activeKey, states, isLoadingMore, assistant]);
+  }, [ownerId, assistantId, activeKey, states, isLoadingMore, assistant, root]);
 
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;

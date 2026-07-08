@@ -3,11 +3,14 @@ import { useShellResource } from '@/hooks/Common/useShellResource';
 import { fetchDashboardMetadata, fetchDashboardTileContent } from '@/lib/client/dashboard';
 import type { DashboardPaneData, DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
 import type { Assistant } from '@/types/assistants/assistant';
+import { rootKey, type ContextRoot } from '@/lib/assistants/scope';
 
 interface UseDashboardsOptions {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  /** Scope override: a team root reads `Teams/{id}/Dashboards/…` only. */
+  root?: ContextRoot | null;
   getMetadata?: (assistant: Assistant) => Promise<DashboardPaneData>;
   getTileContent?: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   shouldPoll: boolean;
@@ -32,14 +35,16 @@ export function useDashboards({
   assistant,
   ownerId,
   assistantId,
+  root = null,
   getMetadata,
   getTileContent,
   shouldPoll,
 }: UseDashboardsOptions): UseDashboardsResult {
   const { data, isInitialLoading, isRefreshing, error, refresh, dataUpdatedAt } =
     useShellResource<DashboardPaneData>({
-      queryKey: ['dashboards', ownerId, assistantId],
-      queryFn: () => (getMetadata ?? fetchDashboardMetadata)(assistant),
+      queryKey: ['dashboards', ownerId, assistantId, rootKey(root ?? { kind: 'personal' })],
+      queryFn: () =>
+        getMetadata ? getMetadata(assistant) : fetchDashboardMetadata(assistant, root),
       refetchInterval: shouldPoll ? 5000 : false,
       enabled: !!ownerId && !!assistantId,
     });
@@ -75,18 +80,20 @@ export function useDashboards({
       const pending = pendingRef.current.get(token);
       if (pending) return pending;
 
-      const promise = (getTileContent ?? fetchDashboardTileContent)(assistant, token).then(
-        (html) => {
-          pendingRef.current.delete(token);
-          if (html) htmlCacheRef.current.set(token, html);
-          return html;
-        }
-      );
+      const promise = (
+        getTileContent
+          ? getTileContent(assistant, token)
+          : fetchDashboardTileContent(assistant, token, root)
+      ).then((html) => {
+        pendingRef.current.delete(token);
+        if (html) htmlCacheRef.current.set(token, html);
+        return html;
+      });
 
       pendingRef.current.set(token, promise);
       return promise;
     },
-    [assistant, getTileContent]
+    [assistant, getTileContent, root]
   );
 
   return {

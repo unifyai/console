@@ -31,6 +31,9 @@ export type OnboardingStepStatus =
 export interface OnboardingChip {
   id: string;
   label: string;
+  galleryCategory?: string;
+  searchQuery?: string;
+  [key: string]: unknown;
 }
 
 /** Direct dependency used to explain why a step is still locked. */
@@ -215,7 +218,15 @@ function normalizeChip(value: unknown): OnboardingChip | null {
   const r = value as Record<string, unknown>;
   const id = normalizeStep(r.id);
   if (!id) return null;
-  return { id, label: typeof r.label === 'string' ? r.label : '' };
+  const galleryCategory = r.galleryCategory ?? r.gallery_category;
+  const searchQuery = r.searchQuery ?? r.search_query;
+  return {
+    ...r,
+    id,
+    label: typeof r.label === 'string' ? r.label : '',
+    ...(typeof galleryCategory === 'string' ? { galleryCategory } : {}),
+    ...(typeof searchQuery === 'string' ? { searchQuery } : {}),
+  };
 }
 
 function normalizeChips(value: unknown): OnboardingChip[] {

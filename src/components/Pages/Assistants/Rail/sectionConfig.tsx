@@ -11,9 +11,18 @@ import {
   Compass,
   Database,
   MonitorPlay,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import type { RightPaneTab } from '@/components/Pages/Assistants/RightPaneContainer';
+
+/**
+ * What kind of entity the selector currently points at. Sections declare
+ * which kinds they make sense for: AI-brain sections (Guidance, Functions,
+ * Desktop, …) are assistant-only, humans get just Chat, and teams get their
+ * group chat + members overview.
+ */
+export type SelectorEntityKind = 'assistant' | 'human' | 'team';
 
 /**
  * A rail section is one of four kinds:
@@ -39,6 +48,15 @@ export interface SectionDef {
   kind: SectionKind;
   /** Present iff `kind === 'view'` — the right-pane view this section renders. */
   tab?: RightPaneTab;
+  /**
+   * Selector entity kinds this section applies to. Omitted means
+   * assistant-only (the historical default).
+   */
+  appliesTo?: ReadonlyArray<SelectorEntityKind>;
+}
+
+export function sectionAppliesTo(section: SectionDef, kind: SelectorEntityKind): boolean {
+  return (section.appliesTo ?? ['assistant']).includes(kind);
 }
 
 export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
@@ -48,6 +66,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: MessageSquare,
     kind: 'view',
     tab: 'chat',
+    appliesTo: ['assistant', 'human', 'team'],
     desc: 'Talk to your teammate — messages, voice notes, files, and screen share in one thread.',
     steps: [
       ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],
@@ -83,6 +102,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: LayoutDashboard,
     kind: 'view',
     tab: 'dashboards',
+    appliesTo: ['assistant', 'team'],
     desc: 'Live tiles and reports your teammate builds for you, on request.',
     steps: [
       ['Switch dashboard', 'Use the picker to jump between dashboards saved for this teammate.'],
@@ -96,6 +116,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: ListTodo,
     kind: 'view',
     tab: 'tasks',
+    appliesTo: ['assistant', 'team'],
     desc: 'Scheduled, recurring, triggered, and continuous workflows — definition and run history together.',
     steps: [
       ['Filter the list', 'Switch between All, Active, and Paused to narrow what you see.'],
@@ -129,11 +150,25 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
       ['Connect an app', 'Authorize with OAuth or paste an API key where supported.'],
     ],
   },
+  {
+    id: 'members',
+    label: 'Members',
+    Icon: UsersRound,
+    kind: 'view',
+    appliesTo: ['team'],
+    desc: 'Everyone on this team — humans and AI teammates, with online status.',
+    steps: [
+      ['Scan the roster', 'Humans and AI teammates are listed with their online status.'],
+      ['Open a member', 'Select any member from the top selector to jump to them.'],
+      ['Manage the team', 'Add or remove members from Settings → Organization → Teams.'],
+    ],
+  },
 ];
 
 export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   {
     id: 'contacts',
+    appliesTo: ['assistant', 'team'],
     label: 'Contacts',
     Icon: Contact,
     kind: 'brain-view',
@@ -146,6 +181,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'transcripts',
+    appliesTo: ['assistant', 'team'],
     label: 'Transcripts',
     Icon: MessagesSquare,
     kind: 'brain-view',
@@ -161,6 +197,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'knowledge',
+    appliesTo: ['assistant', 'team'],
     label: 'Knowledge',
     Icon: BookOpen,
     kind: 'brain-view',
@@ -173,6 +210,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'functions',
+    appliesTo: ['assistant', 'team'],
     label: 'Functions',
     Icon: Braces,
     kind: 'brain-view',
@@ -188,6 +226,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'guidance',
+    appliesTo: ['assistant', 'team'],
     label: 'Guidance',
     Icon: Compass,
     kind: 'brain-view',
@@ -200,6 +239,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
   {
     id: 'data',
+    appliesTo: ['assistant', 'team'],
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',

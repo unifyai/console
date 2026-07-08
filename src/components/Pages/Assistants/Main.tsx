@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import {
   RightPaneContainer,
   DEFAULT_RIGHT_PANE_STATE,
+  type RightPaneIntegrationsState,
   type RightPaneState,
   type RightPaneTab,
 } from '@/components/Pages/Assistants/RightPaneContainer';
@@ -13,7 +14,30 @@ import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail'
 import { SectionHost } from './Rail/SectionHost';
 import { BrainSectionsHost } from './Rail/BrainSectionsHost';
 import { AssistantInfoPanelLayout } from './Layout/AssistantInfoPanelLayout';
-import { SECTION_BY_ID, DEFAULT_SECTION_ID, type SectionDef } from './Rail/sectionConfig';
+import {
+  SECTION_BY_ID,
+  DEFAULT_SECTION_ID,
+  sectionAppliesTo,
+  type SectionDef,
+  type SelectorEntityKind,
+} from './Rail/sectionConfig';
+import {
+  humanEntityKey,
+  isNonAssistantEntityKey,
+  parseSelectedEntityKey,
+  teamEntityKey,
+} from '@/lib/assistants/selectedEntity';
+import { useOrgRoster } from '@/hooks/Assistants/useOrgRoster';
+import type { RosterHuman } from '@/types/orgChat';
+import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
+import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
+import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
+import {
+  TeamBrainSectionsHost,
+  isTeamBrainSectionId,
+} from '@/components/Pages/Assistants/OrgChat/TeamBrainSectionsHost';
+import type { ActiveEntityFace } from '@/components/Layout/Shell/AssistantSwitcher';
 import {
   Assistant,
   AssistantActions,
@@ -103,8 +127,11 @@ import {
 import { buildDisplayedAssistantStatuses } from '@/lib/assistants/coordinatorOnboardingPresence';
 import { debugConsole } from '@/lib/consoleDebug';
 import { wakeCoordinator } from '@/lib/client/coordinator';
+import { ENABLE_INTEGRATION_LABEL_FILTER } from '@/lib/integrations/integrationLabelFilter';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCoordinatorOnboardingInvalidation } from '@/hooks/Assistants/useCoordinatorOnboardingInvalidation';
+import { useCoordinatorAppsConnectFlow } from '@/hooks/Assistants/useCoordinatorAppsConnectFlow';
+import { schedulePostIntegrationConnectRefetches } from '@/lib/assistants/coordinatorIntegrationConnect';
 import {
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_DELAY_MS,
   COORDINATOR_ONBOARDING_CHAT_INTRO_TYPING_FALLBACK_MS,
@@ -146,6 +173,7 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
+import type { MsTeamsBotInstall } from '@/types/ms-teams-bot/install';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -194,6 +222,14 @@ interface MainProps {
     slackCanManageInstall?: boolean;
     /** Server-prefetched shared Slack install for the active workspace. */
     slackInitialInstall?: SlackInstall | null;
+    /** Org id whose MS Teams bot install can be bound (org context only;
+     *  null hides the Teams bot entry). */
+    msTeamsBotOrgId?: number | null;
+    /** Whether the current user (org owner/admin) may bind the Teams bot
+     *  install. */
+    msTeamsBotCanManage?: boolean;
+    /** Server-prefetched current MS Teams bot install for the active org. */
+    msTeamsBotInitialInstall?: MsTeamsBotInstall | null;
   };
 }
 
@@ -266,6 +302,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     return { type: 'personal', organizationId: null };
   }, [activeWorkspace?.id, activeWorkspace?.type]);
 
+  // --- Org roster, human presence, and org chat (teams + DMs) ---
+  // All three are org-workspace concepts: the personal workspace has no
+  // humans/teams in the selector and sends no presence heartbeats.
+  const activeOrganizationId = activeWorkspace?.type === 'organization' ? activeWorkspace.id : null;
+  const { roster, markHumanOnline } = useOrgRoster(activeOrganizationId);
+  usePresenceHeartbeat(!!activeOrganizationId);
+  const orgChat = useOrgChat({
+    orgId: activeOrganizationId,
+    currentUserId,
+    enabled: !!activeOrganizationId,
+    onHumanActivity: markHumanOnline,
+  });
+
   const syncProfileQueryParam = React.useCallback(
     (assistantId: string | null) => {
       if (typeof window === 'undefined') return;
@@ -296,7 +345,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleShowProfile: setPanelProfileAssistant,
     handleProfileClose: clearPanelProfileAssistant,
   } = usePanelManager(profileParam);
-  useAssistantPresenceWake(profileAssistantId);
+  // The selection key's string domain covers assistants (bare agent id) plus
+  // humans (`human:{userId}`) and teams (`team:{teamId}`) — see
+  // `lib/assistants/selectedEntity`.
+  const selectedEntity = React.useMemo(
+    () => parseSelectedEntityKey(profileAssistantId),
+    [profileAssistantId]
+  );
+  const selectedEntityKind: SelectorEntityKind = selectedEntity?.kind ?? 'assistant';
+  const isNonAssistantSelection = selectedEntityKind !== 'assistant';
+  useAssistantPresenceWake(isNonAssistantSelection ? null : profileAssistantId);
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
@@ -534,6 +592,62 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [canonicalCoordinatorId, handleShowProfile, profileAssistantId]
   );
 
+  // Human/team selections have their own lightweight section state (chat /
+  // members) — the assistant right-pane state is left untouched so switching
+  // back to an assistant restores exactly where the user was.
+  const [entitySectionId, setEntitySectionId] = React.useState<string>(DEFAULT_SECTION_ID);
+  const { clearUnread: clearOrgChatUnread } = orgChat;
+  const handleSelectHuman = React.useCallback(
+    (userId: string) => {
+      setEntitySectionId(DEFAULT_SECTION_ID);
+      clearOrgChatUnread(humanEntityKey(userId));
+      handleShowProfile(humanEntityKey(userId));
+    },
+    [clearOrgChatUnread, handleShowProfile]
+  );
+  const handleSelectTeam = React.useCallback(
+    (teamId: number) => {
+      setEntitySectionId(DEFAULT_SECTION_ID);
+      clearOrgChatUnread(teamEntityKey(teamId));
+      handleShowProfile(teamEntityKey(teamId));
+    },
+    [clearOrgChatUnread, handleShowProfile]
+  );
+
+  const selectedHuman = React.useMemo(() => {
+    if (selectedEntity?.kind !== 'human' || !roster) return null;
+    return roster.humans.find((human) => human.userId === selectedEntity.userId) ?? null;
+  }, [roster, selectedEntity]);
+  const selectedTeam = React.useMemo(() => {
+    if (selectedEntity?.kind !== 'team' || !roster) return null;
+    return roster.teams.find((team) => team.teamId === selectedEntity.teamId) ?? null;
+  }, [roster, selectedEntity]);
+
+  // Stale human/team selections (removed member, deleted team) fall back to
+  // the coordinator once the roster has settled.
+  React.useEffect(() => {
+    if (!isNonAssistantSelection || !roster) return;
+    const stillExists =
+      selectedEntity?.kind === 'human'
+        ? roster.humans.some((human) => human.userId === selectedEntity.userId)
+        : selectedEntity?.kind === 'team'
+          ? roster.teams.some((team) => team.teamId === selectedEntity.teamId)
+          : true;
+    if (stillExists) return;
+    if (canonicalCoordinatorId) {
+      handleShowProfile(canonicalCoordinatorId);
+    } else {
+      handleProfileClose();
+    }
+  }, [
+    canonicalCoordinatorId,
+    handleProfileClose,
+    handleShowProfile,
+    isNonAssistantSelection,
+    roster,
+    selectedEntity,
+  ]);
+
   // Coordinator onboarding intro gate: on a fresh visit with active
   // onboarding and the intro not yet watched we overlay the call-vs-chat
   // picker on top of the regular /assistants shell. The layout itself
@@ -568,10 +682,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // down so the user can use the platform first — mirrored to the
   // Coordinator's prompts server-side. Per-step state is untouched.
   const isCoordinatorOnboardingActive = coordinatorOnboardingState?.onboardingActive === true;
+  const handleOpenChatSection = React.useCallback(() => {
+    setActiveBrainSectionId(null);
+    setPaneState((prev) =>
+      prev.primary.tab === 'chat' && prev.secondary === null
+        ? prev
+        : {
+            ...prev,
+            primary: { tab: 'chat' },
+            secondary: null,
+          }
+    );
+  }, []);
+  const {
+    beginAppsConnectFlow,
+    onConnectSettled: onAppsConnectSettled,
+    appsConnectSettling,
+  } = useCoordinatorAppsConnectFlow({
+    coordinatorId: canonicalCoordinatorId,
+    enabled: isCanonicalCoordinatorOwned && isCoordinatorOnboardingActive,
+    completedStepIds: coordinatorOnboardingState?.completedStepIds,
+    refreshAssistants,
+    refetchCoordinatorOnboardingState,
+    updateCoordinatorOnboardingState,
+    onOpenChatSection: handleOpenChatSection,
+  });
   useCoordinatorOnboardingInvalidation(
     canonicalCoordinator?.agentId ?? null,
     isCanonicalCoordinatorOwned && isCoordinatorOnboardingActive,
-    refetchCoordinatorOnboardingState
+    () => {
+      void refetchCoordinatorOnboardingState();
+      onAppsConnectSettled();
+    }
   );
   const showCoordinatorOnboardingIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
@@ -808,6 +950,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onboarding: coordinatorOnboardingState?.onboarding ?? null,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
+      appsConnectSettling,
     }),
     [
       visibleCompletedStepIds,
@@ -824,6 +967,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       coordinatorOnboardingState?.onboarding,
       firstLoginCommunicationEmailOpenRequest,
       acknowledgeFirstLoginCommunicationEmailOpen,
+      appsConnectSettling,
     ]
   );
   // While the state read is still in flight we can't make a confident
@@ -933,6 +1077,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   React.useEffect(() => {
     if (!profileAssistantId || isLoadingAssistants) return;
+    // Human/team selections are validated against the roster, not the
+    // assistant list — see the entity fallback effect above.
+    if (isNonAssistantEntityKey(profileAssistantId)) return;
     const selectedAssistantStillVisible = assistants.some(
       (assistant) => assistant.agentId === profileAssistantId
     );
@@ -1447,11 +1594,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleChatStreamDesktopReady = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
-      try {
-        sessionStorage.setItem(`desktop-ready-${assistantId}`, JSON.stringify(eventData));
-      } catch {
-        /* quota / SSR */
-      }
       try {
         const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
         desktopChannel.postMessage(eventData);
@@ -2062,10 +2204,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // happens. The coordinator is already the selected profile while its
   // onboarding card is open, so the tab renders against it.
   const handleCoordinatorOpenPaneTab = React.useCallback(
-    (tab: RightPaneTab, stepId: string) => {
+    (tab: RightPaneTab, stepId: string, integrations?: RightPaneIntegrationsState) => {
       markStepEngaged(stepId);
       setActiveBrainSectionId(null);
-      setPaneState((prev) => ({ ...prev, primary: { tab } }));
+      setPaneState((prev) => ({
+        ...prev,
+        primary: tab === 'integrations' ? { tab, integrations } : { tab },
+      }));
     },
     [markStepEngaged]
   );
@@ -2148,25 +2293,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   const handleCoordinatorTriggerReferenceStep = React.useCallback(
-    (stepId: string) => {
+    (stepId: string, chipId?: string) => {
       if (!canonicalCoordinator) return;
       const step = coordinatorOnboardingState?.onboarding?.steps.find(
         (candidate) => candidate.id === stepId
       );
       if (!step) return;
-      if (!shouldDispatchStepRequest(stepId)) {
+      const requestKey = chipId ? `${stepId}:${chipId}` : stepId;
+      if (!shouldDispatchStepRequest(requestKey)) {
         void refetchCoordinatorOnboardingState();
         return;
       }
-      const label = resolveOnboardingStepLabel(stepId);
+      const label = resolveOnboardingStepLabel(stepId, chipId);
       if (label) appendCoordinatorRequestSentAck(label);
       markStepEngaged(stepId);
-      markStepRequested(stepId);
+      markStepRequested(requestKey);
       void (async () => {
         try {
           const event = await dispatchCoordinatorOnboardingStepEvent(
             canonicalCoordinator.agentId,
-            step
+            step,
+            chipId
           );
           if (!event) return;
 
@@ -2195,6 +2342,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  const resolveIntegrationChipFilters = React.useCallback(
+    (stepId: string, chipId?: string): RightPaneIntegrationsState | undefined => {
+      if (stepId !== 'apps' || !chipId) return undefined;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      const chip = step
+        ? [...step.chipsChat, ...step.chipsCall].find((item) => item.id === chipId)
+        : null;
+      const searchQuery = typeof chip?.searchQuery === 'string' ? chip.searchQuery : undefined;
+      if (!ENABLE_INTEGRATION_LABEL_FILTER) {
+        return searchQuery ? { query: searchQuery } : undefined;
+      }
+      const galleryCategory =
+        typeof chip?.galleryCategory === 'string' ? chip.galleryCategory : undefined;
+      if (galleryCategory === 'productivity') {
+        return { semanticCategory: 'productivity', query: searchQuery };
+      }
+      if (galleryCategory === 'crm_sales') {
+        return { semanticCategory: 'crm', query: searchQuery };
+      }
+      return searchQuery ? { query: searchQuery, semanticCategory: 'all' } : undefined;
+    },
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
+
   // Dispatch the graph-owned event for a Tasks-phase beat. Clicking the row
   // (no ``chipId``) asks Twin to open a freeform conversation about that kind
   // of standing work; clicking one of its example chips (``chipId`` set) asks
@@ -2209,6 +2382,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         (candidate) => candidate.id === stepId
       );
       if (!step) return;
+      if (stepId === 'apps') {
+        beginAppsConnectFlow();
+        handleCoordinatorOpenPaneTab(
+          'integrations',
+          stepId,
+          resolveIntegrationChipFilters(stepId, chipId)
+        );
+      }
       const requestKey = chipId ? `${stepId}:${chipId}` : stepId;
       if (!shouldDispatchStepRequest(requestKey)) {
         void refetchCoordinatorOnboardingState();
@@ -2237,9 +2418,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       appendCoordinatorRequestSentAck,
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
+      beginAppsConnectFlow,
+      handleCoordinatorOpenPaneTab,
       markStepEngaged,
       markStepRequested,
       refetchCoordinatorOnboardingState,
+      resolveIntegrationChipFilters,
       resolveOnboardingStepLabel,
       shouldDispatchStepRequest,
     ]
@@ -2484,12 +2668,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             handleOpenWorkspaceManager(canonicalCoordinator);
           }
         : undefined,
-      onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
+      onConnectApps: () => {
+        beginAppsConnectFlow();
+        handleCoordinatorOpenPaneTab('integrations', 'apps');
+      },
       onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
       onCreateScheduledTask: () => handleCoordinatorDispatchTaskBeat('create-scheduled-task'),
       onCreateTriggerableTask: () => handleCoordinatorDispatchTaskBeat('create-triggerable-task'),
       onSelectTaskChip: (stepId: string, chipId: string) =>
-        handleCoordinatorDispatchTaskBeat(stepId, chipId),
+        stepId === 'integration-read' || stepId === 'integration-action'
+          ? handleCoordinatorTriggerReferenceStep(stepId, chipId)
+          : handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
       onMyComputerDemo: () => handleCoordinatorDispatchMyComputerBeat('my-computer-demo'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
@@ -2518,6 +2707,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     contactWhatsapp,
     userMeta.slackOwner,
     markStepEngaged,
+    beginAppsConnectFlow,
     markStepCompleted,
     handleCoordinatorStartOnboardingStep,
     handleCoordinatorTriggerReferenceStep,
@@ -2601,8 +2791,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // before the picker renders — the layout already blocks on that
   // read via ``isCoordinatorOnboardingResolvePending``. Live
   // in-session completion still comes from the pane observers
-  // (``onSecretsCountChange`` / ``onTasksCountChange`` /
-  // ``onHasActiveActionChange``) plus the OAuth-complete refetch;
+  // (``onTasksCountChange`` / ``onHasActiveActionChange``) plus the
+  // OAuth-complete refetch and SSE ``OnboardingStateUpdated`` events;
   // ``markStepCompleted`` is idempotent so the two sources compose
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
@@ -2946,47 +3136,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // a couple of times. For the workspace flow we also dismiss the connect
   // dialogs, which the user left open in the original tab.
   React.useEffect(() => {
-    const retryTimers: ReturnType<typeof setTimeout>[] = [];
+    const cleanupTimers: Array<() => void> = [];
     const unsubscribe = subscribeOAuthComplete((detail) => {
-      const refetch = () => {
-        refreshAssistants(false);
-        // Re-read Coordinator/State so the server-derived
-        // ``completedStepIds`` picks up the credential that just
-        // landed (workspace OAuth → ``workspace``, integration
-        // OAuth → ``apps``) and the onboarding checklist advances.
-        void refetchCoordinatorOnboardingState();
-      };
-      refetch();
-      retryTimers.push(setTimeout(refetch, 1500));
-      if (detail.kind === 'workspace') {
-        // The OAuth itself succeeded, but the contact row write may have
-        // failed (e.g. the mailbox is already connected to another
-        // assistant). Surface that instead of a false "connected" — and
-        // keep the dialog open so the user can retry with another account.
-        const params = new URLSearchParams(detail.query || '');
-        const contactError = params.get('contact_error');
-        if (contactError || params.get('success') === 'false') {
-          toast.error(
-            contactError === 'email_in_use'
-              ? 'That mailbox is already connected to an assistant. Disconnect it there first, or connect a different account.'
-              : "Couldn't finish connecting the workspace. Please try again."
-          );
-        } else {
-          // Keep the workspace dialog open so it transitions into the
-          // connected view (where the file-access step lives). The
-          // ``assistants`` re-sync effect below repoints the held snapshot at
-          // the freshly-connected assistant once the refetch lands.
-          setWorkspaceManagerInitialProvider(null);
-          setContactManagerAssistant(null);
-          toast.success('Workspace connected. Choose which files to share below.');
-        }
+      if (detail.kind !== 'workspace') return;
+      cleanupTimers.push(
+        schedulePostIntegrationConnectRefetches({
+          coordinatorId: canonicalCoordinatorId,
+          refreshAssistants,
+          refetchCoordinatorOnboardingState,
+        })
+      );
+      const params = new URLSearchParams(detail.query || '');
+      const contactError = params.get('contact_error');
+      if (contactError || params.get('success') === 'false') {
+        toast.error(
+          contactError === 'email_in_use'
+            ? 'That mailbox is already connected to an assistant. Disconnect it there first, or connect a different account.'
+            : "Couldn't finish connecting the workspace. Please try again."
+        );
+      } else {
+        setWorkspaceManagerInitialProvider(null);
+        setContactManagerAssistant(null);
+        toast.success('Workspace connected. Choose which files to share below.');
       }
     });
     return () => {
       unsubscribe();
-      retryTimers.forEach(clearTimeout);
+      for (const cleanup of cleanupTimers) cleanup();
     };
-  }, [refreshAssistants, refetchCoordinatorOnboardingState]);
+  }, [canonicalCoordinatorId, refreshAssistants, refetchCoordinatorOnboardingState]);
 
   // Keep the open workspace dialog's held assistant in sync with the refreshed
   // list so a just-connected mailbox/provider surfaces (and the file-access
@@ -3018,6 +3196,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // behind the Contacts directory's "Add contact" affordance) open a dialog.
   const handleSelectSection = React.useCallback(
     (section: SectionDef) => {
+      if (isNonAssistantSelection) {
+        if (!sectionAppliesTo(section, selectedEntityKind)) return;
+        setEntitySectionId(section.id);
+        return;
+      }
       if (section.kind === 'action') {
         if (visibleProfileAssistant) handleOpenContactManager(visibleProfileAssistant);
         return;
@@ -3032,21 +3215,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         setPaneState((prev) => ({ ...prev, primary: { tab } }));
       }
     },
-    [visibleProfileAssistant, handleOpenContactManager]
+    [isNonAssistantSelection, selectedEntityKind, visibleProfileAssistant, handleOpenContactManager]
   );
 
-  const handleOpenChatSection = React.useCallback(() => {
-    setActiveBrainSectionId(null);
-    setPaneState((prev) =>
-      prev.primary.tab === 'chat' && prev.secondary === null
-        ? prev
-        : {
-            ...prev,
-            primary: { tab: 'chat' },
-            secondary: null,
-          }
-    );
-  }, []);
+  // A section that stops applying when the entity kind changes (e.g. Members
+  // after switching from a team to a human) falls back to Chat.
+  React.useEffect(() => {
+    if (!isNonAssistantSelection) return;
+    const sectionDef = SECTION_BY_ID[entitySectionId];
+    if (!sectionDef || !sectionAppliesTo(sectionDef, selectedEntityKind)) {
+      setEntitySectionId(DEFAULT_SECTION_ID);
+    }
+  }, [entitySectionId, isNonAssistantSelection, selectedEntityKind]);
+  const railActiveSectionId = isNonAssistantSelection ? entitySectionId : activeSectionId;
+  const railActiveSectionDef =
+    SECTION_BY_ID[railActiveSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
 
   const openAssistantChatFromNavigation = React.useCallback(
     (assistantId: string) => {
@@ -3136,6 +3319,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // The full prop bag the rail forwards to the embedded `AssistantList` (the
   // unity switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
   // popover list always renders expanded.
+  const rosterHumans = React.useMemo(() => {
+    if (!roster) return undefined;
+    // The viewer appears in Settings, not the selector — you don't DM
+    // yourself.
+    return roster.humans.filter((human) => human.userId !== currentUserId);
+  }, [currentUserId, roster]);
   const railListProps: React.ComponentProps<typeof AssistantList> = React.useMemo(
     () => ({
       assistants: sidebarAssistants,
@@ -3154,6 +3343,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       currentUserId,
       workspace: coordinatorWorkspace,
       teamsById,
+      humans: rosterHumans,
+      selectableTeams: roster?.teams,
+      selectedEntityKey: isNonAssistantSelection ? profileAssistantId : null,
+      onSelectHuman: handleSelectHuman,
+      onSelectTeam: handleSelectTeam,
+      entityUnreadCounts: orgChat.unread,
     }),
     [
       sidebarAssistants,
@@ -3170,8 +3365,70 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       currentUserId,
       coordinatorWorkspace,
       teamsById,
+      rosterHumans,
+      roster?.teams,
+      isNonAssistantSelection,
+      handleSelectHuman,
+      handleSelectTeam,
+      orgChat.unread,
     ]
   );
+
+  const rosterHumansById = React.useMemo(() => {
+    const byId: Record<string, RosterHuman> = {};
+    for (const human of roster?.humans ?? []) {
+      byId[human.userId] = human;
+    }
+    return byId;
+  }, [roster?.humans]);
+  const assistantFacesById = React.useMemo(() => {
+    const byId: Record<string, { agentId: string; name: string; image?: string | null }> = {};
+    for (const assistant of sidebarAssistants) {
+      byId[assistant.agentId] = {
+        agentId: assistant.agentId,
+        name: assistantDisplayName(assistant),
+        image: assistant.signedProfilePhotoUrl || assistant.profilePhoto || null,
+      };
+    }
+    return byId;
+  }, [sidebarAssistants]);
+
+  // Identity carrier for team-scoped section panes: prefer an assistant that
+  // is actually on the team, fall back to any visible assistant (reads are
+  // pinned to the explicit team root either way).
+  const teamCarrierAssistant = React.useMemo(() => {
+    if (!selectedTeam) return null;
+    const memberIds = new Set(selectedTeam.assistantMemberIds.map(String));
+    return (
+      sidebarAssistants.find((candidate) => memberIds.has(String(candidate.agentId))) ??
+      sidebarAssistants[0] ??
+      null
+    );
+  }, [selectedTeam, sidebarAssistants]);
+
+  const activeEntityFace = React.useMemo<ActiveEntityFace | null>(() => {
+    if (selectedEntity?.kind === 'human') {
+      if (!selectedHuman) return { kind: 'human', label: 'Team member' };
+      return {
+        kind: 'human',
+        label: selectedHuman.name?.trim() || selectedHuman.email || 'Team member',
+        sublabel: selectedHuman.roleName ?? 'Team member',
+        imageUrl: selectedHuman.image ?? null,
+        online: selectedHuman.online,
+      };
+    }
+    if (selectedEntity?.kind === 'team') {
+      if (!selectedTeam) return { kind: 'team', label: 'Team' };
+      const humanCount = selectedTeam.memberUserIds.length;
+      const aiCount = selectedTeam.assistantMemberIds.length;
+      return {
+        kind: 'team',
+        label: selectedTeam.name,
+        sublabel: `${humanCount + aiCount} members`,
+      };
+    }
+    return null;
+  }, [selectedEntity, selectedHuman, selectedTeam]);
 
   const profileCanWrite = visibleProfileAssistant ? canWrite(visibleProfileAssistant) : undefined;
   const isInitialAssistantIdentityLoading = !visibleProfileAssistant && isInitialLoadingAssistants;
@@ -3218,7 +3475,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   return (
     <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>
-      <AssistantSwitcherBridgeSync activeUnity={profileAssistant} listProps={railListProps} />
+      <AssistantSwitcherBridgeSync
+        activeUnity={profileAssistant}
+        activeEntityFace={activeEntityFace}
+        listProps={railListProps}
+      />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
           credits={credits}
@@ -3238,9 +3499,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
                   <AssistantRail
                     activeUnity={visibleProfileAssistant}
+                    activeEntityFace={activeEntityFace}
+                    entityKind={selectedEntityKind}
                     isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                     listProps={railListProps}
-                    activeSection={activeSectionId}
+                    activeSection={railActiveSectionId}
                     sectionActivity={railSectionActivity}
                     onBrandClick={requestPlatformHomeNavigation}
                     onSelectSection={(section) => {
@@ -3261,9 +3524,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             ) : (
               <AssistantRail
                 activeUnity={visibleProfileAssistant}
+                activeEntityFace={activeEntityFace}
+                entityKind={selectedEntityKind}
                 isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                 listProps={railListProps}
-                activeSection={activeSectionId}
+                activeSection={railActiveSectionId}
                 sectionActivity={railSectionActivity}
                 onBrandClick={requestPlatformHomeNavigation}
                 onSelectSection={handleSelectSection}
@@ -3273,7 +3538,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             )}
 
             <SectionHost
-              section={activeSectionDef}
+              section={railActiveSectionDef}
               headerLeading={
                 isBelowMobile ? (
                   <Button
@@ -3289,8 +3554,42 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   </Button>
                 ) : undefined
               }
-              renderView={() =>
-                showAssistantContentSkeleton ? (
+              renderView={() => {
+                if (isNonAssistantSelection) {
+                  if (selectedEntity?.kind === 'human' && selectedHuman && activeOrganizationId) {
+                    return (
+                      <HumanWorkspace
+                        human={selectedHuman}
+                        orgId={activeOrganizationId}
+                        chat={orgChat}
+                      />
+                    );
+                  }
+                  if (selectedEntity?.kind === 'team' && selectedTeam && activeOrganizationId) {
+                    if (isTeamBrainSectionId(entitySectionId)) {
+                      return (
+                        <TeamBrainSectionsHost
+                          carrierAssistant={teamCarrierAssistant}
+                          teamId={selectedTeam.teamId}
+                          activeSectionId={entitySectionId}
+                          isActiveSurface={isActiveSurface}
+                        />
+                      );
+                    }
+                    return (
+                      <TeamWorkspace
+                        team={selectedTeam}
+                        humansById={rosterHumansById}
+                        assistantsById={assistantFacesById}
+                        currentUserId={currentUserId}
+                        activeSectionId={entitySectionId}
+                        chat={orgChat}
+                      />
+                    );
+                  }
+                  return <AssistantSectionSkeleton sectionId="chat" />;
+                }
+                return showAssistantContentSkeleton ? (
                   <AssistantSectionSkeleton sectionId={activeSectionDef.id} />
                 ) : (
                   <AssistantInfoPanelLayout
@@ -3461,8 +3760,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       );
                     }}
                   </AssistantInfoPanelLayout>
-                )
-              }
+                );
+              }}
             />
           </div>
           {showCoordinatorOnboardingIntro && canonicalCoordinator && (
@@ -3602,6 +3901,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               slackOwner={userMeta.slackOwner ?? null}
               slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
               slackInitialInstall={userMeta.slackInitialInstall ?? null}
+              msTeamsBotOrgId={userMeta.msTeamsBotOrgId ?? null}
+              msTeamsBotCanManage={userMeta.msTeamsBotCanManage ?? false}
+              msTeamsBotInitialInstall={userMeta.msTeamsBotInitialInstall ?? null}
               onOpenUserSettings={handleOpenUserSettings}
             />
           )}

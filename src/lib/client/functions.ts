@@ -1,14 +1,16 @@
 /**
  * Client-side paginated fetchers for the Functions tab.
  *
- * Uses `/api/logs` with a public-field whitelist (no embedding payloads) and
- * `/api/logs/count` for stable totals per Compositional / Primitives context.
+ * Uses `/api/logs/federated`, which reads every in-scope context (personal
+ * and team roots × Compositional/Primitives) in one round trip and returns a
+ * single name-ordered window with an exact total — one cursor, no client-side
+ * cross-context merge.
  */
 
 import type { Assistant } from '@/types/assistants/assistant';
 import type { FunctionRow } from '@/types/assistants/brain';
 import { buildSearchFilterExpr } from '@/lib/client/brain';
-import { rootContext, type ContextRoot } from '@/lib/assistants/scope';
+import { rootContext, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 import type { FunctionKindFilter } from '@/utils/assistants/functions';
 
 export const FUNCTIONS_PAGE_SIZE = 50;
@@ -25,9 +27,7 @@ export const FUNCTION_PUBLIC_FIELDS = [
   'precondition',
   'is_primitive',
   'verify',
-].join('&');
-
-const FUNCTION_COUNT_KEY = JSON.stringify(['name']);
+];
 
 const FUNCTION_SEARCH_FIELDS = ['name', 'docstring'];
 
@@ -50,131 +50,74 @@ function functionContextPath(
   return rootContext(root, assistant.userId, String(assistant.agentId), `Functions/${subContext}`);
 }
 
-function parseFunctionLogs(
-  data: unknown,
-  subContext: string
-): { rows: FunctionRow[]; count: number } {
-  const payload = data as { logs?: Array<{ entries?: Record<string, unknown> }>; count?: number };
-  const logs = payload?.logs ?? [];
-  const rows = logs.map((log) => ({
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    _table: subContext,
-    ...(log.entries ?? {}),
-  })) as unknown as FunctionRow[];
-  const count = typeof payload?.count === 'number' ? payload.count : rows.length;
-  return { rows, count };
-}
-
-function extractMetricCount(value: unknown): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (!value || typeof value !== 'object') return null;
-  for (const nested of Object.values(value as Record<string, unknown>)) {
-    const found = extractMetricCount(nested);
-    if (found !== null) return found;
-  }
-  return null;
-}
-
 export function buildFunctionSearchFilterExpr(query: string): string {
   return buildSearchFilterExpr(query, FUNCTION_SEARCH_FIELDS);
 }
 
-export async function listFunctionsPage(args: {
+export interface FunctionsFederatedPage {
+  rows: FunctionRow[];
+  count: number;
+  hasMore: boolean;
+}
+
+/**
+ * Fetch one globally name-ordered page of the functions catalog across every
+ * requested root × sub-context, with an exact merged total.
+ */
+export async function listFunctionsFederatedPage(args: {
   assistant: Assistant;
-  subContext: string;
+  kind: FunctionKindFilter;
+  roots: readonly ContextRoot[];
   limit?: number;
   offset?: number;
   filterExpr?: string;
-  root?: ContextRoot;
-}): Promise<{ rows: FunctionRow[]; count: number; hasMore: boolean }> {
+}): Promise<FunctionsFederatedPage> {
   const limit = args.limit ?? FUNCTIONS_PAGE_SIZE;
   const offset = args.offset ?? 0;
-  const params = new URLSearchParams({
-    projectName: 'Assistants',
-    context: functionContextPath(args.assistant, args.subContext, args.root),
-    limit: String(limit),
-    offset: String(offset),
-    fromFields: FUNCTION_PUBLIC_FIELDS,
-    sorting: JSON.stringify({ name: 'ascending' }),
-  });
-  if (args.filterExpr) params.set('filterExpr', args.filterExpr);
+  const subContexts = functionSubContextsForKind(args.kind);
 
-  const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+  const contexts = args.roots.flatMap((root) =>
+    subContexts.map((subContext) => ({
+      context: functionContextPath(args.assistant, subContext, root),
+      source: `${rootKey(root)}:${subContext}`,
+      fromFields: FUNCTION_PUBLIC_FIELDS,
+    }))
+  );
+
+  const response = await fetch('/api/logs/federated', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectName: 'Assistants',
+      contexts,
+      filter: args.filterExpr,
+      sorting: [{ field: 'name', direction: 'ascending' }],
+      offset,
+      limit,
+    }),
+    cache: 'no-store',
+  });
   if (!response.ok) {
     return { rows: [], count: 0, hasMore: false };
   }
-  const data = await response.json();
-  const parsed = parseFunctionLogs(data, args.subContext);
-  return {
-    ...parsed,
-    // Match Integrations: a full page implies more rows may exist. Do not rely
-    // on inline `count` alone — with fromFields Orchestra can return a page-sized
-    // count even when the metric total is higher.
-    hasMore: parsed.rows.length >= limit,
+
+  const data = (await response.json()) as {
+    logs?: Array<{ entries?: Record<string, unknown> }>;
+    count?: number;
   };
-}
-
-export async function getFunctionsSubContextCount(args: {
-  assistant: Assistant;
-  subContext: string;
-  filterExpr?: string;
-  root?: ContextRoot;
-}): Promise<number | null> {
-  const params = new URLSearchParams({
-    projectName: 'Assistants',
-    context: functionContextPath(args.assistant, args.subContext, args.root),
-    key: FUNCTION_COUNT_KEY,
-  });
-  if (args.filterExpr) params.set('filterExpr', args.filterExpr);
-
-  const response = await fetch(`/api/logs/count?${params.toString()}`, { cache: 'no-store' });
-  if (!response.ok) return null;
-  const text = await response.text();
-  const parsed = text ? JSON.parse(text) : null;
-  return extractMetricCount(parsed);
-}
-
-export async function resolveFunctionsCatalogTotal(args: {
-  assistant: Assistant;
-  kind: FunctionKindFilter;
-  filterExpr?: string;
-}): Promise<number> {
-  const subContexts = functionSubContextsForKind(args.kind);
-  if (args.filterExpr) {
-    const pages = await Promise.all(
-      subContexts.map((subContext) =>
-        listFunctionsPage({
-          assistant: args.assistant,
-          subContext,
-          limit: 1,
-          offset: 0,
-          filterExpr: args.filterExpr,
-        })
-      )
-    );
-    return pages.reduce((sum, page) => sum + page.count, 0);
-  }
-
-  const counts = await Promise.all(
-    subContexts.map((subContext) =>
-      getFunctionsSubContextCount({
-        assistant: args.assistant,
-        subContext,
-      }).catch(() => null)
-    )
-  );
-  const resolved = counts.reduce<number>((sum, count) => sum + (count ?? 0), 0);
-  if (resolved > 0) return resolved;
-
-  const pages = await Promise.all(
-    subContexts.map((subContext) =>
-      listFunctionsPage({
-        assistant: args.assistant,
-        subContext,
-        limit: FUNCTIONS_PAGE_SIZE,
-        offset: 0,
-      })
-    )
-  );
-  return pages.reduce((sum, page) => sum + page.count, 0);
+  const logs = data?.logs ?? [];
+  const rows = logs.map((log) => {
+    const entries = { ...(log.entries ?? {}) };
+    const source = String(entries._federatedSource ?? '');
+    const subContext = source.includes(':') ? source.slice(source.indexOf(':') + 1) : source;
+    delete entries._federatedSource;
+    delete entries._federatedContext;
+    return {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      _table: subContext,
+      ...entries,
+    };
+  }) as unknown as FunctionRow[];
+  const count = typeof data?.count === 'number' ? data.count : rows.length;
+  return { rows, count, hasMore: offset + rows.length < count };
 }

@@ -19,6 +19,10 @@ vi.mock('@/utils/assistants/oauth', () => ({
   broadcastOAuthComplete: vi.fn(),
 }));
 
+vi.mock('@/lib/assistants/coordinatorIntegrationConnect', () => ({
+  broadcastIntegrationConnectSettled: vi.fn(),
+}));
+
 vi.mock('@/lib/client/integrations', () => ({
   completeProviderIntegrationConnection: vi.fn().mockResolvedValue({
     id: 'ic_discord',

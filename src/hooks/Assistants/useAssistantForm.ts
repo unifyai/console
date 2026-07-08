@@ -77,6 +77,8 @@ export function useAssistantForm(
       jobTitle: null,
       about: '',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      defaultModel: null,
+      defaultReasoningEffort: null,
 
       // Media fields
       photoFile: null,
@@ -342,6 +344,8 @@ export function useAssistantForm(
         jobTitle: values?.jobTitle ?? null,
         about: values?.about || '',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        defaultModel: values?.defaultModel ?? null,
+        defaultReasoningEffort: values?.defaultReasoningEffort ?? null,
 
         // Media fields
         photoFile: null,
@@ -417,6 +421,8 @@ export function useAssistantForm(
           ? resolveCoordinatorAbout(assistant.about)
           : assistant.about || '',
         timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        defaultModel: assistant.defaultModel ?? null,
+        defaultReasoningEffort: assistant.defaultReasoningEffort ?? null,
 
         // Media
         photoPreviewUrl: initialPhotoPreviewUrl,
@@ -522,6 +528,15 @@ export function useAssistantForm(
       }
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
+      // Orchestra validates the (model, effort) pair against its catalog, so
+      // send both together when either has changed.
+      const defaultModelChanged =
+        (data.defaultModel ?? null) !== (editingAssistant.defaultModel ?? null) ||
+        (data.defaultReasoningEffort ?? null) !== (editingAssistant.defaultReasoningEffort ?? null);
+      if (defaultModelChanged) {
+        payload.defaultModel = data.defaultModel ?? null;
+        payload.defaultReasoningEffort = data.defaultReasoningEffort ?? null;
+      }
       // Orchestra requires both voice_id and voice_provider together, so send
       // them as a pair when either one has changed.
       const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
@@ -745,7 +760,14 @@ export function useAssistantForm(
 
       // Upload custom photo/video with assistant_id so files are stored
       // under the correct assistant-centric GCS path ({assistant_id}/{media_type}/{filename}).
+      // Also carries the default-model selection, which the create endpoint's
+      // positional action signature does not accept.
       const mediaUpdate: Partial<AssistantUpdatePayload> = {};
+
+      if (data.defaultModel) {
+        mediaUpdate.defaultModel = data.defaultModel;
+        mediaUpdate.defaultReasoningEffort = data.defaultReasoningEffort ?? null;
+      }
 
       if (data.photoFile) {
         const photoFormData = new FormData();

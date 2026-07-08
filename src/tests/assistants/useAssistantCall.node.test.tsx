@@ -26,6 +26,7 @@ vi.mock('@/hooks/Assistants/useDesktopReady', () => ({
   useDesktopReady: () => ({
     isDesktopReady: false,
     eventLiveviewUrl: null,
+    eventBindingId: null,
   }),
 }));
 

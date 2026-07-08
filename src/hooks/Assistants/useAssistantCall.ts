@@ -9,6 +9,9 @@ import {
 import { ConnectionDetails } from '@/types/assistants/call';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
+import type { DesktopSessionScope } from '@/lib/assistants/desktopSessionScope';
+import { clearDesktopReadyCache } from '@/lib/assistants/desktopSessionScope';
+import { fetchAssistantStatus } from '@/lib/client/assistant';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
@@ -27,6 +30,7 @@ const CALL_DISPATCH_TIMEOUT = 12000;
 // dispatch leaves the caller waiting on an assistant that was never summoned.
 const ASSISTANT_INITIAL_REDISPATCH_DELAY = 12000;
 const ASSISTANT_INITIAL_JOIN_TIMEOUT = 60000;
+const RUNTIME_JOB_NAME_POLL_INTERVAL_MS = 15000;
 const CALL_AUDIO_CAPTURE_OPTIONS: AudioCaptureOptions = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -131,6 +135,7 @@ export function useAssistantCall(
   const expectsReadyToSpeakRef = React.useRef(false);
   const assistantReadyWaiterRef = React.useRef<AssistantReadyWaiter | null>(null);
   const activeConnectOptionsRef = React.useRef<AssistantCallConnectOptions | undefined>(undefined);
+  const [activeCallSessionId, setActiveCallSessionId] = React.useState<string | null>(null);
   const activeCallSessionIdRef = React.useRef<string | null>(null);
   const connectionDetailsRef = React.useRef<ConnectionDetails | null>(null);
   const callPhaseRef = React.useRef<CallPhase>('idle');
@@ -227,11 +232,7 @@ export function useAssistantCall(
 
     const disconnectingId = activeCallAssistantRef.current?.agentId;
     if (disconnectingId) {
-      try {
-        sessionStorage.removeItem(`desktop-ready-${disconnectingId}`);
-      } catch {
-        /* SSR-safe */
-      }
+      clearDesktopReadyCache(disconnectingId);
     }
 
     setIsConnected(false);
@@ -247,6 +248,7 @@ export function useAssistantCall(
     setCallType(null);
     activeConnectOptionsRef.current = undefined;
     activeCallSessionIdRef.current = null;
+    setActiveCallSessionId(null);
     setActiveOpeningConfig(undefined);
     setIsSpeakerMuted(false);
     setAvatarMood(DEFAULT_AVATAR_MOOD);
@@ -279,6 +281,8 @@ export function useAssistantCall(
       const optionsWithSession = { ...options, callSessionId };
       activeConnectOptionsRef.current = optionsWithSession;
       activeCallSessionIdRef.current = callSessionId;
+      setActiveCallSessionId(callSessionId);
+      clearDesktopReadyCache(assistant.agentId);
       setActiveOpeningConfig(optionsWithSession.openingConfig);
       isCancelledRef.current = false;
       pendingRoomDeleteRef.current = null;
@@ -584,20 +588,92 @@ export function useAssistantCall(
     assistantActions.call,
   ]);
 
+  const [runtimeJobName, setRuntimeJobName] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const assistantId = activeCallAssistant?.agentId;
+    if (!assistantId) {
+      setRuntimeJobName(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const refreshRuntimeJobName = async () => {
+      try {
+        const status = await fetchAssistantStatus(assistantId);
+        if (cancelled || !status?.jobName) return;
+        setRuntimeJobName(status.jobName);
+      } catch {
+        // Status is best-effort; desktop-ready polling retries on its own cadence.
+      }
+    };
+
+    refreshRuntimeJobName();
+    const interval = setInterval(refreshRuntimeJobName, RUNTIME_JOB_NAME_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [activeCallAssistant?.agentId]);
+
+  const runtimePollScope = React.useMemo<DesktopSessionScope | null>(
+    () => (runtimeJobName ? { jobName: runtimeJobName } : null),
+    [runtimeJobName]
+  );
+
   const boundGetLiveviewUrl = React.useCallback(
-    (id: string) =>
+    (id: string, scope?: DesktopSessionScope | null) =>
       assistantActions.desktop.getLiveviewUrl(
         id,
         activeCallAssistant?.userId ?? '',
-        activeCallAssistant?.organizationId ?? null
+        activeCallAssistant?.organizationId ?? null,
+        scope
       ),
     [assistantActions.desktop, activeCallAssistant?.userId, activeCallAssistant?.organizationId]
   );
 
-  const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
+  const { isDesktopReady, eventLiveviewUrl, eventBindingId } = useDesktopReady(
     activeCallAssistant?.agentId,
-    boundGetLiveviewUrl
+    boundGetLiveviewUrl,
+    false,
+    undefined,
+    0,
+    activeCallSessionId,
+    runtimePollScope
   );
+
+  const scopedLiveviewLookup = React.useCallback((): DesktopSessionScope | null => {
+    if (eventBindingId) {
+      return { bindingId: eventBindingId };
+    }
+    if (runtimeJobName) {
+      return { jobName: runtimeJobName };
+    }
+    return null;
+  }, [eventBindingId, runtimeJobName]);
+
+  const refreshRemoteControlUrl = React.useCallback(async () => {
+    if (!activeCallAssistant || !eventLiveviewUrl) return;
+    const built = await assistantActions.desktop.buildLiveviewUrl(
+      eventLiveviewUrl,
+      activeCallAssistant.userId,
+      activeCallAssistant.organizationId ?? null
+    );
+    const healthy = await assistantActions.desktop.checkLiveviewHealth(built.liveviewUrl);
+    if (!healthy) {
+      throw new Error('Desktop liveview path is not reachable yet.');
+    }
+    setLiveviewUrl(built.liveviewUrl);
+  }, [activeCallAssistant, assistantActions.desktop, eventLiveviewUrl]);
+
+  React.useEffect(() => {
+    if (!isRemoteControlActive || !isDesktopReady || !eventLiveviewUrl) return;
+    refreshRemoteControlUrl().catch((error) => {
+      console.error('[useAssistantCall] Failed to refresh remote control URL:', error);
+    });
+  }, [eventLiveviewUrl, isDesktopReady, isRemoteControlActive, refreshRemoteControlUrl]);
 
   const toggleRemoteControl = React.useCallback(async () => {
     if (!activeCallAssistant) return;
@@ -627,6 +703,21 @@ export function useAssistantCall(
     const toastId = toast.loading('Starting assistant screen sharing...');
 
     try {
+      if (!isDesktopReady && !eventLiveviewUrl) {
+        setIsRemoteControlActive(true);
+        setLiveviewUrl(null);
+        setIsRemoteControlInteractive(false);
+        assistantActions.desktop
+          .sendSystemEvent(
+            activeCallAssistant.agentId,
+            'assistant_screen_share_started',
+            'User enabled assistant screen sharing'
+          )
+          .catch(console.error);
+        toast.success('Assistant screen sharing started.', { id: toastId });
+        return;
+      }
+
       let resolvedUrl: string | undefined;
 
       if (eventLiveviewUrl) {
@@ -640,9 +731,12 @@ export function useAssistantCall(
         const result = await assistantActions.desktop.getLiveviewUrl(
           activeCallAssistant.agentId,
           activeCallAssistant.userId,
-          activeCallAssistant.organizationId ?? null
+          activeCallAssistant.organizationId ?? null,
+          scopedLiveviewLookup()
         );
-        resolvedUrl = result.liveviewUrl;
+        if ('liveviewUrl' in result) {
+          resolvedUrl = result.liveviewUrl;
+        }
       }
 
       if (resolvedUrl) {
@@ -662,7 +756,17 @@ export function useAssistantCall(
           .catch(console.error);
         toast.success('Assistant screen sharing started.', { id: toastId });
       } else {
-        throw new Error('Could not retrieve session URL.');
+        setIsRemoteControlActive(true);
+        setLiveviewUrl(null);
+        setIsRemoteControlInteractive(false);
+        assistantActions.desktop
+          .sendSystemEvent(
+            activeCallAssistant.agentId,
+            'assistant_screen_share_started',
+            'User enabled assistant screen sharing'
+          )
+          .catch(console.error);
+        toast.success('Assistant screen sharing started.', { id: toastId });
       }
     } catch (e: any) {
       console.error('[useAssistantCall] Toggle remote control failed:', e.message);
@@ -679,6 +783,8 @@ export function useAssistantCall(
     assistantActions.desktop,
     activeCallAssistant,
     eventLiveviewUrl,
+    isDesktopReady,
+    scopedLiveviewLookup,
   ]);
 
   const toggleRemoteControlInteractive = React.useCallback(async () => {

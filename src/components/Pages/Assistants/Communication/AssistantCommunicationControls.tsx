@@ -111,7 +111,7 @@ export function AssistantCommunicationControls({
   chatDisabled = false,
 }: AssistantCommunicationControlsProps) {
   // Remote control requires assistant to have joined AND desktop VM to be ready
-  const canUseRemoteControl = isConnectionEstablished && isAssistantJoined && isDesktopReady;
+  const canUseRemoteControl = isConnectionEstablished && isAssistantJoined;
   const iconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
   const highlightMutedMic = isConnectionEstablished && !isMicOn && isMutedSpeechDetected;
   // ``h-10`` is the same footer height the assistant-list collapse

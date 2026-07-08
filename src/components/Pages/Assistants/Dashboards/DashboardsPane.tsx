@@ -10,6 +10,7 @@ import { DashboardGrid } from './DashboardGrid';
 import { DashboardTileCard } from './DashboardTileCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
@@ -24,14 +25,17 @@ import type {
   TileRecord,
 } from '@/types/assistants/dashboard';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ContextRoot } from '@/lib/assistants/scope';
 import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
 
 interface DashboardsPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
-  getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
-  getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
+  /** Scope override: a team root reads `Teams/{id}/Dashboards/…` only. */
+  root?: ContextRoot | null;
+  getMetadata?: (assistant: Assistant) => Promise<DashboardPaneData>;
+  getTileContent?: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   shouldPoll: boolean;
 }
 
@@ -39,8 +43,10 @@ export function DashboardsPane({
   assistant,
   ownerId,
   assistantId,
+  root = null,
   shouldPoll,
 }: DashboardsPaneProps) {
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const effectiveGetMetadata = useMemo(
     () => (USE_MOCK_DASHBOARDS ? () => Promise.resolve(getMockDashboardMetadata()) : undefined),
     []
@@ -66,6 +72,7 @@ export function DashboardsPane({
     assistant,
     ownerId,
     assistantId,
+    root: scope.root,
     getMetadata: effectiveGetMetadata,
     getTileContent: effectiveGetTileContent,
     shouldPoll,
@@ -160,6 +167,7 @@ export function DashboardsPane({
         refreshTitle="Refresh dashboards"
         refreshTestId="dashboards-refresh"
       />
+      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-testid="dashboards-body">
         {isInitialLoading ? (

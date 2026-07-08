@@ -22,6 +22,7 @@ import {
 } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
+import type { IntegrationGalleryFilters } from '@/components/Integrations';
 
 const TAB_CONTENT_CLASS = 'min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden';
 
@@ -33,6 +34,10 @@ const TAB_CONTENT_CLASS = 'min-h-0 flex-1 overflow-hidden data-[state=inactive]:
  */
 export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'integrations' | 'actions' | 'desktop';
 
+export type RightPaneIntegrationsState = Partial<
+  Pick<IntegrationGalleryFilters, 'query' | 'category' | 'semanticCategory'>
+>;
+
 /**
  * What the right pane is showing. `secondary`/`splitRatio` remain on the
  * persisted shape for backwards-compatible hydration of older layouts,
@@ -40,7 +45,7 @@ export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'integrations' | 'a
  * navigation, so a redundant in-pane split was retired).
  */
 export interface RightPaneState {
-  primary: { tab: RightPaneTab };
+  primary: { tab: RightPaneTab; integrations?: RightPaneIntegrationsState };
   secondary: { tab: RightPaneTab } | null;
   splitRatio: number;
 }
@@ -270,13 +275,7 @@ export function RightPaneContainer({
           canWrite={canWrite}
           isVisible={activeTab === 'integrations'}
           isActiveSurface={isActiveSurface}
-          onSecretsCountChange={
-            coordinatorOnboarding?.onStepComplete
-              ? (count) => {
-                  if (count > 0) coordinatorOnboarding.onStepComplete?.('apps');
-                }
-              : undefined
-          }
+          initialGalleryFilters={paneState.primary.integrations}
         />
       </TabsContent>
 

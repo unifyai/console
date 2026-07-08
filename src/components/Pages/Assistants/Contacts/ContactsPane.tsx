@@ -21,6 +21,7 @@ import { useBrainData } from '@/hooks/Assistants/useBrainData';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -33,6 +34,7 @@ import {
 } from '@/utils/assistants/contacts';
 import { ContactAvatar } from '../Common/ContactAvatar';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ContextRoot } from '@/lib/assistants/scope';
 
 interface ContactsPaneProps {
   assistant: Assistant;
@@ -40,6 +42,9 @@ interface ContactsPaneProps {
   assistantId: string;
   /** Opens the channel-identity provisioning dialog (the live "Contacts" action). */
   onManageContacts?: () => void;
+  /** Scope override: a team root reads `Teams/{id}/…` instead of merging the
+   *  assistant's readable roots. */
+  root?: ContextRoot | null;
   enabled?: boolean;
 }
 
@@ -163,12 +168,15 @@ export function ContactsPane({
   ownerId,
   assistantId,
   onManageContacts,
+  root = null,
   enabled = true,
 }: ContactsPaneProps) {
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const { contacts, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
+    root: scope.root,
     contexts: ['Contacts'] as const,
     initialContext: 'Contacts',
     enabled,
@@ -272,6 +280,7 @@ export function ContactsPane({
         refreshTitle="Refresh contacts"
         refreshTestId="contacts-refresh"
       />
+      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 flex-1" data-testid="contacts-body">
         {isLoading && !hasLoaded ? (

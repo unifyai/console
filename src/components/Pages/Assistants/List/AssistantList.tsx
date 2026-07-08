@@ -9,6 +9,8 @@ import {
   PanelLeftOpen,
   Building2,
   UsersRound,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { AssistantListItem } from './AssistantListItem';
@@ -20,6 +22,9 @@ import {
   type CoordinatorWorkspaceScope,
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { humanEntityKey, teamEntityKey } from '@/lib/assistants/selectedEntity';
+import type { RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -74,6 +79,190 @@ interface AssistantListProps {
   currentUserId?: string | null;
   workspace: CoordinatorWorkspaceScope;
   teamsById: Record<number, SharedTeamSummary>;
+  /** Org human members shown in the People section (with presence dots). */
+  humans?: RosterHuman[];
+  /** Org teams rendered as selectable rows (group chat entry points). */
+  selectableTeams?: RosterTeam[];
+  /** The full selection key — `human:{id}` / `team:{id}` for non-assistants. */
+  selectedEntityKey?: string | null;
+  onSelectHuman?: (userId: string) => void;
+  onSelectTeam?: (teamId: number) => void;
+  /** Unread counts keyed by entity key (`team:{id}` / `human:{userId}`). */
+  entityUnreadCounts?: Record<string, number>;
+}
+
+function nameInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('');
+}
+
+function EntityUnreadBadge({ count, testId }: { count: number; testId: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      data-testid={testId}
+      className="flex h-4 min-w-4 flex-shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
+    >
+      {count > 99 ? '99+' : String(count)}
+    </span>
+  );
+}
+
+function HumanListRow({
+  human,
+  isSelected,
+  isYou,
+  unreadCount,
+  onSelect,
+}: {
+  human: RosterHuman;
+  isSelected: boolean;
+  isYou: boolean;
+  unreadCount: number;
+  onSelect: () => void;
+}) {
+  const displayName = human.name?.trim() || human.email || human.userId;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid={`human-list-item-${human.userId}`}
+      className={cn(
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
+        !isSelected && 'hover:bg-[var(--surface-hover)]',
+        isSelected && 'bg-accent-soft'
+      )}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onSelect();
+      }}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="relative">
+          <Avatar className="rounded-control h-9 w-9 flex-shrink-0">
+            <AvatarImage src={human.image ?? undefined} alt={displayName} />
+            <AvatarFallback className="rounded-control">{nameInitials(displayName)}</AvatarFallback>
+          </Avatar>
+          {human.online ? (
+            <span
+              data-testid={`human-status-indicator-${human.userId}`}
+              className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
+            />
+          ) : null}
+        </div>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className={cn(
+                'text-body text-strong truncate',
+                isSelected && 'text-accent-soft-foreground'
+              )}
+            >
+              {displayName}
+            </span>
+            {isYou ? <span className="text-caption text-muted-foreground">(you)</span> : null}
+          </div>
+          {human.roleName ? (
+            <p className="text-caption mt-0.5 truncate text-muted-foreground">{human.roleName}</p>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <EntityUnreadBadge count={unreadCount} testId={`human-unread-badge-${human.userId}`} />
+      </div>
+    </div>
+  );
+}
+
+function TeamListRow({
+  team,
+  isSelected,
+  unreadCount,
+  onSelect,
+  isFoldedGroup,
+  onToggleFold,
+}: {
+  team: RosterTeam;
+  isSelected: boolean;
+  unreadCount: number;
+  onSelect: () => void;
+  isFoldedGroup?: boolean;
+  onToggleFold?: () => void;
+}) {
+  const humanCount = team.memberUserIds.length;
+  const aiCount = team.assistantMemberIds.length;
+  const subtitle = `${humanCount} human${humanCount === 1 ? '' : 's'} · ${aiCount} AI teammate${
+    aiCount === 1 ? '' : 's'
+  }`;
+  const FoldIcon = isFoldedGroup ? ChevronRight : ChevronDown;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid={`team-list-item-${team.teamId}`}
+      className={cn(
+        'group flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors',
+        isSelected
+          ? 'border-primary-tint-30 bg-accent-soft'
+          : 'bg-muted/15 border-border hover:border-primary-tint-30 hover:bg-primary-tint-5'
+      )}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onSelect();
+      }}
+    >
+      {onToggleFold ? (
+        <button
+          type="button"
+          aria-expanded={!isFoldedGroup}
+          aria-label={isFoldedGroup ? 'Expand team' : 'Collapse team'}
+          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleFold();
+          }}
+        >
+          <FoldIcon className="h-3 w-3" />
+        </button>
+      ) : null}
+      <span
+        className="bg-background/70 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground"
+        aria-hidden="true"
+      >
+        <UsersRound className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1 text-left">
+        <span
+          className={cn(
+            'block truncate text-xs font-medium',
+            isSelected ? 'text-accent-soft-foreground' : 'text-foreground'
+          )}
+        >
+          {team.name}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
+          {subtitle}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5">
+        <EntityUnreadBadge count={unreadCount} testId={`team-unread-badge-${team.teamId}`} />
+        <span
+          className="rounded-full border border-primary-tint-20 bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary"
+          aria-hidden="true"
+        >
+          Team
+        </span>
+      </span>
+    </div>
+  );
 }
 
 export function AssistantList({
@@ -94,9 +283,41 @@ export function AssistantList({
   currentUserId = null,
   workspace,
   teamsById,
+  humans,
+  selectableTeams,
+  selectedEntityKey = null,
+  onSelectHuman,
+  onSelectTeam,
+  entityUnreadCounts,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
+
+  const rosterTeamsById = React.useMemo(() => {
+    const byId: Record<number, RosterTeam> = {};
+    for (const team of selectableTeams ?? []) {
+      byId[team.teamId] = team;
+    }
+    return byId;
+  }, [selectableTeams]);
+
+  const filteredHumans = React.useMemo(() => {
+    const allHumans = humans ?? [];
+    if (!searchTerm) return allHumans;
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return allHumans.filter(
+      (human) =>
+        (human.name && human.name.toLowerCase().includes(lowerSearchTerm)) ||
+        (human.email && human.email.toLowerCase().includes(lowerSearchTerm))
+    );
+  }, [humans, searchTerm]);
+
+  const filteredSelectableTeams = React.useMemo(() => {
+    const allTeams = selectableTeams ?? [];
+    if (!searchTerm) return allTeams;
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return allTeams.filter((team) => team.name.toLowerCase().includes(lowerSearchTerm));
+  }, [selectableTeams, searchTerm]);
 
   const filteredAssistants = React.useMemo(() => {
     if (!searchTerm) return assistants;
@@ -272,6 +493,32 @@ export function AssistantList({
   const renderGroup = React.useCallback(
     (group: AssistantListGroup) => {
       const isGroupFolded = foldedGroups[group.id] === true;
+      const rosterTeam = group.kind === 'team' ? rosterTeamsById[group.teamId] : undefined;
+      if (group.kind === 'team' && rosterTeam && onSelectTeam) {
+        return (
+          <div
+            key={group.id}
+            className="min-w-0 space-y-1"
+            data-testid={`assistant-list-group-${group.id}`}
+          >
+            <TeamListRow
+              team={rosterTeam}
+              isSelected={selectedEntityKey === teamEntityKey(rosterTeam.teamId)}
+              unreadCount={entityUnreadCounts?.[teamEntityKey(rosterTeam.teamId)] ?? 0}
+              onSelect={() => onSelectTeam(rosterTeam.teamId)}
+              isFoldedGroup={isGroupFolded}
+              onToggleFold={() => toggleGroupFold(group.id)}
+            />
+            {!isGroupFolded && (
+              <div className="min-w-0 space-y-1 pl-3 pt-1">
+                {group.rows.map((entry) =>
+                  renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
       const description = group.kind === 'team' ? teamsById[group.teamId]?.description : null;
       const subtitle = group.kind === 'team' ? description?.trim() || 'Shared team' : null;
       return (
@@ -304,7 +551,16 @@ export function AssistantList({
         </div>
       );
     },
-    [foldedGroups, renderAssistantRow, teamsById, toggleGroupFold]
+    [
+      entityUnreadCounts,
+      foldedGroups,
+      onSelectTeam,
+      renderAssistantRow,
+      rosterTeamsById,
+      selectedEntityKey,
+      teamsById,
+      toggleGroupFold,
+    ]
   );
 
   const renderSection = React.useCallback(
@@ -333,14 +589,24 @@ export function AssistantList({
     [foldedGroups, toggleGroupFold]
   );
 
+  const hasNonAssistantRows = filteredHumans.length > 0 || filteredSelectableTeams.length > 0;
   const shouldRenderFlatList =
-    isFolded || (assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
+    isFolded ||
+    (!hasNonAssistantRows && assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
   const pinnedGroup = assistantGroups.find((group) => group.kind === 'pinned');
   const teamGroups = assistantGroups.filter((group) => group.kind === 'team');
   const soloGroup = assistantGroups.find((group) => group.kind === 'solo');
   const hasPinnedRows = (pinnedGroup?.rows.length ?? 0) > 0;
-  const hasGroupedRowsBelowCoordinator = teamGroups.length > 0 || !!soloGroup;
+  const hasGroupedRowsBelowCoordinator =
+    teamGroups.length > 0 || !!soloGroup || hasNonAssistantRows;
   const soloRows = soloGroup?.rows ?? [];
+  // Roster teams that have no assistant members still get a selectable row.
+  const rosterOnlyTeams = onSelectTeam
+    ? filteredSelectableTeams.filter(
+        (team) => !teamGroups.some((group) => group.kind === 'team' && group.teamId === team.teamId)
+      )
+    : [];
+  const showTeamsSection = teamGroups.length > 0 || rosterOnlyTeams.length > 0;
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
       {pinnedGroup ? (
@@ -358,22 +624,53 @@ export function AssistantList({
           className="my-2 border-t border-border"
         />
       ) : null}
-      {teamGroups.length > 0
+      {showTeamsSection
         ? renderSection(
             'section:teams',
             'Teams',
-            teamGroups.length,
-            teamGroups.map(renderGroup),
+            teamGroups.length + rosterOnlyTeams.length,
+            <>
+              {teamGroups.map(renderGroup)}
+              {rosterOnlyTeams.map((team) => (
+                <TeamListRow
+                  key={`roster-team:${team.teamId}`}
+                  team={team}
+                  isSelected={selectedEntityKey === teamEntityKey(team.teamId)}
+                  unreadCount={entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0}
+                  onSelect={() => onSelectTeam?.(team.teamId)}
+                />
+              ))}
+            </>,
             'assistant-list-section-teams',
             {
               icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
             }
           )
         : null}
+      {filteredHumans.length > 0 && onSelectHuman
+        ? renderSection(
+            'section:people',
+            'Real',
+            filteredHumans.length,
+            <div className="min-w-0 space-y-1">
+              {filteredHumans.map((human) => (
+                <HumanListRow
+                  key={`human:${human.userId}`}
+                  human={human}
+                  isSelected={selectedEntityKey === humanEntityKey(human.userId)}
+                  isYou={human.userId === currentUserId}
+                  unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+                  onSelect={() => onSelectHuman(human.userId)}
+                />
+              ))}
+            </div>,
+            'assistant-list-section-people'
+          )
+        : null}
       {soloGroup
         ? renderSection(
             'section:solo',
-            'Team',
+            'Virtual',
             soloRows.length,
             <div className="min-w-0 space-y-1">
               {soloRows.map((entry) =>
@@ -483,7 +780,7 @@ export function AssistantList({
                 <p className="text-body text-muted-foreground">Could not load assistants.</p>
               )}
             </div>
-          ) : filteredAssistants.length > 0 ? (
+          ) : filteredAssistants.length > 0 || hasNonAssistantRows ? (
             shouldRenderFlatList ? (
               renderFlatAssistants()
             ) : (

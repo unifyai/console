@@ -83,6 +83,9 @@ export interface CoordinatorOnboardingContextValue {
    * Email, then acknowledges it so later mounts use normal defaults. */
   firstLoginCommunicationEmailOpenRequest: number;
   acknowledgeFirstLoginCommunicationEmailOpen: () => void;
+  /** True after a provider connect settles while the onboarding apps flow
+   * is armed — drives a short "Finishing connection..." row label. */
+  appsConnectSettling: boolean;
 }
 
 const CoordinatorOnboardingContext = React.createContext<CoordinatorOnboardingContextValue | null>(

@@ -11,10 +11,12 @@ import { Button } from '@/components/UI/button';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { useTasksData } from '@/hooks/Assistants/useTasksData';
+import type { ContextRoot } from '@/lib/assistants/scope';
 import {
   taskStatusBadge,
   getTaskCardFields,
@@ -37,6 +39,8 @@ interface TasksPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  /** Scope override: a team root reads `Teams/{id}/Tasks…` only. */
+  root?: ContextRoot | null;
   isVisible?: boolean;
   isActiveSurface?: boolean;
   /**
@@ -52,11 +56,13 @@ export function TasksPane({
   assistant,
   ownerId,
   assistantId,
+  root = null,
   isVisible = true,
   isActiveSurface = true,
   onTasksCountChange,
 }: TasksPaneProps) {
   const tasksDataEnabled = isVisible && isActiveSurface;
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const {
     tasks,
     taskRuns,
@@ -67,7 +73,13 @@ export function TasksPane({
     search,
     clearSearch,
     refetch,
-  } = useTasksData({ assistant, ownerId, assistantId, enabled: tasksDataEnabled });
+  } = useTasksData({
+    assistant,
+    ownerId,
+    assistantId,
+    root: scope.root,
+    enabled: tasksDataEnabled,
+  });
 
   const tasksCount = tasks.count;
   useEffect(() => {
@@ -204,6 +216,7 @@ export function TasksPane({
         //   </Button>
         // }
       />
+      <BrainScopeChips scope={scope} />
 
       {/* Body — expandable task cards */}
       <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="tasks-body">

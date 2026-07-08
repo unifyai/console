@@ -53,6 +53,9 @@ export {
   addAssistantToTeam,
   ensureVoicePreset,
   ensureProjectSync,
+  createMsTeamsBotInstall,
+  getMsTeamsBotInstallState,
+  deleteMsTeamsBotInstall,
 } from '../helpers/seeds/client';
 export {
   deferCoordinatorAfterAssistantsLoad,
@@ -67,6 +70,7 @@ export type {
   SeededAssistant,
   SeededTeam,
   SeededUserDesktop,
+  SeededMsTeamsBotInstall,
 } from '../helpers/seeds/types';
 
 export { login, switchToEmailTab };

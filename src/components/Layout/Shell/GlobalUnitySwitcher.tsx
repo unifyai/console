@@ -42,6 +42,7 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
   return (
     <AssistantSwitcher
       activeUnity={bridge.activeUnity}
+      activeEntityFace={bridge.activeEntityFace ?? null}
       listProps={bridge.listProps}
       collapsed={collapsed}
     />

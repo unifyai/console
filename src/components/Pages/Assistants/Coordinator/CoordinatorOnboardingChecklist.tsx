@@ -17,7 +17,7 @@
  */
 
 import * as React from 'react';
-import { Check, ChevronDown, Lock, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, ExternalLink, Lock, RotateCcw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,6 +75,8 @@ export type ChecklistAction =
   | 'trigger-workspace-drive'
   | 'trigger-workspace-calendar'
   | 'connect-apps'
+  | 'trigger-integration-read'
+  | 'trigger-integration-action'
   | 'act'
   | 'create-scheduled-task'
   | 'create-triggerable-task'
@@ -137,6 +139,8 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'workspace-drive': 'trigger-workspace-drive',
   'workspace-calendar': 'trigger-workspace-calendar',
   apps: 'connect-apps',
+  'integration-read': 'trigger-integration-read',
+  'integration-action': 'trigger-integration-action',
   act: 'act',
   'create-scheduled-task': 'create-scheduled-task',
   'create-triggerable-task': 'create-triggerable-task',
@@ -162,6 +166,9 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-mailbox': 'Summarizing...',
   'trigger-workspace-drive': 'Summarizing...',
   'trigger-workspace-calendar': 'Summarizing...',
+  'trigger-integration-read': 'Reading...',
+  'trigger-integration-action': 'Working...',
+  'connect-apps': 'Connecting...',
   'create-scheduled-task': 'Starting...',
   'create-triggerable-task': 'Starting...',
   'learn-from-correction': 'Starting...',
@@ -367,6 +374,20 @@ function buildVisibleChecklist(
 const CHECKLIST_CONTROL_GRID_CLASS =
   '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem] gap-1 px-1.5';
 const COMMUNICATION_SECTION_ID = 'communication';
+
+/** Overview pages for each onboarding section in the public docs site. */
+const ONBOARDING_SECTION_DOCS_URLS: Readonly<Record<string, string>> = {
+  communication: 'https://docs.unify.ai/communication/overview',
+  workspace: 'https://docs.unify.ai/workspace/overview',
+  integrations: 'https://docs.unify.ai/integrations/overview',
+  tasks: 'https://docs.unify.ai/tasks/overview',
+  learning: 'https://docs.unify.ai/learning/overview',
+  canvas: 'https://docs.unify.ai/canvas/overview',
+  'your-computer': 'https://docs.unify.ai/their-computer/overview',
+  'my-computer': 'https://docs.unify.ai/your-computer/overview',
+  teams: 'https://docs.unify.ai/teams/overview',
+  hiring: 'https://docs.unify.ai/hiring/overview',
+};
 
 const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   id: string;
@@ -709,6 +730,9 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'trigger-workspace-calendar')
         onTriggerReferenceStep?.('workspace-calendar');
       else if (action === 'connect-apps') onConnectApps?.();
+      else if (action === 'trigger-integration-read') onTriggerReferenceStep?.('integration-read');
+      else if (action === 'trigger-integration-action')
+        onTriggerReferenceStep?.('integration-action');
       else if (action === 'act') onActNow?.();
       else if (action === 'create-scheduled-task') onCreateScheduledTask?.();
       else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
@@ -838,6 +862,9 @@ export function CoordinatorOnboardingChecklist({
         return !!onTriggerReferenceStep && !!onConnectWorkspace;
       }
       if (action === 'connect-apps') return !!onConnectApps;
+      if (action === 'trigger-integration-read' || action === 'trigger-integration-action') {
+        return !!onTriggerReferenceStep;
+      }
       if (action === 'act') return !!onActNow;
       if (action === 'create-scheduled-task') return !!onCreateScheduledTask;
       if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
@@ -1120,6 +1147,14 @@ export function CoordinatorOnboardingChecklist({
                 />
                 {isOpen ? (
                   <ul>
+                    {ONBOARDING_SECTION_DOCS_URLS[section.id] ? (
+                      <li>
+                        <SectionDocsLink
+                          sectionId={section.id}
+                          href={ONBOARDING_SECTION_DOCS_URLS[section.id]}
+                        />
+                      </li>
+                    ) : null}
                     {section.id === COMMUNICATION_SECTION_ID
                       ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
                           <CommunicationSubgroup
@@ -1235,35 +1270,79 @@ function CompactProgress({ completed, total }: { completed: number; total: numbe
   );
 }
 
-function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHeaderProps) {
-  const label = `${index + 1}. ${section.title}`;
+function SectionDocsLink({ sectionId, href }: { sectionId: string; href: string }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={isOpen}
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       className={cn(
-        CHECKLIST_CONTROL_GRID_CLASS,
-        'group/onboarding-section rounded-control cursor-pointer items-center py-3 text-left',
-        'bg-transparent transition-colors',
+        'text-caption inline-flex items-center gap-1 py-1 pl-5 text-muted-foreground underline-offset-2 transition-colors',
+        'rounded-sm hover:text-foreground hover:underline',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       )}
+      data-testid={`coordinator-onboarding-section-${sectionId}-docs`}
+    >
+      Read docs
+      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+    </a>
+  );
+}
+
+function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHeaderProps) {
+  const label = `${index + 1}. ${section.title}`;
+  const toggleProps = {
+    type: 'button' as const,
+    onClick: onToggle,
+    'aria-expanded': isOpen,
+  };
+
+  return (
+    <div
+      className={cn(
+        CHECKLIST_CONTROL_GRID_CLASS,
+        'group/onboarding-section rounded-control items-center py-3'
+      )}
+      aria-expanded={isOpen}
       data-testid={`coordinator-onboarding-section-${section.id}`}
     >
-      <span
-        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-section:text-muted-foreground group-focus-visible/onboarding-section:text-muted-foreground"
-        data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <button
+          {...toggleProps}
+          className={cn(
+            'text-body-sm min-w-0 truncate text-left font-medium text-foreground transition-colors',
+            'rounded-sm bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'group-hover/onboarding-section:text-muted-foreground'
+          )}
+          data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
+        >
+          {label}
+        </button>
+      </div>
+      <button
+        {...toggleProps}
+        className={cn(
+          'flex w-16 flex-col gap-1 justify-self-center rounded-sm bg-transparent',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${section.title}`}
       >
-        {label}
-      </span>
-      <CompactProgress completed={progress.completed} total={progress.total} />
-      <span className="flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground">
+        <CompactProgress completed={progress.completed} total={progress.total} />
+      </button>
+      <button
+        {...toggleProps}
+        className={cn(
+          'flex h-6 w-6 items-center justify-center justify-self-center rounded-sm bg-transparent text-muted-foreground',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${section.title}`}
+      >
         <ChevronDown
           className={cn('h-3.5 w-3.5 transition-transform', !isOpen && '-rotate-90')}
           aria-hidden="true"
         />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -1340,7 +1419,7 @@ interface ChecklistRowProps {
   armedTriggerableTaskId?: number | null;
   /** Nearest upcoming scheduled task due time (ISO), for the countdown. */
   nextScheduledTaskDueAt?: string | null;
-  /** Dispatch a Tasks-phase chip event. Unset leaves chips read-only. */
+  /** Dispatch a graph-owned chip event. Unset leaves chips read-only. */
   onSelectTaskChip?: (stepId: string, chipId: string) => void;
 }
 
@@ -1377,7 +1456,13 @@ function ChecklistRow({
   const showActionFeedback =
     item.inProgress ||
     (!!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled);
-  const actionFeedbackLabel = item.inProgress ? 'In progress' : actionFeedback;
+  const onboardingCtx = useCoordinatorOnboardingContext();
+  const actionFeedbackLabel =
+    item.id === 'apps' && item.inProgress && onboardingCtx?.appsConnectSettling
+      ? 'Finishing connection...'
+      : item.inProgress
+        ? 'In progress'
+        : actionFeedback;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -1603,10 +1688,10 @@ function ChecklistRow({
   // scheduled/event prompts for the Tasks beats). Rendered only while the row
   // is still pending; hidden rows never reach this component.
   //
-  // The Tasks beats (``create-scheduled-task`` / ``create-triggerable-task``)
-  // wire an ``onSelectTaskChip`` handler: clicking a chip dispatches a system
-  // event that asks Twin to set up that specific task. ``act`` and every other
-  // step pass no handler, so their chips stay read-only inspiration.
+  // Tasks beats and Integrations onboarding rows wire an ``onSelectTaskChip``
+  // handler: clicking a chip dispatches a system event that asks Twin to act on
+  // that specific server-owned example. ``act`` and every other step pass no
+  // handler, so their chips stay read-only inspiration.
   //
   // Suggestion chips come from the server render (sourced from the canonical
   // graph). The chat/call split lives in the data: ``act`` carries distinct
@@ -1616,7 +1701,11 @@ function ChecklistRow({
   const showSuggestions =
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
   const chipsClickable =
-    item.id === 'create-scheduled-task' || item.id === 'create-triggerable-task'
+    item.id === 'create-scheduled-task' ||
+    item.id === 'create-triggerable-task' ||
+    item.id === 'apps' ||
+    item.id === 'integration-read' ||
+    item.id === 'integration-action'
       ? !!onSelectTaskChip
       : false;
 

@@ -9,7 +9,9 @@ import { RailFoot } from '@/components/Pages/Assistants/Rail/RailFoot';
 import {
   WORKSPACE_SECTIONS,
   BRAIN_SECTIONS,
+  sectionAppliesTo,
   type SectionDef,
+  type SelectorEntityKind,
 } from '@/components/Pages/Assistants/Rail/sectionConfig';
 
 export const RAIL_COLLAPSED_STORAGE_KEY = 'console:assistants:railCollapsed';
@@ -25,6 +27,11 @@ interface AppRailProps {
   onCollapsedChange: (collapsed: boolean) => void;
   onBrandClick?: () => void;
   sectionActivity?: Partial<Record<string, boolean>>;
+  /**
+   * The kind of entity currently selected in the switcher. Sections that do
+   * not apply to it (e.g. Guidance/Functions for a human) are hidden.
+   */
+  entityKind?: SelectorEntityKind;
 }
 
 /**
@@ -41,7 +48,10 @@ export function AppRail({
   onCollapsedChange,
   onBrandClick,
   sectionActivity,
+  entityKind = 'assistant',
 }: AppRailProps) {
+  const workspaceSections = WORKSPACE_SECTIONS.filter((s) => sectionAppliesTo(s, entityKind));
+  const brainSections = BRAIN_SECTIONS.filter((s) => sectionAppliesTo(s, entityKind));
   const renderSection = (s: SectionDef) => (
     <RailNavButton
       key={s.id}
@@ -97,15 +107,16 @@ export function AppRail({
               Workspace
             </div>
           )}
-          {WORKSPACE_SECTIONS.map(renderSection)}
-          {collapsed ? (
-            <div className="mx-1.5 my-2 h-px bg-border" />
-          ) : (
-            <div className="px-3 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              Brain
-            </div>
-          )}
-          {BRAIN_SECTIONS.map(renderSection)}
+          {workspaceSections.map(renderSection)}
+          {brainSections.length > 0 &&
+            (collapsed ? (
+              <div className="mx-1.5 my-2 h-px bg-border" />
+            ) : (
+              <div className="px-3 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Brain
+              </div>
+            ))}
+          {brainSections.map(renderSection)}
         </div>
       </ScrollArea>
 

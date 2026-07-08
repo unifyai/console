@@ -230,9 +230,9 @@ async function seedCoordinatorOutboundTranscript(
 /**
  * Mark an onboarding step complete via the same Orchestra state PATCH the brain
  * uses (``set_onboarding_task_state`` -> ``onboarding_step_completion``). This is
- * how workspace demos — multi-part tasks that no longer auto-complete from an
- * outbound — are finished: the assistant does the whole task, then explicitly
- * sets the step done.
+ * how workspace and integration demos — multi-part tasks that do not auto-complete
+ * from an outbound — are finished: the assistant does the whole task, then
+ * explicitly sets the step done.
  */
 async function markCoordinatorOnboardingStepComplete(
   coordinatorId: string | number,
@@ -574,6 +574,101 @@ test('workspace demos complete only when the assistant explicitly marks them don
   // The other demos stay independently actionable.
   await expectChecklistItemClickable(page, 'workspace-drive');
   await expectChecklistItemClickable(page, 'workspace-calendar');
+});
+
+test('integration onboarding dispatches row and chip events through to explicit completion', async ({
+  authedPage: page,
+}) => {
+  const coordinator = createPersonalCoordinator(user.id);
+  connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await openUnitySwitcher(page);
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.keyboard.press('Escape');
+
+  await openOnboardingChecklist(page);
+  await selectCoordinatorOnboardingSection(page, 'integrations');
+
+  const appsRow = page.getByTestId('coordinator-onboarding-item-apps').first();
+  await expect(appsRow).toBeVisible();
+  await expectChecklistItemClickable(page, 'apps');
+  await expect(page.getByTestId('coordinator-onboarding-suggestion-crm-sales')).toBeVisible();
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-integration-read').first()
+  ).toHaveAttribute('data-status', 'locked');
+
+  const stepEvents: Array<{ stepId?: string; chipId?: string }> = [];
+  page.on('request', (request) => {
+    if (!request.url().includes('/api/coordinator-onboarding-step-event')) return;
+    try {
+      stepEvents.push(
+        JSON.parse(request.postData() ?? '{}') as { stepId?: string; chipId?: string }
+      );
+    } catch {
+      stepEvents.push({});
+    }
+  });
+
+  await page.getByTestId('coordinator-onboarding-suggestion-crm-sales').click();
+  await expect.poll(() => stepEvents.length, { timeout: 5_000 }).toBe(1);
+  expect(stepEvents[0]).toEqual({ stepId: 'apps', chipId: 'crm-sales' });
+  await expect(appsRow).not.toHaveAttribute('data-status', 'done');
+
+  await markCoordinatorOnboardingStepComplete(coordinator.agentId, 'apps');
+  await expect(appsRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
+
+  const readRow = page.getByTestId('coordinator-onboarding-item-integration-read').first();
+  await expect(readRow).toHaveAttribute('data-next', 'true', { timeout: 10_000 });
+  await expectChecklistItemClickable(page, 'integration-read');
+  await expect(
+    page.getByTestId('coordinator-onboarding-suggestion-crm-pipeline-summary')
+  ).toBeVisible();
+
+  await page.getByTestId('coordinator-onboarding-suggestion-crm-pipeline-summary').click();
+  await expect(
+    page.getByTestId('coordinator-onboarding-action-feedback-integration-read')
+  ).toHaveText('Reading...');
+  await expect.poll(() => stepEvents.length, { timeout: 5_000 }).toBe(2);
+  expect(stepEvents[1]).toEqual({
+    stepId: 'integration-read',
+    chipId: 'crm-pipeline-summary',
+  });
+  await expect(readRow).not.toHaveAttribute('data-status', 'done');
+
+  await seedCoordinatorOutboundTranscript(
+    coordinator.agentId,
+    'unify_message',
+    'Here is a brief from the connected CRM.',
+    'integration-read'
+  );
+  await expect(readRow).not.toHaveAttribute('data-status', 'done');
+
+  await markCoordinatorOnboardingStepComplete(coordinator.agentId, 'integration-read');
+  await expect(readRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
+
+  const actionRow = page.getByTestId('coordinator-onboarding-item-integration-action').first();
+  await expect(actionRow).toHaveAttribute('data-next', 'true', { timeout: 10_000 });
+  await expectChecklistItemClickable(page, 'integration-action');
+  await expect(
+    page.getByTestId('coordinator-onboarding-suggestion-take-concrete-action')
+  ).toBeVisible();
+
+  await actionRow.click();
+  await expect(
+    page.getByTestId('coordinator-onboarding-action-feedback-integration-action')
+  ).toHaveText('Working...');
+  await expect.poll(() => stepEvents.length, { timeout: 5_000 }).toBe(3);
+  expect(stepEvents[2]).toEqual({ stepId: 'integration-action' });
+  await markCoordinatorOnboardingStepComplete(coordinator.agentId, 'integration-action');
+  await expect(actionRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
 });
 
 test('the calendar demo only renders once the calendar scope is granted', async ({

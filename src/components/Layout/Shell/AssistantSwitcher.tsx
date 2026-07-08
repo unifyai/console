@@ -36,13 +36,33 @@ function UnityAvatar({ assistant, sizeClass }: { assistant: Assistant; sizeClass
   );
 }
 
+/** Face override for non-assistant selections (a human member or a team). */
+export interface ActiveEntityFace {
+  kind: 'human' | 'team';
+  label: string;
+  sublabel?: string | null;
+  imageUrl?: string | null;
+  online?: boolean;
+}
+
 interface AssistantSwitcherProps {
   /** Currently-open unity; drives the switcher card face. */
   activeUnity: Assistant | null;
+  /** When set, the card face shows this human/team instead of an assistant. */
+  activeEntityFace?: ActiveEntityFace | null;
   isInitialAssistantIdentityLoading?: boolean;
   /** Full prop bag forwarded to the embedded `AssistantList` (the switcher). */
   listProps: React.ComponentProps<typeof AssistantList>;
   collapsed: boolean;
+}
+
+function entityInitials(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('');
 }
 
 /**
@@ -52,19 +72,26 @@ interface AssistantSwitcherProps {
  */
 export function AssistantSwitcher({
   activeUnity,
+  activeEntityFace = null,
   isInitialAssistantIdentityLoading = false,
   listProps,
   collapsed,
 }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
 
-  const showSkeletonFace = !activeUnity && isInitialAssistantIdentityLoading;
-  const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a teammate';
-  const unitySub = activeUnity
-    ? activeUnity.isCoordinator
-      ? null
-      : activeUnity.jobTitle?.trim() || 'Digital twin'
-    : 'No teammate selected';
+  const showSkeletonFace = !activeUnity && !activeEntityFace && isInitialAssistantIdentityLoading;
+  const unityName = activeEntityFace
+    ? activeEntityFace.label
+    : activeUnity
+      ? assistantDisplayName(activeUnity)
+      : 'Select a teammate';
+  const unitySub = activeEntityFace
+    ? (activeEntityFace.sublabel ?? (activeEntityFace.kind === 'team' ? 'Team' : 'Team member'))
+    : activeUnity
+      ? activeUnity.isCoordinator
+        ? null
+        : activeUnity.jobTitle?.trim() || 'Digital twin'
+      : 'No teammate selected';
   const activeUnityStatus = activeUnity
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;
@@ -99,6 +126,29 @@ export function AssistantSwitcher({
                 collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'
               )}
             />
+          ) : activeEntityFace ? (
+            <span className="relative shrink-0">
+              <Avatar
+                className={cn(
+                  'rounded-control shrink-0',
+                  collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'
+                )}
+              >
+                <AvatarImage
+                  src={activeEntityFace.imageUrl ?? undefined}
+                  alt={activeEntityFace.label}
+                />
+                <AvatarFallback className="rounded-control">
+                  {entityInitials(activeEntityFace.label)}
+                </AvatarFallback>
+              </Avatar>
+              {activeEntityFace.kind === 'human' && activeEntityFace.online ? (
+                <span
+                  data-testid="rail-human-online-indicator"
+                  className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
+                />
+              ) : null}
+            </span>
           ) : activeUnity ? (
             <span className="relative shrink-0">
               <UnityAvatar

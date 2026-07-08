@@ -13,11 +13,13 @@ import {
 } from '@/components/UI/sheet';
 import { cn } from '@/lib/utils';
 import { useFunctionsCatalog } from '@/hooks/Assistants/useFunctionsCatalog';
+import type { ContextRoot } from '@/lib/assistants/scope';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { AssistantMarkdown, fencedCode } from '../Common/AssistantMarkdown';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -32,6 +34,8 @@ interface FunctionsPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  /** Scope override: a team root reads `Teams/{id}/Functions/…`. */
+  root?: ContextRoot | null;
   isActiveSurface?: boolean;
 }
 
@@ -149,8 +153,10 @@ export function FunctionsPane({
   assistant,
   ownerId: _ownerId,
   assistantId: _assistantId,
+  root = null,
   isActiveSurface = true,
 }: FunctionsPaneProps) {
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [kind, setKind] = useState<FunctionKindFilter>('All');
   const [selected, setSelected] = useState<FunctionSkill | null>(null);
@@ -167,6 +173,7 @@ export function FunctionsPane({
       assistant,
       kind,
       query: searchQuery,
+      root: scope.root,
       enabled: isActiveSurface,
     });
 
@@ -219,6 +226,7 @@ export function FunctionsPane({
         refreshTitle="Refresh functions"
         refreshTestId="functions-refresh"
       />
+      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="functions-body">
         {isLoading && !hasLoaded ? (

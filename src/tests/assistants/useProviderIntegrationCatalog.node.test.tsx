@@ -150,6 +150,69 @@ describe('useProviderIntegrationCatalog', () => {
     ).toBe(true);
   });
 
+  it('ORs pipe-separated provider catalog search terms across searchable fields', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([]);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    await listProviderIntegrationDefinitionsPage({
+      ownerScope: 'assistant',
+      assistantId: 123,
+      query: 'github|linear|jira|hr|ops',
+    });
+
+    const logsCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
+    expect(logsCall).toBeDefined();
+    const params = new URL(String(logsCall?.[0]), window.location.origin).searchParams;
+    const filterExpr = params.get('filterExpr') ?? '';
+    expect(filterExpr).toContain('display_name.lower().contains("github")');
+    expect(filterExpr).toContain('canonical_app_slug.lower().contains("linear")');
+    expect(filterExpr).toContain('description.lower().contains("jira")');
+    expect(filterExpr).toContain('display_name.lower().contains("hr")');
+    expect(filterExpr).toContain('canonical_app_slug.lower().contains("ops")');
+    expect(filterExpr).toContain(' or ');
+    expect(filterExpr).not.toContain('github|linear|jira|hr|ops');
+  });
+
+  it('keeps plain provider catalog searches phrase-based', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([]);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    await listProviderIntegrationDefinitionsPage({
+      ownerScope: 'assistant',
+      assistantId: 123,
+      query: 'github linear jira hr ops',
+    });
+
+    const logsCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
+    expect(logsCall).toBeDefined();
+    const params = new URL(String(logsCall?.[0]), window.location.origin).searchParams;
+    const filterExpr = params.get('filterExpr') ?? '';
+    expect(filterExpr).toContain('display_name.lower().contains("github linear jira hr ops")');
+    expect(filterExpr).not.toContain('display_name.lower().contains("github")');
+  });
+
   it('maps available scope name fields to scope ids instead of scope-N placeholders', async () => {
     vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
@@ -514,5 +577,77 @@ describe('listProviderIntegrationDefinitionsPage', () => {
     expect(params.get('fromFields')).not.toContain('embedding');
     expect(String(fetchSpy.mock.calls[0][0])).not.toContain('/api/integrations/provider/apps');
     expect(String(fetchSpy.mock.calls[0][0])).not.toContain('/api/integrations/catalog/apps');
+  });
+
+  it('maps labels metadata into definitions, facets, and category filters', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse(
+          [
+            providerApp('hubspot', {
+              display_name: 'HubSpot',
+              category: 'CRM',
+              labels: {
+                primary_category: { key: 'crm', label: 'CRM' },
+                categories: [
+                  { key: 'crm', label: 'CRM' },
+                  { key: 'sales', label: 'Sales' },
+                ],
+                tags: [
+                  { key: 'crm', label: 'CRM' },
+                  { key: 'sales', label: 'Sales' },
+                ],
+              },
+            }),
+            providerApp('zendesk', {
+              display_name: 'Zendesk',
+              category: 'Support',
+              labels: {
+                primary_category: { key: 'crm', label: 'CRM' },
+                categories: [{ key: 'crm', label: 'CRM' }],
+                tags: [{ key: 'crm', label: 'CRM' }],
+              },
+            }),
+          ],
+          2
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const page = await listProviderIntegrationDefinitionsPage({
+      ownerScope: 'assistant',
+      assistantId: 123,
+      category: 'crm',
+    });
+
+    expect(page.definitions[0].labels).toEqual({
+      primaryCategory: { key: 'crm', label: 'CRM' },
+      categories: [
+        { key: 'crm', label: 'CRM' },
+        { key: 'sales', label: 'Sales' },
+      ],
+      tags: [
+        { key: 'crm', label: 'CRM' },
+        { key: 'sales', label: 'Sales' },
+      ],
+    });
+    expect(page.facets?.categories).toEqual([
+      { value: 'crm', label: 'CRM', count: 2 },
+      { value: 'sales', label: 'Sales', count: 1 },
+    ]);
+
+    const params = new URL(String(fetchSpy.mock.calls[0][0]), window.location.origin).searchParams;
+    expect(params.get('fromFields')).toContain('labels');
+    expect(params.get('filterExpr')).toContain('category.lower() == "crm"');
+    expect(params.get('filterExpr')).toContain('labels["categories"]');
+    expect(params.get('filterExpr')).toContain('label["key"] == "crm"');
   });
 });

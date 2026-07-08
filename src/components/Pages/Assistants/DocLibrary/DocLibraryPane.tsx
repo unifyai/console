@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantMarkdown } from '../Common/AssistantMarkdown';
 import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
+import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -28,6 +29,7 @@ import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import type { DocLibraryKind } from './docLibraryKind';
 import type { GuidanceRow, KnowledgeRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { ContextRoot } from '@/lib/assistants/scope';
 
 interface DocLibraryDoc {
   id: string;
@@ -49,6 +51,9 @@ interface DocLibraryPaneProps {
   assistantId: string;
   /** Which library this pane renders. Defaults to guidance. */
   kind?: DocLibraryKind;
+  /** Scope override: a team root reads `Teams/{id}/…` instead of merging the
+   *  assistant's readable roots. */
+  root?: ContextRoot | null;
   enabled?: boolean;
 }
 
@@ -191,13 +196,16 @@ export function DocLibraryPane({
   ownerId,
   assistantId,
   kind = 'guidance',
+  root = null,
   enabled = true,
 }: DocLibraryPaneProps) {
   const context = kind === 'knowledge' ? 'Knowledge' : 'Guidance';
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const { guidance, knowledge, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
+    root: scope.root,
     contexts: kind === 'knowledge' ? (['Knowledge'] as const) : (['Guidance'] as const),
     initialContext: context,
     enabled,
@@ -348,6 +356,7 @@ export function DocLibraryPane({
         //   </Button>
         // }
       />
+      <BrainScopeChips scope={scope} />
 
       <SplitPaneLayout
         paneId={`doc-library-${kind}`}
@@ -369,7 +378,10 @@ export function DocLibraryPane({
             ) : filtered.length === 0 ? (
               <div className="text-caption p-3">{meta.emptyMatch}</div>
             ) : (
-              <ScrollArea className="h-full">
+              <ScrollArea
+                className="h-full min-w-0"
+                viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
+              >
                 <div className="flex flex-col gap-0.5 p-2">
                   {filteredGroups.map((group) => (
                     <React.Fragment key={group.sortKey}>
@@ -390,7 +402,7 @@ export function DocLibraryPane({
                         <button
                           key={doc.id}
                           className={cn(
-                            'flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                            'flex w-full min-w-0 items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
                             active?.id === doc.id
                               ? 'bg-accent-soft text-accent-soft-foreground'
                               : 'text-ink-2 hover:bg-muted hover:text-foreground'
@@ -406,8 +418,11 @@ export function DocLibraryPane({
                           <span className="min-w-0 flex-1">
                             <span
                               className={cn(
-                                'text-body-dense line-clamp-2 block font-semibold leading-snug',
-                                kind === 'knowledge' && 'font-mono'
+                                'text-body-dense block font-semibold leading-snug',
+                                kind === 'knowledge' && 'font-mono',
+                                isStackedLayout
+                                  ? 'line-clamp-2'
+                                  : 'break-words [overflow-wrap:anywhere]'
                               )}
                             >
                               {doc.title}

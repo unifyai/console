@@ -11,6 +11,7 @@ import {
   testProviderIntegration,
 } from '@/lib/client/integrations';
 import { broadcastOAuthComplete } from '@/utils/assistants/oauth';
+import { broadcastIntegrationConnectSettled } from '@/lib/assistants/coordinatorIntegrationConnect';
 
 function providerParam(params: URLSearchParams, ...keys: string[]): string | null {
   for (const key of keys) {
@@ -30,13 +31,21 @@ function resultQuery(result: 'success' | 'error', detail?: string): string {
   return params.toString();
 }
 
-function completeAndClose(returnTo: string | null, result: 'success' | 'error', detail?: string) {
+function completeAndClose(
+  returnTo: string | null,
+  result: 'success' | 'error',
+  detail?: string,
+  assistantId?: string | null
+) {
   const query = resultQuery(result, detail);
   window.dispatchEvent(
     new CustomEvent('unify:provider-integration-callback-redirect', { detail: { query, returnTo } })
   );
   if (navigator.userAgent.includes('jsdom')) return;
   broadcastOAuthComplete({ query, kind: 'integration' });
+  if (result === 'success' && assistantId) {
+    broadcastIntegrationConnectSettled({ assistantId, authMode: 'oauth' });
+  }
   try {
     window.setTimeout(() => window.close(), 50);
     window.setTimeout(() => {
@@ -164,7 +173,7 @@ function ProviderIntegrationCallback() {
           });
         }
         setMessage('Integration connected. Returning to Console...');
-        completeAndClose(returnTo, 'success');
+        completeAndClose(returnTo, 'success', undefined, assistantId);
       } catch (error) {
         console.error('Failed to complete provider integration callback', error);
         setMessage('We could not finish connecting this app. Returning to Console...');

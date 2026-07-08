@@ -131,6 +131,7 @@ export function AssistantCommunicationMainView({
               src={remoteControlUrl}
               className="h-full w-full border-0"
               title="Assistant Remote Desktop"
+              data-testid="assistant-remote-desktop-frame"
               allow="autoplay; camera; microphone; display-capture; clipboard-write; clipboard-read; fullscreen"
               allowFullScreen
               referrerPolicy="no-referrer"
@@ -144,9 +145,12 @@ export function AssistantCommunicationMainView({
             )}
           </>
         ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <div
+            className="flex flex-col items-center gap-2 text-muted-foreground"
+            data-testid="assistant-remote-desktop-starting"
+          >
             <Loader size={32} />
-            <span>Loading session...</span>
+            <span>Assistant&apos;s computer is starting up…</span>
           </div>
         )}
       </div>

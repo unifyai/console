@@ -55,10 +55,12 @@ vi.mock('@/components/Integrations', () => ({
     onOpen,
     onFiltersChange,
     total,
+    enableSemanticCategoryFilter,
   }: {
     filters?: {
       query: string;
       category: string;
+      semanticCategory: string;
       status: 'all' | 'connected' | 'needs_attention' | 'not_connected';
     };
     items: IntegrationGalleryItem[];
@@ -66,16 +68,29 @@ vi.mock('@/components/Integrations', () => ({
     onFiltersChange?: (filters: {
       query: string;
       category: string;
+      semanticCategory: string;
       status: 'all' | 'connected' | 'needs_attention' | 'not_connected';
     }) => void;
     total?: number;
+    enableSemanticCategoryFilter?: boolean;
   }) => (
     <div data-testid="integration-gallery">
       <div data-testid="integration-gallery-total">{total}</div>
+      <div data-testid="integration-gallery-semantic-category">{filters?.semanticCategory}</div>
+      <div data-testid="integration-gallery-semantic-enabled">
+        {String(Boolean(enableSemanticCategoryFilter))}
+      </div>
       <button
         type="button"
         data-testid="integration-gallery-third-party-filter"
-        onClick={() => onFiltersChange?.({ query: '', category: 'third_party', status: 'all' })}
+        onClick={() =>
+          onFiltersChange?.({
+            query: '',
+            category: 'third_party',
+            semanticCategory: 'all',
+            status: 'all',
+          })
+        }
       >
         Third-party
       </button>
@@ -322,6 +337,55 @@ describe('IntegrationsPane provider disconnect sync', () => {
       expect(screen.getByTestId('integration-gallery-category')).toHaveTextContent('third_party');
       expect(screen.getByTestId('integration-gallery-total')).toHaveTextContent('1046');
     });
+  });
+
+  it('strips semantic category filters while integration labels are disabled', async () => {
+    mockUseProviderIntegrationCatalog.mockReturnValue({
+      apps: [],
+      catalogVersion: null,
+      definitions: [],
+      detailsBySlug: {},
+      facets: null,
+      fetchDetails: fetchDetails as ReturnType<
+        typeof useProviderIntegrationCatalog
+      >['fetchDetails'],
+      generatedAt: null,
+      hasMore: false,
+      hasLoaded: true,
+      isConnecting: null,
+      isDetailLoading: null,
+      isLoadingMore: false,
+      isLoading: false,
+      isMock: false,
+      loadMore: vi.fn(),
+      refresh: refreshProviderCatalog as ReturnType<
+        typeof useProviderIntegrationCatalog
+      >['refresh'],
+      startConnect: vi.fn(),
+      total: 0,
+    });
+
+    render(
+      <IntegrationsPane
+        assistantId="123"
+        ownerId="owner"
+        secretActions={{} as never}
+        isVisible
+        initialGalleryFilters={{ query: 'crm sales', semanticCategory: 'crm' }}
+      />
+    );
+
+    await waitFor(() =>
+      expect(mockUseProviderIntegrationCatalog).toHaveBeenLastCalledWith(
+        '123',
+        expect.objectContaining({
+          query: 'crm sales',
+          category: null,
+        })
+      )
+    );
+    expect(screen.getByTestId('integration-gallery-semantic-category')).toHaveTextContent('all');
+    expect(screen.getByTestId('integration-gallery-semantic-enabled')).toHaveTextContent('false');
   });
 
   it('refreshes disconnect UI state when Unity cleanup sync fails', async () => {

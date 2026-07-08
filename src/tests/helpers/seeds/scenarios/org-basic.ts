@@ -22,9 +22,17 @@ import {
   addMember,
   createAssistant,
   createEmailLogin,
+  createMsTeamsBotInstall,
   seedChatInfrastructure,
   seedCoordinatorChatForUsers,
 } from '../client';
+
+/**
+ * Fixed bind code for the pending MS Teams bot install seeded below, so
+ * a local tester (via DevQuickLogin as the org owner) can walk the
+ * Teams bot bind handshake without inventing a nonce.
+ */
+export const ORG_BASIC_MS_TEAMS_BOT_BIND_NONCE = 'seed-org-basic-teams-nonce';
 
 export async function seedOrgBasic(): Promise<SeededState> {
   // Create users
@@ -56,6 +64,15 @@ export async function seedOrgBasic(): Promise<SeededState> {
     userId: owner.id,
     assistantId: assistant.agentId,
     email: owner.email,
+  });
+
+  // A pending Microsoft Teams bot install waiting to be bound to this
+  // org — makes the tenant→org bind handshake reachable locally. Keyed
+  // on the org so re-seeding is idempotent.
+  createMsTeamsBotInstall({
+    tenantId: `seed-org-basic-tenant-${org.id}`,
+    tenantName: 'Test Org Basic Tenant',
+    bindNonce: ORG_BASIC_MS_TEAMS_BOT_BIND_NONCE,
   });
 
   // Every user — owner and member — gets a personal Coordinator

@@ -149,6 +149,47 @@ describe('provider integrations gallery model', () => {
     expect(screen.queryByText('Overlay curated')).not.toBeInTheDocument();
   });
 
+  it('matches any search term in pipe-separated onboarding app queries', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+
+    const { rerender } = render(
+      <IntegrationGalleryShell
+        items={result.current}
+        isMock
+        filters={{
+          query: 'github linear jira hr ops',
+          category: 'all',
+          semanticCategory: 'all',
+          status: 'all',
+        }}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('provider-integration-card-github')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('provider-integration-card-linear')).not.toBeInTheDocument();
+
+    rerender(
+      <IntegrationGalleryShell
+        items={result.current}
+        isMock
+        filters={{
+          query: 'github|linear|jira|hr|ops',
+          category: 'all',
+          semanticCategory: 'all',
+          status: 'all',
+        }}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('provider-integration-card-github')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-integration-card-linear')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-integration-card-slack')).not.toBeInTheDocument();
+  });
+
   it('keeps mock mode aligned with the Composio first-wave catalog', () => {
     const mockSlugs = new Set(
       MOCK_PROVIDER_INTEGRATION_DEFINITIONS.map((item) => item.canonicalSlug)
@@ -237,6 +278,112 @@ describe('provider integrations gallery model', () => {
 
     fireEvent.click(screen.getByTestId('integration-gallery-refresh'));
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('filters gallery items by semantic provider category', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const template = result.current.find((item) => item.canonicalSlug === 'hubspot');
+    expect(template).toBeDefined();
+    const crm = buildGalleryItem(template!, {
+      id: 'crm-app',
+      canonicalSlug: 'crm-app',
+      displayName: 'CRM App',
+      category: 'CRM',
+      status: 'not_connected',
+    });
+    const dev = buildGalleryItem(template!, {
+      id: 'dev-app',
+      canonicalSlug: 'dev-app',
+      displayName: 'Dev App',
+      category: 'Developer Tools',
+      status: 'not_connected',
+    });
+
+    render(
+      <IntegrationGalleryShell
+        items={[crm, dev]}
+        total={2}
+        enableSemanticCategoryFilter
+        facets={{
+          total: 2,
+          sourceType: { native: 0, thirdParty: 2 },
+          status: {
+            connected: 0,
+            configured: 0,
+            pending: 0,
+            missingScope: 0,
+            missingSecrets: 0,
+            needsReconnect: 0,
+            expired: 0,
+            revoked: 0,
+            error: 0,
+            notConnected: 2,
+          },
+          statusGroup: {
+            connected: 0,
+            needsAttention: 0,
+            notConnected: 2,
+          },
+          categories: [
+            { value: 'crm', label: 'CRM', count: 1 },
+            { value: 'developer tools', label: 'Developer Tools', count: 1 },
+          ],
+        }}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'CRM' }));
+    expect(screen.getByTestId('provider-integration-card-crm-app')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-integration-card-dev-app')).not.toBeInTheDocument();
+  });
+
+  it('hides semantic provider categories by default', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const template = result.current.find((item) => item.canonicalSlug === 'discord');
+    expect(template).toBeDefined();
+
+    render(
+      <IntegrationGalleryShell
+        items={[
+          buildGalleryItem(template!, {
+            id: 'crm-app',
+            canonicalSlug: 'crm-app',
+            displayName: 'CRM App',
+            category: 'CRM',
+            status: 'not_connected',
+          }),
+        ]}
+        total={1}
+        facets={{
+          total: 1,
+          sourceType: { native: 0, thirdParty: 1 },
+          status: {
+            connected: 0,
+            configured: 0,
+            pending: 0,
+            missingScope: 0,
+            missingSecrets: 0,
+            needsReconnect: 0,
+            expired: 0,
+            revoked: 0,
+            error: 0,
+            notConnected: 1,
+          },
+          statusGroup: {
+            connected: 0,
+            needsAttention: 0,
+            notConnected: 1,
+          },
+          categories: [{ value: 'crm', label: 'CRM', count: 1 }],
+        }}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('integration-semantic-category-filter')).not.toBeInTheDocument();
   });
 
   it('mounts only the virtualized available-app window for large catalogs', () => {

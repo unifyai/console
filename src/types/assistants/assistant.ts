@@ -4,6 +4,7 @@ import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@/types/ass
 import { ChatMessage, UnifyMessage, UnifyMessageReaction, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import type { SlackInstallActions } from '../slack/install';
+import type { MsTeamsBotInstallActions } from '../ms-teams-bot/install';
 import { ConnectionDetails } from './call';
 import {
   ContactCosts,
@@ -113,6 +114,10 @@ export interface Assistant {
   // Voice fields
   voiceId: string | null; // Provider Voice ID
   voiceProvider: VoiceProvider | null;
+  // Default LLM fields. The model is a unillm 'model@provider' endpoint paired
+  // with a reasoning-effort level; null means the platform default applies.
+  defaultModel: string | null;
+  defaultReasoningEffort: string | null;
   // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
   emailProvider?: string | null;
@@ -201,6 +206,8 @@ export type AssistantPreset = Omit<
   | 'contactIdentityRoots'
   | 'voiceId'
   | 'voiceProvider'
+  | 'defaultModel'
+  | 'defaultReasoningEffort'
   | 'timezone'
   | 'profileVideo'
   | 'phoneCountry'
@@ -378,12 +385,28 @@ export interface AssistantUpdatePayload {
   userWhatsappNumber?: string | null;
   voiceId?: string | null;
   voiceProvider?: VoiceProvider | null;
+  defaultModel?: string | null;
+  defaultReasoningEffort?: string | null;
   phoneCountry?: string | null;
   timezone?: string | null;
   profilePhoto?: string | null;
   profileVideo?: string | null;
   // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated.
   // User-desktop links are managed via the dedicated desktop link/unlink actions, not here.
+}
+
+/**
+ * One selectable per-assistant default LLM option, served by Orchestra's
+ * curated multimodal catalog (GET /api/assistant/default-model-options).
+ */
+export interface DefaultModelOption {
+  model: string;
+  reasoningEffort: string | null;
+  label: string;
+  /** Order-of-magnitude credits estimate for one typical task (display-only). */
+  approxCreditsPerTask: number;
+  /** Artificial Analysis benchmark page for the model. */
+  artificialAnalysisUrl: string;
 }
 
 // Assistant voice types
@@ -602,6 +625,14 @@ export interface AssistantActions {
    * actions operate on the workspace install, not a per-assistant row.
    */
   slack?: SlackInstallActions;
+  /**
+   * Microsoft Teams **bot** install bind handshake (org-scoped).
+   * Optional — only bound in an organization context. Distinct from the
+   * per-assistant BYOD delegated-Graph "Teams" workspace integration: the
+   * bot is a single shared tenant install claimed via a bind nonce, and
+   * every assistant in the bound org becomes reachable through it.
+   */
+  msTeamsBot?: MsTeamsBotInstallActions;
   call: {
     getConnectionDetails: (
       assistantId: string,
@@ -619,7 +650,8 @@ export interface AssistantActions {
     getLiveviewUrl: (
       assistantId: string,
       ownerId: string,
-      organizationId: number | null
+      organizationId: number | null,
+      sessionScope?: import('@/lib/assistants/desktopSessionScope').DesktopSessionScope | null
     ) => Promise<{ liveviewUrl?: string } | ResponseProps>;
     buildLiveviewUrl: (
       rawUrl: string,
