@@ -1,18 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Check,
-  Copy,
-  Hash,
-  Mail,
-  MessageCircle,
-  MessageSquare,
-  Phone,
-  Slack,
-  Smartphone,
-  Users,
-} from 'lucide-react';
+import { WhatsApp } from '@mui/icons-material';
+import { Check, Copy, Mail, MessageSquare, Phone, Slack, Smartphone, Users } from 'lucide-react';
+import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { ChatMarkdown } from '@/components/Chat/ChatMarkdown';
@@ -27,6 +18,7 @@ import {
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { useShellResource } from '@/hooks/Common/useShellResource';
+import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
 import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
@@ -80,6 +72,11 @@ interface TranscriptsResourceData {
   contactsByRoot: Record<string, ContactRow[]>;
 }
 
+function TranscriptsWhatsAppIcon({ className }: { className?: string }) {
+  const fontSize = className?.includes('h-3.5') ? 14 : className?.includes('h-4') ? 16 : 18;
+  return <WhatsApp className={className} sx={{ fontSize }} aria-hidden />;
+}
+
 const CHANNELS: ChannelDef[] = [
   {
     id: 'chat',
@@ -106,7 +103,7 @@ const CHANNELS: ChannelDef[] = [
   {
     id: 'whatsapp',
     label: 'WhatsApp',
-    Icon: MessageCircle,
+    Icon: TranscriptsWhatsAppIcon,
     mediums: ['whatsapp_message'],
     cssVar: 'var(--role-teal)',
   },
@@ -120,7 +117,7 @@ const CHANNELS: ChannelDef[] = [
   {
     id: 'discord',
     label: 'Discord',
-    Icon: Hash,
+    Icon: FaDiscord,
     mediums: ['discord_message', 'discord_channel_message'],
     cssVar: 'var(--role-purple)',
   },
@@ -396,6 +393,17 @@ export function TranscriptsPane({
     });
   }, [sortedAsc, searchQuery, nameFor]);
 
+  const threadGroups = React.useMemo(
+    () =>
+      groupByCalendarDay(
+        threads.map((thread) => ({
+          ...thread,
+          sortTimestamp: thread.last.timestamp,
+        }))
+      ),
+    [threads]
+  );
+
   // Keep a valid selection as filters/search change.
   React.useEffect(() => {
     if (threads.length === 0) {
@@ -586,55 +594,75 @@ export function TranscriptsPane({
           left={
             <ScrollArea className="h-full" viewportTestId="transcripts-threads">
               <div className="flex flex-col gap-1 p-3">
-                {threads.map((thread) => {
-                  const channelDef = thread.channel;
-                  const Icon = channelDef?.Icon ?? MessageSquare;
-                  const ch = channelDef?.cssVar ?? 'var(--muted-ink)';
-                  const active = activeThread?.threadId === thread.threadId;
-                  return (
-                    <button
-                      key={String(thread.threadId)}
-                      type="button"
-                      onClick={() => setOpenThreadId(thread.threadId)}
-                      data-testid={`transcripts-thread-${thread.threadId}`}
-                      style={
-                        {
-                          '--ch': ch,
-                          ...(active
-                            ? { backgroundColor: 'color-mix(in srgb, var(--ch) 12%, transparent)' }
-                            : {}),
-                        } as React.CSSProperties
-                      }
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors',
-                        !active && 'hover:bg-muted'
-                      )}
-                    >
-                      <span
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px]"
-                        style={{
-                          color: ch,
-                          backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
-                        }}
-                      >
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-title break-words">{thread.subject}</div>
-                        <div className="text-caption mt-0.5 truncate">
-                          <span style={{ color: ch }}>{channelDef?.label ?? 'Other'}</span> ·{' '}
-                          {thread.messages.length} msg · {thread.participantIds.length} people
-                          {scopeLabelFor(thread.rootKey) ? (
-                            <> · {scopeLabelFor(thread.rootKey)}</>
-                          ) : null}
-                        </div>
+                {threadGroups.map((group) => (
+                  <React.Fragment key={group.sortKey}>
+                    {group.sortKey === '__undated' ? (
+                      <div className="mb-1 mt-2.5 flex items-center gap-2.5 px-1 first:mt-0">
+                        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                          Undated
+                        </span>
+                        <span className="h-px flex-1 bg-border" />
                       </div>
-                      <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground">
-                        {formatDay(thread.last.timestamp)}
-                      </span>
-                    </button>
-                  );
-                })}
+                    ) : (
+                      <TimelineDateSeparator
+                        timestamp={group.items[0]!.sortTimestamp!}
+                        className="px-1"
+                      />
+                    )}
+                    {group.items.map((thread) => {
+                      const channelDef = thread.channel;
+                      const Icon = channelDef?.Icon ?? MessageSquare;
+                      const ch = channelDef?.cssVar ?? 'var(--muted-ink)';
+                      const active = activeThread?.threadId === thread.threadId;
+                      return (
+                        <button
+                          key={String(thread.threadId)}
+                          type="button"
+                          onClick={() => setOpenThreadId(thread.threadId)}
+                          data-testid={`transcripts-thread-${thread.threadId}`}
+                          style={
+                            {
+                              '--ch': ch,
+                              ...(active
+                                ? {
+                                    backgroundColor:
+                                      'color-mix(in srgb, var(--ch) 12%, transparent)',
+                                  }
+                                : {}),
+                            } as React.CSSProperties
+                          }
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors',
+                            !active && 'hover:bg-muted'
+                          )}
+                        >
+                          <span
+                            className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px]"
+                            style={{
+                              color: ch,
+                              backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
+                            }}
+                          >
+                            <Icon className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-title break-words">{thread.subject}</div>
+                            <div className="text-caption mt-0.5 truncate">
+                              <span style={{ color: ch }}>{channelDef?.label ?? 'Other'}</span> ·{' '}
+                              {thread.messages.length} msg · {thread.participantIds.length} people
+                              {scopeLabelFor(thread.rootKey) ? (
+                                <> · {scopeLabelFor(thread.rootKey)}</>
+                              ) : null}
+                            </div>
+                          </div>
+                          <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground">
+                            {formatDay(thread.last.timestamp)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
               </div>
             </ScrollArea>
           }
