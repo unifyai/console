@@ -47,6 +47,7 @@ export interface AssistantCallConnectOptions {
 
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
+export type HireOperatingSystem = 'none' | 'ubuntu' | 'windows';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
 export type ContactIdentityRoot =
   | {
@@ -143,6 +144,8 @@ export interface Assistant {
   isUserDesktop?: boolean;
   desktopMode?: DesktopMode | null;
   desktopUrl?: string | null;
+  managedDesktopStatus?: 'active' | 'grace_period' | 'disabled' | null;
+  managedDesktopMonthlyCost?: number | null;
   // Per-user desktop link of the *requesting* user (the desktop they linked to
   // this assistant), resolved server-side. Null when this user has not linked
   // a machine.
@@ -325,10 +328,10 @@ export type AssistantFormData = Omit<
   > | null;
   currentPreset?: AssistantPreset | null;
 
-  // Setup fields. The assistant always runs on a managed remote VM; users link
-  // their own machines post-hire via the desktop linker, not at creation time.
+  // Setup fields. Managed Computer Use is optional at hire; users can enable
+  // post-hire from the assistant profile.
   setup?: 'remote';
-  operatingSystem?: 'ubuntu' | 'windows' | 'macos';
+  operatingSystem?: HireOperatingSystem;
 
   // UI state fields
   designIncludeBio?: boolean;

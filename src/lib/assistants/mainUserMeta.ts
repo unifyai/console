@@ -4,11 +4,8 @@ import { getCurrentUser } from '@/lib/user/user';
 import { getActiveOrganization } from '@/lib/user/workspace';
 import { canManageOrgSlackInstall, getSlackInstallAction } from '@/lib/slack/install';
 import { isSlackInstall } from '@/types/slack/install';
-import {
-  canManageOrgMsTeamsBotInstall,
-  getOrgInstallStatusAction,
-} from '@/lib/ms-teams-bot/install';
-import { isMsTeamsBotInstall } from '@/types/ms-teams-bot/install';
+import { canManageOrgMsTeamsBotInstall, getInstallStatusAction } from '@/lib/ms-teams-bot/install';
+import { isMsTeamsBotInstall, type MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 import type { AssistantsMainUserMeta } from '@/types/assistants/main';
 
 export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMeta | null> {
@@ -32,14 +29,17 @@ export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMe
       : slackConfigured;
   const installResult = slackOwner ? await getSlackInstallAction(slackOwner) : null;
 
-  // MS Teams bot bind handshake is org-scoped: only surface it in an org
-  // context, gated to owners/admins. Unlike Slack it needs no provider
-  // OAuth client — the bind only talks to Orchestra via the admin key —
-  // so it is available whenever there is an active organization.
-  const msTeamsBotOrgId = orgId;
-  const msTeamsBotCanManage = orgId != null && canManageOrgMsTeamsBotInstall(activeOrganization);
-  const teamsInstallResult =
-    orgId != null && msTeamsBotCanManage ? await getOrgInstallStatusAction(orgId) : null;
+  // MS Teams bot bind handshake is owner-scoped, mirroring Slack: an org
+  // (owner/admin) or the personal user. Unlike Slack it needs no provider
+  // OAuth client — the bind only talks to Orchestra via the admin key — so
+  // it is available in both org and personal workspaces.
+  const msTeamsBotOwner: MsTeamsBotInstallOwner =
+    orgId != null ? { kind: 'org', orgId } : { kind: 'user', userId: String(user.id) };
+  const msTeamsBotCanManage =
+    orgId != null ? canManageOrgMsTeamsBotInstall(activeOrganization) : true;
+  const teamsInstallResult = msTeamsBotCanManage
+    ? await getInstallStatusAction(msTeamsBotOwner)
+    : null;
 
   return {
     image: user.image,
@@ -55,7 +55,7 @@ export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMe
     slackOwner,
     slackCanManageInstall,
     slackInitialInstall: isSlackInstall(installResult) ? installResult : null,
-    msTeamsBotOrgId,
+    msTeamsBotOwner,
     msTeamsBotCanManage,
     msTeamsBotInitialInstall: isMsTeamsBotInstall(teamsInstallResult) ? teamsInstallResult : null,
   };

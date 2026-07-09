@@ -66,6 +66,9 @@ export type ChecklistAction =
   | 'connect-slack'
   | 'trigger-slack-reference'
   | 'start-slack-message'
+  | 'connect-ms-teams'
+  | 'open-ms-teams-chat'
+  | 'start-ms-teams-message'
   | 'add-discord-id'
   | 'connect-discord'
   | 'trigger-discord-reference'
@@ -130,6 +133,9 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'slack-connect': 'connect-slack',
   'slack-reference': 'trigger-slack-reference',
   'slack-message': 'start-slack-message',
+  'ms-teams-connect': 'connect-ms-teams',
+  'ms-teams-reference': 'open-ms-teams-chat',
+  'ms-teams-message': 'start-ms-teams-message',
   'discord-id': 'add-discord-id',
   'discord-connect': 'connect-discord',
   'discord-reference': 'trigger-discord-reference',
@@ -161,6 +167,8 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'start-phone-call': 'Checking...',
   'trigger-slack-reference': 'Sending...',
   'start-slack-message': 'Checking...',
+  'open-ms-teams-chat': 'Opening...',
+  'start-ms-teams-message': 'Checking...',
   'trigger-discord-reference': 'Sending...',
   'start-discord-message': 'Checking...',
   'trigger-workspace-mailbox': 'Summarizing...',
@@ -413,6 +421,11 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   },
   { id: 'slack', title: 'Slack', stepIds: ['slack-connect', 'slack-reference', 'slack-message'] },
   {
+    id: 'ms_teams',
+    title: 'Microsoft Teams',
+    stepIds: ['ms-teams-connect', 'ms-teams-reference', 'ms-teams-message'],
+  },
+  {
     id: 'discord',
     title: 'Discord',
     stepIds: ['discord-id', 'discord-connect', 'discord-reference', 'discord-message'],
@@ -583,6 +596,13 @@ export interface CoordinatorOnboardingChecklistProps {
   onAddPhoneNumber?: () => void;
   onAddDiscordId?: () => void;
   onConnectSlack?: () => void;
+  onConnectMsTeams?: () => void;
+  /** Opens the 1:1 Teams chat with the Unify bot (adding the app for the
+   * user first if needed) so they can send it a first message. The bot is
+   * reply-only, so this user-initiated send is what seeds the conversation
+   * reference before Twin can reply. Hung off the ``ms-teams-reference``
+   * row. Unset means the row degrades to a static entry. */
+  onOpenMsTeamsChat?: () => void;
   onConnectDiscord?: () => void;
   /** Opens the workspace OAuth dialog. Hung off the "Give T-W1N
    * access to your workspace" sub-item. Unset means
@@ -644,6 +664,8 @@ export function CoordinatorOnboardingChecklist({
   onAddPhoneNumber,
   onAddDiscordId,
   onConnectSlack,
+  onConnectMsTeams,
+  onOpenMsTeamsChat,
   onConnectDiscord,
   onConnectWorkspace,
   onConnectApps,
@@ -718,6 +740,9 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'connect-slack') onConnectSlack?.();
       else if (action === 'trigger-slack-reference') onTriggerReferenceStep?.('slack-reference');
       else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
+      else if (action === 'connect-ms-teams') onConnectMsTeams?.();
+      else if (action === 'open-ms-teams-chat') onOpenMsTeamsChat?.();
+      else if (action === 'start-ms-teams-message') onStartOnboardingStep?.('ms-teams-message');
       else if (action === 'add-discord-id') onAddDiscordId?.();
       else if (action === 'connect-discord') onConnectDiscord?.();
       else if (action === 'trigger-discord-reference')
@@ -746,6 +771,8 @@ export function CoordinatorOnboardingChecklist({
       onAddPhoneNumber,
       onAddDiscordId,
       onConnectSlack,
+      onConnectMsTeams,
+      onOpenMsTeamsChat,
       onConnectDiscord,
       onConnectWorkspace,
       onConnectApps,
@@ -829,6 +856,9 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'trigger-slack-reference') {
         return !!onTriggerReferenceStep && !!onConnectSlack;
       }
+      if (action === 'open-ms-teams-chat') {
+        return !!onOpenMsTeamsChat;
+      }
       if (action === 'trigger-discord-reference') {
         return !!onTriggerReferenceStep && !!onConnectDiscord;
       }
@@ -847,11 +877,13 @@ export function CoordinatorOnboardingChecklist({
         );
       }
       if (action === 'start-slack-message') return !!onStartOnboardingStep && !!onConnectSlack;
+      if (action === 'start-ms-teams-message') return !!onStartOnboardingStep && !!onConnectMsTeams;
       if (action === 'start-discord-message') return !!onStartOnboardingStep && !!onConnectDiscord;
       if (action === 'add-whatsapp-number') return !!onAddWhatsappNumber;
       if (action === 'add-phone-number') return !!onAddPhoneNumber;
       if (action === 'add-discord-id') return !!onAddDiscordId;
       if (action === 'connect-slack') return !!onConnectSlack;
+      if (action === 'connect-ms-teams') return !!onConnectMsTeams;
       if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
       if (
@@ -879,6 +911,8 @@ export function CoordinatorOnboardingChecklist({
       onAddPhoneNumber,
       onAddDiscordId,
       onConnectSlack,
+      onConnectMsTeams,
+      onOpenMsTeamsChat,
       onConnectDiscord,
       onConnectWorkspace,
       onConnectApps,
@@ -1567,6 +1601,21 @@ function ChecklistRow({
             <AlertDialogTitle>Reset {item.title}?</AlertDialogTitle>
             <AlertDialogDescription>
               All progress in this section will be removed, so you can redo each task. Are you sure?
+              {item.id === 'discord' ? (
+                <>
+                  {' '}
+                  T-W1N uses a shared Discord bot, so this only resets your setup here — to fully
+                  disconnect, remove the bot from your own Discord server in Server Settings →
+                  Integrations.
+                </>
+              ) : null}
+              {item.id === 'ms_teams' ? (
+                <>
+                  {' '}
+                  This only resets your setup here — to fully remove T-W1N, a Teams admin must
+                  uninstall the app from the Teams admin center.
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

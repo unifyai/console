@@ -57,6 +57,8 @@ export interface AssistantInfoSidePanelContentProps {
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   /** Open the desktop linker dialog. Owner-only; omit for non-owners. */
   onConnectDesktop?: (assistant: Assistant) => void;
+  /** Open the managed Computer Use manager dialog. */
+  onOpenComputerUseManager?: (assistant: Assistant) => void;
   /**
    * Whether the viewer can edit this assistant. Drives the visibility
    * of every edit affordance the panel surfaces in the Profile tab.
@@ -105,6 +107,8 @@ export interface AssistantInfoSidePanelContentProps {
     onAddPhoneNumber?: () => void;
     onAddDiscordId?: () => void;
     onConnectSlack?: () => void;
+    onConnectMsTeams?: () => void;
+    onOpenMsTeamsChat?: () => void;
     onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
@@ -398,6 +402,8 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
                 onAddDiscordId={coordinatorOnboarding.onAddDiscordId}
                 onConnectSlack={coordinatorOnboarding.onConnectSlack}
+                onConnectMsTeams={coordinatorOnboarding.onConnectMsTeams}
+                onOpenMsTeamsChat={coordinatorOnboarding.onOpenMsTeamsChat}
                 onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                 onConnectApps={coordinatorOnboarding.onConnectApps}
@@ -455,6 +461,7 @@ function RegularAssistantInfoSidePanelContent({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
+  onOpenComputerUseManager,
   roadmap,
   className,
   canWrite = true,
@@ -535,6 +542,7 @@ function RegularAssistantInfoSidePanelContent({
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
+      onOpenComputerUseManager={onOpenComputerUseManager}
       canWrite={canWrite}
       sectionsRef={profileSectionsRef}
     />
@@ -766,6 +774,7 @@ interface ProfileSectionsPanelProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
+  onOpenComputerUseManager?: (assistant: Assistant) => void;
   canWrite: boolean;
   sectionsRef?: React.MutableRefObject<HTMLElement | null>;
 }
@@ -881,6 +890,21 @@ function getDesktopStatusDescription(assistant: Assistant): string {
   return 'No desktop connected yet';
 }
 
+function getComputerUseStatusDescription(assistant: Assistant): string {
+  if (assistant.managedDesktopStatus === 'grace_period') {
+    return 'Grace period — add credits to keep Computer Use';
+  }
+  if (assistant.managedDesktopStatus === 'active' && assistant.desktopMode) {
+    const label = DESKTOP_OS_LABELS[assistant.desktopMode] ?? assistant.desktopMode;
+    const cost =
+      assistant.managedDesktopMonthlyCost != null
+        ? ` ($${assistant.managedDesktopMonthlyCost}/mo)`
+        : '';
+    return `${label} managed computer${cost}`;
+  }
+  return 'Not enabled';
+}
+
 function ProfileSectionsPanel({
   assistant,
   onEditProfile,
@@ -888,11 +912,16 @@ function ProfileSectionsPanel({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
+  onOpenComputerUseManager,
   canWrite,
   sectionsRef,
 }: ProfileSectionsPanelProps) {
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
+  const showComputerUseSection =
+    !!onOpenComputerUseManager ||
+    assistant.managedDesktopStatus === 'active' ||
+    assistant.managedDesktopStatus === 'grace_period';
 
   return (
     <section
@@ -943,6 +972,16 @@ function ProfileSectionsPanel({
         editAriaLabel="Edit contact details"
         suppressTileButtonSemantics
       />
+      {showComputerUseSection && (
+        <ProfileSectionTile
+          title="Computer Use"
+          description={getComputerUseStatusDescription(assistant)}
+          canEdit={canWrite && !!onOpenComputerUseManager}
+          onEdit={onOpenComputerUseManager ? () => onOpenComputerUseManager(assistant) : undefined}
+          editTestId="assistant-info-edit-computer-use-section"
+          editAriaLabel="Manage computer use"
+        />
+      )}
       {showDesktopSection && (
         <ProfileSectionTile
           title="Desktop"

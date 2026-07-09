@@ -159,6 +159,7 @@ import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
+import { AssistantComputerUseManager } from './Profile/AssistantComputerUseManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
 import { useCallContext } from './Communication/CallProvider';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
@@ -178,7 +179,8 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import type { MsTeamsBotInstall } from '@/types/ms-teams-bot/install';
+import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
+import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -204,7 +206,7 @@ const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
 const COORDINATOR_ONBOARDING_IDLE_POLL_MS = 30_000;
 const COORDINATOR_ONBOARDING_STEP_RETRY_MS = 30_000;
-type ContactManagerInitialTab = ContactType | 'slack';
+type ContactManagerInitialTab = ContactType | 'slack' | 'ms_teams_bot';
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -227,13 +229,13 @@ interface MainProps {
     slackCanManageInstall?: boolean;
     /** Server-prefetched shared Slack install for the active workspace. */
     slackInitialInstall?: SlackInstall | null;
-    /** Org id whose MS Teams bot install can be bound (org context only;
-     *  null hides the Teams bot entry). */
-    msTeamsBotOrgId?: number | null;
-    /** Whether the current user (org owner/admin) may bind the Teams bot
-     *  install. */
+    /** Owner scope whose MS Teams bot install can be bound — an org
+     *  (owner/admin) or the personal user. Null hides the Teams bot entry. */
+    msTeamsBotOwner?: MsTeamsBotInstallOwner | null;
+    /** Whether the current user may bind the Teams bot install (org
+     *  owner/admin, or the personal-account owner). */
     msTeamsBotCanManage?: boolean;
-    /** Server-prefetched current MS Teams bot install for the active org. */
+    /** Server-prefetched current MS Teams bot install for the active owner. */
     msTeamsBotInitialInstall?: MsTeamsBotInstall | null;
   };
 }
@@ -1303,6 +1305,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [contactManagerInitialTab, setContactManagerInitialTab] =
     React.useState<ContactManagerInitialTab>('email');
   const [workspaceManagerAssistant, setWorkspaceManagerAssistant] =
+    React.useState<Assistant | null>(null);
+  const [computerUseManagerAssistant, setComputerUseManagerAssistant] =
     React.useState<Assistant | null>(null);
   const [workspaceManagerInitialProvider, setWorkspaceManagerInitialProvider] =
     React.useState<OAuthProvider | null>(null);
@@ -2600,6 +2604,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleOpenContactManager(canonicalCoordinator, 'slack');
   }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
 
+  const handleCoordinatorConnectMsTeams = React.useCallback(() => {
+    if (!canonicalCoordinator) return;
+    handleCoordinatorStartOnboardingStep('ms-teams-connect');
+    handleOpenContactManager(canonicalCoordinator, 'ms_teams_bot');
+  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+
+  // The Unify Teams bot is reply-only: it cannot open a conversation, so the
+  // ``ms-teams-reference`` step is user-initiated. This opens the Teams chat
+  // with the bot (via a deep link that also adds the app for the user first
+  // when a catalog id is configured) so they can send it a first message —
+  // that inbound is what seeds the conversation reference and completes the
+  // step. Starting the step locally lets the row settle immediately.
+  const handleCoordinatorOpenMsTeamsChat = React.useCallback(() => {
+    const link = buildMsTeamsChatDeepLink({
+      catalogId: MS_TEAMS_APP_CATALOG_ID,
+      botAppId: userMeta.msTeamsBotInitialInstall?.botAppId ?? null,
+    });
+    if (!link) return;
+    handleCoordinatorStartOnboardingStep('ms-teams-reference');
+    window.open(link, '_blank', 'noopener,noreferrer');
+  }, [userMeta.msTeamsBotInitialInstall?.botAppId, handleCoordinatorStartOnboardingStep]);
+
   const handleCoordinatorConnectDiscord = React.useCallback(() => {
     if (!canonicalCoordinator) return;
     handleCoordinatorStartOnboardingStep('discord-connect');
@@ -2718,6 +2744,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onAddDiscordId: contactDiscord ? handleCoordinatorAddDiscordId : undefined,
       onConnectSlack:
         userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
+      onConnectMsTeams:
+        userMeta.msTeamsBotOwner && assistantActions.msTeamsBot
+          ? handleCoordinatorConnectMsTeams
+          : undefined,
+      // Only wire the reply-first "send your first Teams message" row when a
+      // deep link is actually buildable (a public catalog id, or the tenant
+      // install's bot app id). Otherwise it degrades to a static entry.
+      onOpenMsTeamsChat:
+        userMeta.msTeamsBotOwner &&
+        (MS_TEAMS_APP_CATALOG_ID || userMeta.msTeamsBotInitialInstall?.botAppId)
+          ? handleCoordinatorOpenMsTeamsChat
+          : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
       onConnectWorkspace: workspaceConnectAvailable
         ? () => {
@@ -2759,10 +2797,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     profileAssistantId,
     activeCallAssistant,
     assistantActions.slack,
+    assistantActions.msTeamsBot,
     contactDiscord,
     contactPhone,
     contactWhatsapp,
     userMeta.slackOwner,
+    userMeta.msTeamsBotOwner,
+    userMeta.msTeamsBotInitialInstall?.botAppId,
     markStepEngaged,
     beginAppsConnectFlow,
     markStepCompleted,
@@ -2772,6 +2813,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorAddPhoneNumber,
     handleCoordinatorAddDiscordId,
     handleCoordinatorConnectSlack,
+    handleCoordinatorConnectMsTeams,
+    handleCoordinatorOpenMsTeamsChat,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
@@ -3670,6 +3713,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       profileCanWrite ? handleOpenWorkspaceManager : undefined
                     }
                     onConnectDesktop={isAssistantOwner ? handleShowInstallInstructions : undefined}
+                    onOpenComputerUseManager={
+                      profileCanWrite
+                        ? (assistant) => setComputerUseManagerAssistant(assistant)
+                        : undefined
+                    }
                     hasUserMessage={profiledHasUserMessage}
                     hasHistoricalCall={profiledHasHistoricalCall}
                     hasUserPhoneNumber={hasUserPhoneNumber}
@@ -3962,10 +4010,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               slackOwner={userMeta.slackOwner ?? null}
               slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
               slackInitialInstall={userMeta.slackInitialInstall ?? null}
-              msTeamsBotOrgId={userMeta.msTeamsBotOrgId ?? null}
+              msTeamsBotOwner={userMeta.msTeamsBotOwner ?? null}
               msTeamsBotCanManage={userMeta.msTeamsBotCanManage ?? false}
               msTeamsBotInitialInstall={userMeta.msTeamsBotInitialInstall ?? null}
               onOpenUserSettings={handleOpenUserSettings}
+            />
+          )}
+          {computerUseManagerAssistant && (
+            <AssistantComputerUseManager
+              assistant={computerUseManagerAssistant}
+              open={!!computerUseManagerAssistant}
+              onOpenChange={(open) => {
+                if (!open) setComputerUseManagerAssistant(null);
+              }}
+              onUpdated={() => {
+                setComputerUseManagerAssistant(null);
+                handleUpdateSuccess();
+              }}
+              onAddPaymentMethod={goToBilling}
             />
           )}
           {workspaceManagerAssistant && (

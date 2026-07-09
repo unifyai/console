@@ -1,5 +1,5 @@
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import type { MsTeamsBotInstall } from '@/types/ms-teams-bot/install';
+import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 
 export type AssistantsMainUserMeta = {
   image: string | null | undefined;
@@ -15,12 +15,13 @@ export type AssistantsMainUserMeta = {
   slackOwner?: SlackInstallOwner | null;
   slackCanManageInstall?: boolean;
   slackInitialInstall?: SlackInstall | null;
-  /** Org id whose MS Teams bot install can be bound here (org context
-   *  only — the bind handshake is org-scoped). Null in a personal
-   *  workspace, which hides the Teams bot entry. */
-  msTeamsBotOrgId?: number | null;
-  /** Whether the current user (org owner/admin) may bind the install. */
+  /** Owner scope whose MS Teams bot install can be bound here — an org
+   *  (owner/admin) or the personal user. ``null`` (or absent
+   *  ``assistantActions.msTeamsBot``) hides the Teams bot entry. */
+  msTeamsBotOwner?: MsTeamsBotInstallOwner | null;
+  /** Whether the current user may bind the install (org owner/admin, or
+   *  the personal-account owner). */
   msTeamsBotCanManage?: boolean;
-  /** Server-prefetched current install for the active org. */
+  /** Server-prefetched current install for the active owner scope. */
   msTeamsBotInitialInstall?: MsTeamsBotInstall | null;
 };

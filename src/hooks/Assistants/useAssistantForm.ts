@@ -9,6 +9,7 @@ import {
   VoiceOption,
   AssistantUpdatePayload,
   DesktopMode,
+  HireOperatingSystem,
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
@@ -105,7 +106,7 @@ export function useAssistantForm(
 
       // Setup fields
       setup: 'remote',
-      operatingSystem: 'ubuntu',
+      operatingSystem: 'none',
 
       // UI state fields
       designIncludeBio: false,
@@ -372,7 +373,7 @@ export function useAssistantForm(
 
         // Setup fields
         setup: 'remote',
-        operatingSystem: 'ubuntu',
+        operatingSystem: 'none',
 
         // UI state fields
         designIncludeBio: false,
@@ -447,7 +448,10 @@ export function useAssistantForm(
 
         // Setup
         setup: 'remote',
-        operatingSystem: (assistant.desktopMode as DesktopMode | null) || 'ubuntu',
+        operatingSystem:
+          assistant.desktopMode == null
+            ? 'none'
+            : (assistant.desktopMode as Exclude<HireOperatingSystem, 'none'>),
       });
       setShowInsufficientFundsHint(false);
 
@@ -723,7 +727,8 @@ export function useAssistantForm(
       // Assistants always run on a managed remote VM; users link their own
       // machines post-hire via the desktop linker.
       const isUserDesktop = false;
-      const desktopModePayload = data.operatingSystem as DesktopMode;
+      const desktopModePayload =
+        data.operatingSystem === 'none' ? null : (data.operatingSystem as DesktopMode);
       const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({
         role,
         msg: content,

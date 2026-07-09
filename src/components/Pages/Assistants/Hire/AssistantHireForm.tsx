@@ -359,7 +359,6 @@ export function HireForm({
   );
   const playSelectedVoicePreviewRef = React.useRef<(() => void) | null>(null);
   const setup = useWatch({ control, name: 'setup' });
-  const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
   const { options: defaultModelOptions } = useDefaultModelOptions();
@@ -532,13 +531,6 @@ export function HireForm({
   const playSelectedVoicePreview = React.useCallback(() => {
     playSelectedVoicePreviewRef.current?.();
   }, []);
-
-  // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
-  React.useEffect(() => {
-    if (setup === 'remote' && operatingSystem === 'macos') {
-      setValue('operatingSystem', 'ubuntu');
-    }
-  }, [setup, operatingSystem, setValue]);
 
   React.useEffect(() => {
     const isPristine = getValues('isPresetPristine');
@@ -1586,6 +1578,30 @@ export function HireForm({
                                             )}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              if (!isEditMode) osField.onChange('none');
+                                            }}
+                                          >
+                                            <div
+                                              className={cn(
+                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                                osField.value === 'none' && 'border-primary'
+                                              )}
+                                            >
+                                              {osField.value === 'none' && (
+                                                <div className="rounded-control h-2 w-2 bg-primary" />
+                                              )}
+                                            </div>
+                                            <Label className="text-body font-normal">
+                                              None — no managed computer
+                                            </Label>
+                                          </div>
+                                          <div
+                                            className={cn(
+                                              'flex items-center space-x-2',
+                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
+                                            )}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
                                               if (!isEditMode) osField.onChange('ubuntu');
                                             }}
                                           >
@@ -1607,7 +1623,7 @@ export function HireForm({
                                                 !isEditMode && 'cursor-pointer'
                                               )}
                                             >
-                                              Ubuntu
+                                              Ubuntu — $50 credits/month
                                             </Label>
                                           </div>
                                           <div
@@ -1638,7 +1654,7 @@ export function HireForm({
                                                 !isEditMode && 'cursor-pointer'
                                               )}
                                             >
-                                              Windows
+                                              Windows — $75 credits/month
                                             </Label>
                                           </div>
                                         </div>
