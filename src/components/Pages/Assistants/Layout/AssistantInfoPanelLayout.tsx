@@ -125,6 +125,7 @@ interface AssistantInfoPanelLayoutProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
+  onOpenComputerUseManager?: (assistant: Assistant) => void;
   hasUserMessage?: boolean;
   hasHistoricalCall?: boolean;
   hasUserPhoneNumber?: boolean;
@@ -157,6 +158,7 @@ export function AssistantInfoPanelLayout({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onConnectDesktop,
+  onOpenComputerUseManager,
   hasUserMessage = false,
   hasHistoricalCall = false,
   hasUserPhoneNumber = false,
@@ -473,6 +475,7 @@ export function AssistantInfoPanelLayout({
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
       onConnectDesktop={onConnectDesktop}
+      onOpenComputerUseManager={onOpenComputerUseManager}
       roadmap={roadmap}
       canWrite={canWrite}
       coordinatorOnboarding={coordinatorOnboarding}

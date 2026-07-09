@@ -159,6 +159,7 @@ import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
+import { AssistantComputerUseManager } from './Profile/AssistantComputerUseManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
 import { useCallContext } from './Communication/CallProvider';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
@@ -1304,6 +1305,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [contactManagerInitialTab, setContactManagerInitialTab] =
     React.useState<ContactManagerInitialTab>('email');
   const [workspaceManagerAssistant, setWorkspaceManagerAssistant] =
+    React.useState<Assistant | null>(null);
+  const [computerUseManagerAssistant, setComputerUseManagerAssistant] =
     React.useState<Assistant | null>(null);
   const [workspaceManagerInitialProvider, setWorkspaceManagerInitialProvider] =
     React.useState<OAuthProvider | null>(null);
@@ -3710,6 +3713,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       profileCanWrite ? handleOpenWorkspaceManager : undefined
                     }
                     onConnectDesktop={isAssistantOwner ? handleShowInstallInstructions : undefined}
+                    onOpenComputerUseManager={
+                      profileCanWrite
+                        ? (assistant) => setComputerUseManagerAssistant(assistant)
+                        : undefined
+                    }
                     hasUserMessage={profiledHasUserMessage}
                     hasHistoricalCall={profiledHasHistoricalCall}
                     hasUserPhoneNumber={hasUserPhoneNumber}
@@ -4006,6 +4014,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               msTeamsBotCanManage={userMeta.msTeamsBotCanManage ?? false}
               msTeamsBotInitialInstall={userMeta.msTeamsBotInitialInstall ?? null}
               onOpenUserSettings={handleOpenUserSettings}
+            />
+          )}
+          {computerUseManagerAssistant && (
+            <AssistantComputerUseManager
+              assistant={computerUseManagerAssistant}
+              open={!!computerUseManagerAssistant}
+              onOpenChange={(open) => {
+                if (!open) setComputerUseManagerAssistant(null);
+              }}
+              onUpdated={() => {
+                setComputerUseManagerAssistant(null);
+                handleUpdateSuccess();
+              }}
+              onAddPaymentMethod={goToBilling}
             />
           )}
           {workspaceManagerAssistant && (
