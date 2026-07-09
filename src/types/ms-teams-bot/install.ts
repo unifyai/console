@@ -5,9 +5,9 @@
  * org-wide into a customer's Microsoft 365 tenant from the Teams Store.
  * That install arrives at Orchestra *before* we know which Unify owner
  * it belongs to, so it lands as a **pending** row (no owner) carrying a
- * one-time ``bindNonce``. A signed-in Unify org admin claims it by
- * entering that nonce, which binds the pending install to their
- * organization.
+ * one-time ``bindNonce``. A signed-in Unify user claims it by entering
+ * that nonce, which binds the pending install to their owner scope —
+ * either an organization (owner/admin) or their personal account.
  *
  * This is intentionally distinct from the BYOD delegated-Graph "Teams"
  * integration (per-assistant workspace OAuth): the bot is a single
@@ -20,6 +20,16 @@
  */
 
 import type { ResponseProps } from '@/types/common';
+
+/**
+ * Discriminated owner of an MS Teams bot install. An install belongs to
+ * either an organization or a single personal user — never both —
+ * mirroring Orchestra's owner-XOR constraint (and the Slack install
+ * ``SlackInstallOwner`` shape).
+ */
+export type MsTeamsBotInstallOwner =
+  | { kind: 'org'; orgId: number }
+  | { kind: 'user'; userId: string };
 
 /**
  * An MS Teams bot install row, as returned by Orchestra's
@@ -49,16 +59,19 @@ export interface MsTeamsBotInstall {
 /**
  * Server-action bundle for MS Teams bot install management. The page
  * server component builds it once (secret-bearing — it uses the
- * ``ORCHESTRA_ADMIN_KEY``) and hands it down to the client tree. The org
- * id is supplied at call time so a single bundle serves whichever org
- * the active workspace resolves to.
+ * ``ORCHESTRA_ADMIN_KEY``) and hands it down to the client tree. The
+ * owner descriptor is supplied at call time so a single bundle serves
+ * both org and personal contexts.
  */
 export interface MsTeamsBotInstallActions {
-  /** The org's current install (``null`` if none exists). */
-  getInstall: (orgId: number) => Promise<MsTeamsBotInstall | null | ResponseProps>;
+  /** The owner's current install (``null`` if none exists). */
+  getInstall: (owner: MsTeamsBotInstallOwner) => Promise<MsTeamsBotInstall | null | ResponseProps>;
   /** Resolve a pending install by its ``bindNonce`` and bind it to the
-   *  org. Returns the freshly-bound install. */
-  bindInstall: (orgId: number, nonce: string) => Promise<MsTeamsBotInstall | ResponseProps>;
+   *  owner. Returns the freshly-bound install. */
+  bindInstall: (
+    owner: MsTeamsBotInstallOwner,
+    nonce: string
+  ) => Promise<MsTeamsBotInstall | ResponseProps>;
 }
 
 /** Narrow a settled action result to a concrete install row. */

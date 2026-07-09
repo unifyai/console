@@ -6,26 +6,28 @@ import 'server-only';
  * A Teams Store install lands in Orchestra's ``ms_teams_bot_installs``
  * table as a **pending** row (no owner) carrying a one-time
  * ``bind_nonce``. Someone signed into Console claims it by binding the
- * pending install to their Unify **organization** — that is the whole
- * job of this module.
+ * pending install to their Unify **owner scope** — an organization or
+ * their personal account — that is the whole job of this module.
  *
  * These are admin-API calls (``/v0/admin/ms-teams-bot/...``) that carry
  * the ``ORCHESTRA_ADMIN_KEY``, so — exactly like the Slack install path
  * — Console is the **gatekeeper**. Every action here:
  *
  *   1. Resolves the current user via the session cookie.
- *   2. Verifies the user is an owner/admin of the target organization.
+ *   2. Verifies the user may manage the target owner scope (org
+ *      owner/admin, or the personal-account owner themselves).
  *   3. Forwards the call to Orchestra via ``OrchestraAdminClient``.
  *
- * The bind is org-scoped: Orchestra's ``/bind`` endpoint takes exactly
- * one of ``organization_id`` / ``user_id`` and we always pass the org.
+ * The bind is owner-scoped: Orchestra's ``/bind`` endpoint takes exactly
+ * one of ``organization_id`` / ``user_id`` and we pass whichever the
+ * owner descriptor carries.
  */
 
 import type { AxiosError } from 'axios';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { getCurrentUser } from '@/lib/user/user';
 import type { ResponseProps } from '@/types/common';
-import type { MsTeamsBotInstall } from '@/types/ms-teams-bot/install';
+import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 import type { UserOrganization } from '@/types/user';
 
 /**
@@ -54,18 +56,31 @@ function errorResponse(error: unknown, fallback: string): ResponseProps {
 }
 
 /**
- * Confirm the session user may manage the install for ``orgId``.
+ * Confirm the session user may manage the install for ``owner``.
+ *
+ * * Org installs — the user must be an owner or admin of the target
+ *   organization.
+ * * Personal installs — the user must be that same user.
  *
  * Returns ``null`` on success or a ``ResponseProps`` (with a generic
  * detail) the caller should surface — we deliberately don't leak the
  * specific failure reason to the client.
  */
-async function requireOrgManager(orgId: number): Promise<ResponseProps | null> {
+async function requireInstallOwner(owner: MsTeamsBotInstallOwner): Promise<ResponseProps | null> {
   const user = await getCurrentUser();
   if (!user) {
     return { detail: 'Not authenticated.', status: 401 };
   }
-  const org = user.organizations?.find((o) => o.id === orgId);
+  if (owner.kind === 'user') {
+    if (String(user.id) !== owner.userId) {
+      return {
+        detail: 'You can only manage the Teams bot install for your own account.',
+        status: 403,
+      };
+    }
+    return null;
+  }
+  const org = user.organizations?.find((o) => o.id === owner.orgId);
   if (!org) {
     return { detail: 'Organization not found.', status: 404 };
   }
@@ -78,20 +93,30 @@ async function requireOrgManager(orgId: number): Promise<ResponseProps | null> {
   return null;
 }
 
+/** Translate an owner descriptor into the admin GET query selector. */
+function ownerQuery(owner: MsTeamsBotInstallOwner): Record<string, string | number | boolean> {
+  return owner.kind === 'org' ? { organizationId: owner.orgId } : { userId: owner.userId };
+}
+
+/** Translate an owner descriptor into the ``/bind`` request body selector. */
+function ownerBindSelector(owner: MsTeamsBotInstallOwner): Record<string, string | number> {
+  return owner.kind === 'org' ? { organizationId: owner.orgId } : { userId: owner.userId };
+}
+
 /**
- * Look up the org's current MS Teams bot install (bound, pending, or
- * revoked). Returns ``null`` when the org has no install — distinct from
- * a transport failure which yields a ``ResponseProps``.
+ * Look up the owner's current MS Teams bot install (bound, pending, or
+ * revoked). Returns ``null`` when the owner has no install — distinct
+ * from a transport failure which yields a ``ResponseProps``.
  */
-export async function getOrgInstallStatusAction(
-  orgId: number
+export async function getInstallStatusAction(
+  owner: MsTeamsBotInstallOwner
 ): Promise<MsTeamsBotInstall | null | ResponseProps> {
   'use server';
-  const denied = await requireOrgManager(orgId);
+  const denied = await requireInstallOwner(owner);
   if (denied) return denied;
   try {
     const res = await OrchestraAdminClient.get('/ms-teams-bot/install', {
-      params: { organizationId: orgId },
+      params: ownerQuery(owner),
     });
     return res.data as MsTeamsBotInstall;
   } catch (e) {
@@ -102,19 +127,19 @@ export async function getOrgInstallStatusAction(
 }
 
 /**
- * Bind a pending install to the org via its handshake nonce.
+ * Bind a pending install to the owner via its handshake nonce.
  *
  * Resolves the ``bindNonce`` to a pending install id (admin GET), then
- * binds that install to ``orgId`` (admin POST ``/bind``). A blank nonce
+ * binds that install to ``owner`` (admin POST ``/bind``). A blank nonce
  * or one that resolves to no install yields a validation ``ResponseProps``
  * the hook surfaces as a generic toast.
  */
 export async function bindInstallAction(
-  orgId: number,
+  owner: MsTeamsBotInstallOwner,
   nonce: string
 ): Promise<MsTeamsBotInstall | ResponseProps> {
   'use server';
-  const denied = await requireOrgManager(orgId);
+  const denied = await requireInstallOwner(owner);
   if (denied) return denied;
 
   const trimmed = nonce.trim();
@@ -145,7 +170,7 @@ export async function bindInstallAction(
   try {
     const res = await OrchestraAdminClient.post('/ms-teams-bot/bind', {
       installId,
-      organizationId: orgId,
+      ...ownerBindSelector(owner),
     });
     return res.data as MsTeamsBotInstall;
   } catch (e) {

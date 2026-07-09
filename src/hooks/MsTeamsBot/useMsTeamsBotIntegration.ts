@@ -2,15 +2,16 @@
  * Hook driving the Microsoft Teams (bot) install panel in the assistant
  * contact manager.
  *
- * Holds the org's install row in local state seeded from the value the
+ * Holds the owner's install row in local state seeded from the value the
  * page server-prefetches, and exposes a ``bind`` callback that claims a
- * pending install for the org via its handshake nonce, plus a
+ * pending install for the owner via its handshake nonce, plus a
  * ``refresh`` that re-reads the current status.
  *
  * Unlike the Slack workspace connector there is no OAuth dance: the bot
- * is installed org-wide from the Teams Store out-of-band, and Console's
- * only job is the tenant→org bind handshake keyed on the nonce the
- * installer was shown.
+ * is installed tenant-wide from the Teams Store out-of-band, and Console's
+ * only job is the tenant→owner bind handshake keyed on the nonce the
+ * installer was shown. The owner is an org (owner/admin) or a personal
+ * user.
  */
 
 'use client';
@@ -21,16 +22,22 @@ import {
   isMsTeamsBotInstall,
   type MsTeamsBotInstall,
   type MsTeamsBotInstallActions,
+  type MsTeamsBotInstallOwner,
 } from '@/types/ms-teams-bot/install';
 
 interface UseMsTeamsBotIntegrationArgs {
-  orgId: number;
+  owner: MsTeamsBotInstallOwner;
   initialInstall: MsTeamsBotInstall | null;
   actions: MsTeamsBotInstallActions;
 }
 
+/** Stable string key for an owner descriptor (for ref comparison). */
+function ownerKey(owner: MsTeamsBotInstallOwner): string {
+  return owner.kind === 'org' ? `org:${owner.orgId}` : `user:${owner.userId}`;
+}
+
 export function useMsTeamsBotIntegration({
-  orgId,
+  owner,
   initialInstall,
   actions,
 }: UseMsTeamsBotIntegrationArgs) {
@@ -38,15 +45,15 @@ export function useMsTeamsBotIntegration({
   const [isBinding, setIsBinding] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // The page prefetches the install for one org scope; if the active
-  // workspace switches to a different org the seeded value is stale, so
+  // The page prefetches the install for one owner scope; if the active
+  // workspace switches to a different owner the seeded value is stale, so
   // drop it and refetch.
-  const lastSyncedOrgRef = useRef<number>(orgId);
+  const lastSyncedOwnerRef = useRef<string>(ownerKey(owner));
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const result = await actions.getInstall(orgId);
+      const result = await actions.getInstall(owner);
       if (result === null) {
         setInstall(null);
       } else if (isMsTeamsBotInstall(result)) {
@@ -57,23 +64,28 @@ export function useMsTeamsBotIntegration({
     } finally {
       setIsRefreshing(false);
     }
-  }, [actions, orgId]);
+  }, [actions, owner]);
 
   useEffect(() => {
-    if (lastSyncedOrgRef.current === orgId) return;
-    lastSyncedOrgRef.current = orgId;
+    const key = ownerKey(owner);
+    if (lastSyncedOwnerRef.current === key) return;
+    lastSyncedOwnerRef.current = key;
     setInstall(null);
     void refresh();
-  }, [orgId, refresh]);
+  }, [owner, refresh]);
 
   const bind = useCallback(
     async (nonce: string): Promise<boolean> => {
       setIsBinding(true);
       try {
-        const result = await actions.bindInstall(orgId, nonce);
+        const result = await actions.bindInstall(owner, nonce);
         if (isMsTeamsBotInstall(result)) {
           setInstall(result);
-          toast.success('Microsoft Teams bot connected to your organization.');
+          toast.success(
+            owner.kind === 'org'
+              ? 'Microsoft Teams bot connected to your organization.'
+              : 'Microsoft Teams bot connected to your account.'
+          );
           return true;
         }
         console.error('[ms-teams-bot] bind failed:', result);
@@ -83,7 +95,7 @@ export function useMsTeamsBotIntegration({
         setIsBinding(false);
       }
     },
-    [actions, orgId]
+    [actions, owner]
   );
 
   return {

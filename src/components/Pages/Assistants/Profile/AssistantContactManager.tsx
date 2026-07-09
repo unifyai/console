@@ -44,7 +44,7 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ContactType, OAuthProvider } from '@/types/assistants/contact';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { useSlackIntegration } from '@/hooks/Slack/useSlackIntegration';
-import type { MsTeamsBotInstall } from '@/types/ms-teams-bot/install';
+import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 import { useMsTeamsBotIntegration } from '@/hooks/MsTeamsBot/useMsTeamsBotIntegration';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { FormProvider, useWatch } from 'react-hook-form';
@@ -100,14 +100,14 @@ interface AssistantContactManagerProps {
   slackCanManageInstall?: boolean;
   /** Server-prefetched shared Slack install for the active workspace. */
   slackInitialInstall?: SlackInstall | null;
-  /** Org id whose MS Teams bot install can be bound here. ``null`` (or
-   *  absent ``assistantActions.msTeamsBot``) hides the Teams bot entry —
-   *  the bind handshake is org-scoped, so it only shows in an org context. */
-  msTeamsBotOrgId?: number | null;
-  /** Whether the current user (org owner/admin) may bind the Teams bot
-   *  install. */
+  /** Owner scope whose MS Teams bot install can be bound here — an org
+   *  (owner/admin) or the personal user. ``null`` (or absent
+   *  ``assistantActions.msTeamsBot``) hides the Teams bot entry. */
+  msTeamsBotOwner?: MsTeamsBotInstallOwner | null;
+  /** Whether the current user may bind the Teams bot install (org
+   *  owner/admin, or the personal-account owner). */
   msTeamsBotCanManage?: boolean;
-  /** Server-prefetched current MS Teams bot install for the active org. */
+  /** Server-prefetched current MS Teams bot install for the active owner. */
   msTeamsBotInitialInstall?: MsTeamsBotInstall | null;
   /** Open the user's account settings in a new tab (closes onboarding panel). */
   onOpenUserSettings?: (tab?: string) => void;
@@ -392,7 +392,7 @@ export function AssistantContactManager({
   slackOwner = null,
   slackCanManageInstall = false,
   slackInitialInstall = null,
-  msTeamsBotOrgId = null,
+  msTeamsBotOwner = null,
   msTeamsBotCanManage = false,
   msTeamsBotInitialInstall = null,
   onOpenUserSettings,
@@ -446,10 +446,10 @@ export function AssistantContactManager({
   // are typed to billable `ContactType`s).
   const slackAvailable = !!assistantActions.slack && !!slackOwner;
 
-  // The MS Teams bot bind handshake is org-scoped — it has no
-  // per-assistant contact row either — so it renders its own status +
-  // bind form and only appears in an organization context.
-  const msTeamsBotAvailable = !!assistantActions.msTeamsBot && msTeamsBotOrgId != null;
+  // The MS Teams bot bind handshake is owner-scoped (org or personal) —
+  // it has no per-assistant contact row either — so it renders its own
+  // status + bind form. Available in both org and personal workspaces.
+  const msTeamsBotAvailable = !!assistantActions.msTeamsBot && !!msTeamsBotOwner;
 
   // Channel availability is reported by Orchestra (which probes the comms layer
   // for the underlying provider credentials). A deployment without Twilio
@@ -734,7 +734,7 @@ export function AssistantContactManager({
                 </ContactSection>
               )}
 
-              {msTeamsBotAvailable && msTeamsBotOrgId != null && assistantActions.msTeamsBot && (
+              {msTeamsBotAvailable && msTeamsBotOwner && assistantActions.msTeamsBot && (
                 <ContactSection
                   type="ms_teams_bot"
                   icon={
@@ -750,7 +750,7 @@ export function AssistantContactManager({
                 >
                   <MsTeamsBotTabContent
                     assistant={assistant}
-                    orgId={msTeamsBotOrgId}
+                    owner={msTeamsBotOwner}
                     canManage={msTeamsBotCanManage}
                     initialInstall={msTeamsBotInitialInstall}
                     actions={assistantActions.msTeamsBot}
@@ -1184,31 +1184,32 @@ const SlackTabContent: React.FC<{
 // ---------------------------------------------------------------------------
 
 /**
- * The Microsoft Teams bot is installed org-wide into a customer's
+ * The Microsoft Teams bot is installed tenant-wide into a customer's
  * Microsoft 365 tenant from the Teams Store, out-of-band from Console.
  * That install arrives as a **pending** row carrying a one-time bind
- * code; an org owner/admin claims it here by entering the code, binding
- * the tenant install to this organization. Once bound, every assistant
- * in the org is reachable through the bot.
+ * code; the owner claims it here by entering the code, binding the tenant
+ * install to this owner scope — an org (owner/admin) or a personal user.
+ * Once bound, every assistant in that scope is reachable through the bot.
  *
  * This is distinct from the per-assistant BYOD "Teams" workspace
  * integration (delegated Graph OAuth) — that connects one mailbox's
- * Teams; this connects the whole tenant's bot to the org.
+ * Teams; this connects the whole tenant's bot to the owner scope.
  */
 const MsTeamsBotTabContent: React.FC<{
   assistant: Assistant;
-  orgId: number;
+  owner: MsTeamsBotInstallOwner;
   canManage: boolean;
   initialInstall: MsTeamsBotInstall | null;
   actions: NonNullable<AssistantActions['msTeamsBot']>;
-}> = ({ assistant, orgId, canManage, initialInstall, actions }) => {
+}> = ({ assistant, owner, canManage, initialInstall, actions }) => {
   const { install, isBinding, bind } = useMsTeamsBotIntegration({
-    orgId,
+    owner,
     initialInstall,
     actions,
   });
   const [nonce, setNonce] = React.useState('');
 
+  const ownerNoun = owner.kind === 'org' ? 'organization' : 'account';
   const fullName = `${assistant.firstName} ${assistant.surname}`.trim();
   const isBound = !!install && !install.pending && !install.revoked;
   const isPending = !!install && install.pending;
@@ -1237,7 +1238,7 @@ const MsTeamsBotTabContent: React.FC<{
             data-testid="ms-teams-bot-bind-button"
             className="flex-shrink-0"
           >
-            {isBinding ? 'Binding…' : 'Bind to organization'}
+            {isBinding ? 'Binding…' : `Bind to ${ownerNoun}`}
           </Button>
         </div>
       </div>
@@ -1262,7 +1263,7 @@ const MsTeamsBotTabContent: React.FC<{
   if (!canManage) {
     return (
       <p className="text-body text-muted-foreground" data-testid="ms-teams-bot-status">
-        No Microsoft Teams bot is connected to this organization yet. Ask your organization owner or
+        No Microsoft Teams bot is connected to this {ownerNoun} yet. Ask your organization owner or
         admin to bind the Teams install.
       </p>
     );
@@ -1282,13 +1283,13 @@ const MsTeamsBotTabContent: React.FC<{
         {isPending ? (
           <>
             A Teams bot install is waiting to be claimed for a Microsoft tenant. Enter the install
-            code shown after adding the Teams app to bind it to this organization.
+            code shown after adding the Teams app to bind it to this {ownerNoun}.
           </>
         ) : (
           <>
-            Install the Unify bot from the Microsoft Teams Store into your organization&apos;s
+            Install the Unify bot from the Microsoft Teams Store into your {ownerNoun}&apos;s
             Microsoft 365 tenant, then enter the install code you were shown to connect it here. You
-            only bind once — every assistant in this organization becomes reachable in Teams.
+            only bind once — every assistant in this {ownerNoun} becomes reachable in Teams.
           </>
         )}
       </p>

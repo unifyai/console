@@ -178,7 +178,7 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import type { MsTeamsBotInstall } from '@/types/ms-teams-bot/install';
+import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -227,13 +227,13 @@ interface MainProps {
     slackCanManageInstall?: boolean;
     /** Server-prefetched shared Slack install for the active workspace. */
     slackInitialInstall?: SlackInstall | null;
-    /** Org id whose MS Teams bot install can be bound (org context only;
-     *  null hides the Teams bot entry). */
-    msTeamsBotOrgId?: number | null;
-    /** Whether the current user (org owner/admin) may bind the Teams bot
-     *  install. */
+    /** Owner scope whose MS Teams bot install can be bound — an org
+     *  (owner/admin) or the personal user. Null hides the Teams bot entry. */
+    msTeamsBotOwner?: MsTeamsBotInstallOwner | null;
+    /** Whether the current user may bind the Teams bot install (org
+     *  owner/admin, or the personal-account owner). */
     msTeamsBotCanManage?: boolean;
-    /** Server-prefetched current MS Teams bot install for the active org. */
+    /** Server-prefetched current MS Teams bot install for the active owner. */
     msTeamsBotInitialInstall?: MsTeamsBotInstall | null;
   };
 }
@@ -2725,7 +2725,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onConnectSlack:
         userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
       onConnectMsTeams:
-        userMeta.msTeamsBotCanManage && assistantActions.msTeamsBot
+        userMeta.msTeamsBotOwner && assistantActions.msTeamsBot
           ? handleCoordinatorConnectMsTeams
           : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
@@ -2774,7 +2774,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     contactPhone,
     contactWhatsapp,
     userMeta.slackOwner,
-    userMeta.msTeamsBotCanManage,
+    userMeta.msTeamsBotOwner,
     markStepEngaged,
     beginAppsConnectFlow,
     markStepCompleted,
@@ -3975,7 +3975,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               slackOwner={userMeta.slackOwner ?? null}
               slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
               slackInitialInstall={userMeta.slackInitialInstall ?? null}
-              msTeamsBotOrgId={userMeta.msTeamsBotOrgId ?? null}
+              msTeamsBotOwner={userMeta.msTeamsBotOwner ?? null}
               msTeamsBotCanManage={userMeta.msTeamsBotCanManage ?? false}
               msTeamsBotInitialInstall={userMeta.msTeamsBotInitialInstall ?? null}
               onOpenUserSettings={handleOpenUserSettings}
