@@ -106,6 +106,7 @@ export interface AssistantInfoSidePanelContentProps {
     onAddDiscordId?: () => void;
     onConnectSlack?: () => void;
     onConnectMsTeams?: () => void;
+    onOpenMsTeamsChat?: () => void;
     onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
@@ -400,6 +401,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onAddDiscordId={coordinatorOnboarding.onAddDiscordId}
                 onConnectSlack={coordinatorOnboarding.onConnectSlack}
                 onConnectMsTeams={coordinatorOnboarding.onConnectMsTeams}
+                onOpenMsTeamsChat={coordinatorOnboarding.onOpenMsTeamsChat}
                 onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                 onConnectApps={coordinatorOnboarding.onConnectApps}

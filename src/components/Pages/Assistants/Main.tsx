@@ -179,6 +179,7 @@ import type {
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
+import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -2606,6 +2607,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleOpenContactManager(canonicalCoordinator, 'ms_teams_bot');
   }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
 
+  // The Unify Teams bot is reply-only: it cannot open a conversation, so the
+  // ``ms-teams-reference`` step is user-initiated. This opens the Teams chat
+  // with the bot (via a deep link that also adds the app for the user first
+  // when a catalog id is configured) so they can send it a first message —
+  // that inbound is what seeds the conversation reference and completes the
+  // step. Starting the step locally lets the row settle immediately.
+  const handleCoordinatorOpenMsTeamsChat = React.useCallback(() => {
+    const link = buildMsTeamsChatDeepLink({
+      catalogId: MS_TEAMS_APP_CATALOG_ID,
+      botAppId: userMeta.msTeamsBotInitialInstall?.botAppId ?? null,
+    });
+    if (!link) return;
+    handleCoordinatorStartOnboardingStep('ms-teams-reference');
+    window.open(link, '_blank', 'noopener,noreferrer');
+  }, [userMeta.msTeamsBotInitialInstall?.botAppId, handleCoordinatorStartOnboardingStep]);
+
   const handleCoordinatorConnectDiscord = React.useCallback(() => {
     if (!canonicalCoordinator) return;
     handleCoordinatorStartOnboardingStep('discord-connect');
@@ -2728,6 +2745,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         userMeta.msTeamsBotOwner && assistantActions.msTeamsBot
           ? handleCoordinatorConnectMsTeams
           : undefined,
+      // Only wire the reply-first "send your first Teams message" row when a
+      // deep link is actually buildable (a public catalog id, or the tenant
+      // install's bot app id). Otherwise it degrades to a static entry.
+      onOpenMsTeamsChat:
+        userMeta.msTeamsBotOwner &&
+        (MS_TEAMS_APP_CATALOG_ID || userMeta.msTeamsBotInitialInstall?.botAppId)
+          ? handleCoordinatorOpenMsTeamsChat
+          : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
       onConnectWorkspace: workspaceConnectAvailable
         ? () => {
@@ -2775,6 +2800,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     contactWhatsapp,
     userMeta.slackOwner,
     userMeta.msTeamsBotOwner,
+    userMeta.msTeamsBotInitialInstall?.botAppId,
     markStepEngaged,
     beginAppsConnectFlow,
     markStepCompleted,
@@ -2785,6 +2811,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorAddDiscordId,
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectMsTeams,
+    handleCoordinatorOpenMsTeamsChat,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,

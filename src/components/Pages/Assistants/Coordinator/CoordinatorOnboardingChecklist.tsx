@@ -67,7 +67,7 @@ export type ChecklistAction =
   | 'trigger-slack-reference'
   | 'start-slack-message'
   | 'connect-ms-teams'
-  | 'trigger-ms-teams-reference'
+  | 'open-ms-teams-chat'
   | 'start-ms-teams-message'
   | 'add-discord-id'
   | 'connect-discord'
@@ -134,7 +134,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'slack-reference': 'trigger-slack-reference',
   'slack-message': 'start-slack-message',
   'ms-teams-connect': 'connect-ms-teams',
-  'ms-teams-reference': 'trigger-ms-teams-reference',
+  'ms-teams-reference': 'open-ms-teams-chat',
   'ms-teams-message': 'start-ms-teams-message',
   'discord-id': 'add-discord-id',
   'discord-connect': 'connect-discord',
@@ -167,7 +167,7 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'start-phone-call': 'Checking...',
   'trigger-slack-reference': 'Sending...',
   'start-slack-message': 'Checking...',
-  'trigger-ms-teams-reference': 'Sending...',
+  'open-ms-teams-chat': 'Opening...',
   'start-ms-teams-message': 'Checking...',
   'trigger-discord-reference': 'Sending...',
   'start-discord-message': 'Checking...',
@@ -597,6 +597,12 @@ export interface CoordinatorOnboardingChecklistProps {
   onAddDiscordId?: () => void;
   onConnectSlack?: () => void;
   onConnectMsTeams?: () => void;
+  /** Opens the 1:1 Teams chat with the Unify bot (adding the app for the
+   * user first if needed) so they can send it a first message. The bot is
+   * reply-only, so this user-initiated send is what seeds the conversation
+   * reference before Twin can reply. Hung off the ``ms-teams-reference``
+   * row. Unset means the row degrades to a static entry. */
+  onOpenMsTeamsChat?: () => void;
   onConnectDiscord?: () => void;
   /** Opens the workspace OAuth dialog. Hung off the "Give T-W1N
    * access to your workspace" sub-item. Unset means
@@ -659,6 +665,7 @@ export function CoordinatorOnboardingChecklist({
   onAddDiscordId,
   onConnectSlack,
   onConnectMsTeams,
+  onOpenMsTeamsChat,
   onConnectDiscord,
   onConnectWorkspace,
   onConnectApps,
@@ -734,8 +741,7 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'trigger-slack-reference') onTriggerReferenceStep?.('slack-reference');
       else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
       else if (action === 'connect-ms-teams') onConnectMsTeams?.();
-      else if (action === 'trigger-ms-teams-reference')
-        onTriggerReferenceStep?.('ms-teams-reference');
+      else if (action === 'open-ms-teams-chat') onOpenMsTeamsChat?.();
       else if (action === 'start-ms-teams-message') onStartOnboardingStep?.('ms-teams-message');
       else if (action === 'add-discord-id') onAddDiscordId?.();
       else if (action === 'connect-discord') onConnectDiscord?.();
@@ -766,6 +772,7 @@ export function CoordinatorOnboardingChecklist({
       onAddDiscordId,
       onConnectSlack,
       onConnectMsTeams,
+      onOpenMsTeamsChat,
       onConnectDiscord,
       onConnectWorkspace,
       onConnectApps,
@@ -849,8 +856,8 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'trigger-slack-reference') {
         return !!onTriggerReferenceStep && !!onConnectSlack;
       }
-      if (action === 'trigger-ms-teams-reference') {
-        return !!onTriggerReferenceStep && !!onConnectMsTeams;
+      if (action === 'open-ms-teams-chat') {
+        return !!onOpenMsTeamsChat;
       }
       if (action === 'trigger-discord-reference') {
         return !!onTriggerReferenceStep && !!onConnectDiscord;
@@ -905,6 +912,7 @@ export function CoordinatorOnboardingChecklist({
       onAddDiscordId,
       onConnectSlack,
       onConnectMsTeams,
+      onOpenMsTeamsChat,
       onConnectDiscord,
       onConnectWorkspace,
       onConnectApps,
