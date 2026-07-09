@@ -1609,6 +1609,13 @@ function ChecklistRow({
                   Integrations.
                 </>
               ) : null}
+              {item.id === 'ms_teams' ? (
+                <>
+                  {' '}
+                  This only resets your setup here — to fully remove T-W1N, a Teams admin must
+                  uninstall the app from the Teams admin center.
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
