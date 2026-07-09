@@ -12,6 +12,12 @@
  * only job is the tenant→owner bind handshake keyed on the nonce the
  * installer was shown. The owner is an org (owner/admin) or a personal
  * user.
+ *
+ * ``disconnect`` revokes the bound install (Orchestra-side teardown only —
+ * it cannot uninstall the app from the customer's Teams tenant). Because
+ * there is no OAuth to re-run, "re-install" is not a one-click action like
+ * Slack's: instead ``beginRebind`` re-exposes the bind form so the user can
+ * paste a fresh install code after re-adding the app in Teams.
  */
 
 'use client';
@@ -44,6 +50,10 @@ export function useMsTeamsBotIntegration({
   const [install, setInstall] = useState<MsTeamsBotInstall | null>(initialInstall);
   const [isBinding, setIsBinding] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  // Whether the bind form is force-shown over a currently-bound install
+  // (the "Re-install" affordance). Reset once a bind or disconnect settles.
+  const [showRebind, setShowRebind] = useState(false);
 
   // The page prefetches the install for one owner scope; if the active
   // workspace switches to a different owner the seeded value is stale, so
@@ -81,6 +91,7 @@ export function useMsTeamsBotIntegration({
         const result = await actions.bindInstall(owner, nonce);
         if (isMsTeamsBotInstall(result)) {
           setInstall(result);
+          setShowRebind(false);
           toast.success(
             owner.kind === 'org'
               ? 'Microsoft Teams bot connected to your organization.'
@@ -98,11 +109,42 @@ export function useMsTeamsBotIntegration({
     [actions, owner]
   );
 
+  const disconnect = useCallback(async (): Promise<boolean> => {
+    if (!install) return false;
+    setIsDisconnecting(true);
+    try {
+      const result = await actions.revokeInstall(owner, install.id);
+      if ('revoked' in result && result.revoked) {
+        setInstall(null);
+        setShowRebind(false);
+        toast.success(
+          owner.kind === 'org'
+            ? 'Microsoft Teams bot disconnected from your organization.'
+            : 'Microsoft Teams bot disconnected from your account.'
+        );
+        return true;
+      }
+      console.error('[ms-teams-bot] disconnect failed:', result);
+      toast.error('Could not disconnect the Teams bot. Please try again.');
+      return false;
+    } finally {
+      setIsDisconnecting(false);
+    }
+  }, [actions, owner, install]);
+
+  const beginRebind = useCallback(() => setShowRebind(true), []);
+  const cancelRebind = useCallback(() => setShowRebind(false), []);
+
   return {
     install,
     isBinding,
     isRefreshing,
+    isDisconnecting,
+    showRebind,
     bind,
     refresh,
+    disconnect,
+    beginRebind,
+    cancelRebind,
   };
 }

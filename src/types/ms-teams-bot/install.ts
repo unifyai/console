@@ -72,6 +72,14 @@ export interface MsTeamsBotInstallActions {
     owner: MsTeamsBotInstallOwner,
     nonce: string
   ) => Promise<MsTeamsBotInstall | ResponseProps>;
+  /** Revoke the given install (marks ``revoked_at``, drops channel
+   *  bindings + conversation routes). This tears down Orchestra-side
+   *  routing only — it cannot remove the app from the customer's Teams
+   *  tenant (we hold no per-tenant Microsoft token). */
+  revokeInstall: (
+    owner: MsTeamsBotInstallOwner,
+    installId: number
+  ) => Promise<{ revoked: true } | ResponseProps>;
 }
 
 /** Narrow a settled action result to a concrete install row. */

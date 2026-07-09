@@ -177,3 +177,25 @@ export async function bindInstallAction(
     return errorResponse(e, 'Failed to bind the Teams bot install.');
   }
 }
+
+/**
+ * Revoke an install (marks ``revoked_at``, drops channel bindings and
+ * conversation routes). This stops all inbound routing to every assistant
+ * in the owner scope, but — unlike the app removal a tenant admin performs
+ * inside Teams — it cannot uninstall the app from the customer's Microsoft
+ * tenant, because Console holds no per-tenant Microsoft token.
+ */
+export async function revokeInstallAction(
+  owner: MsTeamsBotInstallOwner,
+  installId: number
+): Promise<{ revoked: true } | ResponseProps> {
+  'use server';
+  const denied = await requireInstallOwner(owner);
+  if (denied) return denied;
+  try {
+    await OrchestraAdminClient.delete(`/ms-teams-bot/install/${installId}`);
+    return { revoked: true };
+  } catch (e) {
+    return errorResponse(e, 'Failed to revoke the Teams bot install.');
+  }
+}

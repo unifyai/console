@@ -46,6 +46,7 @@ import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { useSlackIntegration } from '@/hooks/Slack/useSlackIntegration';
 import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 import { useMsTeamsBotIntegration } from '@/hooks/MsTeamsBot/useMsTeamsBotIntegration';
+import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { FormProvider, useWatch } from 'react-hook-form';
 import { FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
@@ -1202,12 +1203,26 @@ const MsTeamsBotTabContent: React.FC<{
   initialInstall: MsTeamsBotInstall | null;
   actions: NonNullable<AssistantActions['msTeamsBot']>;
 }> = ({ assistant, owner, canManage, initialInstall, actions }) => {
-  const { install, isBinding, bind } = useMsTeamsBotIntegration({
+  const {
+    install,
+    isBinding,
+    isDisconnecting,
+    showRebind,
+    bind,
+    disconnect,
+    beginRebind,
+    cancelRebind,
+  } = useMsTeamsBotIntegration({
     owner,
     initialInstall,
     actions,
   });
   const [nonce, setNonce] = React.useState('');
+
+  const addInTeamsLink = buildMsTeamsChatDeepLink({
+    catalogId: MS_TEAMS_APP_CATALOG_ID,
+    botAppId: install?.botAppId ?? null,
+  });
 
   const ownerNoun = owner.kind === 'org' ? 'organization' : 'account';
   const fullName = `${assistant.firstName} ${assistant.surname}`.trim();
@@ -1256,6 +1271,87 @@ const MsTeamsBotTabContent: React.FC<{
           <span className="font-medium text-foreground">{fullName || assistant.firstName}</span> or
           ID <span className="font-medium text-foreground">{assistant.agentId}</span>.
         </p>
+
+        {canManage && showRebind && (
+          <div className="space-y-3" data-testid="ms-teams-bot-rebind">
+            <p className="text-caption text-muted-foreground">
+              Re-add the Unify bot to this {ownerNoun}&apos;s Microsoft tenant from the Teams Store,
+              then paste the new install code below to re-bind. The current connection keeps working
+              until you do.
+            </p>
+            {addInTeamsLink && (
+              <Button variant="outline" size="sm" asChild className="gap-2">
+                <a href={addInTeamsLink} target="_blank" rel="noopener noreferrer">
+                  Add in Teams
+                  <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                </a>
+              </Button>
+            )}
+            {bindForm}
+            <Button variant="ghost" size="sm" onClick={cancelRebind} disabled={isBinding}>
+              Cancel
+            </Button>
+          </div>
+        )}
+
+        {canManage && !showRebind && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={beginRebind}
+              className="gap-2"
+              data-testid="ms-teams-bot-reinstall-button"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Re-install
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={isDisconnecting}
+                  className="gap-2"
+                  data-testid="ms-teams-bot-disconnect-button"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Disconnect
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Disconnect Microsoft Teams bot</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This unbinds the Teams bot for{' '}
+                    <strong>{install.tenantName ?? install.tenantId}</strong> from this {ownerNoun}.
+                    Inbound messages will stop reaching <strong>all assistants</strong> in this{' '}
+                    {ownerNoun}, and channel bindings and conversation routes will be dropped. It
+                    does <strong>not</strong> remove the app from your Microsoft Teams tenant — a
+                    Teams admin does that inside Teams. You can re-bind at any time with a new
+                    install code.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={disconnect}
+                    className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
+                  >
+                    Disconnect
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+
+        {!canManage && (
+          <p className="text-caption text-muted-foreground">
+            Only an {owner.kind === 'org' ? 'organization owner or admin' : 'account owner'} can
+            change the Teams bot connection.
+          </p>
+        )}
       </div>
     );
   }
