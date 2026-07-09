@@ -76,7 +76,7 @@ interface AssistantContactManagerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
   onSuccess: () => void;
-  initialTab?: ContactType | 'slack';
+  initialTab?: ContactType | 'slack' | 'ms_teams_bot';
   /** Whether the current user can edit contact details */
   canWrite?: boolean;
   /** Callback to open the Stripe payment panel when credits are insufficient */
@@ -422,7 +422,7 @@ export function AssistantContactManager({
     isOpen,
     assistantActions,
     onSuccess,
-    initialTab: initialTab === 'slack' ? undefined : initialTab,
+    initialTab: initialTab === 'slack' || initialTab === 'ms_teams_bot' ? undefined : initialTab,
     userPhoneNumber,
     userWhatsappNumber,
     userDiscordId,

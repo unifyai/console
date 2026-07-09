@@ -66,6 +66,9 @@ export type ChecklistAction =
   | 'connect-slack'
   | 'trigger-slack-reference'
   | 'start-slack-message'
+  | 'connect-ms-teams'
+  | 'trigger-ms-teams-reference'
+  | 'start-ms-teams-message'
   | 'add-discord-id'
   | 'connect-discord'
   | 'trigger-discord-reference'
@@ -130,6 +133,9 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'slack-connect': 'connect-slack',
   'slack-reference': 'trigger-slack-reference',
   'slack-message': 'start-slack-message',
+  'ms-teams-connect': 'connect-ms-teams',
+  'ms-teams-reference': 'trigger-ms-teams-reference',
+  'ms-teams-message': 'start-ms-teams-message',
   'discord-id': 'add-discord-id',
   'discord-connect': 'connect-discord',
   'discord-reference': 'trigger-discord-reference',
@@ -161,6 +167,8 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'start-phone-call': 'Checking...',
   'trigger-slack-reference': 'Sending...',
   'start-slack-message': 'Checking...',
+  'trigger-ms-teams-reference': 'Sending...',
+  'start-ms-teams-message': 'Checking...',
   'trigger-discord-reference': 'Sending...',
   'start-discord-message': 'Checking...',
   'trigger-workspace-mailbox': 'Summarizing...',
@@ -413,6 +421,11 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   },
   { id: 'slack', title: 'Slack', stepIds: ['slack-connect', 'slack-reference', 'slack-message'] },
   {
+    id: 'ms_teams',
+    title: 'Microsoft Teams',
+    stepIds: ['ms-teams-connect', 'ms-teams-reference', 'ms-teams-message'],
+  },
+  {
     id: 'discord',
     title: 'Discord',
     stepIds: ['discord-id', 'discord-connect', 'discord-reference', 'discord-message'],
@@ -583,6 +596,7 @@ export interface CoordinatorOnboardingChecklistProps {
   onAddPhoneNumber?: () => void;
   onAddDiscordId?: () => void;
   onConnectSlack?: () => void;
+  onConnectMsTeams?: () => void;
   onConnectDiscord?: () => void;
   /** Opens the workspace OAuth dialog. Hung off the "Give T-W1N
    * access to your workspace" sub-item. Unset means
@@ -644,6 +658,7 @@ export function CoordinatorOnboardingChecklist({
   onAddPhoneNumber,
   onAddDiscordId,
   onConnectSlack,
+  onConnectMsTeams,
   onConnectDiscord,
   onConnectWorkspace,
   onConnectApps,
@@ -718,6 +733,10 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'connect-slack') onConnectSlack?.();
       else if (action === 'trigger-slack-reference') onTriggerReferenceStep?.('slack-reference');
       else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
+      else if (action === 'connect-ms-teams') onConnectMsTeams?.();
+      else if (action === 'trigger-ms-teams-reference')
+        onTriggerReferenceStep?.('ms-teams-reference');
+      else if (action === 'start-ms-teams-message') onStartOnboardingStep?.('ms-teams-message');
       else if (action === 'add-discord-id') onAddDiscordId?.();
       else if (action === 'connect-discord') onConnectDiscord?.();
       else if (action === 'trigger-discord-reference')
@@ -746,6 +765,7 @@ export function CoordinatorOnboardingChecklist({
       onAddPhoneNumber,
       onAddDiscordId,
       onConnectSlack,
+      onConnectMsTeams,
       onConnectDiscord,
       onConnectWorkspace,
       onConnectApps,
@@ -829,6 +849,9 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'trigger-slack-reference') {
         return !!onTriggerReferenceStep && !!onConnectSlack;
       }
+      if (action === 'trigger-ms-teams-reference') {
+        return !!onTriggerReferenceStep && !!onConnectMsTeams;
+      }
       if (action === 'trigger-discord-reference') {
         return !!onTriggerReferenceStep && !!onConnectDiscord;
       }
@@ -847,11 +870,13 @@ export function CoordinatorOnboardingChecklist({
         );
       }
       if (action === 'start-slack-message') return !!onStartOnboardingStep && !!onConnectSlack;
+      if (action === 'start-ms-teams-message') return !!onStartOnboardingStep && !!onConnectMsTeams;
       if (action === 'start-discord-message') return !!onStartOnboardingStep && !!onConnectDiscord;
       if (action === 'add-whatsapp-number') return !!onAddWhatsappNumber;
       if (action === 'add-phone-number') return !!onAddPhoneNumber;
       if (action === 'add-discord-id') return !!onAddDiscordId;
       if (action === 'connect-slack') return !!onConnectSlack;
+      if (action === 'connect-ms-teams') return !!onConnectMsTeams;
       if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
       if (
@@ -879,6 +904,7 @@ export function CoordinatorOnboardingChecklist({
       onAddPhoneNumber,
       onAddDiscordId,
       onConnectSlack,
+      onConnectMsTeams,
       onConnectDiscord,
       onConnectWorkspace,
       onConnectApps,

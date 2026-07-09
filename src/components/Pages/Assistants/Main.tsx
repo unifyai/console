@@ -204,7 +204,7 @@ const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
 const COORDINATOR_ONBOARDING_IDLE_POLL_MS = 30_000;
 const COORDINATOR_ONBOARDING_STEP_RETRY_MS = 30_000;
-type ContactManagerInitialTab = ContactType | 'slack';
+type ContactManagerInitialTab = ContactType | 'slack' | 'ms_teams_bot';
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -2600,6 +2600,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleOpenContactManager(canonicalCoordinator, 'slack');
   }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
 
+  const handleCoordinatorConnectMsTeams = React.useCallback(() => {
+    if (!canonicalCoordinator) return;
+    handleCoordinatorStartOnboardingStep('ms-teams-connect');
+    handleOpenContactManager(canonicalCoordinator, 'ms_teams_bot');
+  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+
   const handleCoordinatorConnectDiscord = React.useCallback(() => {
     if (!canonicalCoordinator) return;
     handleCoordinatorStartOnboardingStep('discord-connect');
@@ -2718,6 +2724,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onAddDiscordId: contactDiscord ? handleCoordinatorAddDiscordId : undefined,
       onConnectSlack:
         userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
+      onConnectMsTeams:
+        userMeta.msTeamsBotCanManage && assistantActions.msTeamsBot
+          ? handleCoordinatorConnectMsTeams
+          : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
       onConnectWorkspace: workspaceConnectAvailable
         ? () => {
@@ -2759,10 +2769,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     profileAssistantId,
     activeCallAssistant,
     assistantActions.slack,
+    assistantActions.msTeamsBot,
     contactDiscord,
     contactPhone,
     contactWhatsapp,
     userMeta.slackOwner,
+    userMeta.msTeamsBotCanManage,
     markStepEngaged,
     beginAppsConnectFlow,
     markStepCompleted,
@@ -2772,6 +2784,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorAddPhoneNumber,
     handleCoordinatorAddDiscordId,
     handleCoordinatorConnectSlack,
+    handleCoordinatorConnectMsTeams,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorDispatchTaskBeat,
