@@ -1601,6 +1601,14 @@ function ChecklistRow({
             <AlertDialogTitle>Reset {item.title}?</AlertDialogTitle>
             <AlertDialogDescription>
               All progress in this section will be removed, so you can redo each task. Are you sure?
+              {item.id === 'discord' ? (
+                <>
+                  {' '}
+                  T-W1N uses a shared Discord bot, so this only resets your setup here — to fully
+                  disconnect, remove the bot from your own Discord server in Server Settings →
+                  Integrations.
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
