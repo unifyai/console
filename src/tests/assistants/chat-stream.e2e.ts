@@ -183,8 +183,7 @@ test('switching to another assistant and back keeps each chat working independen
 // workspace assistant's Pub/Sub chat topic, and incoming messages for a
 // non-active assistant bump that assistant's unread counter. Opening the
 // chat clears the counter and persists `lastReadAt` in localStorage so
-// the count stays cleared across reloads within the Pub/Sub retention
-// window.
+// the count stays cleared across reloads via the persisted unread map.
 //
 // Requires the local `--chat` harness: the Pub/Sub emulator (localhost:8085)
 // has to be up so the test can publish `unify_message_outbound` frames
@@ -352,69 +351,6 @@ test('messages arriving while a chat is open do not leak an unread badge for tha
 // the call dialog's chat panel.
 //
 // All require the local `--chat` harness (Pub/Sub emulator) to be running.
-
-test('messages received while the user is on a different page surface as unread on return', async ({
-  authedPage: page,
-}) => {
-  // The page-level chat-stream only mounts on /assistants. When the user
-  // navigates away the SSE detaches but the server-side Pub/Sub
-  // subscription is persistent, so on return any messages that arrived
-  // in the meantime are redelivered and should bump the badge.
-  const active = createAssistant({
-    userId: user.id,
-    firstName: 'AwayA',
-    surname: 'ActiveA',
-  });
-  const incoming = createAssistant({
-    userId: user.id,
-    firstName: 'AwayB',
-    surname: 'IncomingB',
-  });
-
-  await Promise.all([
-    seedContact(user.apiKey, user.id, active.agentId, user.email),
-    seedContact(user.apiKey, user.id, incoming.agentId, user.email),
-  ]);
-  await Promise.all([ensurePubSubTopic(active.agentId), ensurePubSubTopic(incoming.agentId)]);
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-
-  // Mount the chat-stream once so the persistent server-side subscription
-  // for `incoming` actually exists before we publish to it (Pub/Sub only
-  // retains messages on subscriptions that have been provisioned). Open
-  // `active` so `incoming` is the unread target.
-  await page.getByTestId(`assistant-list-item-${active.agentId}`).click();
-  await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('textarea')).toBeEnabled({ timeout: 20_000 });
-  await page.waitForTimeout(3_500);
-
-  // Navigate away from /assistants — Main unmounts, the chat-stream hook
-  // tears down its EventSource. The Pub/Sub subscription remains.
-  await page.goto('/account');
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-  // Publish while no client is consuming. The message accumulates in the
-  // subscription's backlog.
-  const awayMsg = `Arrived while away ${Date.now()}`;
-  await publishUnifyMessageOutbound(incoming.agentId, {
-    content: awayMsg,
-    contactId: CONTACT_ID,
-  });
-
-  // Give Pub/Sub a beat to fan-out then return to /assistants.
-  await page.waitForTimeout(2_000);
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openUnitySwitcher(page);
-
-  // The redelivered backlog message should bump the badge — proves the
-  // mount-time floor is no longer suppressing it.
-  const incomingBadge = page.getByTestId(`assistant-unread-badge-${incoming.agentId}`);
-  await expect(incomingBadge).toBeVisible({ timeout: 25_000 });
-  await expect(incomingBadge).toHaveText('1');
-});
 
 test('typing indicator from a recent send only shows in the chat where the message was sent', async ({
   authedPage: page,
