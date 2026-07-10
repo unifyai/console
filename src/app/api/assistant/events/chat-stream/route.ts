@@ -16,25 +16,21 @@
  *
  * Subscription naming
  * -------------------
- * Subscriptions use the persistent name `{topicName}-chat-{contactId}` — one
- * subscriber per (user, assistant, contact) tuple across the whole app, which
- * makes ack semantics straightforward (every message is acknowledged exactly
- * once by this route at enqueue time).
+ * Each SSE connection creates its own ephemeral Pub/Sub subscriptions:
+ * `{topicName}-chat-sse-{connectionId}-{rootKey}-{contactId}`. That gives
+ * every live browser connection its own copy of outbound frames (fan-out),
+ * so overlapping Cloud Run reconnects cannot steal rings from the live tab
+ * the way a shared persistent subscription does under Pub/Sub load-balancing.
+ *
+ * Subscriptions are deleted on disconnect, with a 1-day expiry safety net.
+ * Messages published during a reconnect gap are not retained in Pub/Sub;
+ * loaded chat catch-up is owned by the transcript reconciler / Orchestra.
  *
  * Ack strategy
  * ------------
- * Messages are NOT acked on enqueue. The streaming-pull client holds the
- * lease (auto-extending the ack deadline) until the browser confirms receipt
- * via `POST /api/assistant/events/chat-stream/ack`. This prevents the "SSE
- * frame written but never arrives at the client" class of silent drops
- * (Vercel function timeout, dropped TCP, zombified stream): if the client
- * never acks, the message returns to the Pub/Sub backlog on disconnect and
- * is redelivered to the next subscriber session.
- *
- * Each outbound frame carries `__ackId` so the client knows which token to
- * send back. If `controller.enqueue` fails mid-flight we nack immediately so
- * the backlog state matches the client state. On stream abort we let the
- * Node Pub/Sub client's own `close()` release any still-leased messages.
+ * Messages are acked server-side after a successful SSE enqueue. Each
+ * connection's subscription is private, so competing zombie pullers cannot
+ * lease the live tab's copy.
  *
  * Bounds
  * ------
@@ -61,11 +57,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import type { Message, Subscription } from '@google-cloud/pubsub';
 import {
   getPubSubClient,
   getTopicName,
-  PERSISTENT_EXPIRATION_TTL,
+  EPHEMERAL_EXPIRATION_TTL,
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
@@ -132,8 +129,13 @@ interface Pair {
   rootKey: string;
 }
 
-function subscriptionNameForPair(topicName: string, contactId: string, rootKey: string): string {
-  return `${topicName}-chat-${rootKey}-${contactId}`;
+function subscriptionNameForPair(
+  topicName: string,
+  connectionId: string,
+  contactId: string,
+  rootKey: string
+): string {
+  return `${topicName}-chat-sse-${connectionId}-${rootKey}-${contactId}`;
 }
 
 function parsePairs(raw: string | null): Pair[] {
@@ -147,9 +149,8 @@ function parsePairs(raw: string | null): Pair[] {
       .split(':')
       .map((part) => part.trim());
     if (!assistantId || !/^\d+$/.test(contactId) || !/^[a-z0-9-]+$/.test(rootKey)) continue;
-    // Dedup in case the client accidentally repeats a pair; subscribing twice
-    // to the same Pub/Sub subscription from one process would load-balance
-    // messages across the two subscribers.
+    // Dedup in case the client accidentally repeats a pair; creating two
+    // ephemeral subscriptions for the same pair would double-deliver frames.
     const key = `${assistantId}:${contactId}:${rootKey}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -177,7 +178,8 @@ export async function GET(request: NextRequest) {
   }
 
   const clientSessionId = request.nextUrl.searchParams.get('sid') || 'none';
-  const connId = `chat:${pairs.length}:${Date.now()}`;
+  const connectionId = crypto.randomUUID().slice(0, 8);
+  const connId = `chat:${pairs.length}:${connectionId}`;
   const log = (msg: string, data?: Record<string, unknown>) =>
     console.log(`[Chat Stream SSE ${connId}] ${msg}`, data ? JSON.stringify(data) : '');
 
@@ -213,20 +215,15 @@ export async function GET(request: NextRequest) {
 
   for (const { assistantId, contactId, rootKey } of pairs) {
     const topicName = getTopicName(assistantId);
-    const subscriptionName = subscriptionNameForPair(topicName, contactId, rootKey);
+    const subscriptionName = subscriptionNameForPair(topicName, connectionId, contactId, rootKey);
     const topic = pubsub.topic(topicName);
     try {
       await topic.createSubscription(subscriptionName, {
         filter: CHAT_FILTER,
-        expirationPolicy: { ttl: { seconds: parseInt(PERSISTENT_EXPIRATION_TTL) } },
+        expirationPolicy: { ttl: { seconds: parseInt(EPHEMERAL_EXPIRATION_TTL) } },
         messageRetentionDuration: { seconds: parseInt(MESSAGE_RETENTION_DURATION) },
       });
     } catch (err: any) {
-      // 6 = ALREADY_EXISTS — subscription is already provisioned, reuse it.
-      if (err.code === 6) {
-        subConfigs.push({ assistantId, contactId, rootKey, subscriptionName });
-        continue;
-      }
       // 5 = NOT_FOUND — topic doesn't exist for this assistant. This can
       // happen for assistants whose Communication-side provisioning hasn't
       // completed yet, or for dev/test data. Skip gracefully.
@@ -253,6 +250,7 @@ export async function GET(request: NextRequest) {
     count: subConfigs.length,
     skipped: skippedPairs.length,
     clientSessionId,
+    connectionId,
     filter: CHAT_FILTER,
     retentionSec: MESSAGE_RETENTION_DURATION,
   });
@@ -307,10 +305,11 @@ export async function GET(request: NextRequest) {
       }, 15000);
       lifecycle.add(() => clearInterval(keepAliveInterval));
 
-      const { pubsub } = getPubSubClient();
+      const { pubsub: streamPubsub } = getPubSubClient();
 
       interface AttachedSub {
         assistantId: string;
+        subscriptionName: string;
         subscription: Subscription;
         messageHandler: (m: Message) => void;
         errorHandler: (err: Error) => void;
@@ -344,7 +343,7 @@ export async function GET(request: NextRequest) {
       };
 
       for (const { assistantId, contactId, rootKey, subscriptionName } of subConfigs) {
-        const subscription = pubsub.subscription(subscriptionName);
+        const subscription = streamPubsub.subscription(subscriptionName);
 
         const messageHandler = (message: Message) => {
           if (request.signal.aborted) {
@@ -403,7 +402,6 @@ export async function GET(request: NextRequest) {
 
             payload.id = message.id;
             payload.publishTime = publishTime;
-            payload.__ackId = message.ackId;
             payload.subscriptionContactId = contactId;
             payload.subscriptionRootKey = rootKey;
             // Tag with the assistant so the client can demux the multiplexed
@@ -416,11 +414,8 @@ export async function GET(request: NextRequest) {
 
             try {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-              // Intentionally do NOT ack here. The browser will POST an ack
-              // to `/api/assistant/events/chat-stream/ack` once the message
-              // is actually rendered, so any in-flight drop lands back in
-              // the Pub/Sub backlog on stream close and is redelivered.
-              log('MSG_SENT', { msgId: message.id, assistantId, ackId: message.ackId });
+              message.ack();
+              log('MSG_SENT', { msgId: message.id, assistantId });
               // Successful delivery == subscription is healthy. Emits a
               // recovery frame iff the previous state was 'error'.
               emitSubscriptionStatus(assistantId, 'ok');
@@ -459,17 +454,27 @@ export async function GET(request: NextRequest) {
 
         subscription.on('message', messageHandler);
         subscription.on('error', errorHandler);
-        attached.push({ assistantId, subscription, messageHandler, errorHandler });
+        attached.push({
+          assistantId,
+          subscriptionName,
+          subscription,
+          messageHandler,
+          errorHandler,
+        });
       }
 
       lifecycle.add(() => {
         const elapsed = Date.now() - startTime;
         log('STREAM_END', { elapsed, messageCount, keepAliveCount, errorCount });
 
-        for (const { subscription, messageHandler, errorHandler } of attached) {
+        for (const { subscription, subscriptionName, messageHandler, errorHandler } of attached) {
           subscription.removeListener('message', messageHandler);
           subscription.removeListener('error', errorHandler);
           subscription.close();
+          streamPubsub
+            .subscription(subscriptionName)
+            .delete()
+            .catch(() => {});
         }
         try {
           controller.close();
