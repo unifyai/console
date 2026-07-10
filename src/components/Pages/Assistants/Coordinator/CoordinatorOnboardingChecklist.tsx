@@ -432,6 +432,15 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   },
 ];
 
+// Connect steps for Slack and Microsoft Teams stand for a single install that is
+// shared org-wide: one workspace/tenant connection serves every user in the org
+// and its completion is derived server-side from that install existing. A single
+// user's onboarding reset must therefore never re-open or tear these down —
+// resetting them would either be a no-op (state re-derives from the live install)
+// or, if it revoked, would disconnect the whole org. Only the owner-scoped
+// Disconnect action may remove a shared install.
+const NON_RESETTABLE_STEP_IDS: ReadonlySet<string> = new Set(['slack-connect', 'ms-teams-connect']);
+
 function collectVisibleLeafIds(item: ResolvedChecklistItem): string[] {
   if (!item.children?.length) return [item.id];
   return item.children.flatMap(collectVisibleLeafIds);
@@ -1497,15 +1506,25 @@ function ChecklistRow({
       : item.inProgress
         ? 'In progress'
         : actionFeedback;
+  // Shared org-wide connect steps are excluded from every reset path (see
+  // NON_RESETTABLE_STEP_IDS): a per-user reset must not disturb a connection the
+  // whole org depends on.
+  const resetStepIds = React.useMemo(
+    () => collectVisibleLeafIds(item).filter((id) => !NON_RESETTABLE_STEP_IDS.has(id)),
+    [item]
+  );
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
     !!onResetStepProgress &&
     !item.sectionSkipped &&
-    hasResolvedLeaf(item);
-  const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
+    hasResolvedLeaf(item) &&
+    resetStepIds.length > 0;
   const rowResetStepIds = React.useMemo(
-    () => collectDependentStepIds(item.id, allVisibleItems),
+    () =>
+      collectDependentStepIds(item.id, allVisibleItems).filter(
+        (id) => !NON_RESETTABLE_STEP_IDS.has(id)
+      ),
     [allVisibleItems, item.id]
   );
   // Only inaccessible/future rows dim. Addressed rows (done or skipped)
@@ -1534,7 +1553,8 @@ function ChecklistRow({
   );
 
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
-  const canReset = item.status === 'done' && !!onResetStepProgress;
+  const canReset =
+    item.status === 'done' && !!onResetStepProgress && !NON_RESETTABLE_STEP_IDS.has(item.id);
   const hasRowMenu = canReset;
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
@@ -1609,10 +1629,19 @@ function ChecklistRow({
                   Integrations.
                 </>
               ) : null}
+              {item.id === 'slack' ? (
+                <>
+                  {' '}
+                  Your Slack workspace connection is shared across the org and stays connected —
+                  only your setup steps here reset. To fully disconnect, use Disconnect in the Slack
+                  settings.
+                </>
+              ) : null}
               {item.id === 'ms_teams' ? (
                 <>
                   {' '}
-                  This only resets your setup here — to fully remove T-W1N, a Teams admin must
+                  Your Microsoft Teams connection is shared across the org and stays connected —
+                  only your setup steps here reset. To fully remove T-W1N, a Teams admin must
                   uninstall the app from the Teams admin center.
                 </>
               ) : null}
