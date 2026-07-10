@@ -1511,14 +1511,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [handleChatActivity, markAssistantOnline]
   );
 
-  // `ackMessage` is returned by `useAssistantChatStream` below, but we need
-  // to reference it from inside `handleChatStreamMessage`, which is passed
-  // INTO that hook. The ref sidesteps the temporal ordering: we update it
-  // on every render once the hook has returned.
-  const ackMessageRef = React.useRef<
-    (assistantId: string, contactId: number, rootKey: string, ackId: string) => void
-  >(() => {});
-
   // Per-assistant publish-time cutoff for the chat SSE filter. The ref is
   // rebuilt from `profileChatHistories` whenever histories change, and
   // `useAssistantChatStream` reads it on every inbound frame via
@@ -1619,16 +1611,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       });
       const mergeOutcome = outcomeRef.value;
 
-      // Ack upstream on every delivery — including the "skipped, no
-      // history" and dedup-hit cases — so Pub/Sub stops looping on us.
-      // The server-side chat-stream route intentionally leaves messages
-      // leased until this call arrives, so any drop is redelivered on
-      // reconnect; once we've taken responsibility for the message
-      // (whether by merging it or by letting the next transcript load
-      // surface it) we have to release the lease.
-      const ackId = message.__ackId;
-      if (ackId) ackMessageRef.current(assistantId, parsed.contactId, parsed.rootKey, ackId);
-
       if (mergeOutcome === 'duplicate') return;
 
       if (mergeOutcome === 'merged' && message.role === 'assistant') {
@@ -1641,8 +1623,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markAssistantOnline(assistantId);
 
       // Broadcast to sibling tabs so a second tab with the same chat open
-      // renders the message even if Pub/Sub load-balanced the delivery to
-      // this tab. Skipped-no-history doesn't broadcast: the receiving
+      // can render the message without waiting for its own SSE copy.
+      // Skipped-no-history doesn't broadcast: the receiving
       // tab's chat panel (if any) would face the same SSE-id vs
       // log-entry-id mismatch and end up with a phantom duplicate. Tabs
       // with the chat open will pick the message up either via their own
@@ -1650,7 +1632,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       if (mergeOutcome !== 'merged') return;
 
       const broadcastMsg = { ...message };
-      delete broadcastMsg.__ackId;
       try {
         const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
         const payload: BroadcastMessagePayload = {
@@ -1718,7 +1699,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     reason: string;
     callSessionId: string;
   } | null>(null);
-
   const handleUnifyMeetIncoming = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
       const assistant = assistants.find((a) => a.agentId === assistantId);
@@ -1738,7 +1718,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     reconnect: reconnectChatStream,
     unreadCounts: chatStreamUnreadCounts,
     markAsRead: markChatStreamRead,
-    ackMessage: ackChatStreamMessage,
   } = useAssistantChatStream(
     chatStreamPairs,
     chatStreamPairs.length > 0,
@@ -1770,8 +1749,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       getCutoff: getChatStreamCutoff,
     }
   );
-  ackMessageRef.current = ackChatStreamMessage;
-
   // Page-level polling fallback for the chat SSE. Reconciles missed
   // messages into `profileChatHistories` for any assistant in the
   // workspace whose stream is unhealthy (or the active panel as a safety
