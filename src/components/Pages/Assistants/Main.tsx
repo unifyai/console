@@ -2763,6 +2763,62 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the Their Computer fetch-and-return beat. Channel-agnostic (chat
+  // or mid-call); no ring and no pane navigation — same dispatch shape as My
+  // Computer, different framing on the Orchestra event.
+  const handleCoordinatorDispatchYourComputerBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error(
+            '[Coordinator onboarding] Failed to dispatch Their Computer beat event:',
+            error
+          );
+          toast.error('Could not start this demo. Please try again.');
+        }
+      })();
+    },
+    [
+      appendCoordinatorRequestSentAck,
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
+      shouldDispatchStepRequest,
+    ]
+  );
+
+  const handleCoordinatorOpenDesktopLinker = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      markStepEngaged(stepId);
+      setDesktopLinkerAssistant(canonicalCoordinator);
+    },
+    [canonicalCoordinator, markStepEngaged]
+  );
+
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
     handleOpenUserSettings('contact-info', true);
@@ -2956,6 +3012,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           : handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
       onMyComputerDemo: () => handleCoordinatorDispatchMyComputerBeat('my-computer-demo'),
+      onConnectYourComputer: () => handleCoordinatorOpenDesktopLinker('your-computer-link'),
+      onEnableDesktopFilesys: () => handleCoordinatorOpenDesktopLinker('your-computer-filesys'),
+      onYourComputerDemo: () => handleCoordinatorDispatchYourComputerBeat('your-computer-demo'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
@@ -3002,6 +3061,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorDispatchTaskBeat,
     handleCoordinatorDispatchLearningBeat,
     handleCoordinatorDispatchMyComputerBeat,
+    handleCoordinatorDispatchYourComputerBeat,
+    handleCoordinatorOpenDesktopLinker,
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
@@ -4233,10 +4294,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         {desktopLinkerAssistant && (
           <AssistantDesktopLinker
             isOpen={!!desktopLinkerAssistant}
-            onClose={() => setDesktopLinkerAssistant(null)}
+            onClose={() => {
+              setDesktopLinkerAssistant(null);
+              // Desktop link/filesys mutations do not push
+              // onboarding_render_updated today — refetch so Their Computer
+              // consent rows tick without a full page reload.
+              void refetchCoordinatorOnboardingState();
+            }}
             assistant={desktopLinkerAssistant}
             assistantActions={assistantActions}
-            onLinked={() => refreshAssistants(false)}
+            onLinked={() => {
+              refreshAssistants(false);
+              void refetchCoordinatorOnboardingState();
+            }}
             getApiKey={assistantActions.desktop.getApiKey}
           />
         )}
