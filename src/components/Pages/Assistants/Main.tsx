@@ -179,7 +179,11 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
+import {
+  isMsTeamsBotInstall,
+  type MsTeamsBotInstall,
+  type MsTeamsBotInstallOwner,
+} from '@/types/ms-teams-bot/install';
 import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
@@ -291,6 +295,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const onboardingFocusParam = searchParams.get('onboarding');
+  // One-click Teams connect: the bot DMs the installer a link back here
+  // carrying the pending install's handshake nonce, so binding is a single
+  // click with no code to copy. Consumed once by the effect below.
+  const msTeamsBindParam = searchParams.get('ms_teams_bind');
   const { activeWorkspace, currentUserId } = useWorkspace();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
@@ -1210,6 +1218,67 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     requestFirstLoginCommunicationEmailOpen,
     router,
     searchParams,
+  ]);
+
+  // One-click Teams connect. When the installer taps "Connect" in the bot's
+  // welcome DM, they land here with ``?ms_teams_bind=<nonce>``. Claim the
+  // pending install for the active owner, surface a toast, then strip the
+  // param so a refresh doesn't re-bind. Binding is idempotent, so a repeat is
+  // harmless. Only an owner/admin scope carries ``msTeamsBotOwner``.
+  const consumedMsTeamsBindParamRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!msTeamsBindParam) return;
+    if (consumedMsTeamsBindParamRef.current === msTeamsBindParam) return;
+    consumedMsTeamsBindParamRef.current = msTeamsBindParam;
+
+    const stripParam = () => {
+      if (!canWriteAssistantUrl) return;
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete('ms_teams_bind');
+      const nextQuery = nextParams.toString();
+      router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
+        scroll: false,
+      });
+    };
+
+    const owner = userMeta.msTeamsBotOwner;
+    const bindAction = assistantActions.msTeamsBot?.bindInstall;
+    if (!owner || !bindAction) {
+      toast.error('Could not connect Microsoft Teams. Please try again from the assistant page.');
+      stripParam();
+      return;
+    }
+
+    void (async () => {
+      try {
+        const result = await bindAction(owner, msTeamsBindParam);
+        if (isMsTeamsBotInstall(result)) {
+          toast.success(
+            owner.kind === 'org'
+              ? 'Microsoft Teams connected to your organization.'
+              : 'Microsoft Teams connected to your account.'
+          );
+          void refetchCoordinatorOnboardingState();
+        } else {
+          console.error('[ms-teams-bot] auto-bind failed:', result);
+          toast.error('Could not connect Microsoft Teams. The install code may have expired.');
+        }
+      } catch (err) {
+        console.error('[ms-teams-bot] auto-bind error:', err);
+        toast.error('Could not connect Microsoft Teams. Please try again.');
+      } finally {
+        stripParam();
+      }
+    })();
+  }, [
+    assistantActions.msTeamsBot,
+    canWriteAssistantUrl,
+    msTeamsBindParam,
+    pathname,
+    refetchCoordinatorOnboardingState,
+    router,
+    searchParams,
+    userMeta.msTeamsBotOwner,
   ]);
 
   React.useEffect(() => {
