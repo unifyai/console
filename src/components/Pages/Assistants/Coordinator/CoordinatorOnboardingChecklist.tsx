@@ -92,7 +92,10 @@ export type ChecklistAction =
   | 'create-scheduled-task'
   | 'create-triggerable-task'
   | 'learn-from-correction'
-  | 'my-computer-demo';
+  | 'my-computer-demo'
+  | 'connect-your-computer'
+  | 'enable-desktop-filesys'
+  | 'trigger-your-computer-demo';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -162,6 +165,9 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'create-triggerable-task': 'create-triggerable-task',
   'learn-from-correction': 'learn-from-correction',
   'my-computer-demo': 'my-computer-demo',
+  'your-computer-link': 'connect-your-computer',
+  'your-computer-filesys': 'enable-desktop-filesys',
+  'your-computer-demo': 'trigger-your-computer-demo',
 };
 
 const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
@@ -191,6 +197,7 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'create-triggerable-task': 'Starting...',
   'learn-from-correction': 'Starting...',
   'my-computer-demo': 'Starting...',
+  'trigger-your-computer-demo': 'Fetching...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -663,6 +670,18 @@ export interface CoordinatorOnboardingChecklistProps {
   /** Dispatches the My Computer live demo beat event to Unity. Hung off
    * ``my-computer-demo``. Unset means the row degrades to a static entry. */
   onMyComputerDemo?: () => void;
+  /** Opens the desktop-linker dialog so the user can install/link their
+   * computer. Hung off ``your-computer-link``. Unset means the row degrades
+   * to a static entry. */
+  onConnectYourComputer?: () => void;
+  /** Opens the same desktop-linker dialog so the user can flip the
+   * filesystem-access toggle. Hung off ``your-computer-filesys``. Unset means
+   * the row degrades to a static entry. */
+  onEnableDesktopFilesys?: () => void;
+  /** Dispatches the Their Computer fetch-and-return beat event to Unity.
+   * Hung off ``your-computer-demo``. Unset means the row degrades to a
+   * static entry. */
+  onYourComputerDemo?: () => void;
   /** Deterministically fire the armed triggerable task by id — powers the
    * inline "Test it" affordance under the ``create-triggerable-task`` row.
    * Unset (or a null ``armedTriggerableTaskId``) hides the affordance. */
@@ -704,6 +723,9 @@ export function CoordinatorOnboardingChecklist({
   onSelectTaskChip,
   onLearnFromCorrection,
   onMyComputerDemo,
+  onConnectYourComputer,
+  onEnableDesktopFilesys,
+  onYourComputerDemo,
   onTestTriggerableTask,
   armedTriggerableTaskId = null,
   nextScheduledTaskDueAt = null,
@@ -794,6 +816,9 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
       else if (action === 'learn-from-correction') onLearnFromCorrection?.();
       else if (action === 'my-computer-demo') onMyComputerDemo?.();
+      else if (action === 'connect-your-computer') onConnectYourComputer?.();
+      else if (action === 'enable-desktop-filesys') onEnableDesktopFilesys?.();
+      else if (action === 'trigger-your-computer-demo') onYourComputerDemo?.();
     },
     [
       onStartOnboardingStep,
@@ -812,6 +837,9 @@ export function CoordinatorOnboardingChecklist({
       onCreateTriggerableTask,
       onLearnFromCorrection,
       onMyComputerDemo,
+      onConnectYourComputer,
+      onEnableDesktopFilesys,
+      onYourComputerDemo,
     ]
   );
 
@@ -933,6 +961,9 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
       if (action === 'learn-from-correction') return !!onLearnFromCorrection;
       if (action === 'my-computer-demo') return !!onMyComputerDemo;
+      if (action === 'connect-your-computer') return !!onConnectYourComputer;
+      if (action === 'enable-desktop-filesys') return !!onEnableDesktopFilesys;
+      if (action === 'trigger-your-computer-demo') return !!onYourComputerDemo;
       return false;
     },
     [
@@ -952,6 +983,9 @@ export function CoordinatorOnboardingChecklist({
       onCreateTriggerableTask,
       onLearnFromCorrection,
       onMyComputerDemo,
+      onConnectYourComputer,
+      onEnableDesktopFilesys,
+      onYourComputerDemo,
     ]
   );
 

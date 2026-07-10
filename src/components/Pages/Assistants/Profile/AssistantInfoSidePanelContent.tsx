@@ -124,6 +124,12 @@ export interface AssistantInfoSidePanelContentProps {
     onLearnFromCorrection?: () => void;
     /** Dispatches the My Computer live demo beat event to Unity. */
     onMyComputerDemo?: () => void;
+    /** Opens the desktop-linker dialog to connect the user's computer. */
+    onConnectYourComputer?: () => void;
+    /** Opens the desktop-linker dialog to enable filesystem access. */
+    onEnableDesktopFilesys?: () => void;
+    /** Dispatches the Their Computer fetch-and-return beat event to Unity. */
+    onYourComputerDemo?: () => void;
     /** Echo a checklist trigger acknowledgement into the coordinator chat. */
     appendRequestSentAck?: (label: string) => void;
     onSkipSection?: (phaseId: string) => void;
@@ -415,6 +421,9 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onSelectTaskChip={coordinatorOnboarding.onSelectTaskChip}
                 onLearnFromCorrection={coordinatorOnboarding.onLearnFromCorrection}
                 onMyComputerDemo={coordinatorOnboarding.onMyComputerDemo}
+                onConnectYourComputer={coordinatorOnboarding.onConnectYourComputer}
+                onEnableDesktopFilesys={coordinatorOnboarding.onEnableDesktopFilesys}
+                onYourComputerDemo={coordinatorOnboarding.onYourComputerDemo}
                 onTestTriggerableTask={handleTestTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}
