@@ -13,7 +13,6 @@ describe('parseChatSseFrame — unify_meet_incoming', () => {
   it('parses a meet-incoming ring frame with its event data', () => {
     const raw = JSON.stringify({
       thread: 'unify_meet_incoming',
-      __ackId: 'ack-1',
       event: { call_session_id: 'meet-ring-1', reason: 'Continuing onboarding', contact_id: 1 },
     });
 
@@ -21,7 +20,7 @@ describe('parseChatSseFrame — unify_meet_incoming', () => {
 
     expect(frame.kind).toBe('meet-incoming');
     if (frame.kind === 'meet-incoming') {
-      expect(frame.ackId).toBe('ack-1');
+      expect(frame.ackId).toBeUndefined();
       expect(frame.eventData.call_session_id).toBe('meet-ring-1');
       expect(frame.eventData.reason).toBe('Continuing onboarding');
     }
