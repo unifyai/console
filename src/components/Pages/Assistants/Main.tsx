@@ -1041,16 +1041,58 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
   const handleCoordinatorOnboardingSectionSkip = React.useCallback(
-    (phaseId: string) => {
-      void updateCoordinatorOnboardingState({ skipOnboardingPhase: phaseId });
+    async (phaseLabel: string) => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const phaseStepIds = steps
+        .filter((step) => step.phase === phaseLabel && step.canSkip)
+        .map((step) => step.id);
+      const cascadeStepIds = new Set<string>();
+      for (const stepId of phaseStepIds) {
+        for (const cascadeStepId of collectCompletionBlockedStepIds(stepId)) {
+          cascadeStepIds.add(cascadeStepId);
+        }
+      }
+      for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      const skipped = await updateCoordinatorOnboardingState({
+        skipOnboardingPhase: phaseLabel,
+      });
+      if (!skipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      }
     },
-    [updateCoordinatorOnboardingState]
+    [
+      collectCompletionBlockedStepIds,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const handleCoordinatorOnboardingSectionUnskip = React.useCallback(
-    (phaseId: string) => {
-      void updateCoordinatorOnboardingState({ unskipOnboardingPhase: phaseId });
+    async (phaseLabel: string) => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const phaseStepIds = steps.filter((step) => step.phase === phaseLabel).map((step) => step.id);
+      const cascadeStepIds = new Set<string>();
+      for (const stepId of phaseStepIds) {
+        for (const cascadeStepId of collectCompletionCoupledStepIds(stepId)) {
+          cascadeStepIds.add(cascadeStepId);
+        }
+      }
+      for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      const unskipped = await updateCoordinatorOnboardingState({
+        unskipOnboardingPhase: phaseLabel,
+      });
+      if (!unskipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      }
     },
-    [updateCoordinatorOnboardingState]
+    [
+      collectCompletionCoupledStepIds,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const setCoordinatorOnboardingActive = React.useCallback(
     (active: boolean) => {
