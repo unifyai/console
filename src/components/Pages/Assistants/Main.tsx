@@ -957,6 +957,89 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     for (const stepId of resetStepIds) next.delete(stepId);
     return next;
   }, [resetStepIds, skippedStepIds]);
+  const collectCompletionBlockedStepIds = React.useCallback(
+    (stepId: string): string[] => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const result = [stepId];
+      const seen = new Set(result);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const step of steps) {
+          if (seen.has(step.id)) continue;
+          if (
+            step.dependencies.some(
+              (dependency) => dependency.resolution === 'completed' && seen.has(dependency.id)
+            )
+          ) {
+            seen.add(step.id);
+            result.push(step.id);
+            changed = true;
+          }
+        }
+      }
+      return result;
+    },
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
+  const collectCompletionCoupledStepIds = React.useCallback(
+    (stepId: string): string[] => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const coupled = new Set<string>([stepId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const step of steps) {
+          if (!coupled.has(step.id)) continue;
+          for (const dependency of step.dependencies) {
+            if (dependency.resolution === 'completed' && !coupled.has(dependency.id)) {
+              coupled.add(dependency.id);
+              changed = true;
+            }
+          }
+        }
+      }
+      for (const coupledStepId of Array.from(coupled)) {
+        for (const blockedStepId of collectCompletionBlockedStepIds(coupledStepId)) {
+          coupled.add(blockedStepId);
+        }
+      }
+      return steps.filter((step) => coupled.has(step.id)).map((step) => step.id);
+    },
+    [collectCompletionBlockedStepIds, coordinatorOnboardingState?.onboarding?.steps]
+  );
+  const handleCoordinatorOnboardingStepSkip = React.useCallback(
+    async (stepId: string) => {
+      const cascadeStepIds = collectCompletionBlockedStepIds(stepId);
+      for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
+      if (!skipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      }
+    },
+    [
+      collectCompletionBlockedStepIds,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
+  );
+  const handleCoordinatorOnboardingStepUnskip = React.useCallback(
+    async (stepId: string) => {
+      const cascadeStepIds = collectCompletionCoupledStepIds(stepId);
+      for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
+      if (!unskipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      }
+    },
+    [
+      collectCompletionCoupledStepIds,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
+  );
   const handleCoordinatorOnboardingSectionSkip = React.useCallback(
     (phaseId: string) => {
       void updateCoordinatorOnboardingState({ skipOnboardingPhase: phaseId });
@@ -2834,6 +2917,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
+      onSkipStep: handleCoordinatorOnboardingStepSkip,
+      onUnskipStep: handleCoordinatorOnboardingStepUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
       // Flavours the "Ask T-W1N to do something" suggestion chips:
       // call-friendly prompts while on a voice call, chat-friendly
@@ -2878,6 +2963,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
+    handleCoordinatorOnboardingStepSkip,
+    handleCoordinatorOnboardingStepUnskip,
     workspaceConnectAvailable,
   ]);
 
