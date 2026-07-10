@@ -17,7 +17,15 @@
  */
 
 import * as React from 'react';
-import { Check, ChevronDown, ExternalLink, Lock, RotateCcw } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Lock,
+  MoreHorizontal,
+  RotateCcw,
+  SkipForward,
+} from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,7 +92,10 @@ export type ChecklistAction =
   | 'create-scheduled-task'
   | 'create-triggerable-task'
   | 'learn-from-correction'
-  | 'my-computer-demo';
+  | 'my-computer-demo'
+  | 'connect-your-computer'
+  | 'enable-desktop-filesys'
+  | 'trigger-your-computer-demo';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -105,6 +116,8 @@ interface OnboardingChecklistItem {
   chipsChat?: OnboardingChip[];
   chipsCall?: OnboardingChip[];
   dependencies?: OnboardingStepDependency[];
+  /** Whether the server allows this step to be skipped. */
+  canSkip?: boolean;
   /** Sub-items render under the parent and count separately toward the
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
@@ -152,6 +165,9 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'create-triggerable-task': 'create-triggerable-task',
   'learn-from-correction': 'learn-from-correction',
   'my-computer-demo': 'my-computer-demo',
+  'your-computer-link': 'connect-your-computer',
+  'your-computer-filesys': 'enable-desktop-filesys',
+  'your-computer-demo': 'trigger-your-computer-demo',
 };
 
 const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
@@ -181,6 +197,7 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'create-triggerable-task': 'Starting...',
   'learn-from-correction': 'Starting...',
   'my-computer-demo': 'Starting...',
+  'trigger-your-computer-demo': 'Fetching...',
 };
 const ACTION_FEEDBACK_MS = 4_500;
 
@@ -338,6 +355,7 @@ function buildVisibleChecklist(
         };
       }),
       action,
+      canSkip: step.canSkip,
       done: status === 'done',
       skipped: status === 'skipped',
       locked,
@@ -352,9 +370,8 @@ function buildVisibleChecklist(
 
   const result: ResolvedChecklistItem[] = [];
   for (const phase of render.phases) {
-    const isCommunication = phase.id === COMMUNICATION_SECTION_ID;
     const children = leavesByPhase.get(phase.phase) ?? [];
-    const sectionSkipped = isCommunication && skippedPhases.has(phase.phase);
+    const sectionSkipped = skippedPhases.has(phase.phase);
     const hasChildren = children.length > 0;
     const childrenAllDone = hasChildren && children.every((child) => child.status === 'done');
     const childrenAllResolved =
@@ -380,8 +397,15 @@ function buildVisibleChecklist(
 }
 
 const CHECKLIST_CONTROL_GRID_CLASS =
-  '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem] gap-1 px-1.5';
+  '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem_1.5rem] gap-1 px-1.5';
 const COMMUNICATION_SECTION_ID = 'communication';
+
+const SKIPPABLE_SECTION_PHASE_LABELS: ReadonlySet<string> = new Set([
+  'Workspace',
+  'Integrations',
+  'Your Computer',
+  'Their Computer',
+]);
 
 /** Overview pages for each onboarding section in the public docs site. */
 const ONBOARDING_SECTION_DOCS_URLS: Readonly<Record<string, string>> = {
@@ -431,6 +455,15 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
     stepIds: ['discord-id', 'discord-connect', 'discord-reference', 'discord-message'],
   },
 ];
+
+// Connect steps for Slack and Microsoft Teams stand for a single install that is
+// shared org-wide: one workspace/tenant connection serves every user in the org
+// and its completion is derived server-side from that install existing. A single
+// user's onboarding reset must therefore never re-open or tear these down —
+// resetting them would either be a no-op (state re-derives from the live install)
+// or, if it revoked, would disconnect the whole org. Only the owner-scoped
+// Disconnect action may remove a shared install.
+const NON_RESETTABLE_STEP_IDS: ReadonlySet<string> = new Set(['slack-connect', 'ms-teams-connect']);
 
 function collectVisibleLeafIds(item: ResolvedChecklistItem): string[] {
   if (!item.children?.length) return [item.id];
@@ -526,6 +559,7 @@ function createComingSoonPlaceholder(section: ResolvedChecklistItem): ResolvedCh
     skipped: false,
     locked: true,
     comingSoon: true,
+    canSkip: false,
     status: 'pending',
   };
 }
@@ -636,6 +670,18 @@ export interface CoordinatorOnboardingChecklistProps {
   /** Dispatches the My Computer live demo beat event to Unity. Hung off
    * ``my-computer-demo``. Unset means the row degrades to a static entry. */
   onMyComputerDemo?: () => void;
+  /** Opens the desktop-linker dialog so the user can install/link their
+   * computer. Hung off ``your-computer-link``. Unset means the row degrades
+   * to a static entry. */
+  onConnectYourComputer?: () => void;
+  /** Opens the same desktop-linker dialog so the user can flip the
+   * filesystem-access toggle. Hung off ``your-computer-filesys``. Unset means
+   * the row degrades to a static entry. */
+  onEnableDesktopFilesys?: () => void;
+  /** Dispatches the Their Computer fetch-and-return beat event to Unity.
+   * Hung off ``your-computer-demo``. Unset means the row degrades to a
+   * static entry. */
+  onYourComputerDemo?: () => void;
   /** Deterministically fire the armed triggerable task by id — powers the
    * inline "Test it" affordance under the ``create-triggerable-task`` row.
    * Unset (or a null ``armedTriggerableTaskId``) hides the affordance. */
@@ -649,6 +695,8 @@ export interface CoordinatorOnboardingChecklistProps {
   nextScheduledTaskDueAt?: string | null;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
+  onSkipStep?: (stepId: string) => void;
+  onUnskipStep?: (stepId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
    * Selects which "Act now" suggestion chips show: call-friendly
    * (spoken / interactive output) vs. chat-friendly (text output).
@@ -675,11 +723,16 @@ export function CoordinatorOnboardingChecklist({
   onSelectTaskChip,
   onLearnFromCorrection,
   onMyComputerDemo,
+  onConnectYourComputer,
+  onEnableDesktopFilesys,
+  onYourComputerDemo,
   onTestTriggerableTask,
   armedTriggerableTaskId = null,
   nextScheduledTaskDueAt = null,
   onSkipSection,
   onUnskipSection,
+  onSkipStep,
+  onUnskipStep,
   isOnCall = false,
   className,
 }: CoordinatorOnboardingChecklistProps) {
@@ -763,6 +816,9 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'create-triggerable-task') onCreateTriggerableTask?.();
       else if (action === 'learn-from-correction') onLearnFromCorrection?.();
       else if (action === 'my-computer-demo') onMyComputerDemo?.();
+      else if (action === 'connect-your-computer') onConnectYourComputer?.();
+      else if (action === 'enable-desktop-filesys') onEnableDesktopFilesys?.();
+      else if (action === 'trigger-your-computer-demo') onYourComputerDemo?.();
     },
     [
       onStartOnboardingStep,
@@ -781,6 +837,9 @@ export function CoordinatorOnboardingChecklist({
       onCreateTriggerableTask,
       onLearnFromCorrection,
       onMyComputerDemo,
+      onConnectYourComputer,
+      onEnableDesktopFilesys,
+      onYourComputerDemo,
     ]
   );
 
@@ -902,6 +961,9 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'create-triggerable-task') return !!onCreateTriggerableTask;
       if (action === 'learn-from-correction') return !!onLearnFromCorrection;
       if (action === 'my-computer-demo') return !!onMyComputerDemo;
+      if (action === 'connect-your-computer') return !!onConnectYourComputer;
+      if (action === 'enable-desktop-filesys') return !!onEnableDesktopFilesys;
+      if (action === 'trigger-your-computer-demo') return !!onYourComputerDemo;
       return false;
     },
     [
@@ -921,6 +983,9 @@ export function CoordinatorOnboardingChecklist({
       onCreateTriggerableTask,
       onLearnFromCorrection,
       onMyComputerDemo,
+      onConnectYourComputer,
+      onEnableDesktopFilesys,
+      onYourComputerDemo,
     ]
   );
 
@@ -1178,6 +1243,8 @@ export function CoordinatorOnboardingChecklist({
                   progress={progressForItems(sectionItems)}
                   isOpen={isOpen}
                   onToggle={() => toggleSection(section.id)}
+                  onSkipSection={onSkipSection}
+                  onUnskipSection={onUnskipSection}
                 />
                 {isOpen ? (
                   <ul>
@@ -1198,6 +1265,10 @@ export function CoordinatorOnboardingChecklist({
                             progress={progressForItems(group.items)}
                             isOpen={openSubgroupIds.has(group.id)}
                             onToggle={() => toggleSubgroup(group.id)}
+                            items={group.items}
+                            onSkipStep={onSkipStep}
+                            onUnskipStep={onUnskipStep}
+                            isPhaseSkipped={section.sectionSkipped === true}
                           >
                             {group.items.map((item) => (
                               <ChecklistRow
@@ -1218,6 +1289,8 @@ export function CoordinatorOnboardingChecklist({
                                 onBlockedStepClick={triggerBlockedFeedback}
                                 isOnCall={isOnCall}
                                 onResetStepProgress={resetStepProgress}
+                                onSkipStep={onSkipStep}
+                                onUnskipStep={onUnskipStep}
                                 onTestTriggerableTask={onTestTriggerableTask}
                                 armedTriggerableTaskId={armedTriggerableTaskId}
                                 nextScheduledTaskDueAt={nextScheduledTaskDueAt}
@@ -1245,6 +1318,8 @@ export function CoordinatorOnboardingChecklist({
                             onBlockedStepClick={triggerBlockedFeedback}
                             isOnCall={isOnCall}
                             onResetStepProgress={resetStepProgress}
+                            onSkipStep={onSkipStep}
+                            onUnskipStep={onUnskipStep}
                             onTestTriggerableTask={onTestTriggerableTask}
                             armedTriggerableTaskId={armedTriggerableTaskId}
                             nextScheduledTaskDueAt={nextScheduledTaskDueAt}
@@ -1285,6 +1360,8 @@ interface SectionHeaderProps {
   progress: { completed: number; total: number };
   isOpen: boolean;
   onToggle: () => void;
+  onSkipSection?: (phaseLabel: string) => void;
+  onUnskipSection?: (phaseLabel: string) => void;
 }
 
 function CompactProgress({ completed, total }: { completed: number; total: number }) {
@@ -1323,13 +1400,28 @@ function SectionDocsLink({ sectionId, href }: { sectionId: string; href: string 
   );
 }
 
-function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHeaderProps) {
+function SectionHeader({
+  section,
+  index,
+  progress,
+  isOpen,
+  onToggle,
+  onSkipSection,
+  onUnskipSection,
+}: SectionHeaderProps) {
   const label = `${index + 1}. ${section.title}`;
   const toggleProps = {
     type: 'button' as const,
     onClick: onToggle,
     'aria-expanded': isOpen,
   };
+
+  const phaseLabel = section.phase ?? '';
+  const isSkippableSection = SKIPPABLE_SECTION_PHASE_LABELS.has(phaseLabel);
+  const sectionSkipped = section.sectionSkipped === true;
+  const showSkip =
+    isSkippableSection && section.status === 'pending' && !sectionSkipped && !!onSkipSection;
+  const showUnskip = isSkippableSection && sectionSkipped && !!onUnskipSection;
 
   return (
     <div
@@ -1363,6 +1455,63 @@ function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHe
       >
         <CompactProgress completed={progress.completed} total={progress.total} />
       </button>
+      {showSkip ? (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Skip ${section.title}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSkipSection(phaseLabel);
+                }}
+                className={cn(
+                  'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
+                  'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
+                  'opacity-0 focus-visible:opacity-100 group-hover/onboarding-section:opacity-100',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                )}
+                data-testid={`coordinator-onboarding-skip-section-${section.id}`}
+              >
+                <SkipForward className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p className="text-caption">Skip for now</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : showUnskip ? (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Unskip ${section.title}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onUnskipSection(phaseLabel);
+                }}
+                className={cn(
+                  'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
+                  'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
+                  'opacity-0 focus-visible:opacity-100 group-hover/onboarding-section:opacity-100',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                )}
+                data-testid={`coordinator-onboarding-unskip-section-${section.id}`}
+              >
+                <SkipForward className="h-3.5 w-3.5 rotate-180" aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p className="text-caption">Unskip</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <span aria-hidden="true" />
+      )}
       <button
         {...toggleProps}
         className={cn(
@@ -1386,6 +1535,10 @@ function CommunicationSubgroup({
   progress,
   isOpen,
   onToggle,
+  items,
+  onSkipStep,
+  onUnskipStep,
+  isPhaseSkipped,
   children,
 }: {
   id: string;
@@ -1393,32 +1546,152 @@ function CommunicationSubgroup({
   progress: { completed: number; total: number };
   isOpen: boolean;
   onToggle: () => void;
+  items: ResolvedChecklistItem[];
+  onSkipStep?: (stepId: string) => void;
+  onUnskipStep?: (stepId: string) => void;
+  isPhaseSkipped?: boolean;
   children: React.ReactNode;
 }) {
+  const pendingSkippableLeaves = items.filter((item) => item.status === 'pending' && item.canSkip);
+  const skippedLeaves = items.filter((item) => item.status === 'skipped');
+  const channelSkipped =
+    items.length > 0 &&
+    items.every((item) => item.status !== 'pending') &&
+    skippedLeaves.length > 0;
+
+  const canSkipChannel =
+    !isPhaseSkipped && pendingSkippableLeaves.some((item) => !item.locked) && !!onSkipStep;
+  const canUnskipChannel = !isPhaseSkipped && skippedLeaves.length > 0 && !!onUnskipStep;
+
+  const handleSkipChannel = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!onSkipStep || pendingSkippableLeaves.length === 0) return;
+    // Prefer unlocked roots so cascade covers locked COMPLETED-descendants.
+    // Fall back to any root if the channel only has locked pending rows.
+    const pendingSkippableIds = new Set(pendingSkippableLeaves.map((l) => l.id));
+    const roots = pendingSkippableLeaves.filter(
+      (leaf) =>
+        !(leaf.dependencies ?? []).some(
+          (dep) => dep.resolution === 'completed' && pendingSkippableIds.has(dep.id)
+        )
+    );
+    const unlockedRoots = roots.filter((leaf) => !leaf.locked);
+    const toSkip =
+      unlockedRoots.length > 0 ? unlockedRoots : roots.length > 0 ? roots : pendingSkippableLeaves;
+    for (const leaf of toSkip) onSkipStep(leaf.id);
+  };
+
+  const handleUnskipChannel = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!onUnskipStep || skippedLeaves.length === 0) return;
+    const skippedIds = new Set(skippedLeaves.map((l) => l.id));
+    const roots = skippedLeaves.filter(
+      (leaf) =>
+        !(leaf.dependencies ?? []).some(
+          (dep) => dep.resolution === 'completed' && skippedIds.has(dep.id)
+        )
+    );
+    const toUnskip = roots.length > 0 ? roots : skippedLeaves;
+    for (const leaf of toUnskip) onUnskipStep(leaf.id);
+  };
+
   return (
-    <li data-testid={`coordinator-onboarding-communication-${id}`}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
+    <li
+      data-testid={`coordinator-onboarding-communication-${id}`}
+      className={cn(channelSkipped && 'opacity-60')}
+    >
+      <div
         className={cn(
           CHECKLIST_CONTROL_GRID_CLASS,
-          'group/onboarding-subgroup rounded-control cursor-pointer items-center py-3 pl-5 text-left',
-          'bg-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          'group/onboarding-subgroup rounded-control items-center py-3 pl-5'
         )}
-        data-testid={`coordinator-onboarding-communication-${id}-toggle`}
       >
-        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-subgroup:text-muted-foreground group-focus-visible/onboarding-subgroup:text-muted-foreground">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          className={cn(
+            'text-body-sm min-w-0 flex-1 truncate text-left font-medium text-foreground transition-colors',
+            'bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'group-hover/onboarding-subgroup:text-muted-foreground group-focus-visible/onboarding-subgroup:text-muted-foreground'
+          )}
+          data-testid={`coordinator-onboarding-communication-${id}-toggle`}
+        >
           {title}
-        </span>
-        <CompactProgress completed={progress.completed} total={progress.total} />
-        <span className="flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground">
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
+          className="flex w-16 flex-col gap-1 justify-self-center rounded-sm bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <CompactProgress completed={progress.completed} total={progress.total} />
+        </button>
+        {canSkipChannel ? (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Skip ${title}`}
+                  onClick={handleSkipChannel}
+                  className={cn(
+                    'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
+                    'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
+                    'opacity-0 focus-visible:opacity-100 group-hover/onboarding-subgroup:opacity-100',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                  )}
+                  data-testid={`coordinator-onboarding-skip-channel-${id}`}
+                >
+                  <SkipForward className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p className="text-caption">Skip for now</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : canUnskipChannel ? (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Unskip ${title}`}
+                  onClick={handleUnskipChannel}
+                  className={cn(
+                    'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
+                    'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
+                    'opacity-0 focus-visible:opacity-100 group-hover/onboarding-subgroup:opacity-100',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                  )}
+                  data-testid={`coordinator-onboarding-unskip-channel-${id}`}
+                >
+                  <SkipForward className="h-3.5 w-3.5 rotate-180" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p className="text-caption">Unskip</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
+          className="flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
           <ChevronDown
             className={cn('h-3.5 w-3.5 transition-transform', !isOpen && '-rotate-90')}
             aria-hidden="true"
           />
-        </span>
-      </button>
+        </button>
+      </div>
       {isOpen ? <ul>{children}</ul> : null}
     </li>
   );
@@ -1444,8 +1717,8 @@ interface ChecklistRowProps {
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
   isOnCall: boolean;
-  onSkipSection?: (phaseId: string) => void;
-  onUnskipSection?: (phaseId: string) => void;
+  onSkipStep?: (stepId: string) => void;
+  onUnskipStep?: (stepId: string) => void;
   onResetStepProgress?: (stepIds: readonly string[], resetStepId?: string) => void;
   /** Deterministic triggerable-task fire — powers the "Test it" affordance. */
   onTestTriggerableTask?: (taskId: number) => void;
@@ -1471,6 +1744,8 @@ function ChecklistRow({
   blockingStepHints,
   onBlockedStepClick,
   isOnCall,
+  onSkipStep,
+  onUnskipStep,
   onResetStepProgress,
   onTestTriggerableTask,
   armedTriggerableTaskId = null,
@@ -1497,15 +1772,25 @@ function ChecklistRow({
       : item.inProgress
         ? 'In progress'
         : actionFeedback;
+  // Shared org-wide connect steps are excluded from every reset path (see
+  // NON_RESETTABLE_STEP_IDS): a per-user reset must not disturb a connection the
+  // whole org depends on.
+  const resetStepIds = React.useMemo(
+    () => collectVisibleLeafIds(item).filter((id) => !NON_RESETTABLE_STEP_IDS.has(id)),
+    [item]
+  );
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
     !!onResetStepProgress &&
     !item.sectionSkipped &&
-    hasResolvedLeaf(item);
-  const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
+    hasResolvedLeaf(item) &&
+    resetStepIds.length > 0;
   const rowResetStepIds = React.useMemo(
-    () => collectDependentStepIds(item.id, allVisibleItems),
+    () =>
+      collectDependentStepIds(item.id, allVisibleItems).filter(
+        (id) => !NON_RESETTABLE_STEP_IDS.has(id)
+      ),
     [allVisibleItems, item.id]
   );
   // Only inaccessible/future rows dim. Addressed rows (done or skipped)
@@ -1534,46 +1819,28 @@ function ChecklistRow({
   );
 
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
-  const canReset = item.status === 'done' && !!onResetStepProgress;
-  const hasRowMenu = canReset;
+  const canReset =
+    item.status === 'done' && !!onResetStepProgress && !NON_RESETTABLE_STEP_IDS.has(item.id);
+  const canSkipRow =
+    !!onSkipStep &&
+    item.canSkip === true &&
+    item.status === 'pending' &&
+    !sectionDisabled &&
+    !item.children?.length;
+  const canUnskipRow =
+    !!onUnskipStep && item.status === 'skipped' && !sectionDisabled && !item.children?.length;
+  const hasRowMenu = canReset || canSkipRow || canUnskipRow;
 
-  const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
-    const content = (
-      <span
-        className={cn(
-          'flex min-w-0 flex-1 items-start',
-          isChild && 'pl-6',
-          hasRowMenu && 'cursor-pointer',
-          dimClassName
-        )}
-      >
-        <span className="inline-flex min-w-0 items-start gap-2">
-          <ChecklistMarker status={item.status} locked={item.comingSoon === true} />
-          {renderLabel(variant)}
-        </span>
+  const [rowMenuOpen, setRowMenuOpen] = React.useState(false);
+
+  const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
+    <span className={cn('flex min-w-0 flex-1 items-start', isChild && 'pl-6', dimClassName)}>
+      <span className="inline-flex min-w-0 items-start gap-2">
+        <ChecklistMarker status={item.status} locked={item.comingSoon === true} />
+        {renderLabel(variant)}
       </span>
-    );
-
-    if (!hasRowMenu) return content;
-
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>{content}</DropdownMenuTrigger>
-        <DropdownMenuContent
-          side="bottom"
-          align="start"
-          alignOffset={isChild ? 24 : 0}
-          className="min-w-[6rem]"
-        >
-          {canReset ? (
-            <DropdownMenuItem onSelect={() => onResetStepProgress?.(rowResetStepIds, item.id)}>
-              Reset
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  };
+    </span>
+  );
 
   const renderResetSectionButton = () =>
     canResetSection ? (
@@ -1609,10 +1876,19 @@ function ChecklistRow({
                   Integrations.
                 </>
               ) : null}
+              {item.id === 'slack' ? (
+                <>
+                  {' '}
+                  Your Slack workspace connection is shared across the org and stays connected —
+                  only your setup steps here reset. To fully disconnect, use Disconnect in the Slack
+                  settings.
+                </>
+              ) : null}
               {item.id === 'ms_teams' ? (
                 <>
                   {' '}
-                  This only resets your setup here — to fully remove T-W1N, a Teams admin must
+                  Your Microsoft Teams connection is shared across the org and stays connected —
+                  only your setup steps here reset. To fully remove T-W1N, a Teams admin must
                   uninstall the app from the Teams admin center.
                 </>
               ) : null}
@@ -1658,7 +1934,47 @@ function ChecklistRow({
           </span>
         )}
       </span>
-      <span aria-hidden="true" className="flex h-6 items-center justify-center" />
+      {hasRowMenu ? (
+        <DropdownMenu open={rowMenuOpen} onOpenChange={setRowMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="More actions"
+              onClick={(event) => event.stopPropagation()}
+              className={cn(
+                'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
+                'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
+                'opacity-0 focus-visible:opacity-100 group-hover/onboarding-row:opacity-100',
+                rowMenuOpen && 'opacity-100',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              )}
+              data-testid={`coordinator-onboarding-row-menu-${item.id}`}
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="bottom"
+            align="end"
+            className="min-w-[6rem]"
+            onCloseAutoFocus={(event) => event.preventDefault()}
+          >
+            {canUnskipRow ? (
+              <DropdownMenuItem onSelect={() => onUnskipStep?.(item.id)}>Unskip</DropdownMenuItem>
+            ) : null}
+            {canSkipRow ? (
+              <DropdownMenuItem onSelect={() => onSkipStep?.(item.id)}>Skip</DropdownMenuItem>
+            ) : null}
+            {canReset ? (
+              <DropdownMenuItem onSelect={() => onResetStepProgress?.(rowResetStepIds, item.id)}>
+                Reset
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <span aria-hidden="true" className="flex h-6 items-center justify-center" />
+      )}
     </div>
   );
 
@@ -1847,6 +2163,8 @@ function ChecklistRow({
               blockingStepHints={blockingStepHints}
               onBlockedStepClick={onBlockedStepClick}
               isOnCall={isOnCall}
+              onSkipStep={onSkipStep}
+              onUnskipStep={onUnskipStep}
               onResetStepProgress={onResetStepProgress}
               onTestTriggerableTask={onTestTriggerableTask}
               armedTriggerableTaskId={armedTriggerableTaskId}

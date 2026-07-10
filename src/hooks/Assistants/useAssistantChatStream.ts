@@ -35,8 +35,8 @@ import {
  *    connecting > connected).
  *  - Frame parsing via the shared `parseChatSseFrame`.
  *  - Unread-count bookkeeping per assistant, with a `lastReadAt` cursor
- *    persisted in `localStorage` so counts survive page reloads within the
- *    Pub/Sub retention window.
+ *    persisted in `localStorage` so counts survive page reloads for messages
+ *    received while the assistants page was mounted and streaming.
  *  - Exposing `markAsRead(assistantId)` for the page to call when the user
  *    opens a chat panel or otherwise "sees" the messages.
  *  - Scheduling per-shard exponential-backoff retries when the server reports
@@ -48,10 +48,8 @@ import {
  *    page passes its `setChatHistories` via `onChatMessage`).
  *  - Cross-tab `BroadcastChannel` propagation, typing indicators, or any
  *    panel-specific UI state.
- *  - Acking inbound messages. The caller is expected to call the returned
- *    `ackMessage` when a message has actually been displayed / persisted so
- *    a lost SSE frame (Vercel timeout, dropped TCP) is redelivered rather
- *    than silently swallowed.
+ *  - Pub/Sub ack. The chat-stream route acks server-side after enqueueing
+ *    onto each connection's private ephemeral subscription.
  */
 
 export type ChatStreamConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'error';
@@ -145,14 +143,6 @@ export interface ChatStreamHandle {
    * messages the user has already seen.
    */
   markAsRead: (assistantId: string) => void;
-  /**
-   * Acknowledge to Pub/Sub (via the chat-stream ack endpoint) that the given
-   * message has actually been received and processed client-side. The server
-   * keeps messages leased (not acked) until this call arrives, so a dropped
-   * SSE frame causes redelivery on the next connection instead of being
-   * silently lost.
-   */
-  ackMessage: (assistantId: string, contactId: number, rootKey: string, ackId: string) => void;
 }
 
 const SSE_MAX_RECONNECT_ATTEMPTS = 5;
@@ -173,9 +163,10 @@ export const CHAT_STREAM_SHARD_SIZE = 25;
 // unread cursors on upgrade.
 const LAST_READ_STORAGE_PREFIX = 'assistant_inbox_last_read:';
 // Companion storage for the in-memory `unreadCounts` map. Persisting it
-// means the badge survives a page reload even when the underlying message
-// has already been ack'd to Pub/Sub (so backlog redelivery alone can't
-// rebuild the badge state). Cleared per-assistant by `markAsRead`.
+// means the badge survives a page reload for messages that arrived while
+// this tab was streaming. Ephemeral chat subscriptions do not rebuild
+// badges from a Pub/Sub backlog after reconnect. Cleared per-assistant by
+// `markAsRead`.
 const UNREAD_COUNTS_STORAGE_PREFIX = 'assistant_inbox_unread_counts:';
 
 function chunkPairs(pairs: ChatStreamPair[], size: number): ChatStreamPair[][] {
@@ -377,13 +368,10 @@ export function useAssistantChatStream(
   //     event for each assistant. Acts as the floor for counting an
   //     incoming message as unread.
   //   - `unreadCounts`: the current per-assistant badge value, mirrored
-  //     to storage on every mutation. Persisting it means a reload
-  //     restores the badge even when the underlying message has already
-  //     been ack'd to Pub/Sub (in which case backlog redelivery alone
-  //     can't rebuild the count). For messages that arrive while no
-  //     consumer is connected, the redelivered backlog still bumps the
-  //     count via the message handler below — `lastReadAt` is the floor
-  //     for both paths.
+  //     to storage on every mutation. Persisting it restores the badge
+  //     across reloads for messages received while a live stream was
+  //     mounted. Messages published with no live chat-stream connection
+  //     are not replayed from Pub/Sub (ephemeral fan-out).
   const userEmail = options.userEmail ?? null;
   const [unreadCounts, setUnreadCounts] = React.useState<Record<string, number>>(() =>
     typeof window === 'undefined' ? {} : readUnreadCounts(options.userEmail ?? null)
@@ -405,11 +393,11 @@ export function useAssistantChatStream(
   }, [userEmail, unreadCounts]);
 
   // First-encounter seeding. For any assistant in `pairs` without a
-  // persisted `lastReadAt`, seed `now` so the very first session never
-  // sees the entire Pub/Sub retention window (~10 min) light up as
-  // unread. This effect runs whenever the workspace's pair set changes
-  // (initial mount, hire, removal), so newly-hired assistants are seeded
-  // right away rather than starting from epoch.
+  // persisted `lastReadAt`, seed `now` so the first session does not treat
+  // historical frames as unread if any briefly overlap a reconnect. This
+  // effect runs whenever the workspace's pair set changes (initial mount,
+  // hire, removal), so newly-hired assistants are seeded right away
+  // rather than starting from epoch.
   React.useEffect(() => {
     if (pairs.length === 0) return;
     const stored = lastReadAtRef.current;
@@ -443,31 +431,6 @@ export function useAssistantChatStream(
       writeLastReadMap(userEmail, next);
     },
     [userEmail]
-  );
-
-  const ackMessage = React.useCallback(
-    (assistantId: string, contactId: number, rootKey: string, ackId: string) => {
-      const pairKey = `${assistantId}:${contactId}:${rootKey}`;
-      if (!pairContextsRef.current.has(pairKey)) {
-        // Pair was removed before we could ack. Safe to drop — the server
-        // will redeliver to whoever next subscribes to the same
-        // subscription name, which will be the next useAssistantChatStream
-        // attached to this assistant.
-        return;
-      }
-      // Fire-and-forget: if the request fails, Pub/Sub's lease will
-      // eventually expire and the message will be redelivered on reconnect.
-      // We don't want to block message rendering on an ack round-trip.
-      fetch('/api/assistant/events/chat-stream/ack', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assistantId, contactId, rootKey, ackId }),
-        keepalive: true,
-      }).catch((err) => {
-        clientLog('CHAT_STREAM_ACK_FAIL', { assistantId, rootKey, ackId, error: String(err) });
-      });
-    },
-    []
   );
 
   // Tab visibility tracking. Read by the message handler to decide whether
@@ -698,10 +661,7 @@ export function useAssistantChatStream(
             : undefined;
         if (!pair) {
           // The server sent us a frame for a pair we didn't subscribe to, or
-          // the pair was removed mid-stream. Drop it — since the server
-          // holds ack until we call the ack endpoint, the message will be
-          // redelivered to whichever connection next picks it up, which
-          // will reconcile the stale shard membership.
+          // the pair was removed mid-stream. Drop it.
           clientLog('CHAT_STREAM_UNKNOWN_ASSISTANT', { shardId: shard.id, assistantId });
           return;
         }
@@ -711,12 +671,6 @@ export function useAssistantChatStream(
 
         // In-chat progress clearing runs in the chat merge callback after a
         // successful assistant message merge — not on every SSE frame.
-
-        // Top-level `__ackId` is set by the chat-stream route for every
-        // Pub/Sub delivery; pluck it here so any frame-kind can ack without
-        // re-parsing the envelope.
-        const envelopeAckId =
-          typeof parsedHeader.__ackId === 'string' ? parsedHeader.__ackId : undefined;
 
         const cutoff = optionsRef.current.getCutoff?.(assistantId) ?? 0;
         const frame = parseChatSseFrame(event.data, {
@@ -736,28 +690,18 @@ export function useAssistantChatStream(
                   : 'CHAT_STREAM_FILTERED_CUTOFF',
               { ...frame.details, assistantId, shardId: shard.id }
             );
-            // Ack so Pub/Sub stops redelivering; we'll never render it.
-            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }
           case 'desktop-ready': {
             callbacksRef.current.onDesktopReady?.(assistantId, frame.eventData);
-            // Ack immediately: desktop-ready events are idempotent
-            // BroadcastChannel signals; repeated delivery would just
-            // re-write the same sessionStorage entry.
-            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }
           case 'meet-incoming': {
             callbacksRef.current.onUnifyMeetIncoming?.(assistantId, frame.eventData);
-            // Ack immediately: the ring is an idempotent lifecycle signal; the
-            // no-answer fallback is owned by the runtime, not by redelivery.
-            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }
           case 'reaction': {
             callbacksRef.current.onReactionUpdate?.(assistantId, frame.parsed);
-            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }
           case 'chat': {
@@ -778,11 +722,9 @@ export function useAssistantChatStream(
 
             // Unread accounting — anything newer than the persisted
             // `lastReadAt` cursor counts. The cursor is seeded to `now`
-            // on first encounter (see effect above) so the initial Pub/Sub
-            // backlog isn't surfaced; on subsequent sessions the cursor
-            // reflects when the user last opened the chat, so messages
-            // delivered while the tab was closed legitimately bump the
-            // badge.
+            // on first encounter (see effect above). Live frames while the
+            // page is open bump the badge; reconnect gaps rely on the
+            // transcript reconciler for loaded chats.
             const floor = lastReadAtRef.current[assistantId] ?? 0;
             // Suppress only when the assistant is "active" AND the tab is
             // visible: a hidden tab can't actually show the message, so
@@ -805,7 +747,6 @@ export function useAssistantChatStream(
               msgId: frame.msgId,
               thread: frame.thread,
             });
-            if (envelopeAckId) ackMessage(assistantId, myContactId, pair.rootKey, envelopeAckId);
             return;
           }
           case 'error': {
@@ -814,7 +755,6 @@ export function useAssistantChatStream(
               assistantId,
               error: frame.error,
             });
-            if (envelopeAckId) ackMessage(assistantId, myContactId, pair.rootKey, envelopeAckId);
             return;
           }
         }
@@ -883,6 +823,5 @@ export function useAssistantChatStream(
     reconnect,
     unreadCounts,
     markAsRead,
-    ackMessage,
   };
 }

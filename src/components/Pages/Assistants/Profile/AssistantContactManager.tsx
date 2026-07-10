@@ -1372,24 +1372,37 @@ const MsTeamsBotTabContent: React.FC<{
           className="text-caption text-destructive"
           data-testid="ms-teams-bot-install-revoked-notice"
         >
-          The previous Teams bot install was revoked. Enter a new install code to reconnect.
+          The previous Teams bot install was revoked. Add the Unify bot again to reconnect.
         </p>
       )}
       <p className="text-body text-muted-foreground">
         {isPending ? (
           <>
-            A Teams bot install is waiting to be claimed for a Microsoft tenant. Enter the install
-            code shown after adding the Teams app to bind it to this {ownerNoun}.
+            A Teams bot install is waiting to be claimed for a Microsoft tenant. Open the message
+            the Unify bot sent you in Teams and tap <strong>Connect</strong> to bind it to this{' '}
+            {ownerNoun}.
           </>
         ) : (
           <>
-            Install the Unify bot from the Microsoft Teams Store into your {ownerNoun}&apos;s
-            Microsoft 365 tenant, then enter the install code you were shown to connect it here. You
-            only bind once — every assistant in this {ownerNoun} becomes reachable in Teams.
+            Add the Unify bot to your {ownerNoun}&apos;s Microsoft Teams, then open the message it
+            sends you and tap <strong>Connect</strong> — that links Teams to this {ownerNoun}. You
+            only connect once; every assistant in this {ownerNoun} becomes reachable in Teams.
           </>
         )}
       </p>
-      {bindForm}
+      {addInTeamsLink && (
+        <Button asChild className="gap-2" data-testid="ms-teams-bot-add-button">
+          <a href={addInTeamsLink} target="_blank" rel="noopener noreferrer">
+            <Image src={MicrosoftIcon} alt="" width={16} height={16} className="h-4 w-4" />
+            Add to Teams
+            <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+          </a>
+        </Button>
+      )}
+      <details className="text-caption text-muted-foreground">
+        <summary className="cursor-pointer select-none">Prefer to enter a code manually?</summary>
+        <div className="mt-2">{bindForm}</div>
+      </details>
     </div>
   );
 };

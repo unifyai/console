@@ -2,12 +2,12 @@
  * Shared Pub/Sub subscription helpers.
  *
  * Two subscription strategies:
- * - **Ephemeral** (actions): per-connection, deleted on disconnect, 1-day expiry
- *   safety net. Used for the action pane where backlog loss on reconnect is
- *   acceptable (Orchestra covers historical data).
- * - **Persistent** (chat): per-user+assistant, survives across reconnects so
- *   messages published during connection gaps are preserved. 31-day expiry
- *   cleans up abandoned subscriptions.
+ * - **Ephemeral** (actions, billing, chat): per-connection, deleted on
+ *   disconnect, 1-day expiry safety net. Fan-out so every live SSE connection
+ *   gets its own copy. Reconnect gaps rely on Orchestra / transcript
+ *   reconciliation for catch-up.
+ * - **Persistent** helpers remain for any caller that still needs a durable
+ *   named subscription with 31-day expiry.
  */
 
 import { GoogleAuth } from 'google-auth-library';

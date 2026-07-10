@@ -179,7 +179,11 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
+import {
+  isMsTeamsBotInstall,
+  type MsTeamsBotInstall,
+  type MsTeamsBotInstallOwner,
+} from '@/types/ms-teams-bot/install';
 import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
@@ -291,6 +295,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const onboardingFocusParam = searchParams.get('onboarding');
+  // One-click Teams connect: the bot DMs the installer a link back here
+  // carrying the pending install's handshake nonce, so binding is a single
+  // click with no code to copy. Consumed once by the effect below.
+  const msTeamsBindParam = searchParams.get('ms_teams_bind');
   const { activeWorkspace, currentUserId } = useWorkspace();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
@@ -949,17 +957,142 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     for (const stepId of resetStepIds) next.delete(stepId);
     return next;
   }, [resetStepIds, skippedStepIds]);
-  const handleCoordinatorOnboardingSectionSkip = React.useCallback(
-    (phaseId: string) => {
-      void updateCoordinatorOnboardingState({ skipOnboardingPhase: phaseId });
+  const collectCompletionBlockedStepIds = React.useCallback(
+    (stepId: string): string[] => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const result = [stepId];
+      const seen = new Set(result);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const step of steps) {
+          if (seen.has(step.id)) continue;
+          if (
+            step.dependencies.some(
+              (dependency) => dependency.resolution === 'completed' && seen.has(dependency.id)
+            )
+          ) {
+            seen.add(step.id);
+            result.push(step.id);
+            changed = true;
+          }
+        }
+      }
+      return result;
     },
-    [updateCoordinatorOnboardingState]
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
+  const collectCompletionCoupledStepIds = React.useCallback(
+    (stepId: string): string[] => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const coupled = new Set<string>([stepId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const step of steps) {
+          if (!coupled.has(step.id)) continue;
+          for (const dependency of step.dependencies) {
+            if (dependency.resolution === 'completed' && !coupled.has(dependency.id)) {
+              coupled.add(dependency.id);
+              changed = true;
+            }
+          }
+        }
+      }
+      for (const coupledStepId of Array.from(coupled)) {
+        for (const blockedStepId of collectCompletionBlockedStepIds(coupledStepId)) {
+          coupled.add(blockedStepId);
+        }
+      }
+      return steps.filter((step) => coupled.has(step.id)).map((step) => step.id);
+    },
+    [collectCompletionBlockedStepIds, coordinatorOnboardingState?.onboarding?.steps]
+  );
+  const handleCoordinatorOnboardingStepSkip = React.useCallback(
+    async (stepId: string) => {
+      const cascadeStepIds = collectCompletionBlockedStepIds(stepId);
+      for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
+      if (!skipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      }
+    },
+    [
+      collectCompletionBlockedStepIds,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
+  );
+  const handleCoordinatorOnboardingStepUnskip = React.useCallback(
+    async (stepId: string) => {
+      const cascadeStepIds = collectCompletionCoupledStepIds(stepId);
+      for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
+      if (!unskipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      }
+    },
+    [
+      collectCompletionCoupledStepIds,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
+  );
+  const handleCoordinatorOnboardingSectionSkip = React.useCallback(
+    async (phaseLabel: string) => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const phaseStepIds = steps
+        .filter((step) => step.phase === phaseLabel && step.canSkip)
+        .map((step) => step.id);
+      const cascadeStepIds = new Set<string>();
+      for (const stepId of phaseStepIds) {
+        for (const cascadeStepId of collectCompletionBlockedStepIds(stepId)) {
+          cascadeStepIds.add(cascadeStepId);
+        }
+      }
+      for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      const skipped = await updateCoordinatorOnboardingState({
+        skipOnboardingPhase: phaseLabel,
+      });
+      if (!skipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      }
+    },
+    [
+      collectCompletionBlockedStepIds,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const handleCoordinatorOnboardingSectionUnskip = React.useCallback(
-    (phaseId: string) => {
-      void updateCoordinatorOnboardingState({ unskipOnboardingPhase: phaseId });
+    async (phaseLabel: string) => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const phaseStepIds = steps.filter((step) => step.phase === phaseLabel).map((step) => step.id);
+      const cascadeStepIds = new Set<string>();
+      for (const stepId of phaseStepIds) {
+        for (const cascadeStepId of collectCompletionCoupledStepIds(stepId)) {
+          cascadeStepIds.add(cascadeStepId);
+        }
+      }
+      for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      const unskipped = await updateCoordinatorOnboardingState({
+        unskipOnboardingPhase: phaseLabel,
+      });
+      if (!unskipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      }
     },
-    [updateCoordinatorOnboardingState]
+    [
+      collectCompletionCoupledStepIds,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const setCoordinatorOnboardingActive = React.useCallback(
     (active: boolean) => {
@@ -1212,6 +1345,67 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     searchParams,
   ]);
 
+  // One-click Teams connect. When the installer taps "Connect" in the bot's
+  // welcome DM, they land here with ``?ms_teams_bind=<nonce>``. Claim the
+  // pending install for the active owner, surface a toast, then strip the
+  // param so a refresh doesn't re-bind. Binding is idempotent, so a repeat is
+  // harmless. Only an owner/admin scope carries ``msTeamsBotOwner``.
+  const consumedMsTeamsBindParamRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!msTeamsBindParam) return;
+    if (consumedMsTeamsBindParamRef.current === msTeamsBindParam) return;
+    consumedMsTeamsBindParamRef.current = msTeamsBindParam;
+
+    const stripParam = () => {
+      if (!canWriteAssistantUrl) return;
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete('ms_teams_bind');
+      const nextQuery = nextParams.toString();
+      router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
+        scroll: false,
+      });
+    };
+
+    const owner = userMeta.msTeamsBotOwner;
+    const bindAction = assistantActions.msTeamsBot?.bindInstall;
+    if (!owner || !bindAction) {
+      toast.error('Could not connect Microsoft Teams. Please try again from the assistant page.');
+      stripParam();
+      return;
+    }
+
+    void (async () => {
+      try {
+        const result = await bindAction(owner, msTeamsBindParam);
+        if (isMsTeamsBotInstall(result)) {
+          toast.success(
+            owner.kind === 'org'
+              ? 'Microsoft Teams connected to your organization.'
+              : 'Microsoft Teams connected to your account.'
+          );
+          void refetchCoordinatorOnboardingState();
+        } else {
+          console.error('[ms-teams-bot] auto-bind failed:', result);
+          toast.error('Could not connect Microsoft Teams. The install code may have expired.');
+        }
+      } catch (err) {
+        console.error('[ms-teams-bot] auto-bind error:', err);
+        toast.error('Could not connect Microsoft Teams. Please try again.');
+      } finally {
+        stripParam();
+      }
+    })();
+  }, [
+    assistantActions.msTeamsBot,
+    canWriteAssistantUrl,
+    msTeamsBindParam,
+    pathname,
+    refetchCoordinatorOnboardingState,
+    router,
+    searchParams,
+    userMeta.msTeamsBotOwner,
+  ]);
+
   React.useEffect(() => {
     const onCoordinatorOnboardingPanelRequest = (event: Event) => {
       const detail = (event as CustomEvent<CoordinatorOnboardingPanelRequestDetail>).detail;
@@ -1442,14 +1636,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [handleChatActivity, markAssistantOnline]
   );
 
-  // `ackMessage` is returned by `useAssistantChatStream` below, but we need
-  // to reference it from inside `handleChatStreamMessage`, which is passed
-  // INTO that hook. The ref sidesteps the temporal ordering: we update it
-  // on every render once the hook has returned.
-  const ackMessageRef = React.useRef<
-    (assistantId: string, contactId: number, rootKey: string, ackId: string) => void
-  >(() => {});
-
   // Per-assistant publish-time cutoff for the chat SSE filter. The ref is
   // rebuilt from `profileChatHistories` whenever histories change, and
   // `useAssistantChatStream` reads it on every inbound frame via
@@ -1550,16 +1736,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       });
       const mergeOutcome = outcomeRef.value;
 
-      // Ack upstream on every delivery — including the "skipped, no
-      // history" and dedup-hit cases — so Pub/Sub stops looping on us.
-      // The server-side chat-stream route intentionally leaves messages
-      // leased until this call arrives, so any drop is redelivered on
-      // reconnect; once we've taken responsibility for the message
-      // (whether by merging it or by letting the next transcript load
-      // surface it) we have to release the lease.
-      const ackId = message.__ackId;
-      if (ackId) ackMessageRef.current(assistantId, parsed.contactId, parsed.rootKey, ackId);
-
       if (mergeOutcome === 'duplicate') return;
 
       if (mergeOutcome === 'merged' && message.role === 'assistant') {
@@ -1572,8 +1748,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markAssistantOnline(assistantId);
 
       // Broadcast to sibling tabs so a second tab with the same chat open
-      // renders the message even if Pub/Sub load-balanced the delivery to
-      // this tab. Skipped-no-history doesn't broadcast: the receiving
+      // can render the message without waiting for its own SSE copy.
+      // Skipped-no-history doesn't broadcast: the receiving
       // tab's chat panel (if any) would face the same SSE-id vs
       // log-entry-id mismatch and end up with a phantom duplicate. Tabs
       // with the chat open will pick the message up either via their own
@@ -1581,7 +1757,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       if (mergeOutcome !== 'merged') return;
 
       const broadcastMsg = { ...message };
-      delete broadcastMsg.__ackId;
       try {
         const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
         const payload: BroadcastMessagePayload = {
@@ -1649,16 +1824,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     reason: string;
     callSessionId: string;
   } | null>(null);
+  // Fan-out can deliver the same ring to multiple live connections (tabs /
+  // brief reconnect overlap). Dedupe by call_session_id within this tab.
+  const seenMeetRingSessionIdsRef = React.useRef<Set<string>>(new Set());
 
   const handleUnifyMeetIncoming = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
       const assistant = assistants.find((a) => a.agentId === assistantId);
       if (!assistant) return;
+      const callSessionId =
+        typeof eventData.call_session_id === 'string' ? eventData.call_session_id : '';
+      if (callSessionId) {
+        if (seenMeetRingSessionIdsRef.current.has(callSessionId)) return;
+        seenMeetRingSessionIdsRef.current.add(callSessionId);
+      }
       setIncomingMeetCall({
         assistant,
         reason: typeof eventData.reason === 'string' ? eventData.reason : '',
-        callSessionId:
-          typeof eventData.call_session_id === 'string' ? eventData.call_session_id : '',
+        callSessionId,
       });
     },
     [assistants]
@@ -1669,7 +1852,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     reconnect: reconnectChatStream,
     unreadCounts: chatStreamUnreadCounts,
     markAsRead: markChatStreamRead,
-    ackMessage: ackChatStreamMessage,
   } = useAssistantChatStream(
     chatStreamPairs,
     chatStreamPairs.length > 0,
@@ -1701,8 +1883,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       getCutoff: getChatStreamCutoff,
     }
   );
-  ackMessageRef.current = ackChatStreamMessage;
-
   // Page-level polling fallback for the chat SSE. Reconciles missed
   // messages into `profileChatHistories` for any assistant in the
   // workspace whose stream is unhealthy (or the active panel as a safety
@@ -2583,6 +2763,62 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the Their Computer fetch-and-return beat. Channel-agnostic (chat
+  // or mid-call); no ring and no pane navigation — same dispatch shape as My
+  // Computer, different framing on the Orchestra event.
+  const handleCoordinatorDispatchYourComputerBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error(
+            '[Coordinator onboarding] Failed to dispatch Their Computer beat event:',
+            error
+          );
+          toast.error('Could not start this demo. Please try again.');
+        }
+      })();
+    },
+    [
+      appendCoordinatorRequestSentAck,
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
+      shouldDispatchStepRequest,
+    ]
+  );
+
+  const handleCoordinatorOpenDesktopLinker = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      markStepEngaged(stepId);
+      setDesktopLinkerAssistant(canonicalCoordinator);
+    },
+    [canonicalCoordinator, markStepEngaged]
+  );
+
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
     handleCoordinatorStartOnboardingStep('whatsapp-number');
     handleOpenUserSettings('contact-info', true);
@@ -2776,9 +3012,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           : handleCoordinatorDispatchTaskBeat(stepId, chipId),
       onLearnFromCorrection: () => handleCoordinatorDispatchLearningBeat('learn-from-correction'),
       onMyComputerDemo: () => handleCoordinatorDispatchMyComputerBeat('my-computer-demo'),
+      onConnectYourComputer: () => handleCoordinatorOpenDesktopLinker('your-computer-link'),
+      onEnableDesktopFilesys: () => handleCoordinatorOpenDesktopLinker('your-computer-filesys'),
+      onYourComputerDemo: () => handleCoordinatorDispatchYourComputerBeat('your-computer-demo'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
+      onSkipStep: handleCoordinatorOnboardingStepSkip,
+      onUnskipStep: handleCoordinatorOnboardingStepUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
       // Flavours the "Ask T-W1N to do something" suggestion chips:
       // call-friendly prompts while on a voice call, chat-friendly
@@ -2820,9 +3061,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorDispatchTaskBeat,
     handleCoordinatorDispatchLearningBeat,
     handleCoordinatorDispatchMyComputerBeat,
+    handleCoordinatorDispatchYourComputerBeat,
+    handleCoordinatorOpenDesktopLinker,
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
+    handleCoordinatorOnboardingStepSkip,
+    handleCoordinatorOnboardingStepUnskip,
     workspaceConnectAvailable,
   ]);
 
@@ -4049,10 +4294,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         {desktopLinkerAssistant && (
           <AssistantDesktopLinker
             isOpen={!!desktopLinkerAssistant}
-            onClose={() => setDesktopLinkerAssistant(null)}
+            onClose={() => {
+              setDesktopLinkerAssistant(null);
+              // Desktop link/filesys mutations do not push
+              // onboarding_render_updated today — refetch so Their Computer
+              // consent rows tick without a full page reload.
+              void refetchCoordinatorOnboardingState();
+            }}
             assistant={desktopLinkerAssistant}
             assistantActions={assistantActions}
-            onLinked={() => refreshAssistants(false)}
+            onLinked={() => {
+              refreshAssistants(false);
+              void refetchCoordinatorOnboardingState();
+            }}
             getApiKey={assistantActions.desktop.getApiKey}
           />
         )}

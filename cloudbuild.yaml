@@ -62,12 +62,13 @@ steps:
           --cache-from type=registry,ref="$${CACHE_REF}" \
           --cache-to type=registry,ref="$${CACHE_REF}",mode=max \
           --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY \
+          --build-arg NEXT_PUBLIC_MS_TEAMS_APP_CATALOG_ID=$$MS_TEAMS_APP_CATALOG_ID \
           -f Dockerfile \
           -t "$${IMAGE_URI}:$COMMIT_SHA" \
           -t "$${IMAGE_URI}:latest" \
           --push .
     id: Build
-    secretEnv: ['NEXT_SERVER_ACTIONS_ENCRYPTION_KEY']
+    secretEnv: ['NEXT_SERVER_ACTIONS_ENCRYPTION_KEY', 'MS_TEAMS_APP_CATALOG_ID']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     args:
@@ -304,6 +305,13 @@ substitutions:
   REPO_NAME: console
   _DEPLOY_REGION: us-central1
   _AR_HOSTNAME: us-central1-docker.pkg.dev
+  # Name of the Secret Manager secret holding the Teams app catalog/manifest id,
+  # baked into the client bundle (as NEXT_PUBLIC_MS_TEAMS_APP_CATALOG_ID) so the
+  # unbound "Add to Teams" install button can render. Staging and prod share this
+  # project, so the value must differ by secret name: staging defaults here; the
+  # prod trigger overrides it to MS_TEAMS_APP_CATALOG_ID. The referenced secret
+  # must exist or the build fails (secretEnv is mandatory).
+  _MS_TEAMS_CATALOG_SECRET: MS_TEAMS_APP_CATALOG_ID_STAGING
 tags:
   - gcp-cloud-build-deploy-cloud-run
   - gcp-cloud-build-deploy-cloud-run-managed
@@ -313,3 +321,5 @@ availableSecrets:
       env: 'GITHUB_TOKEN'
     - versionName: projects/$PROJECT_ID/secrets/NEXT_SERVER_ACTIONS_ENCRYPTION_KEY/versions/latest
       env: 'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY'
+    - versionName: projects/$PROJECT_ID/secrets/$_MS_TEAMS_CATALOG_SECRET/versions/latest
+      env: 'MS_TEAMS_APP_CATALOG_ID'

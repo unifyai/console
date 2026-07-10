@@ -40,6 +40,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
 
+# Teams app catalog/manifest id for the "Add to Teams" deep link. NEXT_PUBLIC_*
+# is inlined into the client bundle at build time, so it must be present here
+# (a Cloud Run runtime env would never reach the already-built bundle). Empty is
+# safe — the button just stays hidden until the value is set on the trigger.
+ARG NEXT_PUBLIC_MS_TEAMS_APP_CATALOG_ID
+ENV NEXT_PUBLIC_MS_TEAMS_APP_CATALOG_ID=${NEXT_PUBLIC_MS_TEAMS_APP_CATALOG_ID}
+
 RUN npm run check:styles:all
 RUN --mount=type=cache,id=console-next,target=/app/.next/cache npx next build
 
