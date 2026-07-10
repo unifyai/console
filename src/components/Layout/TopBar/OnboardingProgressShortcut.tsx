@@ -17,27 +17,21 @@ import {
   type AssistantInfoPanelVisibilityDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 
-const COORDINATOR_COMMUNICATION_SECTION_ID = 'communication';
-
 export function coordinatorOnboardingProgress(render: OnboardingRender | null): {
   completed: number;
   total: number;
   pct: number;
 } {
   if (!render) return { completed: 0, total: 0, pct: 0 };
-  const communicationPhase = render.phases.find(
-    (phase) => phase.id === COORDINATOR_COMMUNICATION_SECTION_ID
-  );
-  const communicationSteps = communicationPhase
-    ? render.steps.filter((step) => step.phase === communicationPhase.phase)
-    : [];
-  const completed = communicationSteps.filter(
-    (step) => step.status === 'done' || step.status === 'skipped'
+  const skippedPhases = new Set(render.skippedPhaseIds);
+  // Coming-soon rows are not user-addressable yet, so they stay out of
+  // both the numerator and the denominator. Skipped steps and steps in a
+  // phase-skipped section count as addressed so 100% stays reachable.
+  const steps = render.steps.filter((step) => step.status !== 'coming_soon');
+  const completed = steps.filter(
+    (step) => step.status === 'done' || step.status === 'skipped' || skippedPhases.has(step.phase)
   ).length;
-  const placeholderSections = render.phases.filter(
-    (phase) => phase.id !== COORDINATOR_COMMUNICATION_SECTION_ID
-  ).length;
-  const total = communicationSteps.length + placeholderSections;
+  const total = steps.length;
   return {
     completed,
     total,
