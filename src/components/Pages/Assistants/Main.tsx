@@ -1699,15 +1699,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     reason: string;
     callSessionId: string;
   } | null>(null);
+  // Fan-out can deliver the same ring to multiple live connections (tabs /
+  // brief reconnect overlap). Dedupe by call_session_id within this tab.
+  const seenMeetRingSessionIdsRef = React.useRef<Set<string>>(new Set());
+
   const handleUnifyMeetIncoming = React.useCallback(
     (assistantId: string, eventData: Record<string, unknown>) => {
       const assistant = assistants.find((a) => a.agentId === assistantId);
       if (!assistant) return;
+      const callSessionId =
+        typeof eventData.call_session_id === 'string' ? eventData.call_session_id : '';
+      if (callSessionId) {
+        if (seenMeetRingSessionIdsRef.current.has(callSessionId)) return;
+        seenMeetRingSessionIdsRef.current.add(callSessionId);
+      }
       setIncomingMeetCall({
         assistant,
         reason: typeof eventData.reason === 'string' ? eventData.reason : '',
-        callSessionId:
-          typeof eventData.call_session_id === 'string' ? eventData.call_session_id : '',
+        callSessionId,
       });
     },
     [assistants]
