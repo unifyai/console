@@ -193,6 +193,19 @@ function readPersistedOnboardingActive(coordinatorId: string | number): string {
   );
 }
 
+/** Read persisted ``skipped_step_ids`` for the user's coordinator. */
+function readPersistedSkippedStepIds(coordinatorId: string | number): string[] {
+  const raw = dbExec(
+    `SELECT le.data->'skipped_step_ids' FROM log_event le ` +
+      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+      `JOIN context c ON c.id = lec.context_id ` +
+      `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
+      `ORDER BY le.id DESC LIMIT 1;`
+  ).trim();
+  if (!raw || raw === '' || raw === 'null') return [];
+  return JSON.parse(raw) as string[];
+}
+
 async function seedCoordinatorOutboundTranscript(
   coordinatorId: string | number,
   medium: string,
@@ -854,4 +867,48 @@ test('inactive onboarding offers a return affordance that re-enters onboarding',
   await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
   });
+});
+
+test('skipping an actionable checklist row does not trigger the row action', async ({
+  authedPage: page,
+}) => {
+  // Regression: the row "..." menu is portaled. Selecting Skip used to let the
+  // same click fall through to the actionable row beneath (e.g. opening Slack
+  // connect while skipping Connect Slack). Prefer Slack when that action is
+  // wired; otherwise use the always-wired email reference trigger.
+  const coordinator = createPersonalCoordinator(user.id);
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await openOnboardingChecklist(page);
+  await selectCoordinatorOnboardingSection(page, 'communication');
+
+  await selectCoordinatorCommunicationSubgroup(page, 'slack');
+  const slackRow = page.getByTestId('coordinator-onboarding-item-slack-connect').first();
+  await expect(slackRow).toBeVisible({ timeout: 15_000 });
+  const slackActionable = (await slackRow.getAttribute('role')) === 'button';
+
+  const stepId = slackActionable ? 'slack-connect' : 'email-reference';
+  if (!slackActionable) {
+    await selectCoordinatorCommunicationSubgroup(page, 'email');
+  }
+
+  const row = page.getByTestId(`coordinator-onboarding-item-${stepId}`).first();
+  await expectChecklistItemClickable(page, stepId);
+  await row.hover();
+  await page.getByTestId(`coordinator-onboarding-row-menu-${stepId}`).click();
+  await page.getByTestId(`coordinator-onboarding-skip-${stepId}`).click();
+
+  await expect(row).toHaveAttribute('data-status', 'skipped', { timeout: 10_000 });
+  await expect(page.getByTestId(`coordinator-onboarding-action-feedback-${stepId}`)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add to Slack' })).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await expect
+    .poll(() => readPersistedSkippedStepIds(coordinator.agentId), { timeout: 10_000 })
+    .toEqual(expect.arrayContaining([stepId]));
 });

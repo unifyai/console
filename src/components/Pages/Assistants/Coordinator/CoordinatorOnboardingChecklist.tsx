@@ -1832,6 +1832,43 @@ function ChecklistRow({
   const hasRowMenu = canReset || canSkipRow || canUnskipRow;
 
   const [rowMenuOpen, setRowMenuOpen] = React.useState(false);
+  // Radix portals the row menu. Selecting an item (or dismissing via an
+  // outside click) unmounts the menu under the cursor, and the same pointer
+  // event can activate the actionable/blocked row beneath. Suppress the next
+  // activation briefly after the menu closes so Skip/Unskip/Reset never fire
+  // the row action.
+  const suppressRowActivationRef = React.useRef(false);
+  const suppressRowActivationTimeoutRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (suppressRowActivationTimeoutRef.current !== null) {
+        window.clearTimeout(suppressRowActivationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleRowMenuOpenChange = (open: boolean) => {
+    setRowMenuOpen(open);
+    if (open) {
+      if (suppressRowActivationTimeoutRef.current !== null) {
+        window.clearTimeout(suppressRowActivationTimeoutRef.current);
+        suppressRowActivationTimeoutRef.current = null;
+      }
+      suppressRowActivationRef.current = false;
+      return;
+    }
+    suppressRowActivationRef.current = true;
+    if (suppressRowActivationTimeoutRef.current !== null) {
+      window.clearTimeout(suppressRowActivationTimeoutRef.current);
+    }
+    suppressRowActivationTimeoutRef.current = window.setTimeout(() => {
+      suppressRowActivationRef.current = false;
+      suppressRowActivationTimeoutRef.current = null;
+    }, 100);
+  };
+
+  const shouldSuppressRowActivation = () => rowMenuOpen || suppressRowActivationRef.current;
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
     <span className={cn('flex min-w-0 flex-1 items-start', isChild && 'pl-6', dimClassName)}>
@@ -1935,12 +1972,13 @@ function ChecklistRow({
         )}
       </span>
       {hasRowMenu ? (
-        <DropdownMenu open={rowMenuOpen} onOpenChange={setRowMenuOpen}>
+        <DropdownMenu open={rowMenuOpen} onOpenChange={handleRowMenuOpenChange}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               aria-label="More actions"
               onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
               className={cn(
                 'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
                 'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
@@ -1960,13 +1998,26 @@ function ChecklistRow({
             onCloseAutoFocus={(event) => event.preventDefault()}
           >
             {canUnskipRow ? (
-              <DropdownMenuItem onSelect={() => onUnskipStep?.(item.id)}>Unskip</DropdownMenuItem>
+              <DropdownMenuItem
+                data-testid={`coordinator-onboarding-unskip-${item.id}`}
+                onSelect={() => onUnskipStep?.(item.id)}
+              >
+                Unskip
+              </DropdownMenuItem>
             ) : null}
             {canSkipRow ? (
-              <DropdownMenuItem onSelect={() => onSkipStep?.(item.id)}>Skip</DropdownMenuItem>
+              <DropdownMenuItem
+                data-testid={`coordinator-onboarding-skip-${item.id}`}
+                onSelect={() => onSkipStep?.(item.id)}
+              >
+                Skip
+              </DropdownMenuItem>
             ) : null}
             {canReset ? (
-              <DropdownMenuItem onSelect={() => onResetStepProgress?.(rowResetStepIds, item.id)}>
+              <DropdownMenuItem
+                data-testid={`coordinator-onboarding-reset-${item.id}`}
+                onSelect={() => onResetStepProgress?.(rowResetStepIds, item.id)}
+              >
                 Reset
               </DropdownMenuItem>
             ) : null}
@@ -1996,10 +2047,14 @@ function ChecklistRow({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => onAction(item)}
+        onClick={() => {
+          if (shouldSuppressRowActivation()) return;
+          onAction(item);
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
+            if (shouldSuppressRowActivation()) return;
             onAction(item);
           }
         }}
@@ -2017,12 +2072,20 @@ function ChecklistRow({
         key={shouldJiggle ? `${item.id}-${blockedFeedbackToken}` : item.id}
         role={canShowBlockedFeedback ? 'button' : undefined}
         tabIndex={canShowBlockedFeedback ? 0 : undefined}
-        onClick={canShowBlockedFeedback ? () => onBlockedStepClick(item.id) : undefined}
+        onClick={
+          canShowBlockedFeedback
+            ? () => {
+                if (shouldSuppressRowActivation()) return;
+                onBlockedStepClick(item.id);
+              }
+            : undefined
+        }
         onKeyDown={
           canShowBlockedFeedback
             ? (event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
+                  if (shouldSuppressRowActivation()) return;
                   onBlockedStepClick(item.id);
                 }
               }
