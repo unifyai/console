@@ -25,8 +25,7 @@ interface AssistantBrainManagerProps {
 }
 
 /**
- * Modal for brain / model configuration: actor default and slow brain.
- * Fast-brain controls will land here later.
+ * Modal for conversation and task model configuration.
  */
 export function AssistantBrainManager({
   isOpen,
@@ -100,37 +99,37 @@ export function AssistantBrainManager({
         <DialogHeader>
           <DialogTitle>Brain</DialogTitle>
           <DialogDescription>
-            Choose how {assistantName} thinks for actor work and conversational slow-brain turns.
-            Fast-brain controls will appear here later.
+            Choose which AI models {assistantName} uses when chatting with you and when working on
+            tasks.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-5 py-2">
           <DefaultModelPicker
-            id="actorDefaultModel"
-            label="Default model"
-            usage="actor"
-            creditUnit="task"
-            tooltip="The model this teammate uses by default for actor / tool-loop work. Premium models are substantially more capable but cost more per task. Credit figures are rough per-task estimates — real tasks vary widely."
-            model={model}
-            reasoningEffort={reasoningEffort}
-            onChange={(nextModel, nextEffort) => {
-              setModel(nextModel);
-              setReasoningEffort(nextEffort);
-            }}
-            disabled={!canWrite || isSaving}
-          />
-          <DefaultModelPicker
-            id="slowBrainModel"
-            label="Slow brain"
+            id="conversationModel"
+            label="Conversation model"
             usage="slow_brain"
             creditUnit="message"
-            tooltip="The model used for ConversationManager slow-brain turns (chat, proactive speech, and related conversational reasoning). Credit figures are rough per-message estimates from token rates for a typical turn."
+            tooltip="Used when chatting — replies in messages, calls, and other conversations. Stronger models are more careful and capable, but cost more per message. Credit figures are rough estimates."
             model={slowBrainModel}
             reasoningEffort={slowBrainReasoningEffort}
             onChange={(nextModel, nextEffort) => {
               setSlowBrainModel(nextModel);
               setSlowBrainReasoningEffort(nextEffort);
+            }}
+            disabled={!canWrite || isSaving}
+          />
+          <DefaultModelPicker
+            id="taskModel"
+            label="Task model"
+            usage="actor"
+            creditUnit="task"
+            tooltip="Used when working on tasks — researching, using tools, and getting things done in the background. Stronger models handle harder work better, but cost more per task. Credit figures are rough estimates — real tasks vary widely."
+            model={model}
+            reasoningEffort={reasoningEffort}
+            onChange={(nextModel, nextEffort) => {
+              setModel(nextModel);
+              setReasoningEffort(nextEffort);
             }}
             disabled={!canWrite || isSaving}
           />

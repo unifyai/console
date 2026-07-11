@@ -931,8 +931,8 @@ function getBrainStatusDescription(assistant: Assistant, options: DefaultModelOp
   };
 
   return (
-    `Actor: ${resolveLabel(assistant.defaultModel, assistant.defaultReasoningEffort)}` +
-    ` · Slow brain: ${resolveLabel(assistant.slowBrainModel, assistant.slowBrainReasoningEffort)}`
+    `Conversation: ${resolveLabel(assistant.slowBrainModel, assistant.slowBrainReasoningEffort)}` +
+    ` · Tasks: ${resolveLabel(assistant.defaultModel, assistant.defaultReasoningEffort)}`
   );
 }
 
@@ -994,7 +994,7 @@ function ProfileSectionsPanel({
         canEdit={canWrite && !!onOpenBrainManager}
         onEdit={onOpenBrainManager ? () => onOpenBrainManager(assistant) : undefined}
         editTestId="assistant-info-edit-brain-section"
-        editAriaLabel="Edit brain models"
+        editAriaLabel="Edit conversation and task models"
       />
       <ProfileSectionTile
         title="Workspace"

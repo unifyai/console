@@ -35,7 +35,7 @@ export interface DefaultModelPickerProps {
 }
 
 /**
- * Catalog picker for an assistant LLM (actor default or slow brain).
+ * Catalog picker for an assistant conversation or task model.
  * System Default leaves the field unset; other options pin a concrete model.
  */
 export function DefaultModelPicker({
@@ -44,8 +44,8 @@ export function DefaultModelPicker({
   onChange,
   disabled = false,
   id = 'defaultModel',
-  label = 'Default model',
-  tooltip = 'The model this teammate thinks with by default for actor / tool-loop work. Premium models are substantially more capable but cost more per task. Credit figures are rough per-task estimates — real tasks vary widely.',
+  label = 'Task model',
+  tooltip = 'Used when working on tasks. Stronger models handle harder work better, but cost more per task. Credit figures are rough estimates — real tasks vary widely.',
   usage = 'actor',
   creditUnit = 'task',
 }: DefaultModelPickerProps) {
