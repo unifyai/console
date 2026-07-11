@@ -364,16 +364,11 @@ export function HireForm({
   const { options: defaultModelOptions } = useDefaultModelOptions();
   const watchedDefaultModel = useWatch({ control, name: 'defaultModel' });
   const watchedDefaultReasoningEffort = useWatch({ control, name: 'defaultReasoningEffort' });
-  // The catalog's first entry is the platform default; show it when the
-  // assistant has no explicit selection.
-  const selectedDefaultModelValue =
-    encodeDefaultModelValue(watchedDefaultModel, watchedDefaultReasoningEffort) ||
-    (defaultModelOptions.length > 0
-      ? encodeDefaultModelValue(
-          defaultModelOptions[0].model,
-          defaultModelOptions[0].reasoningEffort
-        )
-      : '');
+  // null / unset maps to the catalog's System Default option.
+  const selectedDefaultModelValue = encodeDefaultModelValue(
+    watchedDefaultModel,
+    watchedDefaultReasoningEffort
+  );
   const selectedDefaultModelOption = defaultModelOptions.find(
     (option) =>
       encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedDefaultModelValue

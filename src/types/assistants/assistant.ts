@@ -409,7 +409,8 @@ export interface AssistantUpdatePayload {
  * curated multimodal catalog (GET /api/assistant/default-model-options).
  */
 export interface DefaultModelOption {
-  model: string;
+  /** Null means system default (leave the assistant unset). */
+  model: string | null;
   reasoningEffort: string | null;
   label: string;
   /** Order-of-magnitude credits estimate for one typical task (display-only). */
