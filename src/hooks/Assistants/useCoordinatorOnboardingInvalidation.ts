@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { subscribeToAssistantActionStream } from '@/lib/client/assistant-action-stream';
 
 /**
  * Listen for server-side onboarding render changes on the assistant SSE
@@ -14,25 +15,21 @@ export function useCoordinatorOnboardingInvalidation(
   onInvalidateRef.current = onInvalidate;
 
   React.useEffect(() => {
-    if (!enabled || !coordinatorAgentId || typeof EventSource === 'undefined') {
+    if (!enabled || !coordinatorAgentId) {
       return;
     }
 
-    const source = new EventSource(`/api/assistant/${coordinatorAgentId}/actions/stream`);
-
-    source.onmessage = (event) => {
-      try {
-        const parsed = JSON.parse(event.data) as { type?: string };
-        if (parsed.type === 'OnboardingStateUpdated') {
-          onInvalidateRef.current();
+    return subscribeToAssistantActionStream(coordinatorAgentId, {
+      onMessage: (data) => {
+        try {
+          const parsed = JSON.parse(data) as { type?: string };
+          if (parsed.type === 'OnboardingStateUpdated') {
+            onInvalidateRef.current();
+          }
+        } catch {
+          /* ignore malformed frames */
         }
-      } catch {
-        /* ignore malformed frames */
-      }
-    };
-
-    return () => {
-      source.close();
-    };
+      },
+    });
   }, [coordinatorAgentId, enabled]);
 }
