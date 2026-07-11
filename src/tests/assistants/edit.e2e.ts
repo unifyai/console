@@ -216,7 +216,6 @@ test('Computer mode can be enabled retrospectively via the edit dialog', async (
   const computerSection = page.getByTestId('assistant-computer-section');
   await computerSection.scrollIntoViewIfNeeded();
   await expect(computerSection).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('computer-edit-warning')).toBeVisible();
 
   await page.getByTestId('computer-os-ubuntu').click();
 

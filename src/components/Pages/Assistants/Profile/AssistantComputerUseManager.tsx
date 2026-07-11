@@ -137,7 +137,6 @@ export function AssistantComputerUseManager({
                   key={option.mode}
                   creditsRequired={option.monthlyCost}
                   onAddPaymentMethod={onAddPaymentMethod}
-                  tooltipMessage={`Enabling ${option.label} deducts $${option.monthlyCost} credits for the first month.`}
                 >
                   <Button
                     className="w-full justify-start"
