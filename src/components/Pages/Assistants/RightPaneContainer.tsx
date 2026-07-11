@@ -117,6 +117,8 @@ interface RightPaneContainerProps {
   isActiveSurface?: boolean;
   /** Reports root-level Actions SSE activity that arrived while Actions was inactive. */
   onActionsUnreadActivityChange?: (hasUnread: boolean) => void;
+  /** Opens the Computer Use enable/disable manager from the Desktop upgrade state. */
+  onOpenComputerUseManager?: (assistant: Assistant) => void;
 }
 
 /**
@@ -158,6 +160,7 @@ export function RightPaneContainer({
   workspacePaneObscured = false,
   isActiveSurface = true,
   onActionsUnreadActivityChange,
+  onOpenComputerUseManager,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. The Actions body owns the
@@ -285,6 +288,8 @@ export function RightPaneContainer({
           desktopActions={assistantActions.desktop}
           isVisible={activeTab === 'desktop'}
           isActiveSurface={isActiveSurface}
+          canWrite={canWrite}
+          onOpenComputerUseManager={onOpenComputerUseManager}
         />
       </TabsContent>
 

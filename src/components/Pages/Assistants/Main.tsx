@@ -4036,6 +4036,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                           onActionsUnreadActivityChange={setHasUnreadActionActivity}
                           forceCoordinatorChatIntroTyping={forceCoordinatorChatIntroTyping}
+                          onOpenComputerUseManager={
+                            profileCanWrite
+                              ? (assistant) => setComputerUseManagerAssistant(assistant)
+                              : undefined
+                          }
                           renderDockedCall={
                             activeCallAssistant &&
                             visibleProfileAssistant &&
