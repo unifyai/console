@@ -161,6 +161,7 @@ import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { AssistantComputerUseManager } from './Profile/AssistantComputerUseManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
+import { AssistantBrainManager } from './Profile/AssistantBrainManager';
 import { useCallContext } from './Communication/CallProvider';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import {
@@ -1500,6 +1501,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     React.useState<ContactManagerInitialTab>('email');
   const [workspaceManagerAssistant, setWorkspaceManagerAssistant] =
     React.useState<Assistant | null>(null);
+  const [brainManagerAssistant, setBrainManagerAssistant] = React.useState<Assistant | null>(null);
   const [computerUseManagerAssistant, setComputerUseManagerAssistant] =
     React.useState<Assistant | null>(null);
   const [workspaceManagerInitialProvider, setWorkspaceManagerInitialProvider] =
@@ -2435,6 +2437,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleOpenWorkspaceManager = React.useCallback((assistant: Assistant) => {
     setWorkspaceManagerInitialProvider(null);
     setWorkspaceManagerAssistant(assistant);
+  }, []);
+
+  const handleOpenBrainManager = React.useCallback((assistant: Assistant) => {
+    setBrainManagerAssistant(assistant);
   }, []);
 
   // Handler bag forwarded to the coordinator's assistant info
@@ -3534,6 +3540,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [assistants, workspaceManagerAssistant]);
 
+  React.useEffect(() => {
+    if (!brainManagerAssistant) return;
+    const fresh = assistants.find((a) => a.agentId === brainManagerAssistant.agentId);
+    if (
+      fresh &&
+      (fresh.defaultModel !== brainManagerAssistant.defaultModel ||
+        fresh.defaultReasoningEffort !== brainManagerAssistant.defaultReasoningEffort)
+    ) {
+      setBrainManagerAssistant(fresh);
+    }
+  }, [assistants, brainManagerAssistant]);
+
   const activeCallId = activeCallAssistant?.agentId ?? null;
 
   // --- System error listener (assistant-level, above all interaction surfaces) ---
@@ -3965,6 +3983,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     onOpenWorkspaceManager={
                       profileCanWrite ? handleOpenWorkspaceManager : undefined
                     }
+                    onOpenBrainManager={profileCanWrite ? handleOpenBrainManager : undefined}
                     onConnectDesktop={isAssistantOwner ? handleShowInstallInstructions : undefined}
                     onOpenComputerUseManager={
                       profileCanWrite
@@ -4295,6 +4314,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onSuccess={handleUpdateSuccess}
               canWrite={canWrite(workspaceManagerAssistant)}
               initialProvider={workspaceManagerInitialProvider}
+            />
+          )}
+          {brainManagerAssistant && (
+            <AssistantBrainManager
+              isOpen={!!brainManagerAssistant}
+              onClose={() => setBrainManagerAssistant(null)}
+              assistant={brainManagerAssistant}
+              assistantActions={assistantActions}
+              onSuccess={handleUpdateSuccess}
+              canWrite={canWrite(brainManagerAssistant)}
             />
           )}
         </FormProvider>

@@ -558,15 +558,6 @@ export function useAssistantForm(
       }
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
-      // Orchestra validates the (model, effort) pair against its catalog, so
-      // send both together when either has changed.
-      const defaultModelChanged =
-        (data.defaultModel ?? null) !== (editingAssistant.defaultModel ?? null) ||
-        (data.defaultReasoningEffort ?? null) !== (editingAssistant.defaultReasoningEffort ?? null);
-      if (defaultModelChanged) {
-        payload.defaultModel = data.defaultModel ?? null;
-        payload.defaultReasoningEffort = data.defaultReasoningEffort ?? null;
-      }
       // Orchestra requires both voice_id and voice_provider together, so send
       // them as a pair when either one has changed.
       const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
@@ -805,11 +796,6 @@ export function useAssistantForm(
       // Also carries the default-model selection, which the create endpoint's
       // positional action signature does not accept.
       const mediaUpdate: Partial<AssistantUpdatePayload> = {};
-
-      if (data.defaultModel) {
-        mediaUpdate.defaultModel = data.defaultModel;
-        mediaUpdate.defaultReasoningEffort = data.defaultReasoningEffort ?? null;
-      }
 
       if (data.photoFile) {
         const photoFormData = new FormData();

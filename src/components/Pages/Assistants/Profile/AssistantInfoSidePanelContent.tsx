@@ -42,6 +42,11 @@ import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBe
 import { approvedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
 import { resolveCoordinatorJobTitle } from '@/constants/assistants/coordinator_profile';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
+import {
+  useDefaultModelOptions,
+  encodeDefaultModelValue,
+} from '@/hooks/Assistants/useDefaultModelOptions';
+import type { DefaultModelOption } from '@/types/assistants/assistant';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -56,6 +61,8 @@ export interface AssistantInfoSidePanelContentProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   /** Open the workspace manager dialog. */
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  /** Open the brain / model manager dialog. */
+  onOpenBrainManager?: (assistant: Assistant) => void;
   /** Open the desktop linker dialog. Owner-only; omit for non-owners. */
   onConnectDesktop?: (assistant: Assistant) => void;
   /** Open the managed Computer Use manager dialog. */
@@ -239,6 +246,7 @@ export function AssistantInfoSidePanelContent({
         className={props.className}
         onOpenContactManager={props.onOpenContactManager}
         onOpenWorkspaceManager={props.onOpenWorkspaceManager}
+        onOpenBrainManager={props.onOpenBrainManager}
         onConnectDesktop={props.onConnectDesktop}
         canWrite={props.canWrite}
         coordinatorOnboarding={props.coordinatorOnboarding}
@@ -268,6 +276,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
+  onOpenBrainManager,
   onConnectDesktop,
   className,
   canWrite = true,
@@ -285,6 +294,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onOpenBrainManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   className?: string;
   canWrite?: boolean;
@@ -440,6 +450,7 @@ function CoordinatorAssistantInfoSidePanelContent({
               isEditProfileOpening={isEditProfileOpening}
               onOpenContactManager={onOpenContactManager}
               onOpenWorkspaceManager={onOpenWorkspaceManager}
+              onOpenBrainManager={onOpenBrainManager}
               onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
               sectionsRef={profileSectionsRef}
@@ -454,6 +465,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             isEditProfileOpening={isEditProfileOpening}
             onOpenContactManager={onOpenContactManager}
             onOpenWorkspaceManager={onOpenWorkspaceManager}
+            onOpenBrainManager={onOpenBrainManager}
             onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
             sectionsRef={profileSectionsRef}
@@ -471,6 +483,7 @@ function RegularAssistantInfoSidePanelContent({
   isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
+  onOpenBrainManager,
   onConnectDesktop,
   onOpenComputerUseManager,
   roadmap,
@@ -552,6 +565,7 @@ function RegularAssistantInfoSidePanelContent({
       isEditProfileOpening={isEditProfileOpening}
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
+      onOpenBrainManager={onOpenBrainManager}
       onConnectDesktop={onConnectDesktop}
       onOpenComputerUseManager={onOpenComputerUseManager}
       canWrite={canWrite}
@@ -784,6 +798,7 @@ interface ProfileSectionsPanelProps {
   isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onOpenBrainManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   onOpenComputerUseManager?: (assistant: Assistant) => void;
   canWrite: boolean;
@@ -901,6 +916,23 @@ function getDesktopStatusDescription(assistant: Assistant): string {
   return 'No desktop connected yet';
 }
 
+function getBrainStatusDescription(assistant: Assistant, options: DefaultModelOption[]): string {
+  const selectedValue = encodeDefaultModelValue(
+    assistant.defaultModel,
+    assistant.defaultReasoningEffort
+  );
+  const match = options.find(
+    (option) => encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedValue
+  );
+  if (match) return match.label;
+  if (assistant.defaultModel) {
+    return assistant.defaultReasoningEffort
+      ? `${assistant.defaultModel} (${assistant.defaultReasoningEffort})`
+      : assistant.defaultModel;
+  }
+  return 'System default';
+}
+
 function getComputerUseStatusDescription(assistant: Assistant): string {
   if (assistant.managedDesktopStatus === 'grace_period') {
     return 'Grace period — add credits to keep Computer Use';
@@ -922,11 +954,14 @@ function ProfileSectionsPanel({
   isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
+  onOpenBrainManager,
   onConnectDesktop,
   onOpenComputerUseManager,
   canWrite,
   sectionsRef,
 }: ProfileSectionsPanelProps) {
+  const { options: defaultModelOptions } = useDefaultModelOptions();
+  const brainStatus = getBrainStatusDescription(assistant, defaultModelOptions);
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
   const showComputerUseSection =
@@ -949,6 +984,14 @@ function ProfileSectionsPanel({
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
+      />
+      <ProfileSectionTile
+        title="Brain"
+        description={brainStatus}
+        canEdit={canWrite && !!onOpenBrainManager}
+        onEdit={onOpenBrainManager ? () => onOpenBrainManager(assistant) : undefined}
+        editTestId="assistant-info-edit-brain-section"
+        editAriaLabel="Edit brain models"
       />
       <ProfileSectionTile
         title="Workspace"

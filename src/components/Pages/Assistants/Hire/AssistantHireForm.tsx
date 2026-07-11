@@ -42,11 +42,6 @@ import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
-import {
-  useDefaultModelOptions,
-  encodeDefaultModelValue,
-  decodeDefaultModelValue,
-} from '@/hooks/Assistants/useDefaultModelOptions';
 import { buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
 import { type CreatureAntenna, type CreatureEyes } from '@/components/Brand/TeammateCreature';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
@@ -361,18 +356,6 @@ export function HireForm({
   const setup = useWatch({ control, name: 'setup' });
   const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
-  const { options: defaultModelOptions } = useDefaultModelOptions();
-  const watchedDefaultModel = useWatch({ control, name: 'defaultModel' });
-  const watchedDefaultReasoningEffort = useWatch({ control, name: 'defaultReasoningEffort' });
-  // null / unset maps to the catalog's System Default option.
-  const selectedDefaultModelValue = encodeDefaultModelValue(
-    watchedDefaultModel,
-    watchedDefaultReasoningEffort
-  );
-  const selectedDefaultModelOption = defaultModelOptions.find(
-    (option) =>
-      encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedDefaultModelValue
-  );
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
   const selectedUnityEyes = DEFAULT_COORDINATOR_APPEARANCE.eyes;
@@ -742,84 +725,6 @@ export function HireForm({
                             <p className="text-body text-strong text-destructive">
                               {errors.timezone.message}
                             </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <div className="flex flex-row items-center gap-2">
-                            <Label htmlFor="defaultModel">Default model</Label>
-                            <TooltipProvider delayDuration={100}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <InfoSquareButton />
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  side="right"
-                                  align="end"
-                                  className="text-caption max-w-xs"
-                                >
-                                  <p>
-                                    The model this teammate thinks with by default. Premium models
-                                    are substantially more capable but cost more per task. Credit
-                                    figures are rough per-task estimates — real tasks vary widely.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                          <Select
-                            value={selectedDefaultModelValue}
-                            onValueChange={(value) => {
-                              const { model, reasoningEffort } = decodeDefaultModelValue(value);
-                              setValue('defaultModel', model, {
-                                shouldDirty: true,
-                                shouldTouch: true,
-                              });
-                              setValue('defaultReasoningEffort', reasoningEffort, {
-                                shouldDirty: true,
-                                shouldTouch: true,
-                              });
-                            }}
-                            disabled={isSubmitting || defaultModelOptions.length === 0}
-                          >
-                            <SelectTrigger id="defaultModel" className="bg-card">
-                              <SelectValue placeholder="Loading models..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {defaultModelOptions.map((option) => (
-                                <SelectItem
-                                  key={encodeDefaultModelValue(
-                                    option.model,
-                                    option.reasoningEffort
-                                  )}
-                                  value={encodeDefaultModelValue(
-                                    option.model,
-                                    option.reasoningEffort
-                                  )}
-                                >
-                                  <div className="flex flex-col items-start">
-                                    <span>{option.label}</span>
-                                    <span className="text-caption text-muted-foreground">
-                                      ~
-                                      {new Intl.NumberFormat('en-US').format(
-                                        option.approxCreditsPerTask
-                                      )}{' '}
-                                      credits / typical task
-                                    </span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {selectedDefaultModelOption && (
-                            <a
-                              href={selectedDefaultModelOption.artificialAnalysisUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-caption text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                            >
-                              View benchmarks on Artificial Analysis ↗
-                            </a>
                           )}
                         </div>
                       </div>
