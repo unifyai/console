@@ -40,6 +40,7 @@ import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displa
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBeats';
 import { approvedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
+import { resolveCoordinatorJobTitle } from '@/constants/assistants/coordinator_profile';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
 
 export interface AssistantInfoSidePanelContentProps {
@@ -208,9 +209,6 @@ function ProfileTabTrigger({ triggerRef }: { triggerRef?: React.Ref<HTMLButtonEl
     </TabsTrigger>
   );
 }
-
-/** User-facing role for T-W1N. The internal job title ("Coordinator") is never surfaced. */
-const COORDINATOR_ROLE_DISPLAY = 'Your digital twin';
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -824,10 +822,10 @@ interface ProfileSummaryRow {
 function getProfileSummaryRows(assistant: Assistant): ProfileSummaryRow[] {
   const rows: ProfileSummaryRow[] = [];
 
-  // T-W1N's stored job title ("Coordinator") is a purely internal term; users
-  // only ever see it framed as the user's digital twin.
+  // T-W1N always surfaces the digital-twin role copy (legacy DB titles map via
+  // resolveCoordinatorJobTitle). Other assistants use their stored job title.
   const role = assistant.isCoordinator
-    ? COORDINATOR_ROLE_DISPLAY
+    ? resolveCoordinatorJobTitle(assistant.jobTitle)
     : assistant.jobTitle?.trim() || null;
   if (role) rows.push({ label: 'Role', value: role });
 

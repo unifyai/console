@@ -1165,7 +1165,7 @@ export type CreatePersonalCoordinatorOpts = Pick<
  * Create the user's personal Coordinator.
  *
  * Mirrors Orchestra's coordinator provisioning:
- *   - `first_name = 'T-W1N'`, `job_title = 'Coordinator'`
+ *   - `first_name = 'T-W1N'`, `job_title = 'Your digital twin'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
  *   - Numeric limits default to NULL; voice uses the coordinator's fixed ElevenLabs profile
  *   - `is_coordinator = TRUE`, `organization_id = NULL`
