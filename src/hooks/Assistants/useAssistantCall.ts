@@ -15,8 +15,8 @@ import { fetchAssistantStatus } from '@/lib/client/assistant';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
-import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/unity-mood';
 
+const DEFAULT_AVATAR_MOOD = 'happy' satisfies CreatureMood;
 const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
@@ -115,7 +115,7 @@ export function useAssistantCall(
     React.useState<AssistantCallConnectOptions['openingConfig']>(undefined);
   const [waitingMessage, setWaitingMessage] = React.useState<string | null>(null);
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
-  const [avatarMood, setAvatarMood] = React.useState<CreatureMood>(DEFAULT_AVATAR_MOOD);
+  const avatarMood: CreatureMood = DEFAULT_AVATAR_MOOD;
   const [callPhase, setCallPhaseState] = React.useState<CallPhase>('idle');
   const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const assistantRejoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -131,7 +131,6 @@ export function useAssistantCall(
   const redispatchPromiseRef = React.useRef<Promise<void> | null>(null);
   const pendingRoomDeleteRef = React.useRef<PendingRoomDelete | null>(null);
   const sdkReconnectingRef = React.useRef(false);
-  const moodTurnIndexRef = React.useRef(-1);
   const expectsReadyToSpeakRef = React.useRef(false);
   const assistantReadyWaiterRef = React.useRef<AssistantReadyWaiter | null>(null);
   const activeConnectOptionsRef = React.useRef<AssistantCallConnectOptions | undefined>(undefined);
@@ -251,8 +250,6 @@ export function useAssistantCall(
     setActiveCallSessionId(null);
     setActiveOpeningConfig(undefined);
     setIsSpeakerMuted(false);
-    setAvatarMood(DEFAULT_AVATAR_MOOD);
-    moodTurnIndexRef.current = -1;
     isRedispatchingRef.current = false;
     redispatchPromiseRef.current = null;
     sdkReconnectingRef.current = false;
@@ -313,8 +310,6 @@ export function useAssistantCall(
       setActiveCallAssistant(assistant);
       setError(null);
       setConnectionError(null);
-      setAvatarMood(DEFAULT_AVATAR_MOOD);
-      moodTurnIndexRef.current = -1;
       if (!optionsWithSession.suppressRinging) {
         startRinging();
       }
@@ -953,11 +948,6 @@ export function useAssistantCall(
           // through disconnect() also suppresses the rejoin/redispatch logic.
           disconnectRef.current?.();
           return;
-        }
-        const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
-        if (moodMessage) {
-          moodTurnIndexRef.current = moodMessage.turnIndex;
-          setAvatarMood(moodMessage.mood);
         }
       } catch {
         // ignore malformed data messages
