@@ -16,6 +16,7 @@ import {
   encodeDefaultModelValue,
   decodeDefaultModelValue,
 } from '@/hooks/Assistants/useDefaultModelOptions';
+import type { ModelCatalogUsage } from '@/lib/client/defaultModels';
 
 export interface DefaultModelPickerProps {
   model: string | null;
@@ -23,10 +24,18 @@ export interface DefaultModelPickerProps {
   onChange: (model: string | null, reasoningEffort: string | null) => void;
   disabled?: boolean;
   id?: string;
+  /** Field label above the select. */
+  label?: string;
+  /** Tooltip body explaining the picker. */
+  tooltip?: string;
+  /** Which catalog usage to load (affects system-default label). */
+  usage?: ModelCatalogUsage;
+  /** Which credit estimate to show under each option. */
+  creditUnit?: 'task' | 'message';
 }
 
 /**
- * Catalog picker for an assistant's default (actor) LLM.
+ * Catalog picker for an assistant LLM (actor default or slow brain).
  * System Default leaves the field unset; other options pin a concrete model.
  */
 export function DefaultModelPicker({
@@ -35,28 +44,29 @@ export function DefaultModelPicker({
   onChange,
   disabled = false,
   id = 'defaultModel',
+  label = 'Default model',
+  tooltip = 'The model this teammate thinks with by default for actor / tool-loop work. Premium models are substantially more capable but cost more per task. Credit figures are rough per-task estimates — real tasks vary widely.',
+  usage = 'actor',
+  creditUnit = 'task',
 }: DefaultModelPickerProps) {
-  const { options, isLoading } = useDefaultModelOptions();
+  const { options, isLoading } = useDefaultModelOptions(usage);
   const selectedValue = encodeDefaultModelValue(model, reasoningEffort);
   const selectedOption = options.find(
     (option) => encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedValue
   );
+  const creditSuffix = creditUnit === 'message' ? 'typical message' : 'typical task';
 
   return (
     <div className="space-y-1.5">
       <div className="flex flex-row items-center gap-2">
-        <Label htmlFor={id}>Default model</Label>
+        <Label htmlFor={id}>{label}</Label>
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
               <InfoSquareButton />
             </TooltipTrigger>
             <TooltipContent side="right" align="end" className="text-caption max-w-xs">
-              <p>
-                The model this teammate thinks with by default for actor / tool-loop work. Premium
-                models are substantially more capable but cost more per task. Credit figures are
-                rough per-task estimates — real tasks vary widely.
-              </p>
+              <p>{tooltip}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -73,20 +83,25 @@ export function DefaultModelPicker({
           <SelectValue placeholder={isLoading ? 'Loading models...' : 'Select a model'} />
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
-            <SelectItem
-              key={encodeDefaultModelValue(option.model, option.reasoningEffort)}
-              value={encodeDefaultModelValue(option.model, option.reasoningEffort)}
-            >
-              <div className="flex flex-col items-start">
-                <span>{option.label}</span>
-                <span className="text-caption text-muted-foreground">
-                  ~{new Intl.NumberFormat('en-US').format(option.approxCreditsPerTask)} credits /
-                  typical task
-                </span>
-              </div>
-            </SelectItem>
-          ))}
+          {options.map((option) => {
+            const credits =
+              creditUnit === 'message'
+                ? option.approxCreditsPerMessage
+                : option.approxCreditsPerTask;
+            return (
+              <SelectItem
+                key={encodeDefaultModelValue(option.model, option.reasoningEffort)}
+                value={encodeDefaultModelValue(option.model, option.reasoningEffort)}
+              >
+                <div className="flex flex-col items-start">
+                  <span>{option.label}</span>
+                  <span className="text-caption text-muted-foreground">
+                    ~{new Intl.NumberFormat('en-US').format(credits)} credits / {creditSuffix}
+                  </span>
+                </div>
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
       {selectedOption && (

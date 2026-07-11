@@ -125,6 +125,10 @@ export interface Assistant {
   // with a reasoning-effort level; null means the platform default applies.
   defaultModel: string | null;
   defaultReasoningEffort: string | null;
+  // ConversationManager slow-brain LLM; null means the platform slow-brain
+  // default (independent of defaultModel).
+  slowBrainModel: string | null;
+  slowBrainReasoningEffort: string | null;
   // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
   emailProvider?: string | null;
@@ -217,6 +221,8 @@ export type AssistantPreset = Omit<
   | 'voiceProvider'
   | 'defaultModel'
   | 'defaultReasoningEffort'
+  | 'slowBrainModel'
+  | 'slowBrainReasoningEffort'
   | 'timezone'
   | 'profileVideo'
   | 'phoneCountry'
@@ -396,6 +402,8 @@ export interface AssistantUpdatePayload {
   voiceProvider?: VoiceProvider | null;
   defaultModel?: string | null;
   defaultReasoningEffort?: string | null;
+  slowBrainModel?: string | null;
+  slowBrainReasoningEffort?: string | null;
   phoneCountry?: string | null;
   timezone?: string | null;
   profilePhoto?: string | null;
@@ -405,16 +413,18 @@ export interface AssistantUpdatePayload {
 }
 
 /**
- * One selectable per-assistant default LLM option, served by Orchestra's
- * curated multimodal catalog (GET /api/assistant/default-model-options).
+ * One selectable per-assistant LLM option, served by Orchestra's curated
+ * multimodal catalog (GET /api/assistant/default-model-options).
  */
 export interface DefaultModelOption {
   /** Null means system default (leave the assistant unset). */
   model: string | null;
   reasoningEffort: string | null;
   label: string;
-  /** Order-of-magnitude credits estimate for one typical task (display-only). */
+  /** Order-of-magnitude credits estimate for one typical actor task (display-only). */
   approxCreditsPerTask: number;
+  /** Order-of-magnitude credits estimate for one typical slow-brain message (display-only). */
+  approxCreditsPerMessage: number;
   /** Artificial Analysis benchmark page for the model. */
   artificialAnalysisUrl: string;
 }

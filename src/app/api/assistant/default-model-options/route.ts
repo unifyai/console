@@ -11,10 +11,18 @@ export async function GET(request: NextRequest) {
     return unauthorized();
   }
 
+  const usage = request.nextUrl.searchParams.get('usage') || 'actor';
+  if (usage !== 'actor' && usage !== 'slow_brain') {
+    return NextResponse.json({ detail: "usage must be 'actor' or 'slow_brain'" }, { status: 400 });
+  }
+
   try {
-    const response = await fetch(`${ORCHESTRA_BASE_URL}/assistant/default-model-options`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    const response = await fetch(
+      `${ORCHESTRA_BASE_URL}/assistant/default-model-options?usage=${usage}`,
+      {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      }
+    );
     const data = await response.json();
 
     if (!response.ok) {

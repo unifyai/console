@@ -917,20 +917,23 @@ function getDesktopStatusDescription(assistant: Assistant): string {
 }
 
 function getBrainStatusDescription(assistant: Assistant, options: DefaultModelOption[]): string {
-  const selectedValue = encodeDefaultModelValue(
-    assistant.defaultModel,
-    assistant.defaultReasoningEffort
+  const resolveLabel = (
+    model: string | null | undefined,
+    reasoningEffort: string | null | undefined
+  ): string => {
+    if (!model) return 'System default';
+    const selectedValue = encodeDefaultModelValue(model, reasoningEffort);
+    const match = options.find(
+      (option) => encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedValue
+    );
+    if (match) return match.label;
+    return reasoningEffort ? `${model} (${reasoningEffort})` : model;
+  };
+
+  return (
+    `Actor: ${resolveLabel(assistant.defaultModel, assistant.defaultReasoningEffort)}` +
+    ` · Slow brain: ${resolveLabel(assistant.slowBrainModel, assistant.slowBrainReasoningEffort)}`
   );
-  const match = options.find(
-    (option) => encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedValue
-  );
-  if (match) return match.label;
-  if (assistant.defaultModel) {
-    return assistant.defaultReasoningEffort
-      ? `${assistant.defaultModel} (${assistant.defaultReasoningEffort})`
-      : assistant.defaultModel;
-  }
-  return 'System default';
 }
 
 function getComputerUseStatusDescription(assistant: Assistant): string {
