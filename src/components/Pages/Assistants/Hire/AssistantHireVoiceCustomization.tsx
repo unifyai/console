@@ -660,11 +660,11 @@ export function VoiceCustomization({
   return (
     <div
       className={cn(
-        '',
+        'h-full min-h-[276px]',
         (disabled || isProcessingCreate || isGeneratingPreviews) && 'cursor-not-allowed opacity-70'
       )}
     >
-      <div className="h-[276px] overflow-hidden rounded-md border bg-card">
+      <div className="h-full min-h-[276px] overflow-hidden rounded-md border bg-card">
         <ScrollArea className="h-full w-full rounded-[inherit]">
           {isLoadingUserVoices ? (
             <div className="space-y-1 p-2">

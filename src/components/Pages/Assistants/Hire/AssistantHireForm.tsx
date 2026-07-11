@@ -357,7 +357,6 @@ export function HireForm({
   const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
-  const isEditMode = mode === 'edit';
   const selectedUnityEyes = DEFAULT_COORDINATOR_APPEARANCE.eyes;
   const selectedUnityAntenna = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.antenna
@@ -1100,55 +1099,61 @@ export function HireForm({
                 </div>
               </section>
 
-              <div className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] md:items-start">
-                <section className="min-w-0" data-testid="assistant-voice-section">
+              <div className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] md:items-stretch">
+                <section className="flex min-w-0 flex-col" data-testid="assistant-voice-section">
                   <SectionHeader>
                     <SectionIconSlot>
                       <Volume2 className="h-4 w-4" />
                     </SectionIconSlot>
                     <span className="text-body">Voice</span>
                   </SectionHeader>
-                  <VoiceCustomization
-                    assistantActions={assistantActions}
-                    onAddPaymentMethod={onAddPaymentMethod}
-                    activeTab={voiceCustomizationTab}
-                    setActiveTab={setVoiceCustomizationTab}
-                    onVoiceSelected={(selectedVoice) => {
-                      setValue('voiceId', selectedVoice?.voiceId, {
-                        shouldValidate: !!selectedVoice?.voiceId,
-                      });
-                      setValue('voiceName', selectedVoice?.name, {
-                        shouldValidate: !!selectedVoice?.name,
-                      });
-                      setValue(
-                        'voiceDescription',
-                        selectedVoice?.description ?? selectedVoice?.name,
-                        { shouldValidate: !!selectedVoice?.description }
-                      );
-                      setValue('voiceGender', selectedVoice?.gender, {
-                        shouldValidate: !!selectedVoice?.gender,
-                      });
-                      setValue('voiceLanguage', selectedVoice?.language, {
-                        shouldValidate: !!selectedVoice?.language,
-                      });
-                      setValue('voiceProvider', selectedVoice?.provider || PRIMARY_VOICE_PROVIDER, {
-                        shouldValidate: true,
-                      });
-                      setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
-                        shouldValidate: true,
-                      });
-                    }}
-                    initialVoiceId={getValues('voiceId')}
-                    disabled={isSubmitting}
-                    onProcessingStateChange={onVoiceProcessingStateChange}
-                    onPreviewPlayingChange={setIsVoicePreviewPlaying}
-                    onPreviewAudioElementChange={setPreviewAudioElement}
-                    onPlaySelectedVoicePreviewChange={handlePlaySelectedVoicePreviewChange}
-                    allDisplayableVoices={allDisplayableVoices}
-                    isLoadingUserVoices={isLoadingUserVoices}
-                    fetchUserVoices={fetchUserVoices}
-                    handleDeleteVoice={handleDeleteVoice}
-                  />
+                  <div className="min-h-0 flex-1">
+                    <VoiceCustomization
+                      assistantActions={assistantActions}
+                      onAddPaymentMethod={onAddPaymentMethod}
+                      activeTab={voiceCustomizationTab}
+                      setActiveTab={setVoiceCustomizationTab}
+                      onVoiceSelected={(selectedVoice) => {
+                        setValue('voiceId', selectedVoice?.voiceId, {
+                          shouldValidate: !!selectedVoice?.voiceId,
+                        });
+                        setValue('voiceName', selectedVoice?.name, {
+                          shouldValidate: !!selectedVoice?.name,
+                        });
+                        setValue(
+                          'voiceDescription',
+                          selectedVoice?.description ?? selectedVoice?.name,
+                          { shouldValidate: !!selectedVoice?.description }
+                        );
+                        setValue('voiceGender', selectedVoice?.gender, {
+                          shouldValidate: !!selectedVoice?.gender,
+                        });
+                        setValue('voiceLanguage', selectedVoice?.language, {
+                          shouldValidate: !!selectedVoice?.language,
+                        });
+                        setValue(
+                          'voiceProvider',
+                          selectedVoice?.provider || PRIMARY_VOICE_PROVIDER,
+                          {
+                            shouldValidate: true,
+                          }
+                        );
+                        setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
+                          shouldValidate: true,
+                        });
+                      }}
+                      initialVoiceId={getValues('voiceId')}
+                      disabled={isSubmitting}
+                      onProcessingStateChange={onVoiceProcessingStateChange}
+                      onPreviewPlayingChange={setIsVoicePreviewPlaying}
+                      onPreviewAudioElementChange={setPreviewAudioElement}
+                      onPlaySelectedVoicePreviewChange={handlePlaySelectedVoicePreviewChange}
+                      allDisplayableVoices={allDisplayableVoices}
+                      isLoadingUserVoices={isLoadingUserVoices}
+                      fetchUserVoices={fetchUserVoices}
+                      handleDeleteVoice={handleDeleteVoice}
+                    />
+                  </div>
                   {errors.voiceId && (
                     <p className="text-body text-strong mt-1 text-destructive">
                       {errors.voiceId.message}
@@ -1166,8 +1171,8 @@ export function HireForm({
                   )}
                 </section>
 
-                <div className="min-w-0 space-y-5">
-                  <section className="min-w-0">
+                <div className="flex min-w-0 flex-col gap-5">
+                  <section className="min-w-0 shrink-0">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <div
                         className={cn(
@@ -1405,7 +1410,10 @@ export function HireForm({
                     </div>
                   </section>
 
-                  <section className="min-w-0" data-testid="assistant-computer-section">
+                  <section
+                    className="flex min-w-0 flex-1 flex-col"
+                    data-testid="assistant-computer-section"
+                  >
                     <SectionHeader>
                       <SectionIconSlot>
                         <Laptop className="h-4 w-4" />
@@ -1429,140 +1437,127 @@ export function HireForm({
                         </Tooltip>
                       </TooltipProvider>
                     </SectionHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Controller
-                          name="setup"
-                          control={control}
-                          render={({ field }) => (
-                            <div className="space-y-2" data-testid="computer-controls">
+                    <Controller
+                      name="setup"
+                      control={control}
+                      render={({ field }) => (
+                        <div
+                          className="flex min-h-0 flex-1 flex-col"
+                          data-testid="computer-controls"
+                        >
+                          <div
+                            className={cn(
+                              'flex min-h-28 flex-1 cursor-pointer flex-col justify-center space-y-3 rounded-md border p-3',
+                              field.value === 'remote' && 'border-primary'
+                            )}
+                            onClick={() => field.onChange('remote')}
+                          >
+                            <div className="flex items-center space-x-2">
                               <div
                                 className={cn(
-                                  'flex h-28 cursor-pointer flex-col justify-center space-y-3 rounded-md border p-3',
+                                  'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
                                   field.value === 'remote' && 'border-primary'
                                 )}
-                                onClick={() => field.onChange('remote')}
                               >
-                                <div className="flex items-center space-x-2">
-                                  <div
-                                    className={cn(
-                                      'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                      field.value === 'remote' && 'border-primary'
-                                    )}
-                                  >
-                                    {field.value === 'remote' && (
-                                      <div className="rounded-control h-2 w-2 bg-primary" />
-                                    )}
-                                  </div>
-                                  <Label
-                                    htmlFor="setup-remote"
-                                    className="text-body cursor-pointer font-normal"
-                                  >
-                                    Remote - Use a virtual machine
-                                  </Label>
-                                </div>
                                 {field.value === 'remote' && (
-                                  <Controller
-                                    name="operatingSystem"
-                                    control={control}
-                                    render={({ field: osField }) => (
-                                      <div className="space-y-2 pl-6">
-                                        <div
-                                          className="flex cursor-pointer items-center space-x-2"
-                                          data-testid="computer-os-none"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            osField.onChange('none');
-                                          }}
-                                        >
-                                          <div
-                                            className={cn(
-                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                              osField.value === 'none' && 'border-primary'
-                                            )}
-                                          >
-                                            {osField.value === 'none' && (
-                                              <div className="rounded-control h-2 w-2 bg-primary" />
-                                            )}
-                                          </div>
-                                          <Label className="text-body font-normal">
-                                            None — no managed computer
-                                          </Label>
-                                        </div>
-                                        <div
-                                          className="flex cursor-pointer items-center space-x-2"
-                                          data-testid="computer-os-ubuntu"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            osField.onChange('ubuntu');
-                                          }}
-                                        >
-                                          <div
-                                            className={cn(
-                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                              osField.value === 'ubuntu' && 'border-primary'
-                                            )}
-                                          >
-                                            {osField.value === 'ubuntu' && (
-                                              <div className="rounded-control h-2 w-2 bg-primary" />
-                                            )}
-                                          </div>
-                                          <FaUbuntu className="h-4 w-4" />
-                                          <Label
-                                            htmlFor="os-remote-ubuntu"
-                                            className="text-body cursor-pointer font-normal"
-                                          >
-                                            Ubuntu — $50 credits/month
-                                          </Label>
-                                        </div>
-                                        <div
-                                          className="flex cursor-pointer items-center space-x-2"
-                                          data-testid="computer-os-windows"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            osField.onChange('windows');
-                                          }}
-                                        >
-                                          <div
-                                            className={cn(
-                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                              osField.value === 'windows' && 'border-primary'
-                                            )}
-                                          >
-                                            {osField.value === 'windows' && (
-                                              <div className="rounded-control h-2 w-2 bg-primary" />
-                                            )}
-                                          </div>
-                                          <FaWindows className="h-4 w-4" />
-                                          <Label
-                                            htmlFor="os-remote-windows"
-                                            className="text-body cursor-pointer font-normal"
-                                          >
-                                            Windows — $75 credits/month
-                                          </Label>
-                                        </div>
-                                      </div>
-                                    )}
-                                  />
+                                  <div className="rounded-control h-2 w-2 bg-primary" />
                                 )}
                               </div>
-                              {isEditMode && (
-                                <p
-                                  className="text-caption text-muted-foreground"
-                                  data-testid="computer-edit-warning"
-                                >
-                                  Changing Computer releases the managed VM. Workspace files and
-                                  browser session profile are archived for this teammate and
-                                  restored when Computer is re-enabled on the same OS. Switching
-                                  Ubuntu ↔ Windows may leave an old archive unusable on the new OS.
-                                  Enabling Ubuntu or Windows charges the first month up front.
-                                </p>
-                              )}
+                              <Label
+                                htmlFor="setup-remote"
+                                className="text-body cursor-pointer font-normal"
+                              >
+                                Remote - Use a virtual machine
+                              </Label>
                             </div>
-                          )}
-                        />
-                      </div>
-                    </div>
+                            {field.value === 'remote' && (
+                              <Controller
+                                name="operatingSystem"
+                                control={control}
+                                render={({ field: osField }) => (
+                                  <div className="space-y-2 pl-6">
+                                    <div
+                                      className="flex cursor-pointer items-center space-x-2"
+                                      data-testid="computer-os-none"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        osField.onChange('none');
+                                      }}
+                                    >
+                                      <div
+                                        className={cn(
+                                          'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                          osField.value === 'none' && 'border-primary'
+                                        )}
+                                      >
+                                        {osField.value === 'none' && (
+                                          <div className="rounded-control h-2 w-2 bg-primary" />
+                                        )}
+                                      </div>
+                                      <Label className="text-body font-normal">
+                                        None — no managed computer
+                                      </Label>
+                                    </div>
+                                    <div
+                                      className="flex cursor-pointer items-center space-x-2"
+                                      data-testid="computer-os-ubuntu"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        osField.onChange('ubuntu');
+                                      }}
+                                    >
+                                      <div
+                                        className={cn(
+                                          'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                          osField.value === 'ubuntu' && 'border-primary'
+                                        )}
+                                      >
+                                        {osField.value === 'ubuntu' && (
+                                          <div className="rounded-control h-2 w-2 bg-primary" />
+                                        )}
+                                      </div>
+                                      <FaUbuntu className="h-4 w-4" />
+                                      <Label
+                                        htmlFor="os-remote-ubuntu"
+                                        className="text-body cursor-pointer font-normal"
+                                      >
+                                        Ubuntu — $50 credits/month
+                                      </Label>
+                                    </div>
+                                    <div
+                                      className="flex cursor-pointer items-center space-x-2"
+                                      data-testid="computer-os-windows"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        osField.onChange('windows');
+                                      }}
+                                    >
+                                      <div
+                                        className={cn(
+                                          'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                          osField.value === 'windows' && 'border-primary'
+                                        )}
+                                      >
+                                        {osField.value === 'windows' && (
+                                          <div className="rounded-control h-2 w-2 bg-primary" />
+                                        )}
+                                      </div>
+                                      <FaWindows className="h-4 w-4" />
+                                      <Label
+                                        htmlFor="os-remote-windows"
+                                        className="text-body cursor-pointer font-normal"
+                                      >
+                                        Windows — $75 credits/month
+                                      </Label>
+                                    </div>
+                                  </div>
+                                )}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    />
                   </section>
                 </div>
               </div>
