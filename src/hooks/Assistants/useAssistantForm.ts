@@ -9,7 +9,6 @@ import {
   VoiceOption,
   AssistantUpdatePayload,
   DesktopMode,
-  HireOperatingSystem,
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
@@ -30,6 +29,10 @@ import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
 import { fetchMediaSignedUrls } from '@/lib/client/assistant';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import { isCreatureSentinel } from '@/components/Brand';
+import {
+  resolveManagedDesktopMode,
+  syncManagedDesktopMode,
+} from '@/utils/assistants/managed-desktop';
 
 export function useAssistantForm(
   assistantActions: AssistantActions,
@@ -451,12 +454,14 @@ export function useAssistantForm(
           assistant.voiceProvider || assistantVoiceDetails?.provider || resolvedVoice.voiceProvider,
         voiceExists: !!assistantVoiceDetails,
 
-        // Setup
+        // Setup — managed Computer mode can be changed post-hire via
+        // managed-desktop enable/disable (see syncManagedDesktopMode).
         setup: 'remote',
-        operatingSystem:
-          assistant.desktopMode == null
-            ? 'none'
-            : (assistant.desktopMode as Exclude<HireOperatingSystem, 'none'>),
+        operatingSystem: (() => {
+          const mode = resolveManagedDesktopMode(assistant);
+          if (mode === 'ubuntu' || mode === 'windows') return mode;
+          return 'none';
+        })(),
       });
       setShowInsufficientFundsHint(false);
 
@@ -572,7 +577,15 @@ export function useAssistantForm(
         payload.voiceId = data.voiceId;
         payload.voiceProvider = nextVoiceProvider;
       }
-      // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
+      // Note: isUserDesktop stays creation-time only; managed Computer mode
+      // (ubuntu/windows/none) is synced via managed-desktop APIs below.
+      let computerChanged = false;
+      computerChanged = await syncManagedDesktopMode(
+        editingAssistant.agentId,
+        resolveManagedDesktopMode(editingAssistant),
+        data.operatingSystem ?? 'none',
+        assistantActions.managedDesktop
+      );
 
       // Image/Video upload logic — include assistant_id so files are stored
       // under the correct assistant-centric GCS path.
@@ -638,6 +651,8 @@ export function useAssistantForm(
           );
           throw new Error('Failed to update assistant.');
         }
+        toast.success(`Assistant ${data.firstName} updated!`);
+      } else if (computerChanged) {
         toast.success(`Assistant ${data.firstName} updated!`);
       } else {
         toast.info('No changes to save.');

@@ -104,8 +104,8 @@ export function AssistantComputerUseManager({
           <DialogHeader>
             <DialogTitle>Computer Use</DialogTitle>
             <DialogDescription>
-              Managed virtual machines for external computer use. Files remain archived when
-              disabled.
+              Managed virtual machines for external computer use. Workspace files and browser
+              session profile remain archived when disabled and restore on the same OS.
             </DialogDescription>
           </DialogHeader>
 

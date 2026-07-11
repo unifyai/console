@@ -691,6 +691,22 @@ export interface AssistantActions {
       sftpTunnelId?: string | null
     ) => Promise<ResponseProps>;
   };
+  managedDesktop: {
+    enable: (
+      assistantId: string | number,
+      desktopMode: DesktopMode
+    ) => Promise<ResponseProps & { assistant?: Assistant }>;
+    disable: (assistantId: string | number) => Promise<ResponseProps & { assistant?: Assistant }>;
+    getStatus: (assistantId: string | number) => Promise<
+      ResponseProps & {
+        info?: {
+          desktopMode: DesktopMode | null;
+          managedDesktopStatus: 'active' | 'grace_period' | 'disabled' | null;
+          monthlyCost: number | null;
+        };
+      }
+    >;
+  };
   spending: {
     setLimit: (
       assistantId: string,

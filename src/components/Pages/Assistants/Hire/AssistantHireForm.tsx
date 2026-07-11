@@ -1505,7 +1505,7 @@ export function HireForm({
                     </div>
                   </section>
 
-                  <section className="min-w-0">
+                  <section className="min-w-0" data-testid="assistant-computer-section">
                     <SectionHeader>
                       <SectionIconSlot>
                         <Laptop className="h-4 w-4" />
@@ -1534,158 +1534,132 @@ export function HireForm({
                         <Controller
                           name="setup"
                           control={control}
-                          render={({ field }) => {
-                            const computerControls = (
+                          render={({ field }) => (
+                            <div className="space-y-2" data-testid="computer-controls">
                               <div
-                                aria-disabled={isEditMode}
-                                className={cn('space-y-2', isEditMode && 'cursor-not-allowed')}
+                                className={cn(
+                                  'flex h-28 cursor-pointer flex-col justify-center space-y-3 rounded-md border p-3',
+                                  field.value === 'remote' && 'border-primary'
+                                )}
+                                onClick={() => field.onChange('remote')}
                               >
-                                <div
-                                  className={cn(
-                                    'flex h-28 flex-col justify-center space-y-3 rounded-md border p-3',
-                                    isEditMode ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-                                    field.value === 'remote' && 'border-primary'
-                                  )}
-                                  onClick={() => !isEditMode && field.onChange('remote')}
-                                >
-                                  <div className="flex items-center space-x-2">
-                                    <div
-                                      className={cn(
-                                        'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                        field.value === 'remote' && 'border-primary'
-                                      )}
-                                    >
-                                      {field.value === 'remote' && (
-                                        <div className="rounded-control h-2 w-2 bg-primary" />
-                                      )}
-                                    </div>
-                                    <Label
-                                      htmlFor="setup-remote"
-                                      className={cn(
-                                        'text-body font-normal',
-                                        !isEditMode && 'cursor-pointer'
-                                      )}
-                                    >
-                                      Remote - Use a virtual machine
-                                    </Label>
-                                  </div>
-                                  {field.value === 'remote' && (
-                                    <Controller
-                                      name="operatingSystem"
-                                      control={control}
-                                      render={({ field: osField }) => (
-                                        <div className="space-y-2 pl-6">
-                                          <div
-                                            className={cn(
-                                              'flex items-center space-x-2',
-                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
-                                            )}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (!isEditMode) osField.onChange('none');
-                                            }}
-                                          >
-                                            <div
-                                              className={cn(
-                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                                osField.value === 'none' && 'border-primary'
-                                              )}
-                                            >
-                                              {osField.value === 'none' && (
-                                                <div className="rounded-control h-2 w-2 bg-primary" />
-                                              )}
-                                            </div>
-                                            <Label className="text-body font-normal">
-                                              None — no managed computer
-                                            </Label>
-                                          </div>
-                                          <div
-                                            className={cn(
-                                              'flex items-center space-x-2',
-                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
-                                            )}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (!isEditMode) osField.onChange('ubuntu');
-                                            }}
-                                          >
-                                            <div
-                                              className={cn(
-                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                                osField.value === 'ubuntu' && 'border-primary'
-                                              )}
-                                            >
-                                              {osField.value === 'ubuntu' && (
-                                                <div className="rounded-control h-2 w-2 bg-primary" />
-                                              )}
-                                            </div>
-                                            <FaUbuntu className="h-4 w-4" />
-                                            <Label
-                                              htmlFor="os-remote-ubuntu"
-                                              className={cn(
-                                                'text-body font-normal',
-                                                !isEditMode && 'cursor-pointer'
-                                              )}
-                                            >
-                                              Ubuntu — $50 credits/month
-                                            </Label>
-                                          </div>
-                                          <div
-                                            className={cn(
-                                              'flex items-center space-x-2',
-                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
-                                            )}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (!isEditMode) osField.onChange('windows');
-                                            }}
-                                          >
-                                            <div
-                                              className={cn(
-                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                                osField.value === 'windows' && 'border-primary'
-                                              )}
-                                            >
-                                              {osField.value === 'windows' && (
-                                                <div className="rounded-control h-2 w-2 bg-primary" />
-                                              )}
-                                            </div>
-                                            <FaWindows className="h-4 w-4" />
-                                            <Label
-                                              htmlFor="os-remote-windows"
-                                              className={cn(
-                                                'text-body font-normal',
-                                                !isEditMode && 'cursor-pointer'
-                                              )}
-                                            >
-                                              Windows — $75 credits/month
-                                            </Label>
-                                          </div>
-                                        </div>
-                                      )}
-                                    />
-                                  )}
-                                </div>
-                              </div>
-                            );
-
-                            if (!isEditMode) return computerControls;
-
-                            return (
-                              <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>{computerControls}</TooltipTrigger>
-                                  <TooltipContent
-                                    side="top"
-                                    align="start"
-                                    className="text-caption max-w-xs"
+                                <div className="flex items-center space-x-2">
+                                  <div
+                                    className={cn(
+                                      'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                      field.value === 'remote' && 'border-primary'
+                                    )}
                                   >
-                                    <p>Computer can only be configured during onboarding.</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          }}
+                                    {field.value === 'remote' && (
+                                      <div className="rounded-control h-2 w-2 bg-primary" />
+                                    )}
+                                  </div>
+                                  <Label
+                                    htmlFor="setup-remote"
+                                    className="text-body cursor-pointer font-normal"
+                                  >
+                                    Remote - Use a virtual machine
+                                  </Label>
+                                </div>
+                                {field.value === 'remote' && (
+                                  <Controller
+                                    name="operatingSystem"
+                                    control={control}
+                                    render={({ field: osField }) => (
+                                      <div className="space-y-2 pl-6">
+                                        <div
+                                          className="flex cursor-pointer items-center space-x-2"
+                                          data-testid="computer-os-none"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            osField.onChange('none');
+                                          }}
+                                        >
+                                          <div
+                                            className={cn(
+                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                              osField.value === 'none' && 'border-primary'
+                                            )}
+                                          >
+                                            {osField.value === 'none' && (
+                                              <div className="rounded-control h-2 w-2 bg-primary" />
+                                            )}
+                                          </div>
+                                          <Label className="text-body font-normal">
+                                            None — no managed computer
+                                          </Label>
+                                        </div>
+                                        <div
+                                          className="flex cursor-pointer items-center space-x-2"
+                                          data-testid="computer-os-ubuntu"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            osField.onChange('ubuntu');
+                                          }}
+                                        >
+                                          <div
+                                            className={cn(
+                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                              osField.value === 'ubuntu' && 'border-primary'
+                                            )}
+                                          >
+                                            {osField.value === 'ubuntu' && (
+                                              <div className="rounded-control h-2 w-2 bg-primary" />
+                                            )}
+                                          </div>
+                                          <FaUbuntu className="h-4 w-4" />
+                                          <Label
+                                            htmlFor="os-remote-ubuntu"
+                                            className="text-body cursor-pointer font-normal"
+                                          >
+                                            Ubuntu — $50 credits/month
+                                          </Label>
+                                        </div>
+                                        <div
+                                          className="flex cursor-pointer items-center space-x-2"
+                                          data-testid="computer-os-windows"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            osField.onChange('windows');
+                                          }}
+                                        >
+                                          <div
+                                            className={cn(
+                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                              osField.value === 'windows' && 'border-primary'
+                                            )}
+                                          >
+                                            {osField.value === 'windows' && (
+                                              <div className="rounded-control h-2 w-2 bg-primary" />
+                                            )}
+                                          </div>
+                                          <FaWindows className="h-4 w-4" />
+                                          <Label
+                                            htmlFor="os-remote-windows"
+                                            className="text-body cursor-pointer font-normal"
+                                          >
+                                            Windows — $75 credits/month
+                                          </Label>
+                                        </div>
+                                      </div>
+                                    )}
+                                  />
+                                )}
+                              </div>
+                              {isEditMode && (
+                                <p
+                                  className="text-caption text-muted-foreground"
+                                  data-testid="computer-edit-warning"
+                                >
+                                  Changing Computer releases the managed VM. Workspace files and
+                                  browser session profile are archived for this teammate and
+                                  restored when Computer is re-enabled on the same OS. Switching
+                                  Ubuntu ↔ Windows may leave an old archive unusable on the new OS.
+                                  Enabling Ubuntu or Windows charges the first month up front.
+                                </p>
+                              )}
+                            </div>
+                          )}
                         />
                       </div>
                     </div>

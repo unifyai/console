@@ -1,3 +1,5 @@
+'use server';
+
 import { requireUserApiKey } from '@/lib/server-action-session';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import type { Assistant, DesktopMode } from '@/types/assistants/assistant';
