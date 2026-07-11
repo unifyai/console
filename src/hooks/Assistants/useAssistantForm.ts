@@ -9,7 +9,6 @@ import {
   VoiceOption,
   AssistantUpdatePayload,
   DesktopMode,
-  HireOperatingSystem,
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
@@ -30,6 +29,10 @@ import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
 import { fetchMediaSignedUrls } from '@/lib/client/assistant';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import { isCreatureSentinel } from '@/components/Brand';
+import {
+  resolveManagedDesktopMode,
+  syncManagedDesktopMode,
+} from '@/utils/assistants/managed-desktop';
 
 export function useAssistantForm(
   assistantActions: AssistantActions,
@@ -48,9 +51,14 @@ export function useAssistantForm(
   const presetOperationIdRef = React.useRef(0);
   // Ref to ignore stale signed-URL refreshes when rapidly switching assistants
   const editMediaRefreshRequestIdRef = React.useRef(0);
+  const registeredVoicesRef = React.useRef(registeredVoices);
+  registeredVoicesRef.current = registeredVoices;
 
-  const defaultVoice = getDefaultVoiceForProvider();
-  const coordinatorDefaultVoice = getCoordinatorDefaultVoice();
+  // These helpers allocate a new object each call; memoize so edit-load
+  // callbacks stay stable across re-renders (otherwise opening the model
+  // Select re-runs loadAssistantForEdit and reset()s the form).
+  const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
+  const coordinatorDefaultVoice = React.useMemo(() => getCoordinatorDefaultVoice(), []);
 
   const resolveFormVoice = React.useCallback(
     (assistant: Assistant) => {
@@ -393,7 +401,7 @@ export function useAssistantForm(
 
       setEditingAssistant(assistant);
 
-      const assistantVoiceDetails = registeredVoices.find(
+      const assistantVoiceDetails = registeredVoicesRef.current.find(
         (v) => v.voiceId === assistant.voiceId && v.provider === assistant.voiceProvider
       );
       const profilePhotoPath = assistant.profilePhoto ?? null;
@@ -446,12 +454,14 @@ export function useAssistantForm(
           assistant.voiceProvider || assistantVoiceDetails?.provider || resolvedVoice.voiceProvider,
         voiceExists: !!assistantVoiceDetails,
 
-        // Setup
+        // Setup — managed Computer mode can be changed post-hire via
+        // managed-desktop enable/disable (see syncManagedDesktopMode).
         setup: 'remote',
-        operatingSystem:
-          assistant.desktopMode == null
-            ? 'none'
-            : (assistant.desktopMode as Exclude<HireOperatingSystem, 'none'>),
+        operatingSystem: (() => {
+          const mode = resolveManagedDesktopMode(assistant);
+          if (mode === 'ubuntu' || mode === 'windows') return mode;
+          return 'none';
+        })(),
       });
       setShowInsufficientFundsHint(false);
 
@@ -488,8 +498,24 @@ export function useAssistantForm(
         }
       })();
     },
-    [reset, getValues, registeredVoices, setValue, resolveFormVoice]
+    [reset, getValues, setValue, resolveFormVoice]
   );
+
+  // When voices arrive after edit open, enrich display fields only — never full reset().
+  React.useEffect(() => {
+    if (!editingAssistant?.voiceId) return;
+    const details = registeredVoices.find(
+      (v) => v.voiceId === editingAssistant.voiceId && v.provider === editingAssistant.voiceProvider
+    );
+    if (!details) return;
+    if (getValues('voiceId') !== editingAssistant.voiceId) return;
+    setValue('voiceName', details.name);
+    setValue('voiceDescription', details.description);
+    setValue('voiceLanguage', details.language as SupportedLanguage);
+    setValue('voiceGender', details.gender as Gender);
+    setValue('voiceProvider', details.provider || PRIMARY_VOICE_PROVIDER);
+    setValue('voiceExists', true);
+  }, [editingAssistant, registeredVoices, getValues, setValue]);
 
   const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
     // Prevent double submission using ref to avoid stale closure
@@ -532,15 +558,6 @@ export function useAssistantForm(
       }
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
-      // Orchestra validates the (model, effort) pair against its catalog, so
-      // send both together when either has changed.
-      const defaultModelChanged =
-        (data.defaultModel ?? null) !== (editingAssistant.defaultModel ?? null) ||
-        (data.defaultReasoningEffort ?? null) !== (editingAssistant.defaultReasoningEffort ?? null);
-      if (defaultModelChanged) {
-        payload.defaultModel = data.defaultModel ?? null;
-        payload.defaultReasoningEffort = data.defaultReasoningEffort ?? null;
-      }
       // Orchestra requires both voice_id and voice_provider together, so send
       // them as a pair when either one has changed.
       const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
@@ -551,7 +568,15 @@ export function useAssistantForm(
         payload.voiceId = data.voiceId;
         payload.voiceProvider = nextVoiceProvider;
       }
-      // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
+      // Note: isUserDesktop stays creation-time only; managed Computer mode
+      // (ubuntu/windows/none) is synced via managed-desktop APIs below.
+      let computerChanged = false;
+      computerChanged = await syncManagedDesktopMode(
+        editingAssistant.agentId,
+        resolveManagedDesktopMode(editingAssistant),
+        data.operatingSystem ?? 'none',
+        assistantActions.managedDesktop
+      );
 
       // Image/Video upload logic — include assistant_id so files are stored
       // under the correct assistant-centric GCS path.
@@ -617,6 +642,8 @@ export function useAssistantForm(
           );
           throw new Error('Failed to update assistant.');
         }
+        toast.success(`Assistant ${data.firstName} updated!`);
+      } else if (computerChanged) {
         toast.success(`Assistant ${data.firstName} updated!`);
       } else {
         toast.info('No changes to save.');
@@ -769,11 +796,6 @@ export function useAssistantForm(
       // Also carries the default-model selection, which the create endpoint's
       // positional action signature does not accept.
       const mediaUpdate: Partial<AssistantUpdatePayload> = {};
-
-      if (data.defaultModel) {
-        mediaUpdate.defaultModel = data.defaultModel;
-        mediaUpdate.defaultReasoningEffort = data.defaultReasoningEffort ?? null;
-      }
 
       if (data.photoFile) {
         const photoFormData = new FormData();

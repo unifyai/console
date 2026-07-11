@@ -40,7 +40,13 @@ import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displa
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBeats';
 import { approvedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
+import { resolveCoordinatorJobTitle } from '@/constants/assistants/coordinator_profile';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
+import {
+  useDefaultModelOptions,
+  encodeDefaultModelValue,
+} from '@/hooks/Assistants/useDefaultModelOptions';
+import type { DefaultModelOption } from '@/types/assistants/assistant';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -55,6 +61,8 @@ export interface AssistantInfoSidePanelContentProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   /** Open the workspace manager dialog. */
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  /** Open the brain / model manager dialog. */
+  onOpenBrainManager?: (assistant: Assistant) => void;
   /** Open the desktop linker dialog. Owner-only; omit for non-owners. */
   onConnectDesktop?: (assistant: Assistant) => void;
   /** Open the managed Computer Use manager dialog. */
@@ -209,9 +217,6 @@ function ProfileTabTrigger({ triggerRef }: { triggerRef?: React.Ref<HTMLButtonEl
   );
 }
 
-/** User-facing role for T-W1N. The internal job title ("Coordinator") is never surfaced. */
-const COORDINATOR_ROLE_DISPLAY = 'Your digital twin';
-
 /**
  * Body of the chat-tab assistant info side panel.
  *
@@ -241,6 +246,7 @@ export function AssistantInfoSidePanelContent({
         className={props.className}
         onOpenContactManager={props.onOpenContactManager}
         onOpenWorkspaceManager={props.onOpenWorkspaceManager}
+        onOpenBrainManager={props.onOpenBrainManager}
         onConnectDesktop={props.onConnectDesktop}
         canWrite={props.canWrite}
         coordinatorOnboarding={props.coordinatorOnboarding}
@@ -270,6 +276,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
+  onOpenBrainManager,
   onConnectDesktop,
   className,
   canWrite = true,
@@ -287,6 +294,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onOpenBrainManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   className?: string;
   canWrite?: boolean;
@@ -442,6 +450,7 @@ function CoordinatorAssistantInfoSidePanelContent({
               isEditProfileOpening={isEditProfileOpening}
               onOpenContactManager={onOpenContactManager}
               onOpenWorkspaceManager={onOpenWorkspaceManager}
+              onOpenBrainManager={onOpenBrainManager}
               onConnectDesktop={onConnectDesktop}
               canWrite={canWrite}
               sectionsRef={profileSectionsRef}
@@ -456,6 +465,7 @@ function CoordinatorAssistantInfoSidePanelContent({
             isEditProfileOpening={isEditProfileOpening}
             onOpenContactManager={onOpenContactManager}
             onOpenWorkspaceManager={onOpenWorkspaceManager}
+            onOpenBrainManager={onOpenBrainManager}
             onConnectDesktop={onConnectDesktop}
             canWrite={canWrite}
             sectionsRef={profileSectionsRef}
@@ -473,6 +483,7 @@ function RegularAssistantInfoSidePanelContent({
   isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
+  onOpenBrainManager,
   onConnectDesktop,
   onOpenComputerUseManager,
   roadmap,
@@ -554,6 +565,7 @@ function RegularAssistantInfoSidePanelContent({
       isEditProfileOpening={isEditProfileOpening}
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
+      onOpenBrainManager={onOpenBrainManager}
       onConnectDesktop={onConnectDesktop}
       onOpenComputerUseManager={onOpenComputerUseManager}
       canWrite={canWrite}
@@ -786,6 +798,7 @@ interface ProfileSectionsPanelProps {
   isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onOpenBrainManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   onOpenComputerUseManager?: (assistant: Assistant) => void;
   canWrite: boolean;
@@ -824,10 +837,10 @@ interface ProfileSummaryRow {
 function getProfileSummaryRows(assistant: Assistant): ProfileSummaryRow[] {
   const rows: ProfileSummaryRow[] = [];
 
-  // T-W1N's stored job title ("Coordinator") is a purely internal term; users
-  // only ever see it framed as the user's digital twin.
+  // T-W1N always surfaces the digital-twin role copy (legacy DB titles map via
+  // resolveCoordinatorJobTitle). Other assistants use their stored job title.
   const role = assistant.isCoordinator
-    ? COORDINATOR_ROLE_DISPLAY
+    ? resolveCoordinatorJobTitle(assistant.jobTitle)
     : assistant.jobTitle?.trim() || null;
   if (role) rows.push({ label: 'Role', value: role });
 
@@ -903,6 +916,26 @@ function getDesktopStatusDescription(assistant: Assistant): string {
   return 'No desktop connected yet';
 }
 
+function getBrainStatusDescription(assistant: Assistant, options: DefaultModelOption[]): string {
+  const resolveLabel = (
+    model: string | null | undefined,
+    reasoningEffort: string | null | undefined
+  ): string => {
+    if (!model) return 'System default';
+    const selectedValue = encodeDefaultModelValue(model, reasoningEffort);
+    const match = options.find(
+      (option) => encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedValue
+    );
+    if (match) return match.label;
+    return reasoningEffort ? `${model} (${reasoningEffort})` : model;
+  };
+
+  return (
+    `Conversation: ${resolveLabel(assistant.slowBrainModel, assistant.slowBrainReasoningEffort)}` +
+    ` · Tasks: ${resolveLabel(assistant.defaultModel, assistant.defaultReasoningEffort)}`
+  );
+}
+
 function getComputerUseStatusDescription(assistant: Assistant): string {
   if (assistant.managedDesktopStatus === 'grace_period') {
     return 'Grace period — add credits to keep Computer Use';
@@ -924,11 +957,14 @@ function ProfileSectionsPanel({
   isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
+  onOpenBrainManager,
   onConnectDesktop,
   onOpenComputerUseManager,
   canWrite,
   sectionsRef,
 }: ProfileSectionsPanelProps) {
+  const { options: defaultModelOptions } = useDefaultModelOptions();
+  const brainStatus = getBrainStatusDescription(assistant, defaultModelOptions);
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
   const showComputerUseSection =
@@ -951,6 +987,14 @@ function ProfileSectionsPanel({
         onEdit={onEditProfile ? () => onEditProfile(assistant) : undefined}
         editTestId="assistant-info-edit-profile-section"
         editAriaLabel="Edit profile"
+      />
+      <ProfileSectionTile
+        title="Brain"
+        description={brainStatus}
+        canEdit={canWrite && !!onOpenBrainManager}
+        onEdit={onOpenBrainManager ? () => onOpenBrainManager(assistant) : undefined}
+        editTestId="assistant-info-edit-brain-section"
+        editAriaLabel="Edit conversation and task models"
       />
       <ProfileSectionTile
         title="Workspace"

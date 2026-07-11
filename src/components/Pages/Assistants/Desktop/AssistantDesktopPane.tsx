@@ -2,12 +2,13 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, MousePointerClick, RefreshCw, Eye } from 'lucide-react';
+import { AlertTriangle, Laptop, MousePointerClick, RefreshCw, Eye } from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
+import { resolveManagedDesktopMode } from '@/utils/assistants/managed-desktop';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 
 type DesktopStatus = 'idle' | 'starting' | 'loading' | 'ready' | 'error';
@@ -44,6 +45,10 @@ interface AssistantDesktopPaneProps {
   isVisible: boolean;
   /** False when the assistants surface is hidden behind settings/admin routes. */
   isActiveSurface?: boolean;
+  /** Whether the current user can enable Computer Use for this assistant. */
+  canWrite?: boolean;
+  /** Opens the Computer Use enable/disable manager. */
+  onOpenComputerUseManager?: (assistant: Assistant) => void;
 }
 
 /**
@@ -52,6 +57,9 @@ interface AssistantDesktopPaneProps {
  * tab resolves the assistant's liveview URL, health-checks it, and renders it in
  * an iframe. The user can optionally take interactive control (mirroring the
  * call's remote-control toggle); by default the desktop is view-only.
+ *
+ * Requires managed Computer Use (Ubuntu/Windows). Without it, the pane shows an
+ * upgrade empty state instead of waiting for a session that will never arrive.
  *
  * System events mirror the in-call behaviour so a running session knows when a
  * user is watching / driving its screen:
@@ -63,6 +71,8 @@ export function AssistantDesktopPane({
   desktopActions,
   isVisible,
   isActiveSurface = true,
+  canWrite = false,
+  onOpenComputerUseManager,
 }: AssistantDesktopPaneProps) {
   const [status, setStatus] = React.useState<DesktopStatus>('idle');
   const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
@@ -74,6 +84,8 @@ export function AssistantDesktopPane({
   const ownerId = assistant.userId;
   const organizationId = assistant.organizationId ?? null;
   const displayName = assistantDisplayName(assistant);
+  const computerEnabled = resolveManagedDesktopMode(assistant) != null;
+  const shouldConnect = isVisible && isActiveSurface && computerEnabled;
 
   const boundGetLiveviewUrl = React.useCallback(
     (id: string) => desktopActions.getLiveviewUrl(id, ownerId, organizationId),
@@ -87,7 +99,7 @@ export function AssistantDesktopPane({
     assistantId,
     boundGetLiveviewUrl,
     false,
-    isVisible && isActiveSurface ? DESKTOP_START_POLL_INTERVAL_MS : undefined,
+    shouldConnect ? DESKTOP_START_POLL_INTERVAL_MS : undefined,
     startupAttempt
   );
 
@@ -191,17 +203,17 @@ export function AssistantDesktopPane({
       });
   }, [assistantId]);
 
-  // When the tab opens and no desktop is running yet, request a session start
-  // then poll until the VM is ready (via useDesktopReady).
+  // When the tab opens and Computer is enabled but no desktop is running yet,
+  // request a session start then poll until the VM is ready (via useDesktopReady).
   React.useEffect(() => {
-    if (!isVisible || !isActiveSurface) return;
+    if (!shouldConnect) return;
     if (isDesktopReady || wakeAttemptedRef.current) return;
     beginStartup();
-  }, [isVisible, isActiveSurface, isDesktopReady, assistantId, startupAttempt, beginStartup]);
+  }, [shouldConnect, isDesktopReady, assistantId, startupAttempt, beginStartup]);
 
   // Fail gracefully if startup takes too long.
   React.useEffect(() => {
-    if (!isVisible || !isActiveSurface) return;
+    if (!shouldConnect) return;
     if (status !== 'starting' && status !== 'loading') return;
     if (sessionStartRequestedAtRef.current === null) return;
 
@@ -227,11 +239,11 @@ export function AssistantDesktopPane({
     }, remaining);
 
     return () => window.clearTimeout(timeout);
-  }, [isVisible, isActiveSurface, status, displayName]);
+  }, [shouldConnect, status, displayName]);
 
   // Retry connect while the desktop URL exists but health checks are still warming up.
   React.useEffect(() => {
-    if (!isVisible || !isActiveSurface || !isDesktopReady) return;
+    if (!shouldConnect || !isDesktopReady) return;
     if (status !== 'starting') return;
 
     const interval = window.setInterval(() => {
@@ -245,21 +257,22 @@ export function AssistantDesktopPane({
     });
 
     return () => window.clearInterval(interval);
-  }, [isVisible, isActiveSurface, isDesktopReady, status, connect]);
+  }, [shouldConnect, isDesktopReady, status, connect]);
 
   // Auto-connect when the tab becomes visible and the desktop is ready. Kept
   // idempotent via the `idle`/`starting` guard so re-renders don't re-fetch.
   React.useEffect(() => {
-    if (!isVisible || !isActiveSurface) return;
+    if (!shouldConnect) return;
     if (status !== 'idle') return;
     if (!isDesktopReady) return;
     void connect().catch((error: unknown) => {
       console.error('[AssistantDesktopPane] Connect failed:', error);
     });
-  }, [isVisible, isActiveSurface, status, isDesktopReady, connect]);
+  }, [shouldConnect, status, isDesktopReady, connect]);
 
   // Reset the whole session when the assistant changes so we never show one
-  // teammate's desktop under another.
+  // teammate's desktop under another. Also reset when Computer is enabled after
+  // the upgrade empty state so startup can begin.
   React.useEffect(() => {
     setStatus('idle');
     setLiveviewUrl(null);
@@ -268,7 +281,7 @@ export function AssistantDesktopPane({
     wakeAttemptedRef.current = false;
     sessionStartRequestedAtRef.current = null;
     setStartupAttempt(0);
-  }, [assistantId]);
+  }, [assistantId, computerEnabled]);
 
   // Tell the running session the viewing session ended when we unmount or the
   // active assistant changes while a desktop was open.
@@ -386,7 +399,33 @@ export function AssistantDesktopPane({
       </div>
 
       <div className="relative flex min-h-0 flex-1 items-center justify-center">
-        {status === 'ready' && liveviewUrl ? (
+        {!computerEnabled ? (
+          <div
+            className="flex flex-col items-center justify-center p-6 text-center"
+            data-testid="desktop-computer-upgrade"
+          >
+            <Laptop className="mb-4 h-8 w-8 text-muted-foreground" />
+            <h3 className="text-h2 text-semibold text-foreground">Computer not enabled</h3>
+            <p className="text-body mt-2 max-w-sm text-muted-foreground">
+              Desktop live view needs a managed Computer (Ubuntu or Windows) for {displayName}.
+              Enable Computer to start a remote desktop session.
+            </p>
+            <div className="mt-6">
+              {canWrite && onOpenComputerUseManager ? (
+                <Button
+                  data-testid="desktop-enable-computer"
+                  onClick={() => onOpenComputerUseManager(assistant)}
+                >
+                  Enable Computer
+                </Button>
+              ) : (
+                <p className="text-caption text-muted-foreground">
+                  Ask someone with edit access to enable Computer for this teammate.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : status === 'ready' && liveviewUrl ? (
           <>
             <iframe
               src={liveviewUrl}

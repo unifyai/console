@@ -204,3 +204,43 @@ test('closing the edit dialog without saving leaves DB unchanged', async ({ auth
   const dbAfter = getAssistantFromDb(assistant.agentId);
   expect(dbAfter.firstName).toBe(dbBefore.firstName);
 });
+
+test('Computer mode can be enabled retrospectively via the edit dialog', async ({
+  authedPage: page,
+}) => {
+  const dbBefore = getAssistantFromDb(assistant.agentId);
+  expect(dbBefore.desktopMode).toBeNull();
+
+  await openEditDialog(page);
+
+  const computerSection = page.getByTestId('assistant-computer-section');
+  await computerSection.scrollIntoViewIfNeeded();
+  await expect(computerSection).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('computer-edit-warning')).toBeVisible();
+
+  await page.getByTestId('computer-os-ubuntu').click();
+
+  const updateBtn = page.getByRole('button', { name: /Update Teammate/i });
+  await updateBtn.scrollIntoViewIfNeeded();
+  await updateBtn.click();
+
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
+  await expect(editDialog).not.toBeVisible({ timeout: 45_000 });
+  await page.waitForTimeout(1_000);
+
+  const dbAfter = getAssistantFromDb(assistant.agentId);
+  expect(dbAfter.desktopMode).toBe('ubuntu');
+  expect(dbAfter.managedDesktopStatus).toBe('active');
+
+  // Disable again so later serial tests aren't affected by Computer billing state.
+  await openEditDialog(page);
+  await page.getByTestId('assistant-computer-section').scrollIntoViewIfNeeded();
+  await page.getByTestId('computer-os-none').click();
+  await page.getByRole('button', { name: /Update Teammate/i }).click();
+  await expect(editDialog).not.toBeVisible({ timeout: 45_000 });
+  await page.waitForTimeout(1_000);
+
+  const dbDisabled = getAssistantFromDb(assistant.agentId);
+  expect(dbDisabled.desktopMode).toBeNull();
+  expect(dbDisabled.managedDesktopStatus).toBe('disabled');
+});

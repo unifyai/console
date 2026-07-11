@@ -124,6 +124,7 @@ interface AssistantInfoPanelLayoutProps {
   isEditProfileOpening?: boolean;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager?: (assistant: Assistant) => void;
+  onOpenBrainManager?: (assistant: Assistant) => void;
   onConnectDesktop?: (assistant: Assistant) => void;
   onOpenComputerUseManager?: (assistant: Assistant) => void;
   hasUserMessage?: boolean;
@@ -157,6 +158,7 @@ export function AssistantInfoPanelLayout({
   isEditProfileOpening = false,
   onOpenContactManager,
   onOpenWorkspaceManager,
+  onOpenBrainManager,
   onConnectDesktop,
   onOpenComputerUseManager,
   hasUserMessage = false,
@@ -474,6 +476,7 @@ export function AssistantInfoPanelLayout({
       isEditProfileOpening={isEditProfileOpening}
       onOpenContactManager={onOpenContactManager}
       onOpenWorkspaceManager={onOpenWorkspaceManager}
+      onOpenBrainManager={onOpenBrainManager}
       onConnectDesktop={onConnectDesktop}
       onOpenComputerUseManager={onOpenComputerUseManager}
       roadmap={roadmap}

@@ -2,6 +2,10 @@ import * as React from 'react';
 import type { Assistant } from '@/types/assistants/assistant';
 import { buildSortingParam, fetchBrainContext } from '@/lib/client/brain';
 import {
+  subscribeToAssistantActionStream,
+  type AssistantActionStreamStatus,
+} from '@/lib/client/assistant-action-stream';
+import {
   type CoordinatorActivityRow,
   mergeCoordinatorActivities,
   normalizeCoordinatorActivityRow,
@@ -46,10 +50,10 @@ function rememberActivityId(seen: Set<string>, activity: CoordinatorActivityRow)
   }
 }
 
-function parseCoordinatorActivityFrame(event: MessageEvent<string>): CoordinatorActivityRow | null {
+function parseCoordinatorActivityFrame(data: string): CoordinatorActivityRow | null {
   let parsed: ActionStreamFrame;
   try {
-    parsed = JSON.parse(event.data) as ActionStreamFrame;
+    parsed = JSON.parse(data) as ActionStreamFrame;
   } catch {
     return null;
   }
@@ -79,7 +83,6 @@ export function useCoordinatorActivity({
   const [error, setError] = React.useState<string | null>(null);
   const requestSequence = React.useRef(0);
   const seenActivityIds = React.useRef(new Set<string>());
-  const eventSourceRef = React.useRef<EventSource | null>(null);
   const onActivityRef = React.useRef(onActivity);
   onActivityRef.current = onActivity;
 
@@ -153,47 +156,41 @@ export function useCoordinatorActivity({
   }, [refetch, reset]);
 
   React.useEffect(() => {
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
-
-    if (!isEnabled || typeof EventSource === 'undefined') {
+    if (!isEnabled) {
       setConnectionStatus('closed');
       return;
     }
 
-    setConnectionStatus('connecting');
-    const source = new EventSource(`/api/assistant/${assistant.agentId}/actions/stream`);
-    eventSourceRef.current = source;
-
-    source.onopen = () => {
-      setConnectionStatus('connected');
-    };
-
-    source.onmessage = (event) => {
-      const activity = parseCoordinatorActivityFrame(event);
-      if (!activity) return;
-
-      const identity = activityIdentity(activity);
-      if (seenActivityIds.current.has(identity)) return;
-      rememberActivityId(seenActivityIds.current, activity);
-
-      setActivities((current) =>
-        mergeCoordinatorActivities(current, [activity]).slice(0, COORDINATOR_ACTIVITY_LIMIT)
-      );
-      setActivitySignal((current) => current + 1);
-      onActivityRef.current?.(activity);
-    };
-
-    source.onerror = () => {
-      setConnectionStatus('error');
-    };
-
-    return () => {
-      source.close();
-      if (eventSourceRef.current === source) {
-        eventSourceRef.current = null;
-        setConnectionStatus('closed');
+    const handleStatus = (status: AssistantActionStreamStatus) => {
+      if (status === 'connected') {
+        setConnectionStatus('connected');
+      } else if (status === 'error') {
+        setConnectionStatus('error');
+      } else {
+        setConnectionStatus('connecting');
       }
+    };
+
+    const unsubscribe = subscribeToAssistantActionStream(assistant.agentId, {
+      onMessage: (data) => {
+        const activity = parseCoordinatorActivityFrame(data);
+        if (!activity) return;
+
+        const identity = activityIdentity(activity);
+        if (seenActivityIds.current.has(identity)) return;
+        rememberActivityId(seenActivityIds.current, activity);
+
+        setActivities((current) =>
+          mergeCoordinatorActivities(current, [activity]).slice(0, COORDINATOR_ACTIVITY_LIMIT)
+        );
+        setActivitySignal((current) => current + 1);
+        onActivityRef.current?.(activity);
+      },
+      onStatusChange: handleStatus,
+    });
+    return () => {
+      unsubscribe();
+      setConnectionStatus('closed');
     };
   }, [assistant.agentId, isEnabled]);
 

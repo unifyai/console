@@ -81,6 +81,11 @@ import {
   bindInstallAction,
   revokeInstallAction as revokeMsTeamsBotInstallAction,
 } from '@/lib/assistants/msTeamsBotActions';
+import {
+  disableManagedDesktop,
+  enableManagedDesktop,
+  getManagedDesktopStatus,
+} from '@/lib/assistants/computerUse';
 import type { AssistantActions } from '@/types/assistants/assistant';
 
 export const assistantMainActions: AssistantActions = {
@@ -167,6 +172,11 @@ export const assistantMainActions: AssistantActions = {
     unlinkDesktop,
     renameUserDesktop,
     deleteUserDesktop,
+  },
+  managedDesktop: {
+    enable: enableManagedDesktop,
+    disable: disableManagedDesktop,
+    getStatus: getManagedDesktopStatus,
   },
   spending: {
     setLimit: setAssistantSpendingLimit,

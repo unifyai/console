@@ -5,9 +5,14 @@
 import { DefaultModelOption } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 
-export async function fetchDefaultModelOptions(): Promise<DefaultModelOption[] | ResponseProps> {
+export type ModelCatalogUsage = 'actor' | 'slow_brain';
+
+export async function fetchDefaultModelOptions(
+  usage: ModelCatalogUsage = 'actor'
+): Promise<DefaultModelOption[] | ResponseProps> {
   try {
-    const res = await fetch('/api/assistant/default-model-options');
+    const params = new URLSearchParams({ usage });
+    const res = await fetch(`/api/assistant/default-model-options?${params}`);
     const data = await res.json();
 
     if (!res.ok) {

@@ -130,11 +130,14 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: MonitorPlay,
     kind: 'view',
     tab: 'desktop',
-    desc: "Watch your teammate's desktop live — or take control — the same screen share the call exposes, without a call.",
+    desc: "Watch your teammate's managed Computer live — or take control — once Computer Use is enabled.",
     steps: [
+      [
+        'Enable Computer',
+        'Desktop needs a managed Ubuntu or Windows Computer. Enable it from this view if it is not on yet.',
+      ],
       ['Open the desktop', 'The live view connects automatically once the teammate has a session.'],
       ['Take control', 'Switch from view-only to interactive to drive the desktop yourself.'],
-      ['Refresh', 'Reconnect the stream if the session restarts or the view goes stale.'],
     ],
   },
   {

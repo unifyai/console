@@ -637,7 +637,7 @@ import { dbExec } from '../helpers/seeds/client';
 
 export function getAssistantFromDb(agentId: number) {
   const row = dbExec(
-    `SELECT first_name, surname, voice_id, voice_provider, profile_photo, age, nationality, timezone, about, organization_id, COALESCE(job_title, '') FROM assistants WHERE agent_id = ${agentId}`
+    `SELECT first_name, surname, voice_id, voice_provider, profile_photo, age, nationality, timezone, about, organization_id, COALESCE(job_title, ''), COALESCE(desktop_mode, ''), COALESCE(managed_desktop_status, '') FROM assistants WHERE agent_id = ${agentId}`
   );
   const [
     firstName,
@@ -651,6 +651,8 @@ export function getAssistantFromDb(agentId: number) {
     about,
     organizationId,
     jobTitleRaw,
+    desktopModeRaw,
+    managedDesktopStatusRaw,
   ] = row.split('|');
   return {
     firstName,
@@ -667,6 +669,8 @@ export function getAssistantFromDb(agentId: number) {
     // pipe-split yields a stable column count). Map back to null so tests can
     // explicitly assert "cleared" vs "set" without worrying about psql output.
     jobTitle: jobTitleRaw === '' ? null : jobTitleRaw,
+    desktopMode: desktopModeRaw === '' ? null : desktopModeRaw,
+    managedDesktopStatus: managedDesktopStatusRaw === '' ? null : managedDesktopStatusRaw,
   };
 }
 

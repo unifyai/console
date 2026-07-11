@@ -26,6 +26,10 @@ import type {
 } from '@/types/assistants/action';
 import type { ResponseProps } from '@/types/common';
 import { fetchManagerMethodEvents } from '@/lib/client/actions';
+import {
+  subscribeToAssistantActionStream,
+  type AssistantActionStreamStatus,
+} from '@/lib/client/assistant-action-stream';
 
 // =============================================================================
 // Types
@@ -102,10 +106,6 @@ const __DEV__ = process.env.NODE_ENV === 'development';
 const DEFAULT_EVENT_LIMIT = 100;
 const LOAD_MORE_LOOKBACK_MS = ACTION_LOOKBACK_MS;
 
-// SSE error threshold: if N errors in M ms, give up on SSE
-const SSE_MAX_ERRORS = 5;
-const SSE_ERROR_WINDOW_MS = 60_000;
-
 // =============================================================================
 // Hook Implementation
 // =============================================================================
@@ -134,7 +134,6 @@ export function useAssistantActions(
   // Refs
   const nodeMapRef = React.useRef<Map<string, ActionNode>>(new Map());
   const oldestTimestampRef = React.useRef<string | null>(null);
-  const eventSourceRef = React.useRef<EventSource | null>(null);
   const isMountedRef = React.useRef(true);
   const isInitialLoadDoneRef = React.useRef(false);
   const isLoadingMoreRef = React.useRef(false);
@@ -142,7 +141,6 @@ export function useAssistantActions(
   const orphanToolLoopRef = React.useRef<Map<string, ToolLoopLog[]>>(new Map());
   const seenEventIdsRef = React.useRef<Set<string>>(new Set());
   const prevAssistantIdRef = React.useRef(assistantId);
-  const sseErrorTimestampsRef = React.useRef<number[]>([]);
   const loadGenerationRef = React.useRef(0);
   const isPaneVisibleRef = React.useRef(isPaneVisible);
 
@@ -470,34 +468,12 @@ export function useAssistantActions(
   // SSE Connection
   // ===========================================================================
 
-  const connectSSE = React.useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-
-    sseErrorTimestampsRef.current = [];
-
-    const sseUrl = `/api/assistant/${assistantId}/actions/stream`;
-    if (__DEV__) console.log(`[DEBUG][useAssistantActions] Opening SSE connection to ${sseUrl}`);
-
-    const eventSource = new EventSource(sseUrl);
-    eventSourceRef.current = eventSource;
-
-    eventSource.onopen = () => {
-      if (!isMountedRef.current) return;
-      if (__DEV__)
-        console.log(
-          `[DEBUG][useAssistantActions] SSE CONNECTED (readyState=${eventSource.readyState})`
-        );
-      setConnectionStatus('streaming');
-    };
-
-    eventSource.onmessage = (event) => {
+  const handleStreamMessage = React.useCallback(
+    (data: string) => {
       if (!isMountedRef.current) return;
 
       try {
-        const parsed = JSON.parse(event.data);
+        const parsed = JSON.parse(data);
         const entries = parsed?.data?.entries;
 
         if (__DEV__)
@@ -581,36 +557,20 @@ export function useAssistantActions(
       } catch (err) {
         console.warn('[useAssistantActions] SSE message parse error:', err);
       }
-    };
+    },
+    [scheduleFlush]
+  );
 
-    eventSource.onerror = () => {
-      if (!isMountedRef.current) return;
-
-      const now = Date.now();
-      sseErrorTimestampsRef.current.push(now);
-      sseErrorTimestampsRef.current = sseErrorTimestampsRef.current.filter(
-        (t) => now - t < SSE_ERROR_WINDOW_MS
-      );
-
-      const recentErrors = sseErrorTimestampsRef.current.length;
-      if (__DEV__)
-        console.warn(
-          `[DEBUG][useAssistantActions] SSE ERROR (readyState=${eventSource.readyState}, ${recentErrors} errors in last ${SSE_ERROR_WINDOW_MS / 1000}s)`
-        );
-
-      if (recentErrors >= SSE_MAX_ERRORS) {
-        console.warn(
-          `[useAssistantActions] SSE failed ${SSE_MAX_ERRORS} times in ${SSE_ERROR_WINDOW_MS / 1000}s — giving up`
-        );
-        eventSource.close();
-        eventSourceRef.current = null;
-        setConnectionStatus('error');
-        return;
-      }
-
-      // Transient error — EventSource auto-reconnects.
-    };
-  }, [assistantId, scheduleFlush]);
+  const handleStreamStatus = React.useCallback((status: AssistantActionStreamStatus) => {
+    if (!isMountedRef.current) return;
+    if (status === 'connected') {
+      setConnectionStatus('streaming');
+    } else if (status === 'error') {
+      setConnectionStatus('error');
+    } else {
+      setConnectionStatus('idle');
+    }
+  }, []);
 
   // ===========================================================================
   // Load more (pagination)
@@ -795,10 +755,6 @@ export function useAssistantActions(
         clearTimeout(batchTimerRef.current);
         batchTimerRef.current = null;
       }
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
     };
   }, []);
 
@@ -823,10 +779,6 @@ export function useAssistantActions(
         clearTimeout(batchTimerRef.current);
         batchTimerRef.current = null;
       }
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
     }
 
     if (enabled) {
@@ -835,50 +787,25 @@ export function useAssistantActions(
       }
     } else {
       setConnectionStatus('idle');
-
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
     }
   }, [enabled, assistantId, initialLoad]);
 
   // Start SSE after initial load completes
-  const connectSSERef = React.useRef(connectSSE);
-  React.useEffect(() => {
-    connectSSERef.current = connectSSE;
-  }, [connectSSE]);
-
   React.useEffect(() => {
     if (!enabled || !isInitialLoadDone) return;
 
     if (__DEV__)
-      console.log(`[DEBUG][useAssistantActions] Starting SSE for assistant=${assistantId}`);
+      console.log(`[DEBUG][useAssistantActions] Subscribing to SSE for assistant=${assistantId}`);
 
-    connectSSERef.current();
-
-    // Health-check: detect dead connections (e.g., after HMR) and reconnect
-    const healthCheckInterval = setInterval(() => {
-      if (!isMountedRef.current) return;
-
-      const es = eventSourceRef.current;
-      if (!es || es.readyState === EventSource.CLOSED) {
-        if (__DEV__)
-          console.log(`[DEBUG][useAssistantActions] Health check: SSE dead, reconnecting...`);
-        connectSSERef.current();
-      }
-    }, 15000);
-
+    const unsubscribe = subscribeToAssistantActionStream(assistantId, {
+      onMessage: handleStreamMessage,
+      onStatusChange: handleStreamStatus,
+    });
     return () => {
-      clearInterval(healthCheckInterval);
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
+      unsubscribe();
       setConnectionStatus('idle');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, assistantId, isInitialLoadDone]);
+  }, [assistantId, enabled, handleStreamMessage, handleStreamStatus, isInitialLoadDone]);
 
   return {
     roots,

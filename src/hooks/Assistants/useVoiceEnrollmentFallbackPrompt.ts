@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { subscribeToAssistantActionStream } from '@/lib/client/assistant-action-stream';
 
 /**
  * Listen for ``VoiceEnrollmentSuggested`` on the active call assistant's
@@ -19,25 +20,21 @@ export function useVoiceEnrollmentFallbackPrompt({
   const wasCallActiveRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (!assistantId || typeof EventSource === 'undefined') return;
+    if (!assistantId) return;
     if (!callLifecycleActive && !pendingRef.current) return;
 
-    const source = new EventSource(`/api/assistant/${assistantId}/actions/stream`);
-
-    source.onmessage = (event) => {
-      try {
-        const parsed = JSON.parse(event.data) as { type?: string };
-        if (parsed.type === 'VoiceEnrollmentSuggested') {
-          pendingRef.current = true;
+    return subscribeToAssistantActionStream(assistantId, {
+      onMessage: (data) => {
+        try {
+          const parsed = JSON.parse(data) as { type?: string };
+          if (parsed.type === 'VoiceEnrollmentSuggested') {
+            pendingRef.current = true;
+          }
+        } catch {
+          /* ignore malformed frames */
         }
-      } catch {
-        /* ignore malformed frames */
-      }
-    };
-
-    return () => {
-      source.close();
-    };
+      },
+    });
   }, [assistantId, callLifecycleActive]);
 
   React.useEffect(() => {
