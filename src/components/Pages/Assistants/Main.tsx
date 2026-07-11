@@ -2389,20 +2389,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     void import('./Edit/AssistantEdit');
   }, []);
 
+  const loadAssistantForEditRef = React.useRef(loadAssistantForEdit);
+  loadAssistantForEditRef.current = loadAssistantForEdit;
+  const assistantToEditRef = React.useRef(assistantToEdit);
+  assistantToEditRef.current = assistantToEdit;
+  const assistantToEditId = assistantToEdit?.agentId ?? null;
+
   React.useEffect(() => {
-    if (!assistantToEdit) {
+    const assistant = assistantToEditRef.current;
+    if (!assistantToEditId || !assistant) {
       setIsEditFormReady(false);
       return;
     }
 
-    const assistant = assistantToEdit;
     const frame = requestAnimationFrame(() => {
-      loadAssistantForEdit(assistant);
+      loadAssistantForEditRef.current(assistant);
       setIsEditFormReady(true);
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [assistantToEdit, loadAssistantForEdit]);
+    // Only reload when a different assistant is opened. Re-running on callback
+    // identity changes reset()s the form and snaps Default model back.
+  }, [assistantToEditId]);
 
   const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
     setIsEditFormReady(false);

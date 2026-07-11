@@ -48,9 +48,14 @@ export function useAssistantForm(
   const presetOperationIdRef = React.useRef(0);
   // Ref to ignore stale signed-URL refreshes when rapidly switching assistants
   const editMediaRefreshRequestIdRef = React.useRef(0);
+  const registeredVoicesRef = React.useRef(registeredVoices);
+  registeredVoicesRef.current = registeredVoices;
 
-  const defaultVoice = getDefaultVoiceForProvider();
-  const coordinatorDefaultVoice = getCoordinatorDefaultVoice();
+  // These helpers allocate a new object each call; memoize so edit-load
+  // callbacks stay stable across re-renders (otherwise opening the model
+  // Select re-runs loadAssistantForEdit and reset()s the form).
+  const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
+  const coordinatorDefaultVoice = React.useMemo(() => getCoordinatorDefaultVoice(), []);
 
   const resolveFormVoice = React.useCallback(
     (assistant: Assistant) => {
@@ -393,7 +398,7 @@ export function useAssistantForm(
 
       setEditingAssistant(assistant);
 
-      const assistantVoiceDetails = registeredVoices.find(
+      const assistantVoiceDetails = registeredVoicesRef.current.find(
         (v) => v.voiceId === assistant.voiceId && v.provider === assistant.voiceProvider
       );
       const profilePhotoPath = assistant.profilePhoto ?? null;
@@ -488,8 +493,24 @@ export function useAssistantForm(
         }
       })();
     },
-    [reset, getValues, registeredVoices, setValue, resolveFormVoice]
+    [reset, getValues, setValue, resolveFormVoice]
   );
+
+  // When voices arrive after edit open, enrich display fields only — never full reset().
+  React.useEffect(() => {
+    if (!editingAssistant?.voiceId) return;
+    const details = registeredVoices.find(
+      (v) => v.voiceId === editingAssistant.voiceId && v.provider === editingAssistant.voiceProvider
+    );
+    if (!details) return;
+    if (getValues('voiceId') !== editingAssistant.voiceId) return;
+    setValue('voiceName', details.name);
+    setValue('voiceDescription', details.description);
+    setValue('voiceLanguage', details.language as SupportedLanguage);
+    setValue('voiceGender', details.gender as Gender);
+    setValue('voiceProvider', details.provider || PRIMARY_VOICE_PROVIDER);
+    setValue('voiceExists', true);
+  }, [editingAssistant, registeredVoices, getValues, setValue]);
 
   const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
     // Prevent double submission using ref to avoid stale closure

@@ -776,9 +776,13 @@ export function HireForm({
                             value={selectedDefaultModelValue}
                             onValueChange={(value) => {
                               const { model, reasoningEffort } = decodeDefaultModelValue(value);
-                              setValue('defaultModel', model, { shouldDirty: true });
+                              setValue('defaultModel', model, {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                              });
                               setValue('defaultReasoningEffort', reasoningEffort, {
                                 shouldDirty: true,
+                                shouldTouch: true,
                               });
                             }}
                             disabled={isSubmitting || defaultModelOptions.length === 0}
