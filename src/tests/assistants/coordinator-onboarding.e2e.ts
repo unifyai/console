@@ -872,10 +872,11 @@ test('inactive onboarding offers a return affordance that re-enters onboarding',
 test('skipping an actionable checklist row does not trigger the row action', async ({
   authedPage: page,
 }) => {
-  // Regression: the row "..." menu is portaled. Selecting Skip used to let the
-  // same click fall through to the actionable row beneath (e.g. opening Slack
-  // connect while skipping Connect Slack). Prefer Slack when that action is
-  // wired; otherwise use the always-wired email reference trigger.
+  // Regression: the row "..." menu is a React child of the actionable row but
+  // portaled in the DOM. React still bubbles portal clicks up the component
+  // tree, so selecting Skip used to also fire the row action (e.g. opening
+  // Slack connect). Prefer Slack when that action is wired; otherwise use the
+  // always-wired email reference trigger.
   const coordinator = createPersonalCoordinator(user.id);
   resetCoordinatorIntroWatched();
 

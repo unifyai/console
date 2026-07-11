@@ -1832,11 +1832,11 @@ function ChecklistRow({
   const hasRowMenu = canReset || canSkipRow || canUnskipRow;
 
   const [rowMenuOpen, setRowMenuOpen] = React.useState(false);
-  // Radix portals the row menu. Selecting an item (or dismissing via an
-  // outside click) unmounts the menu under the cursor, and the same pointer
-  // event can activate the actionable/blocked row beneath. Suppress the next
-  // activation briefly after the menu closes so Skip/Unskip/Reset never fire
-  // the row action.
+  // The row menu is a React child of the actionable row, but Radix portals it
+  // in the DOM. React still bubbles portal events through the component tree,
+  // so Skip/Unskip/Reset clicks would reach the row onClick (e.g. open Slack)
+  // unless propagation is stopped. Also suppress a brief post-close window for
+  // any native leftover pointer event after the menu unmounts.
   const suppressRowActivationRef = React.useRef(false);
   const suppressRowActivationTimeoutRef = React.useRef<number | null>(null);
 
@@ -1996,6 +1996,8 @@ function ChecklistRow({
             align="end"
             className="min-w-[6rem]"
             onCloseAutoFocus={(event) => event.preventDefault()}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
           >
             {canUnskipRow ? (
               <DropdownMenuItem
