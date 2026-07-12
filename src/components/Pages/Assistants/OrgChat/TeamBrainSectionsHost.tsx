@@ -15,6 +15,9 @@ const FunctionsPane = React.lazy(() =>
 const DocLibraryPane = React.lazy(() =>
   import('../DocLibrary/DocLibraryPane').then((m) => ({ default: m.DocLibraryPane }))
 );
+const KnowledgePane = React.lazy(() =>
+  import('../Knowledge/KnowledgePane').then((m) => ({ default: m.KnowledgePane }))
+);
 const DataPane = React.lazy(() =>
   import('../Data/DataPane').then((m) => ({ default: m.DataPane }))
 );
@@ -121,9 +124,9 @@ export function TeamBrainSectionsHost({
       case 'functions':
         return <FunctionsPane {...paneProps} isActiveSurface={paneEnabled} />;
       case 'guidance':
-        return <DocLibraryPane {...paneProps} kind="guidance" enabled={paneEnabled} />;
+        return <DocLibraryPane {...paneProps} enabled={paneEnabled} />;
       case 'knowledge':
-        return <DocLibraryPane {...paneProps} kind="knowledge" enabled={paneEnabled} />;
+        return <KnowledgePane {...paneProps} enabled={paneEnabled} />;
       case 'data':
         return <DataPane {...paneProps} enabled={paneEnabled} />;
       case 'transcripts':

@@ -15,6 +15,9 @@ const FunctionsPane = React.lazy(() =>
 const DocLibraryPane = React.lazy(() =>
   import('../DocLibrary/DocLibraryPane').then((m) => ({ default: m.DocLibraryPane }))
 );
+const KnowledgePane = React.lazy(() =>
+  import('../Knowledge/KnowledgePane').then((m) => ({ default: m.KnowledgePane }))
+);
 const DataPane = React.lazy(() =>
   import('../Data/DataPane').then((m) => ({ default: m.DataPane }))
 );
@@ -37,7 +40,7 @@ const preloadBrainPaneById = {
   contacts: () => import('../Contacts/ContactsPane'),
   functions: () => import('../Functions/FunctionsPane'),
   guidance: () => import('../DocLibrary/DocLibraryPane'),
-  knowledge: () => import('../DocLibrary/DocLibraryPane'),
+  knowledge: () => import('../Knowledge/KnowledgePane'),
   data: () => import('../Data/DataPane'),
   transcripts: () => import('../Transcripts/TranscriptsPane'),
 } satisfies Record<BrainSectionId, () => Promise<unknown>>;
@@ -118,9 +121,9 @@ export function BrainSectionsHost({
       case 'functions':
         return <FunctionsPane {...brainProps} isActiveSurface={sectionActive && isActiveSurface} />;
       case 'guidance':
-        return <DocLibraryPane {...brainProps} kind="guidance" enabled={paneEnabled} />;
+        return <DocLibraryPane {...brainProps} enabled={paneEnabled} />;
       case 'knowledge':
-        return <DocLibraryPane {...brainProps} kind="knowledge" enabled={paneEnabled} />;
+        return <KnowledgePane {...brainProps} enabled={paneEnabled} />;
       case 'data':
         return <DataPane {...brainProps} enabled={paneEnabled} />;
       case 'transcripts':
