@@ -400,13 +400,6 @@ const CHECKLIST_CONTROL_GRID_CLASS =
   '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem_1.5rem] gap-1 px-1.5';
 const COMMUNICATION_SECTION_ID = 'communication';
 
-const SKIPPABLE_SECTION_PHASE_LABELS: ReadonlySet<string> = new Set([
-  'Workspace',
-  'Integrations',
-  'Your Computer',
-  'Their Computer',
-]);
-
 /** Overview pages for each onboarding section in the public docs site. */
 const ONBOARDING_SECTION_DOCS_URLS: Readonly<Record<string, string>> = {
   communication: 'https://docs.unify.ai/communication/overview',
@@ -693,8 +686,6 @@ export interface CoordinatorOnboardingChecklistProps {
    * to render the "Create a scheduled task" countdown. Null when none is
    * pending. */
   nextScheduledTaskDueAt?: string | null;
-  onSkipSection?: (phaseId: string) => void;
-  onUnskipSection?: (phaseId: string) => void;
   onSkipStep?: (stepId: string) => void;
   onUnskipStep?: (stepId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
@@ -729,8 +720,6 @@ export function CoordinatorOnboardingChecklist({
   onTestTriggerableTask,
   armedTriggerableTaskId = null,
   nextScheduledTaskDueAt = null,
-  onSkipSection,
-  onUnskipSection,
   onSkipStep,
   onUnskipStep,
   isOnCall = false,
@@ -1243,8 +1232,6 @@ export function CoordinatorOnboardingChecklist({
                   progress={progressForItems(sectionItems)}
                   isOpen={isOpen}
                   onToggle={() => toggleSection(section.id)}
-                  onSkipSection={onSkipSection}
-                  onUnskipSection={onUnskipSection}
                 />
                 {isOpen ? (
                   <ul>
@@ -1360,8 +1347,6 @@ interface SectionHeaderProps {
   progress: { completed: number; total: number };
   isOpen: boolean;
   onToggle: () => void;
-  onSkipSection?: (phaseLabel: string) => void;
-  onUnskipSection?: (phaseLabel: string) => void;
 }
 
 function CompactProgress({ completed, total }: { completed: number; total: number }) {
@@ -1400,28 +1385,13 @@ function SectionDocsLink({ sectionId, href }: { sectionId: string; href: string 
   );
 }
 
-function SectionHeader({
-  section,
-  index,
-  progress,
-  isOpen,
-  onToggle,
-  onSkipSection,
-  onUnskipSection,
-}: SectionHeaderProps) {
+function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHeaderProps) {
   const label = `${index + 1}. ${section.title}`;
   const toggleProps = {
     type: 'button' as const,
     onClick: onToggle,
     'aria-expanded': isOpen,
   };
-
-  const phaseLabel = section.phase ?? '';
-  const isSkippableSection = SKIPPABLE_SECTION_PHASE_LABELS.has(phaseLabel);
-  const sectionSkipped = section.sectionSkipped === true;
-  const showSkip =
-    isSkippableSection && section.status === 'pending' && !sectionSkipped && !!onSkipSection;
-  const showUnskip = isSkippableSection && sectionSkipped && !!onUnskipSection;
 
   return (
     <div
@@ -1455,63 +1425,7 @@ function SectionHeader({
       >
         <CompactProgress completed={progress.completed} total={progress.total} />
       </button>
-      {showSkip ? (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={`Skip ${section.title}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onSkipSection(phaseLabel);
-                }}
-                className={cn(
-                  'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
-                  'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
-                  'opacity-0 focus-visible:opacity-100 group-hover/onboarding-section:opacity-100',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                )}
-                data-testid={`coordinator-onboarding-skip-section-${section.id}`}
-              >
-                <SkipForward className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p className="text-caption">Skip for now</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : showUnskip ? (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={`Unskip ${section.title}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onUnskipSection(phaseLabel);
-                }}
-                className={cn(
-                  'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
-                  'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
-                  'opacity-0 focus-visible:opacity-100 group-hover/onboarding-section:opacity-100',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                )}
-                data-testid={`coordinator-onboarding-unskip-section-${section.id}`}
-              >
-                <SkipForward className="h-3.5 w-3.5 rotate-180" aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p className="text-caption">Unskip</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
-        <span aria-hidden="true" />
-      )}
+      <span aria-hidden="true" />
       <button
         {...toggleProps}
         className={cn(

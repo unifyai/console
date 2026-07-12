@@ -184,8 +184,6 @@ export interface CoordinatorStatePatch {
   skipOnboardingStep?: string;
   unskipOnboardingStep?: string;
   resetOnboardingStep?: string;
-  skipOnboardingPhase?: string;
-  unskipOnboardingPhase?: string;
   introWatched?: boolean;
   pendingChatIntro?: boolean;
   onboardingStepCompletion?: { stepId: string; completed: boolean };
@@ -419,9 +417,6 @@ export async function updateCoordinatorState(
   if (patch.unskipOnboardingStep !== undefined)
     body.unskipOnboardingStep = patch.unskipOnboardingStep;
   if (patch.resetOnboardingStep !== undefined) body.resetOnboardingStep = patch.resetOnboardingStep;
-  if (patch.skipOnboardingPhase !== undefined) body.skipOnboardingPhase = patch.skipOnboardingPhase;
-  if (patch.unskipOnboardingPhase !== undefined)
-    body.unskipOnboardingPhase = patch.unskipOnboardingPhase;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
   if (patch.pendingChatIntro !== undefined) body.pendingChatIntro = patch.pendingChatIntro;
   if (patch.onboardingStepCompletion !== undefined)
