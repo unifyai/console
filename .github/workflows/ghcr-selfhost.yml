@@ -10,9 +10,10 @@ on:
       - '.github/workflows/ghcr-selfhost.yml'
   workflow_dispatch:
 
+# Debouncer semantics: let an in-flight image build finish.
 concurrency:
   group: ghcr-selfhost-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
