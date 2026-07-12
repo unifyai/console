@@ -7,9 +7,11 @@ on:
     branches: [main, staging, development]
   workflow_dispatch:
 
+# Debouncer semantics on push/dispatch: running jobs finish; only the pending
+# slot is replaced. PRs cancel in-progress for fast feedback.
 concurrency:
   group: code-quality-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
