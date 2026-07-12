@@ -140,8 +140,6 @@ export interface AssistantInfoSidePanelContentProps {
     onYourComputerDemo?: () => void;
     /** Echo a checklist trigger acknowledgement into the coordinator chat. */
     appendRequestSentAck?: (label: string) => void;
-    onSkipSection?: (phaseId: string) => void;
-    onUnskipSection?: (phaseId: string) => void;
     onSkipStep?: (stepId: string) => void;
     onUnskipStep?: (stepId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -435,8 +433,6 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onTestTriggerableTask={handleTestTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}
-                onSkipSection={coordinatorOnboarding.onSkipSection}
-                onUnskipSection={coordinatorOnboarding.onUnskipSection}
                 onSkipStep={coordinatorOnboarding.onSkipStep}
                 onUnskipStep={coordinatorOnboarding.onUnskipStep}
                 isOnCall={coordinatorOnboarding.isOnCall}
