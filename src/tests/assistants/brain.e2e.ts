@@ -1,7 +1,7 @@
 /**
  * Brain E2E Tests — browser-based user flows verifying each dedicated Brain
  * rail section on the assistant shell: Contacts (directory cards),
- * Transcripts (consolidated table), Knowledge (dynamic table), Functions
+ * Transcripts (consolidated table), Knowledge (typed claim ledger), Functions
  * (skill cards) and Guidance (doc library). Every section is reached through
  * its own rail entry — the legacy aggregate "Brain" tab has been retired — and
  * is driven by real data seeded via the Orchestra API.
@@ -540,14 +540,14 @@ test('Transcripts: search filters the thread list', async ({ authedPage: page })
   ).toBeVisible({ timeout: 10_000 });
 });
 
-// Knowledge, Functions and Guidance share the same empty-state shape
+// Knowledge, Functions and Guidance each render a dedicated empty state
 test('Knowledge / Functions / Guidance render dedicated empty states', async ({
   authedPage: page,
 }) => {
   await openBrainSection(page, emptyAssistant.agentId, 'knowledge');
-  await expect(page.getByTestId('brain-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('knowledge-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('knowledge-empty')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('No knowledge found.')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
 
   await openRailSection(page, 'functions');
   await expect(page.getByTestId('functions-pane')).toBeVisible({ timeout: 10_000 });
@@ -555,5 +555,7 @@ test('Knowledge / Functions / Guidance render dedicated empty states', async ({
 
   await openRailSection(page, 'guidance');
   await expect(page.getByTestId('doc-library-pane')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText('No guidance matches.')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('No guidance matches these filters.')).toBeVisible({
+    timeout: 10_000,
+  });
 });

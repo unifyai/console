@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Code2, Check } from 'lucide-react';
+import { Code2, Check, Link2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import {
   Sheet,
@@ -19,6 +19,7 @@ import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { AssistantMarkdown, fencedCode } from '../Common/AssistantMarkdown';
+import { StaleReasonChips } from '../Common/StaleReasonChips';
 import { TabToolbar } from '../Common/TabToolbar';
 import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
@@ -84,6 +85,14 @@ function FunctionBadges({ skill }: { skill: FunctionSkill }) {
 function FunctionAbout({ skill }: { skill: FunctionSkill }) {
   return (
     <div className="space-y-4 pr-4" data-testid="function-detail-body">
+      {skill.staleReasons.length > 0 && (
+        <StaleReasonChips
+          reasons={skill.staleReasons}
+          banner
+          chipTestIdPrefix="function-stale-reason"
+        />
+      )}
+
       <FunctionSignatureDocs
         argspec={skill.argspec}
         docstring={skill.docstring}
@@ -107,10 +116,18 @@ function FunctionAbout({ skill }: { skill: FunctionSkill }) {
 
       {skill.guidanceIds.length > 0 && (
         <DetailField label="Linked guidance">
-          <span className="text-caption">
-            {skill.guidanceIds.length} linked playbook
-            {skill.guidanceIds.length > 1 ? 's' : ''}
-          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {skill.guidanceIds.map((guidanceId) => (
+              <span
+                key={guidanceId}
+                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-soft-foreground"
+                data-testid={`function-guidance-chip-${guidanceId}`}
+              >
+                <Link2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className="font-mono">guidance #{guidanceId}</span>
+              </span>
+            ))}
+          </div>
         </DetailField>
       )}
 

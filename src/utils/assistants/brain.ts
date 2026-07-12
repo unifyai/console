@@ -164,15 +164,25 @@ export const FUNCTION_COLUMNS: ColumnDef<FunctionRow>[] = [
   col<FunctionRow>('docstring', 'Description', { formatter: (v) => truncate(v, 120) }),
 ];
 
+export const KNOWLEDGE_COLUMNS: ColumnDef<KnowledgeRow>[] = [
+  col<KnowledgeRow>('title', 'Title'),
+  col<KnowledgeRow>('kind', 'Kind'),
+  col<KnowledgeRow>('status', 'Status'),
+  col<KnowledgeRow>('content', 'Content', { formatter: (v) => truncate(v, 200) }),
+];
+
 /**
- * Builds dynamic columns for Knowledge rows (schema varies per assistant).
+ * Builds dynamic columns for rows whose schema varies (e.g. Functions sub-tables).
  */
-export function buildKnowledgeColumns(fields: string[]): ColumnDef<KnowledgeRow>[] {
+export function buildDynamicColumns(fields: string[]): ColumnDef<KnowledgeRow>[] {
   if (fields.length === 0) return [];
   return fields
     .filter((f) => !f.startsWith('_'))
     .map((field) => col<KnowledgeRow>(field as string & keyof KnowledgeRow, field));
 }
+
+/** @deprecated Prefer {@link buildDynamicColumns} or {@link KNOWLEDGE_COLUMNS}. */
+export const buildKnowledgeColumns = buildDynamicColumns;
 
 export function getColumnsForContext(context: BrainContext, fields?: string[]) {
   switch (context) {
@@ -181,13 +191,13 @@ export function getColumnsForContext(context: BrainContext, fields?: string[]) {
     case 'Transcripts':
       return TRANSCRIPT_COLUMNS;
     case 'Knowledge':
-      return buildKnowledgeColumns(fields ?? []);
+      return KNOWLEDGE_COLUMNS;
     case 'Tasks':
       return [];
     case 'Guidance':
       return GUIDANCE_COLUMNS;
     case 'Functions':
-      return buildKnowledgeColumns(fields ?? []);
+      return buildDynamicColumns(fields ?? []);
   }
 }
 

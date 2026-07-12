@@ -11,24 +11,27 @@ import type {
   BrainContext,
   BrainContextData,
   BrainRow,
-  KnowledgeRow,
+  KnowledgeClaim,
   FunctionRow,
 } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
-import { camelToSnake, snakeToCamel } from '@/utils/casing';
+import { camelToSnake, snakeToCamel, snakeToCamelObject } from '@/utils/casing';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
 import { rootContext, roots, type ContextRoot } from '@/lib/assistants/scope';
 import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
+import { KNOWLEDGE_DEFAULT_FILTER_EXPR, mapKnowledgeRow } from '@/utils/assistants/knowledge';
 
 const PAGE_SIZE = 50;
+/** Knowledge ledger is typically smaller than Contacts/Transcripts; load a wide page. */
+const KNOWLEDGE_PAGE_SIZE = 200;
 
-function parseLogsResponse<T extends BrainRow>(data: any): BrainContextData<T> {
+function parseLogsResponse<T>(data: any): BrainContextData<T> {
   const logs: any[] = data?.logs ?? [];
   const count: number = data?.count ?? logs.length;
 
   const fields = new Set<string>();
   const rows = logs.map((log: any) => {
-    const entries = log.entries ?? {};
+    const entries = snakeToCamelObject<Record<string, unknown>>(log.entries ?? {});
     Object.keys(entries).forEach((k) => fields.add(k));
     const ts = typeof log.ts === 'string' ? log.ts : null;
     return { ...entries, ...(ts ? { ts } : {}) } as T;
@@ -52,8 +55,11 @@ function parseSortingParam(
   }
 }
 
-function sortValueForField(row: BrainRow, field: string): string | number | Date | null {
-  const value = (row as Record<string, unknown>)[field];
+function sortValueForField(
+  row: Record<string, unknown>,
+  field: string
+): string | number | Date | null {
+  const value = row[field];
   if (typeof value === 'string' || typeof value === 'number') return value;
   if (value instanceof Date) return value;
   return null;
@@ -97,7 +103,7 @@ function readableRootsFor(
   return roots(assistant);
 }
 
-export async function fetchBrainContext<T extends BrainRow = BrainRow>(
+export async function fetchBrainContext<T = BrainRow>(
   assistant: Assistant,
   context: BrainContext | string,
   options?: {
@@ -183,7 +189,7 @@ export async function fetchBrainContext<T extends BrainRow = BrainRow>(
       limit: requestedLimit + 1,
       offset: requestedOffset,
       direction: sorting?.direction,
-      sortValue: (row) => sortValueForField(row, sorting.field),
+      sortValue: (row) => sortValueForField(row as Record<string, unknown>, sorting.field),
       dedupeKey:
         context === 'Transcripts'
           ? (row) => transcriptMergeDedupeKey(row as Record<string, unknown>)
@@ -205,11 +211,57 @@ export async function fetchBrainContext<T extends BrainRow = BrainRow>(
 }
 
 /**
- * Generic fetcher for contexts that use sub-contexts (e.g. Knowledge/Products,
+ * Fetch the flat typed Knowledge claim ledger (personal + team roots when
+ * readable), defaulting to active claims. Maps Orchestra rows into
+ * {@link KnowledgeClaim} view models.
+ */
+export async function fetchKnowledgeClaims(
+  assistant: Assistant,
+  options?: {
+    root?: ContextRoot | null;
+    limit?: number;
+    offset?: number;
+    filterExpr?: string | null;
+    sorting?: string;
+  }
+): Promise<BrainContextData<KnowledgeClaim>> {
+  const data = await fetchBrainContext<KnowledgeClaim>(assistant, 'Knowledge', {
+    limit: options?.limit ?? KNOWLEDGE_PAGE_SIZE,
+    offset: options?.offset ?? 0,
+    filterExpr: options?.filterExpr ?? KNOWLEDGE_DEFAULT_FILTER_EXPR,
+    sorting: options?.sorting,
+    root: options?.root,
+  });
+
+  const rows = data.rows.map((row) => mapKnowledgeRow(row));
+  const fields = new Set<string>([
+    'knowledgeId',
+    'title',
+    'content',
+    'kind',
+    'topics',
+    'sourceRefs',
+    'staleReasons',
+    'confidence',
+    'status',
+    'isBuiltin',
+  ]);
+  data.fields.forEach((f) => fields.add(f));
+
+  return {
+    rows,
+    count: data.count,
+    fields: Array.from(fields),
+    hasMore: data.hasMore,
+  };
+}
+
+/**
+ * Generic fetcher for contexts that use sub-contexts (e.g.
  * Functions/Compositional). Discovers sub-contexts via the contexts API and
  * merges rows from all tables, tagging each row with a `_table` field.
  */
-async function fetchSubContextTables<T extends BrainRow>(
+async function fetchSubContextTables<T>(
   assistant: Assistant,
   parentContext: string,
   root?: ContextRoot | null
@@ -293,13 +345,6 @@ async function fetchSubContextTables<T extends BrainRow>(
   } catch {
     return empty;
   }
-}
-
-export function fetchKnowledgeTables(
-  assistant: Assistant,
-  root?: ContextRoot | null
-): Promise<BrainContextData<KnowledgeRow>> {
-  return fetchSubContextTables<KnowledgeRow>(assistant, 'Knowledge', root);
 }
 
 export function fetchFunctionsTables(

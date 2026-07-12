@@ -7,7 +7,7 @@
  * Strips the assistant/team prefix from a full context path, returning the table
  * path the store is keyed by.
  *
- *   `mock-user-0001/1001/Knowledge/Products` → `Knowledge/Products`
+ *   `mock-user-0001/1001/Knowledge` → `Knowledge`
  *   `Teams/4242/Contacts`                    → `Contacts`
  */
 export function tablePathFromContext(context: string | null): string | null {

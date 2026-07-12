@@ -157,7 +157,7 @@ export function BrainTable<TData>({
     );
   }
 
-  // Sub-tabs with dynamic schemas (Knowledge, Functions) derive their
+  // Sub-tabs with dynamic schemas (Functions) derive their
   // columns from the row payload itself, so `columns` is `[]` on the
   // very first load — before any rows have arrived. Feeding an empty
   // column array to <SkeletonRows /> renders TableRows with zero cells,
@@ -166,7 +166,7 @@ export function BrainTable<TData>({
   // entirely in that case and render a generic columns-agnostic
   // shimmer (4 placeholder bars per row) so every brain sub-tab gets
   // a consistent loading affordance. The 4-column choice tracks the
-  // typical Knowledge/Functions schema width; fewer rows than the
+  // typical Functions schema width; fewer rows than the
   // static skeleton above would feel emptier than the static-column
   // sub-tabs, so we reuse the same widths array.
   if (isLoading && columns.length === 0) {

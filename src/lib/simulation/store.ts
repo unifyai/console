@@ -7,7 +7,7 @@
  * ever written to Orchestra.
  *
  * Tables are keyed by the context path *relative* to the assistant/team prefix
- * (e.g. `Contacts`, `Tasks/Runs`, `Knowledge/Products`). The dispatcher resolves
+ * (e.g. `Contacts`, `Tasks/Runs`, `Knowledge`). The dispatcher resolves
  * the prefix and looks up rows by this relative path.
  */
 
@@ -73,6 +73,7 @@ export function rowLogId(tablePath: string, index: number, row: MockRow): number
     (row.contactId as number) ??
     (row.taskId as number) ??
     (row.messageId as number) ??
+    (row.knowledgeId as number) ??
     (row.functionId as number) ??
     (row.guidanceId as number) ??
     (row.dashboardId as number) ??

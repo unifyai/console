@@ -204,11 +204,11 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Knowledge',
     Icon: BookOpen,
     kind: 'brain-view',
-    desc: 'Durable facts and rules your teammate relies on — rich documents rendered on the right.',
+    desc: 'Typed claim ledger — facts, policies, decisions, and preferences with provenance.',
     steps: [
-      ['Open a rule', 'Select an entry from the list to read the rendered document.'],
-      ['Filter by scope or tag', 'Use the filter menu to group related knowledge.'],
-      ['Resize the panes', 'Drag the divider to give the list or document more room.'],
+      ['Open a claim', 'Select an entry from the list to read the full claim body.'],
+      ['Filter by kind or status', 'Narrow to facts, policies, active claims, and more.'],
+      ['Inspect sources', 'Source chips show where each claim came from.'],
     ],
   },
   {

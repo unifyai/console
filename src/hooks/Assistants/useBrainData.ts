@@ -24,7 +24,7 @@ import type {
 import type { Assistant } from '@/types/assistants/assistant';
 import {
   fetchBrainContext,
-  fetchKnowledgeTables,
+  fetchKnowledgeClaims,
   fetchFunctionsTables,
   buildSortingParam,
   buildSearchFilterExpr,
@@ -36,8 +36,10 @@ import {
   readTabDataCache,
   writeTabDataCache,
 } from '@/lib/assistants/tabDataCache';
+import { KNOWLEDGE_DEFAULT_FILTER_EXPR } from '@/utils/assistants/knowledge';
 
 const PAGE_SIZE = 50;
+const KNOWLEDGE_PAGE_SIZE = 200;
 
 type BrainTabContext = Exclude<BrainContext, 'Tasks'>;
 
@@ -70,7 +72,7 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
-interface ContextState<T extends BrainRow = BrainRow> {
+interface ContextState<T = BrainRow> {
   rows: T[];
   count: number;
   fields: string[];
@@ -100,7 +102,7 @@ export interface UseBrainDataResult {
   refetch: () => void;
 }
 
-function emptyState<T extends BrainRow>(): ContextState<T> {
+function emptyState<T = BrainRow>(): ContextState<T> {
   return {
     rows: [],
     count: 0,
@@ -113,7 +115,7 @@ function emptyState<T extends BrainRow>(): ContextState<T> {
   };
 }
 
-function contextStateFromData<T extends BrainRow>(
+function contextStateFromData<T = BrainRow>(
   data: BrainContextData<T>,
   sorting: SortState | null,
   filterExpr: string | null,
@@ -160,7 +162,13 @@ function fetchForKey(
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
 
   if (context === 'Knowledge') {
-    return fetchKnowledgeTables(assistant, root);
+    return fetchKnowledgeClaims(assistant, {
+      root,
+      limit: KNOWLEDGE_PAGE_SIZE,
+      offset,
+      filterExpr: filterExpr ?? KNOWLEDGE_DEFAULT_FILTER_EXPR,
+      sorting: sortingParam,
+    });
   }
 
   if (context === 'Functions') {
@@ -461,8 +469,6 @@ export function useBrainData({
     const current = states[activeContext];
     if (!current.hasMore || isLoadingMore) return;
 
-    if (activeContext === 'Knowledge') return;
-
     const requestId = nextPageRequestId();
     setIsLoadingMore(true);
 
@@ -475,7 +481,10 @@ export function useBrainData({
       const data = await fetchForKey(assistant, activeContext, {
         sorting: current.sorting,
         offset,
-        filterExpr: current.filterExpr,
+        filterExpr:
+          activeContext === 'Knowledge'
+            ? (current.filterExpr ?? KNOWLEDGE_DEFAULT_FILTER_EXPR)
+            : current.filterExpr,
         searchQuery: current.searchQuery,
         root,
       });
@@ -488,6 +497,14 @@ export function useBrainData({
         const seen = new Set<string>();
         for (const row of merged) {
           const raw = row as Record<string, unknown>;
+          if (activeContext === 'Knowledge') {
+            const id = raw.knowledgeId ?? raw.knowledge_id ?? '';
+            const key = `knowledge:${String(id)}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            deduped.push(row);
+            continue;
+          }
           const table = String(raw._table ?? '');
           const id = raw.functionId ?? raw.function_id ?? raw.name ?? '';
           const key = `${table}:${String(id)}`;
