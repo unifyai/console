@@ -10,7 +10,7 @@
  *   - 1 personal assistant ("Aria Chen")
  *   - 25 contacts (assistant + owner + 23 people)
  *   - ~220 transcript messages across 7 days
- *   - 2 Knowledge sub-contexts: Products (12 rows), FAQ (8 rows)
+ *   - Flat Knowledge claim ledger (typed claims, not Products/FAQ tables)
  *   - 20 tasks with varied statuses, schedules, triggers, and repeat patterns
  *   - 14 task runs (Activity) with mixed source types and states
  *   - 10 guidance entries (some with linked images)
@@ -794,195 +794,204 @@ function buildTranscripts(): Record<string, unknown>[] {
 }
 
 // ---------------------------------------------------------------------------
-// Data: Knowledge (Products)
+// ---------------------------------------------------------------------------
+// Data: Knowledge (typed claim ledger)
 // ---------------------------------------------------------------------------
 
-const KNOWLEDGE_PRODUCTS: Record<string, unknown>[] = [
+const KNOWLEDGE_CLAIMS: Record<string, unknown>[] = [
   {
-    product_id: 'PROD-001',
-    name: 'Cloud Console',
-    category: 'Platform',
-    status: 'GA',
-    price_monthly: 0,
-    description:
-      'Web-based management dashboard for all services. Includes user management, billing, and analytics.',
-    launch_date: '2024-01-15',
+    knowledge_id: 1,
+    title: 'Cloud Console is the management dashboard',
+    content:
+      'Web-based management dashboard for all services. Includes user management, billing, and analytics. Launched 2024-01-15 as a free GA product.',
+    kind: 'fact',
+    topics: ['Platform', 'Products'],
+    source_refs: [{ kind: 'manual', note: 'Product catalogue' }],
+    confidence: 0.95,
+    observed_at: '2024-01-15T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    product_id: 'PROD-002',
-    name: 'Auth Service',
-    category: 'Security',
-    status: 'Beta',
-    price_monthly: 99,
-    description: 'Enterprise-grade authentication with SSO, MFA, and role-based access control.',
-    launch_date: '2025-03-01',
+    knowledge_id: 2,
+    title: 'Auth Service SSO policy',
+    content:
+      'Enterprise-grade authentication with SSO, MFA, and role-based access control. Available on Business and Enterprise plans.',
+    kind: 'policy',
+    topics: ['Security', 'Auth'],
+    source_refs: [{ kind: 'user_statement', note: 'Security review' }],
+    confidence: 0.9,
+    observed_at: '2025-03-01T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    product_id: 'PROD-003',
-    name: 'Data Pipeline',
-    category: 'Analytics',
-    status: 'GA',
-    price_monthly: 299,
-    description:
-      'Real-time data ingestion, transformation, and warehousing. Supports 50+ data sources.',
-    launch_date: '2024-06-10',
+    knowledge_id: 3,
+    title: 'Data Pipeline supports 50+ sources',
+    content:
+      'Real-time data ingestion, transformation, and warehousing. Supports 50+ data sources. GA since 2024-06-10.',
+    kind: 'fact',
+    topics: ['Analytics', 'Products'],
+    source_refs: [{ kind: 'file', filepath: 'docs/products/data-pipeline.md' }],
+    confidence: 0.88,
+    observed_at: '2024-06-10T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    product_id: 'PROD-004',
-    name: 'Edge CDN',
-    category: 'Infrastructure',
-    status: 'GA',
-    price_monthly: 49,
-    description:
-      'Global content delivery network with 200+ PoPs. Automatic image optimization and DDoS protection.',
-    launch_date: '2024-04-20',
+    knowledge_id: 4,
+    title: 'Password reset flow',
+    content:
+      'Go to Settings > Security > Change Password. The "Forgot Password" link on the login page sends a reset email valid for 1 hour.',
+    kind: 'definition',
+    topics: ['Account', 'Support'],
+    source_refs: [{ kind: 'manual', note: 'FAQ' }],
+    confidence: 1,
+    observed_at: '2025-10-01T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    product_id: 'PROD-005',
-    name: 'ML Studio',
-    category: 'AI/ML',
-    status: 'Alpha',
-    price_monthly: 499,
-    description:
-      'No-code machine learning platform for model training, evaluation, and deployment.',
-    launch_date: '2025-09-01',
-  },
-  {
-    product_id: 'PROD-006',
-    name: 'Notification Hub',
-    category: 'Communication',
-    status: 'GA',
-    price_monthly: 29,
-    description:
-      'Multi-channel notification service: email, SMS, push, and in-app. Template engine with A/B testing.',
-    launch_date: '2024-08-15',
-  },
-  {
-    product_id: 'PROD-007',
-    name: 'API Gateway',
-    category: 'Infrastructure',
-    status: 'GA',
-    price_monthly: 79,
-    description:
-      'Managed API gateway with rate limiting, authentication, request transformation, and observability.',
-    launch_date: '2024-10-01',
-  },
-  {
-    product_id: 'PROD-008',
-    name: 'Serverless Functions',
-    category: 'Compute',
-    status: 'Beta',
-    price_monthly: 0,
-    description:
-      'Event-driven compute platform. Pay-per-invocation pricing. Supports Node.js, Python, Go, and Rust.',
-    launch_date: '2025-05-15',
-  },
-  {
-    product_id: 'PROD-009',
-    name: 'Object Storage',
-    category: 'Storage',
-    status: 'GA',
-    price_monthly: 19,
-    description:
-      'S3-compatible object storage with lifecycle policies, versioning, and cross-region replication.',
-    launch_date: '2024-02-28',
-  },
-  {
-    product_id: 'PROD-010',
-    name: 'Managed Postgres',
-    category: 'Database',
-    status: 'GA',
-    price_monthly: 149,
-    description:
-      'Fully managed PostgreSQL with automated backups, point-in-time recovery, and read replicas.',
-    launch_date: '2024-03-10',
-  },
-  {
-    product_id: 'PROD-011',
-    name: 'Feature Flags',
-    category: 'DevTools',
-    status: 'Beta',
-    price_monthly: 39,
-    description:
-      'Feature flag management with percentage rollouts, user targeting, and experiment tracking.',
-    launch_date: '2025-07-01',
-  },
-  {
-    product_id: 'PROD-012',
-    name: 'Status Page',
-    category: 'Operations',
-    status: 'GA',
-    price_monthly: 15,
-    description:
-      'Public and private status pages with incident management, subscriber notifications, and SLA tracking.',
-    launch_date: '2024-11-20',
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Data: Knowledge (FAQ)
-// ---------------------------------------------------------------------------
-
-const KNOWLEDGE_FAQ: Record<string, unknown>[] = [
-  {
-    question: 'How do I reset my password?',
-    answer:
-      'Go to Settings > Security > Change Password. You can also use the "Forgot Password" link on the login page, which sends a reset email valid for 1 hour.',
-    category: 'Account',
-    last_updated: '2025-10-01',
-  },
-  {
-    question: 'What payment methods do you accept?',
-    answer:
+    knowledge_id: 5,
+    title: 'Accepted payment methods',
+    content:
       'We accept all major credit/debit cards (Visa, Mastercard, Amex), wire transfers for enterprise plans, and ACH bank transfers for US customers.',
-    category: 'Billing',
-    last_updated: '2025-09-15',
+    kind: 'fact',
+    topics: ['Billing'],
+    source_refs: [{ kind: 'manual', note: 'FAQ' }],
+    confidence: 1,
+    observed_at: '2025-09-15T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    question: 'How do I add team members?',
-    answer:
-      'Navigate to Settings > Team > Invite Member. Enter their email address and select a role (Admin, Member, or Viewer). They will receive an email invitation.',
-    category: 'Team',
-    last_updated: '2025-10-10',
-  },
-  {
-    question: 'What is your uptime SLA?',
-    answer:
+    knowledge_id: 6,
+    title: 'Uptime SLA by plan',
+    content:
       'We offer 99.9% uptime for Business plans and 99.99% for Enterprise plans. SLA credits are automatically applied if we fall below the guaranteed threshold.',
-    category: 'Infrastructure',
-    last_updated: '2025-08-20',
+    kind: 'constraint',
+    topics: ['Infrastructure', 'SLA'],
+    source_refs: [{ kind: 'web', url: 'https://example.com/sla' }],
+    confidence: 0.97,
+    observed_at: '2025-08-20T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    question: 'Can I export my data?',
-    answer:
-      'Yes, all data can be exported via the API or the Console UI (Settings > Data > Export). We support JSON, CSV, and Parquet formats. GDPR data export requests are fulfilled within 72 hours.',
-    category: 'Data',
-    last_updated: '2025-11-01',
+    knowledge_id: 7,
+    title: 'Prefer JSON for data exports',
+    content:
+      'When exporting customer data, prefer JSON for API consumers and CSV for spreadsheet workflows. GDPR export requests are fulfilled within 72 hours.',
+    kind: 'preference',
+    topics: ['Data', 'Compliance'],
+    source_refs: [{ kind: 'manual', note: 'ops sync' }],
+    confidence: 0.8,
+    observed_at: '2025-11-01T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    question: 'Do you support SSO?',
-    answer:
-      'Yes, we support SAML 2.0 and OpenID Connect for enterprise SSO. Supported providers include Okta, Azure AD, Google Workspace, and OneLogin. SSO is available on Business and Enterprise plans.',
-    category: 'Security',
-    last_updated: '2025-10-20',
+    knowledge_id: 8,
+    title: 'SSO via SAML and OIDC',
+    content:
+      'We support SAML 2.0 and OpenID Connect for enterprise SSO. Supported providers include Okta, Azure AD, Google Workspace, and OneLogin.',
+    kind: 'insight',
+    topics: ['Security', 'SSO'],
+    source_refs: [{ kind: 'transcript', exchange_id: 42, note: 'Enterprise sales call' }],
+    confidence: 0.92,
+    observed_at: '2025-10-20T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
   {
-    question: 'What regions are available?',
-    answer:
-      'We currently operate in US-East, EU-West, and APAC-Southeast regions. Data residency controls allow you to restrict data to specific regions for compliance.',
-    category: 'Infrastructure',
-    last_updated: '2025-09-01',
-  },
-  {
-    question: 'How do I cancel my subscription?',
-    answer:
-      'Go to Settings > Billing > Cancel Subscription. Your access continues until the end of the current billing period. Data is retained for 90 days after cancellation.',
-    category: 'Billing',
-    last_updated: '2025-10-05',
+    knowledge_id: 9,
+    title: 'Pipeline bronze layer policy',
+    content:
+      'Bronze tables hold raw ingested rows before normalisation. Treat as append-only; reconcile duplicates in the silver layer nightly.',
+    kind: 'policy',
+    topics: ['Data', 'Pipeline'],
+    source_refs: [
+      { kind: 'file', filepath: 'docs/data-pipeline/bronze-layer.md' },
+      { kind: 'data', context: 'Data/analytics/bronze/events' },
+      { kind: 'contact', contact_id: 6, note: 'Elena owns the analytics pipeline' },
+    ],
+    confidence: 0.86,
+    observed_at: '2025-11-10T00:00:00Z',
+    valid_from: null,
+    valid_until: null,
+    status: 'active',
+    supersedes_ids: [],
+    superseded_by_id: null,
+    stale_reasons: [
+      {
+        kind: 'missing_dependency',
+        dep_kind: 'file',
+        path: 'docs/data-pipeline/bronze-layer.md',
+        message: 'missing file docs/data-pipeline/bronze-layer.md',
+      },
+    ],
+    is_builtin: false,
+    custom_key: null,
+    custom_hash: null,
   },
 ];
 
-// ---------------------------------------------------------------------------
 // Data: Tasks
 // ---------------------------------------------------------------------------
 
@@ -1400,17 +1409,29 @@ const TASK_RUNS: Record<string, unknown>[] = [
 
 const GUIDANCE: Record<string, unknown>[] = [
   {
+    guidance_id: 1,
     title: 'Communication Style',
     content:
       'Be concise and professional. Use bullet points for lists. Avoid jargon when talking to non-technical stakeholders. Always include action items and deadlines in meeting summaries.',
     linked_images: ['https://example.com/assets/communication-guide.png'],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Communication'],
+    is_builtin: false,
   },
   {
+    guidance_id: 2,
     title: 'Code Review Standards',
     content:
       'All PRs require at least one approval. Check for: security vulnerabilities, test coverage (>80%), documentation updates, breaking API changes. Provide constructive feedback with code suggestions.',
+    linked_images: [],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Engineering'],
+    is_builtin: false,
   },
   {
+    guidance_id: 3,
     title: 'Incident Response Protocol',
     content:
       'P0 incidents: Notify the on-call engineer immediately via PagerDuty. Post in incidents Slack channel. Begin incident write-up within 1 hour. Follow up with post-mortem within 48 hours. Never blame individuals.',
@@ -1418,42 +1439,95 @@ const GUIDANCE: Record<string, unknown>[] = [
       'https://example.com/assets/incident-flowchart.png',
       'https://example.com/assets/escalation-matrix.png',
     ],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Incidents'],
+    is_builtin: false,
   },
   {
+    guidance_id: 4,
     title: 'Meeting Scheduling Rules',
     content:
       'Respect timezone differences — schedule overlap hours (9am-12pm EST). Keep meetings under 30 minutes when possible. Always share an agenda 24h in advance. Cancel if no agenda exists.',
+    linked_images: [],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Operations'],
+    is_builtin: false,
   },
   {
+    guidance_id: 5,
     title: 'Data Handling Policy',
     content:
       'Never store PII in logs. Encrypt all data at rest and in transit. Use field-level encryption for sensitive data (SSN, payment info). Mask data in non-production environments. Report any data breach within 1 hour.',
+    linked_images: [],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Security', 'Compliance'],
+    is_builtin: false,
   },
   {
+    guidance_id: 6,
     title: 'Customer Communication',
     content:
       'Respond to enterprise clients within 4 hours during business hours. Use the approved email templates for common requests. Escalate pricing discussions to the sales team. Never promise features without PM approval.',
+    linked_images: [],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Customer Success'],
+    is_builtin: false,
   },
   {
+    guidance_id: 7,
     title: 'Sprint Planning Guidelines',
     content:
       'Sprint duration: 2 weeks. Target velocity: 30 story points per developer. Reserve 20% capacity for bugs and tech debt. All stories must have acceptance criteria. Demo to stakeholders at sprint end.',
+    linked_images: [],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Engineering'],
+    is_builtin: false,
   },
   {
+    guidance_id: 8,
     title: 'Deployment Process',
     content:
       'Deploy to staging first, wait 1 hour for smoke tests. Production deploys only on Mon-Thu before 3pm EST. No deploys on Fridays. Rollback plan required for every deploy. Feature flags for risky changes.',
     linked_images: ['https://example.com/assets/deploy-pipeline.png'],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['DevOps'],
+    is_builtin: false,
   },
   {
+    guidance_id: 9,
     title: 'Documentation Standards',
     content:
       'All public APIs must have OpenAPI specs. Internal services need README with setup instructions, architecture diagram, and runbook. Update docs in the same PR as code changes.',
+    linked_images: [],
+    function_ids: [],
+    stale_reasons: [],
+    tags: ['Documentation'],
+    is_builtin: false,
   },
   {
+    guidance_id: 10,
     title: 'Hiring Process',
     content:
       'Pipeline: Resume screen → Phone screen (30min) → Technical interview (1hr) → System design (1hr) → Culture fit (30min). Target: offer within 5 business days of final interview. Salary benchmarked against Levels.fyi 75th percentile.',
+    linked_images: [],
+    function_ids: [99],
+    stale_reasons: [
+      {
+        kind: 'missing_dependency',
+        dep_kind: 'function',
+        id: 99,
+        name: 'score_candidate_rubric',
+        message: 'missing function_id=99 name=score_candidate_rubric',
+      },
+    ],
+    tags: ['HR'],
+    is_builtin: false,
   },
 ];
 
@@ -1463,6 +1537,7 @@ const GUIDANCE: Record<string, unknown>[] = [
 
 const FUNCTIONS_COMPOSITIONAL: Record<string, unknown>[] = [
   {
+    function_id: 1,
     name: 'search_knowledge_base',
     language: 'python',
     argspec: '(query: str, top_k: int = 5, filters: dict | None = None) -> list[dict]',
@@ -1470,8 +1545,12 @@ const FUNCTIONS_COMPOSITIONAL: Record<string, unknown>[] = [
       'Search the knowledge base using semantic similarity. Returns top_k most relevant entries with scores.',
     implementation:
       'def search_knowledge_base(query, top_k=5, filters=None):\n    embeddings = embed(query)\n    results = vector_store.search(embeddings, top_k=top_k)\n    if filters:\n        results = [r for r in results if all(r.get(k) == v for k, v in filters.items())]\n    return results',
+    depends_on: [],
+    guidance_ids: [],
+    stale_reasons: [],
   },
   {
+    function_id: 2,
     name: 'send_email_notification',
     language: 'python',
     argspec:
@@ -1479,8 +1558,12 @@ const FUNCTIONS_COMPOSITIONAL: Record<string, unknown>[] = [
     docstring: 'Send an email notification via SendGrid. Supports HTML body and templates.',
     implementation:
       'def send_email_notification(to, subject, body, cc=None, template_id=None):\n    msg = Mail(from_email="noreply@example.com", to_emails=to, subject=subject)\n    if template_id:\n        msg.template_id = template_id\n    else:\n        msg.html_content = body\n    if cc:\n        msg.cc = [Cc(addr) for addr in cc]\n    return sg_client.send(msg).status_code == 202',
+    depends_on: [],
+    guidance_ids: [],
+    stale_reasons: [],
   },
   {
+    function_id: 3,
     name: 'create_jira_ticket',
     language: 'python',
     argspec:
@@ -1489,8 +1572,12 @@ const FUNCTIONS_COMPOSITIONAL: Record<string, unknown>[] = [
       'Create a Jira ticket in the current project. Returns the ticket ID (e.g. "PROJ-123").',
     implementation:
       'def create_jira_ticket(title, description, priority="Medium", assignee=None, labels=None):\n    issue = jira.create_issue(\n        project="PROJ", summary=title, description=description,\n        issuetype={"name": "Task"}, priority={"name": priority}\n    )\n    if assignee: issue.update(assignee={"name": assignee})\n    if labels: issue.update(labels=labels)\n    return issue.key',
+    depends_on: [],
+    guidance_ids: [],
+    stale_reasons: [],
   },
   {
+    function_id: 4,
     name: 'query_analytics',
     language: 'python',
     argspec: '(metric: str, start_date: str, end_date: str, group_by: str = "day") -> list[dict]',
@@ -1498,8 +1585,12 @@ const FUNCTIONS_COMPOSITIONAL: Record<string, unknown>[] = [
       'Query analytics data from BigQuery. Supports daily, weekly, and monthly aggregations.',
     implementation:
       'def query_analytics(metric, start_date, end_date, group_by="day"):\n    sql = f"""\n        SELECT DATE_TRUNC(timestamp, {group_by}) as period, {metric}\n        FROM analytics.events\n        WHERE timestamp BETWEEN @start AND @end\n        GROUP BY period ORDER BY period\n    """\n    return list(bq_client.query(sql, parameters=[start_date, end_date]))',
+    depends_on: [],
+    guidance_ids: [],
+    stale_reasons: [],
   },
   {
+    function_id: 5,
     name: 'schedule_meeting',
     language: 'python',
     argspec:
@@ -1508,8 +1599,12 @@ const FUNCTIONS_COMPOSITIONAL: Record<string, unknown>[] = [
       "Schedule a Google Calendar meeting. Finds the next available slot respecting all attendees' timezone preferences.",
     implementation:
       'def schedule_meeting(title, attendees, duration_minutes=30, preferred_time=None):\n    slots = calendar.find_available_slots(attendees, duration_minutes)\n    if preferred_time:\n        slots.sort(key=lambda s: abs(parse(s.start) - parse(preferred_time)))\n    chosen = slots[0]\n    event = calendar.create_event(title=title, start=chosen.start, end=chosen.end, attendees=attendees)\n    return {"event_id": event.id, "start": chosen.start, "link": event.hangout_link}',
+    depends_on: [],
+    guidance_ids: [],
+    stale_reasons: [],
   },
   {
+    function_id: 6,
     name: 'summarize_document',
     language: 'python',
     argspec: '(content: str, max_length: int = 500, style: str = "executive") -> str',
@@ -1517,6 +1612,22 @@ const FUNCTIONS_COMPOSITIONAL: Record<string, unknown>[] = [
       'Summarize a document using LLM. Styles: executive (bullet points), technical (detailed), casual (conversational).',
     implementation:
       'def summarize_document(content, max_length=500, style="executive"):\n    prompt = f"Summarize in {style} style, max {max_length} chars:\\n\\n{content}"\n    return llm.complete(prompt, max_tokens=max_length)',
+    depends_on: ['primitives.files.parse', 'legacy_summarizer'],
+    guidance_ids: [10],
+    stale_reasons: [
+      {
+        kind: 'missing_dependency',
+        dep_kind: 'depends_on',
+        name: 'legacy_summarizer',
+        message: 'missing depends_on legacy_summarizer',
+      },
+      {
+        kind: 'missing_dependency',
+        dep_kind: 'guidance',
+        id: 10,
+        message: 'missing guidance_id=10',
+      },
+    ],
   },
 ];
 
@@ -1615,8 +1726,7 @@ export async function seedBrainRich(): Promise<SeededState> {
     seedLogs(apiKey, owner.id, agentId, 'Tasks', TASKS),
     seedLogs(apiKey, owner.id, agentId, 'Tasks/Runs', TASK_RUNS),
     seedLogs(apiKey, owner.id, agentId, 'Guidance', GUIDANCE),
-    seedLogs(apiKey, owner.id, agentId, 'Knowledge/Products', KNOWLEDGE_PRODUCTS),
-    seedLogs(apiKey, owner.id, agentId, 'Knowledge/FAQ', KNOWLEDGE_FAQ),
+    seedLogs(apiKey, owner.id, agentId, 'Knowledge', KNOWLEDGE_CLAIMS),
     seedLogs(apiKey, owner.id, agentId, 'Functions/Compositional', FUNCTIONS_COMPOSITIONAL),
     seedLogs(apiKey, owner.id, agentId, 'Functions/Primitives', FUNCTIONS_PRIMITIVES),
     seedLogs(apiKey, owner.id, agentId, 'Functions/VirtualEnvs', FUNCTIONS_VIRTUAL_ENVS),
