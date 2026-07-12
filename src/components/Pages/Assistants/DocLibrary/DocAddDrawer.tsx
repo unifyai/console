@@ -16,7 +16,6 @@ import { AssistantMarkdown } from '../Common/AssistantMarkdown';
 import type { DocLibraryKind } from './docLibraryKind';
 
 const STARTER_BODY: Record<DocLibraryKind, string> = {
-  knowledge: '# rule_name\n\nDescribe the durable fact or rule here.\n\n## Scope\nData',
   guidance:
     '# Playbook title\n\n## Overview\nWhen to use this playbook.\n\n## Steps\n1. First step\n2. Second step',
 };
@@ -46,8 +45,8 @@ export function DocAddDrawer({ open, kind, onClose, onSave }: DocAddDrawerProps)
     }
   }, [open, kind]);
 
-  const titleLabel = kind === 'knowledge' ? 'Rule name' : 'Title';
-  const titlePlaceholder = kind === 'knowledge' ? 'e.g. source_of_truth' : 'e.g. Issue triage';
+  const titleLabel = 'Title';
+  const titlePlaceholder = 'e.g. Issue triage';
 
   const handleSave = () => {
     onSave?.({ title: title.trim(), body });

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Compass, BookText, Link2 } from 'lucide-react';
-// TODO(wire-backend): Plus + toast are only used by the unwired guidance/
-// knowledge "Add" control; restore them with a doc-create endpoint.
+import { Compass, Link2 } from 'lucide-react';
+// TODO(wire-backend): Plus + toast are only used by the unwired guidance
+// "Add" control; restore them with a doc-create endpoint.
 // import { Plus } from 'lucide-react';
 // import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
@@ -18,6 +18,7 @@ import { formatTimestamp } from '@/utils/assistants/brain';
 import { SkeletonText } from '@/components/Common/Loaders/Skeletons';
 import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantMarkdown } from '../Common/AssistantMarkdown';
+import { StaleReasonChips } from '../Common/StaleReasonChips';
 import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
 import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
@@ -26,10 +27,10 @@ import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
-// TODO(wire-backend): restore once guidance/knowledge creation is wired.
+// TODO(wire-backend): restore once guidance creation is wired.
 // import { DocAddDrawer } from './DocAddDrawer';
-import type { DocLibraryKind } from './docLibraryKind';
-import type { GuidanceRow, KnowledgeRow } from '@/types/assistants/brain';
+import type { GuidanceRow, StaleReason } from '@/types/assistants/brain';
+import { mapStaleReasons } from '@/utils/assistants/staleReasons';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContextRoot } from '@/lib/assistants/scope';
 
@@ -39,6 +40,7 @@ interface DocLibraryDoc {
   body: string;
   isBuiltin: boolean;
   functionIds: number[];
+  staleReasons: StaleReason[];
   tags: string[];
   scope: string | null;
   /** ISO timestamp for sorting / date grouping (updated_at ?? created_at). */
@@ -51,42 +53,11 @@ interface DocLibraryPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
-  /** Which library this pane renders. Defaults to guidance. */
-  kind?: DocLibraryKind;
   /** Scope override: a team root reads `Teams/{id}/…` instead of merging the
    *  assistant's readable roots. */
   root?: ContextRoot | null;
   enabled?: boolean;
 }
-
-const KIND_META: Record<
-  DocLibraryKind,
-  {
-    icon: typeof Compass;
-    addLabel: string;
-    emptyMatch: string;
-    readerEmpty: string;
-    footerSingular: string;
-    footerPlural: string;
-  }
-> = {
-  guidance: {
-    icon: Compass,
-    addLabel: 'Add guidance',
-    emptyMatch: 'No guidance matches these filters.',
-    readerEmpty: 'Select a playbook to read it.',
-    footerSingular: 'playbook',
-    footerPlural: 'playbooks',
-  },
-  knowledge: {
-    icon: BookText,
-    addLabel: 'Add knowledge',
-    emptyMatch: 'No knowledge matches these filters.',
-    readerEmpty: 'Select an entry to read it.',
-    footerSingular: 'entry',
-    footerPlural: 'entries',
-  },
-};
 
 function readField(row: Record<string, unknown>, snake: string, camel: string): unknown {
   const snakeValue = row[snake];
@@ -159,33 +130,7 @@ function mapGuidanceRow(row: GuidanceRow, index: number): DocLibraryDoc {
     body: typeof raw.content === 'string' ? raw.content : '',
     isBuiltin: readField(raw, 'is_builtin', 'isBuiltin') === true,
     functionIds: asNumberArray(readField(raw, 'function_ids', 'functionIds')),
-    tags: asStringArray(raw.tags),
-    scope: readScope(raw),
-    sortTimestamp: readSortTimestamp(raw),
-    updated: readUpdated(raw),
-    created: readCreated(raw),
-  };
-}
-
-function mapKnowledgeRow(row: KnowledgeRow, index: number): DocLibraryDoc {
-  const raw = row as Record<string, unknown>;
-  const idValue = readField(raw, 'knowledge_id', 'knowledgeId');
-  const title =
-    (typeof raw.title === 'string' && raw.title.trim() && raw.title) ||
-    (typeof raw.rule === 'string' && raw.rule.trim() && raw.rule) ||
-    'Untitled';
-  const id =
-    idValue !== undefined && idValue !== null && idValue !== -1 ? String(idValue) : `k-${index}`;
-  const body =
-    (typeof raw.body === 'string' && raw.body) ||
-    (typeof raw.details === 'string' && raw.details) ||
-    '';
-  return {
-    id,
-    title,
-    body,
-    isBuiltin: readField(raw, 'is_builtin', 'isBuiltin') === true,
-    functionIds: asNumberArray(readField(raw, 'function_ids', 'functionIds')),
+    staleReasons: mapStaleReasons(readField(raw, 'stale_reasons', 'staleReasons')),
     tags: asStringArray(raw.tags),
     scope: readScope(raw),
     sortTimestamp: readSortTimestamp(raw),
@@ -198,31 +143,27 @@ export function DocLibraryPane({
   assistant,
   ownerId,
   assistantId,
-  kind = 'guidance',
   root = null,
   enabled = true,
 }: DocLibraryPaneProps) {
-  const context = kind === 'knowledge' ? 'Knowledge' : 'Guidance';
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
-  const { guidance, knowledge, hasLoaded, isLoading, error, refetch } = useBrainData({
+  const { guidance, hasLoaded, isLoading, error, refetch } = useBrainData({
     assistant,
     ownerId,
     assistantId,
     root: scope.root,
-    contexts: kind === 'knowledge' ? (['Knowledge'] as const) : (['Guidance'] as const),
-    initialContext: context,
+    contexts: ['Guidance'] as const,
+    initialContext: 'Guidance',
     enabled,
   });
 
-  const meta = KIND_META[kind];
-  const LibraryIcon = meta.icon;
   const { openBrainFunction } = useAppShellNavigation();
 
   const { skills: functionSkills } = useFunctionsCatalog({
     assistant,
     kind: 'All',
     root: scope.root,
-    enabled: enabled && kind === 'guidance',
+    enabled,
   });
 
   const functionNameById = useMemo(() => {
@@ -246,13 +187,10 @@ export function DocLibraryPane({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const isStackedLayout = useMatchesBelow('shellCompact');
-  // TODO(wire-backend): restore when guidance/knowledge creation is wired.
+  // TODO(wire-backend): restore when guidance creation is wired.
   // const [isAdding, setIsAdding] = useState(false);
 
-  const docs = useMemo(() => {
-    if (kind === 'knowledge') return knowledge.rows.map(mapKnowledgeRow);
-    return guidance.rows.map(mapGuidanceRow);
-  }, [kind, knowledge.rows, guidance.rows]);
+  const docs = useMemo(() => guidance.rows.map(mapGuidanceRow), [guidance.rows]);
 
   const allScopes = useMemo(() => {
     const set = new Set<string>();
@@ -335,14 +273,18 @@ export function DocLibraryPane({
   }
 
   return (
-    <div className="flex h-full min-w-0 flex-col" data-testid="doc-library-pane" data-kind={kind}>
+    <div
+      className="flex h-full min-w-0 flex-col"
+      data-testid="doc-library-pane"
+      data-kind="guidance"
+    >
       <TabToolbar
         testId="doc-header"
         searchValue={searchDraft}
         onSearchChange={setSearchDraft}
         onSearchSubmit={submitSearch}
         onSearchClear={clearSearch}
-        searchPlaceholder={tabSearchPlaceholder(kind)}
+        searchPlaceholder={tabSearchPlaceholder('guidance')}
         searchTestId="doc-search"
         searchClearTestId="doc-search-clear"
         filter={
@@ -362,7 +304,7 @@ export function DocLibraryPane({
         isRefreshing={isRefreshing}
         refreshTitle="Refresh"
         refreshTestId="doc-refresh"
-        // TODO(wire-backend): guidance/knowledge creation is not wired to any
+        // TODO(wire-backend): guidance creation is not wired to any
         // backend (DocAddDrawer.onSave only toasts). Restore this addAction +
         // the DocAddDrawer below once a doc-create endpoint exists.
         // addAction={
@@ -373,14 +315,14 @@ export function DocLibraryPane({
         //     data-testid="doc-add"
         //   >
         //     <Plus className="h-3.5 w-3.5" />
-        //     {meta.addLabel}
+        //     Add guidance
         //   </Button>
         // }
       />
       <BrainScopeChips scope={scope} />
 
       <SplitPaneLayout
-        paneId={`doc-library-${kind}`}
+        paneId="doc-library-guidance"
         defaultWidth={288}
         mobileMode="stack"
         stackBelow="shellCompact"
@@ -397,7 +339,7 @@ export function DocLibraryPane({
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-caption p-3">{meta.emptyMatch}</div>
+              <div className="text-caption p-3">No guidance matches these filters.</div>
             ) : (
               <ScrollArea
                 className="h-full min-w-0"
@@ -431,7 +373,7 @@ export function DocLibraryPane({
                           onClick={() => setSelectedId(doc.id)}
                           data-testid={`doc-item-${doc.id}`}
                         >
-                          <LibraryIcon
+                          <Compass
                             className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
                             strokeWidth={1.75}
                             aria-hidden="true"
@@ -440,7 +382,6 @@ export function DocLibraryPane({
                             <span
                               className={cn(
                                 'text-body-dense block font-semibold leading-snug',
-                                kind === 'knowledge' && 'font-mono',
                                 isStackedLayout
                                   ? 'line-clamp-2'
                                   : 'break-words [overflow-wrap:anywhere]'
@@ -465,6 +406,11 @@ export function DocLibraryPane({
                               {doc.isBuiltin && (
                                 <span className="text-[9.5px] uppercase tracking-wide text-muted-foreground">
                                   built-in
+                                </span>
+                              )}
+                              {doc.staleReasons.length > 0 && (
+                                <span className="rounded-full bg-[color:var(--status-warning-bg)] px-1.5 py-0.5 text-[9.5px] font-semibold text-[color:var(--status-warning)]">
+                                  link debt
                                 </span>
                               )}
                             </span>
@@ -508,20 +454,23 @@ export function DocLibraryPane({
                         Created {active.created}
                       </span>
                     ) : null}
-                    {/*
-                    TODO(wire-backend): if guidance/knowledge rows gain a reliable
-                    created_at / updated_at in the Orchestra log schema, surface both
-                    when present instead of preferring updated only.
-                  */}
                     <div className="ml-auto">
                       <CopyButton
                         content={active.body}
-                        tooltipContent={`Copy ${kind}`}
+                        tooltipContent="Copy guidance"
                         className="h-6 w-6"
                       />
                     </div>
                   </div>
-                  {kind === 'guidance' && active.functionIds.length > 0 && (
+                  {active.staleReasons.length > 0 && (
+                    <StaleReasonChips
+                      reasons={active.staleReasons}
+                      banner
+                      className="mb-3"
+                      chipTestIdPrefix="guidance-stale-reason"
+                    />
+                  )}
+                  {active.functionIds.length > 0 && (
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                         Linked functions
@@ -560,9 +509,7 @@ export function DocLibraryPane({
                       ))}
                     </div>
                   )}
-                  <h2 className={cn('text-doc-title mb-3', kind === 'knowledge' && 'font-mono')}>
-                    {active.title}
-                  </h2>
+                  <h2 className="text-doc-title mb-3">{active.title}</h2>
                   <div className="break-words">
                     <AssistantMarkdown>
                       {stripLeadingTitleFromBody(active.body || '_No content._', active.title)}
@@ -572,7 +519,7 @@ export function DocLibraryPane({
               </ScrollArea>
             ) : (
               <div className="text-body-muted flex h-full items-center justify-center">
-                {meta.readerEmpty}
+                Select a playbook to read it.
               </div>
             )}
           </div>
@@ -583,21 +530,21 @@ export function DocLibraryPane({
         testId="doc-footer"
         count={filtered.length}
         total={docs.length}
-        singular={meta.footerSingular}
-        plural={meta.footerPlural}
+        singular="playbook"
+        plural="playbooks"
       />
 
       {/*
-        TODO(wire-backend): guidance/knowledge creation drawer — onSave only
+        TODO(wire-backend): guidance creation drawer — onSave only
         toasts; not wired to a backend. Restore once a doc-create endpoint /
         system-event exists.
         <DocAddDrawer
           open={isAdding}
-          kind={kind}
+          kind="guidance"
           onClose={() => setIsAdding(false)}
           onSave={() =>
-            toast(`Saving ${kind} isn’t available from this view yet.`, {
-              description: `Ask your teammate in chat to add ${kind}.`,
+            toast(`Saving guidance isn’t available from this view yet.`, {
+              description: `Ask your teammate in chat to add guidance.`,
             })
           }
         />
