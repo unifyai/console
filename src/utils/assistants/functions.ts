@@ -8,7 +8,8 @@
  * key at runtime and keeps the snake key as a harmless fallback.
  */
 
-import type { FunctionRow } from '@/types/assistants/brain';
+import type { FunctionRow, StaleReason } from '@/types/assistants/brain';
+import { mapStaleReasons } from '@/utils/assistants/staleReasons';
 
 export interface FunctionSkill {
   functionId: number | null;
@@ -19,6 +20,7 @@ export interface FunctionSkill {
   implementation: string | null;
   dependsOn: string[];
   guidanceIds: number[];
+  staleReasons: StaleReason[];
   precondition: Record<string, unknown> | null;
   isPrimitive: boolean;
   verify: boolean;
@@ -71,6 +73,7 @@ export function mapFunctionRow(row: FunctionRow): FunctionSkill {
     implementation: implementation === undefined ? null : (implementation as string | null),
     dependsOn: asStringArray(readField(raw, 'depends_on', 'dependsOn')),
     guidanceIds: asNumberArray(readField(raw, 'guidance_ids', 'guidanceIds')),
+    staleReasons: mapStaleReasons(readField(raw, 'stale_reasons', 'staleReasons')),
     precondition:
       (readField(raw, 'precondition', 'precondition') as Record<string, unknown>) ?? null,
     isPrimitive: typeof isPrimitiveField === 'boolean' ? isPrimitiveField : table === 'Primitives',
