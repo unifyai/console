@@ -3,7 +3,7 @@
  *
  * The contexts endpoint returns *full* sub-context names (prefixed with each
  * assistant's `{userId}/{agentId}` in the active workspace) so the brain client's
- * sub-context discovery (Knowledge/Functions) and the Data browser tree both
+ * sub-context discovery (Functions) and the Data browser tree both
  * resolve correctly.
  */
 

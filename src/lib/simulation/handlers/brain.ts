@@ -1,6 +1,6 @@
 /**
  * Context-aware `/v0/logs` handler — the single seam nearly every read surface
- * funnels through (Contacts, Transcripts, Knowledge/Functions sub-contexts,
+ * funnels through (Contacts, Transcripts, Knowledge claim ledger,
  * Guidance, Tasks + Runs, Actions events, Dashboards, Secrets, and the Data
  * browser). The `context` query param is the full Orchestra path
  * (`{userId}/{agentId}/{Table}` or `Teams/{teamId}/{Table}`); we strip the
@@ -55,6 +55,16 @@ function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null
     }
   }
 
+  // Knowledge claim lifecycle filter (default active ledger view).
+  // Applied as a narrowing step so it composes with other filter clauses.
+  if (tablePath === 'Knowledge' || tablePath.endsWith('/Knowledge')) {
+    const statusMatch = filterExpr.match(/status\s*==\s*["']([^"']+)["']/);
+    if (statusMatch) {
+      const status = statusMatch[1];
+      rows = rows.filter((r) => String(r.entries.status ?? 'active') === status);
+    }
+  }
+
   // Actions: roots only (`len(hierarchy) == 1`).
   if (tablePath.endsWith('ManagerMethod') && /len\(hierarchy\)\s*==\s*1/.test(filterExpr)) {
     return rows.filter((r) => (r.entries.hierarchy as unknown[])?.length === 1);
@@ -95,7 +105,7 @@ const logs: SimHandler = {
 
     const limit = Number(ctx.searchParams.get('limit') ?? '50');
     const offset = Number(ctx.searchParams.get('offset') ?? '0');
-    const filterExpr = ctx.searchParams.get('filterExpr');
+    const filterExpr = ctx.searchParams.get('filter_expr') || ctx.searchParams.get('filterExpr');
     const sorting = parseSorting(ctx.searchParams.get('sorting'));
 
     const table = getTable(ctx.scenario.id, tablePath);
@@ -127,6 +137,7 @@ const logs: SimHandler = {
           ts:
             (entries.timestamp as string) ??
             (entries.updatedAt as string) ??
+            (entries.observedAt as string) ??
             (entries.createdAt as string) ??
             (entries.eventTimestamp as string) ??
             null,
