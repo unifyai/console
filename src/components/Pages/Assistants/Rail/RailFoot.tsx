@@ -3,7 +3,6 @@
 import * as React from 'react';
 import {
   Settings,
-  ShieldCheck,
   ChevronsUpDown,
   Check,
   LogOut,
@@ -12,8 +11,11 @@ import {
   Loader2,
   UserSearch,
   RotateCcw,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -35,6 +37,7 @@ import {
 import { getAnySessionContactIdForUser } from '@/hooks/Assistants/useContactIdPrefetch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { ReferralPromoNavButton } from '@/components/Layout/TopBar/ReferralPromoButton';
+import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
 import AccountResetDialog from '@/components/Layout/TopBar/AccountResetDialog';
 import { useAppShellNavigation, pathnameFromHref } from '@/lib/navigation/AppShellRouter';
@@ -115,10 +118,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     switchWorkspace,
     isWorkspaceSwitchable,
     isSwitchingWorkspace,
-    isUnifyAdmin,
     isUnifyMember,
   } = useWorkspace();
   const { accountReset: accountResetEnabled } = useFeatures();
+  const { theme, setTheme } = useTheme();
 
   const [showImpersonateDialog, setShowImpersonateDialog] = React.useState(false);
   const [showAccountResetConfirm, setShowAccountResetConfirm] = React.useState(false);
@@ -184,6 +187,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
 
   const personalWorkspaces = workspaces.filter((w) => w.type === 'personal');
   const orgWorkspaces = workspaces.filter((w) => w.type === 'organization');
+  const isDark = theme === 'dark';
 
   return (
     <div
@@ -192,27 +196,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         collapsed ? 'px-3 pb-2.5' : 'px-2.5 pb-2.5'
       )}
     >
-      {isUnifyAdmin && (
-        <RailNavButton
-          Icon={ShieldCheck}
-          label="Admin"
-          collapsed={collapsed}
-          active={activePath.startsWith('/admin')}
-          onClick={() => navigateTo('/admin')}
-          testId="rail-nav-admin"
-        />
-      )}
-      <RailNavButton
-        Icon={Settings}
-        label="Settings"
-        collapsed={collapsed}
-        active={activePath === '/account' || activePath.startsWith('/account?')}
-        onClick={() => navigateTo('/account')}
-        testId="rail-nav-settings"
-      />
-
-      <ReferralPromoNavButton collapsed={collapsed} />
-
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -342,6 +325,32 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <RailNavButton
+        Icon={Settings}
+        label="Settings"
+        collapsed={collapsed}
+        active={activePath === '/account' || activePath.startsWith('/account?')}
+        onClick={() => navigateTo('/account')}
+        testId="rail-nav-settings"
+      />
+      <RailNavButton
+        Icon={isDark ? Sun : Moon}
+        label={isDark ? 'Switch to light' : 'Switch to dark'}
+        collapsed={collapsed}
+        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        testId="rail-theme-toggle"
+      />
+      <div className={collapsed ? 'flex justify-center' : undefined}>
+        <SupportTicketDialog
+          triggerLabel={collapsed ? undefined : 'Report an issue'}
+          triggerClassName={cn(
+            'h-auto w-full justify-start gap-3 rounded-[10px] text-foreground hover:bg-muted',
+            collapsed ? 'h-9 w-9 justify-center p-0' : 'px-[11px] py-[9px]'
+          )}
+        />
+      </div>
+      <ReferralPromoNavButton collapsed={collapsed} />
 
       {isUnifyMember && (
         <ImpersonateDialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog} />

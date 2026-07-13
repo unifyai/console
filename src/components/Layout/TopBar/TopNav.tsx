@@ -41,13 +41,11 @@ import {
 } from '@/components/UI/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle';
 import { getCurrentUser } from '@/lib/user/user';
 import Image from 'next/image';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { UserOrganization } from '@/types/user';
-import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
 import AccountResetDialog from '@/components/Layout/TopBar/AccountResetDialog';
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
@@ -79,11 +77,7 @@ function WorkspaceInitialBadge({ name, size }: { name: string; size: 'sm' | 'md'
 export default function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    billing: billingEnabled,
-    support: supportEnabled,
-    accountReset: accountResetEnabled,
-  } = useFeatures();
+  const { billing: billingEnabled, accountReset: accountResetEnabled } = useFeatures();
   const { isSelfHost } = useEnvironment();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -469,12 +463,6 @@ export default function TopNav() {
           )/*}
 
           <AssistantsNavPanelShortcut />
-
-          {/* Support Ticket — only when a support delivery channel is configured */}
-          {supportEnabled && <SupportTicketDialog />}
-
-          {/* Dark Mode Toggle */}
-          <DarkModeToggle />
 
           {/* Profile Dropdown */}
           <DropdownMenu>
