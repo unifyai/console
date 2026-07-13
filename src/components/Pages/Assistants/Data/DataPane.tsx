@@ -19,6 +19,7 @@ import { TabFooter } from '../Common/TabFooter';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
+import type { DataField, DataRow } from './dataTypes';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface DataPaneProps {
@@ -43,12 +44,28 @@ function stripPrivateFields(row: Record<string, unknown>): Record<string, unknow
   return out;
 }
 
-/** Parse `/api/logs/fields` response into public column names. */
-function publicColumnsFromFields(data: unknown): string[] {
-  if (!data || typeof data !== 'object') return [];
-  return Object.keys(data as Record<string, unknown>)
-    .filter((key) => key !== '__contextNotFound' && !key.startsWith('_'))
-    .sort((a, b) => a.localeCompare(b));
+/** Parse `/api/logs/fields` response into public column metadata. */
+function publicFieldsFromResponse(data: unknown): Record<string, DataField> {
+  if (!data || typeof data !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(data as Record<string, unknown>)
+      .filter(([key]) => key !== '__contextNotFound' && !key.startsWith('_'))
+      .map(([key, value]) => {
+        const raw = typeof value === 'object' && value ? (value as Record<string, unknown>) : {};
+        return [
+          key,
+          {
+            dataType: typeof raw.dataType === 'string' ? raw.dataType : undefined,
+            fieldType: typeof raw.fieldType === 'string' ? raw.fieldType : undefined,
+            mutable: typeof raw.mutable === 'boolean' ? raw.mutable : undefined,
+            enumValues: Array.isArray(raw.enumValues)
+              ? raw.enumValues.filter((option): option is string => typeof option === 'string')
+              : null,
+            restrict: typeof raw.restrict === 'boolean' ? raw.restrict : undefined,
+          } satisfies DataField,
+        ];
+      })
+  );
 }
 
 /**
@@ -86,9 +103,10 @@ interface TreeNode {
 }
 
 interface LeafData {
-  rows: Array<Record<string, unknown>>;
+  rows: DataRow[];
   count: number;
   columns: string[];
+  fields: Record<string, DataField>;
 }
 
 function newNode(name: string): TreeNode {
@@ -221,7 +239,7 @@ export function DataPane({
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leaf, setLeaf] = React.useState<LeafData | null>(null);
-  const [selectedRow, setSelectedRow] = React.useState<Record<string, unknown> | null>(null);
+  const [selectedRow, setSelectedRow] = React.useState<DataRow | null>(null);
   const [isLoadingLeaf, setIsLoadingLeaf] = React.useState(false);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
@@ -234,16 +252,19 @@ export function DataPane({
     }
   }, [isStackedLayout]);
 
-  const fetchFieldColumns = React.useCallback(async (context: string): Promise<string[]> => {
-    const params = new URLSearchParams({
-      projectName: 'Assistants',
-      context,
-    });
-    const res = await fetch(`/api/logs/fields?${params.toString()}`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data: unknown = await res.json();
-    return publicColumnsFromFields(data);
-  }, []);
+  const fetchFields = React.useCallback(
+    async (context: string): Promise<Record<string, DataField>> => {
+      const params = new URLSearchParams({
+        projectName: 'Assistants',
+        context,
+      });
+      const res = await fetch(`/api/logs/fields?${params.toString()}`, { cache: 'no-store' });
+      if (!res.ok) return {};
+      const data: unknown = await res.json();
+      return publicFieldsFromResponse(data);
+    },
+    []
+  );
 
   const loadTree = React.useCallback(async (): Promise<TreeNode> => {
     const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
@@ -272,10 +293,7 @@ export function DataPane({
   }, [tree]);
 
   const fetchLeafPage = React.useCallback(
-    async (
-      context: string,
-      offset: number
-    ): Promise<{ rows: Record<string, unknown>[]; count: number }> => {
+    async (context: string, offset: number): Promise<{ rows: DataRow[]; count: number }> => {
       const params = new URLSearchParams({
         projectName: 'Assistants',
         context,
@@ -284,8 +302,11 @@ export function DataPane({
       });
       const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
       const data = res.ok ? await res.json() : { logs: [], count: 0 };
-      const rows: Array<Record<string, unknown>> = (data.logs ?? []).map(
-        (log: { entries?: Record<string, unknown> }) => stripPrivateFields(log.entries ?? {})
+      const rows: DataRow[] = (data.logs ?? []).map(
+        (log: { id?: number; entries?: Record<string, unknown> }) => ({
+          logId: log.id ?? 0,
+          entries: stripPrivateFields(log.entries ?? {}),
+        })
       );
       return { rows, count: data.count ?? rows.length };
     },
@@ -293,10 +314,10 @@ export function DataPane({
   );
 
   const mergeColumns = React.useCallback(
-    (fieldColumns: string[], rows: Record<string, unknown>[]): string[] => {
-      const columns = new Set(fieldColumns);
+    (fields: Record<string, DataField>, rows: DataRow[]): string[] => {
+      const columns = new Set(Object.keys(fields));
       rows.forEach((row) =>
-        Object.keys(row).forEach((key) => {
+        Object.keys(row.entries).forEach((key) => {
           if (!key.startsWith('_')) columns.add(key);
         })
       );
@@ -306,8 +327,7 @@ export function DataPane({
   );
 
   const columnsFor = React.useCallback(
-    (fieldColumns: string[], rows: Record<string, unknown>[]): string[] =>
-      mergeColumns(fieldColumns, rows),
+    (fields: Record<string, DataField>, rows: DataRow[]): string[] => mergeColumns(fields, rows),
     [mergeColumns]
   );
 
@@ -321,19 +341,16 @@ export function DataPane({
         setMobileShowTree(false);
       }
       try {
-        const [fieldColumns, page] = await Promise.all([
-          fetchFieldColumns(context),
-          fetchLeafPage(context, 0),
-        ]);
+        const [fields, page] = await Promise.all([fetchFields(context), fetchLeafPage(context, 0)]);
         const { rows, count } = page;
-        setLeaf({ rows, count, columns: columnsFor(fieldColumns, rows) });
+        setLeaf({ rows, count, columns: columnsFor(fields, rows), fields });
       } catch {
-        setLeaf({ rows: [], count: 0, columns: [] });
+        setLeaf({ rows: [], count: 0, columns: [], fields: {} });
       } finally {
         setIsLoadingLeaf(false);
       }
     },
-    [fetchFieldColumns, fetchLeafPage, columnsFor, isStackedLayout]
+    [fetchFields, fetchLeafPage, columnsFor, isStackedLayout]
   );
 
   const loadMore = React.useCallback(async () => {
@@ -345,7 +362,8 @@ export function DataPane({
       setLeaf({
         rows: merged,
         count,
-        columns: mergeColumns(leaf.columns, rows),
+        columns: mergeColumns(leaf.fields, merged),
+        fields: leaf.fields,
       });
     } finally {
       setIsLoadingMore(false);
@@ -360,6 +378,48 @@ export function DataPane({
       return next;
     });
   }, []);
+
+  const saveField = React.useCallback(
+    async (updates: Record<string, unknown>) => {
+      if (!selected || !selectedRow?.logId) throw new Error('This row cannot be updated.');
+
+      const res = await fetch('/api/logs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logs: [selectedRow.logId],
+          projectName: 'Assistants',
+          context: selected,
+          entries: updates,
+          overwrite: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const response: unknown = await res.json().catch(() => null);
+        const detail =
+          response && typeof response === 'object' && 'detail' in response
+            ? String((response as { detail: unknown }).detail)
+            : 'Unable to save this field.';
+        throw new Error(detail);
+      }
+
+      const updatedRow: DataRow = {
+        ...selectedRow,
+        entries: { ...selectedRow.entries, ...updates },
+      };
+      setSelectedRow(updatedRow);
+      setLeaf((current) =>
+        current
+          ? {
+              ...current,
+              rows: current.rows.map((row) => (row.logId === updatedRow.logId ? updatedRow : row)),
+            }
+          : current
+      );
+    },
+    [selected, selectedRow]
+  );
 
   const topNodes = tree
     ? Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name))
@@ -638,6 +698,8 @@ export function DataPane({
             row={selectedRow}
             title={selectedTableName ?? selectedDisplayPath ?? 'Data row'}
             description={selectedDisplayPath ?? undefined}
+            fields={leaf?.fields ?? {}}
+            onSave={saveField}
             onClose={() => setSelectedRow(null)}
           />
 
