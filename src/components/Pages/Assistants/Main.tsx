@@ -2770,6 +2770,60 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the workspace video-call beat. On click we open the provider's
+  // "new meeting" page so the user can host a Google Meet / Microsoft Teams
+  // call (Twin never creates the meeting), then emit the canonical onboarding
+  // event to Unity — the user pastes the link and Twin joins. Provider follows
+  // the connected workspace (``workspaceProvider``), defaulting to Google Meet.
+  const handleCoordinatorDispatchWorkspaceCallBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      const newMeetingUrl =
+        canonicalCoordinator.workspaceProvider === 'microsoft'
+          ? 'https://teams.microsoft.com/l/meeting/new'
+          : 'https://meet.google.com/new';
+      window.open(newMeetingUrl, '_blank', 'noopener,noreferrer');
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error(
+            '[Coordinator onboarding] Failed to dispatch workspace call beat event:',
+            error
+          );
+          toast.error('Could not start this call. Please try again.');
+        }
+      })();
+    },
+    [
+      appendCoordinatorRequestSentAck,
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
+      shouldDispatchStepRequest,
+    ]
+  );
+
   const handleCoordinatorOpenDesktopLinker = React.useCallback(
     (stepId: string) => {
       if (!canonicalCoordinator) return;
@@ -2975,6 +3029,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onConnectYourComputer: () => handleCoordinatorOpenDesktopLinker('your-computer-link'),
       onEnableDesktopFilesys: () => handleCoordinatorOpenDesktopLinker('your-computer-filesys'),
       onYourComputerDemo: () => handleCoordinatorDispatchYourComputerBeat('your-computer-demo'),
+      onWorkspaceCall: () => handleCoordinatorDispatchWorkspaceCallBeat('workspace-call'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
@@ -3020,6 +3075,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorDispatchLearningBeat,
     handleCoordinatorDispatchMyComputerBeat,
     handleCoordinatorDispatchYourComputerBeat,
+    handleCoordinatorDispatchWorkspaceCallBeat,
     handleCoordinatorOpenDesktopLinker,
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingStepSkip,
