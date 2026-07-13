@@ -186,6 +186,7 @@ import {
   type MsTeamsBotInstallOwner,
 } from '@/types/ms-teams-bot/install';
 import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
+import { broadcastMsTeamsBotBound } from '@/lib/ms-teams-bot/bindEvents';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -1331,6 +1332,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               : 'Microsoft Teams connected to your account.'
           );
           void refetchCoordinatorOnboardingState();
+          broadcastMsTeamsBotBound();
         } else {
           console.error('[ms-teams-bot] auto-bind failed:', result);
           toast.error('Could not connect Microsoft Teams. The install code may have expired.');
