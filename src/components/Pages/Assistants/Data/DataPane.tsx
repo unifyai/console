@@ -18,6 +18,7 @@ import { useShellResource } from '@/hooks/Common/useShellResource';
 import { TabFooter } from '../Common/TabFooter';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
+import { DataRowDetail } from './DataRowDetail';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface DataPaneProps {
@@ -220,6 +221,7 @@ export function DataPane({
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leaf, setLeaf] = React.useState<LeafData | null>(null);
+  const [selectedRow, setSelectedRow] = React.useState<Record<string, unknown> | null>(null);
   const [isLoadingLeaf, setIsLoadingLeaf] = React.useState(false);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
@@ -313,6 +315,7 @@ export function DataPane({
     async (context: string) => {
       setSelected(context);
       setLeaf(null);
+      setSelectedRow(null);
       setIsLoadingLeaf(true);
       if (isStackedLayout) {
         setMobileShowTree(false);
@@ -486,6 +489,7 @@ export function DataPane({
                     isLoading={isLoadingLeaf}
                     isLoadingMore={isLoadingMore}
                     onLoadMore={() => void loadMore()}
+                    onRowSelect={setSelectedRow}
                   />
                 </div>
               )
@@ -621,6 +625,7 @@ export function DataPane({
                         isLoading={isLoadingLeaf}
                         isLoadingMore={isLoadingMore}
                         onLoadMore={() => void loadMore()}
+                        onRowSelect={setSelectedRow}
                       />
                     </>
                   )}
@@ -628,6 +633,13 @@ export function DataPane({
               </>
             )}
           </div>
+
+          <DataRowDetail
+            row={selectedRow}
+            title={selectedTableName ?? selectedDisplayPath ?? 'Data row'}
+            description={selectedDisplayPath ?? undefined}
+            onClose={() => setSelectedRow(null)}
+          />
 
           <TabFooter
             testId="data-footer"

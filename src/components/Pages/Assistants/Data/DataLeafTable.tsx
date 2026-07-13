@@ -35,6 +35,7 @@ interface DataLeafTableProps {
   isLoading: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
+  onRowSelect: (row: Record<string, unknown>) => void;
 }
 
 export function DataLeafTable({
@@ -44,6 +45,7 @@ export function DataLeafTable({
   isLoading,
   isLoadingMore,
   onLoadMore,
+  onRowSelect,
 }: DataLeafTableProps) {
   const columnDefs = React.useMemo(() => buildDataColumns(columns), [columns]);
   const hasMore = rows.length < totalCount;
@@ -58,6 +60,7 @@ export function DataLeafTable({
         testId="data-leaf-table"
         className="min-h-0 flex-1"
         compact
+        onRowClick={onRowSelect}
       />
       {hasMore && !isLoading && (
         <div className="flex shrink-0 justify-center pt-3">
