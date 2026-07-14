@@ -540,7 +540,7 @@ const OrganizationWorkspaceView = ({
                       : 'text-foreground hover:bg-muted'
                   )}
                 >
-                  Organization
+                  Profile
                 </button>
               )}
               {[

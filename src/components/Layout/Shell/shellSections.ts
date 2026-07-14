@@ -43,10 +43,10 @@ export const USAGE_SECTION: SectionDef = {
   ],
 };
 
-/** The Organizations surface descriptor, used for the `/organizations` header. */
+/** The Organization surface descriptor, used for the `/organizations` header. */
 export const ORGANIZATIONS_SECTION: SectionDef = {
   id: 'organizations',
-  label: 'Organizations',
+  label: 'Organization',
   Icon: Building,
   kind: 'view',
   desc: 'The teams you belong to — members, roles, teams and sharing.',
