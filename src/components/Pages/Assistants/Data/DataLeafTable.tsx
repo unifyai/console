@@ -5,6 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/UI/data-table';
 import { DataTableColumnHeader } from '@/components/UI/data-table-column-header';
 import { Button } from '@/components/UI/button';
+import type { DataRow } from './dataTypes';
 
 function displayCellValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
@@ -12,9 +13,10 @@ function displayCellValue(value: unknown): string {
   return String(value);
 }
 
-function buildDataColumns(keys: string[]): ColumnDef<Record<string, unknown>>[] {
+function buildDataColumns(keys: string[]): ColumnDef<DataRow>[] {
   return keys.map((key) => ({
-    accessorKey: key,
+    id: key,
+    accessorFn: (row) => row.entries[key],
     header: ({ column }) => <DataTableColumnHeader column={column} title={key} />,
     cell: ({ row }) => {
       const raw = row.getValue(key);
@@ -29,12 +31,13 @@ function buildDataColumns(keys: string[]): ColumnDef<Record<string, unknown>>[] 
 }
 
 interface DataLeafTableProps {
-  rows: Array<Record<string, unknown>>;
+  rows: DataRow[];
   columns: string[];
   totalCount: number;
   isLoading: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
+  onRowSelect: (row: DataRow) => void;
 }
 
 export function DataLeafTable({
@@ -44,6 +47,7 @@ export function DataLeafTable({
   isLoading,
   isLoadingMore,
   onLoadMore,
+  onRowSelect,
 }: DataLeafTableProps) {
   const columnDefs = React.useMemo(() => buildDataColumns(columns), [columns]);
   const hasMore = rows.length < totalCount;
@@ -58,6 +62,7 @@ export function DataLeafTable({
         testId="data-leaf-table"
         className="min-h-0 flex-1"
         compact
+        onRowClick={onRowSelect}
       />
       {hasMore && !isLoading && (
         <div className="flex shrink-0 justify-center pt-3">

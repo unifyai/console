@@ -30,6 +30,7 @@ import {
   type MsTeamsBotInstallActions,
   type MsTeamsBotInstallOwner,
 } from '@/types/ms-teams-bot/install';
+import { subscribeMsTeamsBotBound } from '@/lib/ms-teams-bot/bindEvents';
 
 interface UseMsTeamsBotIntegrationArgs {
   owner: MsTeamsBotInstallOwner;
@@ -83,6 +84,14 @@ export function useMsTeamsBotIntegration({
     setInstall(null);
     void refresh();
   }, [owner, refresh]);
+
+  // The deep-link auto-bind writes the bind outside this hook; re-read the
+  // install so the panel reflects the connected state without a page reload.
+  useEffect(() => {
+    return subscribeMsTeamsBotBound(() => {
+      void refresh();
+    });
+  }, [refresh]);
 
   const bind = useCallback(
     async (nonce: string): Promise<boolean> => {

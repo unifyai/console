@@ -39,7 +39,13 @@ function HelpSquareIcon({ className }: { className?: string }) {
   );
 }
 
-export default function SupportTicketDialog({ triggerClassName }: { triggerClassName?: string }) {
+export default function SupportTicketDialog({
+  triggerClassName,
+  triggerLabel,
+}: {
+  triggerClassName?: string;
+  triggerLabel?: string;
+}) {
   const {
     isOpen,
     isCapturing,
@@ -80,7 +86,7 @@ export default function SupportTicketDialog({ triggerClassName }: { triggerClass
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size="icon"
+              size={triggerLabel ? 'sm' : 'icon'}
               className={cn(
                 'rounded-control relative text-muted-foreground',
                 triggerClassName ?? 'h-6 w-6 p-0'
@@ -94,6 +100,7 @@ export default function SupportTicketDialog({ triggerClassName }: { triggerClass
               ) : (
                 <HelpSquareIcon className="h-4 w-4" />
               )}
+              {triggerLabel && <span>{triggerLabel}</span>}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">

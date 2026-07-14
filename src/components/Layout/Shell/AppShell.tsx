@@ -8,6 +8,7 @@ import { HomeShell } from './HomeShell';
 import { assistantMainActions } from '@/lib/assistants/mainActions';
 import { loadAssistantsMainUserMeta } from '@/lib/assistants/mainUserMeta';
 import type { AssistantsMainUserMeta } from '@/types/assistants/main';
+import { subscribeMsTeamsBotBound } from '@/lib/ms-teams-bot/bindEvents';
 import { cn } from '@/lib/utils';
 import { Loader } from '@/components/Common/Loader';
 import {
@@ -160,6 +161,16 @@ export function AppShell({ children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // The deep-link auto-bind updates the install server-side after boot; re-read
+  // userMeta so the seeded Teams state the shell hands down stops being stale.
+  React.useEffect(() => {
+    return subscribeMsTeamsBotBound(() => {
+      void loadAssistantsMainUserMeta().then((nextUserMeta) => {
+        setUserMeta(nextUserMeta);
+      });
+    });
   }, []);
 
   const canRenderAssistants = bootstrapLoaded && userMeta;

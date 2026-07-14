@@ -30,6 +30,8 @@ export interface DataTableProps<TData, TValue> {
   testId?: string;
   /** Denser rows and smaller type — used by the Data tab leaf table. */
   compact?: boolean;
+  /** Called when a rendered row is activated by mouse or keyboard. */
+  onRowClick?: (row: TData) => void;
 }
 
 /**
@@ -44,6 +46,7 @@ export function DataTable<TData, TValue>({
   className,
   testId,
   compact = false,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -101,7 +104,21 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/30">
+                <TableRow
+                  key={row.id}
+                  className={cn(
+                    'transition-colors',
+                    onRowClick ? 'cursor-pointer hover:bg-muted' : 'hover:bg-muted/30'
+                  )}
+                  onClick={() => onRowClick?.(row.original)}
+                  onKeyDown={(event) => {
+                    if (!onRowClick || (event.key !== 'Enter' && event.key !== ' ')) return;
+                    event.preventDefault();
+                    onRowClick(row.original);
+                  }}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  data-testid={onRowClick ? 'data-table-row' : undefined}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}

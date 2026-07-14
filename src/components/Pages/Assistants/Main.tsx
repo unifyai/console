@@ -186,6 +186,7 @@ import {
   type MsTeamsBotInstallOwner,
 } from '@/types/ms-teams-bot/install';
 import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
+import { broadcastMsTeamsBotBound } from '@/lib/ms-teams-bot/bindEvents';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -1331,6 +1332,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               : 'Microsoft Teams connected to your account.'
           );
           void refetchCoordinatorOnboardingState();
+          broadcastMsTeamsBotBound();
         } else {
           console.error('[ms-teams-bot] auto-bind failed:', result);
           toast.error('Could not connect Microsoft Teams. The install code may have expired.');
@@ -2770,6 +2772,60 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
+  // Dispatch the workspace video-call beat. On click we open the provider's
+  // "new meeting" page so the user can host a Google Meet / Microsoft Teams
+  // call (Twin never creates the meeting), then emit the canonical onboarding
+  // event to Unity — the user pastes the link and Twin joins. Provider follows
+  // the connected workspace (``workspaceProvider``), defaulting to Google Meet.
+  const handleCoordinatorDispatchWorkspaceCallBeat = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      const newMeetingUrl =
+        canonicalCoordinator.workspaceProvider === 'microsoft'
+          ? 'https://teams.microsoft.com/l/meeting/new'
+          : 'https://meet.google.com/new';
+      window.open(newMeetingUrl, '_blank', 'noopener,noreferrer');
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
+      const label = resolveOnboardingStepLabel(stepId);
+      if (label) appendCoordinatorRequestSentAck(label);
+      markStepEngaged(stepId);
+      markStepRequested(stepId);
+      void (async () => {
+        try {
+          const emitted = await dispatchCoordinatorOnboardingStepEvent(
+            canonicalCoordinator.agentId,
+            step
+          );
+          if (!emitted) return;
+          void refetchCoordinatorOnboardingState();
+        } catch (error) {
+          console.error(
+            '[Coordinator onboarding] Failed to dispatch workspace call beat event:',
+            error
+          );
+          toast.error('Could not start this call. Please try again.');
+        }
+      })();
+    },
+    [
+      appendCoordinatorRequestSentAck,
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      resolveOnboardingStepLabel,
+      shouldDispatchStepRequest,
+    ]
+  );
+
   const handleCoordinatorOpenDesktopLinker = React.useCallback(
     (stepId: string) => {
       if (!canonicalCoordinator) return;
@@ -2975,6 +3031,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onConnectYourComputer: () => handleCoordinatorOpenDesktopLinker('your-computer-link'),
       onEnableDesktopFilesys: () => handleCoordinatorOpenDesktopLinker('your-computer-filesys'),
       onYourComputerDemo: () => handleCoordinatorDispatchYourComputerBeat('your-computer-demo'),
+      onWorkspaceCall: () => handleCoordinatorDispatchWorkspaceCallBeat('workspace-call'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
@@ -3020,6 +3077,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorDispatchLearningBeat,
     handleCoordinatorDispatchMyComputerBeat,
     handleCoordinatorDispatchYourComputerBeat,
+    handleCoordinatorDispatchWorkspaceCallBeat,
     handleCoordinatorOpenDesktopLinker,
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingStepSkip,
