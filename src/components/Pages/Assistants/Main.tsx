@@ -18,6 +18,7 @@ import {
   SECTION_BY_ID,
   DEFAULT_SECTION_ID,
   sectionAppliesTo,
+  resolveSectionForEntity,
   type SectionDef,
   type SelectorEntityKind,
 } from './Rail/sectionConfig';
@@ -595,40 +596,80 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const canonicalCoordinatorId = canonicalCoordinator?.agentId ?? null;
 
+  // Human/team selections keep a lightweight section id. On entity switches we
+  // carry the currently visible section when it still applies; otherwise Chat.
+  const [entitySectionId, setEntitySectionId] = React.useState<string>(DEFAULT_SECTION_ID);
+  const { clearUnread: clearOrgChatUnread } = orgChat;
+
+  const applyAssistantSection = React.useCallback((sectionId: string) => {
+    const section = SECTION_BY_ID[sectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
+    if (section.kind === 'brain-view' || section.kind === 'placeholder') {
+      setActiveBrainSectionId(section.id);
+      return;
+    }
+    setActiveBrainSectionId(null);
+    if (section.tab) {
+      const tab = section.tab;
+      setPaneState((prev) => ({ ...prev, primary: { tab } }));
+    }
+  }, []);
+
   const handleAssistantListSelect = React.useCallback(
     (assistantId: string) => {
       if (assistantId === profileAssistantId) {
         if (canonicalCoordinatorId && assistantId !== canonicalCoordinatorId) {
+          if (isNonAssistantSelection) {
+            applyAssistantSection(resolveSectionForEntity(entitySectionId, 'assistant'));
+          }
           handleShowProfile(canonicalCoordinatorId);
         }
         return;
       }
 
+      if (isNonAssistantSelection) {
+        applyAssistantSection(resolveSectionForEntity(entitySectionId, 'assistant'));
+      }
       handleShowProfile(assistantId);
     },
-    [canonicalCoordinatorId, handleShowProfile, profileAssistantId]
+    [
+      applyAssistantSection,
+      canonicalCoordinatorId,
+      entitySectionId,
+      handleShowProfile,
+      isNonAssistantSelection,
+      profileAssistantId,
+    ]
   );
 
-  // Human/team selections have their own lightweight section state (chat /
-  // members) — the assistant right-pane state is left untouched so switching
-  // back to an assistant restores exactly where the user was.
-  const [entitySectionId, setEntitySectionId] = React.useState<string>(DEFAULT_SECTION_ID);
-  const { clearUnread: clearOrgChatUnread } = orgChat;
   const handleSelectHuman = React.useCallback(
     (userId: string) => {
-      setEntitySectionId(DEFAULT_SECTION_ID);
+      const currentSectionId = isNonAssistantSelection ? entitySectionId : activeSectionId;
+      setEntitySectionId(resolveSectionForEntity(currentSectionId, 'human'));
       clearOrgChatUnread(humanEntityKey(userId));
       handleShowProfile(humanEntityKey(userId));
     },
-    [clearOrgChatUnread, handleShowProfile]
+    [
+      activeSectionId,
+      clearOrgChatUnread,
+      entitySectionId,
+      handleShowProfile,
+      isNonAssistantSelection,
+    ]
   );
   const handleSelectTeam = React.useCallback(
     (teamId: number) => {
-      setEntitySectionId(DEFAULT_SECTION_ID);
+      const currentSectionId = isNonAssistantSelection ? entitySectionId : activeSectionId;
+      setEntitySectionId(resolveSectionForEntity(currentSectionId, 'team'));
       clearOrgChatUnread(teamEntityKey(teamId));
       handleShowProfile(teamEntityKey(teamId));
     },
-    [clearOrgChatUnread, handleShowProfile]
+    [
+      activeSectionId,
+      clearOrgChatUnread,
+      entitySectionId,
+      handleShowProfile,
+      isNonAssistantSelection,
+    ]
   );
 
   const selectedHuman = React.useMemo(() => {

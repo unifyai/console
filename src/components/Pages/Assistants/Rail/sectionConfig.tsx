@@ -263,3 +263,10 @@ export const SECTION_BY_ID: Record<string, SectionDef> = Object.fromEntries(
 
 /** The section shown on first load and after picking a fresh teammate. */
 export const DEFAULT_SECTION_ID = 'chat';
+
+/** Keep the current section when it applies to the new entity; otherwise Chat. */
+export function resolveSectionForEntity(sectionId: string, kind: SelectorEntityKind): string {
+  const section = SECTION_BY_ID[sectionId];
+  if (section && sectionAppliesTo(section, kind)) return sectionId;
+  return DEFAULT_SECTION_ID;
+}
