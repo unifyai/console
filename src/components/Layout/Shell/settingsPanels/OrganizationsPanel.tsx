@@ -37,11 +37,6 @@ import {
   updateRoleAction,
   updateTeamAction,
 } from '@/lib/orchestra/api/organization';
-import {
-  getMemberSpend,
-  getMemberSpendingLimit,
-  setMemberSpendingLimit,
-} from '@/lib/organizations/member-spending';
 import { getOrgSpendingLimit, isOrgSpendingLimitData } from '@/lib/organizations/spending';
 import { getMfaSettingsAction, updateMfaSettingsAction } from '@/lib/orchestra/api/organization';
 import type { Organization } from '@/types/organization';
@@ -82,12 +77,6 @@ const roleActions = {
   getAllPermissions: getAllPermissionsAction,
   addPermissionsToRole: addPermissionsToRoleAction,
   removePermissionFromRole: removePermissionFromRoleAction,
-};
-
-const memberSpendingActions = {
-  getMemberSpend,
-  getMemberSpendingLimit,
-  setMemberSpendingLimit,
 };
 
 const mfaSettingsActions = {
@@ -174,7 +163,6 @@ export default function OrganizationsPanel() {
       actions={orgActions}
       teamActions={teamActions}
       roleActions={roleActions}
-      memberSpendingActions={memberSpendingActions}
       orgSpendingLimit={organizationBootstrap?.orgSpendingLimit ?? null}
       mfaSettingsActions={mfaSettingsActions}
       initialMfaRequired={organizationBootstrap?.initialMfaRequired ?? null}

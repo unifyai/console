@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import PersonalWorkspaceView from './PersonalWorkspaceView';
-import OrganizationWorkspaceView, { MemberSpendingActions } from './OrganizationWorkspaceView';
+import OrganizationWorkspaceView from './OrganizationWorkspaceView';
 import { Organization, OrganizationActions } from '@/types/organization';
 import { TeamActions } from '@/types/team';
 import { RoleActions } from '@/types/role';
@@ -25,8 +25,6 @@ interface MainProps {
   actions: OrganizationActions;
   teamActions: TeamActions;
   roleActions: RoleActions;
-  /** Member spending actions (optional - enables spending management) */
-  memberSpendingActions?: MemberSpendingActions;
   /** Organization spending limit for validation context */
   orgSpendingLimit?: number | null;
   /** MFA settings actions (optional - enables security settings panel) */
@@ -46,7 +44,6 @@ const Main = ({
   actions,
   teamActions,
   roleActions,
-  memberSpendingActions,
   orgSpendingLimit,
   mfaSettingsActions,
   initialMfaRequired = null,
@@ -184,8 +181,6 @@ const Main = ({
             onDeleteRole={handleDeleteRole}
             onAddRolePermission={handleAddPermission}
             onRemoveRolePermission={handleRemovePermission}
-            // Member Spending
-            memberSpendingActions={memberSpendingActions}
             orgSpendingLimit={orgSpendingLimit}
             // MFA Settings
             mfaSettingsActions={mfaSettingsActions}
