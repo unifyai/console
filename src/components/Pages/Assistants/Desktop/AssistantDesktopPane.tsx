@@ -100,7 +100,10 @@ export function AssistantDesktopPane({
     boundGetLiveviewUrl,
     false,
     shouldConnect ? DESKTOP_START_POLL_INTERVAL_MS : undefined,
-    startupAttempt
+    startupAttempt,
+    undefined,
+    undefined,
+    true
   );
 
   // Latest values for the teardown effect, which must not re-run (and thus fire

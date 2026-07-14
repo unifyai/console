@@ -43,12 +43,18 @@ export function logEntryMatchesSessionScope(
   return false;
 }
 
-/** Pick the newest scoped startup_events row that already has a liveview URL. */
+/** Pick the newest startup_events row with a liveview URL.
+ *
+ * When a scope is available, it prevents a prior session's event from being
+ * used. The standalone desktop pane has no binding/job identifier until its
+ * first ready event, so it intentionally falls back to the newest row for the
+ * same assistant. The caller still health-checks the resolved URL before use.
+ */
 export function findScopedStartupLiveviewLog(
   logs: LogProps[] | undefined,
   scope: DesktopSessionScope | null | undefined
 ): LogProps | undefined {
-  if (!logs?.length || (!scope?.bindingId && !scope?.jobName)) {
+  if (!logs?.length) {
     return undefined;
   }
   for (const log of logs) {
@@ -56,6 +62,9 @@ export function findScopedStartupLiveviewLog(
     if (!entries || typeof entries !== 'object') continue;
     const liveview = readLogEntryField(entries, 'liveview_url', 'liveviewUrl');
     if (typeof liveview !== 'string' || !liveview.trim()) continue;
+    if (!scope?.bindingId && !scope?.jobName) {
+      return log;
+    }
     if (logEntryMatchesSessionScope(entries, scope)) {
       return log;
     }
