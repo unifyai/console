@@ -88,6 +88,7 @@ interface OrganizationWorkspaceViewProps {
   onAddTeamMember: (teamId: number, userId: string) => void;
   onRemoveTeamMember: (teamId: number, userId: string) => void;
   onUpdateOrgSharingMode: (dataSharingMode: DataSharingMode) => Promise<unknown>;
+  onRefreshTeams?: () => void;
   // Role Actions
   onCreateRole: (name: string, description: string, permissionIds: number[]) => void;
   onUpdateManagedRole: (roleId: number, name: string, description: string) => void;
@@ -136,6 +137,7 @@ const OrganizationWorkspaceView = ({
   onAddTeamMember,
   onRemoveTeamMember,
   onUpdateOrgSharingMode,
+  onRefreshTeams,
   onCreateRole,
   onUpdateManagedRole,
   onDeleteRole,
@@ -739,7 +741,9 @@ const OrganizationWorkspaceView = ({
                       : (organization.dataSharingMode ?? 'private')
                   }
                   canManageOrgSharing={canUpdateOrg}
+                  canManageTeams={canManageMembers}
                   onUpdateOrgSharingMode={onUpdateOrgSharingMode}
+                  onTeamPhotoUpdated={onRefreshTeams}
                 />
               </section>
             </TabsContent>

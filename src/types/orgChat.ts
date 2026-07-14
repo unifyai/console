@@ -16,6 +16,11 @@ export interface RosterHuman {
   email: string;
   image: string | null;
   roleName: string | null;
+  bio: string | null;
+  jobTitle: string | null;
+  phoneNumber: string | null;
+  whatsappNumber: string | null;
+  timezone: string | null;
   online: boolean;
   lastSeenAt: string | null;
 }
@@ -27,6 +32,11 @@ export function parseRosterHuman(raw: Record<string, unknown>): RosterHuman {
     email: typeof raw.email === 'string' ? raw.email : '',
     image: typeof raw.image === 'string' ? raw.image : null,
     roleName: typeof raw.role_name === 'string' ? raw.role_name : null,
+    bio: typeof raw.bio === 'string' ? raw.bio : null,
+    jobTitle: typeof raw.job_title === 'string' ? raw.job_title : null,
+    phoneNumber: typeof raw.phone_number === 'string' ? raw.phone_number : null,
+    whatsappNumber: typeof raw.whatsapp_number === 'string' ? raw.whatsapp_number : null,
+    timezone: typeof raw.timezone === 'string' ? raw.timezone : null,
     online: raw.online === true,
     lastSeenAt: typeof raw.last_seen_at === 'string' ? raw.last_seen_at : null,
   };
@@ -40,6 +50,7 @@ export interface RosterTeam {
   createdAt: string | null;
   memberUserIds: string[];
   assistantMemberIds: number[];
+  image: string | null;
 }
 
 export function parseRosterTeam(raw: Record<string, unknown>): RosterTeam {
@@ -53,6 +64,7 @@ export function parseRosterTeam(raw: Record<string, unknown>): RosterTeam {
     assistantMemberIds: Array.isArray(raw.assistant_member_ids)
       ? raw.assistant_member_ids.map(Number)
       : [],
+    image: typeof raw.image === 'string' ? raw.image : null,
   };
 }
 

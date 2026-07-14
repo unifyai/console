@@ -1,23 +1,17 @@
+'use client';
+
 import * as React from 'react';
 import { Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Button } from '@/components/UI/button';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
+import { TeamMembersList, type TeamMemberAssistant } from './TeamMembersList';
 import { ChatMention, RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
-import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
-
-interface TeamWorkspaceAssistant {
-  agentId: string;
-  name: string;
-  image?: string | null;
-}
 
 interface TeamWorkspaceProps {
   team: RosterTeam;
   humansById: Record<string, RosterHuman>;
-  assistantsById: Record<string, TeamWorkspaceAssistant>;
+  assistantsById: Record<string, TeamMemberAssistant>;
   currentUserId: string | null;
   /** Which section to render: 'chat' | 'members'. */
   activeSectionId: string;
@@ -59,7 +53,7 @@ export function TeamWorkspace({
     () =>
       team.assistantMemberIds
         .map((assistantId) => assistantsById[String(assistantId)])
-        .filter((assistant): assistant is TeamWorkspaceAssistant => Boolean(assistant)),
+        .filter((assistant): assistant is TeamMemberAssistant => Boolean(assistant)),
     [team.assistantMemberIds, assistantsById]
   );
 
@@ -129,67 +123,25 @@ export function TeamWorkspace({
 
       {activeSectionId === 'members' && (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          <div className="flex flex-col gap-3">
-            {onHireForTeam && (
-              <div className="flex justify-end">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={onHireForTeam}
-                  data-testid="team-hire-button"
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Hire for this team
-                </Button>
-              </div>
-            )}
-            {humanMembers.map((human) => (
-              <div key={human.userId} className="flex items-center gap-3">
-                <div className="relative">
-                  <Avatar className="h-8 w-8">
-                    {human.image && <AvatarImage src={human.image} alt={human.name} />}
-                    <AvatarFallback
-                      className="text-caption text-semibold text-primary-foreground"
-                      style={{ backgroundColor: profileAvatarTone(human.name) }}
-                    >
-                      {profileInitials(human.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span
-                    className={cn(
-                      'absolute bottom-0 right-0 h-2 w-2 rounded-full border-2 border-background',
-                      human.online ? 'bg-green-500' : 'bg-muted-foreground/40'
-                    )}
-                    aria-label={human.online ? 'Online' : 'Offline'}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-title truncate">{human.name}</div>
-                  <div className="text-caption truncate">{human.email}</div>
-                </div>
-              </div>
-            ))}
-            {assistantMembers.map((assistant) => (
-              <div key={assistant.agentId} className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  {assistant.image && <AvatarImage src={assistant.image} alt={assistant.name} />}
-                  <AvatarFallback
-                    className="text-caption text-semibold text-primary-foreground"
-                    style={{ backgroundColor: profileAvatarTone(assistant.name) }}
+          <TeamMembersList
+            humans={humanMembers}
+            assistants={assistantMembers}
+            trailing={
+              onHireForTeam ? (
+                <div className="flex justify-end">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={onHireForTeam}
+                    data-testid="team-hire-button"
                   >
-                    {profileInitials(assistant.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <div className="text-title truncate">{assistant.name}</div>
-                  <div className="text-caption truncate">AI teammate</div>
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Hire for this team
+                  </Button>
                 </div>
-              </div>
-            ))}
-            {humanMembers.length === 0 && assistantMembers.length === 0 && (
-              <div className="text-body-muted">No members in this team.</div>
-            )}
-          </div>
+              ) : undefined
+            }
+          />
         </div>
       )}
     </div>

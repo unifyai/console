@@ -71,6 +71,7 @@ const Main = ({
   const {
     teams,
     isLoading: isLoadingTeams,
+    refreshTeams,
     handleCreateTeam,
     handleUpdateTeam,
     handleDeleteTeam,
@@ -186,6 +187,7 @@ const Main = ({
             onAddTeamMember={handleAddTeamMember}
             onRemoveTeamMember={handleRemoveTeamMember}
             onUpdateOrgSharingMode={handleUpdateOrgSharingMode}
+            onRefreshTeams={refreshTeams}
             // Role Handlers
             onCreateRole={handleCreateRole}
             onUpdateManagedRole={handleUpdateManagedRole}

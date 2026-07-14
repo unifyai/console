@@ -35,6 +35,7 @@ import {
   type AssistantListGroup,
 } from './assistantListGroups';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
@@ -233,12 +234,13 @@ function TeamListRow({
           <FoldIcon className="h-3 w-3" />
         </button>
       ) : null}
-      <span
-        className="bg-background/70 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground"
-        aria-hidden="true"
-      >
-        <UsersRound className="h-4 w-4" />
-      </span>
+      <TeamAvatar
+        name={team.name}
+        imageUrl={team.image}
+        isOrgWideSharing={team.isOrgWideSharing}
+        className="h-8 w-8"
+        iconClassName="h-4 w-4"
+      />
       <span className="min-w-0 flex-1 text-left">
         <span
           className={cn(

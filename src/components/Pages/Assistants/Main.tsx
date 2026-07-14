@@ -14,6 +14,7 @@ import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail'
 import { SectionHost } from './Rail/SectionHost';
 import { BrainSectionsHost } from './Rail/BrainSectionsHost';
 import { AssistantInfoPanelLayout } from './Layout/AssistantInfoPanelLayout';
+import { EntityInfoPanelLayout } from './Layout/EntityInfoPanelLayout';
 import {
   SECTION_BY_ID,
   DEFAULT_SECTION_ID,
@@ -33,7 +34,9 @@ import type { RosterHuman } from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
+import { HumanInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/HumanInfoSidePanelContent';
 import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
+import { TeamInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/TeamInfoSidePanelContent';
 import {
   TeamBrainSectionsHost,
   isTeamBrainSectionId,
@@ -3837,6 +3840,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         kind: 'team',
         label: selectedTeam.name,
         sublabel: `${humanCount + aiCount} members`,
+        imageUrl: selectedTeam.image ?? null,
+        isOrgWideSharing: selectedTeam.isOrgWideSharing,
       };
     }
     return null;
@@ -3968,38 +3973,75 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               }
               renderView={() => {
                 if (isNonAssistantSelection) {
-                  if (selectedEntity?.kind === 'human' && selectedHuman && activeOrganizationId) {
+                  if (
+                    selectedEntity?.kind === 'human' &&
+                    selectedHuman &&
+                    activeOrganizationId &&
+                    profileAssistantId
+                  ) {
                     return (
-                      <HumanWorkspace
-                        human={selectedHuman}
-                        orgId={activeOrganizationId}
-                        chat={orgChat}
-                      />
+                      <EntityInfoPanelLayout
+                        entityId={profileAssistantId}
+                        isActiveSurface={isActiveSurface}
+                        ariaLabel="Human profile"
+                        renderPanel={({ onClose, hideHeaderActions }) => (
+                          <HumanInfoSidePanelContent
+                            human={selectedHuman}
+                            onClose={onClose}
+                            hideHeaderActions={hideHeaderActions}
+                          />
+                        )}
+                      >
+                        <HumanWorkspace
+                          human={selectedHuman}
+                          orgId={activeOrganizationId}
+                          chat={orgChat}
+                        />
+                      </EntityInfoPanelLayout>
                     );
                   }
-                  if (selectedEntity?.kind === 'team' && selectedTeam && activeOrganizationId) {
-                    if (isTeamBrainSectionId(entitySectionId)) {
-                      return (
-                        <TeamBrainSectionsHost
-                          carrierAssistant={teamCarrierAssistant}
-                          teamId={selectedTeam.teamId}
-                          activeSectionId={entitySectionId}
-                          isActiveSurface={isActiveSurface}
-                        />
-                      );
-                    }
+                  if (
+                    selectedEntity?.kind === 'team' &&
+                    selectedTeam &&
+                    activeOrganizationId &&
+                    profileAssistantId
+                  ) {
                     return (
-                      <TeamWorkspace
-                        team={selectedTeam}
-                        humansById={rosterHumansById}
-                        assistantsById={assistantFacesById}
-                        currentUserId={currentUserId}
-                        activeSectionId={entitySectionId}
-                        chat={orgChat}
-                        onHireForTeam={
-                          canHire ? () => handleOpenHireDialog(selectedTeam.teamId) : undefined
-                        }
-                      />
+                      <EntityInfoPanelLayout
+                        entityId={profileAssistantId}
+                        isActiveSurface={isActiveSurface}
+                        ariaLabel="Team profile"
+                        renderPanel={({ onClose, hideHeaderActions }) => (
+                          <TeamInfoSidePanelContent
+                            team={selectedTeam}
+                            humansById={rosterHumansById}
+                            assistantsById={assistantFacesById}
+                            onClose={onClose}
+                            hideHeaderActions={hideHeaderActions}
+                          />
+                        )}
+                      >
+                        {isTeamBrainSectionId(entitySectionId) ? (
+                          <TeamBrainSectionsHost
+                            carrierAssistant={teamCarrierAssistant}
+                            teamId={selectedTeam.teamId}
+                            activeSectionId={entitySectionId}
+                            isActiveSurface={isActiveSurface}
+                          />
+                        ) : (
+                          <TeamWorkspace
+                            team={selectedTeam}
+                            humansById={rosterHumansById}
+                            assistantsById={assistantFacesById}
+                            currentUserId={currentUserId}
+                            activeSectionId={entitySectionId}
+                            chat={orgChat}
+                            onHireForTeam={
+                              canHire ? () => handleOpenHireDialog(selectedTeam.teamId) : undefined
+                            }
+                          />
+                        )}
+                      </EntityInfoPanelLayout>
                     );
                   }
                   return <AssistantSectionSkeleton sectionId="chat" />;
