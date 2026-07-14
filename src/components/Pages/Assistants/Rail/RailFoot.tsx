@@ -41,6 +41,7 @@ import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog'
 import ImpersonateDialog from '@/components/Layout/TopBar/ImpersonateDialog';
 import AccountResetDialog from '@/components/Layout/TopBar/AccountResetDialog';
 import { useAppShellNavigation, pathnameFromHref } from '@/lib/navigation/AppShellRouter';
+import { isSettingsFamilyPath } from '@/lib/navigation/shellRoutes';
 import { RailNavButton } from './RailNavButton';
 
 async function resolveStorageUrl(gsUrl: string): Promise<string> {
@@ -330,7 +331,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         Icon={Settings}
         label="Settings"
         collapsed={collapsed}
-        active={activePath === '/account' || activePath.startsWith('/account?')}
+        active={isSettingsFamilyPath(activePath)}
         onClick={() => navigateTo('/account')}
         testId="rail-nav-settings"
       />
