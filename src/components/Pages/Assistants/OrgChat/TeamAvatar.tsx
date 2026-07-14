@@ -9,7 +9,7 @@ import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay'
 export interface TeamAvatarProps {
   name: string;
   imageUrl?: string | null;
-  /** Managed org-wide team — fixed building icon, never initials or a custom photo. */
+  /** Managed org-wide team — building icon fallback when no org/team photo. */
   isOrgWideSharing?: boolean;
   className?: string;
   iconClassName?: string;
@@ -54,8 +54,9 @@ function useResolvedImageUrl(imageUrl: string | null | undefined): string | null
 
 /**
  * Team face used in the selector, roster rows, and Teams settings table.
- * Org (managed) teams always render a building glyph; other teams use a
- * photo when present, otherwise brand-colored initials.
+ * Org (managed) teams use the organization profile photo when present,
+ * otherwise a building glyph. Other teams use a photo when present,
+ * otherwise brand-colored initials.
  */
 export function TeamAvatar({
   name,
@@ -64,9 +65,20 @@ export function TeamAvatar({
   className,
   iconClassName = 'h-4 w-4',
 }: TeamAvatarProps) {
-  const resolvedImageUrl = useResolvedImageUrl(isOrgWideSharing ? null : imageUrl);
+  const resolvedImageUrl = useResolvedImageUrl(imageUrl);
+  const displayName = name.trim() || (isOrgWideSharing ? 'Org' : 'Team');
 
   if (isOrgWideSharing) {
+    if (resolvedImageUrl) {
+      return (
+        <Avatar className={cn('rounded-control shrink-0', className)} data-testid="org-team-avatar">
+          <AvatarImage src={resolvedImageUrl} alt={displayName} className="rounded-control" />
+          <AvatarFallback className="rounded-control flex items-center justify-center border border-border bg-muted text-muted-foreground">
+            <Building2 className={iconClassName} aria-hidden="true" />
+          </AvatarFallback>
+        </Avatar>
+      );
+    }
     return (
       <span
         className={cn(
@@ -81,7 +93,6 @@ export function TeamAvatar({
     );
   }
 
-  const displayName = name.trim() || 'Team';
   return (
     <Avatar className={cn('rounded-control shrink-0', className)}>
       {resolvedImageUrl ? (

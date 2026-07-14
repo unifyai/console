@@ -9,6 +9,7 @@ import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import type { RosterHuman } from '@/types/orgChat';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 
 interface HumanInfoSidePanelContentProps {
   human: RosterHuman;
@@ -96,13 +97,7 @@ export function HumanInfoSidePanelContent({
                 {profileInitials(displayName)}
               </AvatarFallback>
             </Avatar>
-            <span
-              className={cn(
-                'absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background',
-                human.online ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
-              )}
-              aria-label={human.online ? 'Online' : 'Offline'}
-            />
+            <PresenceStatusDot online={human.online} className="h-3 w-3" />
           </div>
           <div className="min-w-0 flex-1 space-y-0.5">
             <div className="text-title truncate" data-testid="human-info-name">

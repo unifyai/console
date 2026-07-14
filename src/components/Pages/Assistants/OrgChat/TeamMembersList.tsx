@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import type { RosterHuman } from '@/types/orgChat';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 
 export interface TeamMemberAssistant {
   agentId: string;
@@ -37,13 +38,7 @@ export function TeamMembersList({ humans, assistants, className, trailing }: Tea
                 {profileInitials(human.name)}
               </AvatarFallback>
             </Avatar>
-            <span
-              className={cn(
-                'absolute bottom-0 right-0 h-2 w-2 rounded-full border-2 border-background',
-                human.online ? 'bg-[var(--role-green)]' : 'bg-muted-foreground/40'
-              )}
-              aria-label={human.online ? 'Online' : 'Offline'}
-            />
+            <PresenceStatusDot online={human.online} />
           </div>
           <div className="min-w-0">
             <div className="text-title truncate">{human.name}</div>

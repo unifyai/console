@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
+import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
@@ -70,8 +71,8 @@ function entityInitials(label: string): string {
 
 /**
  * The rail's unity switcher: a card showing the active unity that opens a
- * popover hosting the full `AssistantList` for picking/hiring Unitys. Selecting
- * a unity switches to it and dismisses the popover.
+ * popover hosting the full `AssistantList` for picking/hiring. The popover
+ * stays open on selection; dismiss via outside click or Escape.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -98,14 +99,6 @@ export function AssistantSwitcher({
   const activeUnityStatus = activeUnity
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;
-
-  const handleShowProfile = React.useCallback(
-    (id: string) => {
-      listProps.onShowProfile(id);
-      setSwitcherOpen(false);
-    },
-    [listProps]
-  );
 
   return (
     <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
@@ -155,10 +148,10 @@ export function AssistantSwitcher({
                   </AvatarFallback>
                 </Avatar>
               )}
-              {activeEntityFace.kind === 'human' && activeEntityFace.online ? (
-                <span
-                  data-testid="rail-human-online-indicator"
-                  className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
+              {activeEntityFace.kind === 'human' ? (
+                <PresenceStatusDot
+                  online={activeEntityFace.online === true}
+                  testId="rail-human-online-indicator"
                 />
               ) : null}
             </span>
@@ -209,12 +202,7 @@ export function AssistantSwitcher({
         data-testid="rail-unity-switcher-popover"
         className="flex h-[70vh] max-h-[560px] w-[320px] flex-col overflow-hidden p-0"
       >
-        <AssistantList
-          {...listProps}
-          onShowProfile={handleShowProfile}
-          isFolded={false}
-          onToggleFold={undefined}
-        />
+        <AssistantList {...listProps} isFolded={false} onToggleFold={undefined} />
       </PopoverContent>
     </Popover>
   );

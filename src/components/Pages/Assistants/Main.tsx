@@ -30,7 +30,7 @@ import {
   teamEntityKey,
 } from '@/lib/assistants/selectedEntity';
 import { useOrgRoster } from '@/hooks/Assistants/useOrgRoster';
-import type { RosterHuman } from '@/types/orgChat';
+import { withOrgProfileImageForTeams, type RosterHuman } from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
@@ -335,6 +335,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     enabled: !!activeOrganizationId,
     onHumanActivity: markHumanOnline,
   });
+  const rosterTeams = React.useMemo(
+    () =>
+      withOrgProfileImageForTeams(
+        roster?.teams ?? [],
+        activeWorkspace?.type === 'organization' ? activeWorkspace.image : null
+      ),
+    [activeWorkspace?.image, activeWorkspace?.type, roster?.teams]
+  );
 
   const syncProfileQueryParam = React.useCallback(
     (assistantId: string | null) => {
@@ -680,9 +688,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     return roster.humans.find((human) => human.userId === selectedEntity.userId) ?? null;
   }, [roster, selectedEntity]);
   const selectedTeam = React.useMemo(() => {
-    if (selectedEntity?.kind !== 'team' || !roster) return null;
-    return roster.teams.find((team) => team.teamId === selectedEntity.teamId) ?? null;
-  }, [roster, selectedEntity]);
+    if (selectedEntity?.kind !== 'team') return null;
+    return rosterTeams.find((team) => team.teamId === selectedEntity.teamId) ?? null;
+  }, [rosterTeams, selectedEntity]);
 
   // Stale human/team selections (removed member, deleted team) fall back to
   // the coordinator once the roster has settled.
@@ -2295,12 +2303,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const hireTeams = React.useMemo(
     () =>
-      (roster?.teams ?? []).map((team) => ({
+      rosterTeams.map((team) => ({
         teamId: team.teamId,
         name: team.name,
         isOrgWideSharing: team.isOrgWideSharing,
       })),
-    [roster?.teams]
+    [rosterTeams]
   );
 
   const handleOpenHireDialog = React.useCallback(
@@ -3759,7 +3767,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       workspace: coordinatorWorkspace,
       teamsById,
       humans: rosterHumans,
-      selectableTeams: roster?.teams,
+      selectableTeams: rosterTeams,
       selectedEntityKey: isNonAssistantSelection ? profileAssistantId : null,
       onSelectHuman: handleSelectHuman,
       onSelectTeam: handleSelectTeam,
@@ -3781,7 +3789,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       coordinatorWorkspace,
       teamsById,
       rosterHumans,
-      roster?.teams,
+      rosterTeams,
       isNonAssistantSelection,
       handleSelectHuman,
       handleSelectTeam,
