@@ -149,12 +149,15 @@ function HumanListRow({
             <AvatarImage src={human.image ?? undefined} alt={displayName} />
             <AvatarFallback className="rounded-control">{nameInitials(displayName)}</AvatarFallback>
           </Avatar>
-          {human.online ? (
-            <span
-              data-testid={`human-status-indicator-${human.userId}`}
-              className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
-            />
-          ) : null}
+          <span
+            role="status"
+            aria-label={human.online ? 'Online' : 'Offline'}
+            data-testid={`human-status-indicator-${human.userId}`}
+            className={cn(
+              'absolute bottom-1 right-1 block h-2 w-2 rounded-full ring-2 ring-background',
+              human.online ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
+            )}
+          />
         </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
