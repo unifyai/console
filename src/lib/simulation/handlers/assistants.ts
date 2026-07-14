@@ -56,7 +56,6 @@ function buildAssistant(mock: MockAssistant, scenarioUser: { name: string; lastN
     contactIdentityRoots: [],
     createdAt: '2025-09-01T12:00:00.000Z',
     updatedAt: '2026-01-10T12:00:00.000Z',
-    demoId: null,
   };
 }
 

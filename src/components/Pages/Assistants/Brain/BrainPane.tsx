@@ -128,7 +128,7 @@ async function fetchAssistantNameLookup(
   }
 
   const request = (async () => {
-    const result = await fetchAssistants(workspace, true);
+    const result = await fetchAssistants(workspace);
     if (!Array.isArray(result)) {
       return new Map<number, string>();
     }

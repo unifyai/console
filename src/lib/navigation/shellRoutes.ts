@@ -12,7 +12,7 @@ export type LibrarySurface = 'interfaces' | 'favourites';
 
 export type ShellSurface = UnifiedShellSurface | LibrarySurface;
 
-export type AdminPanelId = 'home' | 'organizations' | 'plans' | 'invoices' | 'links' | 'demo';
+export type AdminPanelId = 'home' | 'organizations' | 'plans' | 'invoices' | 'links';
 
 export type SettingsPanelId =
   | 'account'
@@ -96,13 +96,6 @@ export const UNIFIED_SHELL_ROUTE_DEFINITIONS: readonly ShellRouteDefinition[] = 
     mountTier: 'cold',
     requiresUnifyAdmin: true,
   },
-  {
-    surface: 'admin',
-    panelId: 'admin:demo',
-    path: '/admin/demo',
-    mountTier: 'cold',
-    requiresUnifyAdmin: true,
-  },
 ] as const;
 
 export const LIBRARY_ROUTE_DEFINITIONS: readonly ShellRouteDefinition[] = [
@@ -183,7 +176,6 @@ export function resolveSettingsPanel(pathname: string | null | undefined): Setti
   if (normalized === '/admin/plans') return 'admin:plans';
   if (normalized === '/admin/invoices') return 'admin:invoices';
   if (normalized === '/admin/links') return 'admin:links';
-  if (normalized === '/admin/demo') return 'admin:demo';
   return null;
 }
 

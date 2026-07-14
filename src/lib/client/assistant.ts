@@ -46,14 +46,12 @@ function createDeferred<T>(): Deferred<T> {
 
 export async function fetchAssistants(
   workspace: CoordinatorWorkspaceScope,
-  includeDemo: boolean = true,
   options: { currentUserId?: string | null } = {}
 ): Promise<Assistant[] | ResponseProps> {
   const isOrgContext = workspace.type === 'organization';
   const buildParams = (listAllOrg: boolean): URLSearchParams => {
     const params = new URLSearchParams();
     if (listAllOrg) params.set('list_all_org', 'true');
-    if (includeDemo) params.set('demo', 'true');
     return params;
   };
 

@@ -18,17 +18,13 @@ import { checkCreditsBalance } from '@/lib/user/credits';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 export async function listAssistants(
-  listAllOrg: boolean = false,
-  includeDemo: boolean = false
+  listAllOrg: boolean = false
 ): Promise<Assistant[] | (ResponseProps & { status?: number })> {
   const apiKey = await requireUserApiKey();
   try {
     const url = new URL(`${getInternalApiBaseUrl()}/api/assistant`);
     if (listAllOrg) {
       url.searchParams.set('list_all_org', 'true');
-    }
-    if (includeDemo) {
-      url.searchParams.set('demo', 'true');
     }
 
     const response = await fetch(url.toString(), {
@@ -277,7 +273,7 @@ export async function createAssistant(
 export async function listSourceAssistants(): Promise<
   Assistant[] | (ResponseProps & { status?: number })
 > {
-  return listAssistants(false, false);
+  return listAssistants(false);
 }
 
 export async function checkHiringFunds(

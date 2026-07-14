@@ -51,8 +51,7 @@ export default function UsagePanel() {
   const orgId = activeOrganization?.id ?? null;
 
   const loadUsageBootstrap = React.useCallback(async (): Promise<UsageBootstrap> => {
-    const includeDemo = true;
-    const assistantsResult = await listAssistants(isOrgContext, includeDemo);
+    const assistantsResult = await listAssistants(isOrgContext);
     const nextAssistants = Array.isArray(assistantsResult) ? assistantsResult : [];
     let nextMembers: OrgMember[] = [];
     if (isAdmin && orgId) {

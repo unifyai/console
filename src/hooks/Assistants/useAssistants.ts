@@ -85,7 +85,7 @@ export function useAssistants(
       }
 
       try {
-        const listResult = await fetchAssistants(workspace, true, { currentUserId });
+        const listResult = await fetchAssistants(workspace, { currentUserId });
 
         if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) {
           // Specifically handle 403 Forbidden as a non-error state (user is not approved)

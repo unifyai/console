@@ -60,7 +60,7 @@ function useWorkspaceCoordinatorId(): string | null {
         setCoordinatorId(null);
         return;
       }
-      const assistants = await fetchAssistants(workspace, true, { currentUserId });
+      const assistants = await fetchAssistants(workspace, { currentUserId });
       if (cancelled || !Array.isArray(assistants)) return;
       const coordinator = resolveCanonicalWorkspaceCoordinator(
         assistants,

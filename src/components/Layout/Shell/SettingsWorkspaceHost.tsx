@@ -42,9 +42,6 @@ const AdminInvoicesPanel = dynamic(() => import('./settingsPanels/AdminInvoicesP
 const AdminLinksPanel = dynamic(() => import('./settingsPanels/AdminLinksPanel'), {
   loading: panelLoading,
 });
-const AdminDemoPanel = dynamic(() => import('./settingsPanels/AdminDemoPanel'), {
-  loading: panelLoading,
-});
 
 const preloadPanelById = {
   account: () => import('./settingsPanels/AccountPanel'),
@@ -56,7 +53,6 @@ const preloadPanelById = {
   'admin:plans': () => import('./settingsPanels/AdminPlansPanel'),
   'admin:invoices': () => import('./settingsPanels/AdminInvoicesPanel'),
   'admin:links': () => import('./settingsPanels/AdminLinksPanel'),
-  'admin:demo': () => import('./settingsPanels/AdminDemoPanel'),
 } satisfies Record<SettingsPanelId, () => Promise<unknown>>;
 
 const panelComponents = new Map<SettingsPanelId, React.ComponentType>([
@@ -69,7 +65,6 @@ const panelComponents = new Map<SettingsPanelId, React.ComponentType>([
   ['admin:plans', AdminPlansPanel],
   ['admin:invoices', AdminInvoicesPanel],
   ['admin:links', AdminLinksPanel],
-  ['admin:demo', AdminDemoPanel],
 ]);
 
 const WARM_PANEL_RETENTION_MS = 5 * 60 * 1000;
