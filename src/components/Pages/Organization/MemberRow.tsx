@@ -496,7 +496,7 @@ const MemberRow = ({
                 ) : spendingInfo?.isLoading ? (
                   <span className="text-caption">...</span>
                 ) : spendingInfo?.limit !== null && spendingInfo?.limit !== undefined ? (
-                  <span className={cn('text-sm', clickableClass)} onClick={handleClick}>
+                  <span className={cn('text-body-muted', clickableClass)} onClick={handleClick}>
                     {formatSpendAmount(spendingInfo.limit)}
                   </span>
                 ) : (
@@ -528,10 +528,10 @@ const MemberRow = ({
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Link href="/usage" className="flex flex-col items-center gap-0.5">
+                    <Link href="/usage" className="inline-flex flex-col items-center gap-0.5">
                       <span
                         className={cn(
-                          'text-sm font-medium hover:underline',
+                          'text-body-muted hover:underline',
                           spendingInfo?.display?.isOverLimit && 'text-destructive',
                           spendingInfo?.display?.isNearLimit &&
                             !spendingInfo?.display?.isOverLimit &&
