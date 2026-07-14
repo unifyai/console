@@ -78,6 +78,19 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     ],
   },
   {
+    id: 'members',
+    label: 'Members',
+    Icon: UsersRound,
+    kind: 'view',
+    appliesTo: ['team'],
+    desc: 'Everyone on this team — humans and AI teammates, with online status.',
+    steps: [
+      ['Scan the roster', 'Humans and AI teammates are listed with their online status.'],
+      ['Open a member', 'Select any member from the top selector to jump to them.'],
+      ['Manage the team', 'Add or remove members from Settings → Organization → Teams.'],
+    ],
+  },
+  {
     id: 'actions',
     label: 'Actions',
     Icon: Activity,
@@ -151,19 +164,6 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
       ['Browse the catalog', 'Search or filter by category to find an app.'],
       ['Review permissions', 'Open a card to see exactly what the teammate can access.'],
       ['Connect an app', 'Authorize with OAuth or paste an API key where supported.'],
-    ],
-  },
-  {
-    id: 'members',
-    label: 'Members',
-    Icon: UsersRound,
-    kind: 'view',
-    appliesTo: ['team'],
-    desc: 'Everyone on this team — humans and AI teammates, with online status.',
-    steps: [
-      ['Scan the roster', 'Humans and AI teammates are listed with their online status.'],
-      ['Open a member', 'Select any member from the top selector to jump to them.'],
-      ['Manage the team', 'Add or remove members from Settings → Organization → Teams.'],
     ],
   },
 ];
@@ -263,3 +263,10 @@ export const SECTION_BY_ID: Record<string, SectionDef> = Object.fromEntries(
 
 /** The section shown on first load and after picking a fresh teammate. */
 export const DEFAULT_SECTION_ID = 'chat';
+
+/** Keep the current section when it applies to the new entity; otherwise Chat. */
+export function resolveSectionForEntity(sectionId: string, kind: SelectorEntityKind): string {
+  const section = SECTION_BY_ID[sectionId];
+  if (section && sectionAppliesTo(section, kind)) return sectionId;
+  return DEFAULT_SECTION_ID;
+}

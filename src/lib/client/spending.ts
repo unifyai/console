@@ -1,11 +1,19 @@
 /**
  * Client-side API functions for spending endpoints.
  *
- * Covers user, organization, and assistant spending + limits.
+ * Covers user, organization, member, and assistant spending + limits.
+ * Members page uses these (not server actions) so N parallel GETs do not
+ * serialize through Next.js' per-page server-action channel.
  */
 
 import { UserSpend, UserSpendingLimitResponse } from '@/types/user/spending';
-import { OrgSpend, OrgSpendingLimitResponse } from '@/types/organization';
+import {
+  MemberSpend,
+  MemberSpendingLimitRequest,
+  MemberSpendingLimitResponse,
+  OrgSpend,
+  OrgSpendingLimitResponse,
+} from '@/types/organization';
 import { AssistantSpend, SpendingLimitResponse } from '@/types/assistants/spending';
 import { ResponseProps } from '@/types/common';
 
@@ -72,6 +80,74 @@ export async function fetchOrgSpendingLimit(
   } catch (error) {
     return {
       detail: error instanceof Error ? error.message : 'Failed to fetch org spending limit',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Organization member spending
+// ---------------------------------------------------------------------------
+
+export async function fetchMemberSpend(
+  orgId: number,
+  userId: string,
+  month?: string
+): Promise<MemberSpend | ResponseProps> {
+  try {
+    const params = new URLSearchParams();
+    if (month) params.set('month', month);
+
+    const res = await fetch(
+      `/api/organizations/${orgId}/members/${encodeURIComponent(userId)}/spending?${params}`
+    );
+    const data = await res.json();
+    if (!res.ok) return { detail: data?.detail || 'Failed to fetch member spending' };
+    return data;
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to fetch member spending',
+    };
+  }
+}
+
+export async function fetchMemberSpendingLimit(
+  orgId: number,
+  userId: string
+): Promise<MemberSpendingLimitResponse | ResponseProps> {
+  try {
+    const res = await fetch(
+      `/api/organizations/${orgId}/members/${encodeURIComponent(userId)}/spending-limit`
+    );
+    const data = await res.json();
+    if (!res.ok) return { detail: data?.detail || 'Failed to fetch member spending limit' };
+    return data;
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to fetch member spending limit',
+    };
+  }
+}
+
+export async function updateMemberSpendingLimit(
+  orgId: number,
+  userId: string,
+  payload: MemberSpendingLimitRequest
+): Promise<(MemberSpendingLimitResponse & ResponseProps) | ResponseProps> {
+  try {
+    const res = await fetch(
+      `/api/organizations/${orgId}/members/${encodeURIComponent(userId)}/spending-limit`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) return { detail: data?.detail || 'Failed to update member spending limit' };
+    return data;
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to update member spending limit',
     };
   }
 }

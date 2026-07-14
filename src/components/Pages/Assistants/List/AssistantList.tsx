@@ -34,6 +34,8 @@ import {
   type AssistantListEntry,
   type AssistantListGroup,
 } from './assistantListGroups';
+import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
@@ -91,15 +93,6 @@ interface AssistantListProps {
   entityUnreadCounts?: Record<string, number>;
 }
 
-function nameInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join('');
-}
-
 function EntityUnreadBadge({ count, testId }: { count: number; testId: string }) {
   if (count <= 0) return null;
   return (
@@ -147,14 +140,22 @@ function HumanListRow({
         <div className="relative">
           <Avatar className="rounded-control h-9 w-9 flex-shrink-0">
             <AvatarImage src={human.image ?? undefined} alt={displayName} />
-            <AvatarFallback className="rounded-control">{nameInitials(displayName)}</AvatarFallback>
+            <AvatarFallback
+              className="rounded-control text-semibold text-primary-foreground"
+              style={{ backgroundColor: profileAvatarTone(displayName) }}
+            >
+              {profileInitials(displayName)}
+            </AvatarFallback>
           </Avatar>
-          {human.online ? (
-            <span
-              data-testid={`human-status-indicator-${human.userId}`}
-              className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
-            />
-          ) : null}
+          <span
+            role="status"
+            aria-label={human.online ? 'Online' : 'Offline'}
+            data-testid={`human-status-indicator-${human.userId}`}
+            className={cn(
+              'absolute bottom-1 right-1 block h-2 w-2 rounded-full ring-2 ring-background',
+              human.online ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
+            )}
+          />
         </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -233,12 +234,13 @@ function TeamListRow({
           <FoldIcon className="h-3 w-3" />
         </button>
       ) : null}
-      <span
-        className="bg-background/70 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground"
-        aria-hidden="true"
-      >
-        <UsersRound className="h-4 w-4" />
-      </span>
+      <TeamAvatar
+        name={team.name}
+        imageUrl={team.image}
+        isOrgWideSharing={team.isOrgWideSharing}
+        className="h-8 w-8"
+        iconClassName="h-4 w-4"
+      />
       <span className="min-w-0 flex-1 text-left">
         <span
           className={cn(

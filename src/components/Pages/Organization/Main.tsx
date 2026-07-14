@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import PersonalWorkspaceView from './PersonalWorkspaceView';
-import OrganizationWorkspaceView, { MemberSpendingActions } from './OrganizationWorkspaceView';
+import OrganizationWorkspaceView from './OrganizationWorkspaceView';
 import { Organization, OrganizationActions } from '@/types/organization';
 import { TeamActions } from '@/types/team';
 import { RoleActions } from '@/types/role';
@@ -25,8 +25,6 @@ interface MainProps {
   actions: OrganizationActions;
   teamActions: TeamActions;
   roleActions: RoleActions;
-  /** Member spending actions (optional - enables spending management) */
-  memberSpendingActions?: MemberSpendingActions;
   /** Organization spending limit for validation context */
   orgSpendingLimit?: number | null;
   /** MFA settings actions (optional - enables security settings panel) */
@@ -46,7 +44,6 @@ const Main = ({
   actions,
   teamActions,
   roleActions,
-  memberSpendingActions,
   orgSpendingLimit,
   mfaSettingsActions,
   initialMfaRequired = null,
@@ -74,6 +71,7 @@ const Main = ({
   const {
     teams,
     isLoading: isLoadingTeams,
+    refreshTeams,
     handleCreateTeam,
     handleUpdateTeam,
     handleDeleteTeam,
@@ -116,15 +114,26 @@ const Main = ({
       .then((data) => {
         if (Array.isArray(data)) {
           setOrgAssistants(
-            data.map((a: Record<string, unknown>) => {
-              const camel = snakeToCamelObject<Record<string, string>>(a);
-              return {
-                agentId: camel.agentId,
-                firstName: camel.firstName,
-                surname: camel.surname,
-                userId: camel.userId,
-              };
-            })
+            data
+              .map((a: Record<string, unknown>) => {
+                const camel = snakeToCamelObject<Record<string, unknown>>(a);
+                return {
+                  agentId: String(camel.agentId ?? ''),
+                  firstName: String(camel.firstName ?? ''),
+                  surname: String(camel.surname ?? ''),
+                  userId: String(camel.userId ?? ''),
+                  isCoordinator: camel.isCoordinator === true,
+                };
+              })
+              // Every org member has a Coordinator (T-W1N); showing it only for
+              // the viewer (visibility rules) is misleading, so omit them here.
+              .filter((a) => a.agentId && a.userId && !a.isCoordinator)
+              .map(({ agentId, firstName, surname, userId }) => ({
+                agentId,
+                firstName,
+                surname,
+                userId,
+              }))
           );
         }
       })
@@ -178,14 +187,13 @@ const Main = ({
             onAddTeamMember={handleAddTeamMember}
             onRemoveTeamMember={handleRemoveTeamMember}
             onUpdateOrgSharingMode={handleUpdateOrgSharingMode}
+            onRefreshTeams={refreshTeams}
             // Role Handlers
             onCreateRole={handleCreateRole}
             onUpdateManagedRole={handleUpdateManagedRole}
             onDeleteRole={handleDeleteRole}
             onAddRolePermission={handleAddPermission}
             onRemoveRolePermission={handleRemovePermission}
-            // Member Spending
-            memberSpendingActions={memberSpendingActions}
             orgSpendingLimit={orgSpendingLimit}
             // MFA Settings
             mfaSettingsActions={mfaSettingsActions}

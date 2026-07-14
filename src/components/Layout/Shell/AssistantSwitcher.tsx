@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
+import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 
@@ -43,6 +44,8 @@ export interface ActiveEntityFace {
   sublabel?: string | null;
   imageUrl?: string | null;
   online?: boolean;
+  /** Managed org-wide team — render the fixed Org glyph instead of initials. */
+  isOrgWideSharing?: boolean;
 }
 
 interface AssistantSwitcherProps {
@@ -128,20 +131,30 @@ export function AssistantSwitcher({
             />
           ) : activeEntityFace ? (
             <span className="relative shrink-0">
-              <Avatar
-                className={cn(
-                  'rounded-control shrink-0',
-                  collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'
-                )}
-              >
-                <AvatarImage
-                  src={activeEntityFace.imageUrl ?? undefined}
-                  alt={activeEntityFace.label}
+              {activeEntityFace.kind === 'team' ? (
+                <TeamAvatar
+                  name={activeEntityFace.label}
+                  imageUrl={activeEntityFace.imageUrl}
+                  isOrgWideSharing={activeEntityFace.isOrgWideSharing}
+                  className={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
+                  iconClassName="h-5 w-5"
                 />
-                <AvatarFallback className="rounded-control">
-                  {entityInitials(activeEntityFace.label)}
-                </AvatarFallback>
-              </Avatar>
+              ) : (
+                <Avatar
+                  className={cn(
+                    'rounded-control shrink-0',
+                    collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'
+                  )}
+                >
+                  <AvatarImage
+                    src={activeEntityFace.imageUrl ?? undefined}
+                    alt={activeEntityFace.label}
+                  />
+                  <AvatarFallback className="rounded-control">
+                    {entityInitials(activeEntityFace.label)}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               {activeEntityFace.kind === 'human' && activeEntityFace.online ? (
                 <span
                   data-testid="rail-human-online-indicator"

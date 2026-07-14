@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Team } from '@/types/team';
 import { OrganizationMember } from '@/types/organization';
 import type { DataSharingMode } from '@/types/organization';
 import { Input } from '@/components/UI/input';
-import { Search, MoreVertical, Trash2, UserPlus, UserMinus, Pencil } from 'lucide-react';
+import { Search, MoreVertical, Trash2, UserPlus, UserMinus, Pencil, Camera } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import CreateTeamDialog from './CreateTeamDialog';
 import UpdateTeamDialog from './UpdateTeamDialog';
@@ -45,18 +45,131 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/UI/alert-dialog';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
+
 interface TeamListPanelProps {
   teams: Team[];
   members: OrganizationMember[];
   isLoading?: boolean;
   orgSharingMode: DataSharingMode;
   canManageOrgSharing: boolean;
+  /** When true, non-managed team avatars are clickable for photo upload. */
+  canManageTeams?: boolean;
   onCreateTeam: (name: string, desc: string) => void;
   onUpdateTeam: (teamId: number, name: string, desc: string) => void;
   onDeleteTeam: (id: number) => void;
   onAddMember: (teamId: number, userId: string) => void;
   onRemoveMember: (teamId: number, userId: string) => void;
   onUpdateOrgSharingMode: (dataSharingMode: DataSharingMode) => Promise<unknown>;
+  /** Refresh teams after a photo upload so the new gs:// URL is reflected. */
+  onTeamPhotoUpdated?: () => void;
+}
+
+function TeamPhotoCell({
+  team,
+  canUpload,
+  onUploaded,
+}: {
+  team: Team;
+  canUpload: boolean;
+  onUploaded?: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    setPreviewUrl(null);
+  }, [team.image]);
+
+  const handlePhotoSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error('Please select a JPEG, PNG, WebP, or GIF image.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be under 5MB.');
+        return;
+      }
+
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(
+          `/api/organizations/${team.organizationId}/teams/${team.id}/photo/upload`,
+          { method: 'POST', body: formData }
+        );
+        if (!res.ok) throw new Error('Upload failed');
+        setPreviewUrl(URL.createObjectURL(file));
+        toast.success('Team photo updated.');
+        onUploaded?.();
+      } catch {
+        toast.error('Failed to upload photo.');
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    },
+    [onUploaded, team.id, team.organizationId]
+  );
+
+  const isManaged = Boolean(team.isOrgWideSharing);
+  const uploadable = canUpload && !isManaged;
+
+  return (
+    <div
+      className={cn('group/avatar relative flex-shrink-0', uploadable && 'cursor-pointer')}
+      onClick={uploadable ? () => fileInputRef.current?.click() : undefined}
+      role={uploadable ? 'button' : undefined}
+      tabIndex={uploadable ? 0 : undefined}
+      onKeyDown={
+        uploadable
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }
+          : undefined
+      }
+      aria-label={uploadable ? `Change photo for ${team.name}` : undefined}
+    >
+      <TeamAvatar
+        name={team.name}
+        imageUrl={previewUrl ?? team.image}
+        isOrgWideSharing={isManaged}
+        className="h-9 w-9"
+        iconClassName="h-4 w-4"
+      />
+      {uploadable && (
+        <div className="rounded-control absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover/avatar:bg-[color:var(--overlay)] group-hover/avatar:opacity-100">
+          {isUploading ? (
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[color:var(--cream-white)] border-t-transparent" />
+          ) : (
+            <Camera className="h-3.5 w-3.5 text-[color:var(--cream-white)]" />
+          )}
+        </div>
+      )}
+      {uploadable && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={handlePhotoSelect}
+        />
+      )}
+    </div>
+  );
 }
 
 const TeamListPanel = ({
@@ -65,12 +178,14 @@ const TeamListPanel = ({
   isLoading = false,
   orgSharingMode,
   canManageOrgSharing,
+  canManageTeams = false,
   onCreateTeam,
   onUpdateTeam,
   onDeleteTeam,
   onAddMember,
   onRemoveMember,
   onUpdateOrgSharingMode,
+  onTeamPhotoUpdated,
 }: TeamListPanelProps) => {
   const [search, setSearch] = useState('');
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
@@ -225,15 +340,22 @@ const TeamListPanel = ({
             {filteredTeams.map((team) => (
               <TableRow key={team.id} className="hover:bg-muted/50">
                 <TableCell className="font-medium">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="truncate" title={team.name}>
-                      {team.name}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <TeamPhotoCell
+                      team={team}
+                      canUpload={canManageTeams}
+                      onUploaded={onTeamPhotoUpdated}
+                    />
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="truncate" title={team.name}>
+                        {team.name}
+                      </div>
+                      {team.isOrgWideSharing && (
+                        <span className="text-caption shrink-0 rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                          Managed
+                        </span>
+                      )}
                     </div>
-                    {team.isOrgWideSharing && (
-                      <span className="text-caption shrink-0 rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                        Managed
-                      </span>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
@@ -408,7 +530,10 @@ function TeamRowSkeleton() {
   return (
     <TableRow>
       <TableCell>
-        <SkeletonBar className="h-3.5 w-32" />
+        <div className="flex items-center gap-3">
+          <SkeletonBar className="rounded-control h-9 w-9" />
+          <SkeletonBar className="h-3.5 w-32" />
+        </div>
       </TableCell>
       <TableCell>
         <SkeletonBar className="h-3.5 w-64" />

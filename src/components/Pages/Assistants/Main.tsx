@@ -14,10 +14,12 @@ import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail'
 import { SectionHost } from './Rail/SectionHost';
 import { BrainSectionsHost } from './Rail/BrainSectionsHost';
 import { AssistantInfoPanelLayout } from './Layout/AssistantInfoPanelLayout';
+import { EntityInfoPanelLayout } from './Layout/EntityInfoPanelLayout';
 import {
   SECTION_BY_ID,
   DEFAULT_SECTION_ID,
   sectionAppliesTo,
+  resolveSectionForEntity,
   type SectionDef,
   type SelectorEntityKind,
 } from './Rail/sectionConfig';
@@ -32,7 +34,9 @@ import type { RosterHuman } from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
+import { HumanInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/HumanInfoSidePanelContent';
 import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
+import { TeamInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/TeamInfoSidePanelContent';
 import {
   TeamBrainSectionsHost,
   isTeamBrainSectionId,
@@ -595,40 +599,80 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const canonicalCoordinatorId = canonicalCoordinator?.agentId ?? null;
 
+  // Human/team selections keep a lightweight section id. On entity switches we
+  // carry the currently visible section when it still applies; otherwise Chat.
+  const [entitySectionId, setEntitySectionId] = React.useState<string>(DEFAULT_SECTION_ID);
+  const { clearUnread: clearOrgChatUnread } = orgChat;
+
+  const applyAssistantSection = React.useCallback((sectionId: string) => {
+    const section = SECTION_BY_ID[sectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
+    if (section.kind === 'brain-view' || section.kind === 'placeholder') {
+      setActiveBrainSectionId(section.id);
+      return;
+    }
+    setActiveBrainSectionId(null);
+    if (section.tab) {
+      const tab = section.tab;
+      setPaneState((prev) => ({ ...prev, primary: { tab } }));
+    }
+  }, []);
+
   const handleAssistantListSelect = React.useCallback(
     (assistantId: string) => {
       if (assistantId === profileAssistantId) {
         if (canonicalCoordinatorId && assistantId !== canonicalCoordinatorId) {
+          if (isNonAssistantSelection) {
+            applyAssistantSection(resolveSectionForEntity(entitySectionId, 'assistant'));
+          }
           handleShowProfile(canonicalCoordinatorId);
         }
         return;
       }
 
+      if (isNonAssistantSelection) {
+        applyAssistantSection(resolveSectionForEntity(entitySectionId, 'assistant'));
+      }
       handleShowProfile(assistantId);
     },
-    [canonicalCoordinatorId, handleShowProfile, profileAssistantId]
+    [
+      applyAssistantSection,
+      canonicalCoordinatorId,
+      entitySectionId,
+      handleShowProfile,
+      isNonAssistantSelection,
+      profileAssistantId,
+    ]
   );
 
-  // Human/team selections have their own lightweight section state (chat /
-  // members) — the assistant right-pane state is left untouched so switching
-  // back to an assistant restores exactly where the user was.
-  const [entitySectionId, setEntitySectionId] = React.useState<string>(DEFAULT_SECTION_ID);
-  const { clearUnread: clearOrgChatUnread } = orgChat;
   const handleSelectHuman = React.useCallback(
     (userId: string) => {
-      setEntitySectionId(DEFAULT_SECTION_ID);
+      const currentSectionId = isNonAssistantSelection ? entitySectionId : activeSectionId;
+      setEntitySectionId(resolveSectionForEntity(currentSectionId, 'human'));
       clearOrgChatUnread(humanEntityKey(userId));
       handleShowProfile(humanEntityKey(userId));
     },
-    [clearOrgChatUnread, handleShowProfile]
+    [
+      activeSectionId,
+      clearOrgChatUnread,
+      entitySectionId,
+      handleShowProfile,
+      isNonAssistantSelection,
+    ]
   );
   const handleSelectTeam = React.useCallback(
     (teamId: number) => {
-      setEntitySectionId(DEFAULT_SECTION_ID);
+      const currentSectionId = isNonAssistantSelection ? entitySectionId : activeSectionId;
+      setEntitySectionId(resolveSectionForEntity(currentSectionId, 'team'));
       clearOrgChatUnread(teamEntityKey(teamId));
       handleShowProfile(teamEntityKey(teamId));
     },
-    [clearOrgChatUnread, handleShowProfile]
+    [
+      activeSectionId,
+      clearOrgChatUnread,
+      entitySectionId,
+      handleShowProfile,
+      isNonAssistantSelection,
+    ]
   );
 
   const selectedHuman = React.useMemo(() => {
@@ -3796,6 +3840,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         kind: 'team',
         label: selectedTeam.name,
         sublabel: `${humanCount + aiCount} members`,
+        imageUrl: selectedTeam.image ?? null,
+        isOrgWideSharing: selectedTeam.isOrgWideSharing,
       };
     }
     return null;
@@ -3927,38 +3973,75 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               }
               renderView={() => {
                 if (isNonAssistantSelection) {
-                  if (selectedEntity?.kind === 'human' && selectedHuman && activeOrganizationId) {
+                  if (
+                    selectedEntity?.kind === 'human' &&
+                    selectedHuman &&
+                    activeOrganizationId &&
+                    profileAssistantId
+                  ) {
                     return (
-                      <HumanWorkspace
-                        human={selectedHuman}
-                        orgId={activeOrganizationId}
-                        chat={orgChat}
-                      />
+                      <EntityInfoPanelLayout
+                        entityId={profileAssistantId}
+                        isActiveSurface={isActiveSurface}
+                        ariaLabel="Human profile"
+                        renderPanel={({ onClose, hideHeaderActions }) => (
+                          <HumanInfoSidePanelContent
+                            human={selectedHuman}
+                            onClose={onClose}
+                            hideHeaderActions={hideHeaderActions}
+                          />
+                        )}
+                      >
+                        <HumanWorkspace
+                          human={selectedHuman}
+                          orgId={activeOrganizationId}
+                          chat={orgChat}
+                        />
+                      </EntityInfoPanelLayout>
                     );
                   }
-                  if (selectedEntity?.kind === 'team' && selectedTeam && activeOrganizationId) {
-                    if (isTeamBrainSectionId(entitySectionId)) {
-                      return (
-                        <TeamBrainSectionsHost
-                          carrierAssistant={teamCarrierAssistant}
-                          teamId={selectedTeam.teamId}
-                          activeSectionId={entitySectionId}
-                          isActiveSurface={isActiveSurface}
-                        />
-                      );
-                    }
+                  if (
+                    selectedEntity?.kind === 'team' &&
+                    selectedTeam &&
+                    activeOrganizationId &&
+                    profileAssistantId
+                  ) {
                     return (
-                      <TeamWorkspace
-                        team={selectedTeam}
-                        humansById={rosterHumansById}
-                        assistantsById={assistantFacesById}
-                        currentUserId={currentUserId}
-                        activeSectionId={entitySectionId}
-                        chat={orgChat}
-                        onHireForTeam={
-                          canHire ? () => handleOpenHireDialog(selectedTeam.teamId) : undefined
-                        }
-                      />
+                      <EntityInfoPanelLayout
+                        entityId={profileAssistantId}
+                        isActiveSurface={isActiveSurface}
+                        ariaLabel="Team profile"
+                        renderPanel={({ onClose, hideHeaderActions }) => (
+                          <TeamInfoSidePanelContent
+                            team={selectedTeam}
+                            humansById={rosterHumansById}
+                            assistantsById={assistantFacesById}
+                            onClose={onClose}
+                            hideHeaderActions={hideHeaderActions}
+                          />
+                        )}
+                      >
+                        {isTeamBrainSectionId(entitySectionId) ? (
+                          <TeamBrainSectionsHost
+                            carrierAssistant={teamCarrierAssistant}
+                            teamId={selectedTeam.teamId}
+                            activeSectionId={entitySectionId}
+                            isActiveSurface={isActiveSurface}
+                          />
+                        ) : (
+                          <TeamWorkspace
+                            team={selectedTeam}
+                            humansById={rosterHumansById}
+                            assistantsById={assistantFacesById}
+                            currentUserId={currentUserId}
+                            activeSectionId={entitySectionId}
+                            chat={orgChat}
+                            onHireForTeam={
+                              canHire ? () => handleOpenHireDialog(selectedTeam.teamId) : undefined
+                            }
+                          />
+                        )}
+                      </EntityInfoPanelLayout>
                     );
                   }
                   return <AssistantSectionSkeleton sectionId="chat" />;

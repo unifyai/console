@@ -10,6 +10,7 @@ export interface Team {
   memberCount?: number;
   members?: string[];
   isOrgWideSharing?: boolean;
+  image?: string | null;
 }
 
 export interface TeamActions {

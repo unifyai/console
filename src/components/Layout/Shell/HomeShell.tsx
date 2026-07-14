@@ -5,7 +5,9 @@ import { Menu } from 'lucide-react';
 import { AppRail, RAIL_COLLAPSED_STORAGE_KEY } from './AppRail';
 import { GlobalUnitySwitcher } from './GlobalUnitySwitcher';
 import { MobileShellRailProvider, useMobileShellRail } from './MobileShellRailContext';
+import { useAssistantSwitcherBridge } from './AssistantSwitcherBridgeContext';
 import type { SectionDef } from '@/components/Pages/Assistants/Rail/sectionConfig';
+import { parseSelectedEntityKey } from '@/lib/assistants/selectedEntity';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
 import { Sheet, SheetContent } from '@/components/UI/sheet';
 import { Button } from '@/components/UI/button';
@@ -28,8 +30,15 @@ interface HomeShellProps {
 export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) {
   const { navigateToAssistants } = useAppShellNavigation();
   const { isBelowMobile, isBelowTablet } = useBreakpoint();
+  const bridge = useAssistantSwitcherBridge();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
+
+  const entityKind = React.useMemo(() => {
+    const selectionKey =
+      bridge?.listProps?.selectedEntityKey ?? bridge?.listProps?.profileAssistantId ?? null;
+    return parseSelectedEntityKey(selectionKey)?.kind ?? 'assistant';
+  }, [bridge?.listProps?.profileAssistantId, bridge?.listProps?.selectedEntityKey]);
 
   React.useEffect(() => {
     const stored = window.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
@@ -76,6 +85,7 @@ export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) 
       onSelectSection={handleSelectSection}
       collapsed={isBelowMobile ? false : collapsed}
       onBrandClick={handleBrandClick}
+      entityKind={entityKind}
       onCollapsedChange={(next) => {
         if (isBelowMobile && next) {
           setMobileRailOpen(false);

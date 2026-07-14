@@ -104,7 +104,7 @@ export function SettingsShell({
     () => [
       {
         id: 'organizations',
-        label: 'Organizations',
+        label: 'Organization',
         Icon: Building,
         href: '/organizations',
         show: !isSelfHost,

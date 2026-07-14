@@ -4,15 +4,10 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Organization,
-  MemberSpend,
-  MemberSpendingLimitResponse,
-  MemberSpendingLimitRequest,
   isMemberSpendData,
-  isMemberSpendingLimitData,
   calculateMemberSpendingDisplay,
   getCurrentMonth,
 } from '@/types/organization';
-import { ResponseProps } from '@/types/common';
 import { UnifiedMember } from '@/hooks/Organizations/useOrganization';
 import { Team } from '@/types/team';
 import type { DataSharingMode } from '@/types/organization';
@@ -28,6 +23,7 @@ import InviteMemberDialog from './InviteMemberDialog';
 import TeamListPanel from './TeamListPanel';
 import RoleListPanel from './RoleListPanel';
 import { MfaSettingsActions } from './SecuritySettingsPanel';
+import { fetchMemberSpend, updateMemberSpendingLimit } from '@/lib/client/spending';
 
 // `MemberSpendingDialog` is only rendered when a row's three-dot menu
 // triggers it, so there's no point shipping it (or its formatting/
@@ -49,24 +45,6 @@ import { Tabs, TabsContent } from '@/components/UI/tabs';
 import { toast } from 'sonner';
 import OrganizationSettingsTab from './OrganizationSettingsTab';
 import OrganizationSecurityTab from './OrganizationSecurityTab';
-
-/** Type for member spending server actions */
-export interface MemberSpendingActions {
-  getMemberSpend: (
-    orgId: number,
-    userId: string,
-    month?: string
-  ) => Promise<MemberSpend | ResponseProps>;
-  getMemberSpendingLimit: (
-    orgId: number,
-    userId: string
-  ) => Promise<MemberSpendingLimitResponse | ResponseProps>;
-  setMemberSpendingLimit: (
-    orgId: number,
-    userId: string,
-    payload: MemberSpendingLimitRequest
-  ) => Promise<(MemberSpendingLimitResponse & ResponseProps) | ResponseProps>;
-}
 
 interface OrganizationWorkspaceViewProps {
   organization: Organization;
@@ -110,14 +88,13 @@ interface OrganizationWorkspaceViewProps {
   onAddTeamMember: (teamId: number, userId: string) => void;
   onRemoveTeamMember: (teamId: number, userId: string) => void;
   onUpdateOrgSharingMode: (dataSharingMode: DataSharingMode) => Promise<unknown>;
+  onRefreshTeams?: () => void;
   // Role Actions
   onCreateRole: (name: string, description: string, permissionIds: number[]) => void;
   onUpdateManagedRole: (roleId: number, name: string, description: string) => void;
   onDeleteRole: (roleId: number) => void;
   onAddRolePermission: (roleId: number, permissionIds: number[]) => void;
   onRemoveRolePermission: (roleId: number, permissionId: number) => void;
-  // Member Spending Actions (optional - if not provided, spending features are disabled)
-  memberSpendingActions?: MemberSpendingActions;
   // Organization spending limit (for validation context)
   orgSpendingLimit?: number | null;
   // MFA Settings Actions (optional - if not provided, security settings are hidden)
@@ -160,12 +137,12 @@ const OrganizationWorkspaceView = ({
   onAddTeamMember,
   onRemoveTeamMember,
   onUpdateOrgSharingMode,
+  onRefreshTeams,
   onCreateRole,
   onUpdateManagedRole,
   onDeleteRole,
   onAddRolePermission,
   onRemoveRolePermission,
-  memberSpendingActions,
   orgSpendingLimit,
   mfaSettingsActions,
   initialMfaRequired = null,
@@ -207,27 +184,27 @@ const OrganizationWorkspaceView = ({
   const [roleFilter, setRoleFilter] = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
 
-  // Member spending state
+  // Member spending state — loaded via parallel client `/api` GETs (not
+  // server actions). Server actions on this page serialize through one
+  // Next.js channel and also trigger RSC refreshes that remount this
+  // tree, which is what made spend/limit columns flash in and out.
   const [memberSpendingMap, setMemberSpendingMap] = useState<Map<string, MemberSpendingInfo>>(
     new Map()
   );
   const [selectedMemberForSpending, setSelectedMemberForSpending] = useState<UnifiedMember | null>(
     null
   );
+  const spendingFetchGenerationRef = useRef(0);
+  const memberSpendingMapRef = useRef(memberSpendingMap);
+  memberSpendingMapRef.current = memberSpendingMap;
 
   // Pre-resolved signed URLs for member avatars: gs://… → https://…
   // Populated in one batched call instead of one per `MemberRow`.
   const [signedAvatarUrls, setSignedAvatarUrls] = useState<Record<string, string>>({});
 
-  // Check if spending features are available
-  const spendingEnabled = !!memberSpendingActions;
-
   // Stable key over the active member ids — used as the dep for the
   // spending fetch so the callback only re-creates when the actual
-  // roster changes, not on every reference churn of `unifiedMembers`
-  // (which can happen on each server-action roundtrip and would
-  // otherwise re-arm the fetch effect → another server-action call →
-  // another re-render → infinite loop).
+  // roster changes, not on every reference churn of `unifiedMembers`.
   const activeMemberIdsKey = useMemo(
     () =>
       unifiedMembers
@@ -238,51 +215,58 @@ const OrganizationWorkspaceView = ({
     [unifiedMembers]
   );
 
-  // Read-through refs so the spending fetch can reach the latest
-  // values without taking a dependency on their (unstable across
-  // server-action roundtrips) references.
+  // Read-through ref so the spending fetch can reach the latest roster
+  // without taking a dependency on an unstable array reference.
   const unifiedMembersRef = useRef(unifiedMembers);
   useEffect(() => {
     unifiedMembersRef.current = unifiedMembers;
   });
-  const memberSpendingActionsRef = useRef(memberSpendingActions);
-  memberSpendingActionsRef.current = memberSpendingActions;
 
-  // Fetch spending data for all active members
+  // Fetch spending for active members. Preserves already-loaded values
+  // while in flight so columns don't flicker back to "...". Only hits
+  // the network for members that do not already have settled data.
   const fetchMemberSpending = useCallback(async () => {
-    const actions = memberSpendingActionsRef.current;
-    if (!actions) return;
-
     const currentMonth = getCurrentMonth();
     const activeMembers = unifiedMembersRef.current.filter(
       (m) => m.status === 'active' && m.userId
     );
+    const activeIds = new Set(activeMembers.map((m) => m.userId!));
+    const generation = ++spendingFetchGenerationRef.current;
+    const prev = memberSpendingMapRef.current;
 
-    const newMap = new Map<string, MemberSpendingInfo>();
-
-    // Set loading state for all members
-    activeMembers.forEach((m) => {
-      if (m.userId) {
-        newMap.set(m.userId, {
-          currentSpend: 0,
-          limit: null,
-          display: null,
-          isLoading: true,
-        });
-      }
+    const membersToFetch = activeMembers.filter((member) => {
+      const existing = prev.get(member.userId!);
+      return !existing || existing.isLoading;
     });
-    setMemberSpendingMap(new Map(newMap));
 
-    // Fetch spending data for each member
+    setMemberSpendingMap(() => {
+      const next = new Map<string, MemberSpendingInfo>();
+      for (const member of activeMembers) {
+        const userId = member.userId!;
+        const existing = prev.get(userId);
+        if (existing && !existing.isLoading) {
+          next.set(userId, existing);
+        } else {
+          next.set(userId, {
+            currentSpend: existing?.currentSpend ?? 0,
+            limit: existing?.limit ?? null,
+            display: existing?.display ?? null,
+            isLoading: true,
+          });
+        }
+      }
+      return next;
+    });
+
+    if (membersToFetch.length === 0) return;
+
     await Promise.all(
-      activeMembers.map(async (member) => {
-        if (!member.userId) return;
-
+      membersToFetch.map(async (member) => {
+        const userId = member.userId!;
         try {
-          const [spendResult, limitResult] = await Promise.all([
-            actions.getMemberSpend(organization.id, member.userId, currentMonth),
-            actions.getMemberSpendingLimit(organization.id, member.userId),
-          ]);
+          // Spend payload already includes the member's monthly limit.
+          const spendResult = await fetchMemberSpend(organization.id, userId, currentMonth);
+          if (generation !== spendingFetchGenerationRef.current) return;
 
           let spendData: MemberSpendingInfo = {
             currentSpend: 0,
@@ -292,44 +276,40 @@ const OrganizationWorkspaceView = ({
           };
 
           if (isMemberSpendData(spendResult)) {
-            spendData.currentSpend = spendResult.cumulativeSpend;
-            spendData.limit = spendResult.limit;
-            spendData.display = calculateMemberSpendingDisplay(spendResult);
+            spendData = {
+              currentSpend: spendResult.cumulativeSpend,
+              limit: spendResult.limit,
+              display: calculateMemberSpendingDisplay(spendResult),
+              isLoading: false,
+            };
           }
 
-          if (isMemberSpendingLimitData(limitResult)) {
-            spendData.limit = limitResult.monthlySpendingCap;
-            // Recalculate display with the limit from the limit endpoint
-            if (isMemberSpendData(spendResult)) {
-              spendData.display = calculateMemberSpendingDisplay({
-                ...spendResult,
-                limit: limitResult.monthlySpendingCap,
-              });
-            }
-          }
-
-          newMap.set(member.userId, spendData);
+          setMemberSpendingMap((current) => {
+            if (!activeIds.has(userId)) return current;
+            const next = new Map(current);
+            next.set(userId, spendData);
+            return next;
+          });
         } catch (err) {
-          console.error(`Failed to fetch spending for member ${member.userId}:`, err);
-          newMap.set(member.userId, {
-            currentSpend: 0,
-            limit: null,
-            display: null,
-            isLoading: false,
+          if (generation !== spendingFetchGenerationRef.current) return;
+          console.error(`Failed to fetch spending for member ${userId}:`, err);
+          setMemberSpendingMap((current) => {
+            const existing = current.get(userId);
+            // Keep prior values on failure rather than wiping to blank.
+            if (existing && !existing.isLoading) return current;
+            const next = new Map(current);
+            next.set(userId, {
+              currentSpend: 0,
+              limit: null,
+              display: null,
+              isLoading: false,
+            });
+            return next;
           });
         }
       })
     );
-
-    setMemberSpendingMap(new Map(newMap));
-    // `activeMemberIdsKey` is a stable string fingerprint of
-    // `unifiedMembersRef.current`'s active userIds; we don't read it
-    // inside the body, but listing it here is the whole point — it
-    // re-binds the callback only when the active member set actually
-    // changes, instead of on every parent re-render (which would
-    // restart the spending fetches and tip back into the RSC loop).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMemberIdsKey, organization.id]);
+  }, [organization.id]);
 
   // Pull the permissions catalog the first time the Roles tab is
   // opened. The `onLoadPermissions` callback is idempotent in
@@ -398,10 +378,10 @@ const OrganizationWorkspaceView = ({
   // saw on the default Organization tab and that competed with
   // members/avatar fetches over the browser's connection pool.
   useEffect(() => {
-    if (spendingEnabled && activeTab === 'members') {
+    if (activeTab === 'members') {
       fetchMemberSpending();
     }
-  }, [spendingEnabled, activeTab, fetchMemberSpending]);
+  }, [activeTab, activeMemberIdsKey, fetchMemberSpending]);
 
   // Handle opening the spending dialog for a member
   const handleEditSpendingLimit = useCallback(
@@ -417,26 +397,41 @@ const OrganizationWorkspaceView = ({
   // Handle saving a member's spending limit
   const handleSaveSpendingLimit = useCallback(
     async (newLimit: number | null): Promise<{ success: boolean; error?: string }> => {
-      const actions = memberSpendingActionsRef.current;
-      if (!actions || !selectedMemberForSpending?.userId) {
+      const userId = selectedMemberForSpending?.userId;
+      if (!userId) {
         return { success: false, error: 'Spending actions not available' };
       }
 
       try {
-        const result = await actions.setMemberSpendingLimit(
-          organization.id,
-          selectedMemberForSpending.userId,
-          { monthlySpendingCap: newLimit }
-        );
+        const result = await updateMemberSpendingLimit(organization.id, userId, {
+          monthlySpendingCap: newLimit,
+        });
 
-        if ('detail' in result && !('info' in result)) {
+        if ('detail' in result && !('info' in result) && !('monthlySpendingCap' in result)) {
           return { success: false, error: result.detail as string };
         }
 
         toast.success('Spending limit updated successfully');
 
-        // Refresh spending data
-        await fetchMemberSpending();
+        const currentMonth = getCurrentMonth();
+        const spendResult = await fetchMemberSpend(organization.id, userId, currentMonth);
+        if (isMemberSpendData(spendResult)) {
+          const limit =
+            'monthlySpendingCap' in result ? (result.monthlySpendingCap ?? newLimit) : newLimit;
+          setMemberSpendingMap((prev) => {
+            const next = new Map(prev);
+            next.set(userId, {
+              currentSpend: spendResult.cumulativeSpend,
+              limit,
+              display: calculateMemberSpendingDisplay({
+                ...spendResult,
+                limit,
+              }),
+              isLoading: false,
+            });
+            return next;
+          });
+        }
 
         return { success: true };
       } catch (err) {
@@ -444,11 +439,12 @@ const OrganizationWorkspaceView = ({
         return { success: false, error: errorMsg };
       }
     },
-    [selectedMemberForSpending, organization.id, fetchMemberSpending]
+    [selectedMemberForSpending, organization.id]
   );
 
   // Permission Logic
   const isOrgOwner = organization.ownerId === currentUserId;
+  const spendingEnabled = true;
 
   const currentUserPermissions = useMemo(() => {
     const currentUserMember = unifiedMembers.find((m) => m.userId === currentUserId);
@@ -546,7 +542,7 @@ const OrganizationWorkspaceView = ({
                       : 'text-foreground hover:bg-muted'
                   )}
                 >
-                  Organization
+                  Profile
                 </button>
               )}
               {[
@@ -745,7 +741,9 @@ const OrganizationWorkspaceView = ({
                       : (organization.dataSharingMode ?? 'private')
                   }
                   canManageOrgSharing={canUpdateOrg}
+                  canManageTeams={canManageMembers}
                   onUpdateOrgSharingMode={onUpdateOrgSharingMode}
+                  onTeamPhotoUpdated={onRefreshTeams}
                 />
               </section>
             </TabsContent>
