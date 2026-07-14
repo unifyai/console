@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
+import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
@@ -155,10 +156,10 @@ export function AssistantSwitcher({
                   </AvatarFallback>
                 </Avatar>
               )}
-              {activeEntityFace.kind === 'human' && activeEntityFace.online ? (
-                <span
-                  data-testid="rail-human-online-indicator"
-                  className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
+              {activeEntityFace.kind === 'human' ? (
+                <PresenceStatusDot
+                  online={activeEntityFace.online === true}
+                  testId="rail-human-online-indicator"
                 />
               ) : null}
             </span>

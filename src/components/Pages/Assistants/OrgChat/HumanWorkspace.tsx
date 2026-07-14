@@ -1,10 +1,10 @@
 import * as React from 'react';
-import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
 import { RosterHuman } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 
 interface HumanWorkspaceProps {
   human: RosterHuman;
@@ -61,13 +61,7 @@ export function HumanWorkspace({ human, chat }: HumanWorkspaceProps) {
               {profileInitials(human.name)}
             </AvatarFallback>
           </Avatar>
-          <span
-            className={cn(
-              'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background',
-              human.online ? 'bg-green-500' : 'bg-muted-foreground/40'
-            )}
-            aria-label={human.online ? 'Online' : 'Offline'}
-          />
+          <PresenceStatusDot online={human.online} />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">

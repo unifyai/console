@@ -176,9 +176,9 @@ export function AssistantListItem({
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative">
           {isCoordinator ? (
-            <CoordinatorLogoAvatar className="h-9 w-9 flex-shrink-0" />
+            <CoordinatorLogoAvatar className="h-8 w-8 flex-shrink-0" />
           ) : (
-            renderPhotoAvatar('h-9 w-9 flex-shrink-0')
+            renderPhotoAvatar('h-8 w-8 flex-shrink-0')
           )}
           <AssistantPresenceIndicator
             status={status}

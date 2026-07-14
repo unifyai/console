@@ -36,6 +36,7 @@ import {
 } from './assistantListGroups';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
+import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
@@ -138,7 +139,7 @@ function HumanListRow({
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative">
-          <Avatar className="rounded-control h-9 w-9 flex-shrink-0">
+          <Avatar className="rounded-control h-8 w-8 flex-shrink-0">
             <AvatarImage src={human.image ?? undefined} alt={displayName} />
             <AvatarFallback
               className="rounded-control text-semibold text-primary-foreground"
@@ -147,14 +148,9 @@ function HumanListRow({
               {profileInitials(displayName)}
             </AvatarFallback>
           </Avatar>
-          <span
-            role="status"
-            aria-label={human.online ? 'Online' : 'Offline'}
-            data-testid={`human-status-indicator-${human.userId}`}
-            className={cn(
-              'absolute bottom-1 right-1 block h-2 w-2 rounded-full ring-2 ring-background',
-              human.online ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
-            )}
+          <PresenceStatusDot
+            online={human.online}
+            testId={`human-status-indicator-${human.userId}`}
           />
         </div>
         <div className="min-w-0">
