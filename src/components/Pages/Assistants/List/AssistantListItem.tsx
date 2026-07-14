@@ -252,11 +252,6 @@ export function AssistantListItem({
             {unreadLabel}
           </span>
         )}
-        {assistant.demoId && (
-          <span className="text-caption text-muted-foreground">
-            <Badge variant="outline">Demo</Badge>
-          </span>
-        )}
         {isCallActive && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>

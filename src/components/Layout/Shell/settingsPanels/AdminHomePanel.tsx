@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Building2, ChevronRight, Link2, Receipt, Sparkles, Tag } from 'lucide-react';
+import { Building2, ChevronRight, Link2, Receipt, Tag } from 'lucide-react';
 import { Card } from '@/components/UI/card';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 
@@ -32,12 +32,6 @@ const tools = [
     title: 'One-time Credit Grant Links',
     blurb: 'Generate one-time tokens to grant credits to new users via a claim link.',
     Icon: Link2,
-  },
-  {
-    href: '/admin/demo',
-    title: 'Demo Assistants',
-    blurb: 'Assistants used for demos and lead generation.',
-    Icon: Sparkles,
   },
 ];
 
