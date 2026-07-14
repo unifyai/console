@@ -78,6 +78,19 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     ],
   },
   {
+    id: 'members',
+    label: 'Members',
+    Icon: UsersRound,
+    kind: 'view',
+    appliesTo: ['team'],
+    desc: 'Everyone on this team — humans and AI teammates, with online status.',
+    steps: [
+      ['Scan the roster', 'Humans and AI teammates are listed with their online status.'],
+      ['Open a member', 'Select any member from the top selector to jump to them.'],
+      ['Manage the team', 'Add or remove members from Settings → Organization → Teams.'],
+    ],
+  },
+  {
     id: 'actions',
     label: 'Actions',
     Icon: Activity,
@@ -151,19 +164,6 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
       ['Browse the catalog', 'Search or filter by category to find an app.'],
       ['Review permissions', 'Open a card to see exactly what the teammate can access.'],
       ['Connect an app', 'Authorize with OAuth or paste an API key where supported.'],
-    ],
-  },
-  {
-    id: 'members',
-    label: 'Members',
-    Icon: UsersRound,
-    kind: 'view',
-    appliesTo: ['team'],
-    desc: 'Everyone on this team — humans and AI teammates, with online status.',
-    steps: [
-      ['Scan the roster', 'Humans and AI teammates are listed with their online status.'],
-      ['Open a member', 'Select any member from the top selector to jump to them.'],
-      ['Manage the team', 'Add or remove members from Settings → Organization → Teams.'],
     ],
   },
 ];
