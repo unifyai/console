@@ -71,8 +71,8 @@ function entityInitials(label: string): string {
 
 /**
  * The rail's unity switcher: a card showing the active unity that opens a
- * popover hosting the full `AssistantList` for picking/hiring Unitys. Selecting
- * a unity switches to it and dismisses the popover.
+ * popover hosting the full `AssistantList` for picking/hiring. The popover
+ * stays open on selection; dismiss via outside click or Escape.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -99,14 +99,6 @@ export function AssistantSwitcher({
   const activeUnityStatus = activeUnity
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;
-
-  const handleShowProfile = React.useCallback(
-    (id: string) => {
-      listProps.onShowProfile(id);
-      setSwitcherOpen(false);
-    },
-    [listProps]
-  );
 
   return (
     <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
@@ -210,12 +202,7 @@ export function AssistantSwitcher({
         data-testid="rail-unity-switcher-popover"
         className="flex h-[70vh] max-h-[560px] w-[320px] flex-col overflow-hidden p-0"
       >
-        <AssistantList
-          {...listProps}
-          onShowProfile={handleShowProfile}
-          isFolded={false}
-          onToggleFold={undefined}
-        />
+        <AssistantList {...listProps} isFolded={false} onToggleFold={undefined} />
       </PopoverContent>
     </Popover>
   );

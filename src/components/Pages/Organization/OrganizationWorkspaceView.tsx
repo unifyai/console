@@ -735,6 +735,7 @@ const OrganizationWorkspaceView = ({
                   onDeleteTeam={onDeleteTeam}
                   onAddMember={onAddTeamMember}
                   onRemoveMember={onRemoveTeamMember}
+                  organizationImage={organization.image}
                   orgSharingMode={
                     teams.some((team) => team.isOrgWideSharing)
                       ? 'shared'

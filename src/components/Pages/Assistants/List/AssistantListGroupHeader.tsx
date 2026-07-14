@@ -39,7 +39,6 @@ export function AssistantListGroupHeader({
       aria-expanded={!isFolded}
       onClick={onToggleFold}
     >
-      <Icon className="h-3 w-3 shrink-0" />
       {icon ? (
         <span
           className={cn(
@@ -53,9 +52,15 @@ export function AssistantListGroupHeader({
       ) : null}
       <span className="min-w-0 flex-1 text-left">
         <span
-          className={cn('block truncate font-medium', variant === 'workspace' && 'text-foreground')}
+          className={cn(
+            'flex min-w-0 items-center gap-1',
+            variant === 'workspace' && 'text-foreground'
+          )}
         >
-          {label}
+          <span className="truncate font-medium">{label}</span>
+          {variant === 'workspace' ? (
+            <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+          ) : null}
         </span>
         {subtitle ? (
           <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
@@ -72,6 +77,7 @@ export function AssistantListGroupHeader({
             {badgeLabel}
           </span>
         ) : null}
+        {variant !== 'workspace' ? <Icon className="h-3 w-3 shrink-0" aria-hidden="true" /> : null}
       </span>
     </button>
   );

@@ -216,20 +216,6 @@ function TeamListRow({
         onSelect();
       }}
     >
-      {onToggleFold ? (
-        <button
-          type="button"
-          aria-expanded={!isFoldedGroup}
-          aria-label={isFoldedGroup ? 'Expand team' : 'Collapse team'}
-          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleFold();
-          }}
-        >
-          <FoldIcon className="h-3 w-3" />
-        </button>
-      ) : null}
       <TeamAvatar
         name={team.name}
         imageUrl={team.image}
@@ -238,13 +224,29 @@ function TeamListRow({
         iconClassName="h-4 w-4"
       />
       <span className="min-w-0 flex-1 text-left">
-        <span
-          className={cn(
-            'block truncate text-xs font-medium',
-            isSelected ? 'text-accent-soft-foreground' : 'text-foreground'
-          )}
-        >
-          {team.name}
+        <span className="flex min-w-0 items-center gap-1">
+          <span
+            className={cn(
+              'truncate text-xs font-medium',
+              isSelected ? 'text-accent-soft-foreground' : 'text-foreground'
+            )}
+          >
+            {team.name}
+          </span>
+          {onToggleFold ? (
+            <button
+              type="button"
+              aria-expanded={!isFoldedGroup}
+              aria-label={isFoldedGroup ? 'Expand team' : 'Collapse team'}
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleFold();
+              }}
+            >
+              <FoldIcon className="h-3 w-3" />
+            </button>
+          ) : null}
         </span>
         <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
           {subtitle}
@@ -489,35 +491,117 @@ export function AssistantList({
     return renderedRows;
   }, [foldedAssistantRows, isFolded, renderAssistantRow]);
 
+  const renderHumanRows = React.useCallback(
+    (teamHumans: RosterHuman[], keyPrefix: string) => {
+      if (!onSelectHuman || teamHumans.length === 0) return null;
+      return (
+        <div className="min-w-0 space-y-1">
+          {teamHumans.map((human) => (
+            <HumanListRow
+              key={`${keyPrefix}:${human.userId}`}
+              human={human}
+              isSelected={selectedEntityKey === humanEntityKey(human.userId)}
+              isYou={human.userId === currentUserId}
+              unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+              onSelect={() => onSelectHuman(human.userId)}
+            />
+          ))}
+        </div>
+      );
+    },
+    [currentUserId, entityUnreadCounts, onSelectHuman, selectedEntityKey]
+  );
+
+  const renderNestedRealVirtual = React.useCallback(
+    (groupId: string, teamHumans: RosterHuman[], virtualEntries: AssistantListEntry[]) => {
+      const realId = `${groupId}:real`;
+      const virtualId = `${groupId}:virtual`;
+      const showReal = Boolean(onSelectHuman && teamHumans.length > 0);
+      const showVirtual = virtualEntries.length > 0;
+      if (!showReal && !showVirtual) return null;
+
+      return (
+        <div className="min-w-0 space-y-2 pl-1 pt-1">
+          {showReal ? (
+            <div data-testid={`assistant-list-group-${realId}`} className="min-w-0">
+              <AssistantListGroupHeader
+                label="Real"
+                isFolded={foldedGroups[realId] === true}
+                onToggleFold={() => toggleGroupFold(realId)}
+                variant="group"
+              />
+              {foldedGroups[realId] !== true ? (
+                <div className="min-w-0 pt-1">{renderHumanRows(teamHumans, realId)}</div>
+              ) : null}
+            </div>
+          ) : null}
+          {showVirtual ? (
+            <div data-testid={`assistant-list-group-${virtualId}`} className="min-w-0">
+              <AssistantListGroupHeader
+                label="Virtual"
+                isFolded={foldedGroups[virtualId] === true}
+                onToggleFold={() => toggleGroupFold(virtualId)}
+                variant="group"
+              />
+              {foldedGroups[virtualId] !== true ? (
+                <div className="min-w-0 space-y-1 pt-1">
+                  {virtualEntries.map((entry) =>
+                    renderAssistantRow(entry, `${virtualId}:${entry.assistant.agentId}`)
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      );
+    },
+    [foldedGroups, onSelectHuman, renderAssistantRow, renderHumanRows, toggleGroupFold]
+  );
+
+  const renderRosterTeam = React.useCallback(
+    (team: RosterTeam, virtualEntries: AssistantListEntry[]) => {
+      const groupId = `team:${team.teamId}`;
+      const isGroupFolded = foldedGroups[groupId] === true;
+      const memberIds = new Set(team.memberUserIds);
+      const teamHumans = filteredHumans.filter((human) => memberIds.has(human.userId));
+      const hasNested =
+        (Boolean(onSelectHuman) && teamHumans.length > 0) || virtualEntries.length > 0;
+
+      return (
+        <div
+          key={groupId}
+          className="min-w-0 space-y-1"
+          data-testid={`assistant-list-group-${groupId}`}
+        >
+          <TeamListRow
+            team={team}
+            isSelected={selectedEntityKey === teamEntityKey(team.teamId)}
+            unreadCount={entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0}
+            onSelect={() => onSelectTeam?.(team.teamId)}
+            isFoldedGroup={isGroupFolded}
+            onToggleFold={hasNested ? () => toggleGroupFold(groupId) : undefined}
+          />
+          {!isGroupFolded && hasNested
+            ? renderNestedRealVirtual(groupId, teamHumans, virtualEntries)
+            : null}
+        </div>
+      );
+    },
+    [
+      entityUnreadCounts,
+      filteredHumans,
+      foldedGroups,
+      onSelectHuman,
+      onSelectTeam,
+      renderNestedRealVirtual,
+      selectedEntityKey,
+      toggleGroupFold,
+    ]
+  );
+
   const renderGroup = React.useCallback(
     (group: AssistantListGroup) => {
       const isGroupFolded = foldedGroups[group.id] === true;
-      const rosterTeam = group.kind === 'team' ? rosterTeamsById[group.teamId] : undefined;
-      if (group.kind === 'team' && rosterTeam && onSelectTeam) {
-        return (
-          <div
-            key={group.id}
-            className="min-w-0 space-y-1"
-            data-testid={`assistant-list-group-${group.id}`}
-          >
-            <TeamListRow
-              team={rosterTeam}
-              isSelected={selectedEntityKey === teamEntityKey(rosterTeam.teamId)}
-              unreadCount={entityUnreadCounts?.[teamEntityKey(rosterTeam.teamId)] ?? 0}
-              onSelect={() => onSelectTeam(rosterTeam.teamId)}
-              isFoldedGroup={isGroupFolded}
-              onToggleFold={() => toggleGroupFold(group.id)}
-            />
-            {!isGroupFolded && (
-              <div className="min-w-0 space-y-1 pl-3 pt-1">
-                {group.rows.map((entry) =>
-                  renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }
       const description = group.kind === 'team' ? teamsById[group.teamId]?.description : null;
       const subtitle = group.kind === 'team' ? description?.trim() || 'Shared team' : null;
       return (
@@ -540,26 +624,19 @@ export function AssistantList({
             }
             badgeLabel={group.kind === 'team' ? 'Team' : undefined}
           />
-          {!isGroupFolded && (
-            <div className={cn('min-w-0 space-y-1 pt-1', group.kind === 'team' && 'pl-3')}>
+          {!isGroupFolded && group.kind === 'team' ? (
+            renderNestedRealVirtual(group.id, [], group.rows)
+          ) : !isGroupFolded ? (
+            <div className="min-w-0 space-y-1 pt-1">
               {group.rows.map((entry) =>
                 renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
               )}
             </div>
-          )}
+          ) : null}
         </div>
       );
     },
-    [
-      entityUnreadCounts,
-      foldedGroups,
-      onSelectTeam,
-      renderAssistantRow,
-      rosterTeamsById,
-      selectedEntityKey,
-      teamsById,
-      toggleGroupFold,
-    ]
+    [foldedGroups, renderAssistantRow, renderNestedRealVirtual, teamsById, toggleGroupFold]
   );
 
   const renderSection = React.useCallback(
@@ -599,13 +676,29 @@ export function AssistantList({
   const hasGroupedRowsBelowCoordinator =
     teamGroups.length > 0 || !!soloGroup || hasNonAssistantRows;
   const soloRows = soloGroup?.rows ?? [];
-  // Roster teams that have no assistant members still get a selectable row.
-  const rosterOnlyTeams = onSelectTeam
-    ? filteredSelectableTeams.filter(
-        (team) => !teamGroups.some((group) => group.kind === 'team' && group.teamId === team.teamId)
-      )
-    : [];
-  const showTeamsSection = teamGroups.length > 0 || rosterOnlyTeams.length > 0;
+  const teamRowsById = React.useMemo(() => {
+    const byId = new Map<number, AssistantListEntry[]>();
+    for (const group of teamGroups) {
+      if (group.kind === 'team') byId.set(group.teamId, group.rows);
+    }
+    return byId;
+  }, [teamGroups]);
+  // Prefer the roster order, then append any team groups that matched search via
+  // assistant name even when the team name itself did not.
+  const teamsForSection = React.useMemo(() => {
+    if (!onSelectTeam) return [] as RosterTeam[];
+    const byId = new Map<number, RosterTeam>();
+    for (const team of filteredSelectableTeams) {
+      byId.set(team.teamId, team);
+    }
+    for (const group of teamGroups) {
+      if (group.kind !== 'team' || byId.has(group.teamId)) continue;
+      const rosterTeam = rosterTeamsById[group.teamId];
+      if (rosterTeam) byId.set(group.teamId, rosterTeam);
+    }
+    return Array.from(byId.values());
+  }, [filteredSelectableTeams, onSelectTeam, rosterTeamsById, teamGroups]);
+  const showTeamsSection = teamsForSection.length > 0 || (!onSelectTeam && teamGroups.length > 0);
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
       {pinnedGroup ? (
@@ -627,18 +720,13 @@ export function AssistantList({
         ? renderSection(
             'section:teams',
             'Teams',
-            teamGroups.length + rosterOnlyTeams.length,
+            teamsForSection.length || teamGroups.length,
             <>
-              {teamGroups.map(renderGroup)}
-              {rosterOnlyTeams.map((team) => (
-                <TeamListRow
-                  key={`roster-team:${team.teamId}`}
-                  team={team}
-                  isSelected={selectedEntityKey === teamEntityKey(team.teamId)}
-                  unreadCount={entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0}
-                  onSelect={() => onSelectTeam?.(team.teamId)}
-                />
-              ))}
+              {teamsForSection.length > 0
+                ? teamsForSection.map((team) =>
+                    renderRosterTeam(team, teamRowsById.get(team.teamId) ?? [])
+                  )
+                : teamGroups.map(renderGroup)}
             </>,
             'assistant-list-section-teams',
             {

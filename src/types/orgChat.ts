@@ -68,6 +68,16 @@ export function parseRosterTeam(raw: Record<string, unknown>): RosterTeam {
   };
 }
 
+/** Org-wide "Org" teams inherit the organization profile photo when they have none of their own. */
+export function withOrgProfileImageForTeams<
+  T extends { isOrgWideSharing?: boolean; image?: string | null },
+>(teams: T[], orgImage: string | null | undefined): T[] {
+  if (!orgImage) return teams;
+  return teams.map((team) =>
+    team.isOrgWideSharing && !team.image ? { ...team, image: orgImage } : team
+  );
+}
+
 export interface OrgRoster {
   organizationId: number;
   humans: RosterHuman[];
