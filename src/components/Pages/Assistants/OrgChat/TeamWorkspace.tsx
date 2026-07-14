@@ -6,6 +6,7 @@ import { Button } from '@/components/UI/button';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
 import { ChatMention, RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
 interface TeamWorkspaceAssistant {
   agentId: string;
@@ -23,17 +24,6 @@ interface TeamWorkspaceProps {
   chat: ReturnType<typeof useOrgChat>;
   /** Opens the hire dialog with this team preset as the owning team. */
   onHireForTeam?: () => void;
-}
-
-function initials(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]!.toUpperCase())
-      .join('') || '?'
-  );
 }
 
 /**
@@ -158,7 +148,12 @@ export function TeamWorkspace({
                 <div className="relative">
                   <Avatar className="h-8 w-8">
                     {human.image && <AvatarImage src={human.image} alt={human.name} />}
-                    <AvatarFallback className="text-xs">{initials(human.name)}</AvatarFallback>
+                    <AvatarFallback
+                      className="text-caption text-semibold text-primary-foreground"
+                      style={{ backgroundColor: profileAvatarTone(human.name) }}
+                    >
+                      {profileInitials(human.name)}
+                    </AvatarFallback>
                   </Avatar>
                   <span
                     className={cn(
@@ -178,7 +173,12 @@ export function TeamWorkspace({
               <div key={assistant.agentId} className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
                   {assistant.image && <AvatarImage src={assistant.image} alt={assistant.name} />}
-                  <AvatarFallback className="text-xs">{initials(assistant.name)}</AvatarFallback>
+                  <AvatarFallback
+                    className="text-caption text-semibold text-primary-foreground"
+                    style={{ backgroundColor: profileAvatarTone(assistant.name) }}
+                  >
+                    {profileInitials(assistant.name)}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <div className="text-title truncate">{assistant.name}</div>

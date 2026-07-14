@@ -34,6 +34,7 @@ import {
   type AssistantListEntry,
   type AssistantListGroup,
 } from './assistantListGroups';
+import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
@@ -91,15 +92,6 @@ interface AssistantListProps {
   entityUnreadCounts?: Record<string, number>;
 }
 
-function nameInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join('');
-}
-
 function EntityUnreadBadge({ count, testId }: { count: number; testId: string }) {
   if (count <= 0) return null;
   return (
@@ -147,7 +139,12 @@ function HumanListRow({
         <div className="relative">
           <Avatar className="rounded-control h-9 w-9 flex-shrink-0">
             <AvatarImage src={human.image ?? undefined} alt={displayName} />
-            <AvatarFallback className="rounded-control">{nameInitials(displayName)}</AvatarFallback>
+            <AvatarFallback
+              className="rounded-control text-semibold text-primary-foreground"
+              style={{ backgroundColor: profileAvatarTone(displayName) }}
+            >
+              {profileInitials(displayName)}
+            </AvatarFallback>
           </Avatar>
           <span
             role="status"

@@ -53,6 +53,7 @@ import { UnifiedMember } from '@/hooks/Organizations/useOrganization';
 import { MemberAssistantInfo } from './Main';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { formatSpendAmount } from '@/types/assistants/spending';
+import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
 /** Member spending information for display */
 export interface MemberSpendingInfo {
@@ -168,6 +169,9 @@ const MemberRow = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isEmailCopied, setIsEmailCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const displayName = member.name?.trim() || member.email || '?';
+  const avatarInitials = profileInitials(displayName);
+  const avatarTone = profileAvatarTone(displayName);
 
   // Copy the row's email to the clipboard. Swallowing the error keeps
   // the UI quiet on browsers/contexts where clipboard access is denied
@@ -283,23 +287,20 @@ const MemberRow = ({
                   'h-9 w-9 border',
                   member.status === 'pending'
                     ? 'border-[color:var(--status-warning)]/25 bg-[color:var(--status-warning-bg)]'
-                    : 'bg-muted'
+                    : 'border-transparent'
                 )}
               >
-                {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={member.name} />}
+                {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={displayName} />}
                 <AvatarFallback
                   className={cn(
-                    member.status === 'pending' ? 'bg-[color:var(--status-warning-bg)]' : 'bg-muted'
+                    'text-semibold',
+                    member.status === 'pending'
+                      ? 'bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]'
+                      : 'text-primary-foreground'
                   )}
+                  style={member.status === 'pending' ? undefined : { backgroundColor: avatarTone }}
                 >
-                  <User
-                    className={cn(
-                      'h-4 w-4',
-                      member.status === 'pending'
-                        ? 'text-[color:var(--status-warning)]'
-                        : 'text-muted-foreground'
-                    )}
-                  />
+                  {member.status === 'pending' ? <User className="h-4 w-4" /> : avatarInitials}
                 </AvatarFallback>
               </Avatar>
               {isSelf && (

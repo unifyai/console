@@ -4,22 +4,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
 import { RosterHuman } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
 interface HumanWorkspaceProps {
   human: RosterHuman;
   orgId: string;
   chat: ReturnType<typeof useOrgChat>;
-}
-
-function initials(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]!.toUpperCase())
-      .join('') || '?'
-  );
 }
 
 /**
@@ -64,7 +54,12 @@ export function HumanWorkspace({ human, chat }: HumanWorkspaceProps) {
         <div className="relative">
           <Avatar className="h-10 w-10">
             {human.image && <AvatarImage src={human.image} alt={human.name} />}
-            <AvatarFallback>{initials(human.name)}</AvatarFallback>
+            <AvatarFallback
+              className="text-semibold text-primary-foreground"
+              style={{ backgroundColor: profileAvatarTone(human.name) }}
+            >
+              {profileInitials(human.name)}
+            </AvatarFallback>
           </Avatar>
           <span
             className={cn(
