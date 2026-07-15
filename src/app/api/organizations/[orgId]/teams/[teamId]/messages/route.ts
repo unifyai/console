@@ -71,14 +71,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return unauthorized();
   }
 
-  let body: { content?: string; mentions?: unknown };
+  let body: { content?: string; mentions?: unknown; attachments?: unknown };
   try {
     body = await request.json();
   } catch {
     return badRequest('Invalid JSON body');
   }
-  if (typeof body.content !== 'string' || !body.content.trim()) {
-    return badRequest('Missing content');
+  const content = typeof body.content === 'string' ? body.content : '';
+  const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+  if (!content.trim() && attachments.length === 0) {
+    return badRequest('Missing content or attachments');
   }
 
   try {
@@ -91,8 +93,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: body.content,
+          content,
           ...(body.mentions !== undefined ? { mentions: body.mentions } : {}),
+          attachments,
         }),
       }
     );

@@ -124,6 +124,53 @@ export interface TeamChatMessage {
   senderName: string;
   content: string;
   mentions: ChatMention[];
+  attachments: OrgChatAttachment[];
+}
+
+export interface OrgChatAttachment {
+  id: string;
+  filename: string;
+  gsUrl?: string;
+  contentType?: string;
+  sizeBytes?: number;
+  signedUrl?: string;
+}
+
+function parseAttachments(raw: unknown): OrgChatAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  const attachments: OrgChatAttachment[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const record = entry as Record<string, unknown>;
+    const id = record.id != null ? String(record.id) : '';
+    const filename = typeof record.filename === 'string' ? record.filename : '';
+    if (!id || !filename) continue;
+    attachments.push({
+      id,
+      filename,
+      ...(typeof record.gs_url === 'string'
+        ? { gsUrl: record.gs_url }
+        : typeof record.gsUrl === 'string'
+          ? { gsUrl: record.gsUrl }
+          : {}),
+      ...(typeof record.content_type === 'string'
+        ? { contentType: record.content_type }
+        : typeof record.contentType === 'string'
+          ? { contentType: record.contentType }
+          : {}),
+      ...(typeof record.size_bytes === 'number'
+        ? { sizeBytes: record.size_bytes }
+        : typeof record.sizeBytes === 'number'
+          ? { sizeBytes: record.sizeBytes }
+          : {}),
+      ...(typeof record.signed_url === 'string'
+        ? { signedUrl: record.signed_url }
+        : typeof record.signedUrl === 'string'
+          ? { signedUrl: record.signedUrl }
+          : {}),
+    });
+  }
+  return attachments;
 }
 
 export function parseTeamChatMessage(raw: Record<string, unknown>): TeamChatMessage {
@@ -137,6 +184,7 @@ export function parseTeamChatMessage(raw: Record<string, unknown>): TeamChatMess
     senderName: typeof raw.sender_name === 'string' ? raw.sender_name : '',
     content: typeof raw.content === 'string' ? raw.content : '',
     mentions: parseMentions(raw.mentions),
+    attachments: parseAttachments(raw.attachments),
   };
 }
 
@@ -146,6 +194,7 @@ export interface DmMessage {
   senderUserId: string;
   content: string;
   createdAt: string | null;
+  attachments: OrgChatAttachment[];
 }
 
 export function parseDmMessage(raw: Record<string, unknown>): DmMessage {
@@ -161,5 +210,52 @@ export function parseDmMessage(raw: Record<string, unknown>): DmMessage {
         : typeof raw.timestamp === 'string'
           ? raw.timestamp
           : null,
+    attachments: parseAttachments(raw.attachments),
+  };
+}
+
+export interface OrgChatSearchResult {
+  id: string;
+  scope: 'dm' | 'team';
+  content: string;
+  timestamp: string | null;
+  senderName: string;
+}
+
+export function parseOrgChatSearchResult(raw: Record<string, unknown>): OrgChatSearchResult {
+  return {
+    id: String(raw.id ?? ''),
+    scope: raw.scope === 'team' ? 'team' : 'dm',
+    content: typeof raw.content === 'string' ? raw.content : '',
+    timestamp:
+      typeof raw.timestamp === 'string'
+        ? raw.timestamp
+        : typeof raw.created_at === 'string'
+          ? raw.created_at
+          : null,
+    senderName: typeof raw.sender_name === 'string' ? raw.sender_name : '',
+  };
+}
+
+export interface HumanCallSession {
+  callId: string;
+  roomName: string;
+  status: 'ringing' | 'active' | 'ended' | 'declined';
+  callerUserId: string;
+  calleeUserId: string;
+}
+
+export function parseHumanCallSession(raw: Record<string, unknown>): HumanCallSession {
+  const statusRaw = String(raw.status ?? 'ringing');
+  const status =
+    statusRaw === 'active' || statusRaw === 'ended' || statusRaw === 'declined'
+      ? statusRaw
+      : 'ringing';
+  return {
+    callId: String(raw.call_id ?? ''),
+    roomName: typeof raw.room_name === 'string' ? raw.room_name : '',
+    status,
+    callerUserId: String(raw.caller_user_id ?? ''),
+    calleeUserId: String(raw.callee_user_id ?? ''),
   };
 }

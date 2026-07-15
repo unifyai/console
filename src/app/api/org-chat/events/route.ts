@@ -236,12 +236,23 @@ export async function GET(request: NextRequest) {
           const teamIdRaw = message.attributes?.team_id ?? event?.team_id;
           const teamId = Number(teamIdRaw);
           allowed = !isNaN(teamId) && allowedTeamIds.has(teamId);
-        } else if (thread === 'dm_message') {
-          const participants = Array.isArray(event?.user_ids)
+        } else if (
+          thread === 'dm_message' ||
+          thread === 'dm_call_incoming' ||
+          thread === 'dm_call_answered' ||
+          thread === 'dm_call_ended' ||
+          thread === 'dm_call_declined'
+        ) {
+          const participants: string[] = Array.isArray(event?.user_ids)
             ? event.user_ids.map(String)
             : [message.attributes?.dm_user_a, message.attributes?.dm_user_b].filter(
                 (id): id is string => typeof id === 'string'
               );
+          // Call frames may only carry caller/callee ids.
+          if (participants.length === 0) {
+            if (event?.caller_user_id) participants.push(String(event.caller_user_id));
+            if (event?.callee_user_id) participants.push(String(event.callee_user_id));
+          }
           allowed = participants.includes(userId);
         }
 

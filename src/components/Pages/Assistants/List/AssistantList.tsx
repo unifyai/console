@@ -9,6 +9,7 @@ import {
   PanelLeftOpen,
   Building2,
   UsersRound,
+  User,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -27,7 +28,6 @@ import { humanEntityKey, teamEntityKey } from '@/lib/assistants/selectedEntity';
 import type { RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
-import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import {
   groupAssistantsByTeam,
@@ -531,6 +531,13 @@ export function AssistantList({
                 isFolded={foldedGroups[nestedId] === true}
                 onToggleFold={() => toggleGroupFold(nestedId)}
                 variant="group"
+                icon={
+                  label === 'Real' ? (
+                    <User className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <DroidOnboardIcon className="h-3.5 w-3.5" />
+                  )
+                }
               />
             </div>
           </div>
@@ -757,7 +764,10 @@ export function AssistantList({
                 />
               ))}
             </div>,
-            'assistant-list-section-people'
+            'assistant-list-section-people',
+            {
+              icon: <User className="h-3.5 w-3.5" aria-hidden="true" />,
+            }
           )
         : null}
       {soloGroup
@@ -770,7 +780,10 @@ export function AssistantList({
                 renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
               )}
             </div>,
-            'assistant-list-section-solo'
+            'assistant-list-section-solo',
+            {
+              icon: <DroidOnboardIcon className="h-3.5 w-3.5" />,
+            }
           )
         : null}
     </div>
@@ -818,7 +831,7 @@ export function AssistantList({
               <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder={tabSearchPlaceholder('assistants')}
+                placeholder="Search..."
                 className="h-7 w-full pl-7 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

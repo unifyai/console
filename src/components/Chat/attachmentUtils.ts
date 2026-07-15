@@ -572,6 +572,44 @@ export async function uploadAttachment(
   };
 }
 
+/** Upload an attachment for org chat (DM / team), namespaced under the org. */
+export async function uploadOrgAttachment(
+  file: File,
+  orgId: string
+): Promise<AttachmentUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('org_id', orgId);
+
+  let response: Response;
+  try {
+    response = await fetch('/api/org-chat/attachment', {
+      method: 'POST',
+      body: formData,
+    });
+  } catch {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    throw new Error(
+      `Upload failed — the file may be too large (${sizeMB} MB). Try a file under ${(MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)} MB.`
+    );
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+    throw new Error(error.detail || `Upload failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return {
+    id: data.id,
+    filename: data.filename,
+    gsUrl: data.gs_url,
+    signedUrl: data.signed_url,
+    contentType: data.content_type,
+    sizeBytes: data.size_bytes,
+  };
+}
+
 const UPLOAD_CONCURRENCY = 6;
 
 export interface BatchUploadCallbacks {

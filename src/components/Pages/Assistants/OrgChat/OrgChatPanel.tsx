@@ -1,10 +1,33 @@
+'use client';
+
 import * as React from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Paperclip, Mic, Square, Camera, File, Search, Phone } from 'lucide-react';
+import { useDropzone } from 'react-dropzone';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Textarea } from '@/components/UI/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { ChatMention } from '@/types/orgChat';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { ChatMention, OrgChatAttachment } from '@/types/orgChat';
+import type { Attachment } from '@/types/assistants/chat';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
+import { PendingAttachmentList } from '@/components/Chat/ChatAttachments';
+import { CameraCapture } from '@/components/Chat/CameraCapture';
+import {
+  createAttachment,
+  isOversized,
+  uploadOrgAttachment,
+  validateFileType,
+} from '@/components/Chat/attachmentUtils';
+import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 
 export interface OrgChatPanelMessage {
   id: string;
@@ -14,6 +37,7 @@ export interface OrgChatPanelMessage {
   content: string;
   timestamp: string | null;
   avatarUrl?: string | null;
+  attachments?: OrgChatAttachment[];
 }
 
 export interface OrgChatPanelProps {
@@ -21,11 +45,25 @@ export interface OrgChatPanelProps {
   subtitle?: string;
   messages: OrgChatPanelMessage[];
   isLoading: boolean;
-  onSend: (content: string, mentions: ChatMention[]) => Promise<boolean> | boolean;
+  onSend: (
+    content: string,
+    mentions: ChatMention[],
+    attachments: OrgChatAttachment[]
+  ) => Promise<boolean> | boolean;
   /** Candidates for `@` mention autocomplete (team chat only). */
   mentionCandidates?: ChatMention[];
   placeholder?: string;
   emptyState?: string;
+  /** Hide the inner title bar when the parent already shows identity. */
+  hideHeader?: boolean;
+  orgId?: string | null;
+  onStartCall?: () => void;
+  isCallButtonDisabled?: boolean;
+  callButtonTooltip?: string;
+  isConnectingCall?: boolean;
+  onOpenSearch?: () => void;
+  /** Scroll / highlight target after search jump. */
+  highlightMessageId?: string | null;
 }
 
 function initials(name: string): string {
@@ -46,11 +84,6 @@ function formatTime(timestamp: string | null): string | null {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-/**
- * Finds an in-progress `@mention` immediately before the caret. Returns the
- * index of the `@` and the partial query typed so far, or null when the
- * caret is not inside a mention.
- */
 function findActiveMention(value: string, caret: number): { at: number; query: string } | null {
   const upToCaret = value.slice(0, caret);
   const match = /@([^\s@]*)$/.exec(upToCaret);
@@ -59,9 +92,8 @@ function findActiveMention(value: string, caret: number): { at: number; query: s
 }
 
 /**
- * Shared presentational chat panel for team group chat and human DMs:
- * grouped message list with auto-scroll, and a composer with optional
- * `@mention` autocomplete.
+ * Shared chat panel for team group chat and human DMs — chrome matches
+ * assistant chat (search + call toolbar, paperclip/mic composer).
  */
 export function OrgChatPanel({
   title,
@@ -70,9 +102,18 @@ export function OrgChatPanel({
   isLoading,
   onSend,
   mentionCandidates,
-  placeholder = 'Write a message…',
+  placeholder = 'Send a message...',
   emptyState = 'No messages yet.',
+  hideHeader = false,
+  orgId = null,
+  onStartCall,
+  isCallButtonDisabled = true,
+  callButtonTooltip = 'Voice calls are not available',
+  isConnectingCall = false,
+  onOpenSearch,
+  highlightMessageId = null,
 }: OrgChatPanelProps) {
+  const { transcription: transcriptionEnabled, voiceCalls } = useFeatures();
   const [input, setInput] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const [recordedMentions, setRecordedMentions] = React.useState<ChatMention[]>([]);
@@ -80,12 +121,33 @@ export function OrgChatPanel({
     null
   );
   const [mentionIndex, setMentionIndex] = React.useState(0);
+  const [pendingAttachments, setPendingAttachments] = React.useState<Attachment[]>([]);
+  const [isCameraOpen, setIsCameraOpen] = React.useState(false);
+  const [attachError, setAttachError] = React.useState<string | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = React.useRef<HTMLDivElement | null>(null);
+  const messageRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+
+  const insertTranscript = React.useCallback((text: string) => {
+    setInput((prev) => {
+      const next = prev.trim() ? `${prev.trim()} ${text}` : text;
+      return next;
+    });
+  }, []);
+
+  const { toggleRecording, recorderError, isRecording, isTranscribing } = useVoiceRecorder({
+    onTranscript: insertTranscript,
+  });
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length]);
+
+  React.useEffect(() => {
+    if (!highlightMessageId) return;
+    const el = messageRefs.current[highlightMessageId];
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightMessageId]);
 
   const filteredCandidates = React.useMemo(() => {
     if (!mentionQuery || !mentionCandidates?.length) return [];
@@ -115,17 +177,82 @@ export function OrgChatPanel({
     textareaRef.current?.focus();
   };
 
+  const handleFiles = React.useCallback((files: File[]) => {
+    setAttachError(null);
+    const next: Attachment[] = [];
+    for (const file of files) {
+      const check = validateFileType(file.name);
+      if (!check.valid) {
+        setAttachError(check.error ?? 'Unsupported file type');
+        continue;
+      }
+      next.push(createAttachment(file));
+    }
+    if (next.length) {
+      setPendingAttachments((prev) => [...prev, ...next]);
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop: handleFiles,
+    noClick: true,
+    noKeyboard: true,
+    multiple: true,
+  });
+
+  const handleCameraCapture = React.useCallback((file: File) => {
+    setPendingAttachments((prev) => [...prev, createAttachment(file)]);
+    setIsCameraOpen(false);
+  }, []);
+
+  const removeAttachment = React.useCallback((id: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
   const handleSend = async () => {
     const content = input.trim();
-    if (!content || isSending) return;
-    // Only mentions whose `@Name` text survived edits count.
+    const uploadable = pendingAttachments.filter((a) => !isOversized(a.sizeBytes));
+    if ((!content && uploadable.length === 0) || isSending) return;
+
     const mentions = recordedMentions.filter((m) => content.includes(`@${m.name ?? m.id}`));
     setIsSending(true);
     setInput('');
     setRecordedMentions([]);
     setMentionQuery(null);
+    setAttachError(null);
+
     try {
-      await onSend(content, mentions);
+      const uploaded: OrgChatAttachment[] = [];
+      if (uploadable.length > 0) {
+        if (!orgId) {
+          setAttachError('Could not upload attachments. Please try again.');
+          setIsSending(false);
+          setPendingAttachments(uploadable);
+          setInput(content);
+          return;
+        }
+        for (const attachment of uploadable) {
+          if (!attachment.file) continue;
+          setPendingAttachments((prev) =>
+            prev.map((a) => (a.id === attachment.id ? { ...a, uploadStatus: 'uploading' } : a))
+          );
+          const result = await uploadOrgAttachment(attachment.file, orgId);
+          uploaded.push({
+            id: result.id,
+            filename: result.filename,
+            gsUrl: result.gsUrl,
+            contentType: result.contentType,
+            sizeBytes: result.sizeBytes,
+            signedUrl: result.signedUrl,
+          });
+        }
+      }
+      setPendingAttachments([]);
+      await onSend(content, mentions, uploaded);
+    } catch {
+      setAttachError('Could not send message. Please try again.');
+      setPendingAttachments(uploadable);
+      setInput(content);
     } finally {
       setIsSending(false);
     }
@@ -157,15 +284,85 @@ export function OrgChatPanel({
     }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
+  };
+
+  const callDisabled = isCallButtonDisabled || !voiceCalls || !onStartCall;
+  const callTooltip = !voiceCalls ? 'Voice calls are not configured' : callButtonTooltip;
+
+  const renderAttachments = (attachments: OrgChatAttachment[] | undefined) => {
+    if (!attachments?.length) return null;
+    return (
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {attachments.map((attachment) => (
+          <a
+            key={attachment.id}
+            href={attachment.signedUrl || undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="bg-background/60 rounded border border-border px-1.5 py-0.5 text-[11px] text-foreground hover:underline"
+            data-testid={`org-chat-attachment-${attachment.id}`}
+          >
+            {attachment.filename}
+          </a>
+        ))}
+      </div>
+    );
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="org-chat-panel">
-      <div className="border-b px-4 py-3">
-        <div className="text-title">{title}</div>
-        {subtitle && <div className="text-caption">{subtitle}</div>}
+      {!hideHeader ? (
+        <div className="border-b px-4 py-3">
+          <div className="text-title">{title}</div>
+          {subtitle && <div className="text-caption">{subtitle}</div>}
+        </div>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            readOnly
+            className="h-7 w-full cursor-text rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder={tabSearchPlaceholder('chat')}
+            onFocus={(e) => {
+              e.currentTarget.blur();
+              onOpenSearch?.();
+            }}
+            onClick={() => onOpenSearch?.()}
+            data-testid="org-chat-search"
+            aria-label="Search conversation"
+          />
+        </div>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={tabToolbarIconButtonClass}
+                  onClick={onStartCall}
+                  disabled={callDisabled}
+                  data-testid="org-chat-call-button"
+                >
+                  {isConnectingCall ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Phone className="h-4 w-4" />
+                  )}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{callTooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
@@ -186,12 +383,27 @@ export function OrgChatPanel({
                 previous.senderName !== message.senderName ||
                 previous.isSelf !== message.isSelf;
               const timeString = formatTime(message.timestamp);
+              const highlighted = highlightMessageId === message.id;
 
               if (message.isSelf) {
                 return (
-                  <div key={message.id} className={cn('flex justify-end', isGroupStart && 'mt-3')}>
+                  <div
+                    key={message.id}
+                    ref={(el) => {
+                      messageRefs.current[message.id] = el;
+                    }}
+                    className={cn(
+                      'flex justify-end',
+                      isGroupStart && 'mt-3',
+                      highlighted && 'rounded-lg ring-2 ring-primary'
+                    )}
+                    data-testid={`org-chat-message-${message.id}`}
+                  >
                     <div className="max-w-[85%] break-words rounded-lg bg-accent p-2.5 font-sans text-sm leading-snug">
-                      <span className="whitespace-pre-wrap">{message.content}</span>
+                      {message.content ? (
+                        <span className="whitespace-pre-wrap">{message.content}</span>
+                      ) : null}
+                      {renderAttachments(message.attachments)}
                       {timeString && (
                         <time className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
                           {timeString}
@@ -203,7 +415,18 @@ export function OrgChatPanel({
               }
 
               return (
-                <div key={message.id} className={cn('min-w-0', isGroupStart && 'mt-3')}>
+                <div
+                  key={message.id}
+                  ref={(el) => {
+                    messageRefs.current[message.id] = el;
+                  }}
+                  className={cn(
+                    'min-w-0',
+                    isGroupStart && 'mt-3',
+                    highlighted && 'rounded-lg ring-2 ring-primary'
+                  )}
+                  data-testid={`org-chat-message-${message.id}`}
+                >
                   {isGroupStart && (
                     <div className="mb-1 flex items-center gap-2">
                       <Avatar className="h-6 w-6">
@@ -228,7 +451,10 @@ export function OrgChatPanel({
                     </div>
                   )}
                   <div className="max-w-[85%] break-words rounded-lg bg-muted p-2.5 font-sans text-sm leading-snug">
-                    <span className="whitespace-pre-wrap">{message.content}</span>
+                    {message.content ? (
+                      <span className="whitespace-pre-wrap">{message.content}</span>
+                    ) : null}
+                    {renderAttachments(message.attachments)}
                   </div>
                 </div>
               );
@@ -264,35 +490,135 @@ export function OrgChatPanel({
             ))}
           </div>
         )}
-        <div className="flex items-end gap-2">
-          <Textarea
-            ref={textareaRef}
-            data-testid="org-chat-composer"
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={1}
-            className="max-h-32 min-h-[38px] flex-1 resize-none"
+
+        {(attachError || recorderError) && (
+          <p className="text-caption text-error mb-2">{attachError || recorderError}</p>
+        )}
+
+        {pendingAttachments.length > 0 && (
+          <PendingAttachmentList
+            attachments={pendingAttachments}
+            onRemove={removeAttachment}
+            onRemoveAll={() => setPendingAttachments([])}
+            className="mb-2"
           />
-          <Button
-            data-testid="org-chat-send"
-            size="icon"
-            onClick={handleSend}
-            disabled={!input.trim() || isSending}
-            aria-label="Send message"
-          >
-            {isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+        )}
+
+        <div
+          {...getRootProps()}
+          className={cn('relative', isDragActive && 'rounded-md ring-2 ring-primary ring-offset-2')}
+          data-testid="org-chat-dropzone"
+        >
+          {isDragActive && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary-tint-10">
+              <span className="font-medium text-primary">Drop files here</span>
+            </div>
+          )}
+          <input {...getInputProps()} data-testid="org-chat-file-input" />
+
+          <div className="relative">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute bottom-2 left-2 h-8 w-8 rounded-full"
+                  disabled={isSending || isRecording}
+                  aria-label="Attach"
+                  data-testid="org-chat-attach-button"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start">
+                <DropdownMenuItem
+                  onClick={() => setIsCameraOpen(true)}
+                  data-testid="org-chat-attach-webcam-item"
+                >
+                  <Camera className="h-4 w-4" />
+                  Camera
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={open} data-testid="org-chat-attach-files-item">
+                  <File className="h-4 w-4" />
+                  Files
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {transcriptionEnabled ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'absolute bottom-2 left-10 h-8 w-8 rounded-full',
+                  isRecording && 'animate-pulse text-[color:var(--status-danger)]'
+                )}
+                onClick={toggleRecording}
+                disabled={isSending || isTranscribing}
+                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+                data-testid="org-chat-voice-record-button"
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isRecording ? (
+                  <Square className="h-3 w-3 fill-current" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+            ) : null}
+
+            <Textarea
+              ref={textareaRef}
+              data-testid="org-chat-composer"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                updateMentionState(
+                  e.target.value,
+                  e.target.selectionStart ?? e.target.value.length
+                );
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isRecording ? 'Recording...' : isTranscribing ? 'Transcribing...' : placeholder
+              }
+              rows={1}
+              disabled={isSending}
+              className={cn(
+                'styled-scrollbar text-body h-12 min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pr-12 leading-5',
+                transcriptionEnabled ? 'pl-20' : 'pl-14'
+              )}
+            />
+
+            <Button
+              type="button"
+              data-testid="org-chat-send"
+              size="icon"
+              className="absolute bottom-2 right-2 h-8 w-8 rounded-full"
+              onClick={() => void handleSend()}
+              disabled={
+                isSending || (!input.trim() && pendingAttachments.length === 0) || isRecording
+              }
+              aria-label="Send message"
+            >
+              {isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
+
+      <CameraCapture
+        open={isCameraOpen}
+        onOpenChange={setIsCameraOpen}
+        onCapture={handleCameraCapture}
+      />
     </div>
   );
 }

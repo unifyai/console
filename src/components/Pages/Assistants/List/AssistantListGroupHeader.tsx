@@ -32,7 +32,8 @@ export function AssistantListGroupHeader({
         'flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-xs transition-colors hover:bg-muted hover:text-foreground',
         variant === 'section' &&
           'border-b px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
-        variant === 'group' && 'border-b px-2 py-1.5 text-muted-foreground',
+        variant === 'group' &&
+          'border-b px-2 py-1.5 font-semibold uppercase tracking-wide text-muted-foreground',
         variant === 'workspace' &&
           'bg-muted/15 rounded-xl border border-border px-3 py-2.5 text-muted-foreground hover:border-primary-tint-30 hover:bg-primary-tint-5'
       )}

@@ -33,10 +33,13 @@ import { useOrgRoster } from '@/hooks/Assistants/useOrgRoster';
 import { withOrgProfileImageForTeams, type RosterHuman } from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { useHumanCall } from '@/hooks/Assistants/useHumanCall';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
 import { HumanInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/HumanInfoSidePanelContent';
 import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
 import { TeamInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/TeamInfoSidePanelContent';
+import { IncomingHumanCallCard } from '@/components/Pages/Assistants/OrgChat/IncomingHumanCallCard';
+import { ActiveHumanCallCard } from '@/components/Pages/Assistants/OrgChat/ActiveHumanCallCard';
 import {
   TeamBrainSectionsHost,
   isTeamBrainSectionId,
@@ -329,11 +332,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const activeOrganizationId = activeWorkspace?.type === 'organization' ? activeWorkspace.id : null;
   const { roster, markHumanOnline } = useOrgRoster(activeOrganizationId);
   usePresenceHeartbeat(!!activeOrganizationId);
+  const humanCallHandlersRef = React.useRef<{
+    onIncoming?: (call: import('@/types/orgChat').HumanCallSession) => void;
+    onEnded?: (call: import('@/types/orgChat').HumanCallSession) => void;
+  }>({});
   const orgChat = useOrgChat({
     orgId: activeOrganizationId,
     currentUserId,
     enabled: !!activeOrganizationId,
     onHumanActivity: markHumanOnline,
+    onIncomingCall: (call) => humanCallHandlersRef.current.onIncoming?.(call),
+    onCallEnded: (call) => humanCallHandlersRef.current.onEnded?.(call),
   });
   const rosterTeams = React.useMemo(
     () =>
@@ -1232,6 +1241,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     popOut,
     redock,
   } = useCallContext();
+
+  const humanCall = useHumanCall({
+    orgId: activeOrganizationId,
+    assistantCallActive: !!activeCallAssistant,
+  });
+  React.useEffect(() => {
+    humanCallHandlersRef.current = {
+      onIncoming: humanCall.handleIncomingCall,
+      onEnded: humanCall.handleRemoteEnded,
+    };
+  }, [humanCall.handleIncomingCall, humanCall.handleRemoteEnded]);
 
   const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
   React.useEffect(() => {
@@ -4004,6 +4024,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           human={selectedHuman}
                           orgId={activeOrganizationId}
                           chat={orgChat}
+                          onStartCall={() => void humanCall.startCall(selectedHuman.userId)}
+                          isCallButtonDisabled={
+                            !humanCall.voiceCallsEnabled ||
+                            !!activeCallAssistant ||
+                            humanCall.isConnecting ||
+                            humanCall.isConnected
+                          }
+                          callButtonTooltip={
+                            activeCallAssistant
+                              ? 'End the assistant call before calling a teammate'
+                              : !humanCall.voiceCallsEnabled
+                                ? 'Voice calls are not configured'
+                                : humanCall.isConnected
+                                  ? 'Already in a call'
+                                  : 'Start voice call'
+                          }
+                          isConnectingCall={humanCall.isConnecting}
                         />
                       </EntityInfoPanelLayout>
                     );
@@ -4039,6 +4076,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                         ) : (
                           <TeamWorkspace
                             team={selectedTeam}
+                            orgId={activeOrganizationId}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
                             currentUserId={currentUserId}
@@ -4261,11 +4299,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         </div>
 
         {/* Dialogs and Overlays */}
-        {incomingMeetCall && !activeCallAssistant && (
+        {incomingMeetCall && !activeCallAssistant && !humanCall.incomingCall && (
           <IncomingMeetCallCard
             assistantName={assistantDisplayName(incomingMeetCall.assistant)}
             onAnswer={handleAnswerIncomingMeet}
             onDecline={handleDeclineIncomingMeet}
+          />
+        )}
+        {humanCall.incomingCall && !activeCallAssistant && (
+          <IncomingHumanCallCard
+            callerName={
+              rosterHumansById[humanCall.incomingCall.callerUserId]?.name?.trim() || 'Teammate'
+            }
+            onAnswer={() => void humanCall.answerCall(humanCall.incomingCall!)}
+            onDecline={() => void humanCall.declineCall(humanCall.incomingCall!)}
+          />
+        )}
+        {humanCall.isConnected && humanCall.activeCall && (
+          <ActiveHumanCallCard
+            peerName={(() => {
+              const peerId =
+                humanCall.activeCall.callerUserId === currentUserId
+                  ? humanCall.activeCall.calleeUserId
+                  : humanCall.activeCall.callerUserId;
+              return rosterHumansById[peerId]?.name?.trim() || 'Teammate';
+            })()}
+            onEnd={() => void humanCall.endCall()}
           />
         )}
         <FormProvider {...formMethods}>

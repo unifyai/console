@@ -377,7 +377,7 @@ export async function waitForAssistantListReady(page: Page, timeout = 45_000): P
   await expect
     .poll(
       async () => {
-        const search = page.getByPlaceholder(/Search assistants/i);
+        const search = page.getByPlaceholder(/^Search\.\.\.$/i);
         if (await search.isEnabled().catch(() => false)) return 'ready';
         if ((await page.locator('[data-testid^="assistant-list-item-"]').count()) > 0) {
           return 'ready';
