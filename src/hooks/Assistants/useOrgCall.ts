@@ -305,7 +305,17 @@ export function useOrgCall(options: {
         const data = await response.json();
         const next = parseOrgCallSession(data);
         setActiveCall(next);
-        await dispatchAssistantToCall(String(assistantId), next.roomName);
+        await dispatchAssistantToCall(String(assistantId), next.roomName, undefined, next.callId, {
+          orgCall: true,
+          participants: next.roster.map((m) => ({
+            kind: m.kind,
+            userId: m.userId,
+            assistantId: m.assistantId,
+            displayName: m.displayName,
+            contactId: m.contactId,
+            email: m.email,
+          })),
+        });
         return true;
       } catch {
         setError('Could not add assistant to the call');

@@ -260,6 +260,16 @@ export interface OrgCallSession {
   userIds: string[];
   participants: OrgCallParticipant[];
   assistantIds: number[];
+  roster: OrgCallRosterMember[];
+}
+
+export interface OrgCallRosterMember {
+  kind: 'human' | 'assistant';
+  userId: string | null;
+  assistantId: number | null;
+  displayName: string;
+  contactId: number | null;
+  email: string | null;
 }
 
 /** @deprecated Use OrgCallSession — kept for transitional imports. */
@@ -287,6 +297,19 @@ export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSessio
     ? raw.user_ids.map(String)
     : participants.map((p) => p.userId);
   const createdBy = String(raw.created_by_user_id ?? raw.caller_user_id ?? '');
+  const rosterRaw = Array.isArray(raw.roster) ? raw.roster : [];
+  const roster: OrgCallRosterMember[] = rosterRaw.map((r) => {
+    const row = (r ?? {}) as Record<string, unknown>;
+    return {
+      kind: row.kind === 'assistant' ? 'assistant' : 'human',
+      userId: row.user_id == null || row.user_id === '' ? null : String(row.user_id),
+      assistantId:
+        row.assistant_id == null || row.assistant_id === '' ? null : Number(row.assistant_id),
+      displayName: typeof row.display_name === 'string' ? row.display_name : '',
+      contactId: row.contact_id == null || row.contact_id === '' ? null : Number(row.contact_id),
+      email: typeof row.email === 'string' ? row.email : null,
+    };
+  });
   return {
     callId: String(raw.call_id ?? ''),
     roomName: typeof raw.room_name === 'string' ? raw.room_name : '',
@@ -306,6 +329,7 @@ export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSessio
     assistantIds: Array.isArray(raw.assistant_ids)
       ? raw.assistant_ids.map(Number).filter((n) => !Number.isNaN(n))
       : [],
+    roster,
   };
 }
 

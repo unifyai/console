@@ -6,7 +6,14 @@
 import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
-import { createOrg, addMember, ensureProjectSync, dbExec } from '../helpers/seeds/client';
+import {
+  createOrg,
+  addMember,
+  ensureProjectSync,
+  dbExec,
+  createAssistant,
+  addAssistantToTeam,
+} from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
 import {
@@ -34,6 +41,31 @@ INSERT INTO team_member (team_id, user_id)
 VALUES (${teamId}, '${owner.id}'), (${teamId}, '${member.id}')
 ON CONFLICT (team_id, user_id) DO NOTHING;
 `);
+
+const assistantOne = createAssistant({
+  userId: owner.id,
+  firstName: 'Call',
+  surname: 'Alpha',
+  orgId: org.id,
+});
+const assistantTwo = createAssistant({
+  userId: owner.id,
+  firstName: 'Call',
+  surname: 'Beta',
+  orgId: org.id,
+});
+addAssistantToTeam(assistantOne, {
+  teamId,
+  name: teamName,
+  description: 'Org call e2e team',
+  organizationId: org.id,
+});
+addAssistantToTeam(assistantTwo, {
+  teamId,
+  name: teamName,
+  description: 'Org call e2e team',
+  organizationId: org.id,
+});
 
 async function loginAndSaveOrgState(
   browser: Browser,
@@ -167,6 +199,76 @@ test('team call button starts a team org_call_session', async ({ ownerPage: page
   );
   expect(row).toContain('team');
   expect(row).toContain(String(teamId));
+
+  await page.getByTestId('org-call-leave').click();
+});
+
+test('team call can add two assistants and persists Contacts attribution keys', async ({
+  ownerPage: page,
+}) => {
+  test.setTimeout(120_000);
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
+
+  const teamRow = page.getByTestId(`team-list-item-${teamId}`);
+  await expect(teamRow).toBeVisible({ timeout: 30_000 });
+  await teamRow.click();
+  await expect(page.getByTestId('team-workspace')).toBeVisible({ timeout: 15_000 });
+
+  await page.getByTestId('org-chat-call-button').click();
+  await expect(page.getByTestId('org-call-meet-stage')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByTestId('org-call-add-assistant').click();
+  await expect(page.getByTestId('org-call-add-assistant-picker')).toBeVisible();
+  await page
+    .getByTestId('org-call-add-assistant-picker')
+    .getByRole('button', { name: /Call Alpha/i })
+    .click();
+
+  await page.getByTestId('org-call-add-assistant').click();
+  await expect(page.getByTestId('org-call-add-assistant-picker')).toBeVisible();
+  await page
+    .getByTestId('org-call-add-assistant-picker')
+    .getByRole('button', { name: /Call Beta/i })
+    .click();
+
+  await expect
+    .poll(
+      () => {
+        const row = dbExec(
+          `SELECT assistant_ids::text FROM org_call_session
+           WHERE organization_id = ${org.id} AND scope = 'team' AND team_id = ${teamId}
+           ORDER BY created_at DESC LIMIT 1`
+        );
+        return row;
+      },
+      { timeout: 20_000 }
+    )
+    .toMatch(new RegExp(String(assistantOne.agentId)));
+
+  const assistantIdsRow = dbExec(
+    `SELECT assistant_ids::text FROM org_call_session
+     WHERE organization_id = ${org.id} AND scope = 'team' AND team_id = ${teamId}
+     ORDER BY created_at DESC LIMIT 1`
+  );
+  expect(assistantIdsRow).toContain(String(assistantOne.agentId));
+  expect(assistantIdsRow).toContain(String(assistantTwo.agentId));
+
+  // Contacts rows for humans (org_user_id) and peer assistants (peer_assistant_id).
+  const humanContacts = dbExec(
+    `SELECT count(*) FROM log_event
+     WHERE data->>'org_user_id' IN ('${owner.id}', '${member.id}')`
+  );
+  expect(parseInt(humanContacts.trim().split('\n').pop() || '0', 10)).toBeGreaterThanOrEqual(1);
+
+  const peerContacts = dbExec(
+    `SELECT count(*) FROM log_event
+     WHERE data->>'peer_assistant_id' IN ('${assistantOne.agentId}', '${assistantTwo.agentId}')`
+  );
+  expect(parseInt(peerContacts.trim().split('\n').pop() || '0', 10)).toBeGreaterThanOrEqual(1);
+
+  // Simulate a spoken turn attribution check via UniSDK-shaped Transcripts insert
+  // is out of scope for browser E2E; Orchestra Contacts + assistant_ids cover the
+  // Console/Orchestra half. Unify log_message N-receiver coverage is unit-tested.
 
   await page.getByTestId('org-call-leave').click();
 });
