@@ -1285,6 +1285,20 @@
     transform-origin: center;
   }
 
+  @keyframes call-speaking-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 8px color-mix(in srgb, var(--primary) 0%, transparent);
+    }
+  }
+
+  .animate-call-speaking-pulse {
+    animation: call-speaking-pulse 1.2s ease-in-out infinite;
+  }
+
   .animate-rail-activity-dot {
     animation: rail-activity-dot-pulse 1.8s ease-in-out infinite;
     transform-origin: center;
@@ -1293,6 +1307,10 @@
   @media (prefers-reduced-motion: reduce) {
     .animate-onboarding-ring-pulse {
       animation: none;
+    }
+    .animate-call-speaking-pulse {
+      animation: none;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 40%, transparent);
     }
 
     .animate-rail-activity-dot {

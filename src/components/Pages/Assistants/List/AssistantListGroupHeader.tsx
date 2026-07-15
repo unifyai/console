@@ -12,6 +12,8 @@ interface AssistantListGroupHeaderProps {
   subtitle?: string | null;
   icon?: React.ReactNode;
   badgeLabel?: string;
+  /** Optional trailing control (e.g. create-group +) rendered beside the fold chevron. */
+  trailingAction?: React.ReactNode;
 }
 
 export function AssistantListGroupHeader({
@@ -23,64 +25,75 @@ export function AssistantListGroupHeader({
   subtitle,
   icon,
   badgeLabel,
+  trailingAction,
 }: AssistantListGroupHeaderProps) {
   const Icon = isFolded ? ChevronRight : ChevronDown;
   const header = (
-    <button
-      type="button"
+    <div
       className={cn(
-        'flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-xs transition-colors hover:bg-muted hover:text-foreground',
+        'flex w-full min-w-0 max-w-full items-center gap-1 overflow-hidden',
         variant === 'section' &&
           'border-b px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
         variant === 'group' &&
           'border-b px-2 py-1.5 font-semibold uppercase tracking-wide text-muted-foreground',
-        variant === 'workspace' &&
-          'bg-muted/15 rounded-xl border border-border px-3 py-2.5 text-muted-foreground hover:border-primary-tint-30 hover:bg-primary-tint-5'
+        variant === 'workspace' && 'rounded-xl'
       )}
-      aria-expanded={!isFolded}
-      onClick={onToggleFold}
     >
-      {icon ? (
-        <span
-          className={cn(
-            'flex shrink-0 items-center justify-center text-muted-foreground',
-            variant === 'workspace' && 'bg-background/70 h-8 w-8 rounded-lg border border-border'
-          )}
-          aria-hidden="true"
-        >
-          {icon}
+      <button
+        type="button"
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-xs transition-colors hover:bg-muted hover:text-foreground',
+          variant === 'workspace' &&
+            'bg-muted/15 rounded-xl border border-border px-3 py-2.5 text-muted-foreground hover:border-primary-tint-30 hover:bg-primary-tint-5'
+        )}
+        aria-expanded={!isFolded}
+        onClick={onToggleFold}
+      >
+        {icon ? (
+          <span
+            className={cn(
+              'flex shrink-0 items-center justify-center text-muted-foreground',
+              variant === 'workspace' && 'bg-background/70 h-8 w-8 rounded-lg border border-border'
+            )}
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+        ) : null}
+        <span className="min-w-0 flex-1 text-left">
+          <span
+            className={cn(
+              'flex min-w-0 items-center gap-1',
+              variant === 'workspace' && 'text-foreground'
+            )}
+          >
+            <span className="truncate font-medium">{label}</span>
+            {variant === 'workspace' ? (
+              <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+            ) : null}
+          </span>
+          {subtitle ? (
+            <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
+              {subtitle}
+            </span>
+          ) : null}
         </span>
-      ) : null}
-      <span className="min-w-0 flex-1 text-left">
-        <span
-          className={cn(
-            'flex min-w-0 items-center gap-1',
-            variant === 'workspace' && 'text-foreground'
-          )}
-        >
-          <span className="truncate font-medium">{label}</span>
-          {variant === 'workspace' ? (
+        <span className="flex shrink-0 items-center gap-1.5">
+          {badgeLabel ? (
+            <span
+              className="rounded-full border border-primary-tint-20 bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary"
+              aria-hidden="true"
+            >
+              {badgeLabel}
+            </span>
+          ) : null}
+          {variant !== 'workspace' ? (
             <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
           ) : null}
         </span>
-        {subtitle ? (
-          <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
-            {subtitle}
-          </span>
-        ) : null}
-      </span>
-      <span className="flex shrink-0 items-center gap-1.5">
-        {badgeLabel ? (
-          <span
-            className="rounded-full border border-primary-tint-20 bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary"
-            aria-hidden="true"
-          >
-            {badgeLabel}
-          </span>
-        ) : null}
-        {variant !== 'workspace' ? <Icon className="h-3 w-3 shrink-0" aria-hidden="true" /> : null}
-      </span>
-    </button>
+      </button>
+      {trailingAction ? <span className="shrink-0">{trailingAction}</span> : null}
+    </div>
   );
 
   if (!description) {

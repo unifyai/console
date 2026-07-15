@@ -7,7 +7,7 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-/** GET /api/organizations/[orgId]/org-chat/search?q=&scope=dm|team&id= */
+/** GET /api/organizations/[orgId]/org-chat/search?q=&scope=dm|team|group&id= */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { orgId } = await params;
   const organizationId = parseInt(orgId, 10);
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const q = request.nextUrl.searchParams.get('q')?.trim() ?? '';
   const scope = request.nextUrl.searchParams.get('scope')?.trim() ?? '';
   const id = request.nextUrl.searchParams.get('id')?.trim() ?? '';
-  if (!q || (scope !== 'dm' && scope !== 'team') || !id) {
-    return badRequest('q, scope (dm|team), and id are required');
+  if (!q || (scope !== 'dm' && scope !== 'team' && scope !== 'group') || !id) {
+    return badRequest('q, scope (dm|team|group), and id are required');
   }
 
   const searchParams = new URLSearchParams({ q, scope, id });

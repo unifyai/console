@@ -24,6 +24,7 @@ import {
   type SelectorEntityKind,
 } from './Rail/sectionConfig';
 import {
+  groupEntityKey,
   humanEntityKey,
   isNonAssistantEntityKey,
   parseSelectedEntityKey,
@@ -33,13 +34,17 @@ import { useOrgRoster } from '@/hooks/Assistants/useOrgRoster';
 import { withOrgProfileImageForTeams, type RosterHuman } from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
-import { useHumanCall } from '@/hooks/Assistants/useHumanCall';
+import { useOrgCall } from '@/hooks/Assistants/useOrgCall';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
 import { HumanInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/HumanInfoSidePanelContent';
 import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
 import { TeamInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/TeamInfoSidePanelContent';
+import { GroupWorkspace } from '@/components/Pages/Assistants/OrgChat/GroupWorkspace';
+import { GroupInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/GroupInfoSidePanelContent';
+import { CreateGroupDialog } from '@/components/Pages/Assistants/OrgChat/CreateGroupDialog';
 import { IncomingHumanCallCard } from '@/components/Pages/Assistants/OrgChat/IncomingHumanCallCard';
-import { ActiveHumanCallCard } from '@/components/Pages/Assistants/OrgChat/ActiveHumanCallCard';
+import { OrgCallMeetStage } from '@/components/Pages/Assistants/OrgChat/OrgCallMeetStage';
+import type { OrgCallSession } from '@/types/orgChat';
 import {
   TeamBrainSectionsHost,
   isTeamBrainSectionId,
@@ -330,11 +335,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // All three are org-workspace concepts: the personal workspace has no
   // humans/teams in the selector and sends no presence heartbeats.
   const activeOrganizationId = activeWorkspace?.type === 'organization' ? activeWorkspace.id : null;
-  const { roster, markHumanOnline } = useOrgRoster(activeOrganizationId);
+  const { roster, markHumanOnline, refresh: refreshOrgRoster } = useOrgRoster(activeOrganizationId);
+  const [createGroupOpen, setCreateGroupOpen] = React.useState(false);
   usePresenceHeartbeat(!!activeOrganizationId);
   const humanCallHandlersRef = React.useRef<{
-    onIncoming?: (call: import('@/types/orgChat').HumanCallSession) => void;
-    onEnded?: (call: import('@/types/orgChat').HumanCallSession) => void;
+    onIncoming?: (call: OrgCallSession) => void;
+    onAnswered?: (call: OrgCallSession) => void;
+    onEnded?: (call: OrgCallSession) => void;
+    onParticipant?: (call: OrgCallSession) => void;
   }>({});
   const orgChat = useOrgChat({
     orgId: activeOrganizationId,
@@ -342,7 +350,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     enabled: !!activeOrganizationId,
     onHumanActivity: markHumanOnline,
     onIncomingCall: (call) => humanCallHandlersRef.current.onIncoming?.(call),
+    onCallAnswered: (call) => humanCallHandlersRef.current.onAnswered?.(call),
     onCallEnded: (call) => humanCallHandlersRef.current.onEnded?.(call),
+    onCallParticipantUpdate: (call) => humanCallHandlersRef.current.onParticipant?.(call),
   });
   const rosterTeams = React.useMemo(
     () =>
@@ -384,8 +394,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleProfileClose: clearPanelProfileAssistant,
   } = usePanelManager(profileParam);
   // The selection key's string domain covers assistants (bare agent id) plus
-  // humans (`human:{userId}`) and teams (`team:{teamId}`) — see
-  // `lib/assistants/selectedEntity`.
+  // humans (`human:{userId}`), teams (`team:{teamId}`), and groups
+  // (`group:{groupId}`) — see `lib/assistants/selectedEntity`.
   const selectedEntity = React.useMemo(
     () => parseSelectedEntityKey(profileAssistantId),
     [profileAssistantId]
@@ -691,6 +701,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isNonAssistantSelection,
     ]
   );
+  const handleSelectGroup = React.useCallback(
+    (groupId: number) => {
+      const currentSectionId = isNonAssistantSelection ? entitySectionId : activeSectionId;
+      setEntitySectionId(resolveSectionForEntity(currentSectionId, 'group'));
+      clearOrgChatUnread(groupEntityKey(groupId));
+      handleShowProfile(groupEntityKey(groupId));
+    },
+    [
+      activeSectionId,
+      clearOrgChatUnread,
+      entitySectionId,
+      handleShowProfile,
+      isNonAssistantSelection,
+    ]
+  );
 
   const selectedHuman = React.useMemo(() => {
     if (selectedEntity?.kind !== 'human' || !roster) return null;
@@ -700,9 +725,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (selectedEntity?.kind !== 'team') return null;
     return rosterTeams.find((team) => team.teamId === selectedEntity.teamId) ?? null;
   }, [rosterTeams, selectedEntity]);
+  const rosterGroups = React.useMemo(() => roster?.groups ?? [], [roster?.groups]);
+  const selectedGroup = React.useMemo(() => {
+    if (selectedEntity?.kind !== 'group') return null;
+    return rosterGroups.find((group) => group.groupId === selectedEntity.groupId) ?? null;
+  }, [rosterGroups, selectedEntity]);
 
-  // Stale human/team selections (removed member, deleted team) fall back to
-  // the coordinator once the roster has settled.
+  // Stale human/team/group selections (removed member, deleted team/group) fall
+  // back to the coordinator once the roster has settled.
   React.useEffect(() => {
     if (!isNonAssistantSelection || !roster) return;
     const stillExists =
@@ -710,7 +740,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         ? roster.humans.some((human) => human.userId === selectedEntity.userId)
         : selectedEntity?.kind === 'team'
           ? roster.teams.some((team) => team.teamId === selectedEntity.teamId)
-          : true;
+          : selectedEntity?.kind === 'group'
+            ? roster.groups.some((group) => group.groupId === selectedEntity.groupId)
+            : true;
     if (stillExists) return;
     if (canonicalCoordinatorId) {
       handleShowProfile(canonicalCoordinatorId);
@@ -1242,16 +1274,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     redock,
   } = useCallContext();
 
-  const humanCall = useHumanCall({
+  const humanCall = useOrgCall({
     orgId: activeOrganizationId,
+    currentUserId,
     assistantCallActive: !!activeCallAssistant,
   });
   React.useEffect(() => {
     humanCallHandlersRef.current = {
       onIncoming: humanCall.handleIncomingCall,
+      onAnswered: humanCall.handleCallAnswered,
       onEnded: humanCall.handleRemoteEnded,
+      onParticipant: humanCall.handleParticipantUpdate,
     };
-  }, [humanCall.handleIncomingCall, humanCall.handleRemoteEnded]);
+  }, [
+    humanCall.handleIncomingCall,
+    humanCall.handleCallAnswered,
+    humanCall.handleRemoteEnded,
+    humanCall.handleParticipantUpdate,
+  ]);
 
   const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
   React.useEffect(() => {
@@ -3788,10 +3828,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       teamsById,
       humans: rosterHumans,
       selectableTeams: rosterTeams,
+      selectableGroups: rosterGroups,
       selectedEntityKey: isNonAssistantSelection ? profileAssistantId : null,
       onSelectHuman: handleSelectHuman,
       onSelectTeam: handleSelectTeam,
+      onSelectGroup: handleSelectGroup,
+      onCreateGroup: () => setCreateGroupOpen(true),
       entityUnreadCounts: orgChat.unread,
+      orgCallActiveUserIds:
+        humanCall.isConnected && humanCall.activeCall
+          ? humanCall.activeCall.participants
+              .filter((p) => p.status === 'joined')
+              .map((p) => p.userId)
+          : [],
+      orgCallActiveTeamId:
+        humanCall.isConnected && humanCall.activeCall?.scope === 'team'
+          ? humanCall.activeCall.teamId
+          : null,
+      orgCallActiveGroupId:
+        humanCall.isConnected && humanCall.activeCall?.scope === 'group'
+          ? humanCall.activeCall.groupId
+          : null,
     }),
     [
       sidebarAssistants,
@@ -3810,10 +3867,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       teamsById,
       rosterHumans,
       rosterTeams,
+      rosterGroups,
       isNonAssistantSelection,
       handleSelectHuman,
       handleSelectTeam,
+      handleSelectGroup,
       orgChat.unread,
+      humanCall.isConnected,
+      humanCall.activeCall,
     ]
   );
 
@@ -3872,8 +3933,46 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         isOrgWideSharing: selectedTeam.isOrgWideSharing,
       };
     }
+    if (selectedEntity?.kind === 'group') {
+      if (!selectedGroup) return { kind: 'group', label: 'Group' };
+      const humanCount = selectedGroup.memberUserIds.length;
+      const aiCount = selectedGroup.assistantMemberIds.length;
+      const groupFaces = [
+        ...selectedGroup.memberUserIds.map((userId) => {
+          const human = rosterHumansById[userId];
+          return {
+            id: `u:${userId}`,
+            name:
+              human?.name?.trim() || human?.email || (userId === currentUserId ? 'You' : userId),
+            image: human?.image,
+          };
+        }),
+        ...selectedGroup.assistantMemberIds.map((assistantId) => {
+          const assistant = assistantFacesById[String(assistantId)];
+          return {
+            id: `a:${assistantId}`,
+            name: assistant?.name || `Assistant ${assistantId}`,
+            image: assistant?.image,
+          };
+        }),
+      ];
+      return {
+        kind: 'group',
+        label: selectedGroup.name,
+        sublabel: `${humanCount + aiCount} members`,
+        groupFaces,
+      };
+    }
     return null;
-  }, [selectedEntity, selectedHuman, selectedTeam]);
+  }, [
+    selectedEntity,
+    selectedHuman,
+    selectedTeam,
+    selectedGroup,
+    rosterHumansById,
+    assistantFacesById,
+    currentUserId,
+  ]);
 
   const profileCanWrite = visibleProfileAssistant ? canWrite(visibleProfileAssistant) : undefined;
   const isInitialAssistantIdentityLoading = !visibleProfileAssistant && isInitialLoadingAssistants;
@@ -4085,8 +4184,126 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             onHireForTeam={
                               canHire ? () => handleOpenHireDialog(selectedTeam.teamId) : undefined
                             }
+                            onStartCall={() => void humanCall.startTeamCall(selectedTeam.teamId)}
+                            onJoinCall={
+                              humanCall.activeCall?.teamId === selectedTeam.teamId &&
+                              !humanCall.isConnected
+                                ? () => void humanCall.joinCall(humanCall.activeCall!)
+                                : humanCall.incomingCall?.teamId === selectedTeam.teamId
+                                  ? () => void humanCall.answerCall(humanCall.incomingCall!)
+                                  : undefined
+                            }
+                            canJoinActiveCall={
+                              (humanCall.incomingCall?.teamId === selectedTeam.teamId &&
+                                !humanCall.isConnected) ||
+                              (humanCall.activeCall?.teamId === selectedTeam.teamId &&
+                                humanCall.activeCall.status === 'active' &&
+                                !humanCall.isConnected)
+                            }
+                            isCallButtonDisabled={
+                              !humanCall.voiceCallsEnabled ||
+                              !!activeCallAssistant ||
+                              humanCall.isConnecting ||
+                              (humanCall.isConnected &&
+                                humanCall.activeCall?.teamId !== selectedTeam.teamId)
+                            }
+                            callButtonTooltip={
+                              activeCallAssistant
+                                ? 'End the assistant call before starting a team call'
+                                : !humanCall.voiceCallsEnabled
+                                  ? 'Voice calls are not configured'
+                                  : humanCall.isConnected &&
+                                      humanCall.activeCall?.teamId === selectedTeam.teamId
+                                    ? 'Already in this call'
+                                    : humanCall.isConnected
+                                      ? 'Already in a call'
+                                      : undefined
+                            }
+                            isConnectingCall={humanCall.isConnecting}
                           />
                         )}
+                      </EntityInfoPanelLayout>
+                    );
+                  }
+                  if (
+                    selectedEntity?.kind === 'group' &&
+                    selectedGroup &&
+                    activeOrganizationId &&
+                    profileAssistantId
+                  ) {
+                    const groupAssistants = Object.values(assistantFacesById);
+                    return (
+                      <EntityInfoPanelLayout
+                        entityId={profileAssistantId}
+                        isActiveSurface={isActiveSurface}
+                        ariaLabel="Group profile"
+                        renderPanel={({ onClose, hideHeaderActions }) => (
+                          <GroupInfoSidePanelContent
+                            group={selectedGroup}
+                            humansById={rosterHumansById}
+                            assistantsById={assistantFacesById}
+                            onClose={onClose}
+                            hideHeaderActions={hideHeaderActions}
+                          />
+                        )}
+                      >
+                        <GroupWorkspace
+                          group={selectedGroup}
+                          orgId={activeOrganizationId}
+                          humansById={rosterHumansById}
+                          assistantsById={assistantFacesById}
+                          allHumans={roster?.humans ?? []}
+                          allAssistants={groupAssistants.filter((a) => {
+                            const full = sidebarAssistants.find((s) => s.agentId === a.agentId);
+                            return full ? !full.isCoordinator : true;
+                          })}
+                          currentUserId={currentUserId}
+                          chat={orgChat}
+                          onStartCall={() => void humanCall.startGroupCall(selectedGroup.groupId)}
+                          onJoinCall={
+                            humanCall.activeCall?.groupId === selectedGroup.groupId &&
+                            !humanCall.isConnected
+                              ? () => void humanCall.joinCall(humanCall.activeCall!)
+                              : humanCall.incomingCall?.groupId === selectedGroup.groupId
+                                ? () => void humanCall.answerCall(humanCall.incomingCall!)
+                                : undefined
+                          }
+                          canJoinActiveCall={
+                            (humanCall.incomingCall?.groupId === selectedGroup.groupId &&
+                              !humanCall.isConnected) ||
+                            (humanCall.activeCall?.groupId === selectedGroup.groupId &&
+                              humanCall.activeCall.status === 'active' &&
+                              !humanCall.isConnected)
+                          }
+                          isCallButtonDisabled={
+                            !humanCall.voiceCallsEnabled ||
+                            !!activeCallAssistant ||
+                            humanCall.isConnecting ||
+                            (humanCall.isConnected &&
+                              humanCall.activeCall?.groupId !== selectedGroup.groupId)
+                          }
+                          callButtonTooltip={
+                            activeCallAssistant
+                              ? 'End the assistant call before starting a group call'
+                              : !humanCall.voiceCallsEnabled
+                                ? 'Voice calls are not configured'
+                                : humanCall.isConnected &&
+                                    humanCall.activeCall?.groupId === selectedGroup.groupId
+                                  ? 'Already in this call'
+                                  : humanCall.isConnected
+                                    ? 'Already in a call'
+                                    : undefined
+                          }
+                          isConnectingCall={humanCall.isConnecting}
+                          onRefreshRoster={() => void refreshOrgRoster()}
+                          onLeftOrDeleted={() => {
+                            if (canonicalCoordinatorId) {
+                              handleShowProfile(canonicalCoordinatorId);
+                            } else {
+                              handleProfileClose();
+                            }
+                          }}
+                        />
                       </EntityInfoPanelLayout>
                     );
                   }
@@ -4309,24 +4526,118 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         {humanCall.incomingCall && !activeCallAssistant && (
           <IncomingHumanCallCard
             callerName={
-              rosterHumansById[humanCall.incomingCall.callerUserId]?.name?.trim() || 'Teammate'
+              humanCall.incomingCall.scope === 'team'
+                ? rosterTeams
+                    .find((t) => t.teamId === humanCall.incomingCall?.teamId)
+                    ?.name?.trim() || 'Team call'
+                : humanCall.incomingCall.scope === 'group'
+                  ? rosterGroups
+                      .find((g) => g.groupId === humanCall.incomingCall?.groupId)
+                      ?.name?.trim() || 'Group call'
+                  : rosterHumansById[humanCall.incomingCall.callerUserId]?.name?.trim() ||
+                    'Teammate'
+            }
+            subtitle={
+              humanCall.incomingCall.scope === 'team'
+                ? 'Team call ringing…'
+                : humanCall.incomingCall.scope === 'group'
+                  ? 'Group call ringing…'
+                  : 'is calling you…'
             }
             onAnswer={() => void humanCall.answerCall(humanCall.incomingCall!)}
             onDecline={() => void humanCall.declineCall(humanCall.incomingCall!)}
           />
         )}
         {humanCall.isConnected && humanCall.activeCall && (
-          <ActiveHumanCallCard
-            peerName={(() => {
-              const peerId =
-                humanCall.activeCall.callerUserId === currentUserId
-                  ? humanCall.activeCall.calleeUserId
-                  : humanCall.activeCall.callerUserId;
-              return rosterHumansById[peerId]?.name?.trim() || 'Teammate';
-            })()}
+          <OrgCallMeetStage
+            call={humanCall.activeCall}
+            room={humanCall.room}
+            roomEpoch={humanCall.roomEpoch}
+            currentUserId={currentUserId}
+            humansById={Object.fromEntries(
+              Object.entries(rosterHumansById).map(([id, h]) => [
+                id,
+                { userId: h.userId, name: h.name, image: h.image },
+              ])
+            )}
+            assistantsById={Object.fromEntries(
+              Object.entries(assistantFacesById).map(([id, a]) => [
+                id,
+                {
+                  agentId: a.agentId,
+                  name: a.name,
+                  image: a.image ?? null,
+                },
+              ])
+            )}
+            localName={
+              (currentUserId && rosterHumansById[currentUserId]?.name) || userMeta.email || 'You'
+            }
+            localImage={
+              (currentUserId && rosterHumansById[currentUserId]?.image) || userMeta.image || null
+            }
+            micEnabled={humanCall.micEnabled}
+            camEnabled={humanCall.camEnabled}
+            isHost={humanCall.isHost}
+            addableAssistants={
+              humanCall.activeCall.scope === 'team' && humanCall.activeCall.teamId != null
+                ? (
+                    rosterTeams.find((t) => t.teamId === humanCall.activeCall?.teamId)
+                      ?.assistantMemberIds ?? []
+                  )
+                    .filter((id) => !humanCall.activeCall?.assistantIds.includes(id))
+                    .map((id) => assistantFacesById[String(id)])
+                    .filter(Boolean)
+                    .map((a) => ({
+                      agentId: a.agentId,
+                      name: a.name,
+                      image: a.image ?? null,
+                    }))
+                : humanCall.activeCall.scope === 'group' && humanCall.activeCall.groupId != null
+                  ? (
+                      rosterGroups.find((g) => g.groupId === humanCall.activeCall?.groupId)
+                        ?.assistantMemberIds ?? []
+                    )
+                      .filter((id) => !humanCall.activeCall?.assistantIds.includes(id))
+                      .map((id) => assistantFacesById[String(id)])
+                      .filter(Boolean)
+                      .map((a) => ({
+                        agentId: a.agentId,
+                        name: a.name,
+                        image: a.image ?? null,
+                      }))
+                  : []
+            }
+            onToggleMic={() => void humanCall.toggleMic()}
+            onToggleCam={() => void humanCall.toggleCam()}
+            onLeave={() => void humanCall.leaveCall()}
             onEnd={() => void humanCall.endCall()}
+            onAddAssistant={(assistantId) => void humanCall.addAssistant(assistantId)}
           />
         )}
+        {activeOrganizationId ? (
+          <CreateGroupDialog
+            open={createGroupOpen}
+            onOpenChange={setCreateGroupOpen}
+            orgId={activeOrganizationId}
+            currentUserId={currentUserId}
+            humans={roster?.humans ?? []}
+            assistants={sidebarAssistants
+              .filter((a) => !a.isCoordinator)
+              .map((a) => ({
+                agentId: a.agentId,
+                name: assistantDisplayName(a),
+                image: a.signedProfilePhotoUrl || a.profilePhoto || null,
+              }))}
+            onCreated={(group) => {
+              // Refresh first so the stale-selection effect does not clear
+              // `group:{id}` against a roster that still lacks the new row.
+              void refreshOrgRoster().then(() => {
+                handleSelectGroup(group.groupId);
+              });
+            }}
+          />
+        ) : null}
         <FormProvider {...formMethods}>
           <AssistantHire
             formMethods={formMethods}

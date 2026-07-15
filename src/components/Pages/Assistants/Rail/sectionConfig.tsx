@@ -22,7 +22,7 @@ import type { RightPaneTab } from '@/components/Pages/Assistants/RightPaneContai
  * Desktop, …) are assistant-only, humans get just Chat, and teams get their
  * group chat + members overview.
  */
-export type SelectorEntityKind = 'assistant' | 'human' | 'team';
+export type SelectorEntityKind = 'assistant' | 'human' | 'team' | 'group';
 
 /**
  * A rail section is one of four kinds:
@@ -66,7 +66,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: MessageSquare,
     kind: 'view',
     tab: 'chat',
-    appliesTo: ['assistant', 'human', 'team'],
+    appliesTo: ['assistant', 'human', 'team', 'group'],
     desc: 'Talk to your teammate — messages, voice notes, files, and screen share in one thread.',
     steps: [
       ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],

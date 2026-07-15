@@ -9,10 +9,10 @@
  * Authorization is derived server-side: after session auth we fetch the org
  * roster with the user's own API key (a 403/404 from Orchestra means the user
  * is not a member → 403 here) and the user's id from `/user/basic-info`.
- * Team frames are forwarded only for teams the user belongs to; DM frames
- * only when the user is one of the two participants. Everything else is
- * dropped (and acked) server-side so no cross-team/DM data reaches the
- * browser.
+ * Team frames are forwarded only for teams the user belongs to; group frames
+ * only for groups the user belongs to; DM frames only when the user is one of
+ * the participants. Everything else is dropped (and acked) server-side so no
+ * cross-team/group/DM data reaches the browser.
  *
  * Subscription naming: `{topicName}-console-{userId}` — one persistent
  * subscription per (org, user). Messages are acked immediately on enqueue;
@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
   // membership check: Orchestra rejects non-members.
   let userId: string;
   let allowedTeamIds: Set<number>;
+  let allowedGroupIds: Set<number>;
   try {
     const [basicInfoResponse, rosterResponse] = await Promise.all([
       fetch(`${ORCHESTRA_URL}/v0/user/basic-info`, { headers: authHeaders, cache: 'no-store' }),
@@ -141,6 +142,22 @@ export async function GET(request: NextRequest) {
       teams
         .filter((team) => (team.member_user_ids ?? []).map(String).includes(userId))
         .map((team) => Number(team.team_id))
+    );
+    // Roster already scopes groups to membership; accept any group_id listed.
+    const groups: Array<{ group_id: number; member_user_ids?: string[] }> = Array.isArray(
+      roster?.groups
+    )
+      ? roster.groups
+      : [];
+    allowedGroupIds = new Set(
+      groups
+        .filter((group) => {
+          const members = group.member_user_ids;
+          if (!Array.isArray(members) || members.length === 0) return true;
+          return members.map(String).includes(userId);
+        })
+        .map((group) => Number(group.group_id))
+        .filter((id) => !isNaN(id))
     );
   } catch (error: any) {
     console.error('[Org Chat SSE] AUTHZ_ERROR', error?.message);
@@ -186,7 +203,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  log('CONNECT', { topicName, subscriptionName, allowedTeamIds: [...allowedTeamIds] });
+  log('CONNECT', {
+    topicName,
+    subscriptionName,
+    allowedTeamIds: [...allowedTeamIds],
+    allowedGroupIds: [...allowedGroupIds],
+  });
 
   const { lifecycle, cancel } = createSseLifecycle(request);
 
@@ -236,18 +258,28 @@ export async function GET(request: NextRequest) {
           const teamIdRaw = message.attributes?.team_id ?? event?.team_id;
           const teamId = Number(teamIdRaw);
           allowed = !isNaN(teamId) && allowedTeamIds.has(teamId);
+        } else if (thread === 'group_message') {
+          const groupIdRaw = message.attributes?.group_id ?? event?.group_id;
+          const groupId = Number(groupIdRaw);
+          allowed = !isNaN(groupId) && allowedGroupIds.has(groupId);
         } else if (
           thread === 'dm_message' ||
-          thread === 'dm_call_incoming' ||
-          thread === 'dm_call_answered' ||
-          thread === 'dm_call_ended' ||
-          thread === 'dm_call_declined'
+          (typeof thread === 'string' &&
+            (thread.startsWith('dm_call_') || thread.startsWith('org_call_')))
         ) {
           const participants: string[] = Array.isArray(event?.user_ids)
             ? event.user_ids.map(String)
             : [message.attributes?.dm_user_a, message.attributes?.dm_user_b].filter(
                 (id): id is string => typeof id === 'string'
               );
+          if (participants.length === 0 && typeof message.attributes?.user_ids === 'string') {
+            participants.push(
+              ...message.attributes.user_ids
+                .split(',')
+                .map((id: string) => id.trim())
+                .filter(Boolean)
+            );
+          }
           // Call frames may only carry caller/callee ids.
           if (participants.length === 0) {
             if (event?.caller_user_id) participants.push(String(event.caller_user_id));

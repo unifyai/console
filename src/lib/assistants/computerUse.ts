@@ -5,12 +5,95 @@ import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import type { Assistant, DesktopMode } from '@/types/assistants/assistant';
 import type { ResponseProps } from '@/types/common';
 
+export interface ManagedDesktopIPRotation {
+  id: string;
+  state: string;
+  error?: string | null;
+  oldAddress?: string | null;
+  candidateAddress?: string | null;
+  rollbackExpiresAt?: string | null;
+  requestedAt: string;
+  completedAt?: string | null;
+}
+
+export interface ManagedDesktopNetworkIdentity {
+  gcpAddressName?: string | null;
+  address?: string | null;
+  region?: string | null;
+  hostname?: string | null;
+  state: string;
+  activeOperation?: string | null;
+  rotation?: ManagedDesktopIPRotation | null;
+}
+
+export interface NetworkIdentity {
+  address: string | null;
+  region: string | null;
+  hostname: string | null;
+  state: string | null;
+  activeOperation: string | null;
+}
+
+export interface NetworkIdentityRotation {
+  address?: string | null;
+  region?: string | null;
+  hostname?: string | null;
+  state?: string | null;
+  activeOperation?: string | null;
+}
+
 export interface ManagedDesktopStatus {
   desktopMode: DesktopMode | null;
   managedDesktopStatus: 'active' | 'grace_period' | 'disabled' | null;
   monthlyCost: number | null;
   managedDesktopEnabledAt?: string | null;
   managedDesktopGracePeriodStartedAt?: string | null;
+  networkIdentity?: NetworkIdentity | null;
+}
+
+function mapRotation(value: Record<string, unknown>): ManagedDesktopIPRotation {
+  return {
+    id: String(value.id),
+    state: String(value.state),
+    error: typeof value.error === 'string' ? value.error : null,
+    oldAddress: typeof value.old_address === 'string' ? value.old_address : null,
+    candidateAddress: typeof value.candidate_address === 'string' ? value.candidate_address : null,
+    rollbackExpiresAt:
+      typeof value.rollback_expires_at === 'string' ? value.rollback_expires_at : null,
+    requestedAt: String(value.requested_at),
+    completedAt: typeof value.completed_at === 'string' ? value.completed_at : null,
+  };
+}
+
+function mapManagedDesktopStatus(value: Record<string, unknown>): ManagedDesktopStatus {
+  const identity =
+    value.network_identity && typeof value.network_identity === 'object'
+      ? (value.network_identity as Record<string, unknown>)
+      : null;
+  return {
+    desktopMode: (value.desktop_mode as DesktopMode | null) ?? null,
+    managedDesktopStatus:
+      (value.managed_desktop_status as ManagedDesktopStatus['managedDesktopStatus']) ?? null,
+    monthlyCost: typeof value.monthly_cost === 'number' ? value.monthly_cost : null,
+    managedDesktopEnabledAt:
+      typeof value.managed_desktop_enabled_at === 'string'
+        ? value.managed_desktop_enabled_at
+        : null,
+    managedDesktopGracePeriodStartedAt:
+      typeof value.managed_desktop_grace_period_started_at === 'string'
+        ? value.managed_desktop_grace_period_started_at
+        : null,
+    networkIdentity: identity
+      ? {
+          address: typeof identity.address === 'string' ? identity.address : null,
+          region: typeof identity.region === 'string' ? identity.region : null,
+          hostname: typeof identity.hostname === 'string' ? identity.hostname : null,
+          state: typeof identity.state === 'string' ? identity.state : null,
+          activeOperation:
+            typeof identity.active_operation === 'string' ? identity.active_operation : null,
+        }
+      : null,
+  };
 }
 
 export async function getManagedDesktopStatus(
@@ -25,7 +108,52 @@ export async function getManagedDesktopStatus(
   if (!response.ok) {
     return { detail: data.detail ?? 'Failed to load Computer Use status' };
   }
-  return { info: data.info };
+  return { info: mapManagedDesktopStatus(data.info ?? {}) };
+}
+
+export async function rotateManagedDesktopNetworkIdentity(
+  assistantId: number | string
+): Promise<ResponseProps & { info?: NetworkIdentityRotation }> {
+  const apiKey = await requireUserApiKey();
+  const response = await fetch(
+    `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/managed-desktop/network-identity/rotate`,
+    { method: 'POST', headers: { apiKey } }
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    return { detail: data.detail ?? 'Failed to start IP rotation' };
+  }
+  const rotation = mapRotation(data.info ?? {});
+  return {
+    info: {
+      address: rotation.candidateAddress,
+      state: rotation.state,
+      activeOperation: rotation.state === 'error' ? null : 'rotate',
+    },
+  };
+}
+
+export async function getManagedDesktopNetworkIdentityRotation(
+  assistantId: number | string
+): Promise<ResponseProps & { info?: NetworkIdentityRotation }> {
+  const apiKey = await requireUserApiKey();
+  const response = await fetch(
+    `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/managed-desktop/network-identity/rotation`,
+    { headers: { apiKey } }
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    return { detail: data.detail ?? 'Failed to load network identity rotation status' };
+  }
+  const rotation = mapRotation(data.info ?? {});
+  return {
+    info: {
+      address: rotation.candidateAddress,
+      state: rotation.state,
+      activeOperation:
+        rotation.state === 'error' || rotation.state === 'rollback_pending' ? null : 'rotate',
+    },
+  };
 }
 
 export async function enableManagedDesktop(

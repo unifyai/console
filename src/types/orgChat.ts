@@ -1,7 +1,7 @@
 /**
- * Types for the org roster (human members + teams), team group chat, and
- * human-to-human DMs. Each type ships with a `parse*` helper that maps the
- * snake_case Orchestra API payload into the camelCase client shape.
+ * Types for the org roster (human members, teams, and chat groups), team /
+ * group chat, and human-to-human DMs. Each type ships with a `parse*` helper
+ * that maps the snake_case Orchestra API payload into the camelCase client shape.
  */
 
 export interface ChatMention {
@@ -78,10 +78,42 @@ export function withOrgProfileImageForTeams<
   );
 }
 
+export interface RosterGroup {
+  groupId: number;
+  name: string;
+  createdByUserId: string;
+  createdAt: string | null;
+  memberUserIds: string[];
+  assistantMemberIds: number[];
+}
+
+export function parseRosterGroup(raw: Record<string, unknown>): RosterGroup {
+  const groupIdRaw = raw.group_id ?? raw.groupId;
+  const createdByRaw = raw.created_by_user_id ?? raw.createdByUserId;
+  const memberUserIdsRaw = raw.member_user_ids ?? raw.memberUserIds;
+  const assistantMemberIdsRaw = raw.assistant_member_ids ?? raw.assistantMemberIds;
+  return {
+    groupId: Number(groupIdRaw),
+    name: typeof raw.name === 'string' ? raw.name : '',
+    createdByUserId: createdByRaw != null ? String(createdByRaw) : '',
+    createdAt:
+      typeof raw.created_at === 'string'
+        ? raw.created_at
+        : typeof raw.createdAt === 'string'
+          ? raw.createdAt
+          : null,
+    memberUserIds: Array.isArray(memberUserIdsRaw) ? memberUserIdsRaw.map(String) : [],
+    assistantMemberIds: Array.isArray(assistantMemberIdsRaw)
+      ? assistantMemberIdsRaw.map(Number)
+      : [],
+  };
+}
+
 export interface OrgRoster {
   organizationId: number;
   humans: RosterHuman[];
   teams: RosterTeam[];
+  groups: RosterGroup[];
 }
 
 export function parseOrgRoster(raw: Record<string, unknown>): OrgRoster {
@@ -92,6 +124,9 @@ export function parseOrgRoster(raw: Record<string, unknown>): OrgRoster {
       : [],
     teams: Array.isArray(raw.teams)
       ? raw.teams.map((t) => parseRosterTeam(t as Record<string, unknown>))
+      : [],
+    groups: Array.isArray(raw.groups)
+      ? raw.groups.map((g) => parseRosterGroup(g as Record<string, unknown>))
       : [],
   };
 }
@@ -188,6 +223,34 @@ export function parseTeamChatMessage(raw: Record<string, unknown>): TeamChatMess
   };
 }
 
+export interface GroupChatMessage {
+  messageId: number;
+  groupId: number;
+  timestamp: string | null;
+  senderKind: 'user' | 'assistant';
+  senderUserId: string | null;
+  senderAssistantId: number | null;
+  senderName: string;
+  content: string;
+  mentions: ChatMention[];
+  attachments: OrgChatAttachment[];
+}
+
+export function parseGroupChatMessage(raw: Record<string, unknown>): GroupChatMessage {
+  return {
+    messageId: Number(raw.message_id),
+    groupId: Number(raw.group_id),
+    timestamp: typeof raw.timestamp === 'string' ? raw.timestamp : null,
+    senderKind: raw.sender_kind === 'assistant' ? 'assistant' : 'user',
+    senderUserId: raw.sender_user_id != null ? String(raw.sender_user_id) : null,
+    senderAssistantId: raw.sender_assistant_id != null ? Number(raw.sender_assistant_id) : null,
+    senderName: typeof raw.sender_name === 'string' ? raw.sender_name : '',
+    content: typeof raw.content === 'string' ? raw.content : '',
+    mentions: parseMentions(raw.mentions),
+    attachments: parseAttachments(raw.attachments),
+  };
+}
+
 export interface DmMessage {
   id: number;
   threadId: number;
@@ -216,7 +279,7 @@ export function parseDmMessage(raw: Record<string, unknown>): DmMessage {
 
 export interface OrgChatSearchResult {
   id: string;
-  scope: 'dm' | 'team';
+  scope: 'dm' | 'team' | 'group';
   content: string;
   timestamp: string | null;
   senderName: string;
@@ -225,7 +288,7 @@ export interface OrgChatSearchResult {
 export function parseOrgChatSearchResult(raw: Record<string, unknown>): OrgChatSearchResult {
   return {
     id: String(raw.id ?? ''),
-    scope: raw.scope === 'team' ? 'team' : 'dm',
+    scope: raw.scope === 'team' ? 'team' : raw.scope === 'group' ? 'group' : 'dm',
     content: typeof raw.content === 'string' ? raw.content : '',
     timestamp:
       typeof raw.timestamp === 'string'
@@ -237,25 +300,102 @@ export function parseOrgChatSearchResult(raw: Record<string, unknown>): OrgChatS
   };
 }
 
-export interface HumanCallSession {
-  callId: string;
-  roomName: string;
-  status: 'ringing' | 'active' | 'ended' | 'declined';
-  callerUserId: string;
-  calleeUserId: string;
+export type OrgCallScope = 'dm' | 'team' | 'group';
+export type OrgCallStatus = 'ringing' | 'active' | 'ended';
+export type OrgCallParticipantStatus = 'invited' | 'joined' | 'declined' | 'left';
+
+export interface OrgCallParticipant {
+  userId: string;
+  role: 'host' | 'member';
+  status: OrgCallParticipantStatus;
 }
 
-export function parseHumanCallSession(raw: Record<string, unknown>): HumanCallSession {
+export interface OrgCallSession {
+  callId: string;
+  roomName: string;
+  status: OrgCallStatus;
+  scope: OrgCallScope;
+  createdByUserId: string;
+  callerUserId: string;
+  calleeUserId: string | null;
+  teamId: number | null;
+  groupId: number | null;
+  dmThreadId: number | null;
+  userIds: string[];
+  participants: OrgCallParticipant[];
+  assistantIds: number[];
+  roster: OrgCallRosterMember[];
+}
+
+export interface OrgCallRosterMember {
+  kind: 'human' | 'assistant';
+  userId: string | null;
+  assistantId: number | null;
+  displayName: string;
+  contactId: number | null;
+  email: string | null;
+}
+
+/** @deprecated Use OrgCallSession — kept for transitional imports. */
+export type HumanCallSession = OrgCallSession;
+
+export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSession {
   const statusRaw = String(raw.status ?? 'ringing');
-  const status =
-    statusRaw === 'active' || statusRaw === 'ended' || statusRaw === 'declined'
-      ? statusRaw
-      : 'ringing';
+  const status: OrgCallStatus =
+    statusRaw === 'active' || statusRaw === 'ended' ? statusRaw : 'ringing';
+  const scopeRaw = String(raw.scope ?? 'dm');
+  const scope: OrgCallScope = scopeRaw === 'team' ? 'team' : scopeRaw === 'group' ? 'group' : 'dm';
+  const participantsRaw = Array.isArray(raw.participants) ? raw.participants : [];
+  const participants: OrgCallParticipant[] = participantsRaw.map((p) => {
+    const row = (p ?? {}) as Record<string, unknown>;
+    const pStatus = String(row.status ?? 'invited');
+    const statusParsed: OrgCallParticipantStatus =
+      pStatus === 'joined' || pStatus === 'declined' || pStatus === 'left' ? pStatus : 'invited';
+    return {
+      userId: String(row.user_id ?? ''),
+      role: row.role === 'host' ? 'host' : 'member',
+      status: statusParsed,
+    };
+  });
+  const userIds = Array.isArray(raw.user_ids)
+    ? raw.user_ids.map(String)
+    : participants.map((p) => p.userId);
+  const createdBy = String(raw.created_by_user_id ?? raw.caller_user_id ?? '');
+  const rosterRaw = Array.isArray(raw.roster) ? raw.roster : [];
+  const roster: OrgCallRosterMember[] = rosterRaw.map((r) => {
+    const row = (r ?? {}) as Record<string, unknown>;
+    return {
+      kind: row.kind === 'assistant' ? 'assistant' : 'human',
+      userId: row.user_id == null || row.user_id === '' ? null : String(row.user_id),
+      assistantId:
+        row.assistant_id == null || row.assistant_id === '' ? null : Number(row.assistant_id),
+      displayName: typeof row.display_name === 'string' ? row.display_name : '',
+      contactId: row.contact_id == null || row.contact_id === '' ? null : Number(row.contact_id),
+      email: typeof row.email === 'string' ? row.email : null,
+    };
+  });
   return {
     callId: String(raw.call_id ?? ''),
     roomName: typeof raw.room_name === 'string' ? raw.room_name : '',
     status,
-    callerUserId: String(raw.caller_user_id ?? ''),
-    calleeUserId: String(raw.callee_user_id ?? ''),
+    scope,
+    createdByUserId: createdBy,
+    callerUserId: String(raw.caller_user_id ?? createdBy),
+    calleeUserId:
+      raw.callee_user_id == null || raw.callee_user_id === '' ? null : String(raw.callee_user_id),
+    teamId: raw.team_id == null || raw.team_id === '' ? null : Number(raw.team_id),
+    groupId: raw.group_id == null || raw.group_id === '' ? null : Number(raw.group_id),
+    dmThreadId:
+      raw.dm_thread_id == null && raw.thread_id == null
+        ? null
+        : Number(raw.dm_thread_id ?? raw.thread_id),
+    userIds,
+    participants,
+    assistantIds: Array.isArray(raw.assistant_ids)
+      ? raw.assistant_ids.map(Number).filter((n) => !Number.isNaN(n))
+      : [],
+    roster,
   };
 }
+
+export const parseHumanCallSession = parseOrgCallSession;

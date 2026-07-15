@@ -20,6 +20,12 @@ interface TeamWorkspaceProps {
   chat: ReturnType<typeof useOrgChat>;
   /** Opens the hire dialog with this team preset as the owning team. */
   onHireForTeam?: () => void;
+  onStartCall?: () => void;
+  onJoinCall?: () => void;
+  isCallButtonDisabled?: boolean;
+  callButtonTooltip?: string;
+  isConnectingCall?: boolean;
+  canJoinActiveCall?: boolean;
 }
 
 /**
@@ -35,6 +41,12 @@ export function TeamWorkspace({
   activeSectionId,
   chat,
   onHireForTeam,
+  onStartCall,
+  onJoinCall,
+  isCallButtonDisabled,
+  callButtonTooltip,
+  isConnectingCall,
+  canJoinActiveCall,
 }: TeamWorkspaceProps) {
   const { loadTeamHistory, sendTeamMessage, teamMessages } = chat;
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -128,8 +140,12 @@ export function TeamWorkspace({
             placeholder={`Message ${team.name}…`}
             emptyState="No messages in this team yet."
             onOpenSearch={() => setSearchOpen(true)}
-            isCallButtonDisabled
-            callButtonTooltip="Team calls are not available yet"
+            onStartCall={canJoinActiveCall ? onJoinCall : onStartCall}
+            isCallButtonDisabled={isCallButtonDisabled}
+            callButtonTooltip={
+              callButtonTooltip ?? (canJoinActiveCall ? 'Join team call' : undefined)
+            }
+            isConnectingCall={isConnectingCall}
             highlightMessageId={highlightMessageId}
           />
           <OrgChatSearchDialog

@@ -116,7 +116,19 @@ export async function dispatchAssistantToCall(
   assistantId: string,
   roomName: string,
   openingConfig?: CallOpeningConfig,
-  callSessionId?: string
+  callSessionId?: string,
+  options?: {
+    /** When set, omit livekitAgentName=roomName so org multi-agent rooms do not collide. */
+    orgCall?: boolean;
+    participants?: Array<{
+      kind: string;
+      userId?: string | null;
+      assistantId?: number | null;
+      displayName: string;
+      contactId?: number | null;
+      email?: string | null;
+    }>;
+  }
 ): Promise<ResponseProps> {
   const apiKey = await requireUserApiKey();
   try {
@@ -128,13 +140,20 @@ export async function dispatchAssistantToCall(
     const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
     const dispatchUrl = `${getAdaptersBaseUrl({ localAdaptersUrl })}/unify/meet`;
 
-    const dispatchPayload = camelToSnakeObject({
+    const payload: Record<string, unknown> = {
       assistantId,
-      livekitAgentName: roomName,
       roomName,
       ...(openingConfig ? { openingConfig } : {}),
       ...(callSessionId ? { callSessionId } : {}),
-    });
+    };
+    // Classic 1:1 Meet uses agent_name = room name. Org multi-party rooms must
+    // not — each assistant registers its own worker_agent_name.
+    if (!options?.orgCall) {
+      payload.livekitAgentName = roomName;
+    }
+    if (options?.participants?.length) {
+      payload.participants = options.participants;
+    }
 
     const resp = await fetch(dispatchUrl, {
       method: 'POST',
@@ -142,7 +161,7 @@ export async function dispatchAssistantToCall(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${adminKey}`,
       },
-      body: JSON.stringify(dispatchPayload),
+      body: JSON.stringify(camelToSnakeObject(payload)),
     });
 
     if (!resp.ok) {

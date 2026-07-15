@@ -12,7 +12,7 @@ interface OrgChatSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orgId: string;
-  scope: 'dm' | 'team';
+  scope: 'dm' | 'team' | 'group';
   scopeId: string | number;
   peerName: string;
   onGoToMessage: (result: OrgChatSearchResult) => void;

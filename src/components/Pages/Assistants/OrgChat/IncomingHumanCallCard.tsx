@@ -4,13 +4,15 @@ import * as React from 'react';
 import { Phone, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 
-/** Incoming human↔human call prompt (browser LiveKit). */
+/** Incoming org call prompt (DM or team; browser LiveKit). */
 export function IncomingHumanCallCard({
   callerName,
+  subtitle = 'is calling you…',
   onAnswer,
   onDecline,
 }: {
   callerName: string;
+  subtitle?: string;
   onAnswer: () => void;
   onDecline: () => void;
 }) {
@@ -27,7 +29,7 @@ export function IncomingHumanCallCard({
         </span>
         <div className="min-w-0">
           <p className="text-body truncate text-foreground">{callerName}</p>
-          <p className="text-caption truncate">is calling you…</p>
+          <p className="text-caption truncate">{subtitle}</p>
         </div>
       </div>
       <div className="mt-4 flex gap-2">

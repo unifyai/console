@@ -18,6 +18,7 @@ import { seedPersonalWorkspace } from './scenarios/personal-workspace';
 import { seedPersonalWorkspaceMulti } from './scenarios/personal-workspace-multi';
 import { seedDesktopLinked } from './scenarios/desktop-linked';
 import { seedOrgBasic } from './scenarios/org-basic';
+import { seedOrgChatGroups } from './scenarios/org-chat-groups';
 import { seedOrgMultiRole } from './scenarios/org-multi-role';
 import { seedOrgAndOutsider } from './scenarios/org-unify';
 import { seedCreditGrantLinks } from './scenarios/credit-grant-links';
@@ -39,6 +40,7 @@ const SCENARIOS: Record<string, SeedScenario> = {
   'desktop-linked': seedDesktopLinked,
   'sidebar-team-grouping': seedSidebarTeamGrouping,
   'org-basic': seedOrgBasic,
+  'org-chat-groups': seedOrgChatGroups,
   'org-multi-role': seedOrgMultiRole,
   'org-unify': seedOrgAndOutsider,
   'credit-grant-links': seedCreditGrantLinks,

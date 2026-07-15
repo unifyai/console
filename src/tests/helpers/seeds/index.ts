@@ -54,6 +54,7 @@ export {
   linkUserDesktop,
   createTeamForAssistant,
   addAssistantToTeam,
+  createChatGroup,
   createSecret,
   seedSecretsViaOrchestra,
   createEmailLogin,
@@ -77,6 +78,7 @@ export {
 export { seedPersonalWorkspace } from './scenarios/personal-workspace';
 export { seedDesktopLinked } from './scenarios/desktop-linked';
 export { seedOrgBasic } from './scenarios/org-basic';
+export { seedOrgChatGroups } from './scenarios/org-chat-groups';
 export { seedOrgMultiRole } from './scenarios/org-multi-role';
 export { seedOrgAndOutsider } from './scenarios/org-unify';
 export { seedCreditGrantLinks } from './scenarios/credit-grant-links';
