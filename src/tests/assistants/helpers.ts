@@ -363,6 +363,15 @@ export async function openUnitySwitcher(page: Page, opts?: { userId?: string; ap
   await waitForAssistantListReady(page);
 }
 
+/** Dismiss the rail unity switcher popover (Escape). No-op if already closed. */
+export async function closeUnitySwitcher(page: Page) {
+  const popover = page.getByTestId('rail-unity-switcher-popover');
+  if (await popover.isVisible({ timeout: 500 }).catch(() => false)) {
+    await page.keyboard.press('Escape');
+    await expect(popover).toHaveCount(0, { timeout: 5_000 });
+  }
+}
+
 /** Wait until the switcher popover list finished loading assistants. */
 export async function waitForAssistantListReady(page: Page, timeout = 45_000): Promise<void> {
   await expect

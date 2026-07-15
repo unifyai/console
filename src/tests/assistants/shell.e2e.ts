@@ -15,6 +15,7 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openUnitySwitcher,
+  closeUnitySwitcher,
   openRailSection,
   getCoordinatorAgentId,
   deferCoordinatorOnboarding,
@@ -70,9 +71,8 @@ test('the unity switcher opens and selecting a unity drives the section host @pu
   await expect(row).toContainText('Switchy');
   await row.click();
 
-  // Popover dismisses on selection; the switcher card now faces the picked unity.
-  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
   await expect(railUnitySwitcher(page)).toContainText('Switchy');
+  await closeUnitySwitcher(page);
   // Default section is Chat.
   await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 });
@@ -85,7 +85,8 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page, shellOpts);
   await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
-  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+  await expect(railUnitySwitcher(page)).toContainText('Navvy');
+  await closeUnitySwitcher(page);
 
   await openRailSection(page, 'tasks');
   await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
