@@ -37,6 +37,8 @@ import {
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
+import { ListRowInfoToggle } from './ListRowInfoToggle';
+import { requestAssistantInfoPanelToggle } from '@/lib/assistants/infoPanelVisibility';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
@@ -172,6 +174,14 @@ function HumanListRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <EntityUnreadBadge count={unreadCount} testId={`human-unread-badge-${human.userId}`} />
+        <ListRowInfoToggle
+          entityId={humanEntityKey(human.userId)}
+          isSelected={isSelected}
+          onToggle={() =>
+            requestAssistantInfoPanelToggle({ assistantId: humanEntityKey(human.userId) })
+          }
+          testId={`human-info-toggle-${human.userId}`}
+        />
       </div>
     </div>
   );
@@ -194,26 +204,29 @@ function TeamListRow({
 }) {
   const humanCount = team.memberUserIds.length;
   const aiCount = team.assistantMemberIds.length;
-  const subtitle = `${humanCount} human${humanCount === 1 ? '' : 's'} · ${aiCount} AI teammate${
-    aiCount === 1 ? '' : 's'
-  }`;
+  const subtitle = `${humanCount} real · ${aiCount} virtual`;
   const FoldIcon = isFoldedGroup ? ChevronRight : ChevronDown;
+  const handleActivate = () => {
+    onSelect();
+    onToggleFold?.();
+  };
   return (
     <div
       role="button"
       tabIndex={0}
       data-testid={`team-list-item-${team.teamId}`}
+      aria-expanded={onToggleFold ? !isFoldedGroup : undefined}
       className={cn(
         'group flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors',
         isSelected
           ? 'border-primary-tint-30 bg-accent-soft'
           : 'bg-muted/15 border-border hover:border-primary-tint-30 hover:bg-primary-tint-5'
       )}
-      onClick={onSelect}
+      onClick={handleActivate}
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        onSelect();
+        handleActivate();
       }}
     >
       <TeamAvatar
@@ -224,29 +237,13 @@ function TeamListRow({
         iconClassName="h-4 w-4"
       />
       <span className="min-w-0 flex-1 text-left">
-        <span className="flex min-w-0 items-center gap-1">
-          <span
-            className={cn(
-              'truncate text-xs font-medium',
-              isSelected ? 'text-accent-soft-foreground' : 'text-foreground'
-            )}
-          >
-            {team.name}
-          </span>
-          {onToggleFold ? (
-            <button
-              type="button"
-              aria-expanded={!isFoldedGroup}
-              aria-label={isFoldedGroup ? 'Expand team' : 'Collapse team'}
-              className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleFold();
-              }}
-            >
-              <FoldIcon className="h-3 w-3" />
-            </button>
-          ) : null}
+        <span
+          className={cn(
+            'block truncate text-xs font-medium',
+            isSelected ? 'text-accent-soft-foreground' : 'text-foreground'
+          )}
+        >
+          {team.name}
         </span>
         <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
           {subtitle}
@@ -254,12 +251,9 @@ function TeamListRow({
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
         <EntityUnreadBadge count={unreadCount} testId={`team-unread-badge-${team.teamId}`} />
-        <span
-          className="rounded-full border border-primary-tint-20 bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary"
-          aria-hidden="true"
-        >
-          Team
-        </span>
+        {onToggleFold ? (
+          <FoldIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+        ) : null}
       </span>
     </div>
   );
@@ -520,38 +514,50 @@ export function AssistantList({
       const showVirtual = virtualEntries.length > 0;
       if (!showReal && !showVirtual) return null;
 
-      return (
-        <div className="min-w-0 space-y-2 pl-1 pt-1">
-          {showReal ? (
-            <div data-testid={`assistant-list-group-${realId}`} className="min-w-0">
+      const renderNestedGroup = (
+        nestedId: string,
+        label: 'Real' | 'Virtual',
+        body: React.ReactNode
+      ) => (
+        <div data-testid={`assistant-list-group-${nestedId}`} className="min-w-0">
+          <div className="flex min-w-0 items-start gap-1.5">
+            <span
+              aria-hidden="true"
+              className="border-muted-foreground/40 mt-1.5 h-3 w-2.5 shrink-0 border-b border-l"
+            />
+            <div className="min-w-0 flex-1">
               <AssistantListGroupHeader
-                label="Real"
-                isFolded={foldedGroups[realId] === true}
-                onToggleFold={() => toggleGroupFold(realId)}
+                label={label}
+                isFolded={foldedGroups[nestedId] === true}
+                onToggleFold={() => toggleGroupFold(nestedId)}
                 variant="group"
               />
-              {foldedGroups[realId] !== true ? (
-                <div className="min-w-0 pt-1">{renderHumanRows(teamHumans, realId)}</div>
-              ) : null}
             </div>
-          ) : null}
-          {showVirtual ? (
-            <div data-testid={`assistant-list-group-${virtualId}`} className="min-w-0">
-              <AssistantListGroupHeader
-                label="Virtual"
-                isFolded={foldedGroups[virtualId] === true}
-                onToggleFold={() => toggleGroupFold(virtualId)}
-                variant="group"
-              />
-              {foldedGroups[virtualId] !== true ? (
-                <div className="min-w-0 space-y-1 pt-1">
+          </div>
+          {foldedGroups[nestedId] !== true ? body : null}
+        </div>
+      );
+
+      return (
+        <div className="min-w-0 space-y-2 pl-3 pt-1">
+          {showReal
+            ? renderNestedGroup(
+                realId,
+                'Real',
+                <div className="min-w-0 pl-4 pt-1">{renderHumanRows(teamHumans, realId)}</div>
+              )
+            : null}
+          {showVirtual
+            ? renderNestedGroup(
+                virtualId,
+                'Virtual',
+                <div className="min-w-0 space-y-1 pl-4 pt-1">
                   {virtualEntries.map((entry) =>
                     renderAssistantRow(entry, `${virtualId}:${entry.assistant.agentId}`)
                   )}
                 </div>
-              ) : null}
-            </div>
-          ) : null}
+              )
+            : null}
         </div>
       );
     },
