@@ -452,17 +452,8 @@ export default function FavouritesClient({
   };
 
   return (
-    <div className="brand-chat-bg mx-auto min-h-full w-full space-y-6 p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-6xl items-start justify-between gap-4">
-        <div>
-          <p className="text-label mb-2 uppercase tracking-[0.16em] text-muted-foreground">
-            Console
-          </p>
-          <h1 className="text-h2 font-display text-foreground">Favourites</h1>
-          <p className="text-body-muted">
-            Choose the projects that should stay pinned across dashboard navigation.
-          </p>
-        </div>
+    <div className="mx-auto w-full max-w-6xl space-y-6">
+      <div className="flex justify-end">
         <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing}>
           <RefreshCcw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
         </Button>
