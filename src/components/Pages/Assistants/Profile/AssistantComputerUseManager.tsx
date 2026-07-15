@@ -78,7 +78,10 @@ function applyRotation(
     region: rotation.region ?? identity?.region ?? null,
     hostname: rotation.hostname ?? identity?.hostname ?? null,
     state: rotation.state ?? identity?.state ?? 'pending',
-    activeOperation: rotation.activeOperation ?? identity?.activeOperation ?? null,
+    activeOperation:
+      rotation.activeOperation !== undefined
+        ? rotation.activeOperation
+        : (identity?.activeOperation ?? null),
     rotation: identity?.rotation ?? null,
   };
 }
