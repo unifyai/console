@@ -2,11 +2,11 @@ import * as React from 'react';
 import {
   ChatMention,
   DmMessage,
-  HumanCallSession,
+  OrgCallSession,
   OrgChatAttachment,
   TeamChatMessage,
   parseDmMessage,
-  parseHumanCallSession,
+  parseOrgCallSession,
   parseTeamChatMessage,
 } from '@/types/orgChat';
 
@@ -23,9 +23,11 @@ export interface UseOrgChatParams {
    * to live activity ahead of the next roster poll.
    */
   onHumanActivity?: (userId: string) => void;
-  /** Incoming human↔human call ring frames. */
-  onIncomingCall?: (call: HumanCallSession) => void;
-  onCallEnded?: (call: HumanCallSession) => void;
+  /** Incoming org call ring frames. */
+  onIncomingCall?: (call: OrgCallSession) => void;
+  onCallAnswered?: (call: OrgCallSession) => void;
+  onCallEnded?: (call: OrgCallSession) => void;
+  onCallParticipantUpdate?: (call: OrgCallSession) => void;
 }
 
 function appendTeamMessage(
@@ -61,13 +63,28 @@ function dedupeDmMessages(messages: DmMessage[]): DmMessage[] {
   });
 }
 
+function isOrgCallThread(thread: string | undefined): boolean {
+  return (
+    typeof thread === 'string' && (thread.startsWith('org_call_') || thread.startsWith('dm_call_'))
+  );
+}
+
 /**
  * Client engine for org chat: one SSE connection per org multiplexing every
  * team-chat and DM frame the user may see, plus history loading and
  * optimistic sends against the REST proxy routes.
  */
 export function useOrgChat(params: UseOrgChatParams) {
-  const { orgId, currentUserId, enabled, onHumanActivity, onIncomingCall, onCallEnded } = params;
+  const {
+    orgId,
+    currentUserId,
+    enabled,
+    onHumanActivity,
+    onIncomingCall,
+    onCallAnswered,
+    onCallEnded,
+    onCallParticipantUpdate,
+  } = params;
 
   const [teamMessages, setTeamMessages] = React.useState<Record<number, TeamChatMessage[]>>({});
   const [dmMessages, setDmMessages] = React.useState<Record<string, DmMessage[]>>({});
@@ -79,8 +96,18 @@ export function useOrgChat(params: UseOrgChatParams) {
   onHumanActivityRef.current = onHumanActivity;
   const onIncomingCallRef = React.useRef(onIncomingCall);
   onIncomingCallRef.current = onIncomingCall;
+  const onCallAnsweredRef = React.useRef(onCallAnswered);
+  onCallAnsweredRef.current = onCallAnswered;
   const onCallEndedRef = React.useRef(onCallEnded);
   onCallEndedRef.current = onCallEnded;
+  const onCallParticipantUpdateRef = React.useRef(onCallParticipantUpdate);
+  onCallParticipantUpdateRef.current = onCallParticipantUpdate;
+
+  React.useEffect(() => {
+    setTeamMessages({});
+    setDmMessages({});
+    setUnread({});
+  }, [orgId]);
 
   const bumpUnread = React.useCallback((key: string) => {
     setUnread((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
@@ -170,12 +197,19 @@ export function useOrgChat(params: UseOrgChatParams) {
           handleTeamFrameRef.current(frame.event);
         } else if (frame.thread === 'dm_message') {
           handleDmFrameRef.current(frame.event);
-        } else if (frame.thread === 'dm_call_incoming') {
-          const call = parseHumanCallSession(frame.event);
-          if (call.callId) onIncomingCallRef.current?.(call);
-        } else if (frame.thread === 'dm_call_ended' || frame.thread === 'dm_call_declined') {
-          const call = parseHumanCallSession(frame.event);
-          if (call.callId) onCallEndedRef.current?.(call);
+        } else if (isOrgCallThread(frame.thread)) {
+          const call = parseOrgCallSession(frame.event);
+          if (!call.callId) return;
+          const action = frame.thread!.replace(/^(org_call_|dm_call_)/, '');
+          if (action === 'incoming') {
+            onIncomingCallRef.current?.(call);
+          } else if (action === 'answered') {
+            onCallAnsweredRef.current?.(call);
+          } else if (action === 'ended' || action === 'declined') {
+            onCallEndedRef.current?.(call);
+          } else if (action === 'participant_joined' || action === 'participant_left') {
+            onCallParticipantUpdateRef.current?.(call);
+          }
         }
       };
 

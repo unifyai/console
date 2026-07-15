@@ -94,6 +94,10 @@ interface AssistantListProps {
   onSelectTeam?: (teamId: number) => void;
   /** Unread counts keyed by entity key (`team:{id}` / `human:{userId}`). */
   entityUnreadCounts?: Record<string, number>;
+  /** User ids currently joined on the active org call (list ping badge). */
+  orgCallActiveUserIds?: ReadonlySet<string> | string[];
+  /** Team id of the active org team call (list ping badge). */
+  orgCallActiveTeamId?: number | null;
 }
 
 function EntityUnreadBadge({ count, testId }: { count: number; testId: string }) {
@@ -113,12 +117,14 @@ function HumanListRow({
   isSelected,
   isYou,
   unreadCount,
+  isCallActive,
   onSelect,
 }: {
   human: RosterHuman;
   isSelected: boolean;
   isYou: boolean;
   unreadCount: number;
+  isCallActive?: boolean;
   onSelect: () => void;
 }) {
   const displayName = human.name?.trim() || human.email || human.userId;
@@ -150,10 +156,17 @@ function HumanListRow({
               {profileInitials(displayName)}
             </AvatarFallback>
           </Avatar>
-          <PresenceStatusDot
-            online={human.online}
-            testId={`human-status-indicator-${human.userId}`}
-          />
+          {isCallActive ? (
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
+            </span>
+          ) : (
+            <PresenceStatusDot
+              online={human.online}
+              testId={`human-status-indicator-${human.userId}`}
+            />
+          )}
         </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -191,6 +204,7 @@ function TeamListRow({
   team,
   isSelected,
   unreadCount,
+  isCallActive,
   onSelect,
   isFoldedGroup,
   onToggleFold,
@@ -198,6 +212,7 @@ function TeamListRow({
   team: RosterTeam;
   isSelected: boolean;
   unreadCount: number;
+  isCallActive?: boolean;
   onSelect: () => void;
   isFoldedGroup?: boolean;
   onToggleFold?: () => void;
@@ -250,6 +265,12 @@ function TeamListRow({
         </span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
+        {isCallActive ? (
+          <span className="relative flex h-2.5 w-2.5" aria-label="In call">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+          </span>
+        ) : null}
         <EntityUnreadBadge count={unreadCount} testId={`team-unread-badge-${team.teamId}`} />
         {onToggleFold ? (
           <FoldIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -283,9 +304,17 @@ export function AssistantList({
   onSelectHuman,
   onSelectTeam,
   entityUnreadCounts,
+  orgCallActiveUserIds,
+  orgCallActiveTeamId = null,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
+  const orgCallUserIdSet = React.useMemo(() => {
+    if (!orgCallActiveUserIds) return new Set<string>();
+    return orgCallActiveUserIds instanceof Set
+      ? orgCallActiveUserIds
+      : new Set(orgCallActiveUserIds);
+  }, [orgCallActiveUserIds]);
 
   const rosterTeamsById = React.useMemo(() => {
     const byId: Record<number, RosterTeam> = {};
@@ -497,13 +526,14 @@ export function AssistantList({
               isSelected={selectedEntityKey === humanEntityKey(human.userId)}
               isYou={human.userId === currentUserId}
               unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+              isCallActive={orgCallUserIdSet.has(human.userId)}
               onSelect={() => onSelectHuman(human.userId)}
             />
           ))}
         </div>
       );
     },
-    [currentUserId, entityUnreadCounts, onSelectHuman, selectedEntityKey]
+    [currentUserId, entityUnreadCounts, onSelectHuman, orgCallUserIdSet, selectedEntityKey]
   );
 
   const renderNestedRealVirtual = React.useCallback(
@@ -590,6 +620,7 @@ export function AssistantList({
             team={team}
             isSelected={selectedEntityKey === teamEntityKey(team.teamId)}
             unreadCount={entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0}
+            isCallActive={orgCallActiveTeamId === team.teamId}
             onSelect={() => onSelectTeam?.(team.teamId)}
             isFoldedGroup={isGroupFolded}
             onToggleFold={hasNested ? () => toggleGroupFold(groupId) : undefined}
@@ -606,6 +637,7 @@ export function AssistantList({
       foldedGroups,
       onSelectHuman,
       onSelectTeam,
+      orgCallActiveTeamId,
       renderNestedRealVirtual,
       selectedEntityKey,
       toggleGroupFold,
@@ -760,6 +792,7 @@ export function AssistantList({
                   isSelected={selectedEntityKey === humanEntityKey(human.userId)}
                   isYou={human.userId === currentUserId}
                   unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+                  isCallActive={orgCallUserIdSet.has(human.userId)}
                   onSelect={() => onSelectHuman(human.userId)}
                 />
               ))}

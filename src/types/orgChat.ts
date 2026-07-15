@@ -237,25 +237,76 @@ export function parseOrgChatSearchResult(raw: Record<string, unknown>): OrgChatS
   };
 }
 
-export interface HumanCallSession {
-  callId: string;
-  roomName: string;
-  status: 'ringing' | 'active' | 'ended' | 'declined';
-  callerUserId: string;
-  calleeUserId: string;
+export type OrgCallScope = 'dm' | 'team';
+export type OrgCallStatus = 'ringing' | 'active' | 'ended';
+export type OrgCallParticipantStatus = 'invited' | 'joined' | 'declined' | 'left';
+
+export interface OrgCallParticipant {
+  userId: string;
+  role: 'host' | 'member';
+  status: OrgCallParticipantStatus;
 }
 
-export function parseHumanCallSession(raw: Record<string, unknown>): HumanCallSession {
+export interface OrgCallSession {
+  callId: string;
+  roomName: string;
+  status: OrgCallStatus;
+  scope: OrgCallScope;
+  createdByUserId: string;
+  callerUserId: string;
+  calleeUserId: string | null;
+  teamId: number | null;
+  dmThreadId: number | null;
+  userIds: string[];
+  participants: OrgCallParticipant[];
+  assistantIds: number[];
+}
+
+/** @deprecated Use OrgCallSession — kept for transitional imports. */
+export type HumanCallSession = OrgCallSession;
+
+export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSession {
   const statusRaw = String(raw.status ?? 'ringing');
-  const status =
-    statusRaw === 'active' || statusRaw === 'ended' || statusRaw === 'declined'
-      ? statusRaw
-      : 'ringing';
+  const status: OrgCallStatus =
+    statusRaw === 'active' || statusRaw === 'ended' ? statusRaw : 'ringing';
+  const scopeRaw = String(raw.scope ?? 'dm');
+  const scope: OrgCallScope = scopeRaw === 'team' ? 'team' : 'dm';
+  const participantsRaw = Array.isArray(raw.participants) ? raw.participants : [];
+  const participants: OrgCallParticipant[] = participantsRaw.map((p) => {
+    const row = (p ?? {}) as Record<string, unknown>;
+    const pStatus = String(row.status ?? 'invited');
+    const statusParsed: OrgCallParticipantStatus =
+      pStatus === 'joined' || pStatus === 'declined' || pStatus === 'left' ? pStatus : 'invited';
+    return {
+      userId: String(row.user_id ?? ''),
+      role: row.role === 'host' ? 'host' : 'member',
+      status: statusParsed,
+    };
+  });
+  const userIds = Array.isArray(raw.user_ids)
+    ? raw.user_ids.map(String)
+    : participants.map((p) => p.userId);
+  const createdBy = String(raw.created_by_user_id ?? raw.caller_user_id ?? '');
   return {
     callId: String(raw.call_id ?? ''),
     roomName: typeof raw.room_name === 'string' ? raw.room_name : '',
     status,
-    callerUserId: String(raw.caller_user_id ?? ''),
-    calleeUserId: String(raw.callee_user_id ?? ''),
+    scope,
+    createdByUserId: createdBy,
+    callerUserId: String(raw.caller_user_id ?? createdBy),
+    calleeUserId:
+      raw.callee_user_id == null || raw.callee_user_id === '' ? null : String(raw.callee_user_id),
+    teamId: raw.team_id == null || raw.team_id === '' ? null : Number(raw.team_id),
+    dmThreadId:
+      raw.dm_thread_id == null && raw.thread_id == null
+        ? null
+        : Number(raw.dm_thread_id ?? raw.thread_id),
+    userIds,
+    participants,
+    assistantIds: Array.isArray(raw.assistant_ids)
+      ? raw.assistant_ids.map(Number).filter((n) => !Number.isNaN(n))
+      : [],
   };
 }
+
+export const parseHumanCallSession = parseOrgCallSession;

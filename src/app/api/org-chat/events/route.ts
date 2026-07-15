@@ -238,16 +238,22 @@ export async function GET(request: NextRequest) {
           allowed = !isNaN(teamId) && allowedTeamIds.has(teamId);
         } else if (
           thread === 'dm_message' ||
-          thread === 'dm_call_incoming' ||
-          thread === 'dm_call_answered' ||
-          thread === 'dm_call_ended' ||
-          thread === 'dm_call_declined'
+          (typeof thread === 'string' &&
+            (thread.startsWith('dm_call_') || thread.startsWith('org_call_')))
         ) {
           const participants: string[] = Array.isArray(event?.user_ids)
             ? event.user_ids.map(String)
             : [message.attributes?.dm_user_a, message.attributes?.dm_user_b].filter(
                 (id): id is string => typeof id === 'string'
               );
+          if (participants.length === 0 && typeof message.attributes?.user_ids === 'string') {
+            participants.push(
+              ...message.attributes.user_ids
+                .split(',')
+                .map((id: string) => id.trim())
+                .filter(Boolean)
+            );
+          }
           // Call frames may only carry caller/callee ids.
           if (participants.length === 0) {
             if (event?.caller_user_id) participants.push(String(event.caller_user_id));
