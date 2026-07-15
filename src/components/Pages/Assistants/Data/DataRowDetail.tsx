@@ -23,7 +23,17 @@ import {
 import { Switch } from '@/components/UI/switch';
 import { Textarea } from '@/components/UI/textarea';
 import { formatDetailValue } from '@/utils/assistants/brain';
-import { Pencil } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/UI/alert-dialog';
+import { Pencil, Trash2 } from 'lucide-react';
 import type { DataField, DataRow } from './dataTypes';
 
 const IMAGE_EXTENSIONS = new Set(['avif', 'gif', 'jpeg', 'jpg', 'png', 'webp']);
@@ -35,6 +45,7 @@ interface DataRowDetailProps {
   description?: string;
   fields: Record<string, DataField>;
   onSave: (updates: Record<string, unknown>) => Promise<void>;
+  onDelete: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -215,6 +226,7 @@ export function DataRowDetail({
   description,
   fields: fieldMetadata,
   onSave,
+  onDelete,
   onClose,
 }: DataRowDetailProps) {
   const [snapshot, setSnapshot] = React.useState<DataRow | null>(null);
@@ -232,6 +244,9 @@ export function DataRowDetail({
   const [drafts, setDrafts] = React.useState<Record<string, string | boolean>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const startEditing = () => {
     setDrafts(
@@ -301,6 +316,19 @@ export function DataRowDetail({
     }
   };
 
+  const deleteRow = async () => {
+    setDeleteError(null);
+    setIsDeleting(true);
+    try {
+      await onDelete();
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Unable to delete this row.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Sheet
       open={!!row}
@@ -325,10 +353,22 @@ export function DataRowDetail({
               </SheetDescription>
             </div>
             {!isEditing && (
-              <Button variant="outline" size="sm" onClick={startEditing}>
-                <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                Edit row
-              </Button>
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  aria-label="Delete row"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete row
+                </Button>
+                <Button variant="outline" size="sm" onClick={startEditing}>
+                  <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                  Edit row
+                </Button>
+              </div>
             )}
           </div>
         </SheetHeader>
@@ -403,6 +443,30 @@ export function DataRowDetail({
           </SheetFooter>
         )}
       </SheetContent>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this row?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the row from {title}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && <p className="text-caption text-destructive">{deleteError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void deleteRow();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting…' : 'Delete row'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
