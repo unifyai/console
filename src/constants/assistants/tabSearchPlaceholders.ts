@@ -2,7 +2,6 @@ import type { BrainContext } from '@/types/assistants/brain';
 
 /** Scopes that have a tab-level search field in the assistants shell. */
 export type TabSearchScope =
-  | 'assistants'
   | 'chat'
   | 'actions'
   | 'dashboards'

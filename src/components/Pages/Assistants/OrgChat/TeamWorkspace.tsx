@@ -4,12 +4,14 @@ import * as React from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
+import { OrgChatSearchDialog } from './OrgChatSearchDialog';
 import { TeamMembersList, type TeamMemberAssistant } from './TeamMembersList';
-import { ChatMention, RosterHuman, RosterTeam } from '@/types/orgChat';
+import { ChatMention, OrgChatAttachment, RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 
 interface TeamWorkspaceProps {
   team: RosterTeam;
+  orgId: string;
   humansById: Record<string, RosterHuman>;
   assistantsById: Record<string, TeamMemberAssistant>;
   currentUserId: string | null;
@@ -26,6 +28,7 @@ interface TeamWorkspaceProps {
  */
 export function TeamWorkspace({
   team,
+  orgId,
   humansById,
   assistantsById,
   currentUserId,
@@ -34,6 +37,8 @@ export function TeamWorkspace({
   onHireForTeam,
 }: TeamWorkspaceProps) {
   const { loadTeamHistory, sendTeamMessage, teamMessages } = chat;
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [highlightMessageId, setHighlightMessageId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (activeSectionId === 'chat') {
@@ -96,29 +101,50 @@ export function TeamWorkspace({
           content: message.content,
           timestamp: message.timestamp,
           avatarUrl,
+          attachments: message.attachments,
         };
       }),
     [rawMessages, currentUserId, humansById, assistantsById]
   );
 
   const handleSend = React.useCallback(
-    (content: string, mentions: ChatMention[]) => sendTeamMessage(team.teamId, content, mentions),
+    (content: string, mentions: ChatMention[], attachments: OrgChatAttachment[]) =>
+      sendTeamMessage(team.teamId, content, mentions, attachments),
     [sendTeamMessage, team.teamId]
   );
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="team-workspace">
       {activeSectionId === 'chat' && (
-        <OrgChatPanel
-          title={team.name}
-          subtitle={subtitle}
-          messages={messages}
-          isLoading={isLoading}
-          onSend={handleSend}
-          mentionCandidates={mentionCandidates}
-          placeholder={`Message ${team.name}…`}
-          emptyState="No messages in this team yet."
-        />
+        <>
+          <OrgChatPanel
+            title={team.name}
+            subtitle={subtitle}
+            orgId={orgId}
+            messages={messages}
+            isLoading={isLoading}
+            onSend={handleSend}
+            mentionCandidates={mentionCandidates}
+            placeholder={`Message ${team.name}…`}
+            emptyState="No messages in this team yet."
+            onOpenSearch={() => setSearchOpen(true)}
+            isCallButtonDisabled
+            callButtonTooltip="Team calls are not available yet"
+            highlightMessageId={highlightMessageId}
+          />
+          <OrgChatSearchDialog
+            open={searchOpen}
+            onOpenChange={setSearchOpen}
+            orgId={orgId}
+            scope="team"
+            scopeId={team.teamId}
+            peerName={team.name}
+            onGoToMessage={(result) => {
+              setHighlightMessageId(result.id);
+              setSearchOpen(false);
+            }}
+          />
+        </>
       )}
 
       {activeSectionId === 'members' && (

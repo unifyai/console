@@ -377,7 +377,7 @@ export async function waitForAssistantListReady(page: Page, timeout = 45_000): P
   await expect
     .poll(
       async () => {
-        const search = page.getByPlaceholder(/Search assistants/i);
+        const search = page.getByPlaceholder(/^Search\.\.\.$/i);
         if (await search.isEnabled().catch(() => false)) return 'ready';
         if ((await page.locator('[data-testid^="assistant-list-item-"]').count()) > 0) {
           return 'ready';
@@ -587,7 +587,7 @@ export async function openAssistantInfoPanel(page: Page) {
 /** Open the assistant info side panel from a list row's unfold control. */
 export async function openAssistantInfoToggleFromList(page: Page, agentId: number | string) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await listItem.hover();
+  await listItem.click();
   const toggle = page.getByTestId(`assistant-info-toggle-${agentId}`);
   await expect(toggle).toBeVisible({ timeout: 5_000 });
   await toggle.click();

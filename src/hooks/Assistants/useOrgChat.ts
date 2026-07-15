@@ -2,8 +2,11 @@ import * as React from 'react';
 import {
   ChatMention,
   DmMessage,
+  HumanCallSession,
+  OrgChatAttachment,
   TeamChatMessage,
   parseDmMessage,
+  parseHumanCallSession,
   parseTeamChatMessage,
 } from '@/types/orgChat';
 
@@ -20,6 +23,9 @@ export interface UseOrgChatParams {
    * to live activity ahead of the next roster poll.
    */
   onHumanActivity?: (userId: string) => void;
+  /** Incoming human↔human call ring frames. */
+  onIncomingCall?: (call: HumanCallSession) => void;
+  onCallEnded?: (call: HumanCallSession) => void;
 }
 
 function appendTeamMessage(
@@ -61,7 +67,7 @@ function dedupeDmMessages(messages: DmMessage[]): DmMessage[] {
  * optimistic sends against the REST proxy routes.
  */
 export function useOrgChat(params: UseOrgChatParams) {
-  const { orgId, currentUserId, enabled, onHumanActivity } = params;
+  const { orgId, currentUserId, enabled, onHumanActivity, onIncomingCall, onCallEnded } = params;
 
   const [teamMessages, setTeamMessages] = React.useState<Record<number, TeamChatMessage[]>>({});
   const [dmMessages, setDmMessages] = React.useState<Record<string, DmMessage[]>>({});
@@ -71,6 +77,10 @@ export function useOrgChat(params: UseOrgChatParams) {
   currentUserIdRef.current = currentUserId;
   const onHumanActivityRef = React.useRef(onHumanActivity);
   onHumanActivityRef.current = onHumanActivity;
+  const onIncomingCallRef = React.useRef(onIncomingCall);
+  onIncomingCallRef.current = onIncomingCall;
+  const onCallEndedRef = React.useRef(onCallEnded);
+  onCallEndedRef.current = onCallEnded;
 
   const bumpUnread = React.useCallback((key: string) => {
     setUnread((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
@@ -160,6 +170,12 @@ export function useOrgChat(params: UseOrgChatParams) {
           handleTeamFrameRef.current(frame.event);
         } else if (frame.thread === 'dm_message') {
           handleDmFrameRef.current(frame.event);
+        } else if (frame.thread === 'dm_call_incoming') {
+          const call = parseHumanCallSession(frame.event);
+          if (call.callId) onIncomingCallRef.current?.(call);
+        } else if (frame.thread === 'dm_call_ended' || frame.thread === 'dm_call_declined') {
+          const call = parseHumanCallSession(frame.event);
+          if (call.callId) onCallEndedRef.current?.(call);
         }
       };
 
@@ -221,8 +237,14 @@ export function useOrgChat(params: UseOrgChatParams) {
   );
 
   const sendTeamMessage = React.useCallback(
-    async (teamId: number, content: string, mentions: ChatMention[] = []): Promise<boolean> => {
+    async (
+      teamId: number,
+      content: string,
+      mentions: ChatMention[] = [],
+      attachments: OrgChatAttachment[] = []
+    ): Promise<boolean> => {
       if (!orgId) return false;
+      if (!content.trim() && attachments.length === 0) return false;
       const tempId = -Date.now();
       const optimistic: TeamChatMessage = {
         messageId: tempId,
@@ -234,6 +256,7 @@ export function useOrgChat(params: UseOrgChatParams) {
         senderName: 'You',
         content,
         mentions,
+        attachments,
       };
       setTeamMessages((prev) => ({
         ...prev,
@@ -244,7 +267,7 @@ export function useOrgChat(params: UseOrgChatParams) {
         const response = await fetch(`/api/organizations/${orgId}/teams/${teamId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content, mentions }),
+          body: JSON.stringify({ content, mentions, attachments }),
         });
         if (!response.ok) throw new Error(`send failed (${response.status})`);
         const data = await response.json();
@@ -266,8 +289,13 @@ export function useOrgChat(params: UseOrgChatParams) {
   );
 
   const sendDmMessage = React.useCallback(
-    async (otherUserId: string, content: string): Promise<boolean> => {
+    async (
+      otherUserId: string,
+      content: string,
+      attachments: OrgChatAttachment[] = []
+    ): Promise<boolean> => {
       if (!orgId) return false;
+      if (!content.trim() && attachments.length === 0) return false;
       const tempId = -Date.now();
       const optimistic: DmMessage = {
         id: tempId,
@@ -275,6 +303,7 @@ export function useOrgChat(params: UseOrgChatParams) {
         senderUserId: currentUserIdRef.current ?? '',
         content,
         createdAt: new Date().toISOString(),
+        attachments,
       };
       setDmMessages((prev) => ({
         ...prev,
@@ -287,7 +316,7 @@ export function useOrgChat(params: UseOrgChatParams) {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content }),
+            body: JSON.stringify({ content, attachments }),
           }
         );
         if (!response.ok) throw new Error(`send failed (${response.status})`);

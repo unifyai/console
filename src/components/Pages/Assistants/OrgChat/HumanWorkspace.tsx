@@ -1,23 +1,42 @@
+'use client';
+
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
-import { RosterHuman } from '@/types/orgChat';
+import { OrgChatSearchDialog } from './OrgChatSearchDialog';
+import { ChatMention, OrgChatAttachment, OrgChatSearchResult, RosterHuman } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 interface HumanWorkspaceProps {
   human: RosterHuman;
   orgId: string;
   chat: ReturnType<typeof useOrgChat>;
+  onStartCall?: () => void;
+  isCallButtonDisabled?: boolean;
+  callButtonTooltip?: string;
+  isConnectingCall?: boolean;
 }
 
 /**
  * DM workspace for a single human org member: presence header plus a
  * one-to-one chat panel backed by the shared org-chat engine.
  */
-export function HumanWorkspace({ human, chat }: HumanWorkspaceProps) {
+export function HumanWorkspace({
+  human,
+  orgId,
+  chat,
+  onStartCall,
+  isCallButtonDisabled,
+  callButtonTooltip,
+  isConnectingCall,
+}: HumanWorkspaceProps) {
   const { loadDmHistory, sendDmMessage, dmMessages } = chat;
+  const { voiceCalls } = useFeatures();
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [highlightMessageId, setHighlightMessageId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     loadDmHistory(human.userId);
@@ -38,15 +57,31 @@ export function HumanWorkspace({ human, chat }: HumanWorkspaceProps) {
           content: message.content,
           timestamp: message.createdAt,
           avatarUrl: isSelf ? null : human.image,
+          attachments: message.attachments,
         };
       }),
     [rawMessages, human.userId, human.name, human.image]
   );
 
   const handleSend = React.useCallback(
-    (content: string) => sendDmMessage(human.userId, content),
+    (content: string, _mentions: ChatMention[], attachments: OrgChatAttachment[]) =>
+      sendDmMessage(human.userId, content, attachments),
     [sendDmMessage, human.userId]
   );
+
+  const handleGoToMessage = React.useCallback((result: OrgChatSearchResult) => {
+    setHighlightMessageId(result.id);
+    setSearchOpen(false);
+  }, []);
+
+  const callDisabled = isCallButtonDisabled ?? (!voiceCalls || !onStartCall);
+  const callTooltip =
+    callButtonTooltip ??
+    (!voiceCalls
+      ? 'Voice calls are not configured'
+      : onStartCall
+        ? 'Start voice call'
+        : 'Call unavailable');
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="human-workspace">
@@ -80,13 +115,31 @@ export function HumanWorkspace({ human, chat }: HumanWorkspaceProps) {
         <OrgChatPanel
           title={human.name}
           subtitle={human.online ? 'Online' : 'Offline'}
+          hideHeader
+          orgId={orgId}
           messages={messages}
           isLoading={isLoading}
           onSend={handleSend}
           placeholder={`Message ${human.name}…`}
           emptyState={`No messages with ${human.name} yet.`}
+          onOpenSearch={() => setSearchOpen(true)}
+          onStartCall={onStartCall}
+          isCallButtonDisabled={callDisabled}
+          callButtonTooltip={callTooltip}
+          isConnectingCall={isConnectingCall}
+          highlightMessageId={highlightMessageId}
         />
       </div>
+
+      <OrgChatSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        orgId={orgId}
+        scope="dm"
+        scopeId={human.userId}
+        peerName={human.name}
+        onGoToMessage={handleGoToMessage}
+      />
     </div>
   );
 }

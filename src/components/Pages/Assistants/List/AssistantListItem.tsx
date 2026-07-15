@@ -2,22 +2,16 @@
 
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { PhoneCall, PanelRight } from 'lucide-react';
+import { PhoneCall } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
-import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
-import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
-import {
-  ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
-  readAssistantInfoPanelVisibility,
-  type AssistantInfoPanelVisibilityDetail,
-} from '@/lib/assistants/infoPanelVisibility';
+import { ListRowInfoToggle } from './ListRowInfoToggle';
 
 interface AssistantListItemProps {
   assistant: Assistant;
@@ -55,27 +49,6 @@ export function AssistantListItem({
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
   const totalTeamCount = alsoInTeamLabels.length + 1;
-  const [infoPanelVisibility, setInfoPanelVisibility] =
-    React.useState<AssistantInfoPanelVisibilityDetail | null>(() =>
-      readAssistantInfoPanelVisibility()
-    );
-
-  React.useEffect(() => {
-    const onVisibilityChange = (event: Event) => {
-      setInfoPanelVisibility(
-        (event as CustomEvent<AssistantInfoPanelVisibilityDetail>).detail ?? null
-      );
-    };
-    window.addEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
-    return () => {
-      window.removeEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
-    };
-  }, []);
-
-  const isInfoOpen =
-    isSelected &&
-    infoPanelVisibility?.assistantId === assistant.agentId &&
-    infoPanelVisibility.isOpen;
 
   const openProfile = () => {
     onShowProfile(assistant.agentId);
@@ -84,11 +57,6 @@ export function AssistantListItem({
   const handleProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     openProfile();
-  };
-
-  const handleInfoToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggleAssistantInfo(assistant.agentId);
   };
 
   const isCoordinator = assistant.isCoordinator === true;
@@ -264,31 +232,12 @@ export function AssistantListItem({
             </Tooltip>
           </TooltipProvider>
         )}
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant={isInfoOpen ? 'primary' : 'ghost'}
-                size="icon"
-                className={cn(
-                  tabToolbarIconButtonClass,
-                  'opacity-0 transition-opacity group-hover:opacity-100',
-                  isSelected && 'opacity-100'
-                )}
-                onClick={handleInfoToggle}
-                aria-label={isInfoOpen ? 'Hide profile' : 'Show profile'}
-                aria-pressed={isInfoOpen}
-                data-testid={`assistant-info-toggle-${assistant.agentId}`}
-              >
-                <PanelRight className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p>{isInfoOpen ? 'Hide profile' : 'Show profile'}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <ListRowInfoToggle
+          entityId={assistant.agentId}
+          isSelected={isSelected}
+          onToggle={() => onToggleAssistantInfo(assistant.agentId)}
+          testId={`assistant-info-toggle-${assistant.agentId}`}
+        />
       </div>
     </div>
   );
