@@ -46,25 +46,25 @@ const OS_OPTIONS: { mode: DesktopMode; label: string; monthlyCost: number }[] = 
 ];
 
 const NETWORK_IDENTITY_POLL_INTERVAL_MS = 5_000;
+const NETWORK_REGION_LABELS = new Map<string, string>([
+  ['us-central1', 'Iowa, United States'],
+  ['us-east1', 'South Carolina, United States'],
+  ['us-east4', 'Northern Virginia, United States'],
+  ['us-west1', 'Oregon, United States'],
+  ['us-west2', 'Los Angeles, United States'],
+  ['us-west3', 'Salt Lake City, United States'],
+  ['us-west4', 'Las Vegas, United States'],
+  ['europe-west1', 'St. Ghislain, Belgium'],
+  ['europe-west2', 'London, United Kingdom'],
+  ['europe-west3', 'Frankfurt, Germany'],
+  ['europe-west4', 'Eemshaven, Netherlands'],
+  ['europe-west6', 'Zürich, Switzerland'],
+  ['europe-north1', 'Hamina, Finland'],
+]);
 
 function formatNetworkRegion(region: string | null | undefined): string {
   const regionCode = region?.match(/\/regions\/([^/]+)$/)?.[1] ?? region;
-  const locations: Record<string, string> = {
-    'us-central1': 'Iowa, United States',
-    'us-east1': 'South Carolina, United States',
-    'us-east4': 'Northern Virginia, United States',
-    'us-west1': 'Oregon, United States',
-    'us-west2': 'Los Angeles, United States',
-    'us-west3': 'Salt Lake City, United States',
-    'us-west4': 'Las Vegas, United States',
-    'europe-west1': 'St. Ghislain, Belgium',
-    'europe-west2': 'London, United Kingdom',
-    'europe-west3': 'Frankfurt, Germany',
-    'europe-west4': 'Eemshaven, Netherlands',
-    'europe-west6': 'Zürich, Switzerland',
-    'europe-north1': 'Hamina, Finland',
-  };
-  return (regionCode && locations[regionCode]) || regionCode || '—';
+  return (regionCode && NETWORK_REGION_LABELS.get(regionCode)) || regionCode || '—';
 }
 
 function applyRotation(
