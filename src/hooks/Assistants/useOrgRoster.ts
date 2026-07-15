@@ -6,10 +6,10 @@ const POLLING_INTERVAL = 60000;
 const OPTIMISTIC_ONLINE_GRACE_MS = 30_000;
 
 /**
- * Fetches the org roster (human members + teams) and keeps it fresh with a
- * 60s poll while the document is visible. `markHumanOnline` optimistically
- * flips a human to online (e.g. when a live chat frame arrives) so presence
- * doesn't wait for the next poll.
+ * Fetches the org roster (human members, teams, and chat groups) and keeps it
+ * fresh with a 60s poll while the document is visible. `markHumanOnline`
+ * optimistically flips a human to online (e.g. when a live chat frame arrives)
+ * so presence doesn't wait for the next poll.
  */
 export function useOrgRoster(orgId: string | null) {
   const [roster, setRoster] = React.useState<OrgRoster | null>(null);

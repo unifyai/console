@@ -271,11 +271,13 @@ export function OrgCallMeetStage({
   const title =
     call.scope === 'team'
       ? 'Team call'
-      : `Call with ${
-          humansById[call.calleeUserId || '']?.name ||
-          humansById[call.userIds.find((id) => id !== currentUserId) || '']?.name ||
-          'Teammate'
-        }`;
+      : call.scope === 'group'
+        ? 'Group call'
+        : `Call with ${
+            humansById[call.calleeUserId || '']?.name ||
+            humansById[call.userIds.find((id) => id !== currentUserId) || '']?.name ||
+            'Teammate'
+          }`;
 
   const content = (
     <div
@@ -342,7 +344,7 @@ export function OrgCallMeetStage({
         >
           {camEnabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
         </Button>
-        {call.scope === 'team' && addableAssistants.length > 0 && (
+        {(call.scope === 'team' || call.scope === 'group') && addableAssistants.length > 0 && (
           <Button
             size="icon"
             variant="outline"

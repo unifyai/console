@@ -10,8 +10,8 @@ import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 type CallStatus = 'idle' | 'ringing' | 'connecting' | 'connected' | 'ended';
 
 /**
- * Multi-party org call engine (DM + team). Owns its own LiveKit Room so it
- * never collides with assistant Meet agent-dispatch. Disabled while an
+ * Multi-party org call engine (DM + team + group). Owns its own LiveKit Room
+ * so it never collides with assistant Meet agent-dispatch. Disabled while an
  * assistant call is already active.
  */
 export function useOrgCall(options: {
@@ -157,6 +157,34 @@ export function useOrgCall(options: {
         return await connectToRoom(call.roomName);
       } catch {
         setError('Could not start team call');
+        setStatus('ended');
+        return false;
+      }
+    },
+    [orgId, voiceCalls, assistantCallActive, status, connectToRoom]
+  );
+
+  const startGroupCall = React.useCallback(
+    async (groupId: number) => {
+      if (!orgId || !voiceCalls) return false;
+      if (assistantCallActive) {
+        setError('End the assistant call before starting a group call');
+        return false;
+      }
+      if (status !== 'idle' && status !== 'ended') return false;
+      setStatus('ringing');
+      setError(null);
+      try {
+        const response = await fetch(`/api/organizations/${orgId}/groups/${groupId}/calls`, {
+          method: 'POST',
+        });
+        if (!response.ok) throw new Error('start failed');
+        const data = await response.json();
+        const call = parseOrgCallSession(data);
+        setActiveCall(call);
+        return await connectToRoom(call.roomName);
+      } catch {
+        setError('Could not start group call');
         setStatus('ended');
         return false;
       }
@@ -393,6 +421,7 @@ export function useOrgCall(options: {
     startCall: startDmCall,
     startDmCall,
     startTeamCall,
+    startGroupCall,
     answerCall,
     joinCall,
     declineCall,

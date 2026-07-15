@@ -2,10 +2,12 @@ import * as React from 'react';
 import {
   ChatMention,
   DmMessage,
+  GroupChatMessage,
   OrgCallSession,
   OrgChatAttachment,
   TeamChatMessage,
   parseDmMessage,
+  parseGroupChatMessage,
   parseOrgCallSession,
   parseTeamChatMessage,
 } from '@/types/orgChat';
@@ -39,6 +41,15 @@ function appendTeamMessage(
   return [...current, message];
 }
 
+function appendGroupMessage(
+  existing: GroupChatMessage[] | undefined,
+  message: GroupChatMessage
+): GroupChatMessage[] {
+  const current = existing ?? [];
+  if (current.some((m) => m.messageId === message.messageId)) return current;
+  return [...current, message];
+}
+
 function appendDmMessage(existing: DmMessage[] | undefined, message: DmMessage): DmMessage[] {
   const current = existing ?? [];
   if (current.some((m) => m.id === message.id)) return current;
@@ -46,6 +57,15 @@ function appendDmMessage(existing: DmMessage[] | undefined, message: DmMessage):
 }
 
 function dedupeTeamMessages(messages: TeamChatMessage[]): TeamChatMessage[] {
+  const seen = new Set<number>();
+  return messages.filter((m) => {
+    if (seen.has(m.messageId)) return false;
+    seen.add(m.messageId);
+    return true;
+  });
+}
+
+function dedupeGroupMessages(messages: GroupChatMessage[]): GroupChatMessage[] {
   const seen = new Set<number>();
   return messages.filter((m) => {
     if (seen.has(m.messageId)) return false;
@@ -71,7 +91,7 @@ function isOrgCallThread(thread: string | undefined): boolean {
 
 /**
  * Client engine for org chat: one SSE connection per org multiplexing every
- * team-chat and DM frame the user may see, plus history loading and
+ * team/group-chat and DM frame the user may see, plus history loading and
  * optimistic sends against the REST proxy routes.
  */
 export function useOrgChat(params: UseOrgChatParams) {
@@ -87,6 +107,7 @@ export function useOrgChat(params: UseOrgChatParams) {
   } = params;
 
   const [teamMessages, setTeamMessages] = React.useState<Record<number, TeamChatMessage[]>>({});
+  const [groupMessages, setGroupMessages] = React.useState<Record<number, GroupChatMessage[]>>({});
   const [dmMessages, setDmMessages] = React.useState<Record<string, DmMessage[]>>({});
   const [unread, setUnread] = React.useState<Record<string, number>>({});
 
@@ -105,6 +126,7 @@ export function useOrgChat(params: UseOrgChatParams) {
 
   React.useEffect(() => {
     setTeamMessages({});
+    setGroupMessages({});
     setDmMessages({});
     setUnread({});
   }, [orgId]);
@@ -142,6 +164,27 @@ export function useOrgChat(params: UseOrgChatParams) {
     [bumpUnread]
   );
 
+  const handleGroupFrame = React.useCallback(
+    (event: Record<string, unknown>) => {
+      const message = parseGroupChatMessage(event);
+      if (isNaN(message.groupId) || isNaN(message.messageId)) return;
+      setGroupMessages((prev) => {
+        const next = appendGroupMessage(prev[message.groupId], message);
+        if (next === prev[message.groupId]) return prev;
+        return { ...prev, [message.groupId]: next };
+      });
+      const isSelf =
+        message.senderKind === 'user' && message.senderUserId === currentUserIdRef.current;
+      if (!isSelf) {
+        bumpUnread(`group:${message.groupId}`);
+        if (message.senderKind === 'user' && message.senderUserId) {
+          onHumanActivityRef.current?.(message.senderUserId);
+        }
+      }
+    },
+    [bumpUnread]
+  );
+
   const handleDmFrame = React.useCallback(
     (event: Record<string, unknown>) => {
       const myUserId = currentUserIdRef.current;
@@ -166,6 +209,8 @@ export function useOrgChat(params: UseOrgChatParams) {
 
   const handleTeamFrameRef = React.useRef(handleTeamFrame);
   handleTeamFrameRef.current = handleTeamFrame;
+  const handleGroupFrameRef = React.useRef(handleGroupFrame);
+  handleGroupFrameRef.current = handleGroupFrame;
   const handleDmFrameRef = React.useRef(handleDmFrame);
   handleDmFrameRef.current = handleDmFrame;
 
@@ -195,6 +240,8 @@ export function useOrgChat(params: UseOrgChatParams) {
         if (!frame.event || typeof frame.event !== 'object') return;
         if (frame.thread === 'team_message') {
           handleTeamFrameRef.current(frame.event);
+        } else if (frame.thread === 'group_message') {
+          handleGroupFrameRef.current(frame.event);
         } else if (frame.thread === 'dm_message') {
           handleDmFrameRef.current(frame.event);
         } else if (isOrgCallThread(frame.thread)) {
@@ -243,6 +290,24 @@ export function useOrgChat(params: UseOrgChatParams) {
           ? data.messages.map((m: Record<string, unknown>) => parseTeamChatMessage(m))
           : [];
         setTeamMessages((prev) => ({ ...prev, [teamId]: dedupeTeamMessages(messages) }));
+      } catch {
+        // History load is retried on next open; live frames still stream in.
+      }
+    },
+    [orgId]
+  );
+
+  const loadGroupHistory = React.useCallback(
+    async (groupId: number) => {
+      if (!orgId) return;
+      try {
+        const response = await fetch(`/api/organizations/${orgId}/groups/${groupId}/messages`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const messages: GroupChatMessage[] = Array.isArray(data?.messages)
+          ? data.messages.map((m: Record<string, unknown>) => parseGroupChatMessage(m))
+          : [];
+        setGroupMessages((prev) => ({ ...prev, [groupId]: dedupeGroupMessages(messages) }));
       } catch {
         // History load is retried on next open; live frames still stream in.
       }
@@ -322,6 +387,58 @@ export function useOrgChat(params: UseOrgChatParams) {
     [orgId]
   );
 
+  const sendGroupMessage = React.useCallback(
+    async (
+      groupId: number,
+      content: string,
+      mentions: ChatMention[] = [],
+      attachments: OrgChatAttachment[] = []
+    ): Promise<boolean> => {
+      if (!orgId) return false;
+      if (!content.trim() && attachments.length === 0) return false;
+      const tempId = -Date.now();
+      const optimistic: GroupChatMessage = {
+        messageId: tempId,
+        groupId,
+        timestamp: new Date().toISOString(),
+        senderKind: 'user',
+        senderUserId: currentUserIdRef.current,
+        senderAssistantId: null,
+        senderName: 'You',
+        content,
+        mentions,
+        attachments,
+      };
+      setGroupMessages((prev) => ({
+        ...prev,
+        [groupId]: [...(prev[groupId] ?? []), optimistic],
+      }));
+
+      try {
+        const response = await fetch(`/api/organizations/${orgId}/groups/${groupId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, mentions, attachments }),
+        });
+        if (!response.ok) throw new Error(`send failed (${response.status})`);
+        const data = await response.json();
+        const serverMessage = parseGroupChatMessage(data);
+        setGroupMessages((prev) => {
+          const withoutTemp = (prev[groupId] ?? []).filter((m) => m.messageId !== tempId);
+          return { ...prev, [groupId]: appendGroupMessage(withoutTemp, serverMessage) };
+        });
+        return true;
+      } catch {
+        setGroupMessages((prev) => ({
+          ...prev,
+          [groupId]: (prev[groupId] ?? []).filter((m) => m.messageId !== tempId),
+        }));
+        return false;
+      }
+    },
+    [orgId]
+  );
+
   const sendDmMessage = React.useCallback(
     async (
       otherUserId: string,
@@ -374,12 +491,15 @@ export function useOrgChat(params: UseOrgChatParams) {
 
   return {
     teamMessages,
+    groupMessages,
     dmMessages,
     unread,
     clearUnread,
     loadTeamHistory,
+    loadGroupHistory,
     loadDmHistory,
     sendTeamMessage,
+    sendGroupMessage,
     sendDmMessage,
   };
 }

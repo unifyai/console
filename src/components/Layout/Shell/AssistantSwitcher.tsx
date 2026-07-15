@@ -12,6 +12,7 @@ import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/Coordinator
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
+import { GroupFaceStack } from '@/components/Pages/Assistants/OrgChat/GroupFaceStack';
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 
@@ -38,15 +39,17 @@ function UnityAvatar({ assistant, sizeClass }: { assistant: Assistant; sizeClass
   );
 }
 
-/** Face override for non-assistant selections (a human member or a team). */
+/** Face override for non-assistant selections (a human, team, or chat group). */
 export interface ActiveEntityFace {
-  kind: 'human' | 'team';
+  kind: 'human' | 'team' | 'group';
   label: string;
   sublabel?: string | null;
   imageUrl?: string | null;
   online?: boolean;
   /** Managed org-wide team — render the fixed Org glyph instead of initials. */
   isOrgWideSharing?: boolean;
+  /** Face-stack members for chat-group selections. */
+  groupFaces?: Array<{ id: string; name: string; image?: string | null }>;
 }
 
 interface AssistantSwitcherProps {
@@ -90,7 +93,12 @@ export function AssistantSwitcher({
       ? assistantDisplayName(activeUnity)
       : 'Select a teammate';
   const unitySub = activeEntityFace
-    ? (activeEntityFace.sublabel ?? (activeEntityFace.kind === 'team' ? 'Team' : 'Team member'))
+    ? (activeEntityFace.sublabel ??
+      (activeEntityFace.kind === 'team'
+        ? 'Team'
+        : activeEntityFace.kind === 'group'
+          ? 'Group'
+          : 'Team member'))
     : activeUnity
       ? activeUnity.isCoordinator
         ? null
@@ -131,6 +139,11 @@ export function AssistantSwitcher({
                   isOrgWideSharing={activeEntityFace.isOrgWideSharing}
                   className={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
                   iconClassName="h-5 w-5"
+                />
+              ) : activeEntityFace.kind === 'group' ? (
+                <GroupFaceStack
+                  members={activeEntityFace.groupFaces ?? []}
+                  sizeClassName={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
                 />
               ) : (
                 <Avatar

@@ -1344,6 +1344,68 @@ export function addAssistantToTeam(
   seedAssistantTeamMembership(targetAssistant, team.teamId, targetAssistant.userId, opts);
 }
 
+export interface SeededChatGroup {
+  groupId: number;
+  name: string;
+  organizationId: number;
+  createdByUserId: string;
+}
+
+export interface CreateChatGroupOpts {
+  organizationId: number;
+  name: string;
+  createdByUserId: string;
+  /** Human members (creator should be included). */
+  userIds: string[];
+  /** Assistant members (agent_id). */
+  assistantIds?: number[];
+}
+
+/**
+ * Insert a lightweight org chat group (humans + assistants) for seeds / E2E.
+ * Mirrors Orchestra `chat_group` / `chat_group_member` — not a Team.
+ */
+export function createChatGroup(opts: CreateChatGroupOpts): SeededChatGroup {
+  const { organizationId, name, createdByUserId, userIds, assistantIds = [] } = opts;
+  const rawGroupId = dbExec(`
+INSERT INTO chat_group (organization_id, name, created_by_user_id, status)
+VALUES (
+  ${organizationId},
+  '${sqlString(name)}',
+  '${sqlString(createdByUserId)}',
+  'active'
+)
+RETURNING id;
+`);
+  const groupId = Number(rawGroupId.match(/^\d+$/m)?.[0]);
+  if (!Number.isInteger(groupId)) {
+    throw new Error(`Failed to parse seeded chat group id from psql output: ${rawGroupId}`);
+  }
+
+  const uniqueUserIds = [...new Set(userIds)];
+  for (const userId of uniqueUserIds) {
+    dbExec(`
+INSERT INTO chat_group_member (group_id, user_id, assistant_id, role)
+VALUES (${groupId}, '${sqlString(userId)}', NULL, 'member')
+ON CONFLICT DO NOTHING;
+`);
+  }
+  for (const assistantId of assistantIds) {
+    dbExec(`
+INSERT INTO chat_group_member (group_id, user_id, assistant_id, role)
+VALUES (${groupId}, NULL, ${assistantId}, 'member')
+ON CONFLICT DO NOTHING;
+`);
+  }
+
+  return {
+    groupId,
+    name,
+    organizationId,
+    createdByUserId,
+  };
+}
+
 // =============================================================================
 // Project Primitives (required before creating secrets)
 // =============================================================================
