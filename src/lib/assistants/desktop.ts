@@ -105,7 +105,7 @@ export async function getLiveviewUrl(
     const sharedUnifyKey = await resolveOrchestraApiKeyForServerOps();
     if (!sharedUnifyKey) {
       console.error('[getLiveviewUrl] Server configuration error: Orchestra API key is not set.');
-      return { detail: 'Server configuration error: Shared key not found.' };
+      return { detail: 'Server configuration error: Orchestra admin key not found.' };
     }
 
     const internalApiBaseUrl = getInternalApiBaseUrl();

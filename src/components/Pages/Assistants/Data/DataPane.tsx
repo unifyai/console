@@ -421,6 +421,40 @@ export function DataPane({
     [selected, selectedRow]
   );
 
+  const deleteSelectedRow = React.useCallback(async () => {
+    if (!selected || !selectedRow?.logId) throw new Error('This row cannot be deleted.');
+
+    const res = await fetch('/api/logs', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: 'Assistants',
+        context: selected,
+        idsAndFields: [[selectedRow.logId, null]],
+      }),
+    });
+
+    if (!res.ok) {
+      const response: unknown = await res.json().catch(() => null);
+      const detail =
+        response && typeof response === 'object' && 'detail' in response
+          ? String((response as { detail: unknown }).detail)
+          : 'Unable to delete this row.';
+      throw new Error(detail);
+    }
+
+    setLeaf((current) =>
+      current
+        ? {
+            ...current,
+            count: Math.max(0, current.count - 1),
+            rows: current.rows.filter((row) => row.logId !== selectedRow.logId),
+          }
+        : current
+    );
+    setSelectedRow(null);
+  }, [selected, selectedRow]);
+
   const topNodes = tree
     ? Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name))
     : [];
@@ -700,6 +734,7 @@ export function DataPane({
             description={selectedDisplayPath ?? undefined}
             fields={leaf?.fields ?? {}}
             onSave={saveField}
+            onDelete={deleteSelectedRow}
             onClose={() => setSelectedRow(null)}
           />
 

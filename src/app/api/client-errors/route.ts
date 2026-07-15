@@ -7,7 +7,7 @@
  * Orchestra `ConsoleDiagnostics` project being provisioned (the
  * existing `/api/client-logs` route forwards to Orchestra and
  * silently 404s today because `ConsoleDiagnostics` isn't initialised
- * on the `SHARED_UNIFY_KEY` user — see `assistant_jobs_api.py`'s
+ * for the platform system writer — see `assistant_jobs_api.py`'s
  * `ensure_project_exists` for the pattern that's missing here).
  *
  * Intentionally minimal: no Discord webhook, no Orchestra round-trip,
