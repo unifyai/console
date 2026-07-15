@@ -62,7 +62,9 @@ function applyDesktopReadyPayload(
  *    payload for tabs that are already listening.
  *
  * 3. Low-frequency fallback poll via `getLiveviewUrl` when a session scope
- *    (binding id from SSE or job name from runtime status) is known.
+ *    (binding id from SSE or job name from runtime status) is known. The
+ *    standalone desktop pane opts into an unscoped fallback during its own
+ *    startup because it has neither identifier before the first ready event.
  */
 export function useDesktopReady(
   assistantId: string | undefined,
@@ -76,7 +78,8 @@ export function useDesktopReady(
   pollIntervalMs = DESKTOP_READY_FALLBACK_INTERVAL,
   resetSignal = 0,
   sessionScope?: string | null,
-  runtimePollScope?: DesktopSessionScope | null
+  runtimePollScope?: DesktopSessionScope | null,
+  allowUnscopedFallback = false
 ): DesktopReadyState {
   const storedInitial = readStoredDesktopReady(assistantId, sessionScope ?? undefined);
   const [isDesktopReady, setIsDesktopReady] = React.useState(
@@ -134,7 +137,7 @@ export function useDesktopReady(
 
   React.useEffect(() => {
     if (!assistantId || !getLiveviewUrl || isDesktopReady) return;
-    if (!pollScope?.bindingId && !pollScope?.jobName) return;
+    if (!allowUnscopedFallback && !pollScope?.bindingId && !pollScope?.jobName) return;
 
     let cancelled = false;
 
@@ -158,7 +161,14 @@ export function useDesktopReady(
       cancelled = true;
       clearInterval(interval);
     };
-  }, [assistantId, getLiveviewUrl, isDesktopReady, pollIntervalMs, pollScope]);
+  }, [
+    allowUnscopedFallback,
+    assistantId,
+    getLiveviewUrl,
+    isDesktopReady,
+    pollIntervalMs,
+    pollScope,
+  ]);
 
   return { isDesktopReady, eventLiveviewUrl, eventBindingId };
 }

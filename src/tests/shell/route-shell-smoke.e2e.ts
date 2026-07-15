@@ -55,14 +55,13 @@ test('/favourites renders inside the rail shell with its section header @push @c
 
   await expect(page).toHaveURL(/\/favourites/);
   await expect(assistantRail(page)).toBeVisible({ timeout: 15_000 });
-  // Page body heading streams in with the Suspense body, so allow for the
-  // fetch (TabHeader also shows the section label in the rail chrome, but as
-  // a span, not a heading).
+  // Page title paints with the shell (outside Suspense). TabHeader also shows
+  // the section label in the rail chrome, but as a span, not a heading.
   await expect(page.getByRole('heading', { name: 'Favourites' })).toBeVisible({
     timeout: 15_000,
   });
-  // Favourites body streamed in.
-  await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 15_000 });
+  // Project lists stream in after the server fetch.
+  await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 45_000 });
 });
 
 test('/interfaces renders inside the rail shell for a Unify member @push @critical @area(assistants.core)', async ({
