@@ -6,6 +6,5 @@ export { LogDerivedColumnDialog, LogDerivedColumnTrigger } from './LogDerivedCol
 export { LogCellViewPanel, cellsFromSelection } from './LogCellViewPanel';
 export type { LogCellSelection } from './LogCellViewPanel';
 export { LogCellValue } from './LogCellValue';
-export { LogGroupRows } from './LogGroupRows';
 export { LogGridToolbar, useContainerWidth } from './LogGridToolbar';
 export type { LogGridToolbarProps } from './LogGridToolbar';

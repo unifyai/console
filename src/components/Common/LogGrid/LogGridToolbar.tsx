@@ -22,12 +22,10 @@ import {
 import {
   encodeCommonTextFilter,
   encodeCommonExpressionFilter,
-  encodeGroupSorting,
   LOG_METRICS,
   LOG_PAGE_SIZE_OPTIONS,
   type LogViewState,
 } from '@/lib/logs';
-import { sanitizeId } from '@/lib/logs/columns';
 import { LogColumnVisibility } from './LogColumnVisibility';
 
 const MEDIUM_PX = 720;
@@ -80,58 +78,10 @@ export function LogGridToolbar({
   const isMedium = containerWidth >= MEDIUM_PX;
   const isWide = containerWidth >= WIDE_PX;
 
-  const showGroupInStrip = isMedium;
   const showMetricInStrip = isMedium;
   const showPageSizeInStrip = isWide;
 
-  const hasOverflowActive = Boolean(view.grouping || view.filters || view.commonFilter);
-
-  const groupSortDesc = view.groupSorting?.includes('@true') ?? false;
-
-  const groupingSelect = (
-    <Select
-      value={view.grouping || '__none__'}
-      onValueChange={(v) =>
-        onViewChange({
-          grouping: v === '__none__' ? '' : v,
-          groupSorting: v === '__none__' ? '' : view.groupSorting,
-          offset: 0,
-        })
-      }
-    >
-      <SelectTrigger className="h-8 w-[140px]" data-testid="log-grid-group-by">
-        <SelectValue placeholder="Group by" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">No grouping</SelectItem>
-        {columns.map((c) => (
-          <SelectItem key={c} value={c}>
-            {sanitizeId(c)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  const groupSortSelect = !!view.grouping ? (
-    <Select
-      value={groupSortDesc ? 'desc' : 'asc'}
-      onValueChange={(v) =>
-        onViewChange({
-          groupSorting: encodeGroupSorting(view.grouping!, v === 'desc'),
-          offset: 0,
-        })
-      }
-    >
-      <SelectTrigger className="h-8 w-[120px]" data-testid="log-grid-group-sort">
-        <SelectValue placeholder="Group sort" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="asc">Group asc</SelectItem>
-        <SelectItem value="desc">Group desc</SelectItem>
-      </SelectContent>
-    </Select>
-  ) : null;
+  const hasOverflowActive = Boolean(view.filters || view.commonFilter);
 
   const metricSelect = (
     <Select value={view.metric || 'mean'} onValueChange={(metric) => onViewChange({ metric })}>
@@ -204,8 +154,6 @@ export function LogGridToolbar({
         onChange={(hiddenColumns) => onViewChange({ hiddenColumns })}
       />
 
-      {showGroupInStrip && groupingSelect}
-      {showGroupInStrip && groupSortSelect}
       {showMetricInStrip && metricSelect}
 
       <DropdownMenu modal={false}>
@@ -221,16 +169,10 @@ export function LogGridToolbar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
-          {(!showGroupInStrip || !showMetricInStrip) && (
+          {!showMetricInStrip && (
             <>
               <DropdownMenuLabel>View</DropdownMenuLabel>
-              {!showGroupInStrip && (
-                <div className="space-y-1.5 px-2 py-1.5">
-                  {groupingSelect}
-                  {groupSortSelect}
-                </div>
-              )}
-              {!showMetricInStrip && <div className="px-2 py-1.5">{metricSelect}</div>}
+              <div className="px-2 py-1.5">{metricSelect}</div>
               <DropdownMenuSeparator />
             </>
           )}

@@ -86,7 +86,7 @@ export function DataLeafTable({
 
   const initializedRef = React.useRef<string | null>(null);
 
-  const { rows, groups, count, fields, isLoading, isFetching, error, refetch, spec } = useLogQuery({
+  const { rows, count, fields, isLoading, isFetching, error, refetch, spec } = useLogQuery({
     projectName: 'Assistants',
     context,
     view,
@@ -197,7 +197,6 @@ export function DataLeafTable({
         projectName="Assistants"
         context={context}
         rows={rows}
-        groups={groups}
         fields={fields}
         columns={columns}
         totalCount={count}

@@ -208,15 +208,12 @@ test('common text filter narrows rows', async ({ authedPage: page }) => {
   await expect(page.getByText('Ada Lovelace')).toBeVisible();
 });
 
-test('metric footer, pin, page size, and create row', async ({ authedPage: page }) => {
+test('metric footer, page size, and create row', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
   await clickToolbarControl(page, 'log-grid-metric');
   await page.getByRole('option', { name: 'count' }).click();
   await expect(page.getByTestId('log-grid-metric-cell-score')).toBeVisible({ timeout: 30_000 });
-
-  await page.getByTestId('log-grid-pin-name').click();
-  await expect(page.getByTestId('log-grid-pin-name').locator('svg')).toBeVisible();
 
   await clickToolbarControl(page, 'log-grid-page-size');
   await page.getByRole('option', { name: '20/page' }).click();
@@ -244,28 +241,12 @@ test('metric footer, pin, page size, and create row', async ({ authedPage: page 
   expect(count).toBeGreaterThanOrEqual(6);
 });
 
-test('group by city expands and loads rows; column search and pin-right work', async ({
-  authedPage: page,
-}) => {
+test('column search works', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
-  await clickToolbarControl(page, 'log-grid-group-by');
-  await page.getByRole('option', { name: 'city' }).click();
-  await expect(page.getByTestId('log-grid-group-sort')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('log-grid-group-city-London')).toBeVisible({ timeout: 30_000 });
-
-  await page.getByTestId('log-grid-group-toggle-London').click();
-  await expect(page.getByText('Ada Lovelace')).toBeVisible({ timeout: 30_000 });
-
-  // Clear grouping for pin-right / columns search on flat table
-  await clickToolbarControl(page, 'log-grid-group-by');
-  await page.getByRole('option', { name: 'No grouping' }).click();
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
     timeout: 30_000,
   });
-
-  await page.getByTestId('log-grid-pin-right-score').click();
-  await expect(page.getByTestId('log-grid-pin-right-score')).toBeVisible();
 
   await page.getByTestId('log-grid-columns').click();
   await page.getByTestId('log-grid-columns-search').fill('score');

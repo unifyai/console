@@ -9,7 +9,6 @@ export async function fetchColumnMetrics(args: {
   columns: string[];
   metric?: string;
   filterExpr?: string | null;
-  groupBy?: string | null;
   columnContext?: string | null;
   signal?: AbortSignal;
 }): Promise<Record<string, number | Record<string, unknown>>> {
@@ -19,7 +18,6 @@ export async function fetchColumnMetrics(args: {
   params.set('context', args.context);
   params.set('key', JSON.stringify(args.columns));
   if (args.filterExpr) params.set('filterExpr', args.filterExpr);
-  if (args.groupBy) params.set('groupBy', JSON.stringify(args.groupBy.split(',').filter(Boolean)));
   if (args.columnContext) params.set('columnContext', args.columnContext);
 
   const res = await fetch(`/api/logs/${metricName}?${params.toString()}`, {

@@ -8,9 +8,6 @@ export type LogQuerySpec = {
   context: string;
   filterExpr?: string | null;
   sorting?: string | null;
-  /** Comma-separated grouping column ids (Orchestra `groupBy`). */
-  groupBy?: string | null;
-  groupSorting?: string | null;
   limit: number;
   offset: number;
   columnContext?: string | null;
@@ -22,8 +19,6 @@ export const LOG_PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const;
 export type LogViewState = {
   hiddenColumns: string[];
   columnOrder: string[];
-  columnsPinLeft: string[];
-  columnsPinRight: string[];
   /** Per-column pixel widths (TanStack columnSizing). */
   columnSizing: ColumnSizingState;
   /** Encoded as `col~fn~value§…` (Interfaces tile filters string). */
@@ -39,10 +34,6 @@ export type LogViewState = {
   metric?: string;
   /** When true, poll for newer rows. */
   autoUpdate?: boolean;
-  /** Comma-separated grouping columns. */
-  grouping?: string;
-  /** Encoded `field@true,field2@false` group sort. */
-  groupSorting?: string;
 };
 
 export const DEFAULT_LOG_PAGE_SIZE = 50;
@@ -63,8 +54,6 @@ export function emptyLogViewState(overrides?: Partial<LogViewState>): LogViewSta
   return {
     hiddenColumns: [],
     columnOrder: [],
-    columnsPinLeft: [],
-    columnsPinRight: [],
     columnSizing: {},
     filters: '',
     commonFilter: '',
@@ -74,8 +63,6 @@ export function emptyLogViewState(overrides?: Partial<LogViewState>): LogViewSta
     freeze: undefined,
     metric: 'mean',
     autoUpdate: false,
-    grouping: '',
-    groupSorting: '',
     ...overrides,
   };
 }

@@ -14,8 +14,6 @@ export function tileDataToLogViewState(tile: TileData): LogViewState {
   return emptyLogViewState({
     hiddenColumns: tt?.hiddenColumns ? tt.hiddenColumns.split(',').filter(Boolean) : [],
     columnOrder: tt?.columnOrder ? tt.columnOrder.split(',').filter(Boolean) : [],
-    columnsPinLeft: tt?.columnsPinLeft ? tt.columnsPinLeft.split(',').filter(Boolean) : [],
-    columnsPinRight: tt?.columnsPinRight ? tt.columnsPinRight.split(',').filter(Boolean) : [],
     columnSizing: {},
     filters: tile.filters ?? '',
     commonFilter: tile.commonFilter ?? '',
@@ -25,8 +23,6 @@ export function tileDataToLogViewState(tile: TileData): LogViewState {
     freeze: tile.freeze || undefined,
     metric: tile.metric || 'mean',
     autoUpdate: tile.autoUpdate === 'true',
-    grouping: tile.grouping || '',
-    groupSorting: tt?.groupSorting || '',
   });
 }
 
@@ -51,8 +47,6 @@ export function tileDataToLogQuerySpec(
     context: tile.context ?? '',
     filterExpr: filterExpr || null,
     sorting: sortingStateToOrchestra(view.sorting),
-    groupBy: view.grouping || null,
-    groupSorting: view.groupSorting || null,
     limit: view.limit,
     offset: view.offset,
     columnContext: tile.columnContext ?? null,
@@ -67,14 +61,10 @@ export function logViewStateToTilePatch(view: LogViewState): Partial<TileData> {
     freeze: view.freeze || undefined,
     metric: view.metric || undefined,
     autoUpdate: view.autoUpdate ? 'true' : 'false',
-    grouping: view.grouping || undefined,
     tableTile: {
       hiddenColumns: view.hiddenColumns.join(','),
       columnOrder: view.columnOrder.join(','),
-      columnsPinLeft: view.columnsPinLeft.join(','),
-      columnsPinRight: view.columnsPinRight.join(','),
       sorting: view.sorting.map((s) => `${s.id}@${s.desc ? 'true' : 'false'}`).join(','),
-      groupSorting: view.groupSorting || undefined,
       offset: view.offset,
       limit: view.limit,
     },
