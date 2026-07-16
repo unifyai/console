@@ -241,6 +241,52 @@ test('metric footer, page size, and create row', async ({ authedPage: page }) =>
   expect(count).toBeGreaterThanOrEqual(6);
 });
 
+test('shift-click selects the bounding cell region', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const firstRow = page.locator('[data-testid^="log-grid-row-"]').nth(0);
+  const thirdRow = page.locator('[data-testid^="log-grid-row-"]').nth(2);
+  await expect(firstRow).toBeVisible({ timeout: 30_000 });
+
+  const startCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
+  const endCell = thirdRow.locator('[data-testid^="log-grid-cell-"]').nth(1);
+  await startCell.click();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('Selected cell');
+
+  await endCell.click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
+    timeout: 15_000,
+  });
+});
+
+test('click-drag selects the bounding cell region', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const firstRow = page.locator('[data-testid^="log-grid-row-"]').nth(0);
+  const thirdRow = page.locator('[data-testid^="log-grid-row-"]').nth(2);
+  await expect(firstRow).toBeVisible({ timeout: 30_000 });
+
+  const startCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
+  const endCell = thirdRow.locator('[data-testid^="log-grid-cell-"]').nth(1);
+
+  const startBox = await startCell.boundingBox();
+  const endBox = await endCell.boundingBox();
+  expect(startBox).toBeTruthy();
+  expect(endBox).toBeTruthy();
+
+  await page.mouse.move(startBox!.x + startBox!.width / 2, startBox!.y + startBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(endBox!.x + endBox!.width / 2, endBox!.y + endBox!.height / 2, {
+    steps: 12,
+  });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
+    timeout: 15_000,
+  });
+});
+
 test('column search works', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 

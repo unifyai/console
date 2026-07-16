@@ -116,4 +116,37 @@ export function makeCellId(logId: string | number, columnId: string): string {
   return `${logId}_${columnId}`;
 }
 
+/**
+ * Cell ids in the inclusive axis-aligned rectangle between two cells,
+ * using the given row order and visible column order (Interfaces-style).
+ */
+export function cellsInBoundingRange(
+  rows: Array<{ logId: number }>,
+  columnIds: string[],
+  startCellId: string,
+  endCellId: string
+): string[] {
+  const start = parseCellId(startCellId);
+  const end = parseCellId(endCellId);
+  const rowIds = rows.map((r) => String(r.logId));
+  const r1 = rowIds.indexOf(start.logId);
+  const r2 = rowIds.indexOf(end.logId);
+  const c1 = columnIds.indexOf(start.columnId);
+  const c2 = columnIds.indexOf(end.columnId);
+  if (r1 < 0 || r2 < 0 || c1 < 0 || c2 < 0) return [];
+
+  const rMin = Math.min(r1, r2);
+  const rMax = Math.max(r1, r2);
+  const cMin = Math.min(c1, c2);
+  const cMax = Math.max(c1, c2);
+
+  const out: string[] = [];
+  for (let r = rMin; r <= rMax; r++) {
+    for (let c = cMin; c <= cMax; c++) {
+      out.push(makeCellId(rows[r].logId, columnIds[c]));
+    }
+  }
+  return out;
+}
+
 export type { FiltersByColumn, LogFieldsResponseProps, SortingState };

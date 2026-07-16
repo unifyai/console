@@ -55,6 +55,7 @@ import { cn } from '@/lib/utils';
 import {
   makeCellId,
   parseCellId,
+  cellsInBoundingRange,
   type LogFieldsResponseProps,
   type LogGridRow,
   type LogViewState,
@@ -407,25 +408,113 @@ export function LogGrid({
 
   const selectedRowId = selection?.mode === 'row' ? selection.selectedRowId : null;
   const selectedCells = selection?.mode === 'cell' ? new Set(selection.selectedCells) : null;
+  const selectionAnchorRef = React.useRef<string | null>(null);
+  const isSelectingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    selectionAnchorRef.current = null;
+    isSelectingRef.current = false;
+  }, [context]);
+
+  React.useEffect(() => {
+    if (
+      selection?.mode === 'cell' &&
+      selection.selectedCells.length === 0 &&
+      !isSelectingRef.current
+    ) {
+      selectionAnchorRef.current = null;
+    }
+  }, [selection]);
+
+  React.useEffect(() => {
+    const endSelect = () => {
+      isSelectingRef.current = false;
+    };
+    window.addEventListener('mouseup', endSelect);
+    window.addEventListener('pointerup', endSelect);
+    window.addEventListener('blur', endSelect);
+    return () => {
+      window.removeEventListener('mouseup', endSelect);
+      window.removeEventListener('pointerup', endSelect);
+      window.removeEventListener('blur', endSelect);
+    };
+  }, []);
 
   const selectCell = React.useCallback(
-    (cellId: string, additive: boolean) => {
+    (cellId: string, modifiers: { additive?: boolean; range?: boolean } = {}) => {
       if (selection?.mode !== 'cell') return;
-      if (additive) {
+
+      if (modifiers.range) {
+        const anchor = selectionAnchorRef.current ?? selection.selectedCells[0] ?? cellId;
+        if (!selectionAnchorRef.current) selectionAnchorRef.current = anchor;
+        const range = cellsInBoundingRange(rows, visible, anchor, cellId);
+        if (!range.length) {
+          selection.onSelectCells([cellId]);
+          selectionAnchorRef.current = cellId;
+          return;
+        }
+        const startIndex = selection.selectedCells.indexOf(anchor);
+        const prev = startIndex >= 0 ? selection.selectedCells.slice(0, startIndex) : [];
+        selection.onSelectCells(Array.from(new Set([...prev, ...range])));
+        return;
+      }
+
+      if (modifiers.additive) {
         const next = selection.selectedCells.includes(cellId)
           ? selection.selectedCells.filter((id) => id !== cellId)
           : [...selection.selectedCells, cellId];
         selection.onSelectCells(next);
+        // Keep anchor even if the cell was toggled off — drag can re-select from here.
+        selectionAnchorRef.current = cellId;
         return;
       }
-      selection.onSelectCells(
+
+      const next =
         selection.selectedCells.length === 1 && selection.selectedCells[0] === cellId
           ? []
-          : [cellId]
-      );
+          : [cellId];
+      selection.onSelectCells(next);
+      // Anchor stays on the pressed cell so drag-from-deselect still expands a range.
+      selectionAnchorRef.current = cellId;
     },
-    [selection]
+    [selection, rows, visible]
   );
+
+  const onCellPointerDown = React.useCallback(
+    (e: React.MouseEvent | React.PointerEvent, cellId: string) => {
+      if (selection?.mode !== 'cell') return;
+      if ('button' in e && e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      isSelectingRef.current = true;
+      if (e.shiftKey) {
+        selectCell(cellId, { range: true });
+      } else if (e.metaKey || e.ctrlKey) {
+        selectCell(cellId, { additive: true });
+      } else {
+        selectCell(cellId);
+      }
+    },
+    [selection, selectCell]
+  );
+
+  const onCellPointerEnter = React.useCallback(
+    (e: React.MouseEvent | React.PointerEvent, cellId: string) => {
+      if (selection?.mode !== 'cell') return;
+      if (!isSelectingRef.current) return;
+      // Primary button still held (mouse + Mac trackpad click-drag).
+      if ('buttons' in e && e.buttons !== 1) {
+        isSelectingRef.current = false;
+        return;
+      }
+      selectCell(cellId, { range: true });
+    },
+    [selection, selectCell]
+  );
+
+  const onCellPointerUp = React.useCallback(() => {
+    isSelectingRef.current = false;
+  }, []);
 
   const createRow = async () => {
     const result = await createEmptyLogRow({ projectName, context });
@@ -488,6 +577,7 @@ export function LogGrid({
     if (key === 'ArrowRight') colIdx = Math.min(visible.length - 1, colIdx + 1);
     const nextId = makeCellId(rows[rowIdx].logId, visible[colIdx]);
     selection.onSelectCells([nextId]);
+    selectionAnchorRef.current = nextId;
   };
 
   const onGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -498,6 +588,7 @@ export function LogGrid({
     if (e.key === 'Escape') {
       e.preventDefault();
       selection.onSelectCells([]);
+      selectionAnchorRef.current = null;
       return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -624,7 +715,7 @@ export function LogGrid({
                           </TableRow>
                         ))}
                       </TableHeader>
-                      <TableBody>
+                      <TableBody className={selection?.mode === 'cell' ? 'select-none' : undefined}>
                         {table.getRowModel().rows.map((row) => {
                           const isSelected = selectedRowId === String(row.original.logId);
                           return (
@@ -651,15 +742,13 @@ export function LogGrid({
                                     }}
                                     className={cn(
                                       'max-w-[220px] truncate px-2.5 py-1.5 font-mono text-[12px]',
+                                      selection?.mode === 'cell' && 'select-none',
                                       cellSelected &&
                                         'bg-primary-tint-10 ring-1 ring-inset ring-primary'
                                     )}
-                                    onClick={(e) => {
-                                      if (selection?.mode === 'cell') {
-                                        e.stopPropagation();
-                                        selectCell(cellId, e.metaKey || e.ctrlKey);
-                                      }
-                                    }}
+                                    onMouseDown={(e) => onCellPointerDown(e, cellId)}
+                                    onMouseEnter={(e) => onCellPointerEnter(e, cellId)}
+                                    onMouseUp={onCellPointerUp}
                                   >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                   </TableCell>
