@@ -1,5 +1,5 @@
 /**
- * Data browser Tables | State modes — state-manager contexts in the Data pane.
+ * Data browser modes — Data segment + per–state-manager segments; Meta hidden.
  *
  * Run: npx playwright test src/tests/assistants/data-browser-modes.e2e.ts
  */
@@ -97,15 +97,18 @@ async function openDataPane(page: import('@playwright/test').Page) {
   await selectAssistantInList(page, assistant.agentId);
   await openRailSection(page, 'data');
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('data-tree')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('data-browser-mode')).toBeVisible({ timeout: 30_000 });
 }
 
-test('Tables is default; State shows Contacts and hides Meta', async ({ authedPage: page }) => {
+test('Data is default; Contacts segment opens the table and hides Meta', async ({
+  authedPage: page,
+}) => {
   await openDataPane(page);
 
-  await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'tables');
-  await expect(page.getByTestId('data-mode-tables')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'data');
+  await expect(page.getByTestId('data-mode-data')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('data-state-banner')).toHaveCount(0);
+  await expect(page.getByTestId('data-tree')).toBeVisible();
 
   const peopleNode = page.getByTestId('data-table-node').filter({ hasText: 'People' });
   if (!(await peopleNode.isVisible({ timeout: 3_000 }).catch(() => false))) {
@@ -122,18 +125,11 @@ test('Tables is default; State shows Contacts and hides Meta', async ({ authedPa
     timeout: 30_000,
   });
 
-  await page.getByTestId('data-mode-state').click();
-  await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'state');
+  await page.getByTestId('data-mode-Contacts').click();
+  await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'Contacts');
   await expect(page.getByTestId('data-state-banner')).toBeVisible();
-  await expect(page.getByTestId('data-table-node').filter({ hasText: 'People' })).toHaveCount(0);
-
-  const contactsNode = page.getByTestId('data-table-node').filter({ hasText: /^Contacts$/ });
-  await expect(contactsNode).toBeVisible({ timeout: 15_000 });
-  // Seeded Contacts/Meta must not appear in the directory
+  // Single-table manager: no directory list of Meta; table opens directly
   await expect(page.getByTestId('data-table-node').filter({ hasText: /^Meta$/ })).toHaveCount(0);
-  await expect(page.getByTestId('data-folder-node').filter({ hasText: /^Meta$/ })).toHaveCount(0);
-
-  await contactsNode.click();
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of [1-9]/, {
     timeout: 30_000,
@@ -149,7 +145,7 @@ test('Tables is default; State shows Contacts and hides Meta', async ({ authedPa
   const body = (await listRes.json()) as { count?: number; logs?: unknown[] };
   expect((body.count ?? body.logs?.length ?? 0) > 0).toBe(true);
 
-  await page.getByTestId('data-mode-tables').click();
-  await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'tables');
+  await page.getByTestId('data-mode-data').click();
+  await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'data');
   await expect(page.getByTestId('data-state-banner')).toHaveCount(0);
 });

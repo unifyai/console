@@ -16,7 +16,11 @@ import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 import {
   buildDataBrowserTree,
+  collectSelectableContexts,
   contextMatchesDataBrowserMode,
+  isStateManagerMode,
+  STATE_MANAGER_ROOTS,
+  treeNeedsFolderView,
   type DataBrowserMode,
   type DataBrowserRoot,
   type DataTreeNode,
@@ -157,20 +161,28 @@ function ModeSegments({
   onChange: (mode: DataBrowserMode) => void;
 }) {
   return (
-    <TabSegmentGroup testId="data-browser-mode">
-      <TabSegment
-        label="Tables"
-        active={mode === 'tables'}
-        onClick={() => onChange('tables')}
-        testId="data-mode-tables"
-      />
-      <TabSegment
-        label="State"
-        active={mode === 'state'}
-        onClick={() => onChange('state')}
-        testId="data-mode-state"
-      />
-    </TabSegmentGroup>
+    <div className="flex flex-wrap items-center gap-1.5" data-testid="data-browser-mode">
+      <TabSegmentGroup>
+        <TabSegment
+          label="Data"
+          active={mode === 'data'}
+          onClick={() => onChange('data')}
+          testId="data-mode-data"
+        />
+      </TabSegmentGroup>
+      <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+      <TabSegmentGroup className="flex-wrap">
+        {STATE_MANAGER_ROOTS.map((root) => (
+          <TabSegment
+            key={root}
+            label={root}
+            active={mode === root}
+            onClick={() => onChange(root)}
+            testId={`data-mode-${root}`}
+          />
+        ))}
+      </TabSegmentGroup>
+    </div>
   );
 }
 
@@ -202,7 +214,7 @@ export function DataPane({
     [dataRoots]
   );
 
-  const [mode, setMode] = React.useState<DataBrowserMode>('tables');
+  const [mode, setMode] = React.useState<DataBrowserMode>('data');
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
@@ -248,9 +260,23 @@ export function DataPane({
     [contextNames, dataRoots, mode]
   );
 
+  const selectableContexts = React.useMemo(() => collectSelectableContexts(tree), [tree]);
+  const showDirectory = mode === 'data' || treeNeedsFolderView(tree);
+
   React.useEffect(() => {
     setExpanded(new Set(Array.from(tree.children.values()).map((n) => n.context ?? `${n.name}0`)));
   }, [tree]);
+
+  // Single-table state-manager modes open the table directly (no folder chrome).
+  React.useEffect(() => {
+    if (mode === 'data') return;
+    if (selectableContexts.length !== 1) return;
+    const only = selectableContexts[0];
+    setSelected(only);
+    setSelectedRow(null);
+    setLeafMeta(null);
+    if (isStackedLayout) setMobileShowTree(false);
+  }, [mode, selectableContexts, isStackedLayout]);
 
   const changeMode = React.useCallback(
     (next: DataBrowserMode) => {
@@ -352,13 +378,14 @@ export function DataPane({
           .replace(/\/$/, '')
       : null;
 
-  const emptyTreeCopy =
-    mode === 'tables' ? 'No ingested data yet.' : 'No state-manager contexts yet.';
+  const emptyTreeCopy = mode === 'data' ? 'No ingested data yet.' : `No ${mode} contexts yet.`;
   const emptySelectCopy =
-    mode === 'tables'
+    mode === 'data'
       ? 'Select a table from the directory to browse its rows.'
-      : 'Select a state-manager context to browse and edit its rows.';
-  const sidebarTitle = mode === 'tables' ? 'Tables' : 'State';
+      : showDirectory
+        ? `Select a ${mode} table from the directory to browse its rows.`
+        : `No ${mode} table found for this assistant.`;
+  const sidebarTitle = mode === 'data' ? 'Data' : mode;
 
   const treeList = (
     <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
@@ -430,7 +457,7 @@ export function DataPane({
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
-          {!isStackedLayout && (
+          {!isStackedLayout && showDirectory && (
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
@@ -457,7 +484,7 @@ export function DataPane({
         <TabSplitSkeleton className="min-h-0 flex-1" listRows={8} />
       ) : (
         <>
-          {mode === 'state' && (
+          {isStateManagerMode(mode) && (
             <div
               className="bg-muted/40 shrink-0 border-b border-border px-4 py-2.5"
               data-testid="data-state-banner"
@@ -472,7 +499,7 @@ export function DataPane({
 
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {isStackedLayout ? (
-              mobileShowTree || !selected ? (
+              showDirectory && (mobileShowTree || !selected) ? (
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
                   {sidebarHeader}
                   {treeList}
@@ -480,31 +507,46 @@ export function DataPane({
               ) : (
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                   <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setMobileShowTree(true)}
-                      className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
-                      data-testid="data-mobile-back"
-                    >
-                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                      {sidebarTitle}
-                    </button>
+                    {showDirectory ? (
+                      <button
+                        type="button"
+                        onClick={() => setMobileShowTree(true)}
+                        className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+                        data-testid="data-mobile-back"
+                      >
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                        {sidebarTitle}
+                      </button>
+                    ) : (
+                      <span className="text-title text-foreground">{sidebarTitle}</span>
+                    )}
                     <ModeSegments mode={mode} onChange={changeMode} />
                   </div>
-                  {leafChrome}
+                  {selected ? (
+                    leafChrome
+                  ) : (
+                    <div className="flex h-full items-center justify-center p-8 text-center">
+                      <p className="text-body-muted">{emptySelectCopy}</p>
+                    </div>
+                  )}
                 </div>
               )
             ) : (
               <>
-                {sidebarOpen && (
-                  <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
+                {(sidebarOpen || !showDirectory) && (
+                  <div
+                    className={cn(
+                      'flex shrink-0 flex-col border-r border-border bg-card',
+                      showDirectory ? 'w-72' : 'w-72'
+                    )}
+                  >
                     {sidebarHeader}
-                    {treeList}
+                    {showDirectory ? treeList : null}
                   </div>
                 )}
 
                 <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                  {!sidebarOpen && (
+                  {!sidebarOpen && showDirectory && (
                     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
                       <button
                         type="button"
