@@ -7,7 +7,7 @@ import {
   LogsResponseProps,
   GroupedLogPropsRaw,
 } from '@/types/interfaces/logs';
-import { buildFilterExpression } from '@/utils/interfaces/table/filters';
+import { buildFilterExpression } from '@/lib/logs/filters';
 import { extractLogsData } from '@/utils/interfaces/common';
 import { LogsActions } from '@/types/interfaces/grid';
 import { processContext, sanitizeId } from '@/utils/interfaces/table/columnOperations';

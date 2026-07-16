@@ -16,10 +16,10 @@ import { LoaderCircle } from 'lucide-react';
 import {
   expressionToDerivedFunction,
   derivedFunctionToExpression,
-} from '@/utils/interfaces/table/derivedColumns';
+} from '@/lib/logs/derivedColumns';
 import { DropdownMenuItem } from '@radix-ui/react-dropdown-menu';
-import { sanitizeId } from '@/utils/interfaces/table/columnOperations';
-import { buildFilterExpressionArgument } from '@/utils/interfaces/table/filters';
+import { sanitizeId } from '@/lib/logs/columns';
+import { buildFilterExpressionArgument } from '@/lib/logs/filters';
 import { DerivedEntryActions } from '@/types/interfaces/grid';
 import BaseDialog from '@/components/Common/Dialogs/Base';
 import { useTableAutoUpdateQuery } from '@/hooks/Interfaces/Query/useTableAutoUpdateQuery';

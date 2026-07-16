@@ -89,3 +89,4 @@ export { seedChatSearch } from './scenarios/chat-search';
 export { seedBrainRich } from './scenarios/brain-rich';
 export { seedTasksRich } from './scenarios/tasks-rich';
 export { seedReAppraisal } from './scenarios/re-appraisal';
+export { seedDataLogGrid } from './scenarios/data-log-grid';

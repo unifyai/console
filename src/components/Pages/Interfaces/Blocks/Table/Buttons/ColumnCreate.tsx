@@ -14,9 +14,9 @@ import { DropdownMenuItem, DropdownMenuLabel } from '@/components/UI/dropdown-me
 import { LoaderCircle, Info, Plus } from 'lucide-react';
 import { ResponseProps } from '@/types/common';
 import FormulaInput from '@/components/Common/Input/Formula';
-import { expressionToDerivedFunction } from '@/utils/interfaces/table/derivedColumns';
-import { buildFilterExpressionArgument } from '@/utils/interfaces/table/filters';
-import { processContext, sanitizeId } from '@/utils/interfaces/table/columnOperations';
+import { expressionToDerivedFunction } from '@/lib/logs/derivedColumns';
+import { buildFilterExpressionArgument } from '@/lib/logs/filters';
+import { processContext, sanitizeId } from '@/lib/logs/columns';
 import BaseDialog from '@/components/Common/Dialogs/Base';
 import { useTableAutoUpdateQuery } from '@/hooks/Interfaces/Query/useTableAutoUpdateQuery';
 import { FieldsActions } from '@/types/interfaces/grid';
