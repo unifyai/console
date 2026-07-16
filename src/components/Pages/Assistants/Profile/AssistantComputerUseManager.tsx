@@ -46,6 +46,26 @@ const OS_OPTIONS: { mode: DesktopMode; label: string; monthlyCost: number }[] = 
 ];
 
 const NETWORK_IDENTITY_POLL_INTERVAL_MS = 5_000;
+const NETWORK_REGION_LABELS = new Map<string, string>([
+  ['us-central1', 'Iowa, United States'],
+  ['us-east1', 'South Carolina, United States'],
+  ['us-east4', 'Northern Virginia, United States'],
+  ['us-west1', 'Oregon, United States'],
+  ['us-west2', 'Los Angeles, United States'],
+  ['us-west3', 'Salt Lake City, United States'],
+  ['us-west4', 'Las Vegas, United States'],
+  ['europe-west1', 'St. Ghislain, Belgium'],
+  ['europe-west2', 'London, United Kingdom'],
+  ['europe-west3', 'Frankfurt, Germany'],
+  ['europe-west4', 'Eemshaven, Netherlands'],
+  ['europe-west6', 'Zürich, Switzerland'],
+  ['europe-north1', 'Hamina, Finland'],
+]);
+
+function formatNetworkRegion(region: string | null | undefined): string {
+  const regionCode = region?.match(/\/regions\/([^/]+)$/)?.[1] ?? region;
+  return (regionCode && NETWORK_REGION_LABELS.get(regionCode)) || regionCode || '—';
+}
 
 function applyRotation(
   identity: ManagedDesktopNetworkIdentity | null,
@@ -58,7 +78,10 @@ function applyRotation(
     region: rotation.region ?? identity?.region ?? null,
     hostname: rotation.hostname ?? identity?.hostname ?? null,
     state: rotation.state ?? identity?.state ?? 'pending',
-    activeOperation: rotation.activeOperation ?? identity?.activeOperation ?? null,
+    activeOperation:
+      rotation.activeOperation !== undefined
+        ? rotation.activeOperation
+        : (identity?.activeOperation ?? null),
     rotation: identity?.rotation ?? null,
   };
 }
@@ -89,17 +112,28 @@ export function AssistantComputerUseManager({
     let cancelled = false;
     setIsNetworkIdentityLoading(true);
     void (async () => {
-      const result = await getManagedDesktopStatus(assistant.agentId);
-      if (cancelled) return;
-      setIsNetworkIdentityLoading(false);
-      if (result.info?.monthlyCost != null) {
-        setMonthlyCost(result.info.monthlyCost);
-      }
-      setNetworkIdentity(applyRotation(null, result.info?.networkIdentity ?? undefined));
-      if (result.detail) {
-        setError(
-          typeof result.detail === 'string' ? result.detail : 'Failed to load Computer Use status'
-        );
+      try {
+        const result = await getManagedDesktopStatus(assistant.agentId);
+        if (cancelled) return;
+        if (result.info?.monthlyCost != null) {
+          setMonthlyCost(result.info.monthlyCost);
+        }
+        setNetworkIdentity(applyRotation(null, result.info?.networkIdentity ?? undefined));
+        if (result.detail) {
+          setError(
+            typeof result.detail === 'string'
+              ? result.detail
+              : 'Failed to load Computer Use status'
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setError('Failed to load Computer Use status');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsNetworkIdentityLoading(false);
+        }
       }
     })();
     return () => {
@@ -251,7 +285,7 @@ export function AssistantComputerUseManager({
                 {networkIdentity && (
                   <dl className="text-caption mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-muted-foreground">
                     <dt>Region</dt>
-                    <dd>{networkIdentity.region ?? '—'}</dd>
+                    <dd>{formatNetworkRegion(networkIdentity.region)}</dd>
                     <dt>Hostname</dt>
                     <dd>{networkIdentity.hostname ?? '—'}</dd>
                     <dt>Status</dt>

@@ -1,7 +1,8 @@
 import { TileData } from '@/types/interfaces/grid';
 import { TableArguments, LogFieldsResponseProps } from '@/types/interfaces/logs';
-import { buildFilterExpression } from '@/utils/interfaces/table/filters';
-import { processContext } from '@/utils/interfaces/table/columnOperations';
+import { buildFilterExpression } from '@/lib/logs/filters';
+import { processContext } from '@/lib/logs/columns';
+import { sortingStateToOrchestra, tileSortingToState } from '@/lib/logs/querySpec';
 
 /*
  * Builds the availableFields for tableArgument for a tile
@@ -44,20 +45,12 @@ export function buildTableArgumentsForTile(
     fields
   );
 
-  // Handle sorting
-  const sortingObject = tile.tableTile?.sorting
-    ? Object.fromEntries(
-        tile.tableTile.sorting
-          .split(',')
-          .map((value) => [
-            tile.columnContext
-              ? processContext('merge', tile.columnContext, value.split('@')[0])
-              : value.split('@')[0],
-            value.split('@')[1].replace('true', 'descending').replace('false', 'ascending'),
-          ])
-      )
-    : '';
-  const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null;
+  // Handle sorting via shared LogGrid helpers (tile string ↔ Orchestra JSON)
+  const sortingState = tileSortingToState(tile.tableTile?.sorting ?? undefined).map((entry) => ({
+    ...entry,
+    id: tile.columnContext ? processContext('merge', tile.columnContext, entry.id) : entry.id,
+  }));
+  const sortingExpression = sortingStateToOrchestra(sortingState);
 
   // Handle grouping
   const groupingExpression = tile.grouping || null;

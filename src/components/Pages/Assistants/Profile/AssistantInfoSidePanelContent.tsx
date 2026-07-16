@@ -138,6 +138,11 @@ export interface AssistantInfoSidePanelContentProps {
     onEnableDesktopFilesys?: () => void;
     /** Dispatches the Their Computer fetch-and-return beat event to Unity. */
     onYourComputerDemo?: () => void;
+    /** Opens a new Google Meet / Microsoft Teams meeting (per the connected
+     * workspace provider) and dispatches the workspace video-call beat event
+     * to Unity. Hung off the ``workspace-call`` row. Unset leaves the row as a
+     * static/"coming soon" entry. */
+    onWorkspaceCall?: () => void;
     /** Echo a checklist trigger acknowledgement into the coordinator chat. */
     appendRequestSentAck?: (label: string) => void;
     onSkipStep?: (stepId: string) => void;
@@ -430,6 +435,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onConnectYourComputer={coordinatorOnboarding.onConnectYourComputer}
                 onEnableDesktopFilesys={coordinatorOnboarding.onEnableDesktopFilesys}
                 onYourComputerDemo={coordinatorOnboarding.onYourComputerDemo}
+                onWorkspaceCall={coordinatorOnboarding.onWorkspaceCall}
                 onTestTriggerableTask={handleTestTriggerableTask}
                 armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
                 nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}

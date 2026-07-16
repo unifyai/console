@@ -357,7 +357,7 @@ export function DataRowDetail({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  className="hover:bg-destructive/10 text-destructive hover:text-destructive"
                   onClick={() => setIsDeleteDialogOpen(true)}
                   aria-label="Delete row"
                 >
@@ -459,7 +459,7 @@ export function DataRowDetail({
                 event.preventDefault();
                 void deleteRow();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting…' : 'Delete row'}

@@ -461,6 +461,17 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
 // Disconnect action may remove a shared install.
 const NON_RESETTABLE_STEP_IDS: ReadonlySet<string> = new Set(['slack-connect', 'ms-teams-connect']);
 
+// Saved contact details (WhatsApp/phone number, Discord ID) back their steps'
+// derivation from durable user state. A section reset clears the channel's quiz
+// tasks but must leave the saved detail intact so the user need not re-enter it —
+// mirroring Orchestra's completion_coupled_steps. The detail row itself stays
+// individually resettable via its own row menu.
+const STICKY_CONTACT_DETAIL_STEP_IDS: ReadonlySet<string> = new Set([
+  'whatsapp-number',
+  'phone-number',
+  'discord-id',
+]);
+
 function collectVisibleLeafIds(item: ResolvedChecklistItem): string[] {
   if (!item.children?.length) return [item.id];
   return item.children.flatMap(collectVisibleLeafIds);
@@ -1703,7 +1714,10 @@ function ChecklistRow({
   // NON_RESETTABLE_STEP_IDS): a per-user reset must not disturb a connection the
   // whole org depends on.
   const resetStepIds = React.useMemo(
-    () => collectVisibleLeafIds(item).filter((id) => !NON_RESETTABLE_STEP_IDS.has(id)),
+    () =>
+      collectVisibleLeafIds(item).filter(
+        (id) => !NON_RESETTABLE_STEP_IDS.has(id) && !STICKY_CONTACT_DETAIL_STEP_IDS.has(id)
+      ),
     [item]
   );
   const canResetSection =

@@ -33,6 +33,7 @@ import { seedReAppraisal } from './scenarios/re-appraisal';
 import { seedManagedBilling } from './scenarios/managed-billing';
 import { seedSidebarTeamGrouping } from './scenarios/sidebar-team-grouping';
 import { seedReferrals } from './scenarios/referrals';
+import { seedDataLogGrid } from './scenarios/data-log-grid';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
@@ -54,6 +55,7 @@ const SCENARIOS: Record<string, SeedScenario> = {
   'tasks-rich': seedTasksRich,
   'secrets-rich': seedSecretsRich,
   're-appraisal': seedReAppraisal,
+  'data-log-grid': seedDataLogGrid,
 };
 
 async function main(): Promise<void> {

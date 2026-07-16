@@ -32,42 +32,6 @@ interface DataPaneProps {
   enabled?: boolean;
 }
 
-/** Rows fetched per page; the leaf view appends pages via "Load more". */
-const PAGE_SIZE = 50;
-
-/** Strip Orchestra private/metadata fields (leading underscore) from row payloads. */
-function stripPrivateFields(row: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    if (!key.startsWith('_')) out[key] = value;
-  }
-  return out;
-}
-
-/** Parse `/api/logs/fields` response into public column metadata. */
-function publicFieldsFromResponse(data: unknown): Record<string, DataField> {
-  if (!data || typeof data !== 'object') return {};
-  return Object.fromEntries(
-    Object.entries(data as Record<string, unknown>)
-      .filter(([key]) => key !== '__contextNotFound' && !key.startsWith('_'))
-      .map(([key, value]) => {
-        const raw = typeof value === 'object' && value ? (value as Record<string, unknown>) : {};
-        return [
-          key,
-          {
-            dataType: typeof raw.dataType === 'string' ? raw.dataType : undefined,
-            fieldType: typeof raw.fieldType === 'string' ? raw.fieldType : undefined,
-            mutable: typeof raw.mutable === 'boolean' ? raw.mutable : undefined,
-            enumValues: Array.isArray(raw.enumValues)
-              ? raw.enumValues.filter((option): option is string => typeof option === 'string')
-              : null,
-            restrict: typeof raw.restrict === 'boolean' ? raw.restrict : undefined,
-          } satisfies DataField,
-        ];
-      })
-  );
-}
-
 /**
  * A readable context root the Data browser draws from. Personal data lives
  * under ``{ownerId}/{assistantId}/``; each team the assistant belongs to
@@ -102,10 +66,10 @@ interface TreeNode {
   children: Map<string, TreeNode>;
 }
 
-interface LeafData {
-  rows: DataRow[];
+interface LeafMeta {
   count: number;
-  columns: string[];
+  loaded: number;
+  columns: number;
   fields: Record<string, DataField>;
 }
 
@@ -155,7 +119,7 @@ function TreeRow({
 }) {
   const children = Array.from(node.children.values()).sort((a, b) => a.name.localeCompare(b.name));
   const hasChildren = children.length > 0;
-  const key = node.context ?? node.name + depth;
+  const key = node.context ?? `${node.name}${depth}`;
   const isOpen = expanded.has(key);
   const isLeaf = node.context !== null && !hasChildren;
   const isSelected = isLeaf && selected === node.context;
@@ -208,6 +172,26 @@ function TreeRow({
   );
 }
 
+function LeafHeaderStats({ meta }: { meta: LeafMeta | null }) {
+  if (!meta) return null;
+  return (
+    <dl className="flex shrink-0 flex-wrap gap-x-4 gap-y-1">
+      <div className="flex flex-col">
+        <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">Rows</dt>
+        <dd className="text-code font-semibold text-foreground">{meta.count.toLocaleString()}</dd>
+      </div>
+      <div className="flex flex-col">
+        <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">Loaded</dt>
+        <dd className="text-code font-semibold text-foreground">{meta.loaded.toLocaleString()}</dd>
+      </div>
+      <div className="flex flex-col">
+        <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">Columns</dt>
+        <dd className="text-code font-semibold text-foreground">{meta.columns}</dd>
+      </div>
+    </dl>
+  );
+}
+
 export function DataPane({
   assistant,
   ownerId,
@@ -238,10 +222,9 @@ export function DataPane({
 
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<string | null>(null);
-  const [leaf, setLeaf] = React.useState<LeafData | null>(null);
+  const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<DataRow | null>(null);
-  const [isLoadingLeaf, setIsLoadingLeaf] = React.useState(false);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [refreshToken, setRefreshToken] = React.useState(0);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const isStackedLayout = useMatchesBelow('tablet');
   const [mobileShowTree, setMobileShowTree] = React.useState(true);
@@ -251,20 +234,6 @@ export function DataPane({
       setSidebarOpen(false);
     }
   }, [isStackedLayout]);
-
-  const fetchFields = React.useCallback(
-    async (context: string): Promise<Record<string, DataField>> => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context,
-      });
-      const res = await fetch(`/api/logs/fields?${params.toString()}`, { cache: 'no-store' });
-      if (!res.ok) return {};
-      const data: unknown = await res.json();
-      return publicFieldsFromResponse(data);
-    },
-    []
-  );
 
   const loadTree = React.useCallback(async (): Promise<TreeNode> => {
     const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
@@ -289,86 +258,21 @@ export function DataPane({
 
   React.useEffect(() => {
     if (!tree) return;
-    setExpanded(new Set(Array.from(tree.children.values()).map((n) => n.context ?? n.name + 1)));
+    // Expand top-level folders (keys must match TreeRow: name + depth for non-leaves).
+    setExpanded(new Set(Array.from(tree.children.values()).map((n) => n.context ?? `${n.name}0`)));
   }, [tree]);
 
-  const fetchLeafPage = React.useCallback(
-    async (context: string, offset: number): Promise<{ rows: DataRow[]; count: number }> => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context,
-        limit: String(PAGE_SIZE),
-        offset: String(offset),
-      });
-      const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
-      const data = res.ok ? await res.json() : { logs: [], count: 0 };
-      const rows: DataRow[] = (data.logs ?? []).map(
-        (log: { id?: number; entries?: Record<string, unknown> }) => ({
-          logId: log.id ?? 0,
-          entries: stripPrivateFields(log.entries ?? {}),
-        })
-      );
-      return { rows, count: data.count ?? rows.length };
-    },
-    []
-  );
-
-  const mergeColumns = React.useCallback(
-    (fields: Record<string, DataField>, rows: DataRow[]): string[] => {
-      const columns = new Set(Object.keys(fields));
-      rows.forEach((row) =>
-        Object.keys(row.entries).forEach((key) => {
-          if (!key.startsWith('_')) columns.add(key);
-        })
-      );
-      return Array.from(columns).sort((a, b) => a.localeCompare(b));
-    },
-    []
-  );
-
-  const columnsFor = React.useCallback(
-    (fields: Record<string, DataField>, rows: DataRow[]): string[] => mergeColumns(fields, rows),
-    [mergeColumns]
-  );
-
-  const loadLeaf = React.useCallback(
-    async (context: string) => {
+  const selectLeaf = React.useCallback(
+    (context: string) => {
       setSelected(context);
-      setLeaf(null);
       setSelectedRow(null);
-      setIsLoadingLeaf(true);
+      setLeafMeta(null);
       if (isStackedLayout) {
         setMobileShowTree(false);
       }
-      try {
-        const [fields, page] = await Promise.all([fetchFields(context), fetchLeafPage(context, 0)]);
-        const { rows, count } = page;
-        setLeaf({ rows, count, columns: columnsFor(fields, rows), fields });
-      } catch {
-        setLeaf({ rows: [], count: 0, columns: [], fields: {} });
-      } finally {
-        setIsLoadingLeaf(false);
-      }
     },
-    [fetchFields, fetchLeafPage, columnsFor, isStackedLayout]
+    [isStackedLayout]
   );
-
-  const loadMore = React.useCallback(async () => {
-    if (!selected || !leaf) return;
-    setIsLoadingMore(true);
-    try {
-      const { rows, count } = await fetchLeafPage(selected, leaf.rows.length);
-      const merged = [...leaf.rows, ...rows];
-      setLeaf({
-        rows: merged,
-        count,
-        columns: mergeColumns(leaf.fields, merged),
-        fields: leaf.fields,
-      });
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [selected, leaf, fetchLeafPage, mergeColumns]);
 
   const toggle = React.useCallback((key: string) => {
     setExpanded((prev) => {
@@ -396,12 +300,8 @@ export function DataPane({
       });
 
       if (!res.ok) {
-        const response: unknown = await res.json().catch(() => null);
-        const detail =
-          response && typeof response === 'object' && 'detail' in response
-            ? String((response as { detail: unknown }).detail)
-            : 'Unable to save this field.';
-        throw new Error(detail);
+        console.error('Failed to save data row field', await res.text().catch(() => res.status));
+        throw new Error('Unable to save this field.');
       }
 
       const updatedRow: DataRow = {
@@ -409,14 +309,7 @@ export function DataPane({
         entries: { ...selectedRow.entries, ...updates },
       };
       setSelectedRow(updatedRow);
-      setLeaf((current) =>
-        current
-          ? {
-              ...current,
-              rows: current.rows.map((row) => (row.logId === updatedRow.logId ? updatedRow : row)),
-            }
-          : current
-      );
+      setRefreshToken((t) => t + 1);
     },
     [selected, selectedRow]
   );
@@ -435,24 +328,12 @@ export function DataPane({
     });
 
     if (!res.ok) {
-      const response: unknown = await res.json().catch(() => null);
-      const detail =
-        response && typeof response === 'object' && 'detail' in response
-          ? String((response as { detail: unknown }).detail)
-          : 'Unable to delete this row.';
-      throw new Error(detail);
+      console.error('Failed to delete data row', await res.text().catch(() => res.status));
+      throw new Error('Unable to delete this row.');
     }
 
-    setLeaf((current) =>
-      current
-        ? {
-            ...current,
-            count: Math.max(0, current.count - 1),
-            rows: current.rows.filter((row) => row.logId !== selectedRow.logId),
-          }
-        : current
-    );
     setSelectedRow(null);
+    setRefreshToken((t) => t + 1);
   }, [selected, selectedRow]);
 
   const topNodes = tree
@@ -469,6 +350,38 @@ export function DataPane({
           .slice(0, selectedDisplayPath.length - selectedTableName.length)
           .replace(/\/$/, '')
       : null;
+
+  const leafTable = selected ? (
+    <DataLeafTable
+      context={selected}
+      selectedRowId={selectedRow ? String(selectedRow.logId) : null}
+      onRowSelect={setSelectedRow}
+      onMetaChange={setLeafMeta}
+      refreshToken={refreshToken}
+    />
+  ) : null;
+
+  const leafChrome = (
+    <>
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <h3 className="text-title truncate text-foreground">
+              {selectedTableName ?? selectedDisplayPath}
+            </h3>
+          </div>
+          {selectedPathPrefix && (
+            <p className="text-caption mt-0.5 truncate text-muted-foreground">
+              {selectedPathPrefix}
+            </p>
+          )}
+        </div>
+        <LeafHeaderStats meta={leafMeta} />
+      </div>
+      {leafTable}
+    </>
+  );
 
   return (
     <div
@@ -511,7 +424,7 @@ export function DataPane({
                           expanded={expanded}
                           toggle={toggle}
                           selected={selected}
-                          onSelect={(context) => void loadLeaf(context)}
+                          onSelect={selectLeaf}
                         />
                       ))
                     )}
@@ -530,61 +443,7 @@ export function DataPane({
                       Data layer
                     </button>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Table2
-                          className="h-4 w-4 shrink-0 text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                        <h3 className="text-title truncate text-foreground">
-                          {selectedTableName ?? selectedDisplayPath}
-                        </h3>
-                      </div>
-                      {selectedPathPrefix && (
-                        <p className="text-caption mt-0.5 truncate text-muted-foreground">
-                          {selectedPathPrefix}
-                        </p>
-                      )}
-                    </div>
-                    {leaf && (
-                      <dl className="flex shrink-0 flex-wrap gap-x-4 gap-y-1">
-                        <div className="flex flex-col">
-                          <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                            Rows
-                          </dt>
-                          <dd className="text-code font-semibold text-foreground">
-                            {leaf.count.toLocaleString()}
-                          </dd>
-                        </div>
-                        <div className="flex flex-col">
-                          <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                            Loaded
-                          </dt>
-                          <dd className="text-code font-semibold text-foreground">
-                            {leaf.rows.length.toLocaleString()}
-                          </dd>
-                        </div>
-                        <div className="flex flex-col">
-                          <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                            Columns
-                          </dt>
-                          <dd className="text-code font-semibold text-foreground">
-                            {leaf.columns.length}
-                          </dd>
-                        </div>
-                      </dl>
-                    )}
-                  </div>
-                  <DataLeafTable
-                    rows={leaf?.rows ?? []}
-                    columns={leaf?.columns ?? []}
-                    totalCount={leaf?.count ?? 0}
-                    isLoading={isLoadingLeaf}
-                    isLoadingMore={isLoadingMore}
-                    onLoadMore={() => void loadMore()}
-                    onRowSelect={setSelectedRow}
-                  />
+                  {leafChrome}
                 </div>
               )
             ) : (
@@ -630,7 +489,7 @@ export function DataPane({
                             expanded={expanded}
                             toggle={toggle}
                             selected={selected}
-                            onSelect={(context) => void loadLeaf(context)}
+                            onSelect={selectLeaf}
                           />
                         ))
                       )}
@@ -665,63 +524,7 @@ export function DataPane({
                       </div>
                     </div>
                   ) : (
-                    <>
-                      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <Table2
-                              className="h-4 w-4 shrink-0 text-muted-foreground"
-                              aria-hidden="true"
-                            />
-                            <h3 className="text-title truncate text-foreground">
-                              {selectedTableName ?? selectedDisplayPath}
-                            </h3>
-                          </div>
-                          {selectedPathPrefix && (
-                            <p className="text-caption mt-0.5 truncate text-muted-foreground">
-                              {selectedPathPrefix}
-                            </p>
-                          )}
-                        </div>
-                        {leaf && (
-                          <dl className="flex shrink-0 flex-wrap gap-x-4 gap-y-1">
-                            <div className="flex flex-col">
-                              <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                                Rows
-                              </dt>
-                              <dd className="text-code font-semibold text-foreground">
-                                {leaf.count.toLocaleString()}
-                              </dd>
-                            </div>
-                            <div className="flex flex-col">
-                              <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                                Loaded
-                              </dt>
-                              <dd className="text-code font-semibold text-foreground">
-                                {leaf.rows.length.toLocaleString()}
-                              </dd>
-                            </div>
-                            <div className="flex flex-col">
-                              <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                                Columns
-                              </dt>
-                              <dd className="text-code font-semibold text-foreground">
-                                {leaf.columns.length}
-                              </dd>
-                            </div>
-                          </dl>
-                        )}
-                      </div>
-                      <DataLeafTable
-                        rows={leaf?.rows ?? []}
-                        columns={leaf?.columns ?? []}
-                        totalCount={leaf?.count ?? 0}
-                        isLoading={isLoadingLeaf}
-                        isLoadingMore={isLoadingMore}
-                        onLoadMore={() => void loadMore()}
-                        onRowSelect={setSelectedRow}
-                      />
-                    </>
+                    leafChrome
                   )}
                 </div>
               </>
@@ -732,7 +535,7 @@ export function DataPane({
             row={selectedRow}
             title={selectedTableName ?? selectedDisplayPath ?? 'Data row'}
             description={selectedDisplayPath ?? undefined}
-            fields={leaf?.fields ?? {}}
+            fields={leafMeta?.fields ?? {}}
             onSave={saveField}
             onDelete={deleteSelectedRow}
             onClose={() => setSelectedRow(null)}
@@ -743,8 +546,8 @@ export function DataPane({
             right={
               <span className="text-caption inline-flex items-center gap-1.5">
                 <Database className="h-3 w-3" aria-hidden="true" />
-                {selected && leaf
-                  ? `${stripRootPrefix(selected)} · ${leaf.count} ${leaf.count === 1 ? 'row' : 'rows'}`
+                {selected && leafMeta
+                  ? `${stripRootPrefix(selected)} · ${leafMeta.count} ${leafMeta.count === 1 ? 'row' : 'rows'}`
                   : `${topNodes.length} ${topNodes.length === 1 ? 'group' : 'groups'} at this level`}
               </span>
             }

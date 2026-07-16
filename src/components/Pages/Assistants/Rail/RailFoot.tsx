@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import {
@@ -342,15 +341,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         onClick={() => setTheme(isDark ? 'light' : 'dark')}
         testId="rail-theme-toggle"
       />
-      <div className={collapsed ? 'flex justify-center' : undefined}>
-        <SupportTicketDialog
-          triggerLabel={collapsed ? undefined : 'Report an issue'}
-          triggerClassName={cn(
-            'h-auto w-full justify-start gap-3 rounded-[10px] text-foreground hover:bg-muted',
-            collapsed ? 'h-9 w-9 justify-center p-0' : 'px-[11px] py-[9px]'
-          )}
-        />
-      </div>
+      <SupportTicketDialog collapsed={collapsed} />
       <ReferralPromoNavButton collapsed={collapsed} />
 
       {isUnifyMember && (
@@ -362,34 +353,13 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         onOpenChange={setShowAccountResetConfirm}
       />
 
-      <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              data-testid="rail-collapse-toggle"
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className={cn(
-                'flex items-center gap-3 rounded-[10px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2'
-              )}
-            >
-              {collapsed ? (
-                <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.75} />
-              ) : (
-                <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.75} />
-              )}
-              {!collapsed && <span>Collapse</span>}
-            </button>
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right">
-              <p>Expand sidebar</p>
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
+      <RailNavButton
+        Icon={collapsed ? PanelLeftOpen : PanelLeftClose}
+        label={collapsed ? 'Expand sidebar' : 'Collapse'}
+        collapsed={collapsed}
+        onClick={onToggleCollapse}
+        testId="rail-collapse-toggle"
+      />
     </div>
   );
 }

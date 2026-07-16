@@ -56,32 +56,53 @@ function mapRotation(value: Record<string, unknown>): ManagedDesktopIPRotation {
     id: String(value.id),
     state: String(value.state),
     error: typeof value.error === 'string' ? value.error : null,
-    oldAddress: typeof value.old_address === 'string' ? value.old_address : null,
-    candidateAddress: typeof value.candidate_address === 'string' ? value.candidate_address : null,
+    oldAddress:
+      typeof (value.oldAddress ?? value.old_address) === 'string'
+        ? String(value.oldAddress ?? value.old_address)
+        : null,
+    candidateAddress:
+      typeof (value.candidateAddress ?? value.candidate_address) === 'string'
+        ? String(value.candidateAddress ?? value.candidate_address)
+        : null,
     rollbackExpiresAt:
-      typeof value.rollback_expires_at === 'string' ? value.rollback_expires_at : null,
-    requestedAt: String(value.requested_at),
-    completedAt: typeof value.completed_at === 'string' ? value.completed_at : null,
+      typeof (value.rollbackExpiresAt ?? value.rollback_expires_at) === 'string'
+        ? String(value.rollbackExpiresAt ?? value.rollback_expires_at)
+        : null,
+    requestedAt: String(value.requestedAt ?? value.requested_at),
+    completedAt:
+      typeof (value.completedAt ?? value.completed_at) === 'string'
+        ? String(value.completedAt ?? value.completed_at)
+        : null,
   };
 }
 
 function mapManagedDesktopStatus(value: Record<string, unknown>): ManagedDesktopStatus {
   const identity =
-    value.network_identity && typeof value.network_identity === 'object'
-      ? (value.network_identity as Record<string, unknown>)
+    (value.networkIdentity ?? value.network_identity) &&
+    typeof (value.networkIdentity ?? value.network_identity) === 'object'
+      ? ((value.networkIdentity ?? value.network_identity) as Record<string, unknown>)
       : null;
   return {
-    desktopMode: (value.desktop_mode as DesktopMode | null) ?? null,
+    desktopMode: (value.desktopMode ?? value.desktop_mode) as DesktopMode | null,
     managedDesktopStatus:
-      (value.managed_desktop_status as ManagedDesktopStatus['managedDesktopStatus']) ?? null,
-    monthlyCost: typeof value.monthly_cost === 'number' ? value.monthly_cost : null,
+      ((value.managedDesktopStatus ?? value.managed_desktop_status) as ManagedDesktopStatus['managedDesktopStatus']) ??
+      null,
+    monthlyCost:
+      typeof (value.monthlyCost ?? value.monthly_cost) === 'number'
+        ? Number(value.monthlyCost ?? value.monthly_cost)
+        : null,
     managedDesktopEnabledAt:
-      typeof value.managed_desktop_enabled_at === 'string'
-        ? value.managed_desktop_enabled_at
+      typeof (value.managedDesktopEnabledAt ?? value.managed_desktop_enabled_at) === 'string'
+        ? String(value.managedDesktopEnabledAt ?? value.managed_desktop_enabled_at)
         : null,
     managedDesktopGracePeriodStartedAt:
-      typeof value.managed_desktop_grace_period_started_at === 'string'
-        ? value.managed_desktop_grace_period_started_at
+      typeof (
+        value.managedDesktopGracePeriodStartedAt ?? value.managed_desktop_grace_period_started_at
+      ) === 'string'
+        ? String(
+            value.managedDesktopGracePeriodStartedAt ??
+              value.managed_desktop_grace_period_started_at
+          )
         : null,
     networkIdentity: identity
       ? {
@@ -90,7 +111,9 @@ function mapManagedDesktopStatus(value: Record<string, unknown>): ManagedDesktop
           hostname: typeof identity.hostname === 'string' ? identity.hostname : null,
           state: typeof identity.state === 'string' ? identity.state : null,
           activeOperation:
-            typeof identity.active_operation === 'string' ? identity.active_operation : null,
+            typeof (identity.activeOperation ?? identity.active_operation) === 'string'
+              ? String(identity.activeOperation ?? identity.active_operation)
+              : null,
         }
       : null,
   };

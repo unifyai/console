@@ -50,7 +50,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(error, { status: response.status });
     }
 
-    // Cache fields for 5 minutes - metadata changes infrequently
+    // Cache fields for 5 minutes - metadata changes infrequently.
+    // Mutating clients (derived columns) bust via `cache: 'no-store'` + `_ts`.
     const cacheControl = buildCacheControl('LONG');
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     if (cacheControl) headers['Cache-Control'] = cacheControl;

@@ -113,7 +113,7 @@ export function AppRail({
               <div className="mx-1.5 my-2 h-px bg-border" />
             ) : (
               <div className="px-3 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                Brain
+                Storage
               </div>
             ))}
           {brainSections.map(renderSection)}
