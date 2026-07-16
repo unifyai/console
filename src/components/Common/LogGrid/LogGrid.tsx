@@ -28,20 +28,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronsUpDown,
-  Snowflake,
-  Radio,
-  Pin,
-  Plus,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  GripVertical,
-  Pencil,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsUpDown, Pin, GripVertical, Pencil } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -55,13 +42,6 @@ import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/UI/select';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -74,10 +54,6 @@ import {
 import { SkeletonTable } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
 import {
-  encodeCommonTextFilter,
-  encodeCommonExpressionFilter,
-  LOG_METRICS,
-  LOG_PAGE_SIZE_OPTIONS,
   makeCellId,
   parseCellId,
   type LogFieldsResponseProps,
@@ -86,15 +62,14 @@ import {
   type SelectionModel,
 } from '@/lib/logs';
 import { sanitizeId, visibleColumnIds } from '@/lib/logs/columns';
-import { encodeGroupSorting } from '@/lib/logs/grouping';
 import { createEmptyLogRow, deleteLogRow, updateLogEntries } from '@/lib/logs/mutations';
 import { useLogMetrics } from '@/hooks/logs/useLogMetrics';
 import type { GroupedLogProps } from '@/types/interfaces/logs';
-import { LogColumnVisibility } from './LogColumnVisibility';
 import { LogColumnFilter } from './LogColumnFilter';
-import { LogDerivedColumnDialog, LogDerivedColumnTrigger } from './LogDerivedColumnDialog';
+import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
 import { LogCellValue } from './LogCellValue';
 import { LogGroupRows } from './LogGroupRows';
+import { LogGridToolbar, useContainerWidth } from './LogGridToolbar';
 
 function SortableHeader({
   header,
@@ -204,6 +179,8 @@ export function LogGrid({
     view.commonFilter.startsWith('expression§') ? 'expression' : 'in'
   );
   const tableName = context.split('/').pop() ?? 'Table';
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(rootRef);
 
   React.useEffect(() => {
     onBrowseRowsChange?.(rows.length ? rows : groupChildRows);
@@ -270,18 +247,6 @@ export function LogGrid({
     const newIndex = order.indexOf(String(over.id));
     if (oldIndex < 0 || newIndex < 0) return;
     onViewChange({ columnOrder: arrayMove(order, oldIndex, newIndex) });
-  };
-
-  const moveColumn = (id: string, dir: -1 | 1) => {
-    const order = [...(view.columnOrder.length ? view.columnOrder : columns)];
-    const idx = order.indexOf(id);
-    if (idx < 0) return;
-    const next = idx + dir;
-    if (next < 0 || next >= order.length) return;
-    const tmp = order[idx];
-    order[idx] = order[next];
-    order[next] = tmp;
-    onViewChange({ columnOrder: order });
   };
 
   const togglePinLeft = (id: string) => {
@@ -401,32 +366,6 @@ export function LogGrid({
                   <Pencil className="pointer-events-none h-3 w-3" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-muted-foreground"
-                title="Move left"
-                data-testid={`log-grid-move-left-${fieldKey}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  moveColumn(key, -1);
-                }}
-              >
-                <ChevronLeft className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-muted-foreground"
-                title="Move right"
-                data-testid={`log-grid-move-right-${fieldKey}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  moveColumn(key, 1);
-                }}
-              >
-                <ChevronRight className="h-3 w-3" />
-              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -619,11 +558,6 @@ export function LogGrid({
     (selection?.mode === 'row' && !!selection.selectedRowId) ||
     (selection?.mode === 'cell' && selectedCellLogIds.length > 0);
 
-  const groupSortDesc = Boolean(
-    view.grouping &&
-    view.groupSorting?.split(',').some((part) => part.startsWith(`${view.grouping}@true`))
-  );
-
   const moveCellFocus = (key: string) => {
     if (selection?.mode !== 'cell' || !rows.length || !visible.length) return;
     const current = selection.selectedCells[selection.selectedCells.length - 1];
@@ -674,415 +608,261 @@ export function LogGrid({
   const hasData = rows.length > 0 || (groups?.length ?? 0) > 0;
   const showError = Boolean(error && !rows.length && !(groups?.length ?? 0));
 
-  if (isLoading && !hasData) {
-    return (
-      <div className={cn('flex min-h-0 flex-1 flex-col', className)} data-testid={testId}>
-        <SkeletonTable rows={8} cols={Math.max(visible.length, 4)} />
-      </div>
-    );
-  }
-
   return (
     <div
+      ref={rootRef}
       className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}
       data-testid={testId}
       tabIndex={0}
       onKeyDown={onGridKeyDown}
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2">
-        <Select value={commonMode} onValueChange={(v) => setCommonMode(v as 'in' | 'expression')}>
-          <SelectTrigger className="h-8 w-[110px]" data-testid="log-grid-common-mode">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="in">Search</SelectItem>
-            <SelectItem value="expression">Expression</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input
-          value={commonSearch}
-          onChange={(e) =>
-            onViewChange({
-              commonFilter:
-                commonMode === 'expression'
-                  ? encodeCommonExpressionFilter(e.target.value)
-                  : encodeCommonTextFilter(e.target.value),
-              offset: 0,
-            })
-          }
-          placeholder={commonMode === 'expression' ? 'filter expression…' : 'Search all columns…'}
-          className="h-8 max-w-xs font-mono"
-          data-testid="log-grid-common-filter"
-        />
-        <LogColumnVisibility
-          columns={view.columnOrder.length ? view.columnOrder : columns}
-          hiddenColumns={view.hiddenColumns}
-          onChange={(hiddenColumns) => onViewChange({ hiddenColumns })}
-        />
-        <Select
-          value={view.grouping || '__none__'}
-          onValueChange={(v) =>
-            onViewChange({
-              grouping: v === '__none__' ? '' : v,
-              autoUpdate: v === '__none__' ? view.autoUpdate : false,
-              groupSorting: v === '__none__' ? '' : view.groupSorting,
-              offset: 0,
-            })
-          }
-        >
-          <SelectTrigger className="h-8 w-[140px]" data-testid="log-grid-group-by">
-            <SelectValue placeholder="Group by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">No grouping</SelectItem>
-            {columns.map((c) => (
-              <SelectItem key={c} value={c}>
-                {sanitizeId(c)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {!!view.grouping && (
-          <Select
-            value={groupSortDesc ? 'desc' : 'asc'}
-            onValueChange={(v) =>
-              onViewChange({
-                groupSorting: encodeGroupSorting(view.grouping!, v === 'desc'),
-                offset: 0,
-              })
-            }
-          >
-            <SelectTrigger className="h-8 w-[120px]" data-testid="log-grid-group-sort">
-              <SelectValue placeholder="Group sort" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="asc">Group asc</SelectItem>
-              <SelectItem value="desc">Group desc</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-        <Select value={view.metric || 'mean'} onValueChange={(metric) => onViewChange({ metric })}>
-          <SelectTrigger className="h-8 w-[110px]" data-testid="log-grid-metric">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {LOG_METRICS.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          variant={view.freeze ? 'default' : 'outline'}
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={toggleFreeze}
-          data-testid="log-grid-freeze"
-        >
-          <Snowflake className="h-3.5 w-3.5" aria-hidden="true" />
-          Freeze
-        </Button>
-        <Button
-          variant={view.autoUpdate ? 'default' : 'outline'}
-          size="sm"
-          className="h-8 gap-1.5"
-          disabled={!!view.grouping}
-          onClick={() => onViewChange({ autoUpdate: !view.autoUpdate })}
-          data-testid="log-grid-auto-update"
-        >
-          <Radio className="h-3.5 w-3.5" aria-hidden="true" />
-          Live
-        </Button>
-        <LogDerivedColumnTrigger onClick={openDerivedCreate} />
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={() => void createRow()}
-          data-testid="log-grid-create-row"
-        >
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          Row
-        </Button>
-        {canDelete && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 text-destructive"
-            onClick={() => setDeleteConfirmOpen(true)}
-            data-testid="log-grid-delete-row"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-            Delete
-          </Button>
-        )}
-        {isFetching && (
-          <span className="text-caption text-muted-foreground" data-testid="log-grid-fetching">
-            Updating…
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <Select
-            value={String(view.limit)}
-            onValueChange={(v) => onViewChange({ limit: Number(v), offset: 0 })}
-          >
-            <SelectTrigger className="h-8 w-[88px]" data-testid="log-grid-page-size">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {LOG_PAGE_SIZE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}/page
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-caption text-muted-foreground" data-testid="log-grid-page-status">
-            {totalCount === 0
-              ? '0 rows'
-              : `${pageStart + 1}–${pageEnd} of ${totalCount.toLocaleString()}`}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            disabled={!canPrev}
-            onClick={() => onViewChange({ offset: Math.max(0, view.offset - view.limit) })}
-            data-testid="log-grid-prev"
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            disabled={!canNext}
-            onClick={() => onViewChange({ offset: view.offset + view.limit })}
-            data-testid="log-grid-next"
-          >
-            Next
-          </Button>
-        </div>
-      </div>
-
-      {showError ? (
-        <div
-          className="flex flex-1 flex-col items-center justify-center gap-3 p-8"
-          data-testid="log-grid-error"
-        >
-          <p className="text-body-muted">Could not load rows. Please try again.</p>
-          {onRetry && (
-            <Button variant="outline" size="sm" onClick={onRetry} data-testid="log-grid-retry">
-              Retry
-            </Button>
-          )}
-        </div>
-      ) : !isLoading && !hasData ? (
-        <div className="flex flex-1 items-center justify-center p-8">
-          <p className="text-body-muted">No rows match the current filters.</p>
-        </div>
+      {isLoading && !hasData ? (
+        <SkeletonTable rows={8} cols={Math.max(visible.length, 4)} />
       ) : (
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="overflow-hidden border-b border-border">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              modifiers={[restrictToHorizontalAxis]}
-              onDragEnd={handleDragEnd}
+        <>
+          <LogGridToolbar
+            columns={columns}
+            view={view}
+            onViewChange={onViewChange}
+            commonMode={commonMode}
+            onCommonModeChange={setCommonMode}
+            commonSearch={commonSearch}
+            totalCount={totalCount}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            canPrev={canPrev}
+            canNext={canNext}
+            canDelete={canDelete}
+            isFetching={isFetching}
+            onFreezeToggle={toggleFreeze}
+            onCreateRow={() => void createRow()}
+            onDeleteRows={() => setDeleteConfirmOpen(true)}
+            onDerivedOpen={openDerivedCreate}
+            containerWidth={containerWidth}
+          />
+
+          {showError ? (
+            <div
+              className="flex flex-1 flex-col items-center justify-center gap-3 p-8"
+              data-testid="log-grid-error"
             >
-              <SortableContext items={visible} strategy={horizontalListSortingStrategy}>
-                <Table style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
-                  <colgroup>
-                    {table.getVisibleLeafColumns().map((column) => (
-                      <col key={column.id} style={{ width: column.getSize() }} />
-                    ))}
-                  </colgroup>
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
-                        {headerGroup.headers.map((header) => {
-                          const pinned = header.column.getIsPinned();
-                          return (
-                            <SortableHeader
-                              key={header.id}
-                              header={header}
-                              className={cn(
-                                'relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground',
-                                pinned === 'left' && 'bg-muted/40 sticky z-10',
-                                pinned === 'right' && 'bg-muted/40 sticky z-10'
-                              )}
-                              style={{
-                                width: header.getSize(),
-                                left:
-                                  pinned === 'left'
-                                    ? `${header.column.getStart('left')}px`
-                                    : undefined,
-                                right:
-                                  pinned === 'right'
-                                    ? `${header.column.getAfter('right')}px`
-                                    : undefined,
-                              }}
-                              resizer={
-                                header.column.getCanResize() ? (
-                                  <div
-                                    role="separator"
-                                    aria-orientation="vertical"
-                                    onMouseDown={header.getResizeHandler()}
-                                    onTouchStart={header.getResizeHandler()}
-                                    className={cn(
-                                      'bg-border/60 absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none hover:bg-primary',
-                                      header.column.getIsResizing() && 'bg-primary'
-                                    )}
-                                    data-testid={`log-grid-resize-${sanitizeId(header.column.id)}`}
-                                  />
-                                ) : null
-                              }
-                            >
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(header.column.columnDef.header, header.getContext())}
-                            </SortableHeader>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {groups?.length ? (
-                      <LogGroupRows
-                        groups={groups}
-                        columns={visible}
-                        fields={fields}
-                        projectName={projectName}
-                        context={context}
-                        baseFilterExpr={filterExpr}
-                        selectedCells={selectedCells}
-                        onSelectCell={selectCell}
-                        pageLimit={view.limit}
-                        onChildrenChange={setGroupChildRows}
-                      />
-                    ) : (
-                      table.getRowModel().rows.map((row) => {
-                        const isSelected = selectedRowId === String(row.original.logId);
-                        return (
-                          <TableRow
-                            key={row.id}
-                            data-testid={`log-grid-row-${row.original.logId}`}
-                            className={cn('cursor-pointer', isSelected && 'bg-muted/60')}
-                            onClick={() => {
-                              if (selection?.mode === 'row') {
-                                selection.onSelectRow(String(row.original.logId));
-                              }
-                              onRowActivate?.(row.original);
-                            }}
-                          >
-                            {row.getVisibleCells().map((cell) => {
-                              const cellId = makeCellId(row.original.logId, cell.column.id);
-                              const cellSelected = selectedCells?.has(cellId);
-                              const pinned = cell.column.getIsPinned();
+              <p className="text-body-muted">Could not load rows. Please try again.</p>
+              {onRetry && (
+                <Button variant="outline" size="sm" onClick={onRetry} data-testid="log-grid-retry">
+                  Retry
+                </Button>
+              )}
+            </div>
+          ) : !isLoading && !hasData ? (
+            <div className="flex flex-1 items-center justify-center p-8">
+              <p className="text-body-muted">No rows match the current filters.</p>
+            </div>
+          ) : (
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="overflow-hidden border-b border-border">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  modifiers={[restrictToHorizontalAxis]}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={visible} strategy={horizontalListSortingStrategy}>
+                    <Table style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
+                      <colgroup>
+                        {table.getVisibleLeafColumns().map((column) => (
+                          <col key={column.id} style={{ width: column.getSize() }} />
+                        ))}
+                      </colgroup>
+                      <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                          <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
+                            {headerGroup.headers.map((header) => {
+                              const pinned = header.column.getIsPinned();
                               return (
-                                <TableCell
-                                  key={cell.id}
-                                  data-testid={`log-grid-cell-${cellId}`}
+                                <SortableHeader
+                                  key={header.id}
+                                  header={header}
+                                  className={cn(
+                                    'relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground',
+                                    pinned === 'left' && 'bg-muted/40 sticky z-10',
+                                    pinned === 'right' && 'bg-muted/40 sticky z-10'
+                                  )}
                                   style={{
-                                    width: cell.column.getSize(),
+                                    width: header.getSize(),
                                     left:
                                       pinned === 'left'
-                                        ? `${cell.column.getStart('left')}px`
+                                        ? `${header.column.getStart('left')}px`
                                         : undefined,
                                     right:
                                       pinned === 'right'
-                                        ? `${cell.column.getAfter('right')}px`
+                                        ? `${header.column.getAfter('right')}px`
                                         : undefined,
                                   }}
-                                  className={cn(
-                                    'max-w-[220px] truncate px-2.5 py-1.5 font-mono text-[12px]',
-                                    cellSelected &&
-                                      'bg-primary-tint-10 ring-1 ring-inset ring-primary',
-                                    pinned === 'left' && 'sticky z-[1] bg-card',
-                                    pinned === 'right' && 'sticky z-[1] bg-card'
-                                  )}
-                                  onClick={(e) => {
-                                    if (selection?.mode === 'cell') {
-                                      e.stopPropagation();
-                                      selectCell(cellId, e.metaKey || e.ctrlKey);
-                                    }
-                                  }}
+                                  resizer={
+                                    header.column.getCanResize() ? (
+                                      <div
+                                        role="separator"
+                                        aria-orientation="vertical"
+                                        onMouseDown={header.getResizeHandler()}
+                                        onTouchStart={header.getResizeHandler()}
+                                        className={cn(
+                                          'bg-border/60 absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none hover:bg-primary',
+                                          header.column.getIsResizing() && 'bg-primary'
+                                        )}
+                                        data-testid={`log-grid-resize-${sanitizeId(header.column.id)}`}
+                                      />
+                                    ) : null
+                                  }
                                 >
-                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                  {header.isPlaceholder
+                                    ? null
+                                    : flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext()
+                                      )}
+                                </SortableHeader>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableHeader>
+                      <TableBody>
+                        {groups?.length ? (
+                          <LogGroupRows
+                            groups={groups}
+                            columns={visible}
+                            fields={fields}
+                            projectName={projectName}
+                            context={context}
+                            baseFilterExpr={filterExpr}
+                            selectedCells={selectedCells}
+                            onSelectCell={selectCell}
+                            pageLimit={view.limit}
+                            onChildrenChange={setGroupChildRows}
+                          />
+                        ) : (
+                          table.getRowModel().rows.map((row) => {
+                            const isSelected = selectedRowId === String(row.original.logId);
+                            return (
+                              <TableRow
+                                key={row.id}
+                                data-testid={`log-grid-row-${row.original.logId}`}
+                                className={cn('cursor-pointer', isSelected && 'bg-muted/60')}
+                                onClick={() => {
+                                  if (selection?.mode === 'row') {
+                                    selection.onSelectRow(String(row.original.logId));
+                                  }
+                                  onRowActivate?.(row.original);
+                                }}
+                              >
+                                {row.getVisibleCells().map((cell) => {
+                                  const cellId = makeCellId(row.original.logId, cell.column.id);
+                                  const cellSelected = selectedCells?.has(cellId);
+                                  const pinned = cell.column.getIsPinned();
+                                  return (
+                                    <TableCell
+                                      key={cell.id}
+                                      data-testid={`log-grid-cell-${cellId}`}
+                                      style={{
+                                        width: cell.column.getSize(),
+                                        left:
+                                          pinned === 'left'
+                                            ? `${cell.column.getStart('left')}px`
+                                            : undefined,
+                                        right:
+                                          pinned === 'right'
+                                            ? `${cell.column.getAfter('right')}px`
+                                            : undefined,
+                                      }}
+                                      className={cn(
+                                        'max-w-[220px] truncate px-2.5 py-1.5 font-mono text-[12px]',
+                                        cellSelected &&
+                                          'bg-primary-tint-10 ring-1 ring-inset ring-primary',
+                                        pinned === 'left' && 'sticky z-[1] bg-card',
+                                        pinned === 'right' && 'sticky z-[1] bg-card'
+                                      )}
+                                      onClick={(e) => {
+                                        if (selection?.mode === 'cell') {
+                                          e.stopPropagation();
+                                          selectCell(cellId, e.metaKey || e.ctrlKey);
+                                        }
+                                      }}
+                                    >
+                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </TableCell>
+                                  );
+                                })}
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                      {!view.grouping && (
+                        <TableFooter>
+                          <TableRow className="bg-muted/20">
+                            {visible.map((key) => {
+                              const fieldKey = sanitizeId(key);
+                              const raw = metricsQuery.data?.[key] ?? metricsQuery.data?.[fieldKey];
+                              const text =
+                                typeof raw === 'number'
+                                  ? raw.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                                  : '—';
+                              return (
+                                <TableCell
+                                  key={key}
+                                  className="px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground"
+                                  data-testid={`log-grid-metric-cell-${fieldKey}`}
+                                >
+                                  {text}
                                 </TableCell>
                               );
                             })}
                           </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                  {!view.grouping && (
-                    <TableFooter>
-                      <TableRow className="bg-muted/20">
-                        {visible.map((key) => {
-                          const fieldKey = sanitizeId(key);
-                          const raw = metricsQuery.data?.[key] ?? metricsQuery.data?.[fieldKey];
-                          const text =
-                            typeof raw === 'number'
-                              ? raw.toLocaleString(undefined, { maximumFractionDigits: 4 })
-                              : '—';
-                          return (
-                            <TableCell
-                              key={key}
-                              className="px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground"
-                              data-testid={`log-grid-metric-cell-${fieldKey}`}
-                            >
-                              {text}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    </TableFooter>
-                  )}
-                </Table>
-              </SortableContext>
-            </DndContext>
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+                        </TableFooter>
+                      )}
+                    </Table>
+                  </SortableContext>
+                </DndContext>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          )}
+
+          <LogDerivedColumnDialog
+            open={derivedOpen}
+            onOpenChange={(open) => {
+              setDerivedOpen(open);
+              if (!open) setEditColumn(null);
+            }}
+            projectName={projectName}
+            context={context}
+            tableName={tableName}
+            columns={columns}
+            editColumn={editColumn}
+            onCreated={() => onDerivedCreated?.()}
+          />
+
+          <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete selected rows?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes the selected log rows. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  data-testid="log-grid-delete-confirm"
+                  onClick={() => void deleteSelectedRows()}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       )}
-
-      <LogDerivedColumnDialog
-        open={derivedOpen}
-        onOpenChange={(open) => {
-          setDerivedOpen(open);
-          if (!open) setEditColumn(null);
-        }}
-        projectName={projectName}
-        context={context}
-        tableName={tableName}
-        columns={columns}
-        editColumn={editColumn}
-        onCreated={() => onDerivedCreated?.()}
-      />
-
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete selected rows?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes the selected log rows. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              data-testid="log-grid-delete-confirm"
-              onClick={() => void deleteSelectedRows()}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

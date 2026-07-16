@@ -5,7 +5,7 @@
  * Run: npx playwright test src/tests/assistants/data-log-grid.e2e.ts
  */
 
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import {
   createTestUser,
   cleanupUser,
@@ -72,7 +72,19 @@ test.afterAll(async () => {
   await cleanupUser(user.id);
 });
 
-async function openPeopleTable(page: import('@playwright/test').Page) {
+/** Click a toolbar control; open More first when it lives in the overflow menu. */
+async function clickToolbarControl(page: Page, testId: string) {
+  const control = page.getByTestId(testId);
+  if (await control.isVisible().catch(() => false)) {
+    await control.click();
+    return;
+  }
+  await page.getByTestId('log-grid-more').click();
+  await expect(page.getByTestId(testId)).toBeVisible({ timeout: 5_000 });
+  await page.getByTestId(testId).click();
+}
+
+async function openPeopleTable(page: Page) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await selectAssistantInList(page, assistant.agentId);
@@ -98,6 +110,11 @@ test('hides a column, filters, sorts, creates a derived column, and opens row de
   authedPage: page,
 }) => {
   await openPeopleTable(page);
+
+  // Selection panel is absent until a cell is selected
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await expect(page.getByTestId('log-cell-view-panel-empty')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-more')).toBeVisible();
 
   // Column visibility: hide city
   await page.getByTestId('log-grid-columns').click();
@@ -132,9 +149,8 @@ test('hides a column, filters, sorts, creates a derived column, and opens row de
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');
 
-  // Derived column — avoid underscores in the key: Console's Orchestra client
-  // camelCases response field names (`double_score` → `doubleScore`).
-  await page.getByTestId('log-grid-derived-open').click();
+  // Derived column — always in More menu
+  await clickToolbarControl(page, 'log-grid-derived-open');
   await page.getByTestId('log-grid-derived-name').fill('doubleScore');
   await page.getByTestId('log-grid-derived-expression').fill('score * 2');
   await page.getByTestId('log-grid-derived-submit').click();
@@ -168,10 +184,15 @@ test('hides a column, filters, sorts, creates a derived column, and opens row de
     timeout: 60_000,
   });
 
-  // Cell selection opens Interfaces-style view panel; Edit row opens the detail sheet
+  // Cell selection opens Interfaces-style view panel; Clear dismisses it
   const nameCell = firstRow
     .locator('[data-testid^="log-grid-cell-"]')
     .filter({ hasText: 'Katherine' });
+  await nameCell.click();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('log-cell-view-clear').click();
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+
   await nameCell.click();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
   await page.getByTestId('log-cell-view-edit-row').click();
@@ -190,19 +211,18 @@ test('common text filter narrows rows', async ({ authedPage: page }) => {
 test('freeze, metric footer, pin, page size, and create row', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
-  await expect(page.getByTestId('log-grid-metric')).toBeVisible();
-  await page.getByTestId('log-grid-metric').click();
+  await clickToolbarControl(page, 'log-grid-metric');
   await page.getByRole('option', { name: 'count' }).click();
   await expect(page.getByTestId('log-grid-metric-cell-score')).toBeVisible({ timeout: 30_000 });
 
   await page.getByTestId('log-grid-pin-name').click();
   await expect(page.getByTestId('log-grid-pin-name').locator('svg')).toBeVisible();
 
-  await page.getByTestId('log-grid-page-size').click();
+  await clickToolbarControl(page, 'log-grid-page-size');
   await page.getByRole('option', { name: '20/page' }).click();
 
   const beforeCreate = await page.getByTestId('log-grid-page-status').textContent();
-  await page.getByTestId('log-grid-create-row').click();
+  await clickToolbarControl(page, 'log-grid-create-row');
   await expect
     .poll(
       async () => {
@@ -224,7 +244,7 @@ test('freeze, metric footer, pin, page size, and create row', async ({ authedPag
   expect(count).toBeGreaterThanOrEqual(6);
 
   // Freeze after create so the new row is included in the watermark window
-  await page.getByTestId('log-grid-freeze').click();
+  await clickToolbarControl(page, 'log-grid-freeze');
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 6/, {
     timeout: 30_000,
   });
@@ -235,7 +255,7 @@ test('group by city expands and loads rows; column search and pin-right work', a
 }) => {
   await openPeopleTable(page);
 
-  await page.getByTestId('log-grid-group-by').click();
+  await clickToolbarControl(page, 'log-grid-group-by');
   await page.getByRole('option', { name: 'city' }).click();
   await expect(page.getByTestId('log-grid-group-sort')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('log-grid-group-city-London')).toBeVisible({ timeout: 30_000 });
@@ -244,7 +264,7 @@ test('group by city expands and loads rows; column search and pin-right work', a
   await expect(page.getByText('Ada Lovelace')).toBeVisible({ timeout: 30_000 });
 
   // Clear grouping for pin-right / columns search on flat table
-  await page.getByTestId('log-grid-group-by').click();
+  await clickToolbarControl(page, 'log-grid-group-by');
   await page.getByRole('option', { name: 'No grouping' }).click();
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
     timeout: 30_000,
@@ -266,7 +286,7 @@ test('derived column edit updates equation', async ({ authedPage: page }) => {
   // Ensure derived column exists (created in earlier serial test, or create here)
   const derivedHeader = page.getByTestId('log-grid-sort-doubleScore');
   if (!(await derivedHeader.isVisible().catch(() => false))) {
-    await page.getByTestId('log-grid-derived-open').click();
+    await clickToolbarControl(page, 'log-grid-derived-open');
     await page.getByTestId('log-grid-derived-name').fill('doubleScore');
     await page.getByTestId('log-grid-derived-expression').fill('score * 2');
     await page.getByTestId('log-grid-derived-submit').click();

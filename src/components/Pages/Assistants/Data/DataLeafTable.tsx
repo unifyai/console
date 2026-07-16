@@ -82,7 +82,6 @@ export function DataLeafTable({
   const queryClient = useQueryClient();
   const [view, setView, replaceView] = useLogViewState(context);
   const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
-  const [panelOpen, setPanelOpen] = React.useState(true);
   const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
 
   const initializedRef = React.useRef<string | null>(null);
@@ -174,10 +173,7 @@ export function DataLeafTable({
     () => ({
       mode: 'cell',
       selectedCells,
-      onSelectCells: (ids) => {
-        setSelectedCells(ids);
-        setPanelOpen(true);
-      },
+      onSelectCells: setSelectedCells,
     }),
     [selectedCells]
   );
@@ -191,6 +187,9 @@ export function DataLeafTable({
     () => cellsFromSelection(selectedCells, panelRows),
     [selectedCells, panelRows]
   );
+
+  const showPanel = selectedCells.length > 0;
+  const clearSelection = React.useCallback(() => setSelectedCells([]), []);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -216,11 +215,11 @@ export function DataLeafTable({
         testId="data-leaf-table"
         className="min-h-0 min-w-0 flex-1"
       />
-      {panelOpen && (
+      {showPanel && (
         <LogCellViewPanel
           cells={cellSelections}
-          onClose={() => setPanelOpen(false)}
-          onClear={() => setSelectedCells([])}
+          onClose={clearSelection}
+          onClear={clearSelection}
           onEditRow={(logId) => {
             const match = panelRows.find((r) => r.logId === logId);
             onRowSelect(match ? toDataRow(match) : null);
