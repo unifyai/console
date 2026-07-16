@@ -1,7 +1,7 @@
-import type { SortingState } from '@tanstack/react-table';
 import type { LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { buildFilterExpression } from '@/lib/logs/filters';
 import type { LogQuerySpec, LogViewState } from './types';
+import type { SortingState } from '@tanstack/react-table';
 
 /** Map TanStack sorting to Orchestra `sorting` JSON string. */
 export function sortingStateToOrchestra(sorting: SortingState): string | null {
@@ -42,7 +42,7 @@ export function buildLogQuerySpec(args: {
     args.view.filters || undefined,
     args.view.commonFilter || undefined,
     args.columnContext ?? undefined,
-    undefined,
+    args.view.freeze || undefined,
     args.fields
   );
   return {
@@ -50,6 +50,8 @@ export function buildLogQuerySpec(args: {
     context: args.context,
     filterExpr: filterExpr || null,
     sorting: sortingStateToOrchestra(args.view.sorting),
+    groupBy: args.view.grouping || null,
+    groupSorting: args.view.groupSorting || null,
     limit: args.view.limit,
     offset: args.view.offset,
     columnContext: args.columnContext ?? null,
@@ -79,4 +81,10 @@ export function encodeColumnFilter(
 export function encodeCommonTextFilter(value: string): string {
   const trimmed = value.trim();
   return trimmed ? `in§${trimmed}` : '';
+}
+
+/** Encode common expression filter (`expression§…`). */
+export function encodeCommonExpressionFilter(expression: string): string {
+  const trimmed = expression.trim();
+  return trimmed ? `expression§${trimmed}` : '';
 }

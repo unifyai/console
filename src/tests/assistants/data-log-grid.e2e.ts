@@ -1,6 +1,6 @@
 /**
  * Data LogGrid E2E — column visibility, server filters/sort, derived columns,
- * and row detail sheet on the Assistants Data tab.
+ * cell view panel, freeze/metrics chrome, and row mutations on the Assistants Data tab.
  *
  * Run: npx playwright test src/tests/assistants/data-log-grid.e2e.ts
  */
@@ -94,7 +94,7 @@ async function openPeopleTable(page: import('@playwright/test').Page) {
   });
 }
 
-test('hides a column, filters, sorts, creates a derived column, and edits a row', async ({
+test('hides a column, filters, sorts, creates a derived column, and opens row detail via cell panel', async ({
   authedPage: page,
 }) => {
   await openPeopleTable(page);
@@ -168,8 +168,13 @@ test('hides a column, filters, sorts, creates a derived column, and edits a row'
     timeout: 60_000,
   });
 
-  // Row detail sheet still works
-  await firstRow.click();
+  // Cell selection opens Interfaces-style view panel; Edit row opens the detail sheet
+  const nameCell = firstRow
+    .locator('[data-testid^="log-grid-cell-"]')
+    .filter({ hasText: 'Katherine' });
+  await nameCell.click();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('log-cell-view-edit-row').click();
   await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
 });
 
@@ -180,4 +185,47 @@ test('common text filter narrows rows', async ({ authedPage: page }) => {
     timeout: 30_000,
   });
   await expect(page.getByText('Ada Lovelace')).toBeVisible();
+});
+
+test('freeze, metric footer, pin, page size, and create row', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  await expect(page.getByTestId('log-grid-metric')).toBeVisible();
+  await page.getByTestId('log-grid-metric').click();
+  await page.getByRole('option', { name: 'count' }).click();
+  await expect(page.getByTestId('log-grid-metric-cell-score')).toBeVisible({ timeout: 30_000 });
+
+  await page.getByTestId('log-grid-pin-name').click();
+  await expect(page.getByTestId('log-grid-pin-name').locator('svg')).toBeVisible();
+
+  await page.getByTestId('log-grid-page-size').click();
+  await page.getByRole('option', { name: '20/page' }).click();
+
+  const beforeCreate = await page.getByTestId('log-grid-page-status').textContent();
+  await page.getByTestId('log-grid-create-row').click();
+  await expect
+    .poll(
+      async () => {
+        const status = await page.getByTestId('log-grid-page-status').textContent();
+        return status !== beforeCreate && /of 6/.test(status ?? '');
+      },
+      { timeout: 30_000 }
+    )
+    .toBe(true);
+
+  const listRes = await orchestraFetch(
+    `/v0/logs?project_name=Assistants&context=${encodeURIComponent(contextPath)}&limit=20`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(listRes.ok).toBe(true);
+  const body = (await listRes.json()) as { count?: number; logs?: unknown[] };
+  const count = body.count ?? body.logs?.length ?? 0;
+  expect(count).toBeGreaterThanOrEqual(6);
+
+  // Freeze after create so the new row is included in the watermark window
+  await page.getByTestId('log-grid-freeze').click();
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 6/, {
+    timeout: 30_000,
+  });
 });

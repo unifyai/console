@@ -49,6 +49,12 @@ export async function fetchLogs(
   if (spec.filterExpr) params.set('filterExpr', spec.filterExpr);
   if (spec.sorting) params.set('sorting', spec.sorting);
   if (spec.columnContext) params.set('columnContext', spec.columnContext);
+  if (spec.groupBy) {
+    for (const g of spec.groupBy.split(',').filter(Boolean)) {
+      params.append('groupBy', g);
+    }
+  }
+  if (spec.groupSorting) params.set('groupSorting', spec.groupSorting);
 
   const res = await fetch(`/api/logs?${params.toString()}`, {
     cache: 'no-store',

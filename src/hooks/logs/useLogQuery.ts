@@ -74,6 +74,8 @@ export function useLogQuery({
       context,
       spec?.filterExpr ?? '',
       spec?.sorting ?? '',
+      spec?.groupBy ?? '',
+      spec?.groupSorting ?? '',
       spec?.limit ?? 0,
       spec?.offset ?? 0,
       columnContext ?? '',
@@ -82,6 +84,7 @@ export function useLogQuery({
     enabled:
       enabled && !!spec && (!!fieldsOverride || fieldsQuery.isSuccess || fieldsQuery.isFetched),
     placeholderData: (prev) => prev,
+    refetchInterval: view.autoUpdate && !view.grouping ? 5_000 : false,
   });
 
   return {

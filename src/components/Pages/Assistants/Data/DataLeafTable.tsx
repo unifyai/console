@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LogGrid } from '@/components/Common/LogGrid';
+import { LogCellViewPanel, cellsFromSelection } from '@/components/Common/LogGrid/LogCellViewPanel';
 import { useLogQuery } from '@/hooks/logs/useLogQuery';
 import { useLogViewState } from '@/hooks/logs/useLogViewState';
 import {
@@ -50,17 +51,17 @@ interface DataLeafTableProps {
     columns: number;
     fields: Record<string, DataField>;
   }) => void;
-  /** Bump to force a refetch (e.g. after derived column create / row mutate). */
   refreshToken?: number;
   onRowsChange?: (rows: DataRow[]) => void;
 }
 
 /**
- * Data-tab leaf host: session view-state + server log query + shared LogGrid.
+ * Data-tab leaf host: session view-state + server log query + shared LogGrid
+ * with cell-selection viewing panel (Interfaces view-tile style).
  */
 export function DataLeafTable({
   context,
-  selectedRowId,
+  selectedRowId: _selectedRowId,
   onRowSelect,
   onMetaChange,
   refreshToken = 0,
@@ -68,15 +69,21 @@ export function DataLeafTable({
 }: DataLeafTableProps) {
   const queryClient = useQueryClient();
   const [view, setView, replaceView] = useLogViewState(context);
+  const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
+  const [panelOpen, setPanelOpen] = React.useState(true);
 
   const initializedRef = React.useRef<string | null>(null);
 
-  const { rows, count, fields, isLoading, isFetching, refetch } = useLogQuery({
+  const { rows, count, fields, isLoading, isFetching, refetch, spec } = useLogQuery({
     projectName: 'Assistants',
     context,
     view,
     enabled: !!context,
   });
+
+  React.useEffect(() => {
+    setSelectedCells([]);
+  }, [context]);
 
   React.useEffect(() => {
     if (!context || !Object.keys(fields).length) return;
@@ -131,26 +138,10 @@ export function DataLeafTable({
     await queryClient.invalidateQueries({ queryKey: ['logFields', 'Assistants', context] });
     await queryClient.refetchQueries({ queryKey: ['logFields', 'Assistants', context] });
     await queryClient.invalidateQueries({ queryKey: ['logQuery', 'Assistants', context] });
+    await queryClient.invalidateQueries({ queryKey: ['logMetrics'] });
     await refetch();
   }, [queryClient, context, refetch]);
 
-  const selection: SelectionModel = React.useMemo(
-    () => ({
-      mode: 'row',
-      selectedRowId,
-      onSelectRow: (id) => {
-        if (!id) {
-          onRowSelect(null);
-          return;
-        }
-        const match = rows.find((r) => String(r.logId) === id);
-        onRowSelect(match ? toDataRow(match) : null);
-      },
-    }),
-    [selectedRowId, rows, onRowSelect]
-  );
-
-  // When new fields appear (e.g. derived columns), append them to columnOrder.
   React.useEffect(() => {
     if (!columns.length) return;
     const missing = columns.filter((id) => !view.columnOrder.includes(id));
@@ -160,23 +151,54 @@ export function DataLeafTable({
     });
   }, [columns, view.columnOrder, setView]);
 
+  const selection: SelectionModel = React.useMemo(
+    () => ({
+      mode: 'cell',
+      selectedCells,
+      onSelectCells: (ids) => {
+        setSelectedCells(ids);
+        setPanelOpen(true);
+      },
+    }),
+    [selectedCells]
+  );
+
+  const cellSelections = React.useMemo(
+    () => cellsFromSelection(selectedCells, rows),
+    [selectedCells, rows]
+  );
+
   return (
-    <LogGrid
-      projectName="Assistants"
-      context={context}
-      rows={rows}
-      fields={fields}
-      columns={columns}
-      totalCount={count}
-      view={view}
-      onViewChange={setView}
-      isLoading={isLoading}
-      isFetching={isFetching}
-      selection={selection}
-      onRowActivate={(row) => onRowSelect(toDataRow(row))}
-      onDerivedCreated={refreshAll}
-      testId="data-leaf-table"
-      className="min-h-0 flex-1"
-    />
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <LogGrid
+        projectName="Assistants"
+        context={context}
+        rows={rows}
+        fields={fields}
+        columns={columns}
+        totalCount={count}
+        view={view}
+        onViewChange={setView}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        selection={selection}
+        filterExpr={spec?.filterExpr}
+        onDerivedCreated={() => void refreshAll()}
+        onMutated={() => void refreshAll()}
+        testId="data-leaf-table"
+        className="min-h-0 min-w-0 flex-1"
+      />
+      {panelOpen && (
+        <LogCellViewPanel
+          cells={cellSelections}
+          onClose={() => setPanelOpen(false)}
+          onClear={() => setSelectedCells([])}
+          onEditRow={(logId) => {
+            const match = rows.find((r) => r.logId === logId);
+            onRowSelect(match ? toDataRow(match) : null);
+          }}
+        />
+      )}
+    </div>
   );
 }

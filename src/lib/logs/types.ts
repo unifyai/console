@@ -1,4 +1,4 @@
-import type { SortingState } from '@tanstack/react-table';
+import type { ColumnSizingState, SortingState } from '@tanstack/react-table';
 import type { FiltersByColumn } from '@/types/interfaces/columns';
 import type { LogFieldsResponseProps, LogProps } from '@/types/interfaces/logs';
 
@@ -8,10 +8,15 @@ export type LogQuerySpec = {
   context: string;
   filterExpr?: string | null;
   sorting?: string | null;
+  /** Comma-separated grouping column ids (Orchestra `groupBy`). */
+  groupBy?: string | null;
+  groupSorting?: string | null;
   limit: number;
   offset: number;
   columnContext?: string | null;
 };
+
+export const LOG_PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const;
 
 /** UI view config for a log grid; persistence is orthogonal. */
 export type LogViewState = {
@@ -19,6 +24,8 @@ export type LogViewState = {
   columnOrder: string[];
   columnsPinLeft: string[];
   columnsPinRight: string[];
+  /** Per-column pixel widths (TanStack columnSizing). */
+  columnSizing: ColumnSizingState;
   /** Encoded as `col~fn~value§…` (Interfaces tile filters string). */
   filters: string;
   /** Encoded as `mode§value` (`expression` or text search). */
@@ -26,9 +33,31 @@ export type LogViewState = {
   sorting: SortingState;
   offset: number;
   limit: number;
+  /** ISO timestamp watermark — appends `createdAt < freeze` to filterExpr. */
+  freeze?: string;
+  /** Footer aggregate metric name (`mean`, `count`, …). */
+  metric?: string;
+  /** When true, poll for newer rows. */
+  autoUpdate?: boolean;
+  /** Comma-separated grouping columns. */
+  grouping?: string;
+  /** Encoded `field@true,field2@false` group sort. */
+  groupSorting?: string;
 };
 
 export const DEFAULT_LOG_PAGE_SIZE = 50;
+export const LOG_METRICS = [
+  'mean',
+  'count',
+  'sum',
+  'var',
+  'std',
+  'min',
+  'max',
+  'median',
+  'mode',
+] as const;
+export type LogMetricName = (typeof LOG_METRICS)[number];
 
 export function emptyLogViewState(overrides?: Partial<LogViewState>): LogViewState {
   return {
@@ -36,11 +65,17 @@ export function emptyLogViewState(overrides?: Partial<LogViewState>): LogViewSta
     columnOrder: [],
     columnsPinLeft: [],
     columnsPinRight: [],
+    columnSizing: {},
     filters: '',
     commonFilter: '',
     sorting: [],
     offset: 0,
     limit: DEFAULT_LOG_PAGE_SIZE,
+    freeze: undefined,
+    metric: 'mean',
+    autoUpdate: false,
+    grouping: '',
+    groupSorting: '',
     ...overrides,
   };
 }
@@ -52,8 +87,9 @@ export type LogViewStateStore = {
 };
 
 /**
- * Selection model for LogGrid. Data wires `row` mode to the detail sheet.
- * `cell` is typed for the future Interfaces-style viewing panel.
+ * Selection model for LogGrid.
+ * - `row`: Assistants Data detail sheet
+ * - `cell`: Interfaces-style viewing panel (`{logId}_{columnId}`)
  */
 export type SelectionModel =
   | {
@@ -81,5 +117,16 @@ export type LogQueryResult = {
   count: number;
   fields: LogFieldsResponseProps;
 };
+
+/** Parse `logId_columnId` cell ids used by Interfaces table tiles. */
+export function parseCellId(cellId: string): { logId: string; columnId: string } {
+  const idx = cellId.indexOf('_');
+  if (idx === -1) return { logId: cellId, columnId: '' };
+  return { logId: cellId.slice(0, idx), columnId: cellId.slice(idx + 1) };
+}
+
+export function makeCellId(logId: string | number, columnId: string): string {
+  return `${logId}_${columnId}`;
+}
 
 export type { FiltersByColumn, LogFieldsResponseProps, SortingState };
