@@ -33,15 +33,31 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { ConnectedAccountsSection } from './ConnectedAccountsSection';
+import {
+  IntegrationConnectSuccessBanner,
+  IntegrationOAuthWaitingBanner,
+  type IntegrationConnectSuccessState,
+  type IntegrationOAuthWaitingState,
+} from './IntegrationConnectLoopBanners';
 import { ProviderApiKeyForm } from './ProviderApiKeyForm';
 import { ProviderCustomOAuthSection } from './ProviderCustomOAuthSection';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
 import { integrationAuthLabels } from './integrationType';
 import {
+  getProviderIntegrationAppPreference,
   getProviderIntegrationToolPolicy,
   patchProviderIntegrationToolPolicy,
+  updateProviderIntegrationAppPreference,
+  type IntegrationUsageMode,
 } from '@/lib/client/integrations';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import type {
   IntegrationConnection,
   IntegrationGalleryItem,
@@ -520,6 +536,12 @@ export function ProviderIntegrationDetailSheet({
   onUpdateConnectionLabel,
   isDetailLoading,
   canManageCustomAuth = false,
+  oauthWaiting = null,
+  connectSuccess = null,
+  onCancelOAuthWaiting,
+  onCopyOAuthAuthorizeUrl,
+  onAddAnotherAccount,
+  onDismissConnectSuccess,
 }: {
   item: IntegrationGalleryItem | null;
   open: boolean;
@@ -549,6 +571,12 @@ export function ProviderIntegrationDetailSheet({
    * allowed to manage integration backends.
    */
   canManageCustomAuth?: boolean;
+  oauthWaiting?: IntegrationOAuthWaitingState | null;
+  connectSuccess?: IntegrationConnectSuccessState | null;
+  onCancelOAuthWaiting?: () => void;
+  onCopyOAuthAuthorizeUrl?: () => void;
+  onAddAnotherAccount?: () => void;
+  onDismissConnectSuccess?: () => void;
 }) {
   const snapshot = React.useRef<IntegrationGalleryItem | null>(null);
   const [selectedScopeIds, setSelectedScopeIds] = React.useState<string[]>([]);
@@ -634,6 +662,68 @@ export function ProviderIntegrationDetailSheet({
   } | null>(null);
   const [savingToolIds, setSavingToolIds] = React.useState<Set<string>>(new Set());
   const [policyError, setPolicyError] = React.useState<string | null>(null);
+  const [usageMode, setUsageMode] = React.useState<IntegrationUsageMode>('primary');
+  const [usageModeBusy, setUsageModeBusy] = React.useState(false);
+  const [usageModeError, setUsageModeError] = React.useState<string | null>(null);
+  const usageModeSlug = displayItem?.canonicalSlug;
+  const usageModeSource = displayItem?.source;
+  const usageModeIsMock = displayItem?.isMock;
+  React.useEffect(() => {
+    if (!open || !usageModeSlug || assistantId === undefined) return;
+    if (usageModeSource !== 'provider_backed' && usageModeSource !== 'overlay_curated') {
+      return;
+    }
+    if (usageModeIsMock) {
+      setUsageMode('primary');
+      return;
+    }
+    let cancelled = false;
+    setUsageModeError(null);
+    void getProviderIntegrationAppPreference({
+      canonicalSlug: usageModeSlug,
+      assistantId,
+    })
+      .then((preference) => {
+        if (cancelled) return;
+        setUsageMode(preference.usageMode);
+      })
+      .catch((error) => {
+        console.error('Failed to load integration usage mode', error);
+        if (!cancelled) {
+          setUsageModeError('Could not load account usage mode.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assistantId, open, usageModeIsMock, usageModeSlug, usageModeSource]);
+  const handleUsageModeChange = React.useCallback(
+    (nextMode: IntegrationUsageMode) => {
+      if (!displayItem || assistantId === undefined) return;
+      const previous = usageMode;
+      setUsageMode(nextMode);
+      setUsageModeError(null);
+      if (displayItem.isMock) {
+        return;
+      }
+      setUsageModeBusy(true);
+      void updateProviderIntegrationAppPreference({
+        canonicalSlug: displayItem.canonicalSlug,
+        assistantId,
+        usageMode: nextMode,
+      })
+        .then((preference) => {
+          setUsageMode(preference.usageMode);
+        })
+        .catch((error) => {
+          console.error('Failed to update integration usage mode', error);
+          setUsageMode(previous);
+          setUsageModeError('Could not save account usage mode. Please try again.');
+        })
+        .finally(() => setUsageModeBusy(false));
+    },
+    [assistantId, displayItem, usageMode]
+  );
   const policySummary = React.useMemo(() => {
     // Count the effective level shown per row (explicit override or the tool's
     // default), so these totals match the Available tools list exactly.
@@ -814,6 +904,51 @@ export function ProviderIntegrationDetailSheet({
                 Add account
               </Button>
             </div>
+            {visibleConnectionCount > 1 || usageMode !== 'primary' ? (
+              <div
+                className="bg-muted/20 space-y-2 rounded-lg border p-3"
+                data-testid="integration-usage-mode"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-title text-foreground">Account usage</p>
+                    <p className="text-caption">
+                      How the assistant picks an account when tools do not pass connection_id.
+                    </p>
+                  </div>
+                  <Select
+                    value={usageMode}
+                    onValueChange={(value) => handleUsageModeChange(value as IntegrationUsageMode)}
+                    disabled={usageModeBusy || busy || !assistantId}
+                  >
+                    <SelectTrigger
+                      className="w-[180px]"
+                      data-testid="integration-usage-mode-select"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="primary">Latest account</SelectItem>
+                      <SelectItem value="explicit">Require explicit account</SelectItem>
+                      <SelectItem value="pool">Round-robin pool</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {usageMode === 'pool' ? (
+                  <p className="text-caption text-muted-foreground">
+                    Live accounts share API quota by rotating on each tool call.
+                  </p>
+                ) : null}
+                {usageMode === 'explicit' ? (
+                  <p className="text-caption text-muted-foreground">
+                    Tools must pass a connection_id from search_integrations.
+                  </p>
+                ) : null}
+                {usageModeError ? (
+                  <p className="text-caption text-[color:var(--status-danger)]">{usageModeError}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
         <ConnectedAccountsSection
@@ -919,6 +1054,27 @@ export function ProviderIntegrationDetailSheet({
 
             <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">
               <div className="min-w-0 space-y-6 overflow-x-hidden p-6">
+                {oauthWaiting &&
+                oauthWaiting.canonicalSlug === displayItem.canonicalSlug &&
+                onCancelOAuthWaiting ? (
+                  <IntegrationOAuthWaitingBanner
+                    waiting={oauthWaiting}
+                    onCancel={onCancelOAuthWaiting}
+                    onCopyAuthorizeUrl={
+                      oauthWaiting.connectUrl ? onCopyOAuthAuthorizeUrl : undefined
+                    }
+                  />
+                ) : null}
+                {connectSuccess &&
+                connectSuccess.canonicalSlug === displayItem.canonicalSlug &&
+                onAddAnotherAccount &&
+                onDismissConnectSuccess ? (
+                  <IntegrationConnectSuccessBanner
+                    success={connectSuccess}
+                    onAddAnother={onAddAnotherAccount}
+                    onDone={onDismissConnectSuccess}
+                  />
+                ) : null}
                 {isDetailLoading && <LoadingSkeleton />}
                 {!isDetailLoading && (
                   <>

@@ -5,6 +5,7 @@ import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { Card, CardContent } from '@/components/UI/card';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
+import { IntegrationAccountStack } from './IntegrationAccountStack';
 import { integrationAuthLabels, integrationTypeLabel } from './integrationType';
 import type { IntegrationGalleryItem } from '@/types/integrations';
 
@@ -69,6 +70,7 @@ export function ProviderIntegrationCard({
             <div className="min-w-0">
               <h3 className="text-title truncate text-sm">{item.displayName}</h3>
               <p className="text-caption truncate">{integrationTypeLabel(item)}</p>
+              <IntegrationAccountStack item={item} />
             </div>
           </div>
           <IntegrationStatusBadge status={item.status} className="shrink-0 self-start" />

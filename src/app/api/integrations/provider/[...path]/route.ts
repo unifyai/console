@@ -14,7 +14,7 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const { path } = await context.params;
   const isCatalogGet =
     request.method === 'GET' &&
-    (path[0] === 'apps' ||
+    ((path[0] === 'apps' && path.length === 1) ||
       (path[0] === 'tools' &&
         (path.length === 1 || path[1] === 'search' || path[path.length - 1] === 'schema')));
   if (isCatalogGet) {

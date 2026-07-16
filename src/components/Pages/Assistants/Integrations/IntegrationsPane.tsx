@@ -47,7 +47,11 @@ import {
   effectiveSemanticCategory,
   semanticCategoryFilterActive,
 } from '@/lib/integrations/integrationLabelFilter';
-import { openPendingOAuthTab, subscribeOAuthComplete } from '@/utils/assistants/oauth';
+import {
+  openPendingOAuthTab,
+  subscribeOAuthComplete,
+  copyAuthorizeUrlForPrivateWindow,
+} from '@/utils/assistants/oauth';
 import { subscribeIntegrationDisconnectSettled } from '@/lib/assistants/coordinatorIntegrationConnect';
 import { SecretFormDialog } from '../Secrets/SecretFormDialog';
 import { JsonUploadPreviewDialog } from '../Secrets/JsonUploadPreviewDialog';
@@ -65,8 +69,11 @@ import type {
 import {
   IntegrationGalleryShell,
   ProviderIntegrationDetailSheet,
+  type IntegrationConnectSuccessState,
   type IntegrationGalleryFilters,
+  type IntegrationOAuthWaitingState,
 } from '@/components/Integrations';
+import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { ApiKeyIntegrationDialog } from './ApiKeyIntegrationDialog';
 import { OAuthIntegrationDialog, type OAuthSubmitPayload } from './OAuthIntegrationDialog';
 import { getIntegrationProvider } from '@/constants/assistants/integrations';
@@ -292,6 +299,14 @@ export function IntegrationsPane({
   const [selectedIntegration, setSelectedIntegration] =
     React.useState<IntegrationGalleryItem | null>(null);
   const [busyConnectionId, setBusyConnectionId] = React.useState<string | null>(null);
+  const [oauthWaiting, setOauthWaiting] = React.useState<IntegrationOAuthWaitingState | null>(null);
+  const [connectSuccess, setConnectSuccess] = React.useState<IntegrationConnectSuccessState | null>(
+    null
+  );
+  const pendingOAuthMetaRef = React.useRef<{
+    item: IntegrationGalleryItem;
+    accountLabel?: string;
+  } | null>(null);
 
   // Auto-close the custom-secret dialog when its in-flight submit
   // settles (mirrors SecretsPane's pattern).
@@ -400,21 +415,6 @@ export function IntegrationsPane({
   }, [fetchDetails, selectedIntegration]);
 
   React.useEffect(() => {
-    return subscribeOAuthComplete((detail) => {
-      if (detail.kind !== 'integration') return;
-      refreshProviderCatalog();
-      if (
-        selectedIntegration &&
-        (selectedIntegration.source === 'provider_backed' ||
-          selectedIntegration.source === 'overlay_curated')
-      ) {
-        window.setTimeout(() => void fetchDetails(selectedIntegration), 900);
-        window.setTimeout(() => void fetchDetails(selectedIntegration), 1800);
-      }
-    });
-  }, [fetchDetails, refreshProviderCatalog, selectedIntegration]);
-
-  React.useEffect(() => {
     return subscribeIntegrationDisconnectSettled((detail) => {
       if (detail.assistantId !== assistantId) return;
       refreshProviderCatalog();
@@ -475,11 +475,115 @@ export function IntegrationsPane({
     setPendingDelete({ type: 'integration', provider, state });
   };
 
-  const handleOpenConnectDialog = (item: IntegrationGalleryItem) => {
-    setSelectedIntegration(null);
+  const handleOpenConnectDialog = (
+    item: IntegrationGalleryItem,
+    options: { keepSheetOpen?: boolean; preserveConnectSuccess?: boolean } = {}
+  ) => {
+    if (!options.keepSheetOpen) {
+      setSelectedIntegration(null);
+    }
+    if (!options.preserveConnectSuccess) {
+      setConnectSuccess(null);
+    }
     setPendingConnectItem(item);
     setPendingConnectLabel('');
   };
+
+  const countLiveConnections = React.useCallback((item: IntegrationGalleryItem | null) => {
+    if (!item) return 0;
+    return item.connections.filter((connection) => connection.status !== 'disconnected').length;
+  }, []);
+
+  const finishConnectLoopSuccess = React.useCallback(
+    (item: IntegrationGalleryItem, accountLabel?: string) => {
+      const refreshed =
+        galleryItems.find((entry) => entry.canonicalSlug === item.canonicalSlug) ?? item;
+      setSelectedIntegration(refreshed);
+      setOauthWaiting(null);
+      setConnectSuccess({
+        canonicalSlug: refreshed.canonicalSlug,
+        displayName: refreshed.displayName,
+        accountLabel,
+        accountCount: Math.max(1, countLiveConnections(refreshed), countLiveConnections(item) + 1),
+      });
+      pendingOAuthMetaRef.current = null;
+    },
+    [countLiveConnections, galleryItems]
+  );
+
+  const beginProviderConnect = React.useCallback(
+    async (
+      item: IntegrationGalleryItem,
+      options: {
+        accountLabel?: string;
+        navigation?: 'popup' | 'manual';
+      } = {}
+    ) => {
+      const accountLabel = options.accountLabel?.trim() || undefined;
+      const navigation = options.navigation ?? 'popup';
+      pendingOAuthMetaRef.current = { item, accountLabel };
+      setConnectSuccess(null);
+      setSelectedIntegration(item);
+
+      const data = await startProviderConnect(item, undefined, {
+        accountLabel,
+        navigation,
+      });
+      if (!data) {
+        pendingOAuthMetaRef.current = null;
+        setOauthWaiting(null);
+        return;
+      }
+
+      if (isProviderCatalogMock || !data.connectUrl) {
+        finishConnectLoopSuccess(item, accountLabel);
+        return;
+      }
+
+      if (navigation === 'manual') {
+        const copied = await copyAuthorizeUrlForPrivateWindow(data.connectUrl);
+        if (copied) {
+          toast.message(
+            'Authorize URL copied. Paste it into a private/incognito window and sign in as the next account.'
+          );
+        } else {
+          toast.message(
+            'Open a private/incognito window and paste the authorize URL from Copy authorize URL.'
+          );
+        }
+      }
+
+      setOauthWaiting({
+        canonicalSlug: item.canonicalSlug,
+        displayName: item.displayName,
+        accountLabel,
+        connectUrl: data.connectUrl,
+        mode: navigation,
+      });
+    },
+    [finishConnectLoopSuccess, isProviderCatalogMock, startProviderConnect]
+  );
+
+  React.useEffect(() => {
+    return subscribeOAuthComplete((detail) => {
+      if (detail.kind !== 'integration') return;
+      refreshProviderCatalog();
+      const pending = pendingOAuthMetaRef.current;
+      if (pending) {
+        window.setTimeout(() => {
+          finishConnectLoopSuccess(pending.item, pending.accountLabel);
+        }, 900);
+      }
+      if (
+        selectedIntegration &&
+        (selectedIntegration.source === 'provider_backed' ||
+          selectedIntegration.source === 'overlay_curated')
+      ) {
+        window.setTimeout(() => void fetchDetails(selectedIntegration), 900);
+        window.setTimeout(() => void fetchDetails(selectedIntegration), 1800);
+      }
+    });
+  }, [fetchDetails, finishConnectLoopSuccess, refreshProviderCatalog, selectedIntegration]);
 
   const handleGalleryPrimaryAction = (item: IntegrationGalleryItem) => {
     if (item.status === 'connected' || item.status === 'configured') {
@@ -523,11 +627,14 @@ export function IntegrationsPane({
       !options.accountLabel &&
       (item.source === 'provider_backed' || item.source === 'overlay_curated')
     ) {
-      handleOpenConnectDialog(item);
+      handleOpenConnectDialog(item, { keepSheetOpen: true });
       return;
     }
 
-    void startProviderConnect(item, undefined, options);
+    void beginProviderConnect(item, {
+      accountLabel: options.accountLabel,
+      navigation: 'popup',
+    });
   };
 
   const handleProviderApiKeySubmit = (
@@ -535,17 +642,40 @@ export function IntegrationsPane({
     values: Record<string, string>,
     options: { accountLabel?: string } = {}
   ) => {
-    void startProviderConnect(item, values, options);
+    void (async () => {
+      const data = await startProviderConnect(item, values, {
+        accountLabel: options.accountLabel,
+      });
+      if (data) {
+        finishConnectLoopSuccess(item, options.accountLabel?.trim() || undefined);
+      }
+    })();
   };
 
-  const handleConnectDialogSubmit = () => {
+  const handleConnectDialogSubmit = (navigation: 'popup' | 'manual' = 'popup') => {
     const item = pendingConnectItem;
     if (!item) return;
+    const accountLabel = pendingConnectLabel.trim() || undefined;
+    const addingAnother =
+      countLiveConnections(item) > 0 ||
+      (connectSuccess !== null && connectSuccess.canonicalSlug === item.canonicalSlug);
+    if (addingAnother && !accountLabel) {
+      toast.error('Account label is required when adding another account.');
+      return;
+    }
     setPendingConnectItem(null);
-    handleDetailPrimaryAction(item, {
-      accountLabel: pendingConnectLabel.trim() || undefined,
-    });
+    setPendingConnectLabel('');
+    void beginProviderConnect(item, { accountLabel, navigation });
   };
+
+  const isAddingAnotherAccount = Boolean(
+    pendingConnectItem &&
+    (countLiveConnections(pendingConnectItem) > 0 ||
+      (connectSuccess !== null &&
+        connectSuccess.canonicalSlug === pendingConnectItem.canonicalSlug))
+  );
+  const connectLabelRequiredMissing =
+    isAddingAnotherAccount && pendingConnectLabel.trim().length === 0;
 
   const handleConnectionReconnect = async (connection: IntegrationConnection) => {
     if (connection.source === 'static_package' && connection.sourceMetadata?.staticProviderId) {
@@ -933,7 +1063,12 @@ export function IntegrationsPane({
         busy={Boolean(providerConnectingSlug)}
         busyConnectionId={busyConnectionId}
         onOpenChange={(open) => {
-          if (!open) setSelectedIntegration(null);
+          if (!open) {
+            setSelectedIntegration(null);
+            setOauthWaiting(null);
+            setConnectSuccess(null);
+            pendingOAuthMetaRef.current = null;
+          }
         }}
         onPrimaryAction={handleDetailPrimaryAction}
         onApiKeySubmit={handleProviderApiKeySubmit}
@@ -948,6 +1083,42 @@ export function IntegrationsPane({
         isDetailLoading={
           !!selectedDisplayItem && isDetailLoading === selectedDisplayItem.canonicalSlug
         }
+        oauthWaiting={
+          oauthWaiting &&
+          selectedDisplayItem &&
+          oauthWaiting.canonicalSlug === selectedDisplayItem.canonicalSlug
+            ? oauthWaiting
+            : null
+        }
+        connectSuccess={
+          connectSuccess &&
+          selectedDisplayItem &&
+          connectSuccess.canonicalSlug === selectedDisplayItem.canonicalSlug
+            ? connectSuccess
+            : null
+        }
+        onCancelOAuthWaiting={() => {
+          setOauthWaiting(null);
+          pendingOAuthMetaRef.current = null;
+        }}
+        onCopyOAuthAuthorizeUrl={() => {
+          if (!oauthWaiting?.connectUrl) return;
+          void copyAuthorizeUrlForPrivateWindow(oauthWaiting.connectUrl).then((copied) => {
+            if (copied) {
+              toast.message('Authorize URL copied. Paste it into a private/incognito window.');
+            } else {
+              toast.error('Could not copy authorize URL. Please try again.');
+            }
+          });
+        }}
+        onAddAnotherAccount={() => {
+          if (!selectedDisplayItem) return;
+          handleOpenConnectDialog(selectedDisplayItem, {
+            keepSheetOpen: true,
+            preserveConnectSuccess: true,
+          });
+        }}
+        onDismissConnectSuccess={() => setConnectSuccess(null)}
       />
 
       <Dialog
@@ -961,26 +1132,49 @@ export function IntegrationsPane({
       >
         <DialogContent data-testid="provider-integration-connect-dialog">
           <DialogHeader>
-            <DialogTitle>Connect {pendingConnectItem?.displayName ?? 'app'}</DialogTitle>
+            <DialogTitle>
+              {isAddingAnotherAccount
+                ? `Add another ${pendingConnectItem?.displayName ?? 'app'} account`
+                : `Connect ${pendingConnectItem?.displayName ?? 'app'}`}
+            </DialogTitle>
             <DialogDescription>
-              Add an optional label so this account is easy to recognize later.
+              {isAddingAnotherAccount
+                ? 'A label is required so you can tell these accounts apart later. Then authorize in the popup — you stay signed into Console.'
+                : 'Label this account, then authorize it in the popup. You stay signed into Console — only the popup switches identity.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label htmlFor="provider-integration-connect-label" className="text-label-muted">
-              Account label
-            </label>
-            <Input
-              id="provider-integration-connect-label"
-              value={pendingConnectLabel}
-              onChange={(event) => setPendingConnectLabel(event.target.value)}
-              placeholder={`e.g. Work ${pendingConnectItem?.displayName ?? 'account'}`}
-              autoFocus
-              data-testid="provider-integration-connect-label"
-            />
-            <p className="text-caption">Examples: Work Slack, Personal Gmail, Client Discord.</p>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="provider-integration-connect-label" className="text-label-muted">
+                Account label{isAddingAnotherAccount ? ' (required)' : ''}
+              </label>
+              <Input
+                id="provider-integration-connect-label"
+                value={pendingConnectLabel}
+                onChange={(event) => setPendingConnectLabel(event.target.value)}
+                placeholder={`e.g. Work ${pendingConnectItem?.displayName ?? 'account'}`}
+                autoFocus
+                required={isAddingAnotherAccount}
+                aria-required={isAddingAnotherAccount}
+                data-testid="provider-integration-connect-label"
+              />
+              <p className="text-caption">
+                Examples: djl11, approver-bot, Work {pendingConnectItem?.displayName ?? 'account'}.
+              </p>
+            </div>
+            <Alert
+              className="border-[color:var(--status-warning)]/40 bg-[var(--status-warning-bg)]"
+              data-testid="provider-integration-connect-identity-warning"
+            >
+              <AlertTitle className="text-sm">Use a different identity</AlertTitle>
+              <AlertDescription className="text-xs leading-5 text-muted-foreground">
+                If the popup skips straight to Approve, it is still using the account already signed
+                into that provider in this browser. Switch accounts in the popup, or open the
+                authorize link in a private window.
+              </AlertDescription>
+            </Alert>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
@@ -993,11 +1187,20 @@ export function IntegrationsPane({
             </Button>
             <Button
               type="button"
-              disabled={Boolean(providerConnectingSlug)}
-              onClick={handleConnectDialogSubmit}
+              variant="secondary"
+              disabled={Boolean(providerConnectingSlug) || connectLabelRequiredMissing}
+              onClick={() => handleConnectDialogSubmit('manual')}
+              data-testid="provider-integration-connect-private-window"
+            >
+              Open in private window
+            </Button>
+            <Button
+              type="button"
+              disabled={Boolean(providerConnectingSlug) || connectLabelRequiredMissing}
+              onClick={() => handleConnectDialogSubmit('popup')}
               data-testid="provider-integration-connect-submit"
             >
-              Connect
+              Continue to authorize
             </Button>
           </DialogFooter>
         </DialogContent>

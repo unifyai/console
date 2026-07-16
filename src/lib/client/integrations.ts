@@ -1015,6 +1015,66 @@ export async function updateProviderIntegrationConnection(
   return mapProviderConnection(data);
 }
 
+export type IntegrationUsageMode = 'primary' | 'explicit' | 'pool';
+
+export type IntegrationAppPreference = {
+  canonicalAppSlug: string;
+  ownerScope: IntegrationOwnerScope;
+  usageMode: IntegrationUsageMode;
+  poolCursor: number;
+  updatedAt?: string | null;
+};
+
+export async function getProviderIntegrationAppPreference(args: {
+  canonicalSlug: string;
+  ownerScope?: IntegrationOwnerScope;
+  assistantId: string | number;
+}): Promise<IntegrationAppPreference> {
+  const params = new URLSearchParams();
+  params.set('owner_scope', args.ownerScope ?? 'assistant');
+  params.set('assistant_id', String(args.assistantId));
+  const data = await integrationFetch<Record<string, unknown>>(
+    `apps/${encodeURIComponent(args.canonicalSlug)}/preferences?${params.toString()}`
+  );
+  const camel = snakeToCamelObject(data) as Record<string, unknown>;
+  return {
+    canonicalAppSlug: String(camel.canonicalAppSlug ?? args.canonicalSlug),
+    ownerScope: (camel.ownerScope as IntegrationOwnerScope) ?? 'assistant',
+    usageMode: (camel.usageMode as IntegrationUsageMode) ?? 'primary',
+    poolCursor: Number(camel.poolCursor ?? 0),
+    updatedAt: (camel.updatedAt as string | null | undefined) ?? null,
+  };
+}
+
+export async function updateProviderIntegrationAppPreference(args: {
+  canonicalSlug: string;
+  ownerScope?: IntegrationOwnerScope;
+  assistantId: string | number;
+  usageMode: IntegrationUsageMode;
+}): Promise<IntegrationAppPreference> {
+  const data = await integrationFetch<Record<string, unknown>>(
+    `apps/${encodeURIComponent(args.canonicalSlug)}/preferences`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(
+        camelToSnakeObject({
+          ownerScope: args.ownerScope ?? 'assistant',
+          assistantId: args.assistantId,
+          usageMode: args.usageMode,
+        })
+      ),
+    }
+  );
+  const camel = snakeToCamelObject(data) as Record<string, unknown>;
+  return {
+    canonicalAppSlug: String(camel.canonicalAppSlug ?? args.canonicalSlug),
+    ownerScope: (camel.ownerScope as IntegrationOwnerScope) ?? 'assistant',
+    usageMode: (camel.usageMode as IntegrationUsageMode) ?? 'primary',
+    poolCursor: Number(camel.poolCursor ?? 0),
+    updatedAt: (camel.updatedAt as string | null | undefined) ?? null,
+  };
+}
+
 export async function completeProviderIntegrationConnection(
   connectionId: string,
   request: {
