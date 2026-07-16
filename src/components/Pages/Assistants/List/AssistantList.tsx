@@ -788,9 +788,6 @@ export function AssistantList({
   const pinnedGroup = assistantGroups.find((group) => group.kind === 'pinned');
   const teamGroups = assistantGroups.filter((group) => group.kind === 'team');
   const soloGroup = assistantGroups.find((group) => group.kind === 'solo');
-  const hasPinnedRows = (pinnedGroup?.rows.length ?? 0) > 0;
-  const hasGroupedRowsBelowCoordinator =
-    teamGroups.length > 0 || !!soloGroup || hasNonAssistantRows;
   const soloRows = soloGroup?.rows ?? [];
   const teamRowsById = React.useMemo(() => {
     const byId = new Map<number, AssistantListEntry[]>();
@@ -824,14 +821,6 @@ export function AssistantList({
             renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
           )}
         </div>
-      ) : null}
-      {hasPinnedRows && showVirtual && hasGroupedRowsBelowCoordinator ? (
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          data-testid="coordinator-divider"
-          className="my-2 border-t border-border"
-        />
       ) : null}
       {showTeamsSection
         ? renderSection(
