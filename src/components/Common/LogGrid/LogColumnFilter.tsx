@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Filter, Plus, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import {
   Select,
   SelectContent,
@@ -21,6 +21,14 @@ interface LogColumnFilterProps {
   dataType?: string;
   filters: string;
   onChange: (filters: string) => void;
+  /** Controlled open so the column ⋯ menu can open the popover. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * When false, no header trigger is shown (popover opens via controlled `open`).
+   * Defaults to true when the column already has an active filter.
+   */
+  showTrigger?: boolean;
 }
 
 type Clause = { fn: string; value: string };
@@ -152,21 +160,37 @@ function encodeValue(fn: string, value: string, dataType?: string): string {
   return `"${trimmed.replace(/"/g, '')}"`;
 }
 
+export function columnHasFilter(filters: string, column: string): boolean {
+  return (
+    Object.keys(searchParamToFilters(filters || undefined, undefined)[column] ?? {}).length > 0
+  );
+}
+
 /**
  * Column filter popover with type-aware operators, exists/isNone, and multi-clause filters.
  * Encodes the same `col~fn~value§…` bag Interfaces table tiles use.
+ * The header trigger only shows when a filter is active; otherwise open via controlled state.
  */
-export function LogColumnFilter({ column, dataType, filters, onChange }: LogColumnFilterProps) {
-  const [open, setOpen] = React.useState(false);
+export function LogColumnFilter({
+  column,
+  dataType,
+  filters,
+  onChange,
+  open: openControlled,
+  onOpenChange,
+  showTrigger,
+}: LogColumnFilterProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const open = openControlled ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const [clauses, setClauses] = React.useState<Clause[]>(() => parseClauses(column, filters));
 
   React.useEffect(() => {
     if (open) setClauses(parseClauses(column, filters));
   }, [open, column, filters]);
 
-  const hasFilter = Object.keys(
-    searchParamToFilters(filters || undefined, undefined)[column] ?? {}
-  ).length;
+  const hasFilter = columnHasFilter(filters, column);
+  const showIcon = showTrigger ?? hasFilter;
   const ops = opsForType(dataType);
   const isNumeric = dataType === 'int' || dataType === 'float';
 
@@ -194,18 +218,24 @@ export function LogColumnFilter({ column, dataType, filters, onChange }: LogColu
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-6 w-6 p-0 ${hasFilter ? 'text-primary' : 'text-muted-foreground'}`}
-          aria-label={`Filter ${sanitizeId(column)}`}
-          data-testid={`log-grid-filter-${sanitizeId(column)}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Filter className="h-3 w-3" aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
+      {showIcon ? (
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-primary"
+            aria-label={`Filter ${sanitizeId(column)}`}
+            data-testid={`log-grid-filter-${sanitizeId(column)}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Filter className="h-3 w-3" aria-hidden="true" />
+          </Button>
+        </PopoverTrigger>
+      ) : (
+        <PopoverAnchor asChild>
+          <span className="pointer-events-none absolute inset-0" aria-hidden="true" />
+        </PopoverAnchor>
+      )}
       <PopoverContent
         align="start"
         className="w-72 space-y-2 p-3"

@@ -1,6 +1,6 @@
 /**
- * Data LogGrid E2E — column visibility, server filters/sort, derived columns,
- * cell view panel, metrics chrome, and row mutations on the Assistants Data tab.
+ * Data LogGrid E2E — column visibility, server filters/sort, cell view panel,
+ * page size, and cell range selection on the Assistants Data tab.
  *
  * Run: npx playwright test src/tests/assistants/data-log-grid.e2e.ts
  */
@@ -72,18 +72,6 @@ test.afterAll(async () => {
   await cleanupUser(user.id);
 });
 
-/** Click a toolbar control; open More first when it lives in the overflow menu. */
-async function clickToolbarControl(page: Page, testId: string) {
-  const control = page.getByTestId(testId);
-  if (await control.isVisible().catch(() => false)) {
-    await control.click();
-    return;
-  }
-  await page.getByTestId('log-grid-more').click();
-  await expect(page.getByTestId(testId)).toBeVisible({ timeout: 5_000 });
-  await page.getByTestId(testId).click();
-}
-
 async function openPeopleTable(page: Page) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
@@ -106,7 +94,7 @@ async function openPeopleTable(page: Page) {
   });
 }
 
-test('hides a column, filters, sorts, creates a derived column, and opens row detail via cell panel', async ({
+test('hides a column, filters, sorts, and opens row detail via cell panel', async ({
   authedPage: page,
 }) => {
   await openPeopleTable(page);
@@ -114,7 +102,7 @@ test('hides a column, filters, sorts, creates a derived column, and opens row de
   // Selection panel is absent until a cell is selected
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await expect(page.getByTestId('log-cell-view-panel-empty')).toHaveCount(0);
-  await expect(page.getByTestId('log-grid-more')).toBeVisible();
+  await expect(page.getByTestId('log-grid-page-size')).toBeVisible();
 
   // Column visibility: hide city
   await page.getByTestId('log-grid-columns').click();
@@ -123,10 +111,14 @@ test('hides a column, filters, sorts, creates a derived column, and opens row de
   await expect(page.getByTestId('log-grid-sort-city')).toHaveCount(0);
   await expect(page.getByTestId('log-grid-sort-name')).toBeVisible();
 
-  // Server filter: name contains Ada (Enter applies without fighting popover remounts)
-  await page.getByTestId('log-grid-filter-name').click();
+  // Server filter via column ⋯ menu
+  const nameHeader = page.getByTestId('log-grid-header-name');
+  await nameHeader.hover();
+  await page.getByTestId('log-grid-column-menu-name').click({ force: true });
+  await expect(page.getByTestId('log-grid-filter-open-name')).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('log-grid-filter-open-name').click({ force: true });
   const filterValue = page.getByTestId('log-grid-filter-value');
-  await expect(filterValue).toBeVisible();
+  await expect(filterValue).toBeVisible({ timeout: 15_000 });
   await filterValue.fill('Ada');
   await filterValue.press('Enter');
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 1/, {
@@ -135,7 +127,7 @@ test('hides a column, filters, sorts, creates a derived column, and opens row de
   await expect(page.getByText('Ada Lovelace')).toBeVisible();
   await expect(page.getByText('Alan Turing')).toHaveCount(0);
 
-  // Clear column filter
+  // Clear column filter (active filter icon)
   await page.getByTestId('log-grid-filter-name').click();
   await page.getByTestId('log-grid-filter-clear').click({ force: true });
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 5/, {
@@ -148,41 +140,6 @@ test('hides a column, filters, sorts, creates a derived column, and opens row de
   const firstRow = page.locator('[data-testid^="log-grid-row-"]').first();
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');
-
-  // Derived column — always in More menu
-  await clickToolbarControl(page, 'log-grid-derived-open');
-  await page.getByTestId('log-grid-derived-name').fill('doubleScore');
-  await page.getByTestId('log-grid-derived-expression').fill('score * 2');
-  await page.getByTestId('log-grid-derived-submit').click();
-
-  // Backend first — UI may take a moment to pick up the new field
-  await expect
-    .poll(
-      async () => {
-        const fieldsRes = await orchestraFetch(
-          `/v0/logs/fields?project_name=Assistants&context=${encodeURIComponent(contextPath)}`,
-          { method: 'GET' },
-          user.apiKey
-        );
-        if (!fieldsRes.ok) return false;
-        const fields = (await fieldsRes.json()) as Record<string, unknown>;
-        return (
-          Object.prototype.hasOwnProperty.call(fields, 'doubleScore') ||
-          Object.prototype.hasOwnProperty.call(fields, 'double_score')
-        );
-      },
-      { timeout: 60_000 }
-    )
-    .toBe(true);
-
-  await expect(page.getByTestId('log-grid-derived-dialog')).toHaveCount(0, {
-    timeout: 15_000,
-  });
-
-  // Wait until the grid shows the new column header (appended to columnOrder on fields refresh)
-  await expect(page.getByTestId('log-grid-sort-doubleScore')).toBeVisible({
-    timeout: 60_000,
-  });
 
   // Cell selection opens Interfaces-style view panel; Clear dismisses it
   const nameCell = firstRow
@@ -208,37 +165,14 @@ test('common text filter narrows rows', async ({ authedPage: page }) => {
   await expect(page.getByText('Ada Lovelace')).toBeVisible();
 });
 
-test('metric footer, page size, and create row', async ({ authedPage: page }) => {
+test('page size changes the loaded page window', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
-  await clickToolbarControl(page, 'log-grid-metric');
-  await page.getByRole('option', { name: 'count' }).click();
-  await expect(page.getByTestId('log-grid-metric-cell-score')).toBeVisible({ timeout: 30_000 });
-
-  await clickToolbarControl(page, 'log-grid-page-size');
+  await page.getByTestId('log-grid-page-size').click();
   await page.getByRole('option', { name: '20/page' }).click();
-
-  const beforeCreate = await page.getByTestId('log-grid-page-status').textContent();
-  await clickToolbarControl(page, 'log-grid-create-row');
-  await expect
-    .poll(
-      async () => {
-        const status = await page.getByTestId('log-grid-page-status').textContent();
-        return status !== beforeCreate && /of 6/.test(status ?? '');
-      },
-      { timeout: 30_000 }
-    )
-    .toBe(true);
-
-  const listRes = await orchestraFetch(
-    `/v0/logs?project_name=Assistants&context=${encodeURIComponent(contextPath)}&limit=20`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(listRes.ok).toBe(true);
-  const body = (await listRes.json()) as { count?: number; logs?: unknown[] };
-  const count = body.count ?? body.logs?.length ?? 0;
-  expect(count).toBeGreaterThanOrEqual(6);
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 5/, {
+    timeout: 30_000,
+  });
 });
 
 test('shift-click selects the bounding cell region', async ({ authedPage: page }) => {
@@ -299,43 +233,4 @@ test('column search works', async ({ authedPage: page }) => {
   await expect(page.getByTestId('log-grid-column-toggle-score')).toBeVisible();
   await expect(page.getByTestId('log-grid-column-toggle-name')).toHaveCount(0);
   await page.keyboard.press('Escape');
-});
-
-test('derived column edit updates equation', async ({ authedPage: page }) => {
-  await openPeopleTable(page);
-
-  // Ensure derived column exists (created in earlier serial test, or create here)
-  const derivedHeader = page.getByTestId('log-grid-sort-doubleScore');
-  if (!(await derivedHeader.isVisible().catch(() => false))) {
-    await clickToolbarControl(page, 'log-grid-derived-open');
-    await page.getByTestId('log-grid-derived-name').fill('doubleScore');
-    await page.getByTestId('log-grid-derived-expression').fill('score * 2');
-    await page.getByTestId('log-grid-derived-submit').click();
-    await expect(page.getByTestId('log-grid-sort-doubleScore')).toBeVisible({ timeout: 60_000 });
-  }
-
-  const editBtn = page.getByTestId('log-grid-derived-edit-doubleScore');
-  await expect(editBtn).toBeVisible({ timeout: 15_000 });
-  await editBtn.evaluate((el: HTMLElement) => el.click());
-  await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('log-grid-derived-expression').fill('score * 3');
-  await page.getByTestId('log-grid-derived-submit').click();
-  await expect(page.getByTestId('log-grid-derived-dialog')).toHaveCount(0, { timeout: 30_000 });
-
-  await expect
-    .poll(
-      async () => {
-        const fieldsRes = await orchestraFetch(
-          `/v0/logs/fields?project_name=Assistants&context=${encodeURIComponent(contextPath)}`,
-          { method: 'GET' },
-          user.apiKey
-        );
-        if (!fieldsRes.ok) return false;
-        const fields = (await fieldsRes.json()) as Record<string, { artifacts?: string }>;
-        const art = fields.doubleScore?.artifacts ?? fields.double_score?.artifacts ?? '';
-        return /3/.test(art);
-      },
-      { timeout: 60_000 }
-    )
-    .toBe(true);
 });

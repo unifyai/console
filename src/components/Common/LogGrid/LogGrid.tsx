@@ -27,16 +27,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
-import { ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Pencil } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/UI/table';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/UI/table';
 import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
@@ -62,12 +53,11 @@ import {
   type SelectionModel,
 } from '@/lib/logs';
 import { sanitizeId, visibleColumnIds } from '@/lib/logs/columns';
-import { createEmptyLogRow, deleteLogRow, updateLogEntries } from '@/lib/logs/mutations';
-import { useLogMetrics } from '@/hooks/logs/useLogMetrics';
-import { LogColumnFilter } from './LogColumnFilter';
+import { deleteLogRow, updateLogEntries } from '@/lib/logs/mutations';
 import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
 import { LogCellValue } from './LogCellValue';
-import { LogGridToolbar, useContainerWidth } from './LogGridToolbar';
+import { LogGridColumnHeader, LogGridSortableHead } from './LogGridColumnHeader';
+import { LogGridToolbar } from './LogGridToolbar';
 
 function SortableHeader({
   header,
@@ -75,45 +65,35 @@ function SortableHeader({
   resizer,
   className,
   style,
+  reorderEnabled,
 }: {
   header: Header<LogGridRow, unknown>;
   children: React.ReactNode;
   resizer?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  reorderEnabled: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: header.column.id,
   });
   return (
-    <TableHead
-      ref={setNodeRef}
-      className={cn(className, 'overflow-hidden', isDragging && 'z-20 opacity-80')}
-      style={{
-        ...style,
-        transform: CSS.Translate.toString(transform),
-        transition: isDragging ? 'width transform 0.2s ease-in-out' : undefined,
-      }}
+    <LogGridSortableHead
+      header={header}
+      resizer={resizer}
+      className={className}
+      style={style}
+      reorderEnabled={reorderEnabled}
+      dragAttributes={
+        reorderEnabled ? (attributes as React.HTMLAttributes<HTMLElement>) : undefined
+      }
+      dragListeners={reorderEnabled ? (listeners as React.HTMLAttributes<HTMLElement>) : undefined}
+      setNodeRef={setNodeRef}
+      isDragging={isDragging}
+      transformStyle={CSS.Translate.toString(transform)}
     >
-      <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">
-        <button
-          type="button"
-          className="relative z-[1] flex h-6 w-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"
-          aria-label={`Reorder ${sanitizeId(header.column.id)}`}
-          data-testid={`log-grid-drag-${sanitizeId(header.column.id)}`}
-          {...attributes}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <GripVertical className="pointer-events-none h-3 w-3 shrink-0" aria-hidden="true" />
-        </button>
-        <div className="relative z-[2] flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
-          {children}
-        </div>
-      </div>
-      {resizer}
-    </TableHead>
+      {children}
+    </LogGridSortableHead>
   );
 }
 
@@ -156,7 +136,6 @@ export function LogGrid({
   onRowActivate,
   onDerivedCreated,
   onMutated,
-  filterExpr,
   error = null,
   onRetry,
   onBrowseRowsChange,
@@ -170,12 +149,13 @@ export function LogGrid({
   const [editing, setEditing] = React.useState<{ logId: number; columnId: string } | null>(null);
   const [editValue, setEditValue] = React.useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [commonMode, setCommonMode] = React.useState<'in' | 'expression'>(
-    view.commonFilter.startsWith('expression§') ? 'expression' : 'in'
-  );
+  const [reorderColumnId, setReorderColumnId] = React.useState<string | null>(null);
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
-  const containerWidth = useContainerWidth(rootRef);
+
+  React.useEffect(() => {
+    setReorderColumnId(null);
+  }, [context]);
 
   React.useEffect(() => {
     onBrowseRowsChange?.(rows);
@@ -208,15 +188,6 @@ export function LogGrid({
     view.hiddenColumns
   );
 
-  const metricsQuery = useLogMetrics({
-    projectName,
-    context,
-    columns: visible,
-    view,
-    filterExpr,
-    enabled: !!view.metric,
-  });
-
   const onSortingChange: OnChangeFn<SortingState> = (updater) => {
     const next = typeof updater === 'function' ? updater(view.sorting) : updater;
     onViewChange({ sorting: next, offset: 0 });
@@ -232,6 +203,7 @@ export function LogGrid({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setReorderColumnId(null);
     if (!over || active.id === over.id) return;
     const order = [...(view.columnOrder.length ? view.columnOrder : columns)];
     const oldIndex = order.indexOf(String(active.id));
@@ -262,11 +234,6 @@ export function LogGrid({
     if (result.ok) onMutated?.();
   };
 
-  const openDerivedCreate = () => {
-    setEditColumn(null);
-    setDerivedOpen(true);
-  };
-
   const openDerivedEdit = (key: string) => {
     const meta = fields[key] ?? fields[sanitizeId(key)];
     setEditColumn({ key: sanitizeId(key), equation: meta?.artifacts ?? '' });
@@ -286,48 +253,20 @@ export function LogGrid({
         id: key,
         accessorFn: (row) => row.entries[fieldKey] ?? row.entries[key],
         header: ({ column }) => {
-          const sorted = column.getIsSorted();
           return (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-1 h-7 px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted hover:text-foreground"
-                onClick={() => column.toggleSorting(sorted === 'asc')}
-                data-testid={`log-grid-sort-${fieldKey}`}
-              >
-                <span>{fieldKey}</span>
-                {sorted === 'desc' ? (
-                  <ArrowDown className="ml-1 h-3 w-3" aria-hidden="true" />
-                ) : sorted === 'asc' ? (
-                  <ArrowUp className="ml-1 h-3 w-3" aria-hidden="true" />
-                ) : (
-                  <ChevronsUpDown className="ml-1 h-3 w-3 opacity-60" aria-hidden="true" />
-                )}
-              </Button>
-              <LogColumnFilter
-                column={key}
-                dataType={meta?.dataType}
-                filters={view.filters}
-                onChange={(filters) => onViewChangeRef.current({ filters, offset: 0 })}
-              />
-              {isDerived && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="relative z-20 h-6 w-6 shrink-0 p-0 text-muted-foreground"
-                  title="Edit derived column"
-                  data-testid={`log-grid-derived-edit-${fieldKey}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    openDerivedEditRef.current(key);
-                  }}
-                >
-                  <Pencil className="pointer-events-none h-3 w-3" />
-                </Button>
-              )}
-            </>
+            <LogGridColumnHeader
+              column={column}
+              columnKey={key}
+              fieldKey={fieldKey}
+              dataType={meta?.dataType}
+              filters={view.filters}
+              onFiltersChange={(filters) => onViewChangeRef.current({ filters, offset: 0 })}
+              isDerived={isDerived}
+              onEditDerived={isDerived ? () => openDerivedEditRef.current(key) : undefined}
+              reorderEnabled={reorderColumnId === key}
+              onEnableReorder={() => setReorderColumnId(key)}
+              onDisableReorder={() => setReorderColumnId(null)}
+            />
           );
         },
         size: view.columnSizing?.[key] ?? 160,
@@ -378,7 +317,7 @@ export function LogGrid({
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- commitEdit closes over latest view via refs
-  }, [visible, fields, view.filters, editing, editValue]);
+  }, [visible, fields, view.filters, editing, editValue, reorderColumnId]);
 
   const table = useReactTable({
     data: rows,
@@ -516,11 +455,6 @@ export function LogGrid({
     isSelectingRef.current = false;
   }, []);
 
-  const createRow = async () => {
-    const result = await createEmptyLogRow({ projectName, context });
-    if (result.ok) onMutated?.();
-  };
-
   const selectedCellLogIds = React.useMemo(() => {
     if (selection?.mode !== 'cell') return [] as number[];
     const ids = new Set<number>();
@@ -627,8 +561,6 @@ export function LogGrid({
             columns={columns}
             view={view}
             onViewChange={onViewChange}
-            commonMode={commonMode}
-            onCommonModeChange={setCommonMode}
             commonSearch={commonSearch}
             totalCount={totalCount}
             pageStart={pageStart}
@@ -637,10 +569,7 @@ export function LogGrid({
             canNext={canNext}
             canDelete={canDelete}
             isFetching={isFetching}
-            onCreateRow={() => void createRow()}
             onDeleteRows={() => setDeleteConfirmOpen(true)}
-            onDerivedOpen={openDerivedCreate}
-            containerWidth={containerWidth}
           />
 
           {showError ? (
@@ -683,6 +612,7 @@ export function LogGrid({
                                 <SortableHeader
                                   key={header.id}
                                   header={header}
+                                  reorderEnabled={reorderColumnId === header.column.id}
                                   className="relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground"
                                   style={{
                                     width: header.getSize(),
@@ -758,27 +688,6 @@ export function LogGrid({
                           );
                         })}
                       </TableBody>
-                      <TableFooter>
-                        <TableRow className="bg-muted/20">
-                          {visible.map((key) => {
-                            const fieldKey = sanitizeId(key);
-                            const raw = metricsQuery.data?.[key] ?? metricsQuery.data?.[fieldKey];
-                            const text =
-                              typeof raw === 'number'
-                                ? raw.toLocaleString(undefined, { maximumFractionDigits: 4 })
-                                : '—';
-                            return (
-                              <TableCell
-                                key={key}
-                                className="px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground"
-                                data-testid={`log-grid-metric-cell-${fieldKey}`}
-                              >
-                                {text}
-                              </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      </TableFooter>
                     </Table>
                   </SortableContext>
                 </DndContext>

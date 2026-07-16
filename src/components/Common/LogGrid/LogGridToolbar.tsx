@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
@@ -15,28 +15,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
-import {
-  encodeCommonTextFilter,
-  encodeCommonExpressionFilter,
-  LOG_METRICS,
-  LOG_PAGE_SIZE_OPTIONS,
-  type LogViewState,
-} from '@/lib/logs';
+import { encodeCommonTextFilter, LOG_PAGE_SIZE_OPTIONS, type LogViewState } from '@/lib/logs';
 import { LogColumnVisibility } from './LogColumnVisibility';
-
-const MEDIUM_PX = 720;
-const WIDE_PX = 960;
 
 export type LogGridToolbarProps = {
   columns: string[];
   view: LogViewState;
   onViewChange: (patch: Partial<LogViewState>) => void;
-  commonMode: 'in' | 'expression';
-  onCommonModeChange: (mode: 'in' | 'expression') => void;
   commonSearch: string;
   totalCount: number;
   pageStart: number;
@@ -45,23 +32,16 @@ export type LogGridToolbarProps = {
   canNext: boolean;
   canDelete: boolean;
   isFetching: boolean;
-  onCreateRow: () => void;
   onDeleteRows: () => void;
-  onDerivedOpen: () => void;
-  /** Observed LogGrid container width (px). */
-  containerWidth: number;
 };
 
 /**
- * Density-aware LogGrid chrome: primary strip + ··· overflow menu keyed off
- * container width (not the window), so half-pane Data leaves stay one row.
+ * LogGrid chrome: search, columns, optional delete overflow, page size, pagination.
  */
 export function LogGridToolbar({
   columns,
   view,
   onViewChange,
-  commonMode,
-  onCommonModeChange,
   commonSearch,
   totalCount,
   pageStart,
@@ -70,81 +50,22 @@ export function LogGridToolbar({
   canNext,
   canDelete,
   isFetching,
-  onCreateRow,
   onDeleteRows,
-  onDerivedOpen,
-  containerWidth,
 }: LogGridToolbarProps) {
-  const isMedium = containerWidth >= MEDIUM_PX;
-  const isWide = containerWidth >= WIDE_PX;
-
-  const showMetricInStrip = isMedium;
-  const showPageSizeInStrip = isWide;
-
-  const hasOverflowActive = Boolean(view.filters || view.commonFilter);
-
-  const metricSelect = (
-    <Select value={view.metric || 'mean'} onValueChange={(metric) => onViewChange({ metric })}>
-      <SelectTrigger className="h-8 w-[110px]" data-testid="log-grid-metric">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {LOG_METRICS.map((m) => (
-          <SelectItem key={m} value={m}>
-            {m}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  const pageSizeSelect = (
-    <Select
-      value={String(view.limit)}
-      onValueChange={(v) => onViewChange({ limit: Number(v), offset: 0 })}
-    >
-      <SelectTrigger className="h-8 w-[88px]" data-testid="log-grid-page-size">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {LOG_PAGE_SIZE_OPTIONS.map((n) => (
-          <SelectItem key={n} value={String(n)}>
-            {n}/page
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
   return (
     <div
       className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto border-b border-border px-4 py-2"
       data-testid="log-grid-toolbar"
     >
-      <Select
-        value={commonMode}
-        onValueChange={(v) => onCommonModeChange(v as 'in' | 'expression')}
-      >
-        <SelectTrigger className="h-8 w-[110px] shrink-0" data-testid="log-grid-common-mode">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="in">Search</SelectItem>
-          <SelectItem value="expression">Expression</SelectItem>
-        </SelectContent>
-      </Select>
       <Input
         value={commonSearch}
         onChange={(e) =>
           onViewChange({
-            commonFilter:
-              commonMode === 'expression'
-                ? encodeCommonExpressionFilter(e.target.value)
-                : encodeCommonTextFilter(e.target.value),
+            commonFilter: encodeCommonTextFilter(e.target.value),
             offset: 0,
           })
         }
-        placeholder={commonMode === 'expression' ? 'filter expression…' : 'Search all columns…'}
+        placeholder="Search all columns…"
         className="h-8 min-w-[8rem] max-w-xs shrink font-mono"
         data-testid="log-grid-common-filter"
       />
@@ -154,39 +75,20 @@ export function LogGridToolbar({
         onChange={(hiddenColumns) => onViewChange({ hiddenColumns })}
       />
 
-      {showMetricInStrip && metricSelect}
-
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant={hasOverflowActive ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 w-8 shrink-0 p-0"
-            aria-label="More table controls"
-            data-testid="log-grid-more"
-          >
-            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          {!showMetricInStrip && (
-            <>
-              <DropdownMenuLabel>View</DropdownMenuLabel>
-              <div className="px-2 py-1.5">{metricSelect}</div>
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          <DropdownMenuLabel>Rows</DropdownMenuLabel>
-          <DropdownMenuItem onSelect={() => onDerivedOpen()} data-testid="log-grid-derived-open">
-            <Plus className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-            Derived column
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onCreateRow()} data-testid="log-grid-create-row">
-            <Plus className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-            New row
-          </DropdownMenuItem>
-          {canDelete && (
+      {canDelete && (
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 shrink-0 p-0"
+              aria-label="More table controls"
+              data-testid="log-grid-more"
+            >
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onSelect={() => onDeleteRows()}
@@ -195,17 +97,9 @@ export function LogGridToolbar({
               <Trash2 className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
               Delete selected
             </DropdownMenuItem>
-          )}
-
-          {!showPageSizeInStrip && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Layout</DropdownMenuLabel>
-              <div className="px-2 py-1.5">{pageSizeSelect}</div>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       {isFetching && (
         <span
@@ -217,7 +111,21 @@ export function LogGridToolbar({
       )}
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        {showPageSizeInStrip && pageSizeSelect}
+        <Select
+          value={String(view.limit)}
+          onValueChange={(v) => onViewChange({ limit: Number(v), offset: 0 })}
+        >
+          <SelectTrigger className="h-8 w-[88px]" data-testid="log-grid-page-size">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LOG_PAGE_SIZE_OPTIONS.map((n) => (
+              <SelectItem key={n} value={String(n)}>
+                {n}/page
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-caption text-muted-foreground" data-testid="log-grid-page-status">
           {totalCount === 0
             ? '0 rows'
@@ -248,7 +156,7 @@ export function LogGridToolbar({
   );
 }
 
-/** Hook: observe element width for toolbar density tiers. */
+/** Hook: observe element width for density-aware chrome. */
 export function useContainerWidth(ref: React.RefObject<HTMLElement | null>): number {
   const [width, setWidth] = React.useState(1200);
   React.useLayoutEffect(() => {
@@ -268,5 +176,3 @@ export function useContainerWidth(ref: React.RefObject<HTMLElement | null>): num
   }, [ref]);
   return width;
 }
-
-export { MEDIUM_PX, WIDE_PX };
