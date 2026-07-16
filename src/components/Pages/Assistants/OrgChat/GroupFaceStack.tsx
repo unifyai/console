@@ -13,22 +13,39 @@ export interface GroupFaceStackMember {
 
 interface GroupFaceStackProps {
   members: GroupFaceStackMember[];
-  maxVisible?: number;
   className?: string;
   sizeClassName?: string;
 }
 
-/** Overlapping avatar stack used for chat-group rows and switcher faces. */
+function FaceCell({ member, className }: { member: GroupFaceStackMember; className?: string }) {
+  return (
+    <div className={cn('relative min-h-0 min-w-0 overflow-hidden bg-muted', className)}>
+      {member.image ? (
+        // eslint-disable-next-line @next/next/no-img-element -- signed profile URLs; matches AvatarImage
+        <img src={member.image} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center text-[length:max(5px,28cqw)] font-semibold leading-none text-primary-foreground"
+          style={{ backgroundColor: profileAvatarTone(member.name) }}
+        >
+          {profileInitials(member.name)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyCell({ className }: { className?: string }) {
+  return <div className={cn('min-h-0 min-w-0 bg-muted', className)} />;
+}
+
+/** Fixed-size 2×2 face collage for chat-group rows and switcher faces. */
 export function GroupFaceStack({
   members,
-  maxVisible = 3,
   className,
   sizeClassName = 'h-7 w-7',
 }: GroupFaceStackProps) {
-  const visible = members.slice(0, maxVisible);
-  const overflow = Math.max(0, members.length - visible.length);
-
-  if (visible.length === 0) {
+  if (members.length === 0) {
     return (
       <Avatar className={cn('rounded-control shrink-0', sizeClassName, className)}>
         <AvatarFallback className="rounded-control bg-muted text-[10px] font-semibold text-muted-foreground">
@@ -38,38 +55,55 @@ export function GroupFaceStack({
     );
   }
 
+  if (members.length === 1) {
+    const member = members[0];
+    return (
+      <Avatar className={cn('rounded-control shrink-0', sizeClassName, className)}>
+        {member.image ? <AvatarImage src={member.image} alt={member.name} /> : null}
+        <AvatarFallback
+          className="rounded-control text-[10px] font-semibold text-primary-foreground"
+          style={{ backgroundColor: profileAvatarTone(member.name) }}
+        >
+          {profileInitials(member.name)}
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+
+  const faces = members.slice(0, 3);
+  const overflow = Math.max(0, members.length - 3);
+
   return (
-    <div className={cn('flex shrink-0 items-center', className)} aria-hidden="true">
-      {visible.map((member, index) => (
-        <Avatar
-          key={member.id}
-          className={cn(
-            'rounded-control border-2 border-background',
-            sizeClassName,
-            index > 0 && '-ml-2'
-          )}
-          style={{ zIndex: visible.length - index }}
-        >
-          {member.image ? <AvatarImage src={member.image} alt={member.name} /> : null}
-          <AvatarFallback
-            className="rounded-control text-[10px] font-semibold text-primary-foreground"
-            style={{ backgroundColor: profileAvatarTone(member.name) }}
-          >
-            {profileInitials(member.name)}
-          </AvatarFallback>
-        </Avatar>
-      ))}
+    <div
+      className={cn(
+        '@container rounded-control grid shrink-0 grid-cols-2 grid-rows-2 gap-px overflow-hidden bg-border',
+        sizeClassName,
+        className
+      )}
+      aria-hidden="true"
+    >
+      {faces[0] ? (
+        <FaceCell member={faces[0]} className="col-start-1 row-start-1" />
+      ) : (
+        <EmptyCell className="col-start-1 row-start-1" />
+      )}
+      {faces[1] ? (
+        <FaceCell member={faces[1]} className="col-start-1 row-start-2" />
+      ) : (
+        <EmptyCell className="col-start-1 row-start-2" />
+      )}
+      {faces[2] ? (
+        <FaceCell member={faces[2]} className="col-start-2 row-start-1" />
+      ) : (
+        <EmptyCell className="col-start-2 row-start-1" />
+      )}
       {overflow > 0 ? (
-        <span
-          className={cn(
-            'rounded-control -ml-2 flex items-center justify-center border-2 border-background bg-muted text-[10px] font-semibold text-muted-foreground',
-            sizeClassName
-          )}
-          style={{ zIndex: 0 }}
-        >
+        <div className="col-start-2 row-start-2 flex min-h-0 min-w-0 items-center justify-center bg-muted text-[length:max(5px,28cqw)] font-semibold leading-none text-muted-foreground">
           +{overflow}
-        </span>
-      ) : null}
+        </div>
+      ) : (
+        <EmptyCell className="col-start-2 row-start-2" />
+      )}
     </div>
   );
 }
