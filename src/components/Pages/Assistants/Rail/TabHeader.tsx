@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/UI/badge';
 import { GlobalPlatformActions } from '@/components/Layout/GlobalPlatformActions';
 import type { SectionDef } from './sectionConfig';
 
@@ -33,6 +34,15 @@ export function TabHeader({ section, leading, right }: TabHeaderProps) {
           </span>
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="text-h2 min-w-0 truncate text-foreground">{section.label}</span>
+            {section.badge && (
+              <Badge
+                variant="outline"
+                data-testid={`tab-header-badge-${section.id}`}
+                className="uppercase tracking-[0.06em]"
+              >
+                {section.badge}
+              </Badge>
+            )}
             <button
               type="button"
               onClick={() => setInfo((v) => !v)}

@@ -56,6 +56,7 @@ export {
   createMsTeamsBotInstall,
   getMsTeamsBotInstallState,
   deleteMsTeamsBotInstall,
+  seedChatInfrastructure,
 } from '../helpers/seeds/client';
 export {
   deferCoordinatorAfterAssistantsLoad,

@@ -14,8 +14,17 @@ import {
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
+import {
+  buildDataBrowserTree,
+  contextMatchesDataBrowserMode,
+  type DataBrowserMode,
+  type DataBrowserRoot,
+  type DataTreeNode,
+} from '@/lib/assistants/dataBrowser';
 import { useShellResource } from '@/hooks/Common/useShellResource';
+import { Badge } from '@/components/UI/badge';
 import { TabFooter } from '../Common/TabFooter';
+import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
@@ -32,74 +41,11 @@ interface DataPaneProps {
   enabled?: boolean;
 }
 
-/**
- * A readable context root the Data browser draws from. Personal data lives
- * under ``{ownerId}/{assistantId}/``; each team the assistant belongs to
- * contributes a ``Teams/{teamId}/`` root, surfaced under its own group node
- * so identically-named tables across roots never collide.
- */
-interface DataRoot {
-  prefix: string;
-  group: string | null;
-}
-
-/**
- * Context names that belong to dedicated Brain surfaces — excluded from the Data
- * browser, which shows the remaining ingested data-layer contexts as a directory.
- */
-const RESERVED_ROOTS = new Set([
-  'Contacts',
-  'Transcripts',
-  'Knowledge',
-  'Functions',
-  'Guidance',
-  'Tasks',
-  'Dashboards',
-  'Secrets',
-  'Events',
-]);
-
-interface TreeNode {
-  name: string;
-  /** Full Orchestra context path when this node is a selectable table leaf. */
-  context: string | null;
-  children: Map<string, TreeNode>;
-}
-
 interface LeafMeta {
   count: number;
   loaded: number;
   columns: number;
   fields: Record<string, DataField>;
-}
-
-function newNode(name: string): TreeNode {
-  return { name, context: null, children: new Map() };
-}
-
-function buildTree(contextNames: string[], dataRoots: DataRoot[]): TreeNode {
-  const root = newNode('root');
-  for (const fullName of contextNames) {
-    const match = dataRoots.find((r) => fullName.startsWith(r.prefix));
-    if (!match) continue;
-    const relative = fullName.slice(match.prefix.length);
-    let segments = relative.split('/').filter(Boolean);
-    // Only ingest contexts under the assistant's `Data/` tree — not sibling
-    // roots like Contacts, Exchanges, FileRecords, etc.
-    if (segments[0] !== 'Data' || segments.length < 2) continue;
-    segments = segments.slice(1);
-    if (segments.length === 0 || RESERVED_ROOTS.has(segments[0])) continue;
-    // Team roots are nested under a group node so identically-named tables in
-    // different roots stay distinct.
-    if (match.group) segments = [match.group, ...segments];
-    let cursor = root;
-    segments.forEach((segment, index) => {
-      if (!cursor.children.has(segment)) cursor.children.set(segment, newNode(segment));
-      cursor = cursor.children.get(segment)!;
-      if (index === segments.length - 1) cursor.context = fullName;
-    });
-  }
-  return root;
 }
 
 function TreeRow({
@@ -110,7 +56,7 @@ function TreeRow({
   selected,
   onSelect,
 }: {
-  node: TreeNode;
+  node: DataTreeNode;
   depth: number;
   expanded: Set<string>;
   toggle: (key: string) => void;
@@ -192,6 +138,31 @@ function LeafHeaderStats({ meta }: { meta: LeafMeta | null }) {
   );
 }
 
+function ModeSegments({
+  mode,
+  onChange,
+}: {
+  mode: DataBrowserMode;
+  onChange: (mode: DataBrowserMode) => void;
+}) {
+  return (
+    <TabSegmentGroup testId="data-browser-mode">
+      <TabSegment
+        label="Tables"
+        active={mode === 'tables'}
+        onClick={() => onChange('tables')}
+        testId="data-mode-tables"
+      />
+      <TabSegment
+        label="State"
+        active={mode === 'state'}
+        onClick={() => onChange('state')}
+        testId="data-mode-state"
+      />
+    </TabSegmentGroup>
+  );
+}
+
 export function DataPane({
   assistant,
   ownerId,
@@ -199,7 +170,7 @@ export function DataPane({
   root = null,
   enabled = true,
 }: DataPaneProps) {
-  const dataRoots = React.useMemo<DataRoot[]>(() => {
+  const dataRoots = React.useMemo<DataBrowserRoot[]>(() => {
     if (root?.kind === 'team') {
       return [{ prefix: `Teams/${root.teamId}/`, group: null }];
     }
@@ -220,6 +191,7 @@ export function DataPane({
     [dataRoots]
   );
 
+  const [mode, setMode] = React.useState<DataBrowserMode>('tables');
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
@@ -235,32 +207,52 @@ export function DataPane({
     }
   }, [isStackedLayout]);
 
-  const loadTree = React.useCallback(async (): Promise<TreeNode> => {
+  const loadContextNames = React.useCallback(async (): Promise<string[]> => {
     const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
     const raw: unknown = res.ok ? await res.json() : [];
-    const names = Array.isArray(raw)
+    return Array.isArray(raw)
       ? raw
           .map((c) => (typeof c === 'string' ? c : (c as { name?: string })?.name))
           .filter((name): name is string => Boolean(name))
       : [];
-    return buildTree(names, dataRoots);
-  }, [dataRoots]);
+  }, []);
 
   const {
-    data: tree,
+    data: contextNames,
     isInitialLoading: isLoadingTree,
     refresh: refreshTree,
-  } = useShellResource<TreeNode>({
-    queryKey: ['assistant-data-tree', ownerId, assistantId, rootKey(root ?? { kind: 'personal' })],
-    queryFn: loadTree,
+  } = useShellResource<string[]>({
+    queryKey: [
+      'assistant-data-contexts',
+      ownerId,
+      assistantId,
+      rootKey(root ?? { kind: 'personal' }),
+    ],
+    queryFn: loadContextNames,
     enabled: enabled && !!ownerId && !!assistantId,
   });
 
+  const tree = React.useMemo(
+    () => buildDataBrowserTree(contextNames ?? [], dataRoots, mode),
+    [contextNames, dataRoots, mode]
+  );
+
   React.useEffect(() => {
-    if (!tree) return;
-    // Expand top-level folders (keys must match TreeRow: name + depth for non-leaves).
     setExpanded(new Set(Array.from(tree.children.values()).map((n) => n.context ?? `${n.name}0`)));
   }, [tree]);
+
+  const changeMode = React.useCallback(
+    (next: DataBrowserMode) => {
+      setMode(next);
+      setSelected((prev) =>
+        prev && contextMatchesDataBrowserMode(prev, dataRoots, next) ? prev : null
+      );
+      setSelectedRow(null);
+      setLeafMeta(null);
+      if (isStackedLayout) setMobileShowTree(true);
+    },
+    [dataRoots, isStackedLayout]
+  );
 
   const selectLeaf = React.useCallback(
     (context: string) => {
@@ -336,9 +328,7 @@ export function DataPane({
     setRefreshToken((t) => t + 1);
   }, [selected, selectedRow]);
 
-  const topNodes = tree
-    ? Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name))
-    : [];
+  const topNodes = Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   const selectedDisplayPath = selected ? stripRootPrefix(selected) : null;
   const selectedTableName = selectedDisplayPath
@@ -350,6 +340,34 @@ export function DataPane({
           .slice(0, selectedDisplayPath.length - selectedTableName.length)
           .replace(/\/$/, '')
       : null;
+
+  const emptyTreeCopy =
+    mode === 'tables' ? 'No ingested data yet.' : 'No state-manager contexts yet.';
+  const emptySelectCopy =
+    mode === 'tables'
+      ? 'Select a table from the directory to browse its rows.'
+      : 'Select a state-manager context to browse and edit its rows.';
+  const sidebarTitle = mode === 'tables' ? 'Tables' : 'State';
+
+  const treeList = (
+    <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
+      {topNodes.length === 0 ? (
+        <p className="text-caption px-2 py-6 text-center">{emptyTreeCopy}</p>
+      ) : (
+        topNodes.map((node) => (
+          <TreeRow
+            key={node.name}
+            node={node}
+            depth={0}
+            expanded={expanded}
+            toggle={toggle}
+            selected={selected}
+            onSelect={selectLeaf}
+          />
+        ))
+      )}
+    </div>
+  );
 
   const leafTable = selected ? (
     <DataLeafTable
@@ -383,56 +401,81 @@ export function DataPane({
     </>
   );
 
+  const sidebarHeader = (
+    <div className="flex flex-col gap-2 border-b border-border px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-title flex min-w-0 items-center gap-2 text-foreground">
+          <Database className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="truncate">{sidebarTitle}</span>
+          <Badge
+            variant="outline"
+            data-testid="data-advanced-badge"
+            className="uppercase tracking-[0.06em]"
+          >
+            Advanced
+          </Badge>
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              void refreshTree({ blocking: true });
+            }}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Refresh data contexts"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          {!isStackedLayout && (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Collapse data layer sidebar"
+              data-testid="data-sidebar-collapse"
+            >
+              <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+      <ModeSegments mode={mode} onChange={changeMode} />
+    </div>
+  );
+
   return (
     <div
       className="flex h-full w-full flex-col overflow-hidden bg-background"
       data-testid="data-pane"
+      data-mode={mode}
     >
       {isLoadingTree ? (
         <TabSplitSkeleton className="min-h-0 flex-1" listRows={8} />
       ) : (
         <>
+          {mode === 'state' && (
+            <div
+              className="bg-muted/40 shrink-0 border-b border-border px-4 py-2.5"
+              data-testid="data-state-banner"
+              role="status"
+            >
+              <p className="text-caption text-muted-foreground">
+                These are live assistant state tables. Edits can change behaviour — prefer the
+                dedicated Storage tabs for everyday browsing.
+              </p>
+            </div>
+          )}
+
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {isStackedLayout ? (
               mobileShowTree || !selected ? (
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
-                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                    <div className="text-title flex items-center gap-2 text-foreground">
-                      <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                      Data layer
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void refreshTree({ blocking: true });
-                      }}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      aria-label="Refresh data contexts"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-                    {topNodes.length === 0 ? (
-                      <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
-                    ) : (
-                      topNodes.map((node) => (
-                        <TreeRow
-                          key={node.name}
-                          node={node}
-                          depth={0}
-                          expanded={expanded}
-                          toggle={toggle}
-                          selected={selected}
-                          onSelect={selectLeaf}
-                        />
-                      ))
-                    )}
-                  </div>
+                  {sidebarHeader}
+                  {treeList}
                 </div>
               ) : (
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                  <div className="flex shrink-0 items-center border-b border-border bg-card px-3 py-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
                     <button
                       type="button"
                       onClick={() => setMobileShowTree(true)}
@@ -440,8 +483,9 @@ export function DataPane({
                       data-testid="data-mobile-back"
                     >
                       <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                      Data layer
+                      {sidebarTitle}
                     </button>
+                    <ModeSegments mode={mode} onChange={changeMode} />
                   </div>
                   {leafChrome}
                 </div>
@@ -450,56 +494,14 @@ export function DataPane({
               <>
                 {sidebarOpen && (
                   <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
-                    <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                      <div className="text-title flex items-center gap-2 text-foreground">
-                        <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                        Data layer
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void refreshTree({ blocking: true });
-                          }}
-                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          aria-label="Refresh data contexts"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSidebarOpen(false)}
-                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          aria-label="Collapse data layer sidebar"
-                          data-testid="data-sidebar-collapse"
-                        >
-                          <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-                      {topNodes.length === 0 ? (
-                        <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
-                      ) : (
-                        topNodes.map((node) => (
-                          <TreeRow
-                            key={node.name}
-                            node={node}
-                            depth={0}
-                            expanded={expanded}
-                            toggle={toggle}
-                            selected={selected}
-                            onSelect={selectLeaf}
-                          />
-                        ))
-                      )}
-                    </div>
+                    {sidebarHeader}
+                    {treeList}
                   </div>
                 )}
 
                 <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                   {!sidebarOpen && (
-                    <div className="flex shrink-0 items-center border-b border-border px-3 py-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
                       <button
                         type="button"
                         onClick={() => setSidebarOpen(true)}
@@ -507,8 +509,16 @@ export function DataPane({
                         data-testid="data-sidebar-expand"
                       >
                         <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                        Data layer
+                        {sidebarTitle}
                       </button>
+                      <ModeSegments mode={mode} onChange={changeMode} />
+                      <Badge
+                        variant="outline"
+                        data-testid="data-advanced-badge"
+                        className="uppercase tracking-[0.06em]"
+                      >
+                        Advanced
+                      </Badge>
                     </div>
                   )}
                   {!selected ? (
@@ -518,9 +528,7 @@ export function DataPane({
                           className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
                           aria-hidden="true"
                         />
-                        <p className="text-body-muted">
-                          Select a table from the directory to browse its rows.
-                        </p>
+                        <p className="text-body-muted">{emptySelectCopy}</p>
                       </div>
                     </div>
                   ) : (

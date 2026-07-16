@@ -20,6 +20,8 @@ interface RailNavButtonProps {
   onClick?: () => void;
   testId?: string;
   showActivityDot?: boolean;
+  /** Optional chip shown next to the label (e.g. Advanced). */
+  badge?: string;
 }
 
 /**
@@ -36,6 +38,7 @@ export function RailNavButton({
   onClick,
   testId,
   showActivityDot = false,
+  badge,
 }: RailNavButtonProps) {
   const button = (
     <button
@@ -43,7 +46,7 @@ export function RailNavButton({
       onClick={onClick}
       disabled={disabled}
       aria-current={active ? 'page' : undefined}
-      aria-label={collapsed ? label : undefined}
+      aria-label={collapsed ? (badge ? `${label} (${badge})` : label) : undefined}
       data-testid={testId}
       className={cn(
         'group/nav relative flex w-full items-center gap-3 rounded-[10px] font-medium transition-colors',
@@ -61,6 +64,14 @@ export function RailNavButton({
         <Icon className="h-4 w-4" strokeWidth={RAIL_ICON_STROKE} aria-hidden="true" />
       </span>
       {!collapsed && <span className="text-[13px] font-normal">{label}</span>}
+      {!collapsed && badge && (
+        <span
+          className="rounded-md border border-border px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-[0.06em] text-muted-foreground"
+          data-testid={testId ? `${testId}-badge` : undefined}
+        >
+          {badge}
+        </span>
+      )}
       {showActivityDot && (
         <span
           className={cn(
@@ -71,7 +82,7 @@ export function RailNavButton({
           data-testid={testId ? `${testId}-activity-dot` : undefined}
         />
       )}
-      {!collapsed && active && (
+      {!collapsed && active && !showActivityDot && (
         <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
       )}
     </button>
@@ -84,7 +95,7 @@ export function RailNavButton({
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="right">
-          <p>{label}</p>
+          <p>{badge ? `${label} · ${badge}` : label}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

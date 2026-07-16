@@ -53,6 +53,8 @@ export interface SectionDef {
    * assistant-only (the historical default).
    */
   appliesTo?: ReadonlyArray<SelectorEntityKind>;
+  /** Optional rail/header chip (e.g. Data → Advanced). */
+  badge?: string;
 }
 
 export function sectionAppliesTo(section: SectionDef, kind: SelectorEntityKind): boolean {
@@ -246,11 +248,18 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',
-    desc: 'Everything your teammate has ingested — browse nested tables like a directory and open any to view rows.',
+    badge: 'Advanced',
+    desc: 'Advanced table browser for ingested Data tables and live state-manager contexts. Prefer the dedicated Storage tabs for everyday browsing; edits here can change assistant behaviour.',
     steps: [
-      ['Open a folder', 'Drill into nested tables like a file directory.'],
-      ['Open a table', 'View its schema and rows at the leaf.'],
-      ['Trace the source', 'Each table shows where the underlying data came from.'],
+      ['Stay on Tables', 'Browse ingested Data/ tables — the default, everyday mode.'],
+      [
+        'Switch to State',
+        'Open Contacts, Tasks, Knowledge, and other state-manager contexts when you need raw row edits.',
+      ],
+      [
+        'Edit carefully',
+        'LogGrid mutations write straight to Orchestra; use dedicated tabs when you only need to read.',
+      ],
     ],
   },
 ];
