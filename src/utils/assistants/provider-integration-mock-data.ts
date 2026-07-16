@@ -5,11 +5,16 @@ import type { IntegrationDefinition } from '@/types/integrations';
 export const USE_MOCK_PROVIDER_INTEGRATIONS = false;
 
 function canUseRuntimeMockFlag(): boolean {
-  return typeof window !== 'undefined' && process.env.NODE_ENV !== 'production';
+  if (typeof window === 'undefined') return false;
+  // Local stack often runs a production Next build on localhost; still allow the
+  // explicit mock flag there so Playwright can drive the gallery without live
+  // provider credentials.
+  const host = window.location.hostname;
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+  return process.env.NODE_ENV !== 'production' || isLocalHost;
 }
 
 export function shouldUseMockProviderIntegrations(): boolean {
-  if (process.env.NODE_ENV === 'production') return false;
   if (USE_MOCK_PROVIDER_INTEGRATIONS) return true;
   if (!canUseRuntimeMockFlag()) return false;
   const params = new URLSearchParams(window.location.search);

@@ -195,3 +195,14 @@ export function openPendingOAuthTab(): PendingOAuthTab {
     },
   };
 }
+
+/**
+ * Copy an authorize URL for a private-window OAuth pass. Browsers cannot open
+ * a private window via script, so callers instruct the user to paste the URL
+ * into a private/incognito window after this succeeds.
+ */
+export async function copyAuthorizeUrlForPrivateWindow(url: string): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return false;
+  await navigator.clipboard.writeText(url);
+  return true;
+}

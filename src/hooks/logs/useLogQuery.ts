@@ -86,7 +86,6 @@ export function useLogQuery({
     enabled:
       enabled && !!spec && (!!fieldsOverride || fieldsQuery.isSuccess || fieldsQuery.isFetched),
     placeholderData: (prev) => prev,
-    refetchInterval: view.autoUpdate && !view.grouping ? 5_000 : false,
   });
 
   return {

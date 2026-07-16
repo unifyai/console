@@ -137,7 +137,7 @@ async function openMockIntegrationsTab(page: Page) {
     window.localStorage.setItem('console:integrations:mock', 'true');
     window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
   });
-  await page.goto(`/assistants?profile=${assistant.agentId}`);
+  await page.goto(`/assistants?profile=${assistant.agentId}&mockProviderIntegrations=1`);
   await closeHireDialogIfOpen(page);
 
   await openRailSection(page, 'integrations');
@@ -145,6 +145,9 @@ async function openMockIntegrationsTab(page: Page) {
   const pane = page.getByTestId('integrations-pane');
   await expect(pane).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('integration-gallery')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('provider-integration-card-hubspot')).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 test('mock connected-apps page shows dynamic apps, permissions, tools, and connect flow @critical @area(assistants.integrations)', async ({
@@ -153,9 +156,9 @@ test('mock connected-apps page shows dynamic apps, permissions, tools, and conne
   const policyPatchCalls = await installMockPolicyRoutes(page);
   await openMockIntegrationsTab(page);
 
-  await expect(page.getByTestId('provider-integration-card-slack')).toBeVisible();
-  await expect(page.getByTestId('provider-integration-card-clay')).toBeVisible();
   await expect(page.getByTestId('provider-integration-card-hubspot')).toBeVisible();
+  await expect(page.getByTestId('integration-card-accounts-hubspot')).toContainText('2 accounts');
+  await expect(page.getByTestId('provider-integration-card-clay')).toBeVisible();
   await expect(page.getByTestId('integration-virtual-list')).toBeVisible();
   await page.getByTestId('integration-virtual-list').evaluate((element) => {
     element.scrollTop = element.scrollHeight;
@@ -211,13 +214,54 @@ test('mock connected-apps page shows dynamic apps, permissions, tools, and conne
   await expect(page.getByTestId('provider-integration-card-slack')).toBeVisible();
   await page.getByTestId('integration-card-primary-slack').click();
   await expect(page.getByTestId('provider-integration-connect-dialog')).toBeVisible();
+  await expect(page.getByTestId('provider-integration-connect-dialog')).toContainText(
+    'Connect Slack'
+  );
+  await expect(page.getByTestId('provider-integration-connect-identity-warning')).toBeVisible();
   await page
     .getByTestId('provider-integration-connect-dialog')
     .getByLabel('Account label')
     .fill('Work Slack');
-  await page
-    .getByTestId('provider-integration-connect-dialog')
-    .getByRole('button', { name: 'Connect' })
-    .click();
+  await page.getByTestId('provider-integration-connect-submit').click();
   await expect(page.getByText('Started Slack connection.')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('provider-integration-detail-sheet')).toBeVisible();
+  await expect(page.getByTestId('integration-connect-success')).toBeVisible();
+  await expect(page.getByTestId('integration-connect-success')).toContainText('Work Slack');
+  await page.getByTestId('integration-connect-add-another').click();
+  await expect(page.getByTestId('provider-integration-connect-dialog')).toBeVisible();
+  await expect(page.getByTestId('provider-integration-connect-dialog')).toContainText(
+    'Add another Slack account'
+  );
+  await expect(page.getByTestId('provider-integration-connect-private-window')).toBeVisible();
+});
+
+test('mock HubSpot add-account keeps the detail sheet open for the multi-add loop @area(assistants.integrations)', async ({
+  authedPage: page,
+}) => {
+  await installMockPolicyRoutes(page);
+  await openMockIntegrationsTab(page);
+
+  await page.getByTestId('integration-card-primary-hubspot').click();
+  await expect(page.getByTestId('provider-integration-detail-sheet')).toBeVisible();
+  await page.getByTestId('integration-connect-another-account').click();
+  await expect(page.getByTestId('provider-integration-connect-dialog')).toBeVisible();
+  await expect(page.getByTestId('provider-integration-connect-dialog')).toContainText(
+    'Add another HubSpot account'
+  );
+  await expect(page.getByTestId('integration-usage-mode')).toBeVisible();
+  await expect(page.getByTestId('provider-integration-detail-sheet')).toBeVisible();
+  await expect(page.getByTestId('provider-integration-connect-submit')).toBeDisabled();
+  await page.getByTestId('provider-integration-connect-label').fill('rate-limit-bot');
+  await expect(page.getByTestId('provider-integration-connect-submit')).toBeEnabled();
+  await page.getByTestId('provider-integration-connect-submit').click();
+  await expect(page.getByTestId('integration-connect-success')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integration-connect-success')).toContainText('rate-limit-bot');
+  await page.getByTestId('integration-connect-success-done').click();
+  await expect(page.getByTestId('integration-connect-success')).toBeHidden();
+  await expect(page.getByTestId('provider-integration-detail-sheet')).toBeVisible();
+  await page.getByTestId('integration-usage-mode-select').click();
+  await page.getByRole('option', { name: 'Round-robin pool' }).click();
+  await expect(page.getByTestId('integration-usage-mode')).toContainText(
+    'Live accounts share API quota'
+  );
 });

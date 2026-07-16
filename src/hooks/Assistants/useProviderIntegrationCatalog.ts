@@ -440,13 +440,38 @@ export function useProviderIntegrationCatalog(
     async (
       definition: IntegrationDefinition,
       apiKeyValues?: Record<string, string>,
-      options: { accountLabel?: string } = {}
+      options: {
+        accountLabel?: string;
+        /**
+         * ``popup`` (default) opens/navigates the OAuth popup.
+         * ``manual`` returns ``connectUrl`` without opening a popup so the
+         * caller can copy it for a private-window authorize pass.
+         */
+        navigation?: 'popup' | 'manual';
+      } = {}
     ): Promise<ProviderIntegrationConnectStartResponse | null> => {
+      const primaryAuthMode = definition.authModes.includes('oauth')
+        ? 'oauth'
+        : (definition.authModes[0] ?? 'api_key');
       if (isMock) {
         setIsConnecting(definition.canonicalSlug);
         toast.success(`Started ${definition.displayName} connection.`);
         setIsConnecting(null);
-        return null;
+        return {
+          connectUrl: null,
+          authMode: primaryAuthMode,
+          requiresBrowserRedirect: false,
+          requestedScopes: definition.scopes.map((scope) => scope.id),
+          connection: {
+            id: `mock-${definition.canonicalSlug}-connection`,
+            definitionId: definition.id,
+            canonicalSlug: definition.canonicalSlug,
+            status: 'connected',
+            accountLabel: options.accountLabel ?? null,
+            ownerScope: 'assistant',
+            source: definition.source,
+          },
+        };
       }
       if (
         definition.sourceMetadata?.sourceType === 'native' ||
@@ -457,10 +482,9 @@ export function useProviderIntegrationCatalog(
         );
         return null;
       }
-      const primaryAuthMode = definition.authModes.includes('oauth')
-        ? 'oauth'
-        : (definition.authModes[0] ?? 'api_key');
-      const pendingTab = primaryAuthMode === 'oauth' ? openPendingOAuthTab() : null;
+      const navigation = options.navigation ?? 'popup';
+      const pendingTab =
+        primaryAuthMode === 'oauth' && navigation === 'popup' ? openPendingOAuthTab() : null;
       setIsConnecting(definition.canonicalSlug);
       try {
         const detail =
@@ -487,13 +511,15 @@ export function useProviderIntegrationCatalog(
           accountLabel: options.accountLabel,
         });
         if (data.connectUrl) {
-          if (pendingTab?.opened) pendingTab.navigate(data.connectUrl);
-          else {
-            window.open(
-              data.connectUrl,
-              'unify-oauth-popup',
-              'popup=yes,width=560,height=720,resizable=yes,scrollbars=yes'
-            );
+          if (navigation === 'popup') {
+            if (pendingTab?.opened) pendingTab.navigate(data.connectUrl);
+            else {
+              window.open(
+                data.connectUrl,
+                'unify-oauth-popup',
+                'popup=yes,width=560,height=720,resizable=yes,scrollbars=yes'
+              );
+            }
           }
         } else {
           pendingTab?.close();

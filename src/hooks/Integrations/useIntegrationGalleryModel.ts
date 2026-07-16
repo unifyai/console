@@ -37,9 +37,15 @@ function mergeDefinitionGroup(
     definitions.find((definition) => definition.source === 'overlay_curated') ??
     definitions.find((definition) => definition.source === 'provider_backed') ??
     definitions[0];
-  const connections = definitions
+  const liveConnections = definitions
     .flatMap((definition) => definition.connections)
     .filter((connection) => connection.status !== 'disconnected');
+  // When provider-backed accounts exist, gallery chips show those accounts only.
+  // Static-package credential rows are not concurrent OAuth/API accounts.
+  const providerConnections = liveConnections.filter(
+    (connection) => connection.source !== 'static_package'
+  );
+  const connections = providerConnections.length > 0 ? providerConnections : liveConnections;
   const toolsById = new Map(
     definitions.flatMap((definition) => definition.tools).map((tool) => [tool.id, tool])
   );

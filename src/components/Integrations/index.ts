@@ -7,5 +7,14 @@ export { IntegrationStatusBadge, statusLabel } from './IntegrationStatusBadge';
 export { ProviderApiKeyForm } from './ProviderApiKeyForm';
 export { ProviderCustomOAuthSection } from './ProviderCustomOAuthSection';
 export { ProviderIntegrationCard } from './ProviderIntegrationCard';
+export { IntegrationAccountStack } from './IntegrationAccountStack';
 export { ProviderIntegrationDetailSheet } from './ProviderIntegrationDetailSheet';
+export {
+  IntegrationConnectSuccessBanner,
+  IntegrationOAuthWaitingBanner,
+} from './IntegrationConnectLoopBanners';
+export type {
+  IntegrationConnectSuccessState,
+  IntegrationOAuthWaitingState,
+} from './IntegrationConnectLoopBanners';
 export { ScopeChipGroup } from './ScopeChipGroup';

@@ -26,6 +26,18 @@ vi.mock('@tanstack/react-virtual', () => ({
 const integrationClientMocks = vi.hoisted(() => ({
   getProviderIntegrationToolPolicy: vi.fn(),
   patchProviderIntegrationToolPolicy: vi.fn(),
+  getProviderIntegrationAppPreference: vi.fn(async () => ({
+    canonicalAppSlug: 'hubspot',
+    ownerScope: 'assistant',
+    usageMode: 'primary',
+    poolCursor: 0,
+  })),
+  updateProviderIntegrationAppPreference: vi.fn(async ({ usageMode }) => ({
+    canonicalAppSlug: 'hubspot',
+    ownerScope: 'assistant',
+    usageMode,
+    poolCursor: 0,
+  })),
 }));
 
 vi.mock('@/lib/client/integrations', async (importOriginal) => {
@@ -34,10 +46,17 @@ vi.mock('@/lib/client/integrations', async (importOriginal) => {
     ...actual,
     getProviderIntegrationToolPolicy: integrationClientMocks.getProviderIntegrationToolPolicy,
     patchProviderIntegrationToolPolicy: integrationClientMocks.patchProviderIntegrationToolPolicy,
+    getProviderIntegrationAppPreference: integrationClientMocks.getProviderIntegrationAppPreference,
+    updateProviderIntegrationAppPreference:
+      integrationClientMocks.updateProviderIntegrationAppPreference,
   };
 });
 
-import { IntegrationGalleryShell, ProviderIntegrationDetailSheet } from '@/components/Integrations';
+import {
+  IntegrationGalleryShell,
+  ProviderIntegrationCard,
+  ProviderIntegrationDetailSheet,
+} from '@/components/Integrations';
 import { mapProviderAppToDefinition } from '@/lib/client/integrations';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
 import { INTEGRATION_PROVIDERS } from '@/constants/assistants/integrations';
@@ -729,6 +748,72 @@ describe('provider integrations gallery model', () => {
     expect(screen.getByTestId('provider-api-key-form')).toBeInTheDocument();
     expect(screen.getByTestId('provider-api-key-field-genericApiKey')).toBeInTheDocument();
     expect(screen.getByText('Admin API Key')).toBeInTheDocument();
+  });
+
+  it('shows connected account chips on gallery cards', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const hubspot = result.current.find((item) => item.canonicalSlug === 'hubspot');
+    expect(hubspot).toBeDefined();
+    render(<ProviderIntegrationCard item={hubspot!} onOpen={vi.fn()} onPrimaryAction={vi.fn()} />);
+    expect(screen.getByTestId('integration-card-accounts-hubspot')).toHaveTextContent('2 accounts');
+  });
+
+  it('shows waiting and success multi-add loop banners on the detail sheet', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const hubspot = result.current.find((item) => item.canonicalSlug === 'hubspot');
+    expect(hubspot).toBeDefined();
+    const onAddAnother = vi.fn();
+    const onDone = vi.fn();
+    const onCancelWaiting = vi.fn();
+
+    const { rerender } = render(
+      <ProviderIntegrationDetailSheet
+        item={hubspot ?? null}
+        open={Boolean(hubspot)}
+        onOpenChange={vi.fn()}
+        onPrimaryAction={vi.fn()}
+        oauthWaiting={{
+          canonicalSlug: 'hubspot',
+          displayName: 'HubSpot',
+          accountLabel: 'rate-limit-bot',
+          connectUrl: 'https://example.com/oauth',
+          mode: 'popup',
+        }}
+        onCancelOAuthWaiting={onCancelWaiting}
+        onCopyOAuthAuthorizeUrl={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('integration-oauth-waiting')).toBeInTheDocument();
+    expect(screen.getByTestId('integration-oauth-waiting')).toHaveTextContent('rate-limit-bot');
+    fireEvent.click(screen.getByTestId('integration-oauth-waiting-cancel'));
+    expect(onCancelWaiting).toHaveBeenCalled();
+
+    rerender(
+      <ProviderIntegrationDetailSheet
+        item={hubspot ?? null}
+        open={Boolean(hubspot)}
+        onOpenChange={vi.fn()}
+        onPrimaryAction={vi.fn()}
+        connectSuccess={{
+          canonicalSlug: 'hubspot',
+          displayName: 'HubSpot',
+          accountLabel: 'rate-limit-bot',
+          accountCount: 3,
+        }}
+        onAddAnotherAccount={onAddAnother}
+        onDismissConnectSuccess={onDone}
+      />
+    );
+
+    expect(screen.getByTestId('integration-connect-success')).toBeInTheDocument();
+    expect(screen.getByTestId('integration-connect-success')).toHaveTextContent(
+      '3 accounts on this assistant'
+    );
+    fireEvent.click(screen.getByTestId('integration-connect-add-another'));
+    expect(onAddAnother).toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('integration-connect-success-done'));
+    expect(onDone).toHaveBeenCalled();
   });
 
   it('places connected app management controls at the top of the detail sheet', async () => {

@@ -53,7 +53,7 @@ export interface SectionDef {
    * assistant-only (the historical default).
    */
   appliesTo?: ReadonlyArray<SelectorEntityKind>;
-  /** Optional rail/header chip (e.g. Data → Advanced). */
+  /** Optional rail/header chip. */
   badge?: string;
 }
 
@@ -248,8 +248,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',
-    badge: 'Advanced',
-    desc: 'Advanced table browser for ingested Data tables and live state-manager contexts. Prefer the dedicated Storage tabs for everyday browsing; edits here can change assistant behaviour.',
+    desc: 'Browse ingested Data tables and state-manager contexts in a shared table browser. Prefer the dedicated Storage tabs for everyday browsing; edits here can change assistant behaviour.',
     steps: [
       ['Stay on Tables', 'Browse ingested Data/ tables — the default, everyday mode.'],
       [

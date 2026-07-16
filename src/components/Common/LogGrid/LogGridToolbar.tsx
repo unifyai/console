@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Snowflake, Radio, Plus, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
@@ -18,7 +18,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from '@/components/UI/dropdown-menu';
 import {
   encodeCommonTextFilter,
@@ -48,7 +47,6 @@ export type LogGridToolbarProps = {
   canNext: boolean;
   canDelete: boolean;
   isFetching: boolean;
-  onFreezeToggle: () => void;
   onCreateRow: () => void;
   onDeleteRows: () => void;
   onDerivedOpen: () => void;
@@ -74,7 +72,6 @@ export function LogGridToolbar({
   canNext,
   canDelete,
   isFetching,
-  onFreezeToggle,
   onCreateRow,
   onDeleteRows,
   onDerivedOpen,
@@ -85,12 +82,9 @@ export function LogGridToolbar({
 
   const showGroupInStrip = isMedium;
   const showMetricInStrip = isMedium;
-  const showFreezeLiveInStrip = isWide;
   const showPageSizeInStrip = isWide;
 
-  const hasOverflowActive = Boolean(
-    view.freeze || view.autoUpdate || view.grouping || view.filters || view.commonFilter
-  );
+  const hasOverflowActive = Boolean(view.grouping || view.filters || view.commonFilter);
 
   const groupSortDesc = view.groupSorting?.includes('@true') ?? false;
 
@@ -100,7 +94,6 @@ export function LogGridToolbar({
       onValueChange={(v) =>
         onViewChange({
           grouping: v === '__none__' ? '' : v,
-          autoUpdate: v === '__none__' ? view.autoUpdate : false,
           groupSorting: v === '__none__' ? '' : view.groupSorting,
           offset: 0,
         })
@@ -215,32 +208,6 @@ export function LogGridToolbar({
       {showGroupInStrip && groupSortSelect}
       {showMetricInStrip && metricSelect}
 
-      {showFreezeLiveInStrip && (
-        <>
-          <Button
-            variant={view.freeze ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 shrink-0 gap-1.5"
-            onClick={onFreezeToggle}
-            data-testid="log-grid-freeze"
-          >
-            <Snowflake className="h-3.5 w-3.5" aria-hidden="true" />
-            Freeze
-          </Button>
-          <Button
-            variant={view.autoUpdate ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 shrink-0 gap-1.5"
-            disabled={!!view.grouping}
-            onClick={() => onViewChange({ autoUpdate: !view.autoUpdate })}
-            data-testid="log-grid-auto-update"
-          >
-            <Radio className="h-3.5 w-3.5" aria-hidden="true" />
-            Live
-          </Button>
-        </>
-      )}
-
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
@@ -264,30 +231,6 @@ export function LogGridToolbar({
                 </div>
               )}
               {!showMetricInStrip && <div className="px-2 py-1.5">{metricSelect}</div>}
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          {!showFreezeLiveInStrip && (
-            <>
-              <DropdownMenuLabel>Monitoring</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem
-                checked={!!view.freeze}
-                onCheckedChange={() => onFreezeToggle()}
-                data-testid="log-grid-freeze"
-              >
-                <Snowflake className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-                Freeze
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={!!view.autoUpdate}
-                disabled={!!view.grouping}
-                onCheckedChange={() => onViewChange({ autoUpdate: !view.autoUpdate })}
-                data-testid="log-grid-auto-update"
-              >
-                <Radio className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-                Live
-              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
             </>
           )}
