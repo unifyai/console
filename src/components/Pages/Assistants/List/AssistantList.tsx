@@ -897,26 +897,23 @@ export function AssistantList({
                   );
                 })
               )}
-            </div>,
-            'assistant-list-section-groups',
-            {
-              icon: <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />,
-              trailingAction: onCreateGroup ? (
+              {onCreateGroup ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onCreateGroup();
-                  }}
+                  onClick={onCreateGroup}
                   aria-label="Create group"
                   data-testid="create-group-button"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
-              ) : undefined,
+              ) : null}
+            </div>,
+            'assistant-list-section-groups',
+            {
+              icon: <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />,
             }
           )
         : null}
