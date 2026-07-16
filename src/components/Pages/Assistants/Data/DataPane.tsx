@@ -22,7 +22,6 @@ import {
   type DataTreeNode,
 } from '@/lib/assistants/dataBrowser';
 import { useShellResource } from '@/hooks/Common/useShellResource';
-import { Badge } from '@/components/UI/badge';
 import { TabFooter } from '../Common/TabFooter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
@@ -65,19 +64,16 @@ function TreeRow({
 }) {
   const children = Array.from(node.children.values()).sort((a, b) => a.name.localeCompare(b.name));
   const hasChildren = children.length > 0;
+  const canSelect = node.context !== null;
   const key = node.context ?? `${node.name}${depth}`;
   const isOpen = expanded.has(key);
-  const isLeaf = node.context !== null && !hasChildren;
-  const isSelected = isLeaf && selected === node.context;
+  const isSelected = canSelect && selected === node.context;
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => (isLeaf ? onSelect(node.context!) : toggle(key))}
-        data-testid={isLeaf ? 'data-table-node' : 'data-folder-node'}
+      <div
         className={cn(
-          'flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+          'flex w-full items-center gap-0.5 rounded-md text-sm transition-colors',
           isSelected
             ? 'bg-primary-tint-10 text-primary'
             : 'text-foreground hover:bg-muted hover:text-foreground'
@@ -85,20 +81,35 @@ function TreeRow({
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
       >
         {hasChildren ? (
-          <ChevronRight
-            className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen && 'rotate-90')}
-            aria-hidden="true"
-          />
+          <button
+            type="button"
+            onClick={() => toggle(key)}
+            className="grid h-7 w-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+            aria-label={isOpen ? `Collapse ${node.name}` : `Expand ${node.name}`}
+            data-testid="data-folder-toggle"
+          >
+            <ChevronRight
+              className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-90')}
+              aria-hidden="true"
+            />
+          </button>
         ) : (
-          <span className="w-3.5 shrink-0" />
+          <span className="w-6 shrink-0" />
         )}
-        {isLeaf ? (
-          <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        ) : (
-          <Folder className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        )}
-        <span className="truncate">{node.name}</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => (canSelect ? onSelect(node.context!) : toggle(key))}
+          data-testid={canSelect ? 'data-table-node' : 'data-folder-node'}
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-2 text-left"
+        >
+          {canSelect ? (
+            <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          ) : (
+            <Folder className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+          <span className="truncate">{node.name}</span>
+        </button>
+      </div>
       {hasChildren && isOpen && (
         <div>
           {children.map((child) => (
@@ -407,13 +418,6 @@ export function DataPane({
         <div className="text-title flex min-w-0 items-center gap-2 text-foreground">
           <Database className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span className="truncate">{sidebarTitle}</span>
-          <Badge
-            variant="outline"
-            data-testid="data-advanced-badge"
-            className="uppercase tracking-[0.06em]"
-          >
-            Advanced
-          </Badge>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <button
@@ -512,13 +516,6 @@ export function DataPane({
                         {sidebarTitle}
                       </button>
                       <ModeSegments mode={mode} onChange={changeMode} />
-                      <Badge
-                        variant="outline"
-                        data-testid="data-advanced-badge"
-                        className="uppercase tracking-[0.06em]"
-                      >
-                        Advanced
-                      </Badge>
                     </div>
                   )}
                   {!selected ? (

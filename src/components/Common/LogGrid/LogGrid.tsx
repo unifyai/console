@@ -190,6 +190,11 @@ export function LogGrid({
     setGroupChildRows([]);
   }, [context, view.grouping]);
 
+  React.useEffect(() => {
+    if (!view.freeze && !view.autoUpdate) return;
+    onViewChange({ freeze: undefined, autoUpdate: false, ...(view.freeze ? { offset: 0 } : {}) });
+  }, [view.freeze, view.autoUpdate, onViewChange]);
+
   const orderKey = columns.join('\0');
   const lastOrderKey = React.useRef('');
   React.useEffect(() => {
@@ -510,11 +515,6 @@ export function LogGrid({
     [selection]
   );
 
-  const toggleFreeze = () => {
-    if (view.freeze) onViewChange({ freeze: undefined, offset: 0 });
-    else onViewChange({ freeze: new Date().toISOString(), offset: 0 });
-  };
-
   const createRow = async () => {
     const result = await createEmptyLogRow({ projectName, context });
     if (result.ok) onMutated?.();
@@ -634,7 +634,6 @@ export function LogGrid({
             canNext={canNext}
             canDelete={canDelete}
             isFetching={isFetching}
-            onFreezeToggle={toggleFreeze}
             onCreateRow={() => void createRow()}
             onDeleteRows={() => setDeleteConfirmOpen(true)}
             onDerivedOpen={openDerivedCreate}

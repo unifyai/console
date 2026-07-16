@@ -36,6 +36,11 @@ export const STATE_MANAGER_ROOTS = [
 const RESERVED_ROOT_SET = new Set<string>(RESERVED_CONTEXT_ROOTS);
 const STATE_ROOT_SET = new Set<string>(STATE_MANAGER_ROOTS);
 
+/** Bookkeeping tables (`Contacts/Meta`, `Data/Meta`, …) — never shown in the Data browser. */
+export function isMetaContextPath(relativeSegments: string[]): boolean {
+  return relativeSegments.length > 0 && relativeSegments[relativeSegments.length - 1] === 'Meta';
+}
+
 export interface DataBrowserRoot {
   prefix: string;
   group: string | null;
@@ -68,12 +73,15 @@ export function buildDataBrowserTree(
     const relative = fullName.slice(match.prefix.length);
     let segments = relative.split('/').filter(Boolean);
     if (segments.length === 0) continue;
+    // Hide */Meta bookkeeping contexts (Contacts/Meta, Data/Meta, …).
+    if (isMetaContextPath(segments)) continue;
 
     if (mode === 'tables') {
       // Only ingest contexts under `Data/` — not sibling roots.
       if (segments[0] !== 'Data' || segments.length < 2) continue;
       segments = segments.slice(1);
       if (segments.length === 0 || RESERVED_ROOT_SET.has(segments[0])) continue;
+      if (isMetaContextPath(segments)) continue;
     } else if (!STATE_ROOT_SET.has(segments[0])) {
       continue;
     }
@@ -98,7 +106,7 @@ export function contextMatchesDataBrowserMode(
   const match = dataRoots.find((r) => fullContext.startsWith(r.prefix));
   if (!match) return false;
   const segments = fullContext.slice(match.prefix.length).split('/').filter(Boolean);
-  if (segments.length === 0) return false;
+  if (segments.length === 0 || isMetaContextPath(segments)) return false;
   if (mode === 'tables') {
     return segments[0] === 'Data' && segments.length >= 2 && !RESERVED_ROOT_SET.has(segments[1]);
   }

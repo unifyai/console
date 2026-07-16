@@ -20,7 +20,7 @@ interface RailNavButtonProps {
   onClick?: () => void;
   testId?: string;
   showActivityDot?: boolean;
-  /** Optional chip shown next to the label (e.g. Advanced). */
+  /** Optional chip shown next to the label. */
   badge?: string;
 }
 

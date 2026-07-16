@@ -1,6 +1,6 @@
 /**
  * Data LogGrid E2E — column visibility, server filters/sort, derived columns,
- * cell view panel, freeze/metrics chrome, and row mutations on the Assistants Data tab.
+ * cell view panel, metrics chrome, and row mutations on the Assistants Data tab.
  *
  * Run: npx playwright test src/tests/assistants/data-log-grid.e2e.ts
  */
@@ -208,7 +208,7 @@ test('common text filter narrows rows', async ({ authedPage: page }) => {
   await expect(page.getByText('Ada Lovelace')).toBeVisible();
 });
 
-test('freeze, metric footer, pin, page size, and create row', async ({ authedPage: page }) => {
+test('metric footer, pin, page size, and create row', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
   await clickToolbarControl(page, 'log-grid-metric');
@@ -242,12 +242,6 @@ test('freeze, metric footer, pin, page size, and create row', async ({ authedPag
   const body = (await listRes.json()) as { count?: number; logs?: unknown[] };
   const count = body.count ?? body.logs?.length ?? 0;
   expect(count).toBeGreaterThanOrEqual(6);
-
-  // Freeze after create so the new row is included in the watermark window
-  await clickToolbarControl(page, 'log-grid-freeze');
-  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 6/, {
-    timeout: 30_000,
-  });
 });
 
 test('group by city expands and loads rows; column search and pin-right work', async ({
