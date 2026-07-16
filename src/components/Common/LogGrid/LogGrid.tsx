@@ -3,7 +3,6 @@
 import * as React from 'react';
 import type {
   ColumnDef,
-  ColumnPinningState,
   ColumnSizingState,
   Header,
   SortingState,
@@ -28,7 +27,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
-import { ArrowDown, ArrowUp, ChevronsUpDown, Pin, GripVertical, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Pencil } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -64,11 +63,9 @@ import {
 import { sanitizeId, visibleColumnIds } from '@/lib/logs/columns';
 import { createEmptyLogRow, deleteLogRow, updateLogEntries } from '@/lib/logs/mutations';
 import { useLogMetrics } from '@/hooks/logs/useLogMetrics';
-import type { GroupedLogProps } from '@/types/interfaces/logs';
 import { LogColumnFilter } from './LogColumnFilter';
 import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
 import { LogCellValue } from './LogCellValue';
-import { LogGroupRows } from './LogGroupRows';
 import { LogGridToolbar, useContainerWidth } from './LogGridToolbar';
 
 function SortableHeader({
@@ -135,10 +132,9 @@ export interface LogGridProps {
   onDerivedCreated?: () => void;
   onMutated?: () => void;
   filterExpr?: string | null;
-  groups?: GroupedLogProps[];
   error?: Error | null;
   onRetry?: () => void;
-  /** Flat rows currently browsable for selection inspectors (includes expanded group children). */
+  /** Flat rows currently browsable for selection inspectors. */
   onBrowseRowsChange?: (rows: LogGridRow[]) => void;
   className?: string;
   testId?: string;
@@ -160,7 +156,6 @@ export function LogGrid({
   onDerivedCreated,
   onMutated,
   filterExpr,
-  groups,
   error = null,
   onRetry,
   onBrowseRowsChange,
@@ -174,7 +169,6 @@ export function LogGrid({
   const [editing, setEditing] = React.useState<{ logId: number; columnId: string } | null>(null);
   const [editValue, setEditValue] = React.useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [groupChildRows, setGroupChildRows] = React.useState<LogGridRow[]>([]);
   const [commonMode, setCommonMode] = React.useState<'in' | 'expression'>(
     view.commonFilter.startsWith('expression§') ? 'expression' : 'in'
   );
@@ -183,12 +177,8 @@ export function LogGrid({
   const containerWidth = useContainerWidth(rootRef);
 
   React.useEffect(() => {
-    onBrowseRowsChange?.(rows.length ? rows : groupChildRows);
-  }, [rows, groupChildRows, onBrowseRowsChange]);
-
-  React.useEffect(() => {
-    setGroupChildRows([]);
-  }, [context, view.grouping]);
+    onBrowseRowsChange?.(rows);
+  }, [rows, onBrowseRowsChange]);
 
   React.useEffect(() => {
     if (!view.freeze && !view.autoUpdate) return;
@@ -223,7 +213,7 @@ export function LogGrid({
     columns: visible,
     view,
     filterExpr,
-    enabled: !!view.metric && !view.grouping,
+    enabled: !!view.metric,
   });
 
   const onSortingChange: OnChangeFn<SortingState> = (updater) => {
@@ -233,11 +223,6 @@ export function LogGrid({
 
   const onViewChangeRef = React.useRef(onViewChange);
   onViewChangeRef.current = onViewChange;
-
-  const pinning: ColumnPinningState = {
-    left: view.columnsPinLeft,
-    right: view.columnsPinRight,
-  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -252,36 +237,6 @@ export function LogGrid({
     const newIndex = order.indexOf(String(over.id));
     if (oldIndex < 0 || newIndex < 0) return;
     onViewChange({ columnOrder: arrayMove(order, oldIndex, newIndex) });
-  };
-
-  const togglePinLeft = (id: string) => {
-    const left = new Set(view.columnsPinLeft);
-    const right = new Set(view.columnsPinRight);
-    if (left.has(id)) {
-      left.delete(id);
-    } else {
-      left.add(id);
-      right.delete(id);
-    }
-    onViewChange({
-      columnsPinLeft: Array.from(left),
-      columnsPinRight: Array.from(right),
-    });
-  };
-
-  const togglePinRight = (id: string) => {
-    const left = new Set(view.columnsPinLeft);
-    const right = new Set(view.columnsPinRight);
-    if (right.has(id)) {
-      right.delete(id);
-    } else {
-      right.add(id);
-      left.delete(id);
-    }
-    onViewChange({
-      columnsPinLeft: Array.from(left),
-      columnsPinRight: Array.from(right),
-    });
   };
 
   const onColumnSizingChange: OnChangeFn<ColumnSizingState> = (updater) => {
@@ -371,39 +326,6 @@ export function LogGrid({
                   <Pencil className="pointer-events-none h-3 w-3" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-muted-foreground"
-                title="Pin left"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePinLeft(key);
-                }}
-                data-testid={`log-grid-pin-${fieldKey}`}
-              >
-                <Pin
-                  className={cn('h-3 w-3', view.columnsPinLeft.includes(key) && 'text-primary')}
-                />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-muted-foreground"
-                title="Pin right"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePinRight(key);
-                }}
-                data-testid={`log-grid-pin-right-${fieldKey}`}
-              >
-                <Pin
-                  className={cn(
-                    'h-3 w-3 rotate-180',
-                    view.columnsPinRight.includes(key) && 'text-primary'
-                  )}
-                />
-              </Button>
             </>
           );
         },
@@ -452,26 +374,16 @@ export function LogGrid({
           );
         },
         enableSorting: true,
-        enablePinning: true,
       };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- move/pin/commit close over latest view via refs
-  }, [
-    visible,
-    fields,
-    view.filters,
-    view.columnsPinLeft,
-    view.columnsPinRight,
-    editing,
-    editValue,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- commitEdit closes over latest view via refs
+  }, [visible, fields, view.filters, editing, editValue]);
 
   const table = useReactTable({
     data: rows,
     columns: columnDefs,
     state: {
       sorting: view.sorting,
-      columnPinning: pinning,
       columnSizing: view.columnSizing ?? {},
     },
     onSortingChange,
@@ -605,8 +517,8 @@ export function LogGrid({
     }
   };
 
-  const hasData = rows.length > 0 || (groups?.length ?? 0) > 0;
-  const showError = Boolean(error && !rows.length && !(groups?.length ?? 0));
+  const hasData = rows.length > 0;
+  const showError = Boolean(error && !rows.length);
 
   return (
     <div
@@ -676,26 +588,13 @@ export function LogGrid({
                         {table.getHeaderGroups().map((headerGroup) => (
                           <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
                             {headerGroup.headers.map((header) => {
-                              const pinned = header.column.getIsPinned();
                               return (
                                 <SortableHeader
                                   key={header.id}
                                   header={header}
-                                  className={cn(
-                                    'relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground',
-                                    pinned === 'left' && 'bg-muted/40 sticky z-10',
-                                    pinned === 'right' && 'bg-muted/40 sticky z-10'
-                                  )}
+                                  className="relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground"
                                   style={{
                                     width: header.getSize(),
-                                    left:
-                                      pinned === 'left'
-                                        ? `${header.column.getStart('left')}px`
-                                        : undefined,
-                                    right:
-                                      pinned === 'right'
-                                        ? `${header.column.getAfter('right')}px`
-                                        : undefined,
                                   }}
                                   resizer={
                                     header.column.getCanResize() ? (
@@ -726,99 +625,71 @@ export function LogGrid({
                         ))}
                       </TableHeader>
                       <TableBody>
-                        {groups?.length ? (
-                          <LogGroupRows
-                            groups={groups}
-                            columns={visible}
-                            fields={fields}
-                            projectName={projectName}
-                            context={context}
-                            baseFilterExpr={filterExpr}
-                            selectedCells={selectedCells}
-                            onSelectCell={selectCell}
-                            pageLimit={view.limit}
-                            onChildrenChange={setGroupChildRows}
-                          />
-                        ) : (
-                          table.getRowModel().rows.map((row) => {
-                            const isSelected = selectedRowId === String(row.original.logId);
-                            return (
-                              <TableRow
-                                key={row.id}
-                                data-testid={`log-grid-row-${row.original.logId}`}
-                                className={cn('cursor-pointer', isSelected && 'bg-muted/60')}
-                                onClick={() => {
-                                  if (selection?.mode === 'row') {
-                                    selection.onSelectRow(String(row.original.logId));
-                                  }
-                                  onRowActivate?.(row.original);
-                                }}
-                              >
-                                {row.getVisibleCells().map((cell) => {
-                                  const cellId = makeCellId(row.original.logId, cell.column.id);
-                                  const cellSelected = selectedCells?.has(cellId);
-                                  const pinned = cell.column.getIsPinned();
-                                  return (
-                                    <TableCell
-                                      key={cell.id}
-                                      data-testid={`log-grid-cell-${cellId}`}
-                                      style={{
-                                        width: cell.column.getSize(),
-                                        left:
-                                          pinned === 'left'
-                                            ? `${cell.column.getStart('left')}px`
-                                            : undefined,
-                                        right:
-                                          pinned === 'right'
-                                            ? `${cell.column.getAfter('right')}px`
-                                            : undefined,
-                                      }}
-                                      className={cn(
-                                        'max-w-[220px] truncate px-2.5 py-1.5 font-mono text-[12px]',
-                                        cellSelected &&
-                                          'bg-primary-tint-10 ring-1 ring-inset ring-primary',
-                                        pinned === 'left' && 'sticky z-[1] bg-card',
-                                        pinned === 'right' && 'sticky z-[1] bg-card'
-                                      )}
-                                      onClick={(e) => {
-                                        if (selection?.mode === 'cell') {
-                                          e.stopPropagation();
-                                          selectCell(cellId, e.metaKey || e.ctrlKey);
-                                        }
-                                      }}
-                                    >
-                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                  );
-                                })}
-                              </TableRow>
-                            );
-                          })
-                        )}
+                        {table.getRowModel().rows.map((row) => {
+                          const isSelected = selectedRowId === String(row.original.logId);
+                          return (
+                            <TableRow
+                              key={row.id}
+                              data-testid={`log-grid-row-${row.original.logId}`}
+                              className={cn('cursor-pointer', isSelected && 'bg-muted/60')}
+                              onClick={() => {
+                                if (selection?.mode === 'row') {
+                                  selection.onSelectRow(String(row.original.logId));
+                                }
+                                onRowActivate?.(row.original);
+                              }}
+                            >
+                              {row.getVisibleCells().map((cell) => {
+                                const cellId = makeCellId(row.original.logId, cell.column.id);
+                                const cellSelected = selectedCells?.has(cellId);
+                                return (
+                                  <TableCell
+                                    key={cell.id}
+                                    data-testid={`log-grid-cell-${cellId}`}
+                                    style={{
+                                      width: cell.column.getSize(),
+                                    }}
+                                    className={cn(
+                                      'max-w-[220px] truncate px-2.5 py-1.5 font-mono text-[12px]',
+                                      cellSelected &&
+                                        'bg-primary-tint-10 ring-1 ring-inset ring-primary'
+                                    )}
+                                    onClick={(e) => {
+                                      if (selection?.mode === 'cell') {
+                                        e.stopPropagation();
+                                        selectCell(cellId, e.metaKey || e.ctrlKey);
+                                      }
+                                    }}
+                                  >
+                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
-                      {!view.grouping && (
-                        <TableFooter>
-                          <TableRow className="bg-muted/20">
-                            {visible.map((key) => {
-                              const fieldKey = sanitizeId(key);
-                              const raw = metricsQuery.data?.[key] ?? metricsQuery.data?.[fieldKey];
-                              const text =
-                                typeof raw === 'number'
-                                  ? raw.toLocaleString(undefined, { maximumFractionDigits: 4 })
-                                  : '—';
-                              return (
-                                <TableCell
-                                  key={key}
-                                  className="px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground"
-                                  data-testid={`log-grid-metric-cell-${fieldKey}`}
-                                >
-                                  {text}
-                                </TableCell>
-                              );
-                            })}
-                          </TableRow>
-                        </TableFooter>
-                      )}
+                      <TableFooter>
+                        <TableRow className="bg-muted/20">
+                          {visible.map((key) => {
+                            const fieldKey = sanitizeId(key);
+                            const raw = metricsQuery.data?.[key] ?? metricsQuery.data?.[fieldKey];
+                            const text =
+                              typeof raw === 'number'
+                                ? raw.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                                : '—';
+                            return (
+                              <TableCell
+                                key={key}
+                                className="px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground"
+                                data-testid={`log-grid-metric-cell-${fieldKey}`}
+                              >
+                                {text}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      </TableFooter>
                     </Table>
                   </SortableContext>
                 </DndContext>

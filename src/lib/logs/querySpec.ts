@@ -50,8 +50,6 @@ export function buildLogQuerySpec(args: {
     context: args.context,
     filterExpr: filterExpr || null,
     sorting: sortingStateToOrchestra(args.view.sorting),
-    groupBy: args.view.grouping || null,
-    groupSorting: args.view.groupSorting || null,
     limit: args.view.limit,
     offset: args.view.offset,
     columnContext: args.columnContext ?? null,

@@ -1,6 +1,5 @@
-import type { LogFieldsResponseProps, GroupedLogProps } from '@/types/interfaces/logs';
+import type { LogFieldsResponseProps } from '@/types/interfaces/logs';
 import type { LogGridRow, LogQueryResult, LogQuerySpec } from './types';
-import { maybeConvertRawToGroupedLogs } from './grouping';
 
 function stripPrivateFields(entries: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -40,7 +39,7 @@ export async function fetchLogFields(
 export async function fetchLogs(
   spec: LogQuerySpec,
   signal?: AbortSignal
-): Promise<{ rows: LogGridRow[]; count: number; groups?: GroupedLogProps[] }> {
+): Promise<{ rows: LogGridRow[]; count: number }> {
   const params = new URLSearchParams({
     projectName: spec.projectName,
     context: spec.context,
@@ -50,12 +49,6 @@ export async function fetchLogs(
   if (spec.filterExpr) params.set('filterExpr', spec.filterExpr);
   if (spec.sorting) params.set('sorting', spec.sorting);
   if (spec.columnContext) params.set('columnContext', spec.columnContext);
-  if (spec.groupBy) {
-    for (const g of spec.groupBy.split(',').filter(Boolean)) {
-      params.append('groupBy', g);
-    }
-  }
-  if (spec.groupSorting) params.set('groupSorting', spec.groupSorting);
 
   const res = await fetch(`/api/logs?${params.toString()}`, {
     cache: 'no-store',
@@ -66,18 +59,6 @@ export async function fetchLogs(
   }
   const data = await res.json();
   const rawLogs = data.logs ?? [];
-
-  if (spec.groupBy && rawLogs && !Array.isArray(rawLogs)) {
-    const converted = maybeConvertRawToGroupedLogs(undefined, rawLogs);
-    const groups = Array.isArray(converted)
-      ? (converted as GroupedLogProps[]).filter((g) => g.type === 'grouped')
-      : [];
-    return {
-      rows: [],
-      count: data.count ?? groups.reduce((sum, g) => sum + (g.groupCount ?? 0), 0),
-      groups,
-    };
-  }
 
   const rows: LogGridRow[] = (Array.isArray(rawLogs) ? rawLogs : []).map(
     (log: { id?: number; entries?: Record<string, unknown> }) => ({

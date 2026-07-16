@@ -1,6 +1,5 @@
 'use client';
 
-import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchColumnMetrics } from '@/lib/logs/metrics';
 import type { LogViewState } from '@/lib/logs/types';
@@ -21,7 +20,6 @@ export function useLogMetrics(args: {
       args.view.metric ?? 'mean',
       args.columns.join(','),
       args.filterExpr ?? '',
-      args.view.grouping ?? '',
     ],
     queryFn: ({ signal }) =>
       fetchColumnMetrics({
@@ -30,10 +28,9 @@ export function useLogMetrics(args: {
         columns: args.columns,
         metric: args.view.metric ?? 'mean',
         filterExpr: args.filterExpr,
-        groupBy: args.view.grouping || null,
         signal,
       }),
-    enabled: (args.enabled ?? true) && args.columns.length > 0 && !args.view.grouping,
+    enabled: (args.enabled ?? true) && args.columns.length > 0,
     staleTime: 10_000,
   });
 }
