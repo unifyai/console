@@ -12,6 +12,7 @@ import {
   createAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  openHireDialog,
   openUnitySwitcher,
   openRailSection,
   deleteAllAssistantsForUser,
@@ -144,8 +145,7 @@ test('floating chat hides while hire dialog is open', async ({ authedPage: page 
   await openRailSection(page, 'tasks');
   await expect(page.getByTestId('floating-chat-launcher')).toBeVisible({ timeout: 10_000 });
 
-  await openUnitySwitcher(page);
-  await page.getByTestId('assistant-onboard-button').click();
+  await openHireDialog(page);
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('floating-chat-launcher')).toHaveCount(0, { timeout: 5_000 });
 });

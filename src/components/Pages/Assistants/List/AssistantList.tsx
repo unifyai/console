@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { DroidOnboardIcon } from '@/components/Brand';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import {
@@ -10,6 +9,7 @@ import {
   Building2,
   UsersRound,
   MessagesSquare,
+  User,
   ChevronDown,
   ChevronRight,
   Plus,
@@ -588,7 +588,14 @@ export function AssistantList({
   const renderFlatAssistants = React.useCallback(() => {
     const renderedRows: React.ReactNode[] = [];
     const { assistants: sourceAssistants, coordinatorCount } = foldedAssistantRows;
-    const flatAssistants = isFolded || showVirtual ? sourceAssistants : [];
+    // Coordinator (T-W1N) stays visible when Virtual is off; other assistants do not.
+    const flatAssistants =
+      isFolded || showVirtual
+        ? sourceAssistants
+        : sourceAssistants.filter(
+            (assistant) =>
+              assistant.isCoordinator === true || assistant.agentId === canonicalCoordinatorId
+          );
 
     flatAssistants.forEach((assistant, index) => {
       renderedRows.push(
@@ -621,7 +628,7 @@ export function AssistantList({
     });
 
     return renderedRows;
-  }, [foldedAssistantRows, isFolded, renderAssistantRow, showVirtual]);
+  }, [canonicalCoordinatorId, foldedAssistantRows, isFolded, renderAssistantRow, showVirtual]);
 
   const renderHumanRows = React.useCallback(
     (teamHumans: RosterHuman[], keyPrefix: string) => {
@@ -781,6 +788,7 @@ export function AssistantList({
   const hasNonAssistantRows =
     filteredHumans.length > 0 ||
     filteredSelectableTeams.length > 0 ||
+    (Boolean(onSelectHuman) && showHireButton) ||
     (Boolean(onSelectGroup) && (filteredSelectableGroups.length > 0 || Boolean(onCreateGroup)));
   const shouldRenderFlatList =
     isFolded ||
@@ -813,9 +821,26 @@ export function AssistantList({
   }, [filteredSelectableTeams, onSelectTeam, rosterTeamsById, teamGroups]);
   const showTeamsSection = teamsForSection.length > 0 || (!onSelectTeam && teamGroups.length > 0);
   const showGroupsSection = Boolean(onSelectGroup);
+  const showColleaguesSection =
+    Boolean(onSelectHuman) && ((showReal && filteredHumans.length > 0) || showHireButton);
+  const onboardListButton = renderOnboardButton(
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="text-caption h-7 w-full justify-start gap-1.5 px-2"
+      onClick={onOpenHireDialog}
+      disabled={isHireButtonDisabled}
+      aria-disabled={isHireButtonDisabled}
+      data-testid="assistant-onboard-button"
+    >
+      <Plus className="h-3.5 w-3.5" />
+      Onboard
+    </Button>
+  );
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
-      {pinnedGroup && showVirtual ? (
+      {pinnedGroup ? (
         <div className="min-w-0 space-y-1" data-testid="assistant-list-group-pinned">
           {pinnedGroup.rows.map((entry) =>
             renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
@@ -890,13 +915,14 @@ export function AssistantList({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
+                  size="sm"
+                  className="text-caption h-7 w-full justify-start gap-1.5 px-2"
                   onClick={onCreateGroup}
                   aria-label="Create group"
                   data-testid="create-group-button"
                 >
                   <Plus className="h-3.5 w-3.5" />
+                  Create group
                 </Button>
               ) : null}
             </div>,
@@ -906,27 +932,42 @@ export function AssistantList({
             }
           )
         : null}
-      {showReal && filteredHumans.length > 0 && onSelectHuman ? (
-        <div className="min-w-0 space-y-1" data-testid="assistant-list-section-people">
-          {filteredHumans.map((human) => (
-            <HumanListRow
-              key={`human:${human.userId}`}
-              human={human}
-              isSelected={selectedEntityKey === humanEntityKey(human.userId)}
-              isYou={human.userId === currentUserId}
-              unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
-              isCallActive={orgCallUserIdSet.has(human.userId)}
-              onSelect={() => onSelectHuman(human.userId)}
-            />
-          ))}
-        </div>
-      ) : null}
+      {showColleaguesSection
+        ? renderSection(
+            'section:people',
+            'Colleagues',
+            filteredHumans.length,
+            <div className="min-w-0 space-y-1">
+              {showReal
+                ? filteredHumans.map((human) => (
+                    <HumanListRow
+                      key={`human:${human.userId}`}
+                      human={human}
+                      isSelected={selectedEntityKey === humanEntityKey(human.userId)}
+                      isYou={human.userId === currentUserId}
+                      unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+                      isCallActive={orgCallUserIdSet.has(human.userId)}
+                      onSelect={() => onSelectHuman?.(human.userId)}
+                    />
+                  ))
+                : null}
+              {onboardListButton}
+            </div>,
+            'assistant-list-section-people',
+            {
+              icon: <User className="h-3.5 w-3.5" aria-hidden="true" />,
+            }
+          )
+        : null}
       {showVirtual && soloGroup ? (
         <div className="min-w-0 space-y-1" data-testid="assistant-list-section-solo">
           {soloRows.map((entry) =>
             renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
           )}
+          {!showColleaguesSection ? onboardListButton : null}
         </div>
+      ) : !showColleaguesSection ? (
+        onboardListButton
       ) : null}
     </div>
   );
@@ -968,36 +1009,20 @@ export function AssistantList({
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-grow">
-                <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  className="h-7 w-full pl-7 text-xs"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  disabled={isLoading || !!error}
-                />
-              </div>
-              {renderOnboardButton(
-                <Button
-                  data-testid="assistant-onboard-button"
-                  variant="outline"
-                  size="sm"
-                  className="hidden h-7 items-center text-xs md:inline-flex"
-                  onClick={onOpenHireDialog}
-                  disabled={isHireButtonDisabled}
-                  aria-disabled={isHireButtonDisabled}
-                >
-                  <DroidOnboardIcon className="h-5 w-5" />
-                  Onboard
-                </Button>
-              )}
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-grow">
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search..."
+                className="h-7 w-full pl-7 text-xs"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                disabled={isLoading || !!error}
+              />
             </div>
             <div
-              className="flex items-center gap-3"
+              className="flex shrink-0 flex-col gap-1"
               role="group"
               aria-label="Show real and virtual teammates"
             >
@@ -1062,7 +1087,10 @@ export function AssistantList({
             </div>
           ) : filteredAssistants.length > 0 || hasNonAssistantRows ? (
             shouldRenderFlatList ? (
-              renderFlatAssistants()
+              <>
+                {renderFlatAssistants()}
+                {!isFolded ? onboardListButton : null}
+              </>
             ) : (
               groupedAssistantList
             )
