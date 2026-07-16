@@ -6,11 +6,17 @@ import type { LucideIcon } from 'lucide-react';
 /** Rail nav icons — thinner stroke matches the design prototype. */
 const RAIL_ICON_STROKE = 1.75;
 
+/** Lucide icons plus custom SVGs that accept className / strokeWidth. */
+export type RailNavIcon =
+  | LucideIcon
+  | React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
 interface RailNavButtonProps {
-  Icon: LucideIcon;
+  Icon: RailNavIcon;
   label: string;
   active?: boolean;
   collapsed?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
   testId?: string;
   showActivityDot?: boolean;
@@ -26,6 +32,7 @@ export function RailNavButton({
   label,
   active = false,
   collapsed = false,
+  disabled = false,
   onClick,
   testId,
   showActivityDot = false,
@@ -34,13 +41,15 @@ export function RailNavButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-current={active ? 'page' : undefined}
       aria-label={collapsed ? label : undefined}
       data-testid={testId}
       className={cn(
         'group/nav relative flex w-full items-center gap-3 rounded-[10px] font-medium transition-colors',
         collapsed ? 'justify-center px-0 py-[11px]' : 'px-[11px] py-[9px]',
-        active ? 'bg-accent-soft text-accent-soft-foreground' : 'text-foreground hover:bg-muted'
+        active ? 'bg-accent-soft text-accent-soft-foreground' : 'text-foreground hover:bg-muted',
+        disabled && 'pointer-events-none opacity-50'
       )}
     >
       <span

@@ -11,23 +11,29 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/UI/dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Textarea } from '@/components/UI/textarea';
 import { toast } from 'sonner';
 import { useSupportTicket } from '@/hooks/Support/useSupportTicket';
 import { submitSupportTicket } from '@/lib/support/ticket';
 import { cn } from '@/lib/utils';
+import { RailNavButton } from '@/components/Pages/Assistants/Rail/RailNavButton';
 
 const MAX_DESCRIPTION_LENGTH = 2000;
 
-function HelpSquareIcon({ className }: { className?: string }) {
+function HelpSquareIcon({
+  className,
+  strokeWidth = 1.75,
+}: {
+  className?: string;
+  strokeWidth?: number;
+}) {
   return (
     <svg
       className={className}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -39,13 +45,11 @@ function HelpSquareIcon({ className }: { className?: string }) {
   );
 }
 
-export default function SupportTicketDialog({
-  triggerClassName,
-  triggerLabel,
-}: {
-  triggerClassName?: string;
-  triggerLabel?: string;
-}) {
+function CapturingIcon({ className, strokeWidth }: { className?: string; strokeWidth?: number }) {
+  return <Loader2 className={cn(className, 'animate-spin')} strokeWidth={strokeWidth} />;
+}
+
+export default function SupportTicketDialog({ collapsed = false }: { collapsed?: boolean }) {
   const {
     isOpen,
     isCapturing,
@@ -81,33 +85,14 @@ export default function SupportTicketDialog({
 
   return (
     <>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size={triggerLabel ? 'sm' : 'icon'}
-              className={cn(
-                'rounded-control relative text-muted-foreground',
-                triggerClassName ?? 'h-6 w-6 p-0'
-              )}
-              onClick={openDialog}
-              disabled={isCapturing}
-              data-testid="support-ticket-trigger"
-            >
-              {isCapturing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <HelpSquareIcon className="h-4 w-4" />
-              )}
-              {triggerLabel && <span>{triggerLabel}</span>}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Report an issue</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <RailNavButton
+        Icon={isCapturing ? CapturingIcon : HelpSquareIcon}
+        label="Report an issue"
+        collapsed={collapsed}
+        disabled={isCapturing}
+        onClick={openDialog}
+        testId="support-ticket-trigger"
+      />
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent
@@ -117,7 +102,7 @@ export default function SupportTicketDialog({
           <div className="bg-muted/30 border-b border-border px-6 py-5">
             <div className="flex items-start gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-card text-primary">
-                <HelpSquareIcon className="h-5 w-5" />
+                <HelpSquareIcon className="h-5 w-5" strokeWidth={2} />
               </div>
               <DialogHeader className="space-y-1.5 text-left">
                 <p className="text-label-muted uppercase tracking-[0.16em]">Support</p>
