@@ -167,6 +167,8 @@ export interface TaskRow {
   schedule?: TaskScheduleRow | null;
   trigger?: TaskTriggerRow | null;
   offline?: boolean | null;
+  requiresFilesystem?: boolean | null;
+  requiresComputer?: boolean | null;
   entrypoint?: number | string | null;
   repeat?: TaskRepeatPatternRow[] | null;
   [key: string]: unknown;
