@@ -121,9 +121,7 @@ export function AssistantComputerUseManager({
         setNetworkIdentity(applyRotation(null, result.info?.networkIdentity ?? undefined));
         if (result.detail) {
           setError(
-            typeof result.detail === 'string'
-              ? result.detail
-              : 'Failed to load Computer Use status'
+            typeof result.detail === 'string' ? result.detail : 'Failed to load Computer Use status'
           );
         }
       } catch {

@@ -85,8 +85,8 @@ function mapManagedDesktopStatus(value: Record<string, unknown>): ManagedDesktop
   return {
     desktopMode: (value.desktopMode ?? value.desktop_mode) as DesktopMode | null,
     managedDesktopStatus:
-      ((value.managedDesktopStatus ?? value.managed_desktop_status) as ManagedDesktopStatus['managedDesktopStatus']) ??
-      null,
+      ((value.managedDesktopStatus ??
+        value.managed_desktop_status) as ManagedDesktopStatus['managedDesktopStatus']) ?? null,
     monthlyCost:
       typeof (value.monthlyCost ?? value.monthly_cost) === 'number'
         ? Number(value.monthlyCost ?? value.monthly_cost)
