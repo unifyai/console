@@ -89,7 +89,7 @@ async function openPeopleTable(page: import('@playwright/test').Page) {
   await expect(peopleNode).toBeVisible({ timeout: 15_000 });
   await peopleNode.click();
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 5/, {
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
     timeout: 30_000,
   });
 }
@@ -228,4 +228,73 @@ test('freeze, metric footer, pin, page size, and create row', async ({ authedPag
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 6/, {
     timeout: 30_000,
   });
+});
+
+test('group by city expands and loads rows; column search and pin-right work', async ({
+  authedPage: page,
+}) => {
+  await openPeopleTable(page);
+
+  await page.getByTestId('log-grid-group-by').click();
+  await page.getByRole('option', { name: 'city' }).click();
+  await expect(page.getByTestId('log-grid-group-sort')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('log-grid-group-city-London')).toBeVisible({ timeout: 30_000 });
+
+  await page.getByTestId('log-grid-group-toggle-London').click();
+  await expect(page.getByText('Ada Lovelace')).toBeVisible({ timeout: 30_000 });
+
+  // Clear grouping for pin-right / columns search on flat table
+  await page.getByTestId('log-grid-group-by').click();
+  await page.getByRole('option', { name: 'No grouping' }).click();
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
+    timeout: 30_000,
+  });
+
+  await page.getByTestId('log-grid-pin-right-score').click();
+  await expect(page.getByTestId('log-grid-pin-right-score')).toBeVisible();
+
+  await page.getByTestId('log-grid-columns').click();
+  await page.getByTestId('log-grid-columns-search').fill('score');
+  await expect(page.getByTestId('log-grid-column-toggle-score')).toBeVisible();
+  await expect(page.getByTestId('log-grid-column-toggle-name')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+});
+
+test('derived column edit updates equation', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  // Ensure derived column exists (created in earlier serial test, or create here)
+  const derivedHeader = page.getByTestId('log-grid-sort-doubleScore');
+  if (!(await derivedHeader.isVisible().catch(() => false))) {
+    await page.getByTestId('log-grid-derived-open').click();
+    await page.getByTestId('log-grid-derived-name').fill('doubleScore');
+    await page.getByTestId('log-grid-derived-expression').fill('score * 2');
+    await page.getByTestId('log-grid-derived-submit').click();
+    await expect(page.getByTestId('log-grid-sort-doubleScore')).toBeVisible({ timeout: 60_000 });
+  }
+
+  const editBtn = page.getByTestId('log-grid-derived-edit-doubleScore');
+  await expect(editBtn).toBeVisible({ timeout: 15_000 });
+  await editBtn.evaluate((el: HTMLElement) => el.click());
+  await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('log-grid-derived-expression').fill('score * 3');
+  await page.getByTestId('log-grid-derived-submit').click();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toHaveCount(0, { timeout: 30_000 });
+
+  await expect
+    .poll(
+      async () => {
+        const fieldsRes = await orchestraFetch(
+          `/v0/logs/fields?project_name=Assistants&context=${encodeURIComponent(contextPath)}`,
+          { method: 'GET' },
+          user.apiKey
+        );
+        if (!fieldsRes.ok) return false;
+        const fields = (await fieldsRes.json()) as Record<string, { artifacts?: string }>;
+        const art = fields.doubleScore?.artifacts ?? fields.double_score?.artifacts ?? '';
+        return /3/.test(art);
+      },
+      { timeout: 60_000 }
+    )
+    .toBe(true);
 });

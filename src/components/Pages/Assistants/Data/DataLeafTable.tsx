@@ -16,7 +16,17 @@ import {
 import type { DataField, DataRow } from './dataTypes';
 
 function fieldsToDataFields(
-  fields: Record<string, { dataType?: string; fieldType?: string; mutable?: string | boolean }>
+  fields: Record<
+    string,
+    {
+      dataType?: string;
+      fieldType?: string;
+      mutable?: string | boolean;
+      enumValues?: string[] | null;
+      restrict?: boolean;
+      [key: string]: unknown;
+    }
+  >
 ): Record<string, DataField> {
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [
@@ -32,6 +42,8 @@ function fieldsToDataFields(
               : value.mutable === 'false'
                 ? false
                 : undefined,
+        enumValues: Array.isArray(value.enumValues) ? (value.enumValues as string[]) : null,
+        restrict: typeof value.restrict === 'boolean' ? value.restrict : undefined,
       } satisfies DataField,
     ])
   );
@@ -71,10 +83,11 @@ export function DataLeafTable({
   const [view, setView, replaceView] = useLogViewState(context);
   const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
   const [panelOpen, setPanelOpen] = React.useState(true);
+  const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
 
   const initializedRef = React.useRef<string | null>(null);
 
-  const { rows, count, fields, isLoading, isFetching, refetch, spec } = useLogQuery({
+  const { rows, groups, count, fields, isLoading, isFetching, error, refetch, spec } = useLogQuery({
     projectName: 'Assistants',
     context,
     view,
@@ -83,6 +96,7 @@ export function DataLeafTable({
 
   React.useEffect(() => {
     setSelectedCells([]);
+    setBrowseRows([]);
   }, [context]);
 
   React.useEffect(() => {
@@ -114,17 +128,22 @@ export function DataLeafTable({
         if (!key.startsWith('_')) set.add(key);
       })
     );
+    browseRows.forEach((row) =>
+      Object.keys(row.entries).forEach((key) => {
+        if (!key.startsWith('_')) set.add(key);
+      })
+    );
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [fields, rows]);
+  }, [fields, rows, browseRows]);
 
   React.useEffect(() => {
     onMetaChange?.({
       count,
-      loaded: rows.length,
+      loaded: Math.max(rows.length, browseRows.length),
       columns: columns.length,
       fields: fieldsToDataFields(fields),
     });
-  }, [count, rows.length, columns.length, fields, onMetaChange]);
+  }, [count, rows.length, browseRows.length, columns.length, fields, onMetaChange]);
 
   React.useEffect(() => {
     onRowsChange?.(rows.map(toDataRow));
@@ -163,9 +182,14 @@ export function DataLeafTable({
     [selectedCells]
   );
 
+  const panelRows = React.useMemo(
+    () => (browseRows.length ? browseRows : rows),
+    [browseRows, rows]
+  );
+
   const cellSelections = React.useMemo(
-    () => cellsFromSelection(selectedCells, rows),
-    [selectedCells, rows]
+    () => cellsFromSelection(selectedCells, panelRows),
+    [selectedCells, panelRows]
   );
 
   return (
@@ -174,6 +198,7 @@ export function DataLeafTable({
         projectName="Assistants"
         context={context}
         rows={rows}
+        groups={groups}
         fields={fields}
         columns={columns}
         totalCount={count}
@@ -181,6 +206,9 @@ export function DataLeafTable({
         onViewChange={setView}
         isLoading={isLoading}
         isFetching={isFetching}
+        error={error}
+        onRetry={() => void refetch()}
+        onBrowseRowsChange={setBrowseRows}
         selection={selection}
         filterExpr={spec?.filterExpr}
         onDerivedCreated={() => void refreshAll()}
@@ -194,7 +222,7 @@ export function DataLeafTable({
           onClose={() => setPanelOpen(false)}
           onClear={() => setSelectedCells([])}
           onEditRow={(logId) => {
-            const match = rows.find((r) => r.logId === logId);
+            const match = panelRows.find((r) => r.logId === logId);
             onRowSelect(match ? toDataRow(match) : null);
           }}
         />

@@ -11,6 +11,7 @@ import {
   type LogQuerySpec,
   type LogViewState,
 } from '@/lib/logs';
+import type { GroupedLogProps } from '@/types/interfaces/logs';
 
 export type UseLogQueryArgs = {
   projectName: string;
@@ -24,6 +25,7 @@ export type UseLogQueryArgs = {
 
 export type UseLogQueryResult = {
   rows: LogGridRow[];
+  groups: GroupedLogProps[];
   count: number;
   fields: LogFieldsResponseProps;
   isLoading: boolean;
@@ -89,6 +91,7 @@ export function useLogQuery({
 
   return {
     rows: logsQuery.data?.rows ?? [],
+    groups: logsQuery.data?.groups ?? [],
     count: logsQuery.data?.count ?? 0,
     fields,
     isLoading: (!fieldsOverride && fieldsQuery.isLoading) || logsQuery.isLoading,

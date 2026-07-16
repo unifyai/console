@@ -4,11 +4,21 @@ import * as React from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import {
   getValueType,
   getTypeIcon,
 } from '@/components/Pages/Interfaces/Blocks/Selection/Views/ViewTypes';
+import DictionaryView from '@/components/Pages/Interfaces/Blocks/Selection/Views/DictionaryView';
+import ListView from '@/components/Pages/Interfaces/Blocks/Selection/Views/ListView';
+import { PanelExpandProvider } from '@/components/Common/Views/PanelExpandContext';
 import { sanitizeId } from '@/lib/logs/columns';
 import { parseCellId, type LogGridRow } from '@/lib/logs/types';
 import { cn } from '@/lib/utils';
@@ -29,8 +39,17 @@ interface LogCellViewPanelProps {
   className?: string;
 }
 
-function formatValue(value: unknown): string {
+type DisplayMode = 'markdown' | 'text' | 'raw';
+
+function formatValue(value: unknown, mode: DisplayMode): string {
   if (value === null || value === undefined) return '—';
+  if (mode === 'raw') {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   try {
@@ -40,21 +59,123 @@ function formatValue(value: unknown): string {
   }
 }
 
-function CellBody({ value }: { value: unknown }) {
+function ComplexBody({ fieldName, value }: { fieldName: string; value: unknown }) {
+  const commonProps = {
+    value,
+    comparables: [] as unknown[],
+    baseLogIndex: 0,
+    comparisonLogsIndex: [] as number[],
+    diffMode: 'none' as const,
+    splitView: false,
+    displayMode: 'text' as const,
+    cellEditMode: false,
+    nestingLevel: 0,
+    prefix: '',
+    parentPath: fieldName,
+    isImmutable: true,
+    fieldName,
+    context: null,
+    baseLog: undefined,
+    comparisonLogs: undefined,
+  };
+  if (Array.isArray(value)) return <ListView {...commonProps} />;
+  if (value && typeof value === 'object') return <DictionaryView {...commonProps} />;
+  return null;
+}
+
+function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
+  const [openKeys, setOpenKeys] = React.useState<Set<string>>(new Set());
+  const [forceExpandAll, setForceExpandAll] = React.useState(false);
+  const [forceCollapseAll, setForceCollapseAll] = React.useState(false);
+
+  const toggleKey = React.useCallback((path: string) => {
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+    setForceExpandAll(false);
+    setForceCollapseAll(false);
+  }, []);
+
+  const expandAll = React.useCallback(() => {
+    setForceExpandAll(true);
+    setForceCollapseAll(false);
+  }, []);
+
+  const collapseAll = React.useCallback(() => {
+    setForceCollapseAll(true);
+    setForceExpandAll(false);
+  }, []);
+
+  const expandRecursively = React.useCallback((paths: string[]) => {
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      paths.forEach((p) => next.add(p));
+      return next;
+    });
+  }, []);
+
+  const collapseRecursively = React.useCallback((paths: string[]) => {
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      paths.forEach((p) => next.delete(p));
+      return next;
+    });
+  }, []);
+
+  return (
+    <PanelExpandProvider
+      openKeys={openKeys}
+      setOpenKeys={setOpenKeys}
+      forceExpandAll={forceExpandAll}
+      forceCollapseAll={forceCollapseAll}
+      toggleKey={toggleKey}
+      expandAll={expandAll}
+      collapseAll={collapseAll}
+      expandRecursively={expandRecursively}
+      collapseRecursively={collapseRecursively}
+    >
+      {children}
+    </PanelExpandProvider>
+  );
+}
+
+function CellBody({
+  value,
+  fieldName,
+  mode,
+}: {
+  value: unknown;
+  fieldName: string;
+  mode: DisplayMode;
+}) {
   const type = getValueType(value);
+  if (mode !== 'raw' && (type === 'dict' || type === 'list' || type === 'matrix')) {
+    return (
+      <LogPanelExpandProvider>
+        <div className="bg-muted/20 rounded-md border border-border p-2">
+          <ComplexBody fieldName={fieldName} value={value} />
+        </div>
+      </LogPanelExpandProvider>
+    );
+  }
   if (type === 'image' && typeof value === 'string') {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={value} alt="" className="max-h-64 max-w-full rounded-md border border-border" />
     );
   }
-  const text = formatValue(value);
-  const mono = type === 'dict' || type === 'list' || type === 'matrix' || type === 'number';
+  const text = formatValue(value, mode);
+  const mono =
+    mode === 'raw' || type === 'dict' || type === 'list' || type === 'matrix' || type === 'number';
   return (
     <pre
       className={cn(
         'bg-muted/30 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border p-3 text-sm text-foreground',
-        mono && 'font-mono text-[12px]'
+        mono && 'font-mono text-[12px]',
+        mode === 'markdown' && type === 'string' && 'prose prose-sm max-w-none dark:prose-invert'
       )}
     >
       {text}
@@ -64,8 +185,7 @@ function CellBody({ value }: { value: unknown }) {
 
 /**
  * Interfaces-style viewing panel for selected LogGrid cells.
- * Reuses ViewTypes dispatch; intentionally lighter than SelectionPanel
- * (no tile store / multi-panel / diff).
+ * Reuses ViewTypes + nested Dict/List views; no tile store / multi-panel / diff.
  */
 export function LogCellViewPanel({
   cells,
@@ -74,6 +194,8 @@ export function LogCellViewPanel({
   onEditRow,
   className,
 }: LogCellViewPanelProps) {
+  const [mode, setMode] = React.useState<DisplayMode>('text');
+
   if (cells.length === 0) {
     return (
       <div
@@ -109,6 +231,16 @@ export function LogCellViewPanel({
           {cells.length === 1 ? 'Selected cell' : `${cells.length} cells`}
         </span>
         <div className="flex items-center gap-1">
+          <Select value={mode} onValueChange={(v) => setMode(v as DisplayMode)}>
+            <SelectTrigger className="h-7 w-[100px]" data-testid="log-cell-view-mode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="text">Text</SelectItem>
+              <SelectItem value="markdown">Markdown</SelectItem>
+              <SelectItem value="raw">Raw</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             variant="ghost"
             size="sm"
@@ -151,7 +283,7 @@ export function LogCellViewPanel({
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <CopyButton content={formatValue(cell.value)} className="h-7 w-7" />
+                    <CopyButton content={formatValue(cell.value, 'raw')} className="h-7 w-7" />
                     {onEditRow && (
                       <Button
                         variant="outline"
@@ -165,7 +297,7 @@ export function LogCellViewPanel({
                     )}
                   </div>
                 </div>
-                <CellBody value={cell.value} />
+                <CellBody value={cell.value} fieldName={label} mode={mode} />
               </div>
             );
           })}

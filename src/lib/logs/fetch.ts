@@ -1,5 +1,6 @@
-import type { LogFieldsResponseProps } from '@/types/interfaces/logs';
+import type { LogFieldsResponseProps, GroupedLogProps } from '@/types/interfaces/logs';
 import type { LogGridRow, LogQueryResult, LogQuerySpec } from './types';
+import { maybeConvertRawToGroupedLogs } from './grouping';
 
 function stripPrivateFields(entries: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -39,7 +40,7 @@ export async function fetchLogFields(
 export async function fetchLogs(
   spec: LogQuerySpec,
   signal?: AbortSignal
-): Promise<{ rows: LogGridRow[]; count: number }> {
+): Promise<{ rows: LogGridRow[]; count: number; groups?: GroupedLogProps[] }> {
   const params = new URLSearchParams({
     projectName: spec.projectName,
     context: spec.context,
@@ -60,8 +61,25 @@ export async function fetchLogs(
     cache: 'no-store',
     signal,
   });
-  const data = res.ok ? await res.json() : { logs: [], count: 0 };
-  const rows: LogGridRow[] = (data.logs ?? []).map(
+  if (!res.ok) {
+    throw new Error(`Failed to load logs (${res.status})`);
+  }
+  const data = await res.json();
+  const rawLogs = data.logs ?? [];
+
+  if (spec.groupBy && rawLogs && !Array.isArray(rawLogs)) {
+    const converted = maybeConvertRawToGroupedLogs(undefined, rawLogs);
+    const groups = Array.isArray(converted)
+      ? (converted as GroupedLogProps[]).filter((g) => g.type === 'grouped')
+      : [];
+    return {
+      rows: [],
+      count: data.count ?? groups.reduce((sum, g) => sum + (g.groupCount ?? 0), 0),
+      groups,
+    };
+  }
+
+  const rows: LogGridRow[] = (Array.isArray(rawLogs) ? rawLogs : []).map(
     (log: { id?: number; entries?: Record<string, unknown> }) => ({
       logId: log.id ?? 0,
       entries: stripPrivateFields(log.entries ?? {}),
@@ -135,6 +153,55 @@ export async function createDerivedColumn(args: {
       : '';
   if (info && /fail|error/i.test(info)) {
     console.error('Derived column create reported failure', info);
+    return { ok: false, detail: info };
+  }
+  return { ok: true };
+}
+
+/**
+ * Update an existing derived column equation via Console `/api/logs/derived` PUT.
+ */
+export async function updateDerivedColumn(args: {
+  projectName: string;
+  context: string;
+  key: string;
+  equation: string;
+  tableName?: string;
+}): Promise<{ ok: boolean; detail?: string }> {
+  const tableName = (args.tableName ?? 't').toLowerCase();
+  const res = await fetch('/api/logs/derived', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectName: args.projectName,
+      context: args.context,
+      key: args.key,
+      equation: args.equation,
+      targetDerivedLogs: {
+        [tableName]: {
+          projectName: args.projectName,
+          context: args.context,
+          filterExpr: '',
+        },
+      },
+    }),
+  });
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null);
+    const detail =
+      body && typeof body === 'object' && 'detail' in body
+        ? String((body as { detail: unknown }).detail)
+        : undefined;
+    console.error('Failed to update derived column', detail ?? res.status);
+    return { ok: false, detail };
+  }
+  const body: unknown = await res.json().catch(() => null);
+  const info =
+    body && typeof body === 'object' && 'info' in body
+      ? String((body as { info: unknown }).info)
+      : '';
+  if (info && /fail|error/i.test(info)) {
+    console.error('Derived column update reported failure', info);
     return { ok: false, detail: info };
   }
   return { ok: true };

@@ -12,8 +12,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/UI/dialog';
-import { expressionToDerivedFunction } from '@/lib/logs/derivedColumns';
-import { createDerivedColumn } from '@/lib/logs/fetch';
+import {
+  derivedFunctionToExpression,
+  expressionToDerivedFunction,
+} from '@/lib/logs/derivedColumns';
+import { createDerivedColumn, updateDerivedColumn } from '@/lib/logs/fetch';
 import { sanitizeId } from '@/lib/logs/columns';
 
 interface LogDerivedColumnDialogProps {
@@ -23,6 +26,8 @@ interface LogDerivedColumnDialogProps {
   context: string;
   tableName: string;
   columns: string[];
+  /** When set, dialog updates this derived column instead of creating. */
+  editColumn?: { key: string; equation: string } | null;
   onCreated: () => void;
 }
 
@@ -32,14 +37,17 @@ export function LogDerivedColumnDialog({
   projectName,
   context,
   columns,
+  editColumn,
   onCreated,
 }: LogDerivedColumnDialogProps) {
+  const isEdit = Boolean(editColumn?.key);
   const [name, setName] = React.useState('');
   const [expression, setExpression] = React.useState('');
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState('');
 
-  const flatColumns = columns.map((c) => sanitizeId(c));
+  const flatColumns = React.useMemo(() => columns.map((c) => sanitizeId(c)), [columns]);
+  const tableAlias = 't';
 
   React.useEffect(() => {
     if (!open) {
@@ -47,8 +55,13 @@ export function LogDerivedColumnDialog({
       setExpression('');
       setError('');
       setPending(false);
+      return;
     }
-  }, [open]);
+    if (editColumn?.key) {
+      setName(editColumn.key);
+      setExpression(derivedFunctionToExpression(editColumn.equation, [tableAlias], flatColumns));
+    }
+  }, [open, editColumn, flatColumns]);
 
   const submit = async () => {
     const key = name.trim();
@@ -62,23 +75,34 @@ export function LogDerivedColumnDialog({
     }
     setPending(true);
     setError('');
-    const tableAlias = 't';
     const equation = expressionToDerivedFunction(
       expression.trim(),
       tableAlias,
       [tableAlias],
       flatColumns
     );
-    const result = await createDerivedColumn({
-      projectName,
-      context,
-      key,
-      equation,
-      tableName: tableAlias,
-    });
+    const result = isEdit
+      ? await updateDerivedColumn({
+          projectName,
+          context,
+          key,
+          equation,
+          tableName: tableAlias,
+        })
+      : await createDerivedColumn({
+          projectName,
+          context,
+          key,
+          equation,
+          tableName: tableAlias,
+        });
     setPending(false);
     if (!result.ok) {
-      setError('Could not create derived column. Please try again.');
+      setError(
+        isEdit
+          ? 'Could not update derived column. Please try again.'
+          : 'Could not create derived column. Please try again.'
+      );
       return;
     }
     onOpenChange(false);
@@ -89,7 +113,7 @@ export function LogDerivedColumnDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="log-grid-derived-dialog">
         <DialogHeader>
-          <DialogTitle>Add derived column</DialogTitle>
+          <DialogTitle>{isEdit ? 'Edit derived column' : 'Add derived column'}</DialogTitle>
           <DialogDescription>
             Define a formula using existing column names (e.g. score * 2).
           </DialogDescription>
@@ -104,6 +128,7 @@ export function LogDerivedColumnDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="doubled_score"
+              disabled={isEdit}
               data-testid="log-grid-derived-name"
             />
           </div>
@@ -131,7 +156,7 @@ export function LogDerivedColumnDialog({
             disabled={pending}
             data-testid="log-grid-derived-submit"
           >
-            {pending ? 'Creating…' : 'Create'}
+            {pending ? (isEdit ? 'Saving…' : 'Creating…') : isEdit ? 'Save' : 'Create'}
           </Button>
         </DialogFooter>
       </DialogContent>
