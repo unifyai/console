@@ -222,6 +222,14 @@ test('owner can see the "New" hire button in the assistant list', async ({ owner
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
 
+  const colleagues = page.getByTestId('assistant-list-section-people');
+  if (await colleagues.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    const onboardBtn = page.getByTestId('assistant-onboard-button');
+    if (!(await onboardBtn.isVisible({ timeout: 1_000 }).catch(() => false))) {
+      await colleagues.getByRole('button').first().click();
+    }
+  }
+
   const newBtn = page.getByTestId('assistant-onboard-button');
   await expect(newBtn).toBeVisible({ timeout: 15_000 });
   await expect(newBtn).toBeEnabled();

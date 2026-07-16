@@ -32,10 +32,6 @@ export function AssistantListGroupHeader({
     <div
       className={cn(
         'flex w-full min-w-0 max-w-full items-stretch gap-1 overflow-hidden',
-        variant === 'section' &&
-          'border-b font-semibold uppercase tracking-wide text-muted-foreground',
-        variant === 'group' &&
-          'border-b font-semibold uppercase tracking-wide text-muted-foreground',
         variant === 'workspace' && 'rounded-xl'
       )}
     >
@@ -43,10 +39,12 @@ export function AssistantListGroupHeader({
         type="button"
         className={cn(
           'flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-xs transition-colors hover:bg-muted hover:text-foreground',
-          // Padding lives on the button so the full header height is the hit
-          // target (not a thin text-height strip inside a padded wrapper).
-          variant === 'section' && 'px-2 py-2',
-          variant === 'group' && 'px-2 py-1.5',
+          // Borders live on the button with the padding so hover fills the
+          // full band flush to the rules (no cream gap above/below).
+          variant === 'section' &&
+            'border-y border-border px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
+          variant === 'group' &&
+            'border-y border-border px-2 py-1.5 font-semibold uppercase tracking-wide text-muted-foreground',
           variant === 'workspace' &&
             'bg-muted/15 rounded-xl border border-border px-3 py-2.5 text-muted-foreground hover:border-primary-tint-30 hover:bg-primary-tint-5'
         )}

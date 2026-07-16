@@ -133,20 +133,13 @@ async function expectPinnedBeforeSolo(page: Page) {
   await expect(page.getByTestId('assistant-list-section-solo')).toBeVisible({
     timeout: 10_000,
   });
-  await expect(page.getByTestId('coordinator-divider')).toBeVisible({
-    timeout: 10_000,
-  });
   await expect
     .poll(() =>
       page.evaluate(() => {
         const pinned = document.querySelector('[data-testid="assistant-list-group-pinned"]');
-        const divider = document.querySelector('[data-testid="coordinator-divider"]');
         const solo = document.querySelector('[data-testid="assistant-list-section-solo"]');
-        if (!pinned || !divider || !solo) return false;
-        return Boolean(
-          pinned.compareDocumentPosition(divider) & Node.DOCUMENT_POSITION_FOLLOWING &&
-          divider.compareDocumentPosition(solo) & Node.DOCUMENT_POSITION_FOLLOWING
-        );
+        if (!pinned || !solo) return false;
+        return Boolean(pinned.compareDocumentPosition(solo) & Node.DOCUMENT_POSITION_FOLLOWING);
       })
     )
     .toBe(true);

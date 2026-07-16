@@ -346,8 +346,8 @@ export async function closeHireDialogIfOpen(page: Page) {
 }
 
 /**
- * Open the rail's unity switcher popover (which hosts the assistant list,
- * search and the Onboard button). Idempotent — returns early if already open.
+ * Open the rail's unity switcher popover (which hosts the assistant list and
+ * search). Idempotent — returns early if already open.
  */
 export async function openUnitySwitcher(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const popover = page.getByTestId('rail-unity-switcher-popover');
@@ -400,9 +400,9 @@ export async function openRailSection(page: Page, sectionId: string) {
 }
 
 /**
- * Open the hire dialog via the "Onboard" button, which now lives inside the
- * rail's unity switcher popover. If the dialog is already open (e.g.
- * auto-opened on empty state), skip.
+ * Open the hire dialog via the "Onboard" button under Colleagues (or at the
+ * bottom of the flat list in personal workspaces). If the dialog is already
+ * open (e.g. auto-opened on empty state), skip.
  */
 export async function openHireDialog(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const dialog = page.locator('[role="dialog"]');
@@ -411,6 +411,12 @@ export async function openHireDialog(page: Page, opts?: { userId?: string; apiKe
   }
   await openUnitySwitcher(page, opts);
   const onboardBtn = page.getByTestId('assistant-onboard-button');
+  if (!(await onboardBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    const colleagues = page.getByTestId('assistant-list-section-people');
+    if (await colleagues.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await colleagues.getByRole('button').first().click();
+    }
+  }
   await expect(onboardBtn).toBeEnabled({ timeout: 30_000 });
   await onboardBtn.click();
   await page.waitForTimeout(1_000);
