@@ -159,6 +159,32 @@ function parseMentions(raw: unknown): ChatMention[] {
   return mentions;
 }
 
+export interface OrgChatReaction {
+  userId: string;
+  emoji: string;
+  updatedAt?: string;
+}
+
+function parseReactions(raw: unknown): OrgChatReaction[] {
+  if (!Array.isArray(raw)) return [];
+  const reactions: OrgChatReaction[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const record = entry as Record<string, unknown>;
+    const userId = record.user_id ?? record.userId;
+    const emoji = record.emoji;
+    if (typeof userId !== 'string' || !userId) continue;
+    if (typeof emoji !== 'string' || !emoji.trim()) continue;
+    const updatedAt = record.updated_at ?? record.updatedAt;
+    reactions.push({
+      userId,
+      emoji,
+      ...(typeof updatedAt === 'string' ? { updatedAt } : {}),
+    });
+  }
+  return reactions;
+}
+
 export interface TeamChatMessage {
   messageId: number;
   teamId: number;
@@ -170,6 +196,7 @@ export interface TeamChatMessage {
   content: string;
   mentions: ChatMention[];
   attachments: OrgChatAttachment[];
+  reactions: OrgChatReaction[];
 }
 
 export interface OrgChatAttachment {
@@ -230,6 +257,7 @@ export function parseTeamChatMessage(raw: Record<string, unknown>): TeamChatMess
     content: typeof raw.content === 'string' ? raw.content : '',
     mentions: parseMentions(raw.mentions),
     attachments: parseAttachments(raw.attachments),
+    reactions: parseReactions(raw.reactions),
   };
 }
 
@@ -244,6 +272,7 @@ export interface GroupChatMessage {
   content: string;
   mentions: ChatMention[];
   attachments: OrgChatAttachment[];
+  reactions: OrgChatReaction[];
 }
 
 export function parseGroupChatMessage(raw: Record<string, unknown>): GroupChatMessage {
@@ -258,6 +287,7 @@ export function parseGroupChatMessage(raw: Record<string, unknown>): GroupChatMe
     content: typeof raw.content === 'string' ? raw.content : '',
     mentions: parseMentions(raw.mentions),
     attachments: parseAttachments(raw.attachments),
+    reactions: parseReactions(raw.reactions),
   };
 }
 
@@ -268,6 +298,7 @@ export interface DmMessage {
   content: string;
   createdAt: string | null;
   attachments: OrgChatAttachment[];
+  reactions: OrgChatReaction[];
 }
 
 export function parseDmMessage(raw: Record<string, unknown>): DmMessage {
@@ -284,6 +315,7 @@ export function parseDmMessage(raw: Record<string, unknown>): DmMessage {
           ? raw.timestamp
           : null,
     attachments: parseAttachments(raw.attachments),
+    reactions: parseReactions(raw.reactions),
   };
 }
 

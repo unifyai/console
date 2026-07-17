@@ -19,7 +19,8 @@ import {
 
 const PEOPLE: Record<string, unknown>[] = [
   { name: 'Ada Lovelace', city: 'London', score: 95 },
-  { name: 'Alan Turing', city: 'Manchester', score: 88 },
+  // Shared city with Ada so multi-row selection can collapse city into one value group
+  { name: 'Alan Turing', city: 'London', score: 88 },
   { name: 'Grace Hopper', city: 'New York', score: 91 },
   { name: 'Katherine Johnson', city: 'Hampton', score: 97 },
   { name: 'Donald Knuth', city: 'Stanford', score: 84 },

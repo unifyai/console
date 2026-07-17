@@ -5,10 +5,14 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Ban,
+  EyeOff,
   Filter,
   GripVertical,
+  Group,
   MoreHorizontal,
   Pencil,
+  Ungroup,
 } from 'lucide-react';
 import type { Column, Header, SortDirection } from '@tanstack/react-table';
 import { Button } from '@/components/UI/button';
@@ -17,11 +21,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { TableHead } from '@/components/UI/table';
 import { cn } from '@/lib/utils';
 import { sanitizeId } from '@/lib/logs/columns';
+import { parseGrouping, toggleGroupingColumn } from '@/lib/logs/grouping';
 import { columnHasFilter, LogColumnFilter } from './LogColumnFilter';
 
 type LogGridColumnHeaderProps = {
@@ -31,15 +39,18 @@ type LogGridColumnHeaderProps = {
   dataType?: string;
   filters: string;
   onFiltersChange: (filters: string) => void;
+  grouping: string;
+  onGroupingChange: (grouping: string) => void;
   isDerived: boolean;
   onEditDerived?: () => void;
   reorderEnabled: boolean;
   onEnableReorder: () => void;
   onDisableReorder: () => void;
+  onHideColumn: () => void;
 };
 
 /**
- * Clean column header: label + active-only sort/filter icons; hover ⋯ for
+ * Clean column header: label with active sort/filter indicators; hover ⋯ opens
  * sort/filter/reorder/derived actions. Drag listeners are attached by the
  * parent SortableHeader when reorder is enabled.
  */
@@ -50,33 +61,43 @@ export function LogGridColumnHeader({
   dataType,
   filters,
   onFiltersChange,
+  grouping,
+  onGroupingChange,
   isDerived,
   onEditDerived,
   reorderEnabled,
   onEnableReorder,
   onDisableReorder,
+  onHideColumn,
 }: LogGridColumnHeaderProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [filterOpen, setFilterOpen] = React.useState(false);
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  const openFilterAfterMenuCloseRef = React.useRef(false);
   const sorted = column.getIsSorted() as SortDirection | false;
   const hasFilter = columnHasFilter(filters, columnKey);
+  const isGrouped = parseGrouping(grouping).includes(columnKey);
 
   const openFilter = () => {
+    openFilterAfterMenuCloseRef.current = true;
     setMenuOpen(false);
-    window.setTimeout(() => setFilterOpen(true), 0);
+    // Wait for the menu close cycle so the click that selected "Filter…"
+    // is not treated as an outside click on the newly opened popover.
+    window.setTimeout(() => {
+      setFilterOpen(true);
+      openFilterAfterMenuCloseRef.current = false;
+    }, 0);
   };
 
   return (
     <div
+      ref={headerRef}
       className="group/header relative flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden"
       data-testid={`log-grid-header-${fieldKey}`}
     >
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-1 h-7 min-w-0 flex-1 justify-start gap-1 px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted hover:text-foreground"
-        onClick={() => column.toggleSorting(sorted === 'asc')}
-        data-testid={`log-grid-sort-${fieldKey}`}
+      <div
+        className="-ml-1 flex h-7 min-w-0 flex-1 items-center gap-1 px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+        data-testid={`log-grid-label-${fieldKey}`}
       >
         <span className="truncate">{fieldKey}</span>
         {sorted === 'asc' && (
@@ -85,7 +106,7 @@ export function LogGridColumnHeader({
         {sorted === 'desc' && (
           <ArrowDown className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
         )}
-      </Button>
+      </div>
 
       <div className="relative flex shrink-0 items-center">
         <LogColumnFilter
@@ -96,6 +117,7 @@ export function LogGridColumnHeader({
           open={filterOpen}
           onOpenChange={setFilterOpen}
           showTrigger={hasFilter}
+          anchorRef={headerRef}
         />
       </div>
 
@@ -116,39 +138,60 @@ export function LogGridColumnHeader({
             <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[11rem]">
-          <DropdownMenuItem
-            className="text-body-sm gap-2"
-            onClick={() => {
-              column.toggleSorting(false);
-              setMenuOpen(false);
-            }}
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-            Sort ascending
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-body-sm gap-2"
-            onClick={() => {
-              column.toggleSorting(true);
-              setMenuOpen(false);
-            }}
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-            Sort descending
-          </DropdownMenuItem>
-          {sorted && (
-            <DropdownMenuItem
+        <DropdownMenuContent
+          align="end"
+          className="min-w-[11rem]"
+          collisionPadding={16}
+          onCloseAutoFocus={(e) => {
+            // Keep focus from jumping back into the header while the filter popover opens.
+            if (openFilterAfterMenuCloseRef.current) e.preventDefault();
+          }}
+        >
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger
               className="text-body-sm gap-2"
-              onClick={() => {
-                column.clearSorting();
-                setMenuOpen(false);
-              }}
+              data-testid={`log-grid-sort-menu-${fieldKey}`}
             >
               <ArrowUpDown className="h-3.5 w-3.5" />
-              Clear sort
-            </DropdownMenuItem>
-          )}
+              Sort
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="min-w-[9rem]">
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                data-testid={`log-grid-sort-asc-${fieldKey}`}
+                onClick={() => {
+                  column.toggleSorting(false);
+                  setMenuOpen(false);
+                }}
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+                Ascending
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                data-testid={`log-grid-sort-desc-${fieldKey}`}
+                onClick={() => {
+                  column.toggleSorting(true);
+                  setMenuOpen(false);
+                }}
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+                Descending
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                data-testid={`log-grid-sort-clear-${fieldKey}`}
+                disabled={!sorted}
+                onClick={() => {
+                  column.clearSorting();
+                  setMenuOpen(false);
+                }}
+              >
+                <Ban className="h-3.5 w-3.5" />
+                Clear
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid={`log-grid-filter-open-${fieldKey}`}
@@ -156,6 +199,28 @@ export function LogGridColumnHeader({
           >
             <Filter className="h-3.5 w-3.5" />
             {hasFilter ? 'Edit filter' : 'Filter…'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid={`log-grid-hide-column-${fieldKey}`}
+            onClick={() => {
+              onHideColumn();
+              setMenuOpen(false);
+            }}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+            Hide column
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid={`log-grid-group-by-${fieldKey}`}
+            onClick={() => {
+              onGroupingChange(toggleGroupingColumn(grouping, columnKey));
+              setMenuOpen(false);
+            }}
+          >
+            {isGrouped ? <Ungroup className="h-3.5 w-3.5" /> : <Group className="h-3.5 w-3.5" />}
+            {isGrouped ? 'Ungroup' : 'Group by'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {reorderEnabled ? (
@@ -219,7 +284,7 @@ type SortableHeaderProps = {
   transformStyle?: string;
 };
 
-/** Table head shell: optional drag strip when reorder is enabled for this column. */
+/** Table head shell: left-side grip when column reorder mode is on. */
 export function LogGridSortableHead({
   header,
   children,
@@ -248,21 +313,23 @@ export function LogGridSortableHead({
       }}
       data-reorder={reorderEnabled ? 'true' : undefined}
     >
-      {reorderEnabled && (
-        <button
-          type="button"
-          className="absolute inset-x-0 top-0 z-[1] flex h-2 cursor-grab items-center justify-center active:cursor-grabbing"
-          aria-label={`Drag to reorder ${sanitizeId(header.column.id)}`}
-          data-testid={`log-grid-drag-${sanitizeId(header.column.id)}`}
-          {...dragAttributes}
-          {...dragListeners}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="h-px w-6 rounded-full bg-primary" aria-hidden="true" />
-        </button>
-      )}
-      <div className="relative z-[2] flex min-w-0 items-center gap-0.5 overflow-hidden pt-0.5">
-        {children}
+      <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">
+        {reorderEnabled && (
+          <button
+            type="button"
+            className="relative z-[1] flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground active:cursor-grabbing"
+            aria-label={`Drag to reorder ${sanitizeId(header.column.id)}`}
+            data-testid={`log-grid-drag-${sanitizeId(header.column.id)}`}
+            {...dragAttributes}
+            {...dragListeners}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="pointer-events-none h-3 w-3 shrink-0" aria-hidden="true" />
+          </button>
+        )}
+        <div className="relative z-[2] flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
+          {children}
+        </div>
       </div>
       {resizer}
     </TableHead>

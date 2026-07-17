@@ -10,17 +10,19 @@ export function AssistantSwitcherBridgeSync({
   activeUnity,
   activeEntityFace = null,
   listProps,
+  nestedOverlayOpen = false,
 }: {
   activeUnity: Assistant | null;
   activeEntityFace?: ActiveEntityFace | null;
   listProps: React.ComponentProps<typeof AssistantList>;
+  nestedOverlayOpen?: boolean;
 }) {
   const setBridge = useAssistantSwitcherBridgePublisher();
 
   React.useEffect(() => {
-    setBridge({ activeUnity, activeEntityFace, listProps });
+    setBridge({ activeUnity, activeEntityFace, listProps, nestedOverlayOpen });
     return () => setBridge(null);
-  }, [activeUnity, activeEntityFace, listProps, setBridge]);
+  }, [activeUnity, activeEntityFace, listProps, nestedOverlayOpen, setBridge]);
 
   return null;
 }

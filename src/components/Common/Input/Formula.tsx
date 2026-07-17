@@ -237,10 +237,10 @@ const FormulaInput = ({
   const sharedStyle = cn(
     `
     flex 
-    absolute left-8 right-0
-    h-8 w-[90%]
+    absolute inset-y-0 left-8 right-0
+    h-8
     rounded-none border border-input 
-    px-3 py-1 inset-0
+    px-3 py-1
     text-body
     shadow-sm 
     transition-colors 
@@ -340,7 +340,7 @@ const FormulaInput = ({
     <div
       ref={overlayRef}
       style={{ scrollbarWidth: 'none' }}
-      className={`${sharedStyle} ${overlayStyle} box-border inline-flex items-center p-0 leading-none`}
+      className={cn(sharedStyle, overlayStyle, 'box-border inline-flex items-center leading-none')}
     >
       {value === '' || !value ? (
         <span className="text-muted-foreground">{placeholder}</span>

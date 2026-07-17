@@ -81,6 +81,14 @@ export interface UseAssistantTranscriptReconcilerOptions {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
 }
 
+export interface UseAssistantTranscriptReconcilerResult {
+  /**
+   * Schedule an immediate reconcile for one assistant (e.g. after an SSE
+   * message arrives without a transcript `messageId`, which reactions need).
+   */
+  requestReconcile: (assistantId: string) => void;
+}
+
 const POLL_LIMIT = 10;
 const COORDINATOR_TICK_MS = 5_000;
 
@@ -205,7 +213,7 @@ export function useAssistantTranscriptReconciler({
   enabled,
   chatHistories,
   setChatHistories,
-}: UseAssistantTranscriptReconcilerOptions): void {
+}: UseAssistantTranscriptReconcilerOptions): UseAssistantTranscriptReconcilerResult {
   // Inputs that change on essentially every render are read via refs so
   // the coordinator effect doesn't tear down + restart (and lose its
   // per-assistant backoff state) on each re-render of the page.
@@ -214,6 +222,7 @@ export function useAssistantTranscriptReconciler({
   const setHistoriesRef = React.useRef(setChatHistories);
   const historiesRef = React.useRef(chatHistories);
   const pairsRef = React.useRef(pairs);
+  const requestReconcileRef = React.useRef<(assistantId: string) => void>(() => {});
 
   React.useEffect(() => {
     statusRef.current = connectionStatusByAssistant;
@@ -232,7 +241,10 @@ export function useAssistantTranscriptReconciler({
   }, [pairs]);
 
   React.useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      requestReconcileRef.current = () => {};
+      return;
+    }
 
     const stateById = new Map<string, AssistantPollState>();
     let cancelled = false;
@@ -341,6 +353,22 @@ export function useAssistantTranscriptReconciler({
       }
     };
 
+    requestReconcileRef.current = (assistantId: string) => {
+      if (cancelled) return;
+      const state = seedState(assistantId);
+      state.nextPollAt = Date.now();
+      // Retry shortly after as well — outbound SSE can beat transcript write.
+      window.setTimeout(() => {
+        if (cancelled) return;
+        const retry = stateById.get(assistantId);
+        if (retry && !retry.inFlight) {
+          retry.nextPollAt = Date.now();
+        }
+        tick();
+      }, 750);
+      tick();
+    };
+
     const coordinator = setInterval(tick, COORDINATOR_TICK_MS);
 
     const onVisibilityChange = (): void => {
@@ -363,10 +391,17 @@ export function useAssistantTranscriptReconciler({
 
     return () => {
       cancelled = true;
+      requestReconcileRef.current = () => {};
       clearInterval(coordinator);
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibilityChange);
       }
     };
   }, [enabled]);
+
+  const requestReconcile = React.useCallback((assistantId: string) => {
+    requestReconcileRef.current(assistantId);
+  }, []);
+
+  return { requestReconcile };
 }

@@ -1809,6 +1809,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
       if (mergeOutcome === 'merged' && message.role === 'assistant') {
         handleChatActivity(assistantId);
+        if (message.messageId === undefined) {
+          requestReconcileRef.current(assistantId);
+        }
       }
 
       // Mark the assistant as "online" in the list — an incoming message
@@ -1968,7 +1971,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         .filter((p): p is TranscriptReconcilerPair => p !== null),
     [chatReadableAssistants, resolvedContactIds]
   );
-  useAssistantTranscriptReconciler({
+  const { requestReconcile } = useAssistantTranscriptReconciler({
     pairs: reconcilerPairs,
     connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
     activeAssistantId:
@@ -1985,6 +1988,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     chatHistories: profileChatHistories,
     setChatHistories: setProfileChatHistories,
   });
+  const requestReconcileRef = React.useRef(requestReconcile);
+  requestReconcileRef.current = requestReconcile;
 
   // Surface the workspace-wide unread total in the browser tab title so
   // background tabs show a `(N) …` badge like a typical messaging app.
@@ -4034,6 +4039,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         activeUnity={profileAssistant}
         activeEntityFace={activeEntityFace}
         listProps={railListProps}
+        nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
       />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
@@ -4058,6 +4064,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     entityKind={selectedEntityKind}
                     isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                     listProps={railListProps}
+                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
                     activeSection={railActiveSectionId}
                     sectionActivity={railSectionActivity}
                     onBrandClick={requestPlatformHomeNavigation}
@@ -4083,6 +4090,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 entityKind={selectedEntityKind}
                 isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                 listProps={railListProps}
+                nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
                 activeSection={railActiveSectionId}
                 sectionActivity={railSectionActivity}
                 onBrandClick={requestPlatformHomeNavigation}
@@ -4134,6 +4142,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           human={selectedHuman}
                           orgId={activeOrganizationId}
                           chat={orgChat}
+                          currentUserId={currentUserId}
                           onStartCall={() => void humanCall.startCall(selectedHuman.userId)}
                           isCallButtonDisabled={
                             !humanCall.voiceCallsEnabled ||

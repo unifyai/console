@@ -146,7 +146,9 @@ test('floating chat hides while hire dialog is open', async ({ authedPage: page 
   await expect(page.getByTestId('floating-chat-launcher')).toBeVisible({ timeout: 10_000 });
 
   await openHireDialog(page);
-  await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('dialog', { name: 'Onboard Teammate' })).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByTestId('floating-chat-launcher')).toHaveCount(0, { timeout: 5_000 });
 });
 

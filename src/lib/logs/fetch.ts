@@ -1,4 +1,5 @@
 import type { LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { countFromLogsResponse, orchestraLogsToGridRows } from './grouping';
 import type { LogGridRow, LogQueryResult, LogQuerySpec } from './types';
 
 function stripPrivateFields(entries: Record<string, unknown>): Record<string, unknown> {
@@ -40,15 +41,24 @@ export async function fetchLogs(
   spec: LogQuerySpec,
   signal?: AbortSignal
 ): Promise<{ rows: LogGridRow[]; count: number }> {
+  const grouped = !!spec.groupBy?.length;
   const params = new URLSearchParams({
     projectName: spec.projectName,
     context: spec.context,
-    limit: String(spec.limit),
-    offset: String(spec.offset),
   });
   if (spec.filterExpr) params.set('filterExpr', spec.filterExpr);
   if (spec.sorting) params.set('sorting', spec.sorting);
   if (spec.columnContext) params.set('columnContext', spec.columnContext);
+
+  if (grouped) {
+    for (const g of spec.groupBy!) params.append('groupBy', g);
+    params.set('groupLimit', String(spec.limit));
+    params.set('groupOffset', String(spec.offset));
+    params.set('groupDepth', '0');
+  } else {
+    params.set('limit', String(spec.limit));
+    params.set('offset', String(spec.offset));
+  }
 
   const res = await fetch(`/api/logs?${params.toString()}`, {
     cache: 'no-store',
@@ -60,10 +70,24 @@ export async function fetchLogs(
   const data = await res.json();
   const rawLogs = data.logs ?? [];
 
+  if (grouped || (rawLogs && !Array.isArray(rawLogs))) {
+    return {
+      rows: orchestraLogsToGridRows(rawLogs),
+      count: countFromLogsResponse(data),
+    };
+  }
+
   const rows: LogGridRow[] = (Array.isArray(rawLogs) ? rawLogs : []).map(
-    (log: { id?: number; entries?: Record<string, unknown> }) => ({
+    (log: {
+      id?: number;
+      entries?: Record<string, unknown>;
+      derivedEntries?: Record<string, unknown>;
+    }) => ({
       logId: log.id ?? 0,
-      entries: stripPrivateFields(log.entries ?? {}),
+      entries: stripPrivateFields({
+        ...(log.entries ?? {}),
+        ...(log.derivedEntries ?? {}),
+      }),
       raw: log as unknown as LogGridRow['raw'],
     })
   );

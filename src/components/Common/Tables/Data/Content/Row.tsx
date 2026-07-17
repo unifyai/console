@@ -107,7 +107,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
       <TableRow
         key={row.id}
         data-row-id={row.id}
-        className={`group/row relative snap-start ${rowIsSelected ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : ''}`}
+        className={`group/row relative snap-start hover:bg-transparent ${rowIsSelected ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : ''}`}
         style={{ height: rowHeight ? `${rowHeight}px` : undefined }}
       >
         {row.getVisibleCells().map((cell) => (

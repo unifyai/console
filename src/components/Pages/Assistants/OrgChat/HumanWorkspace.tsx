@@ -14,6 +14,7 @@ interface HumanWorkspaceProps {
   human: RosterHuman;
   orgId: string;
   chat: ReturnType<typeof useOrgChat>;
+  currentUserId: string | null;
   onStartCall?: () => void;
   isCallButtonDisabled?: boolean;
   callButtonTooltip?: string;
@@ -28,12 +29,13 @@ export function HumanWorkspace({
   human,
   orgId,
   chat,
+  currentUserId,
   onStartCall,
   isCallButtonDisabled,
   callButtonTooltip,
   isConnectingCall,
 }: HumanWorkspaceProps) {
-  const { loadDmHistory, sendDmMessage, dmMessages } = chat;
+  const { loadDmHistory, sendDmMessage, dmMessages, toggleDmReaction } = chat;
   const { voiceCalls } = useFeatures();
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [highlightMessageId, setHighlightMessageId] = React.useState<string | null>(null);
@@ -58,6 +60,7 @@ export function HumanWorkspace({
           timestamp: message.createdAt,
           avatarUrl: isSelf ? null : human.image,
           attachments: message.attachments,
+          reactions: message.reactions,
         };
       }),
     [rawMessages, human.userId, human.name, human.image]
@@ -67,6 +70,13 @@ export function HumanWorkspace({
     (content: string, _mentions: ChatMention[], attachments: OrgChatAttachment[]) =>
       sendDmMessage(human.userId, content, attachments),
     [sendDmMessage, human.userId]
+  );
+
+  const handleToggleReaction = React.useCallback(
+    (messageId: string, emoji: string) => {
+      void toggleDmReaction(human.userId, Number(messageId), emoji);
+    },
+    [toggleDmReaction, human.userId]
   );
 
   const handleGoToMessage = React.useCallback((result: OrgChatSearchResult) => {
@@ -128,6 +138,9 @@ export function HumanWorkspace({
           callButtonTooltip={callTooltip}
           isConnectingCall={isConnectingCall}
           highlightMessageId={highlightMessageId}
+          currentUserId={currentUserId}
+          canReact={!!currentUserId}
+          onToggleReaction={handleToggleReaction}
         />
       </div>
 

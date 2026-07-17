@@ -10,6 +10,7 @@ import {
   PanelLeftOpen,
   RefreshCw,
   Table2,
+  UserRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
@@ -26,11 +27,14 @@ import {
   type DataTreeNode,
 } from '@/lib/assistants/dataBrowser';
 import { useShellResource } from '@/hooks/Common/useShellResource';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFooter } from '../Common/TabFooter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
+import { TeamAvatar } from '../OrgChat/TeamAvatar';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
+import { DataScopeDropdown } from './DataScopeDropdown';
 import type { DataField, DataRow } from './dataTypes';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -49,6 +53,14 @@ interface LeafMeta {
   loaded: number;
   columns: number;
   fields: Record<string, DataField>;
+}
+
+interface DataScopeSection {
+  key: string;
+  kind: 'personal' | 'team';
+  label: string;
+  teamId?: number;
+  browserRoot: DataBrowserRoot;
 }
 
 function TreeRow({
@@ -133,6 +145,32 @@ function TreeRow({
   );
 }
 
+function ScopeSectionHeader({ section }: { section: DataScopeSection }) {
+  return (
+    <div
+      className="flex items-center gap-2 px-2 pb-1 pt-2"
+      data-testid={`data-scope-section-${section.key}`}
+    >
+      {section.kind === 'team' ? (
+        <TeamAvatar name={section.label} className="h-5 w-5" iconClassName="h-3 w-3" />
+      ) : (
+        <span
+          className="rounded-control flex h-5 w-5 shrink-0 items-center justify-center border border-border bg-muted text-muted-foreground"
+          aria-hidden="true"
+        >
+          <UserRound className="h-3 w-3" />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-title truncate text-foreground">{section.label}</p>
+        {section.kind === 'team' ? (
+          <p className="text-caption uppercase tracking-[0.06em] text-muted-foreground">Team</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function LeafHeaderStats({ meta }: { meta: LeafMeta | null }) {
   if (!meta) return null;
   return (
@@ -186,6 +224,40 @@ function ModeSegments({
   );
 }
 
+function buildDataScopeSections(
+  assistant: Assistant,
+  ownerId: string,
+  assistantId: string,
+  effectiveRoot: ContextRoot | null
+): DataScopeSection[] {
+  const teamNamesById = new Map(
+    (assistant.teamSummaries ?? []).map((summary) => [summary.teamId, summary.name])
+  );
+
+  const toSection = (r: ContextRoot): DataScopeSection => {
+    if (r.kind === 'personal') {
+      return {
+        key: 'personal',
+        kind: 'personal',
+        label: 'Personal',
+        browserRoot: { prefix: `${ownerId}/${assistantId}/`, group: null },
+      };
+    }
+    return {
+      key: `team-${r.teamId}`,
+      kind: 'team',
+      label: teamNamesById.get(r.teamId) ?? `Team ${r.teamId}`,
+      teamId: r.teamId,
+      browserRoot: { prefix: `Teams/${r.teamId}/`, group: null },
+    };
+  };
+
+  if (effectiveRoot != null) {
+    return [toSection(effectiveRoot)];
+  }
+  return roots(assistant).map(toSection);
+}
+
 export function DataPane({
   assistant,
   ownerId,
@@ -193,25 +265,25 @@ export function DataPane({
   root = null,
   enabled = true,
 }: DataPaneProps) {
-  const dataRoots = React.useMemo<DataBrowserRoot[]>(() => {
-    if (root?.kind === 'team') {
-      return [{ prefix: `Teams/${root.teamId}/`, group: null }];
-    }
-    return roots(assistant).map((r) =>
-      r.kind === 'personal'
-        ? { prefix: `${ownerId}/${assistantId}/`, group: null }
-        : { prefix: `Teams/${r.teamId}/`, group: `Team ${r.teamId}` }
-    );
-  }, [assistant, ownerId, assistantId, root]);
+  const scope = useBrainScopeFilter(assistant, { fixedRoot: root, includeAll: true });
+  const scopeSections = React.useMemo(
+    () => buildDataScopeSections(assistant, ownerId, assistantId, scope.root),
+    [assistant, ownerId, assistantId, scope.root]
+  );
+  const showScopeHeaders = scope.showFilter && scope.root == null && scopeSections.length > 1;
+  const dataRoots = React.useMemo(
+    () => scopeSections.map((section) => section.browserRoot),
+    [scopeSections]
+  );
 
-  const stripRootPrefix = React.useCallback(
+  const displayPathForContext = React.useCallback(
     (full: string): string => {
-      const match = dataRoots.find((r) => full.startsWith(r.prefix));
-      if (!match) return full;
-      const rel = full.slice(match.prefix.length);
-      return match.group ? `${match.group} / ${rel}` : rel;
+      const section = scopeSections.find((s) => full.startsWith(s.browserRoot.prefix));
+      if (!section) return full;
+      const rel = full.slice(section.browserRoot.prefix.length);
+      return showScopeHeaders ? `${section.label} / ${rel}` : rel;
     },
-    [dataRoots]
+    [scopeSections, showScopeHeaders]
   );
 
   const [mode, setMode] = React.useState<DataBrowserMode>('data');
@@ -243,6 +315,7 @@ export function DataPane({
   const {
     data: contextNames,
     isInitialLoading: isLoadingTree,
+    isRefreshing: isRefreshingTree,
     refresh: refreshTree,
   } = useShellResource<string[]>({
     queryKey: [
@@ -255,17 +328,50 @@ export function DataPane({
     enabled: enabled && !!ownerId && !!assistantId,
   });
 
-  const tree = React.useMemo(
-    () => buildDataBrowserTree(contextNames ?? [], dataRoots, mode),
-    [contextNames, dataRoots, mode]
+  const handleRefresh = React.useCallback(() => {
+    void refreshTree();
+    setRefreshToken((t) => t + 1);
+  }, [refreshTree]);
+
+  const sectionTrees = React.useMemo(
+    () =>
+      scopeSections.map((section) => ({
+        section,
+        tree: buildDataBrowserTree(contextNames ?? [], [section.browserRoot], mode),
+      })),
+    [scopeSections, contextNames, mode]
   );
 
-  const selectableContexts = React.useMemo(() => collectSelectableContexts(tree), [tree]);
-  const showDirectory = mode === 'data' || treeNeedsFolderView(tree);
+  const selectableContexts = React.useMemo(
+    () => sectionTrees.flatMap(({ tree: sectionTree }) => collectSelectableContexts(sectionTree)),
+    [sectionTrees]
+  );
+  const showDirectory =
+    mode === 'data' ||
+    selectableContexts.length > 1 ||
+    sectionTrees.some(({ tree: sectionTree }) => treeNeedsFolderView(sectionTree));
 
   React.useEffect(() => {
-    setExpanded(new Set(Array.from(tree.children.values()).map((n) => n.context ?? `${n.name}0`)));
-  }, [tree]);
+    const next = new Set<string>();
+    for (const { tree: sectionTree } of sectionTrees) {
+      for (const node of sectionTree.children.values()) {
+        next.add(node.context ?? `${node.name}0`);
+      }
+    }
+    setExpanded(next);
+  }, [sectionTrees]);
+
+  // Ownership scope change resets the open table — contexts are different roots.
+  React.useEffect(() => {
+    setSelected(null);
+    setSelectedRow(null);
+    setLeafMeta(null);
+  }, [scope.activeKey]);
+
+  // Drop a selection that disappeared after a refresh / mode filter change.
+  React.useEffect(() => {
+    setSelected((prev) => (prev && !selectableContexts.includes(prev) ? null : prev));
+  }, [selectableContexts]);
 
   // Single-table state-manager modes open the table directly (no folder chrome).
   React.useEffect(() => {
@@ -365,9 +471,12 @@ export function DataPane({
     setRefreshToken((t) => t + 1);
   }, [selected, selectedRow]);
 
-  const topNodes = Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name));
+  const topNodeCount = sectionTrees.reduce(
+    (sum, { tree: sectionTree }) => sum + sectionTree.children.size,
+    0
+  );
 
-  const selectedDisplayPath = selected ? stripRootPrefix(selected) : null;
+  const selectedDisplayPath = selected ? displayPathForContext(selected) : null;
   const selectedTableName = selectedDisplayPath
     ? (selectedDisplayPath.split('/').pop() ?? selectedDisplayPath)
     : null;
@@ -389,20 +498,35 @@ export function DataPane({
 
   const treeList = (
     <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-      {topNodes.length === 0 ? (
+      {topNodeCount === 0 ? (
         <p className="text-caption px-2 py-6 text-center">{emptyTreeCopy}</p>
       ) : (
-        topNodes.map((node) => (
-          <TreeRow
-            key={node.name}
-            node={node}
-            depth={0}
-            expanded={expanded}
-            toggle={toggle}
-            selected={selected}
-            onSelect={selectLeaf}
-          />
-        ))
+        sectionTrees.map(({ section, tree: sectionTree }) => {
+          const nodes = Array.from(sectionTree.children.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+          if (nodes.length === 0 && !showScopeHeaders) return null;
+          return (
+            <div key={section.key} className={showScopeHeaders ? 'mb-2' : undefined}>
+              {showScopeHeaders ? <ScopeSectionHeader section={section} /> : null}
+              {nodes.length === 0 ? (
+                <p className="text-caption px-2 py-1.5 text-muted-foreground">No tables</p>
+              ) : (
+                nodes.map((node) => (
+                  <TreeRow
+                    key={`${section.key}:${node.name}`}
+                    node={node}
+                    depth={0}
+                    expanded={expanded}
+                    toggle={toggle}
+                    selected={selected}
+                    onSelect={selectLeaf}
+                  />
+                ))
+              )}
+            </div>
+          );
+        })
       )}
     </div>
   );
@@ -439,6 +563,13 @@ export function DataPane({
     </>
   );
 
+  const modeToolbar = (
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <ModeSegments mode={mode} onChange={changeMode} />
+      <DataScopeDropdown scope={scope} />
+    </div>
+  );
+
   const sidebarHeader = (
     <div className="flex flex-col gap-2 border-b border-border px-3 py-2">
       <div className="flex items-center justify-between gap-2">
@@ -449,13 +580,16 @@ export function DataPane({
         <div className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
-            onClick={() => {
-              void refreshTree({ blocking: true });
-            }}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={handleRefresh}
+            disabled={isRefreshingTree}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             aria-label="Refresh data contexts"
+            data-testid="data-refresh"
           >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <RefreshCw
+              className={cn('h-3.5 w-3.5', isRefreshingTree && 'animate-spin')}
+              aria-hidden="true"
+            />
           </button>
           {!isStackedLayout && showDirectory && (
             <button
@@ -470,7 +604,7 @@ export function DataPane({
           )}
         </div>
       </div>
-      <ModeSegments mode={mode} onChange={changeMode} />
+      {modeToolbar}
     </div>
   );
 
@@ -479,6 +613,7 @@ export function DataPane({
       className="flex h-full w-full flex-col overflow-hidden bg-background"
       data-testid="data-pane"
       data-mode={mode}
+      data-scope={scope.activeKey}
     >
       {isLoadingTree ? (
         <TabSplitSkeleton className="min-h-0 flex-1" listRows={8} />
@@ -520,7 +655,7 @@ export function DataPane({
                     ) : (
                       <span className="text-title text-foreground">{sidebarTitle}</span>
                     )}
-                    <ModeSegments mode={mode} onChange={changeMode} />
+                    {modeToolbar}
                   </div>
                   {selected ? (
                     leafChrome
@@ -557,7 +692,7 @@ export function DataPane({
                         <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
                         {sidebarTitle}
                       </button>
-                      <ModeSegments mode={mode} onChange={changeMode} />
+                      {modeToolbar}
                     </div>
                   )}
                   {!selected ? (
@@ -594,8 +729,8 @@ export function DataPane({
               <span className="text-caption inline-flex items-center gap-1.5">
                 <Database className="h-3 w-3" aria-hidden="true" />
                 {selected && leafMeta
-                  ? `${stripRootPrefix(selected)} · ${leafMeta.count} ${leafMeta.count === 1 ? 'row' : 'rows'}`
-                  : `${topNodes.length} ${topNodes.length === 1 ? 'group' : 'groups'} at this level`}
+                  ? `${displayPathForContext(selected)} · ${leafMeta.count} ${leafMeta.count === 1 ? 'row' : 'rows'}`
+                  : `${topNodeCount} ${topNodeCount === 1 ? 'group' : 'groups'} at this level`}
               </span>
             }
           />

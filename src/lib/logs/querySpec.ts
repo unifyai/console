@@ -1,5 +1,6 @@
 import type { LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { buildFilterExpression } from '@/lib/logs/filters';
+import { parseGrouping, toOrchestraGroupBy } from '@/lib/logs/grouping';
 import type { LogQuerySpec, LogViewState } from './types';
 import type { SortingState } from '@tanstack/react-table';
 
@@ -45,6 +46,7 @@ export function buildLogQuerySpec(args: {
     args.view.freeze || undefined,
     args.fields
   );
+  const grouping = parseGrouping(args.view.grouping);
   return {
     projectName: args.projectName,
     context: args.context,
@@ -53,6 +55,7 @@ export function buildLogQuerySpec(args: {
     limit: args.view.limit,
     offset: args.view.offset,
     columnContext: args.columnContext ?? null,
+    groupBy: grouping.length ? toOrchestraGroupBy(grouping) : null,
   };
 }
 

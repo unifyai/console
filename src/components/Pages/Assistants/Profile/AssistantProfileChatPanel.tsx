@@ -829,8 +829,12 @@ export function AssistantProfileChatPanel({
                             currentContactId={currentContactId}
                             canReact={canChat && !isSpendingBlocked && currentContactId !== null}
                             onToggleReaction={
-                              item.messageId !== undefined
-                                ? (emoji) => toggleReaction(item.messageId!, emoji)
+                              canChat && !isSpendingBlocked && currentContactId !== null
+                                ? (emoji) => {
+                                    if (item.messageId !== undefined) {
+                                      void toggleReaction(item.messageId!, emoji);
+                                    }
+                                  }
                                 : undefined
                             }
                           />
@@ -938,8 +942,12 @@ export function AssistantProfileChatPanel({
                         currentContactId={currentContactId}
                         canReact={canChat && !isSpendingBlocked && currentContactId !== null}
                         onToggleReaction={
-                          msg.messageId !== undefined
-                            ? (emoji) => toggleReaction(msg.messageId!, emoji)
+                          canChat && !isSpendingBlocked && currentContactId !== null
+                            ? (emoji) => {
+                                if (msg.messageId !== undefined) {
+                                  void toggleReaction(msg.messageId!, emoji);
+                                }
+                              }
                             : undefined
                         }
                       />

@@ -4,9 +4,20 @@ import * as React from 'react';
 import type { MessageReaction } from '@/types/assistants/chat';
 import { cn } from '@/lib/utils';
 
+function reactionReactorKey(reaction: MessageReaction): string | null {
+  if (typeof reaction.userId === 'string' && reaction.userId) {
+    return `u:${reaction.userId}`;
+  }
+  if (typeof reaction.contactId === 'number') {
+    return `c:${reaction.contactId}`;
+  }
+  return null;
+}
+
 interface MessageReactionsBarProps {
   reactions?: MessageReaction[];
   currentContactId?: number | null;
+  currentUserId?: string | null;
   onToggleReaction?: (emoji: string) => void;
   className?: string;
 }
@@ -14,14 +25,23 @@ interface MessageReactionsBarProps {
 export function MessageReactionsBar({
   reactions = [],
   currentContactId,
+  currentUserId,
   onToggleReaction,
   className,
 }: MessageReactionsBarProps) {
+  const currentReactorKey =
+    currentUserId != null && currentUserId !== ''
+      ? `u:${currentUserId}`
+      : currentContactId != null
+        ? `c:${currentContactId}`
+        : null;
+
   const grouped = React.useMemo(() => {
     const map = new Map<string, { emoji: string; count: number; includesCurrent: boolean }>();
     for (const reaction of reactions) {
       const entry = map.get(reaction.emoji);
-      const isCurrent = reaction.contactId === currentContactId;
+      const isCurrent =
+        currentReactorKey !== null && reactionReactorKey(reaction) === currentReactorKey;
       if (entry) {
         entry.count += 1;
         entry.includesCurrent = entry.includesCurrent || isCurrent;
@@ -34,7 +54,7 @@ export function MessageReactionsBar({
       }
     }
     return Array.from(map.values());
-  }, [reactions, currentContactId]);
+  }, [reactions, currentReactorKey]);
 
   if (!grouped.length) return null;
 

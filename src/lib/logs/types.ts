@@ -11,6 +11,8 @@ export type LogQuerySpec = {
   limit: number;
   offset: number;
   columnContext?: string | null;
+  /** Orchestra `group_by` values (`Entries/field`, …). */
+  groupBy?: string[] | null;
 };
 
 export const LOG_PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const;
@@ -28,6 +30,11 @@ export type LogViewState = {
   sorting: SortingState;
   offset: number;
   limit: number;
+  /**
+   * Comma-joined flat field ids for Orchestra `group_by` nest order
+   * (e.g. `city,name`). Empty / omitted = ungrouped.
+   */
+  grouping: string;
   /** ISO timestamp watermark — appends `createdAt < freeze` to filterExpr. */
   freeze?: string;
   /** Footer aggregate metric name (`mean`, `count`, …). */
@@ -60,6 +67,7 @@ export function emptyLogViewState(overrides?: Partial<LogViewState>): LogViewSta
     sorting: [],
     offset: 0,
     limit: DEFAULT_LOG_PAGE_SIZE,
+    grouping: '',
     freeze: undefined,
     metric: 'mean',
     autoUpdate: false,
@@ -97,6 +105,17 @@ export type LogGridRow = {
   entries: Record<string, unknown>;
   /** Raw Orchestra log when available (Interfaces adapters). */
   raw?: LogProps;
+  /** Present when this row is a server-side group header (lazy-expand tree). */
+  group?: {
+    id: string;
+    groupingColumnId: string;
+    fieldKey: string;
+    groupingValue: unknown;
+    groupCount: number;
+    isPopulated: boolean;
+    totalChildren?: number;
+  };
+  subRows?: LogGridRow[];
 };
 
 export type LogQueryResult = {
@@ -114,6 +133,45 @@ export function parseCellId(cellId: string): { logId: string; columnId: string }
 
 export function makeCellId(logId: string | number, columnId: string): string {
   return `${logId}_${columnId}`;
+}
+
+/** Util column id for the Excel-style row index / whole-row selector. */
+export const LOG_ROW_NUMBER_COL = 'RowNumbering';
+
+/** All data-cell ids for one row (never includes the row-index column). */
+export function cellsForRow(logId: string | number, columnIds: string[]): string[] {
+  return columnIds.map((columnId) => makeCellId(logId, columnId));
+}
+
+/** All data-cell ids across an inclusive row range in the given row order. */
+export function cellsForRowRange(
+  rows: Array<{ logId: number }>,
+  columnIds: string[],
+  startLogId: string,
+  endLogId: string
+): string[] {
+  const rowIds = rows.map((r) => String(r.logId));
+  const r1 = rowIds.indexOf(startLogId);
+  const r2 = rowIds.indexOf(endLogId);
+  if (r1 < 0 || r2 < 0 || columnIds.length === 0) return [];
+  const rMin = Math.min(r1, r2);
+  const rMax = Math.max(r1, r2);
+  const out: string[] = [];
+  for (let r = rMin; r <= rMax; r++) {
+    out.push(...cellsForRow(rows[r].logId, columnIds));
+  }
+  return out;
+}
+
+/** True when every visible data cell of the row is in the selection. */
+export function isAllRowSelected(
+  selectedCells: Iterable<string>,
+  logId: string | number,
+  columnIds: string[]
+): boolean {
+  if (columnIds.length === 0) return false;
+  const selected = selectedCells instanceof Set ? selectedCells : new Set(selectedCells);
+  return columnIds.every((columnId) => selected.has(makeCellId(logId, columnId)));
 }
 
 /**

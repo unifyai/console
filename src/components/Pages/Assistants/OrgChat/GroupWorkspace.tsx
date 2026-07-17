@@ -66,7 +66,7 @@ export function GroupWorkspace({
   onLeftOrDeleted,
   onRefreshRoster,
 }: GroupWorkspaceProps) {
-  const { loadGroupHistory, sendGroupMessage, groupMessages } = chat;
+  const { loadGroupHistory, sendGroupMessage, groupMessages, toggleGroupReaction } = chat;
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [manageOpen, setManageOpen] = React.useState(false);
   const [highlightMessageId, setHighlightMessageId] = React.useState<string | null>(null);
@@ -149,6 +149,7 @@ export function GroupWorkspace({
           timestamp: message.timestamp,
           avatarUrl,
           attachments: message.attachments,
+          reactions: message.reactions,
         };
       }),
     [rawMessages, currentUserId, humansById, assistantsById]
@@ -158,6 +159,13 @@ export function GroupWorkspace({
     (content: string, mentions: ChatMention[], attachments: OrgChatAttachment[]) =>
       sendGroupMessage(group.groupId, content, mentions, attachments),
     [sendGroupMessage, group.groupId]
+  );
+
+  const handleToggleReaction = React.useCallback(
+    (messageId: string, emoji: string) => {
+      void toggleGroupReaction(group.groupId, Number(messageId), emoji);
+    },
+    [toggleGroupReaction, group.groupId]
   );
 
   const handleGoToMessage = React.useCallback((result: OrgChatSearchResult) => {
@@ -271,6 +279,9 @@ export function GroupWorkspace({
           }
           isConnectingCall={isConnectingCall}
           highlightMessageId={highlightMessageId}
+          currentUserId={currentUserId}
+          canReact={!!currentUserId}
+          onToggleReaction={handleToggleReaction}
         />
       </div>
 

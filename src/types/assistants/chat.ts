@@ -65,7 +65,10 @@ export function createAttachmentWithMetadata(
 }
 
 export interface MessageReaction {
-  contactId: number;
+  /** Assistant 1:1 chat reactor (contact id in the assistant's Contacts). */
+  contactId?: number;
+  /** Org chat reactor (human user id). */
+  userId?: string;
   emoji: string;
   updatedAt?: Date;
 }

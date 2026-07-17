@@ -65,7 +65,8 @@ test('the Onboard button opens the hire dialog @push @critical @area(assistants.
 
   await openHireDialog(page, shellOpts);
 
-  const dialog = page.locator('[role="dialog"]');
+  // Switcher popover may stay open under the hire dialog — target by name.
+  const dialog = page.getByRole('dialog', { name: 'Onboard Teammate' });
   await expect(dialog).toBeVisible({ timeout: 10_000 });
   await expect(dialog.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
     timeout: 5_000,

@@ -6,14 +6,17 @@ export * from './fetch';
 export * from './metrics';
 export * from './mutations';
 export * from './derivedColumns';
+export * from './grouping';
 export {
   buildFilterExpression,
   buildFilterExpressionArgument,
   filtersToExpression,
+  compileClausesToExpression,
   searchParamToFilters,
   combineFilters,
   initFilters,
 } from './filters';
+export type { FilterClause } from './filters';
 export {
   tileDataToLogViewState,
   tileDataToLogQuerySpec,

@@ -255,6 +255,75 @@ function joinFunctionFilters(
   return joined;
 }
 
+/** Structured multi-clause column filter (Data page LogColumnFilter). */
+export type FilterClause = {
+  fn: string;
+  value: string;
+  /** Join to the previous clause; ignored on index 0. Default `and`. */
+  join?: 'and' | 'or';
+  /** When true, this join is inside a parenthesized span with the previous clause(s). */
+  grouped?: boolean;
+};
+
+/**
+ * Compile structured clauses into a filter expression.
+ * Consecutive `grouped: true` joins form one parenthesized span; ungrouped joins sit at the top level.
+ */
+export function compileClausesToExpression(
+  clauses: FilterClause[],
+  cKey: string,
+  fields: LogFieldsResponseProps
+): string {
+  if (!clauses.length) return '';
+
+  const predicates = clauses.map((clause) =>
+    joinFunctionFilters(clause.value, clause.fn, cKey, fields)
+  );
+
+  let result = '';
+  let i = 0;
+  while (i < clauses.length) {
+    let j = i;
+    while (j + 1 < clauses.length && clauses[j + 1].grouped) {
+      j++;
+    }
+
+    const spanParts: string[] = [];
+    for (let k = i; k <= j; k++) {
+      if (predicates[k]) spanParts.push(predicates[k]);
+    }
+    if (spanParts.length === 0) {
+      i = j + 1;
+      continue;
+    }
+
+    let spanExpr: string;
+    if (spanParts.length === 1) {
+      spanExpr = spanParts[0];
+    } else {
+      let expr = spanParts[0];
+      let partIdx = 1;
+      for (let k = i + 1; k <= j; k++) {
+        if (!predicates[k]) continue;
+        const join = clauses[k].join ?? 'and';
+        expr += ` ${join} ${spanParts[partIdx]}`;
+        partIdx++;
+      }
+      spanExpr = `(${expr})`;
+    }
+
+    if (result) {
+      const topJoin = clauses[i].join ?? 'and';
+      result += ` ${topJoin} ${spanExpr}`;
+    } else {
+      result = spanExpr;
+    }
+    i = j + 1;
+  }
+
+  return result;
+}
+
 /* 
 	Converts nested filters dict into string filter expression.
 */
@@ -272,6 +341,13 @@ export function filtersToExpression(
         // Wrap it in parentheses for safety during assembly.
         if (value) {
           expression += ` and (${value})`;
+        }
+      } else if (fn === 'clauses') {
+        if (!value) return;
+        const parsed = JSON.parse(value) as FilterClause[];
+        const filterExpr = compileClausesToExpression(parsed, cKey, fields);
+        if (filterExpr) {
+          expression += ` and (${filterExpr})`;
         }
       } else {
         const filterExpr = joinFunctionFilters(value, fn, cKey, fields);
@@ -298,7 +374,10 @@ export function searchParamToFilters(
   const filters = searchExpression
     .split('§')
     .map((filter) => {
-      let [column, fn, value] = filter.split('~');
+      const parts = filter.split('~');
+      let column = parts[0];
+      const fn = parts[1];
+      const value = parts.slice(2).join('~');
       if (columnContext) column = processContext('merge', columnContext, column);
       return { [column]: { [fn]: value } };
     })
