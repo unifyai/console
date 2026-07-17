@@ -822,8 +822,9 @@ export function AssistantList({
     return byId;
   }, [teamGroups]);
   // Prefer the roster order, then append any team groups that matched search via
-  // assistant name even when the team name itself did not.
-  const teamsForSection = React.useMemo(() => {
+  // assistant name even when the team name itself did not. The managed Org team
+  // is elevated out of TEAMS (rendered under T-W1N); only custom teams remain.
+  const selectableTeamsForList = React.useMemo(() => {
     if (!isOrgWorkspace || !onSelectTeam) return [] as RosterTeam[];
     const byId = new Map<number, RosterTeam>();
     for (const team of filteredSelectableTeams) {
@@ -836,8 +837,27 @@ export function AssistantList({
     }
     return Array.from(byId.values());
   }, [filteredSelectableTeams, isOrgWorkspace, onSelectTeam, rosterTeamsById, teamGroups]);
+  const elevatedOrgTeam = React.useMemo(
+    () => selectableTeamsForList.find((team) => team.isOrgWideSharing) ?? null,
+    [selectableTeamsForList]
+  );
+  const customTeamsForSection = React.useMemo(
+    () => selectableTeamsForList.filter((team) => !team.isOrgWideSharing),
+    [selectableTeamsForList]
+  );
+  const customTeamGroups = React.useMemo(
+    () =>
+      teamGroups.filter((group) => {
+        if (group.kind !== 'team') return false;
+        return rosterTeamsById[group.teamId]?.isOrgWideSharing !== true;
+      }),
+    [rosterTeamsById, teamGroups]
+  );
+  // TEAMS collapses entirely when the only team is the managed Org team.
+  // GROUPS stays visible even with zero groups (create affordance).
   const showTeamsSection =
-    isOrgWorkspace && (teamsForSection.length > 0 || (!onSelectTeam && teamGroups.length > 0));
+    isOrgWorkspace &&
+    (customTeamsForSection.length > 0 || (!onSelectTeam && customTeamGroups.length > 0));
   const showGroupsSection = isOrgWorkspace && Boolean(onSelectGroup);
   const showColleaguesSection =
     isOrgWorkspace &&
@@ -861,11 +881,20 @@ export function AssistantList({
   const showRosterSections = showTeamsSection || showGroupsSection || showColleaguesSection;
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
-      {pinnedGroup ? (
-        <div className="min-w-0 space-y-1" data-testid="assistant-list-group-pinned">
-          {pinnedGroup.rows.map((entry) =>
-            renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
-          )}
+      {pinnedGroup || elevatedOrgTeam ? (
+        <div className="min-w-0 space-y-1">
+          {pinnedGroup ? (
+            <div className="min-w-0 space-y-1" data-testid="assistant-list-group-pinned">
+              {pinnedGroup.rows.map((entry) =>
+                renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
+              )}
+            </div>
+          ) : null}
+          {elevatedOrgTeam ? (
+            <div data-testid="assistant-list-elevated-org-team">
+              {renderRosterTeam(elevatedOrgTeam, teamRowsById.get(elevatedOrgTeam.teamId) ?? [])}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {showRosterSections ? (
@@ -874,13 +903,13 @@ export function AssistantList({
             ? renderSection(
                 'section:teams',
                 'Teams',
-                teamsForSection.length || teamGroups.length,
+                customTeamsForSection.length || customTeamGroups.length,
                 <>
-                  {teamsForSection.length > 0
-                    ? teamsForSection.map((team) =>
+                  {customTeamsForSection.length > 0
+                    ? customTeamsForSection.map((team) =>
                         renderRosterTeam(team, teamRowsById.get(team.teamId) ?? [])
                       )
-                    : teamGroups.map(renderGroup)}
+                    : customTeamGroups.map(renderGroup)}
                 </>,
                 'assistant-list-section-teams',
                 {
