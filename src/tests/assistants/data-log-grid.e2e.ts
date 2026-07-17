@@ -225,6 +225,29 @@ test('double-click opens edit mode; Enter and unfold only open the pane', async 
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 });
 
+test('clicking empty space outside cells clears the selection', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const firstRow = logGridRows(page).first();
+  await expect(firstRow).toBeVisible({ timeout: 30_000 });
+  const nameCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
+  await nameCell.click();
+  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeEnabled({ timeout: 10_000 });
+
+  const background = page.getByTestId('log-grid-background');
+  await expect(background).toBeVisible();
+  const box = await background.boundingBox();
+  expect(box).toBeTruthy();
+  // Click in the empty region below the short table body.
+  await background.click({
+    position: {
+      x: Math.min(40, box!.width / 2),
+      y: Math.max(box!.height - 24, box!.height * 0.85),
+    },
+  });
+  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeDisabled({ timeout: 10_000 });
+});
+
 test('common text filter narrows rows', async ({ authedPage: page }) => {
   await openPeopleTable(page);
   await page.getByTestId('log-grid-common-filter').fill('London');
