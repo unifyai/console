@@ -316,6 +316,7 @@ function CellBody({
   editable,
   draftText,
   onCommit,
+  onLockedClick,
   editNonce = 0,
 }: {
   value: unknown;
@@ -325,6 +326,8 @@ function CellBody({
   editable: boolean;
   draftText: string;
   onCommit?: (draft: string) => Promise<boolean>;
+  /** Locked-column feedback (jiggle the column lock icon). */
+  onLockedClick?: () => void;
   /** Bumped on grid cell double-click to open this box in edit mode. */
   editNonce?: number;
 }) {
@@ -440,7 +443,11 @@ function CellBody({
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        startEdit();
+        if (editable) {
+          startEdit();
+          return;
+        }
+        onLockedClick?.();
       }}
       data-testid="log-cell-view-value"
       data-editable={editable ? 'true' : 'false'}
@@ -527,10 +534,20 @@ function ColumnGroupDisplay({
   editNonce?: number;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
+  const lockRef = React.useRef<HTMLSpanElement>(null);
   const label = sanitizeId(group.columnId);
   const sampleType = getValueType(group.values[0]?.value);
   const columnEditable = isColumnEditable?.(group.columnId) ?? false;
   const showLock = isColumnEditable != null && !columnEditable;
+
+  const nudgeLock = React.useCallback(() => {
+    const el = lockRef.current;
+    if (!el) return;
+    // Same restart trick as LiveActions `animate-nudge` for non-expandable rows.
+    el.classList.remove('animate-nudge');
+    void el.offsetWidth;
+    el.classList.add('animate-nudge');
+  }, []);
 
   return (
     <div
@@ -557,11 +574,13 @@ function ColumnGroupDisplay({
           {label}
         </span>
         {showLock && (
-          <Lock
-            className="h-2.5 w-2.5 shrink-0 text-muted-foreground"
-            aria-label="Read-only column"
-            data-testid={`log-cell-view-column-lock-${label}`}
-          />
+          <span ref={lockRef} className="inline-flex shrink-0">
+            <Lock
+              className="h-2.5 w-2.5 text-muted-foreground"
+              aria-label="Read-only column"
+              data-testid={`log-cell-view-column-lock-${label}`}
+            />
+          </span>
         )}
       </button>
 
@@ -583,6 +602,7 @@ function ColumnGroupDisplay({
                   editable={editable}
                   draftText={draftText === '—' ? '' : draftText}
                   editNonce={editNonce}
+                  onLockedClick={showLock ? nudgeLock : undefined}
                   onCommit={
                     editable
                       ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)

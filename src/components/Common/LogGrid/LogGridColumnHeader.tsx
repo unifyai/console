@@ -110,7 +110,7 @@ export function LogGridColumnHeader({
         <span className="truncate">{fieldKey}</span>
         {isLocked && (
           <Lock
-            className="h-3 w-3 shrink-0 text-muted-foreground"
+            className="h-2.5 w-2.5 shrink-0 text-muted-foreground"
             aria-label="Read-only column"
             data-testid={`log-grid-column-lock-${fieldKey}`}
           />
