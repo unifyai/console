@@ -93,9 +93,13 @@ test('user can add and remove a reaction optimistically in the chat UI @push @ar
   const assistantBubble = page
     .locator('[data-testid="message-bubble"][data-role="assistant"]:visible')
     .first();
+  const reactionPicker = assistantBubble.getByTestId('chat-reaction-picker');
+  // Picker stays disabled until the bubble has a transcript id and the panel
+  // has resolved currentContactId — clicking earlier was a silent no-op.
+  await expect(reactionPicker).toBeEnabled({ timeout: 30_000 });
   await assistantBubble.hover();
-  await assistantBubble.getByTestId('chat-reaction-picker').click();
-  await page.getByTestId('chat-reaction-👍').click();
+  await reactionPicker.click();
+  await page.locator('[data-testid="chat-reaction-👍"]:visible').click();
   await expect(assistantBubble.getByTestId('chat-message-reactions')).toContainText('👍', {
     timeout: 15_000,
   });
@@ -123,9 +127,11 @@ test('user can pick a custom emoji from the expanded reaction picker @push @area
   const assistantBubble = page
     .locator('[data-testid="message-bubble"][data-role="assistant"]:visible')
     .first();
+  const reactionPicker = assistantBubble.getByTestId('chat-reaction-picker');
+  await expect(reactionPicker).toBeEnabled({ timeout: 30_000 });
   await assistantBubble.hover();
-  await assistantBubble.getByTestId('chat-reaction-picker').click();
-  await page.getByTestId('chat-reaction-expand').click();
+  await reactionPicker.click();
+  await page.locator('[data-testid="chat-reaction-expand"]:visible').click();
   // Multiple Search inputs exist across mounted shell surfaces; scope to the
   // emoji picker portal.
   const emojiSearch = page.locator('.EmojiPickerReact').getByPlaceholder('Search');
