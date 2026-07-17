@@ -3,13 +3,11 @@ import {
   ChatMention,
   DmMessage,
   GroupChatMessage,
-  OrgCallSession,
   OrgChatAttachment,
   OrgChatReaction,
   TeamChatMessage,
   parseDmMessage,
   parseGroupChatMessage,
-  parseOrgCallSession,
   parseTeamChatMessage,
 } from '@/types/orgChat';
 import { applyOrgReactionUpdate } from '@/utils/assistants/chat-reactions';
@@ -28,11 +26,6 @@ export interface UseOrgChatParams {
    * to live activity ahead of the next roster poll.
    */
   onHumanActivity?: (userId: string) => void;
-  /** Incoming org call ring frames. */
-  onIncomingCall?: (call: OrgCallSession) => void;
-  onCallAnswered?: (call: OrgCallSession) => void;
-  onCallEnded?: (call: OrgCallSession) => void;
-  onCallParticipantUpdate?: (call: OrgCallSession) => void;
 }
 
 function appendTeamMessage(
@@ -86,12 +79,6 @@ function dedupeDmMessages(messages: DmMessage[]): DmMessage[] {
   });
 }
 
-function isOrgCallThread(thread: string | undefined): boolean {
-  return (
-    typeof thread === 'string' && (thread.startsWith('org_call_') || thread.startsWith('dm_call_'))
-  );
-}
-
 function toOrgReactions(reactions: ReturnType<typeof applyOrgReactionUpdate>): OrgChatReaction[] {
   return reactions
     .filter((reaction): reaction is typeof reaction & { userId: string } => !!reaction.userId)
@@ -116,16 +103,7 @@ function asMessageReactions(reactions: OrgChatReaction[] | undefined) {
  * optimistic sends against the REST proxy routes.
  */
 export function useOrgChat(params: UseOrgChatParams) {
-  const {
-    orgId,
-    currentUserId,
-    enabled,
-    onHumanActivity,
-    onIncomingCall,
-    onCallAnswered,
-    onCallEnded,
-    onCallParticipantUpdate,
-  } = params;
+  const { orgId, currentUserId, enabled, onHumanActivity } = params;
 
   const [teamMessages, setTeamMessages] = React.useState<Record<number, TeamChatMessage[]>>({});
   const [groupMessages, setGroupMessages] = React.useState<Record<number, GroupChatMessage[]>>({});
@@ -136,14 +114,6 @@ export function useOrgChat(params: UseOrgChatParams) {
   currentUserIdRef.current = currentUserId;
   const onHumanActivityRef = React.useRef(onHumanActivity);
   onHumanActivityRef.current = onHumanActivity;
-  const onIncomingCallRef = React.useRef(onIncomingCall);
-  onIncomingCallRef.current = onIncomingCall;
-  const onCallAnsweredRef = React.useRef(onCallAnswered);
-  onCallAnsweredRef.current = onCallAnswered;
-  const onCallEndedRef = React.useRef(onCallEnded);
-  onCallEndedRef.current = onCallEnded;
-  const onCallParticipantUpdateRef = React.useRef(onCallParticipantUpdate);
-  onCallParticipantUpdateRef.current = onCallParticipantUpdate;
 
   React.useEffect(() => {
     setTeamMessages({});
@@ -328,20 +298,9 @@ export function useOrgChat(params: UseOrgChatParams) {
           } else if (kind === 'dm') {
             handleDmReactionFrameRef.current(frame.event);
           }
-        } else if (isOrgCallThread(frame.thread)) {
-          const call = parseOrgCallSession(frame.event);
-          if (!call.callId) return;
-          const action = frame.thread!.replace(/^(org_call_|dm_call_)/, '');
-          if (action === 'incoming') {
-            onIncomingCallRef.current?.(call);
-          } else if (action === 'answered') {
-            onCallAnsweredRef.current?.(call);
-          } else if (action === 'ended' || action === 'declined') {
-            onCallEndedRef.current?.(call);
-          } else if (action === 'participant_joined' || action === 'participant_left') {
-            onCallParticipantUpdateRef.current?.(call);
-          }
         }
+        // Org call signaling frames stream on the app-level `channel=calls`
+        // connection owned by OrgCallProvider, not this chat stream.
       };
 
       eventSource.onerror = () => {

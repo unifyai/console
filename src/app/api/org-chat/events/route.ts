@@ -94,6 +94,12 @@ export async function GET(request: NextRequest) {
   if (isNaN(organizationId)) {
     return new NextResponse('orgId query parameter required (integer)', { status: 400 });
   }
+  // Optional named channel. Each Pub/Sub subscription delivers a message to
+  // exactly one consumer, so independent client streams (page chat stream vs
+  // the app-level call engine) must use distinct subscriptions or they would
+  // silently steal frames from each other.
+  const channelRaw = request.nextUrl.searchParams.get('channel');
+  const channel = channelRaw && /^[a-z-]{1,24}$/.test(channelRaw) ? channelRaw : null;
 
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
@@ -165,7 +171,7 @@ export async function GET(request: NextRequest) {
   }
 
   const topicName = `unity-org-${organizationId}${topicSuffix()}`;
-  const subscriptionName = `${topicName}-console-${userId}`;
+  const subscriptionName = `${topicName}-console-${userId}${channel ? `-${channel}` : ''}`;
 
   const connId = `org-chat:${organizationId}:${Date.now()}`;
   const log = (msg: string, data?: Record<string, unknown>) =>

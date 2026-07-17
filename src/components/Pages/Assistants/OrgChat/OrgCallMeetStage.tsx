@@ -1,179 +1,56 @@
 'use client';
 
 import * as React from 'react';
-import { RemoteParticipant, Room, Track } from 'livekit-client';
-import { Mic, MicOff, PhoneOff, Video, VideoOff, UserPlus, LogOut } from 'lucide-react';
-import { RoomContext, useIsSpeaking, useTracks } from '@livekit/components-react';
+import { Room, Track } from 'livekit-client';
+import {
+  Mic,
+  MicOff,
+  Minimize2,
+  MonitorUp,
+  MonitorX,
+  PhoneOff,
+  Settings,
+  Video,
+  VideoOff,
+  UserPlus,
+  LogOut,
+} from 'lucide-react';
+import { RoomContext, useMediaDeviceSelect, useTracks } from '@livekit/components-react';
 import { Button } from '@/components/UI/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/UnityCallAvatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { cn } from '@/lib/utils';
 import { OrgCallSession } from '@/types/orgChat';
+import {
+  AssistantTile,
+  HumanTile,
+  LocalHumanTile,
+  OrgCallAssistantInfo,
+  OrgCallHumanInfo,
+  RemoteHumanTile,
+} from './OrgCallTiles';
 
-export interface OrgCallHumanInfo {
-  userId: string;
-  name: string;
-  image: string | null;
+export type { OrgCallAssistantInfo, OrgCallHumanInfo } from './OrgCallTiles';
+
+export function orgCallTitle(
+  call: OrgCallSession,
+  humansById: Record<string, OrgCallHumanInfo>,
+  currentUserId: string | null
+): string {
+  if (call.scope === 'team') return 'Team call';
+  if (call.scope === 'group') return 'Group call';
+  return `Call with ${
+    humansById[call.calleeUserId || '']?.name ||
+    humansById[call.userIds.find((id) => id !== currentUserId) || '']?.name ||
+    'Teammate'
+  }`;
 }
 
-export interface OrgCallAssistantInfo {
-  agentId: string;
-  name: string;
-  image: string | null;
-}
-
-function HumanTile({
-  name,
-  image,
-  isSpeaking,
-  videoEl,
-}: {
-  name: string;
-  image: string | null;
-  isSpeaking: boolean;
-  videoEl?: React.ReactNode;
-}) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
-
-  return (
-    <div
-      className={cn(
-        'bg-muted/40 relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-2xl border',
-        isSpeaking && 'animate-call-speaking-pulse'
-      )}
-      data-testid="org-call-human-tile"
-    >
-      {videoEl ? (
-        <div className="absolute inset-0">{videoEl}</div>
-      ) : (
-        <Avatar className="h-20 w-20">
-          {image ? <AvatarImage src={image} alt={name} /> : null}
-          <AvatarFallback className="text-title">{initials || '?'}</AvatarFallback>
-        </Avatar>
-      )}
-      <div className="from-background/80 absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-2 py-2">
-        <p className="text-caption truncate text-center text-foreground">{name}</p>
-      </div>
-    </div>
-  );
-}
-
-function LocalHumanTile({
-  name,
-  image,
-  room,
-}: {
-  name: string;
-  image: string | null;
-  room: Room | null;
-}) {
-  const local = room?.localParticipant;
-  const isSpeaking = useIsSpeaking(local);
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }], {
-    onlySubscribed: false,
-  });
-  const localCam = tracks.find((t) => t.participant.isLocal && t.publication?.track);
-  let videoEl: React.ReactNode = null;
-  if (localCam?.publication?.track) {
-    const track = localCam.publication.track;
-    videoEl = (
-      <video
-        ref={(el) => {
-          if (el) track.attach(el);
-        }}
-        className="h-full w-full object-cover"
-        muted
-        playsInline
-        autoPlay
-      />
-    );
-  }
-  return <HumanTile name={name} image={image} isSpeaking={!!isSpeaking} videoEl={videoEl} />;
-}
-
-function RemoteHumanTile({
-  name,
-  image,
-  userId,
-  room,
-}: {
-  name: string;
-  image: string | null;
-  userId: string;
-  room: Room | null;
-}) {
-  // A participant can be "joined" in the Orchestra session before (or without)
-  // their LiveKit connection existing — e.g. the answer API succeeded but the
-  // room connect is still in flight. Participant-context hooks throw when
-  // given undefined, so only mount the connected tile once the peer is
-  // actually present in the room.
-  const participant = room
-    ? [...room.remoteParticipants.values()].find(
-        (p) => p.identity.startsWith(`user-${userId}-`) || p.name === name
-      )
-    : undefined;
-  if (!participant) {
-    return <HumanTile name={name} image={image} isSpeaking={false} />;
-  }
-  return <ConnectedRemoteHumanTile name={name} image={image} participant={participant} />;
-}
-
-function ConnectedRemoteHumanTile({
-  name,
-  image,
-  participant,
-}: {
-  name: string;
-  image: string | null;
-  participant: RemoteParticipant;
-}) {
-  const isSpeaking = useIsSpeaking(participant);
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }], {
-    onlySubscribed: true,
-  });
-  const cam = tracks.find(
-    (t) =>
-      !t.participant.isLocal &&
-      t.participant.identity === participant.identity &&
-      t.publication?.track
-  );
-  let videoEl: React.ReactNode = null;
-  if (cam?.publication?.track) {
-    const track = cam.publication.track;
-    videoEl = (
-      <video
-        ref={(el) => {
-          if (el) track.attach(el);
-        }}
-        className="h-full w-full object-cover"
-        playsInline
-        autoPlay
-      />
-    );
-  }
-  return <HumanTile name={name} image={image} isSpeaking={!!isSpeaking} videoEl={videoEl} />;
-}
-
-function AssistantTile({ name }: { name: string }) {
-  return (
-    <div
-      className="bg-muted/40 relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-2xl border"
-      data-testid="org-call-assistant-tile"
-    >
-      <UnityCallAvatar isSpeaking isCallActive className="h-28 w-28" label={name} />
-      <div className="from-background/80 absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-2 py-2">
-        <p className="text-caption truncate text-center text-foreground">{name}</p>
-      </div>
-    </div>
-  );
-}
-
-function MeetBody({
+/**
+ * Participant tile grid shared by the full Meet stage and the minimized
+ * widget: local human first, then remote humans (joined live, invited
+ * dimmed as ringing), then one live tile per assistant on the call.
+ */
+export function MeetGrid({
   call,
   room,
   roomEpoch,
@@ -182,6 +59,8 @@ function MeetBody({
   assistantsById,
   localName,
   localImage,
+  compact = false,
+  className,
 }: {
   call: OrgCallSession;
   room: Room | null;
@@ -191,63 +70,185 @@ function MeetBody({
   assistantsById: Record<string, OrgCallAssistantInfo>;
   localName: string;
   localImage: string | null;
+  compact?: boolean;
+  className?: string;
 }) {
   void roomEpoch;
-  const joinedHumans = call.participants.filter((p) => p.status === 'joined');
-  const remoteHumans = joinedHumans.filter((p) => p.userId !== currentUserId);
-
-  if (!room) {
-    return (
-      <div
-        className="grid max-h-[50vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3"
-        data-testid="org-call-meet-grid"
-      >
-        <HumanTile name={localName} image={localImage} isSpeaking={false} />
-        {remoteHumans.map((p) => {
-          const human = humansById[p.userId];
-          return (
-            <HumanTile
-              key={p.userId}
-              name={human?.name || 'Teammate'}
-              image={human?.image ?? null}
-              isSpeaking={false}
-            />
-          );
-        })}
-        {call.assistantIds.map((assistantId) => {
-          const assistant = assistantsById[String(assistantId)];
-          return <AssistantTile key={assistantId} name={assistant?.name || 'Assistant'} />;
-        })}
-      </div>
-    );
-  }
+  const remoteParticipants = call.participants.filter(
+    (p) => p.userId !== currentUserId && p.status !== 'declined' && p.status !== 'left'
+  );
+  const assistantCount = call.assistantIds.length;
 
   return (
     <div
-      className="grid max-h-[50vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3"
+      className={cn(
+        'grid gap-3',
+        compact ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+        className
+      )}
       data-testid="org-call-meet-grid"
     >
-      <LocalHumanTile name={localName} image={localImage} room={room} />
-      {remoteHumans.map((p) => {
+      {room ? (
+        <LocalHumanTile name={localName} image={localImage} room={room} compact={compact} />
+      ) : (
+        <HumanTile name={localName} image={localImage} isSpeaking={false} compact={compact} />
+      )}
+      {remoteParticipants.map((p) => {
         const human = humansById[p.userId];
+        const name = human?.name || 'Teammate';
+        const image = human?.image ?? null;
+        if (p.status !== 'joined') {
+          return (
+            <HumanTile
+              key={p.userId}
+              name={name}
+              image={image}
+              isSpeaking={false}
+              ringing
+              compact={compact}
+            />
+          );
+        }
         return (
           <RemoteHumanTile
             key={p.userId}
-            name={human?.name || 'Teammate'}
-            image={human?.image ?? null}
+            name={name}
+            image={image}
             userId={p.userId}
             room={room}
+            compact={compact}
           />
         );
       })}
       {call.assistantIds.map((assistantId) => {
         const assistant = assistantsById[String(assistantId)];
-        return <AssistantTile key={assistantId} name={assistant?.name || 'Assistant'} />;
+        return (
+          <AssistantTile
+            key={assistantId}
+            assistantId={assistantId}
+            name={assistant?.name || 'Assistant'}
+            room={room}
+            assistantCount={assistantCount}
+            compact={compact}
+          />
+        );
       })}
     </div>
   );
 }
 
+/**
+ * Presenter focus: renders the most recent screen-share track large, Meet
+ * style. Must be mounted inside a RoomContext.
+ */
+function ScreenShareFocus({ onActiveChange }: { onActiveChange: (active: boolean) => void }) {
+  const tracks = useTracks([Track.Source.ScreenShare], { onlySubscribed: false });
+  const focus = tracks.filter((t) => t.publication?.track).at(-1);
+  const active = !!focus;
+  React.useEffect(() => {
+    onActiveChange(active);
+  }, [active, onActiveChange]);
+  if (!focus?.publication?.track) return null;
+  const track = focus.publication.track;
+  const presenterName = focus.participant.isLocal
+    ? 'You are presenting'
+    : `${focus.participant.name || 'Teammate'} is presenting`;
+  return (
+    <div
+      className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border bg-black"
+      data-testid="org-call-focus"
+    >
+      <video
+        ref={(el) => {
+          if (el) track.attach(el);
+        }}
+        className="h-full w-full object-contain"
+        muted={focus.participant.isLocal}
+        playsInline
+        autoPlay
+      />
+      <div className="from-background/80 absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-3 py-2">
+        <p className="text-caption text-foreground">{presenterName}</p>
+      </div>
+    </div>
+  );
+}
+
+function DeviceSelectList({ kind, label }: { kind: 'audioinput' | 'videoinput'; label: string }) {
+  const { devices, activeDeviceId, setActiveMediaDevice } = useMediaDeviceSelect({ kind });
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-caption text-muted-foreground">{label}</p>
+      {devices.length === 0 ? (
+        <p className="text-caption px-2 py-1">No devices found</p>
+      ) : (
+        devices.map((device) => (
+          <button
+            key={device.deviceId}
+            type="button"
+            className={cn(
+              'text-body w-full truncate rounded-md px-2 py-1.5 text-left hover:bg-muted',
+              device.deviceId === activeDeviceId && 'bg-muted font-medium'
+            )}
+            onClick={() => void setActiveMediaDevice(device.deviceId)}
+          >
+            {device.label || `${label} ${device.deviceId.slice(0, 6)}`}
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
+
+/** Mic/camera device pickers; only meaningful with a live room. */
+function DeviceSettingsMenu() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          size="icon"
+          variant="outline"
+          aria-label="Audio and video settings"
+          data-testid="org-call-device-settings"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="center" className="flex w-72 flex-col gap-3">
+        <DeviceSelectList kind="audioinput" label="Microphone" />
+        <DeviceSelectList kind="videoinput" label="Camera" />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export interface OrgCallMeetStageProps {
+  call: OrgCallSession;
+  room: Room | null;
+  roomEpoch: number;
+  currentUserId: string | null;
+  humansById: Record<string, OrgCallHumanInfo>;
+  assistantsById: Record<string, OrgCallAssistantInfo>;
+  localName: string;
+  localImage: string | null;
+  micEnabled: boolean;
+  camEnabled: boolean;
+  screenShareEnabled: boolean;
+  isHost: boolean;
+  addableAssistants: OrgCallAssistantInfo[];
+  onToggleMic: () => void;
+  onToggleCam: () => void;
+  onToggleScreenShare: () => void;
+  onMinimize: () => void;
+  onLeave: () => void;
+  onEnd: () => void;
+  onAddAssistant: (assistantId: number) => void;
+}
+
+/**
+ * Full Meet stage: full-viewport overlay with a presenter focus area (screen
+ * share), participant grid/rail, and the call control bar.
+ */
 export function OrgCallMeetStage({
   call,
   room,
@@ -259,74 +260,75 @@ export function OrgCallMeetStage({
   localImage,
   micEnabled,
   camEnabled,
+  screenShareEnabled,
   isHost,
   addableAssistants,
   onToggleMic,
   onToggleCam,
+  onToggleScreenShare,
+  onMinimize,
   onLeave,
   onEnd,
   onAddAssistant,
-}: {
-  call: OrgCallSession;
-  room: Room | null;
-  roomEpoch: number;
-  currentUserId: string | null;
-  humansById: Record<string, OrgCallHumanInfo>;
-  assistantsById: Record<string, OrgCallAssistantInfo>;
-  localName: string;
-  localImage: string | null;
-  micEnabled: boolean;
-  camEnabled: boolean;
-  isHost: boolean;
-  addableAssistants: OrgCallAssistantInfo[];
-  onToggleMic: () => void;
-  onToggleCam: () => void;
-  onLeave: () => void;
-  onEnd: () => void;
-  onAddAssistant: (assistantId: number) => void;
-}) {
+}: OrgCallMeetStageProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
-  const title =
-    call.scope === 'team'
-      ? 'Team call'
-      : call.scope === 'group'
-        ? 'Group call'
-        : `Call with ${
-            humansById[call.calleeUserId || '']?.name ||
-            humansById[call.userIds.find((id) => id !== currentUserId) || '']?.name ||
-            'Teammate'
-          }`;
+  const [focusActive, setFocusActive] = React.useState(false);
+  const title = orgCallTitle(call, humansById, currentUserId);
+  const joinedCount = call.participants.filter((p) => p.status === 'joined').length;
 
   const content = (
     <div
       role="dialog"
       aria-label={title}
       data-testid="org-call-meet-stage"
-      className="fixed bottom-6 right-6 z-50 flex w-[min(420px,calc(100vw-2rem))] flex-col gap-3 rounded-xl border bg-background p-4 shadow-lg"
+      className="fixed inset-0 z-50 flex flex-col gap-3 bg-background p-4 sm:p-6"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-title truncate text-foreground">{title}</p>
           <p className="text-caption text-muted-foreground">
-            {call.participants.filter((p) => p.status === 'joined').length} joined
-            {call.assistantIds.length > 0 ? ` · ${call.assistantIds.length} assistant` : ''}
+            {joinedCount} joined
+            {call.assistantIds.length > 0
+              ? ` · ${call.assistantIds.length} assistant${call.assistantIds.length > 1 ? 's' : ''}`
+              : ''}
           </p>
         </div>
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={onMinimize}
+          aria-label="Minimize call"
+          data-testid="org-call-minimize"
+        >
+          <Minimize2 className="h-4 w-4" />
+        </Button>
       </div>
 
-      <MeetBody
-        call={call}
-        room={room}
-        roomEpoch={roomEpoch}
-        currentUserId={currentUserId}
-        humansById={humansById}
-        assistantsById={assistantsById}
-        localName={localName}
-        localImage={localImage}
-      />
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {room && <ScreenShareFocus onActiveChange={setFocusActive} />}
+        <MeetGrid
+          call={call}
+          room={room}
+          roomEpoch={roomEpoch}
+          currentUserId={currentUserId}
+          humansById={humansById}
+          assistantsById={assistantsById}
+          localName={localName}
+          localImage={localImage}
+          compact={focusActive}
+          className={
+            focusActive
+              ? 'grid-cols-6 sm:grid-cols-8 lg:grid-cols-10'
+              : 'mx-auto w-full max-w-4xl flex-1 content-center overflow-y-auto py-4'
+          }
+        />
+      </div>
 
       {pickerOpen && addableAssistants.length > 0 && (
-        <div className="rounded-lg border p-2" data-testid="org-call-add-assistant-picker">
+        <div
+          className="mx-auto w-full max-w-md rounded-lg border p-2"
+          data-testid="org-call-add-assistant-picker"
+        >
           {addableAssistants.map((assistant) => (
             <button
               key={assistant.agentId}
@@ -362,6 +364,20 @@ export function OrgCallMeetStage({
         >
           {camEnabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
         </Button>
+        <Button
+          size="icon"
+          variant={screenShareEnabled ? 'secondary' : 'outline'}
+          onClick={onToggleScreenShare}
+          aria-label={screenShareEnabled ? 'Stop presenting' : 'Present your screen'}
+          data-testid="org-call-toggle-screenshare"
+        >
+          {screenShareEnabled ? (
+            <MonitorX className="h-4 w-4" />
+          ) : (
+            <MonitorUp className="h-4 w-4" />
+          )}
+        </Button>
+        {room && <DeviceSettingsMenu />}
         {(call.scope === 'team' || call.scope === 'group') && addableAssistants.length > 0 && (
           <Button
             size="icon"
