@@ -112,6 +112,7 @@ export function useInfiniteLogQuery({
       return allPages.length;
     },
     enabled: fieldsReady,
+    placeholderData: (prev) => prev,
     refetchInterval: view.autoUpdate ? 5_000 : false,
   });
 
