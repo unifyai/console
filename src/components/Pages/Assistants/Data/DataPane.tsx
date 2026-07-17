@@ -249,6 +249,7 @@ export function DataPane({
   const {
     data: contextNames,
     isInitialLoading: isLoadingTree,
+    isRefreshing: isRefreshingTree,
     refresh: refreshTree,
   } = useShellResource<string[]>({
     queryKey: [
@@ -260,6 +261,11 @@ export function DataPane({
     queryFn: loadContextNames,
     enabled: enabled && !!ownerId && !!assistantId,
   });
+
+  const handleRefresh = React.useCallback(() => {
+    void refreshTree();
+    setRefreshToken((t) => t + 1);
+  }, [refreshTree]);
 
   const tree = React.useMemo(
     () => buildDataBrowserTree(contextNames ?? [], dataRoots, mode),
@@ -455,13 +461,16 @@ export function DataPane({
         <div className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
-            onClick={() => {
-              void refreshTree({ blocking: true });
-            }}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={handleRefresh}
+            disabled={isRefreshingTree}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             aria-label="Refresh data contexts"
+            data-testid="data-refresh"
           >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <RefreshCw
+              className={cn('h-3.5 w-3.5', isRefreshingTree && 'animate-spin')}
+              aria-hidden="true"
+            />
           </button>
           {!isStackedLayout && showDirectory && (
             <button
