@@ -115,7 +115,7 @@ export function LogGridToolbar({
 
   return (
     <div
-      className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto border-b border-border px-4 py-2"
+      className="relative z-10 flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto border-b border-border bg-background px-4 py-2"
       data-testid="log-grid-toolbar"
     >
       <Input

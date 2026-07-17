@@ -921,15 +921,16 @@ export function LogGrid({
                       </colgroup>
                       <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
-                          <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
+                          <TableRow key={headerGroup.id} className="hover:bg-transparent">
                             {headerGroup.headers.map((header) => {
                               if (header.column.id === LOG_ROW_NUMBER_COL) {
                                 return (
                                   <TableHead
                                     key={header.id}
                                     className={cn(
-                                      // Opaque bg so scrolled cells don't show through the pin.
-                                      'sticky left-0 top-0 z-30 h-8 cursor-pointer select-none border-r border-border bg-muted px-1 text-center text-[11px] text-muted-foreground hover:bg-primary-tint-10',
+                                      // Opaque sticky corner: --muted/--surface/--secondary (dark)
+                                      // are translucent and let scrolled content bleed through the pin.
+                                      'sticky left-0 top-0 z-30 h-8 cursor-pointer select-none border-r border-border bg-card px-1 text-center text-[11px] text-muted-foreground hover:bg-card-2',
                                       selection?.mode === 'cell' && 'select-none'
                                     )}
                                     style={{ width: header.getSize(), minWidth: header.getSize() }}
@@ -951,7 +952,7 @@ export function LogGrid({
                                   key={header.id}
                                   header={header}
                                   reorderEnabled={reorderEnabled}
-                                  className="relative h-8 whitespace-nowrap border-r border-border px-1 text-[11px] text-muted-foreground"
+                                  className="sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground"
                                   style={{
                                     width: header.getSize(),
                                   }}
@@ -1042,7 +1043,8 @@ export function LogGrid({
                                         'sticky left-0 z-20 cursor-pointer select-none border-r border-border px-1 py-1.5 text-center font-mono text-[12px]',
                                         rowFullySelected
                                           ? 'bg-primary text-primary-foreground'
-                                          : 'bg-background text-muted-foreground hover:bg-primary-tint-10'
+                                          : // Opaque hover: muted/primary-tint mix with transparent.
+                                            'bg-background text-muted-foreground hover:bg-card-2'
                                       )}
                                       onMouseDown={(e) => onRowIndexPointerDown(e, logId)}
                                       onMouseEnter={(e) => onRowIndexPointerEnter(e, logId)}
