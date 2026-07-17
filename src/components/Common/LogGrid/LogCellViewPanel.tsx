@@ -550,11 +550,7 @@ function ColumnGroupDisplay({
   }, []);
 
   return (
-    <div
-      className="border-border/50 border-b"
-      data-testid="log-cell-view-column"
-      data-column={label}
-    >
+    <div data-testid="log-cell-view-column" data-column={label}>
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
@@ -777,7 +773,7 @@ export function LogCellViewPanel({
         </p>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-0 p-2">
+          <div className="space-y-1 p-2">
             {columns.map((column) => (
               <ColumnGroupDisplay
                 key={column.columnId}
