@@ -11,7 +11,7 @@ import {
   getUpdatedGroupingExpression,
 } from '@/utils/interfaces/table/grouping';
 import { isEqual } from '@/utils/misc/isEqual';
-import { entriesColumnId, sanitizeId } from './columns';
+import { sanitizeId, toOrchestraColumnPath } from './columns';
 import { makeCellId, type LogGridRow } from './types';
 
 function stripPrivateFields(entries: Record<string, unknown>): Record<string, unknown> {
@@ -50,7 +50,7 @@ export function withGroupedColumnsFirst(columnOrder: string[], grouping: string[
 }
 
 export function toOrchestraGroupBy(fieldIds: string[]): string[] {
-  return fieldIds.map(entriesColumnId);
+  return fieldIds.map(toOrchestraColumnPath);
 }
 
 function leafToGridRow(log: LogProps | Record<string, unknown>): LogGridRow {
@@ -242,6 +242,7 @@ export async function fetchGroupChildren(args: ExpandLogGroupArgs): Promise<{
   count: number;
 }> {
   const orchestraGrouping = toOrchestraGroupBy(parseGrouping(args.grouping)).join(',');
+  const orchestraGroupingColumnId = toOrchestraColumnPath(args.groupingColumnId);
   const dataTypes = Object.fromEntries(
     Object.entries(args.fields).map(([k, v]) => [sanitizeId(k), v.dataType])
   );
@@ -255,7 +256,7 @@ export async function fetchGroupChildren(args: ExpandLogGroupArgs): Promise<{
     args.fields
   );
 
-  const remaining = getUpdatedGroupingExpression(orchestraGrouping, args.groupingColumnId);
+  const remaining = getUpdatedGroupingExpression(orchestraGrouping, orchestraGroupingColumnId);
   const useGroupPagination = !!remaining;
 
   const params = new URLSearchParams({

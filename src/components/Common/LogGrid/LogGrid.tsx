@@ -410,7 +410,9 @@ export function LogGrid({
                 <button
                   type="button"
                   className={cn(
-                    'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-transform',
+                    // Size to the icon so its left edge matches leaf values (a fixed
+                    // w-5 centered target insets the glyph).
+                    'inline-flex shrink-0 items-center justify-center text-muted-foreground transition-transform',
                     row.getIsExpanded() && 'rotate-90'
                   )}
                   aria-label={row.getIsExpanded() ? 'Collapse group' : 'Expand group'}

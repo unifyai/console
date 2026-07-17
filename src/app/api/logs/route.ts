@@ -3,6 +3,7 @@ import { buildCacheControl } from '../_utils/cacheResponse';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
+import { toOrchestraColumnPath } from '@/lib/logs/columns';
 
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 const __DEV__ = process.env.NODE_ENV === 'development';
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     searchParams.get('columnContext') || searchParams.get('column_context') || undefined;
   const filterExpr = searchParams.get('filterExpr') || searchParams.get('filter_expr') || undefined;
   const sorting = searchParams.get('sorting') || undefined;
-  const groupBy = searchParams.getAll('groupBy'); // Can have multiple values
+  const groupBy = searchParams.getAll('groupBy').map(toOrchestraColumnPath);
   const groupSorting =
     searchParams.get('groupSorting') || searchParams.get('group_sorting') || undefined;
   const fromIds = searchParams.get('fromIds') || searchParams.get('from_ids') || undefined;

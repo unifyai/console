@@ -41,12 +41,12 @@ const assistant = createAssistant({
 });
 
 const PEOPLE = [
-  { name: 'Ada Lovelace', city: 'London', score: 95 },
+  { name: 'Ada Lovelace', city: 'London', score: 95, team_id: 1 },
   // Shared city with Ada so multi-row selection can collapse city into one value group
-  { name: 'Alan Turing', city: 'London', score: 88 },
-  { name: 'Grace Hopper', city: 'New York', score: 91 },
-  { name: 'Katherine Johnson', city: 'Hampton', score: 97 },
-  { name: 'Donald Knuth', city: 'Stanford', score: 84 },
+  { name: 'Alan Turing', city: 'London', score: 88, team_id: 1 },
+  { name: 'Grace Hopper', city: 'New York', score: 91, team_id: 2 },
+  { name: 'Katherine Johnson', city: 'Hampton', score: 97, team_id: 2 },
+  { name: 'Donald Knuth', city: 'Stanford', score: 84, team_id: 0 },
 ];
 
 const contextPath = `${user.id}/${assistant.agentId}/Data/Demo/People`;
@@ -468,6 +468,32 @@ test('group by nests columns and expands leaf rows', async ({ authedPage: page }
   await expect(page.getByTestId('log-grid-group-expand-name').first()).toBeVisible({
     timeout: 30_000,
   });
+});
+
+test('group by snake_case field uses Orchestra keys not camelCase', async ({
+  authedPage: page,
+}) => {
+  // Regression: response casing turns team_id → teamId in the UI; group_by must
+  // send Entries/team_id or Orchestra collapses every row into a single null group.
+  await openPeopleTable(page);
+
+  const teamHeader = page.getByTestId('log-grid-header-teamId');
+  await expect(teamHeader).toBeVisible({ timeout: 30_000 });
+  await teamHeader.hover();
+  await page.getByTestId('log-grid-column-menu-teamId').click({ force: true });
+  await page.getByTestId('log-grid-group-by-teamId').click({ force: true });
+
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
+    timeout: 30_000,
+  });
+  // Three team_id values (0, 1, 2) — must not collapse to a single "(n) null" group.
+  await expect(page.getByTestId('log-grid-group-expand-teamId')).toHaveCount(3, {
+    timeout: 30_000,
+  });
+  await expect(page.getByText('null')).toHaveCount(0);
+
+  await page.getByTestId('log-grid-group-expand-teamId').first().click();
+  await expect(logGridRows(page).first()).toBeVisible({ timeout: 30_000 });
 });
 
 test('row index column stays pinned while scrolling horizontally', async ({ authedPage: page }) => {
