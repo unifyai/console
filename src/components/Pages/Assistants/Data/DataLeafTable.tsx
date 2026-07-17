@@ -13,9 +13,18 @@ import {
   type LogGridRow,
   type SelectionModel,
 } from '@/lib/logs';
-import type { DataField, DataRow } from './dataTypes';
+import {
+  coerceFieldDraft,
+  draftStringForField,
+  isDataFieldEditable,
+  type DataField,
+  type DataRow,
+} from './dataTypes';
 import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
 import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
+import { updateLogEntries } from '@/lib/logs/mutations';
+import { sanitizeId } from '@/lib/logs/columns';
+import { toast } from 'sonner';
 
 function normalizeBoolFlag(value: unknown): boolean | undefined {
   if (typeof value === 'boolean') return value;
@@ -85,7 +94,7 @@ export function DataLeafTable({
   context,
   mode,
   selectedRowId: _selectedRowId,
-  onRowSelect,
+  onRowSelect: _onRowSelect,
   selectedCells,
   onSelectCells,
   viewPanelOpen,
@@ -224,6 +233,61 @@ export function DataLeafTable({
     if (selectedCells.length === 0) onViewPanelOpenChange(false);
   }, [selectedCells.length, onViewPanelOpenChange]);
 
+  const dataFields = React.useMemo(() => fieldsToDataFields(fields), [fields]);
+
+  const resolveField = React.useCallback(
+    (columnId: string): { key: string; field: DataField } => {
+      const sanitized = sanitizeId(columnId);
+      if (dataFields[sanitized]) return { key: sanitized, field: dataFields[sanitized]! };
+      if (dataFields[columnId]) return { key: columnId, field: dataFields[columnId]! };
+      const lower = sanitized.toLowerCase();
+      const match = Object.entries(dataFields).find(([key]) => key.toLowerCase() === lower);
+      if (match) return { key: match[0], field: match[1] };
+      return { key: sanitized, field: {} };
+    },
+    [dataFields]
+  );
+
+  const isColumnEditable = React.useCallback(
+    (columnId: string) => isDataFieldEditable(resolveField(columnId).field, mode),
+    [resolveField, mode]
+  );
+
+  const draftForValue = React.useCallback(
+    (columnId: string, value: unknown) => draftStringForField(resolveField(columnId).field, value),
+    [resolveField]
+  );
+
+  const onCommitEdit = React.useCallback(
+    async (logId: number, columnId: string, draft: string) => {
+      const { key, field } = resolveField(columnId);
+      const row = panelRows.find((r) => r.logId === logId);
+      const current = row?.entries[key] ?? row?.entries[columnId];
+      let nextValue: unknown;
+      try {
+        nextValue = coerceFieldDraft(field, draft, current);
+      } catch (error) {
+        console.error('Invalid cell edit draft', error);
+        toast.error('Could not save changes. Please try again.');
+        return false;
+      }
+      if (JSON.stringify(nextValue) === JSON.stringify(current)) return true;
+      const result = await updateLogEntries({
+        projectName: 'Assistants',
+        context,
+        logId,
+        entries: { [key]: nextValue },
+      });
+      if (!result.ok) {
+        toast.error('Could not save changes. Please try again.');
+        return false;
+      }
+      await refreshAll();
+      return true;
+    },
+    [resolveField, panelRows, context, refreshAll]
+  );
+
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <LogGrid
@@ -262,10 +326,9 @@ export function DataLeafTable({
         <LogCellViewPanel
           cells={cellSelections}
           onClose={() => onViewPanelOpenChange(false)}
-          onEditCell={(logId, columnId) => {
-            const match = panelRows.find((r) => r.logId === logId);
-            onRowSelect(match ? toDataRow(match) : null, { editField: columnId });
-          }}
+          isColumnEditable={isColumnEditable}
+          onCommitEdit={onCommitEdit}
+          draftForValue={draftForValue}
         />
       )}
     </div>

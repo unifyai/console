@@ -184,8 +184,12 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
 
   await nameCell.click();
   await openCellViewPanel(page);
-  await page.getByTestId('log-cell-view-edit-cell').click();
-  await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
+  const valueBox = page.getByTestId('log-cell-view-value').first();
+  await expect(valueBox).toHaveAttribute('data-editable', 'true');
+  await valueBox.dblclick();
+  await expect(page.getByTestId('log-cell-view-editor')).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 });
 
 test('double-click opens and Enter toggles the cell view pane', async ({ authedPage: page }) => {

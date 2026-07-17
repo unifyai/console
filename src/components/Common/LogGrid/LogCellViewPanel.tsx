@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronRight, Pencil, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import {
@@ -11,8 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/UI/select';
+import { Textarea } from '@/components/UI/textarea';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
-import Tooltip from '@/components/Common/Misc/Tooltip';
 import {
   getValueType,
   getTypeIcon,
@@ -49,8 +49,12 @@ type ColumnGroup = {
 interface LogCellViewPanelProps {
   cells: LogCellSelection[];
   onClose: () => void;
-  /** Open edit UI for a single cell (log + column), not the whole row. */
-  onEditCell?: (logId: number, columnId: string) => void;
+  /** Whether a column may be edited inline (e.g. `ui_editable`). */
+  isColumnEditable?: (columnId: string) => boolean;
+  /** Persist an inline edit. Return true when saved. */
+  onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
+  /** Initial draft text for the editor (typed / JSON string form of the value). */
+  draftForValue?: (columnId: string, value: unknown) => string;
   className?: string;
 }
 
@@ -230,20 +234,131 @@ function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ValueCopyButton({ value }: { value: unknown }) {
+  return (
+    <CopyButton
+      content={formatValue(value, 'raw')}
+      copyMessage="Copied!"
+      className="absolute right-1 top-1 z-10 h-7 w-7 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+    />
+  );
+}
+
 function CellBody({
   value,
   fieldName,
   mode,
+  editable,
+  draftText,
+  onCommit,
 }: {
   value: unknown;
   fieldName: string;
   mode: DisplayMode;
+  editable: boolean;
+  draftText: string;
+  onCommit?: (draft: string) => Promise<boolean>;
 }) {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(draftText);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const skipCommitRef = React.useRef(false);
+  const commitInFlightRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isEditing) setDraft(draftText);
+  }, [draftText, isEditing]);
+
+  React.useEffect(() => {
+    if (isEditing) inputRef.current?.focus();
+  }, [isEditing]);
+
+  const startEdit = () => {
+    if (!editable || !onCommit || isSaving) return;
+    skipCommitRef.current = false;
+    setDraft(draftText);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    skipCommitRef.current = true;
+    setIsEditing(false);
+    setDraft(draftText);
+  };
+
+  const commitEdit = async () => {
+    if (!onCommit || isSaving || commitInFlightRef.current) return;
+    if (skipCommitRef.current) {
+      skipCommitRef.current = false;
+      return;
+    }
+    if (draft === draftText) {
+      setIsEditing(false);
+      return;
+    }
+    commitInFlightRef.current = true;
+    setIsSaving(true);
+    const ok = await onCommit(draft);
+    setIsSaving(false);
+    commitInFlightRef.current = false;
+    if (ok) setIsEditing(false);
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      cancelEdit();
+      return;
+    }
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      void commitEdit();
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="relative rounded-md border border-primary bg-background">
+        <Textarea
+          ref={inputRef}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={onKeyDown}
+          onBlur={() => void commitEdit()}
+          disabled={isSaving}
+          className="min-h-[2.75rem] resize-y border-0 bg-transparent p-3 text-sm shadow-none focus-visible:ring-0"
+          data-testid="log-cell-view-editor"
+          aria-label={`Edit ${fieldName}`}
+        />
+      </div>
+    );
+  }
+
   const type = getValueType(value);
+  const boxProps = {
+    onDoubleClick: (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      startEdit();
+    },
+    'data-testid': 'log-cell-view-value',
+    'data-editable': editable ? 'true' : 'false',
+  } as const;
+
   if (mode !== 'raw' && (type === 'dict' || type === 'list' || type === 'matrix')) {
     return (
       <LogPanelExpandProvider>
-        <div className="bg-muted/20 rounded-md border border-border p-2">
+        <div
+          className={cn(
+            'bg-muted/20 group relative rounded-md border border-border p-2',
+            editable && 'cursor-text'
+          )}
+          {...boxProps}
+        >
+          <ValueCopyButton value={value} />
           <ComplexBody fieldName={fieldName} value={value} />
         </div>
       </LogPanelExpandProvider>
@@ -251,38 +366,62 @@ function CellBody({
   }
   if (type === 'image' && typeof value === 'string') {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={value} alt="" className="max-h-64 max-w-full rounded-md border border-border" />
+      <div
+        className={cn('group relative inline-block max-w-full', editable && 'cursor-text')}
+        {...boxProps}
+      >
+        <ValueCopyButton value={value} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={value} alt="" className="max-h-64 max-w-full rounded-md border border-border" />
+      </div>
     );
   }
   const text = formatValue(value, mode);
   const mono =
     mode === 'raw' || type === 'dict' || type === 'list' || type === 'matrix' || type === 'number';
   return (
-    <pre
+    <div
       className={cn(
-        'bg-muted/30 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border p-3 text-sm text-foreground',
+        'bg-muted/30 group relative rounded-md border border-border',
         mono && 'font-mono text-[12px]',
-        mode === 'markdown' && type === 'string' && 'prose prose-sm max-w-none dark:prose-invert'
+        editable && 'cursor-text'
       )}
+      {...boxProps}
     >
-      {text}
-    </pre>
+      <ValueCopyButton value={value} />
+      <div className="max-h-80 overflow-auto">
+        <pre
+          className={cn(
+            'whitespace-pre-wrap break-words p-3 text-sm text-foreground',
+            mode === 'markdown' &&
+              type === 'string' &&
+              'prose prose-sm max-w-none dark:prose-invert'
+          )}
+        >
+          {text}
+        </pre>
+      </div>
+    </div>
   );
 }
 
 function ColumnGroupDisplay({
   group,
   mode,
-  onEditCell,
+  isColumnEditable,
+  onCommitEdit,
+  draftForValue,
 }: {
   group: ColumnGroup;
   mode: DisplayMode;
-  onEditCell?: (logId: number, columnId: string) => void;
+  isColumnEditable?: (columnId: string) => boolean;
+  onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
+  draftForValue?: (columnId: string, value: unknown) => string;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
   const label = sanitizeId(group.columnId);
   const sampleType = getValueType(group.values[0]?.value);
+  const columnEditable = isColumnEditable?.(group.columnId) ?? false;
 
   return (
     <div
@@ -311,6 +450,11 @@ function ColumnGroupDisplay({
           {group.values.map((valueGroup) => {
             const rowLabel = compressRowLabels(valueGroup.rowLabels);
             const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
+            const singleLogId = valueGroup.logIds.length === 1 ? valueGroup.logIds[0] : null;
+            const editable = columnEditable && singleLogId != null && !!onCommitEdit;
+            const draftText =
+              draftForValue?.(group.columnId, valueGroup.value) ??
+              formatValue(valueGroup.value, 'raw');
             return (
               <div
                 key={groupKey}
@@ -318,32 +462,21 @@ function ColumnGroupDisplay({
                 data-testid="log-cell-view-group"
                 data-column={label}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-caption text-muted-foreground">
-                    {valueGroup.rowLabels.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <CopyButton
-                      content={formatValue(valueGroup.value, 'raw')}
-                      className="h-7 w-7"
-                    />
-                    {onEditCell && valueGroup.logIds.length === 1 && (
-                      <Tooltip content={`Edit ${label}`}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={() => onEditCell(valueGroup.logIds[0], group.columnId)}
-                          aria-label={`Edit ${label}`}
-                          data-testid="log-cell-view-edit-cell"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      </Tooltip>
-                    )}
-                  </div>
+                <div className="text-caption text-muted-foreground">
+                  {valueGroup.rowLabels.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
                 </div>
-                <CellBody value={valueGroup.value} fieldName={label} mode={mode} />
+                <CellBody
+                  value={valueGroup.value}
+                  fieldName={label}
+                  mode={mode}
+                  editable={editable}
+                  draftText={draftText === '—' ? '' : draftText}
+                  onCommit={
+                    editable && singleLogId != null
+                      ? (draft) => onCommitEdit(singleLogId, group.columnId, draft)
+                      : undefined
+                  }
+                />
               </div>
             );
           })}
@@ -357,9 +490,16 @@ function ColumnGroupDisplay({
  * Viewing panel for selected LogGrid cells.
  * Groups by column under foldable headings (expanded by default), then
  * collapses identical values within a column to one entry with a compressed
- * row-number range.
+ * row-number range. Double-click an editable value box to edit inline.
  */
-export function LogCellViewPanel({ cells, onClose, onEditCell, className }: LogCellViewPanelProps) {
+export function LogCellViewPanel({
+  cells,
+  onClose,
+  isColumnEditable,
+  onCommitEdit,
+  draftForValue,
+  className,
+}: LogCellViewPanelProps) {
   const [mode, setMode] = React.useState<DisplayMode>('text');
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
 
@@ -426,7 +566,9 @@ export function LogCellViewPanel({ cells, onClose, onEditCell, className }: LogC
               key={column.columnId}
               group={column}
               mode={mode}
-              onEditCell={onEditCell}
+              isColumnEditable={isColumnEditable}
+              onCommitEdit={onCommitEdit}
+              draftForValue={draftForValue}
             />
           ))}
         </div>

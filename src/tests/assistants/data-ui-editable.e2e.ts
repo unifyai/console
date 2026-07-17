@@ -148,7 +148,7 @@ async function openDataPane(page: Page) {
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 30_000 });
 }
 
-async function openRowDetailFromFirstCell(page: Page) {
+async function openCellViewFromFirstCell(page: Page) {
   const firstCell = page.locator('[data-testid^="log-grid-cell-"]').first();
   await expect(firstCell).toBeVisible({ timeout: 30_000 });
   await firstCell.click();
@@ -156,13 +156,6 @@ async function openRowDetailFromFirstCell(page: Page) {
   await expect(toggle).toBeEnabled({ timeout: 10_000 });
   await toggle.click();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('log-cell-view-edit-cell').click();
-  await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
-  // Editable cells open in single-field edit; exit so callers can use Edit row.
-  const discard = page.getByRole('button', { name: 'Discard changes' });
-  if ((await discard.count()) > 0) {
-    await discard.click();
-  }
 }
 
 test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no delete', async ({
@@ -173,31 +166,50 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'Contacts');
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
 
-  await openRowDetailFromFirstCell(page);
+  // Select the locked contact_id cell and confirm double-click does not enter edit.
+  const contactIdHeader = page.getByTestId(/log-grid-header-(contact_id|contactId)/);
+  await expect(contactIdHeader).toBeVisible({ timeout: 30_000 });
+  const contactIdCell = page
+    .locator('tr[data-testid^="log-grid-row-"]')
+    .first()
+    .locator('[data-testid^="log-grid-cell-"]')
+    .filter({ hasText: '42' })
+    .first();
+  await contactIdCell.click();
+  await page.getByTestId('log-grid-view-panel-toggle').click();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  const lockedValue = page
+    .locator(
+      '[data-testid="log-cell-view-column"][data-column="contact_id"], [data-testid="log-cell-view-column"][data-column="contactId"]'
+    )
+    .getByTestId('log-cell-view-value');
+  await expect(lockedValue).toHaveAttribute('data-editable', 'false');
+  await lockedValue.dblclick();
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
+  await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
 
-  await expect(page.getByTestId('data-row-detail-delete')).toHaveCount(0);
-  await expect(page.getByTestId('data-row-detail-edit')).toBeVisible();
-
-  await page.getByTestId('data-row-detail-edit').click();
-
-  const fields = page.getByTestId('data-row-detail-fields');
-  // Field keys may be snake_case (Orchestra) or camelCase (client conversion).
-  const contactIdRow = fields.locator('div.group\\/field').filter({
-    has: page.locator('dt span', { hasText: /^(contact_id|contactId)$/ }),
-  });
-  await expect(contactIdRow.getByText('Read-only')).toBeVisible();
-  await expect(contactIdRow.locator('input, textarea')).toHaveCount(0);
-
-  const firstNameRow = fields.locator('div.group\\/field').filter({
-    has: page.locator('dt span', { hasText: /^(first_name|firstName)$/ }),
-  });
-  // In row-edit mode, allowlisted fields render inputs (not the per-field pencil).
-  await expect(firstNameRow.locator('input, textarea').first()).toBeVisible();
-  await expect(firstNameRow.getByText('Read-only')).toHaveCount(0);
+  // Select an allowlisted field and confirm double-click opens an inline editor.
+  const firstNameCell = page
+    .locator('tr[data-testid^="log-grid-row-"]')
+    .first()
+    .locator('[data-testid^="log-grid-cell-"]')
+    .filter({ hasText: 'Editable' })
+    .first();
+  await firstNameCell.click();
+  await page.getByTestId('log-grid-view-panel-toggle').click();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  const editableValue = page
+    .locator(
+      '[data-testid="log-cell-view-column"][data-column="first_name"], [data-testid="log-cell-view-column"][data-column="firstName"]'
+    )
+    .getByTestId('log-cell-view-value');
+  await expect(editableValue).toHaveAttribute('data-editable', 'true');
+  await editableValue.dblclick();
+  await expect(page.getByTestId('log-cell-view-editor')).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 
   // Grid toolbar must not offer row delete in SM modes
-  await page.keyboard.press('Escape');
-  await expect(page.getByTestId('data-row-detail')).toHaveCount(0);
   const firstRow = page.locator('tr[data-testid^="log-grid-row-"]').first();
   await firstRow.locator('[data-testid^="log-grid-row-index-"]').click();
   await expect(page.getByTestId('log-grid-delete-row')).toHaveCount(0);
@@ -209,9 +221,14 @@ test('Transcripts SM mode: fully read-only and no delete', async ({ authedPage: 
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'Transcripts');
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
 
-  await openRowDetailFromFirstCell(page);
+  await openCellViewFromFirstCell(page);
 
-  await expect(page.getByTestId('data-row-detail-delete')).toHaveCount(0);
-  await expect(page.getByTestId('data-row-detail-edit')).toHaveCount(0);
-  await expect(page.getByTestId('data-row-detail-fields')).toContainText('content');
+  const valueBox = page.getByTestId('log-cell-view-value').first();
+  await expect(valueBox).toHaveAttribute('data-editable', 'false');
+  await valueBox.dblclick();
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
+
+  const firstRow = page.locator('tr[data-testid^="log-grid-row-"]').first();
+  await firstRow.locator('[data-testid^="log-grid-row-index-"]').click();
+  await expect(page.getByTestId('log-grid-delete-row')).toHaveCount(0);
 });
