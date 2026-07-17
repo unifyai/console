@@ -130,8 +130,9 @@ export function DataLeafTable({
   });
 
   React.useEffect(() => {
+    // Keep rowLabels: LogGrid sets them in a child effect, and wiping here
+    // afterwards (child effects run first) leaves the view-pane gutter empty.
     setBrowseRows([]);
-    setRowLabels(new Map());
   }, [context]);
 
   React.useEffect(() => {
