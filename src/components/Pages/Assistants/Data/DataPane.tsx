@@ -226,7 +226,7 @@ function ModeSegments({
         />
       </TabSegmentGroup>
       <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-      <TabSegmentGroup className="flex-wrap">
+      <TabSegmentGroup className="inline-grid grid-cols-2 justify-items-start">
         {STATE_MANAGER_ROOTS.map((root) => (
           <TabSegment
             key={root}
