@@ -975,7 +975,7 @@ export function LogGrid({
                 data-testid="log-grid-background"
                 onMouseDown={clearSelectionOnBackgroundPointerDown}
               >
-                <div className="border-b border-border">
+                <div className="w-max border-b border-border">
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
