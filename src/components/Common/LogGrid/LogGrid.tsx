@@ -27,7 +27,14 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/UI/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/UI/table';
 import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
@@ -47,6 +54,10 @@ import {
   makeCellId,
   parseCellId,
   cellsInBoundingRange,
+  cellsForRow,
+  cellsForRowRange,
+  isAllRowSelected,
+  LOG_ROW_NUMBER_COL,
   type LogFieldsResponseProps,
   type LogGridRow,
   type LogViewState,
@@ -76,6 +87,7 @@ function SortableHeader({
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: header.column.id,
+    disabled: !reorderEnabled,
   });
   return (
     <LogGridSortableHead
@@ -149,12 +161,12 @@ export function LogGrid({
   const [editing, setEditing] = React.useState<{ logId: number; columnId: string } | null>(null);
   const [editValue, setEditValue] = React.useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [reorderColumnId, setReorderColumnId] = React.useState<string | null>(null);
+  const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    setReorderColumnId(null);
+    setReorderEnabled(false);
   }, [context]);
 
   React.useEffect(() => {
@@ -203,7 +215,6 @@ export function LogGrid({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    setReorderColumnId(null);
     if (!over || active.id === over.id) return;
     const order = [...(view.columnOrder.length ? view.columnOrder : columns)];
     const oldIndex = order.indexOf(String(active.id));
@@ -244,7 +255,17 @@ export function LogGrid({
   openDerivedEditRef.current = openDerivedEdit;
 
   const columnDefs = React.useMemo<ColumnDef<LogGridRow>[]>(() => {
-    return visible.map((key) => {
+    const indexColumn: ColumnDef<LogGridRow> = {
+      id: LOG_ROW_NUMBER_COL,
+      header: '#',
+      cell: ({ row }) => view.offset + row.index + 1,
+      size: 48,
+      minSize: 40,
+      maxSize: 64,
+      enableResizing: false,
+      enableSorting: false,
+    };
+    const dataColumns: ColumnDef<LogGridRow>[] = visible.map((key) => {
       const fieldKey = sanitizeId(key);
       const meta = fields[key] ?? fields[fieldKey];
       const isDerived = meta?.fieldType === 'derived_entry';
@@ -263,9 +284,9 @@ export function LogGrid({
               onFiltersChange={(filters) => onViewChangeRef.current({ filters, offset: 0 })}
               isDerived={isDerived}
               onEditDerived={isDerived ? () => openDerivedEditRef.current(key) : undefined}
-              reorderEnabled={reorderColumnId === key}
-              onEnableReorder={() => setReorderColumnId(key)}
-              onDisableReorder={() => setReorderColumnId(null)}
+              reorderEnabled={reorderEnabled}
+              onEnableReorder={() => setReorderEnabled(true)}
+              onDisableReorder={() => setReorderEnabled(false)}
             />
           );
         },
@@ -316,8 +337,9 @@ export function LogGrid({
         enableSorting: true,
       };
     });
+    return [indexColumn, ...dataColumns];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- commitEdit closes over latest view via refs
-  }, [visible, fields, view.filters, editing, editValue, reorderColumnId]);
+  }, [visible, fields, view.filters, view.offset, editing, editValue, reorderEnabled]);
 
   const table = useReactTable({
     data: rows,
@@ -419,6 +441,48 @@ export function LogGrid({
     [selection, rows, visible]
   );
 
+  /** Whole-row selection via the left-hand index column (Interfaces RowNumbering). */
+  const selectRow = React.useCallback(
+    (logId: string, modifiers: { additive?: boolean; range?: boolean } = {}) => {
+      if (selection?.mode !== 'cell') return;
+      const rowCells = cellsForRow(logId, visible);
+      if (!rowCells.length) return;
+      const anchorCell = rowCells[0];
+
+      if (modifiers.range) {
+        const anchor = selectionAnchorRef.current ?? selection.selectedCells[0] ?? anchorCell;
+        if (!selectionAnchorRef.current) selectionAnchorRef.current = anchor;
+        const startLogId = parseCellId(anchor).logId;
+        selection.onSelectCells(cellsForRowRange(rows, visible, startLogId, logId));
+        return;
+      }
+
+      if (modifiers.additive) {
+        const allSelected = rowCells.every((id) => selection.selectedCells.includes(id));
+        selection.onSelectCells(
+          allSelected
+            ? selection.selectedCells.filter((id) => !rowCells.includes(id))
+            : [...selection.selectedCells, ...rowCells]
+        );
+        selectionAnchorRef.current = anchorCell;
+        return;
+      }
+
+      const allSelected = rowCells.every((id) => selection.selectedCells.includes(id));
+      selection.onSelectCells(allSelected ? [] : rowCells);
+      selectionAnchorRef.current = anchorCell;
+    },
+    [selection, rows, visible]
+  );
+
+  const selectAllRows = React.useCallback(() => {
+    if (selection?.mode !== 'cell') return;
+    const all = rows.flatMap((row) => cellsForRow(row.logId, visible));
+    const allSelected = all.length > 0 && all.every((id) => selection.selectedCells.includes(id));
+    selection.onSelectCells(allSelected ? [] : all);
+    selectionAnchorRef.current = allSelected || !all.length ? null : all[0];
+  }, [selection, rows, visible]);
+
   const onCellPointerDown = React.useCallback(
     (e: React.MouseEvent | React.PointerEvent, cellId: string) => {
       if (selection?.mode !== 'cell') return;
@@ -449,6 +513,37 @@ export function LogGrid({
       selectCell(cellId, { range: true });
     },
     [selection, selectCell]
+  );
+
+  const onRowIndexPointerDown = React.useCallback(
+    (e: React.MouseEvent | React.PointerEvent, logId: string) => {
+      if (selection?.mode !== 'cell') return;
+      if ('button' in e && e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      isSelectingRef.current = true;
+      if (e.shiftKey) {
+        selectRow(logId, { range: true });
+      } else if (e.metaKey || e.ctrlKey) {
+        selectRow(logId, { additive: true });
+      } else {
+        selectRow(logId);
+      }
+    },
+    [selection, selectRow]
+  );
+
+  const onRowIndexPointerEnter = React.useCallback(
+    (e: React.MouseEvent | React.PointerEvent, logId: string) => {
+      if (selection?.mode !== 'cell') return;
+      if (!isSelectingRef.current) return;
+      if ('buttons' in e && e.buttons !== 1) {
+        isSelectingRef.current = false;
+        return;
+      }
+      selectRow(logId, { range: true });
+    },
+    [selection, selectRow]
   );
 
   const onCellPointerUp = React.useCallback(() => {
@@ -505,6 +600,23 @@ export function LogGrid({
       if (r >= 0) rowIdx = r;
       if (c >= 0) colIdx = c;
     }
+    const rowFullySelected =
+      !!current && isAllRowSelected(selection.selectedCells, parseCellId(current).logId, visible);
+
+    if (rowFullySelected && (key === 'ArrowUp' || key === 'ArrowDown')) {
+      if (key === 'ArrowUp') rowIdx = Math.max(0, rowIdx - 1);
+      if (key === 'ArrowDown') rowIdx = Math.min(rows.length - 1, rowIdx + 1);
+      const next = cellsForRow(rows[rowIdx].logId, visible);
+      selection.onSelectCells(next);
+      selectionAnchorRef.current = next[0] ?? null;
+      return;
+    }
+    if (rowFullySelected && key === 'ArrowRight') {
+      const nextId = makeCellId(rows[rowIdx].logId, visible[0]);
+      selection.onSelectCells([nextId]);
+      selectionAnchorRef.current = nextId;
+      return;
+    }
     if (key === 'ArrowUp') rowIdx = Math.max(0, rowIdx - 1);
     if (key === 'ArrowDown') rowIdx = Math.min(rows.length - 1, rowIdx + 1);
     if (key === 'ArrowLeft') colIdx = Math.max(0, colIdx - 1);
@@ -523,6 +635,11 @@ export function LogGrid({
       e.preventDefault();
       selection.onSelectCells([]);
       selectionAnchorRef.current = null;
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      selectAllRows();
       return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -608,11 +725,33 @@ export function LogGrid({
                         {table.getHeaderGroups().map((headerGroup) => (
                           <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
                             {headerGroup.headers.map((header) => {
+                              if (header.column.id === LOG_ROW_NUMBER_COL) {
+                                return (
+                                  <TableHead
+                                    key={header.id}
+                                    className={cn(
+                                      'bg-muted/40 sticky left-0 z-30 h-8 cursor-pointer select-none border-r border-border px-1 text-center text-[11px] text-muted-foreground hover:bg-primary-tint-10',
+                                      selection?.mode === 'cell' && 'select-none'
+                                    )}
+                                    style={{ width: header.getSize(), minWidth: header.getSize() }}
+                                    data-testid="log-grid-row-index-header"
+                                    onMouseDown={(e) => {
+                                      if (selection?.mode !== 'cell') return;
+                                      if (e.button !== 0) return;
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      selectAllRows();
+                                    }}
+                                  >
+                                    #
+                                  </TableHead>
+                                );
+                              }
                               return (
                                 <SortableHeader
                                   key={header.id}
                                   header={header}
-                                  reorderEnabled={reorderColumnId === header.column.id}
+                                  reorderEnabled={reorderEnabled}
                                   className="relative h-8 whitespace-nowrap border-r border-border px-1 text-[11px] text-muted-foreground"
                                   style={{
                                     width: header.getSize(),
@@ -664,6 +803,33 @@ export function LogGrid({
                               }}
                             >
                               {row.getVisibleCells().map((cell) => {
+                                if (cell.column.id === LOG_ROW_NUMBER_COL) {
+                                  const logId = String(row.original.logId);
+                                  const rowFullySelected =
+                                    !!selectedCells &&
+                                    isAllRowSelected(selectedCells, logId, visible);
+                                  return (
+                                    <TableCell
+                                      key={cell.id}
+                                      data-testid={`log-grid-row-index-${logId}`}
+                                      style={{
+                                        width: cell.column.getSize(),
+                                        minWidth: cell.column.getSize(),
+                                      }}
+                                      className={cn(
+                                        'sticky left-0 z-20 cursor-pointer select-none border-r border-border px-1 py-1.5 text-center font-mono text-[12px]',
+                                        rowFullySelected
+                                          ? 'bg-primary text-primary-foreground'
+                                          : 'bg-background text-muted-foreground hover:bg-primary-tint-10'
+                                      )}
+                                      onMouseDown={(e) => onRowIndexPointerDown(e, logId)}
+                                      onMouseEnter={(e) => onRowIndexPointerEnter(e, logId)}
+                                      onMouseUp={onCellPointerUp}
+                                    >
+                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </TableCell>
+                                  );
+                                }
                                 const cellId = makeCellId(row.original.logId, cell.column.id);
                                 const cellSelected = selectedCells?.has(cellId);
                                 return (

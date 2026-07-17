@@ -1,6 +1,6 @@
 /**
  * Data LogGrid E2E — column visibility, server filters/sort, cell view panel,
- * page size, and cell range selection on the Assistants Data tab.
+ * page size, cell/row range selection on the Assistants Data tab.
  *
  * Run: npx playwright test src/tests/assistants/data-log-grid.e2e.ts
  */
@@ -175,6 +175,36 @@ test('page size changes the loaded page window', async ({ authedPage: page }) =>
   await page.getByRole('option', { name: '20/page' }).click();
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 5/, {
     timeout: 30_000,
+  });
+});
+
+test('row index selects whole rows with click, ctrl, and shift', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const firstRow = page.locator('[data-testid^="log-grid-row-"]').nth(0);
+  const thirdRow = page.locator('[data-testid^="log-grid-row-"]').nth(2);
+  await expect(firstRow).toBeVisible({ timeout: 30_000 });
+
+  const firstIndex = firstRow.locator('[data-testid^="log-grid-row-index-"]');
+  const thirdIndex = thirdRow.locator('[data-testid^="log-grid-row-index-"]');
+
+  await firstIndex.click();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  // People has name/city/score → 3 cells for one row
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
+
+  await thirdIndex.click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('9 cells', {
+    timeout: 15_000,
+  });
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+
+  await firstIndex.click();
+  await thirdIndex.click({ modifiers: ['Control'] });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
+    timeout: 15_000,
   });
 });
 

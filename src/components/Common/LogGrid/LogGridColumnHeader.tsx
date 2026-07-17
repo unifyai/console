@@ -231,7 +231,7 @@ type SortableHeaderProps = {
   transformStyle?: string;
 };
 
-/** Table head shell: optional drag strip when reorder is enabled for this column. */
+/** Table head shell: left-side grip when column reorder mode is on. */
 export function LogGridSortableHead({
   header,
   children,
@@ -260,21 +260,23 @@ export function LogGridSortableHead({
       }}
       data-reorder={reorderEnabled ? 'true' : undefined}
     >
-      {reorderEnabled && (
-        <button
-          type="button"
-          className="absolute inset-x-0 top-0 z-[1] flex h-2 cursor-grab items-center justify-center active:cursor-grabbing"
-          aria-label={`Drag to reorder ${sanitizeId(header.column.id)}`}
-          data-testid={`log-grid-drag-${sanitizeId(header.column.id)}`}
-          {...dragAttributes}
-          {...dragListeners}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="h-px w-6 rounded-full bg-primary" aria-hidden="true" />
-        </button>
-      )}
-      <div className="relative z-[2] flex min-w-0 items-center gap-0.5 overflow-hidden pt-0.5">
-        {children}
+      <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">
+        {reorderEnabled && (
+          <button
+            type="button"
+            className="relative z-[1] flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground active:cursor-grabbing"
+            aria-label={`Drag to reorder ${sanitizeId(header.column.id)}`}
+            data-testid={`log-grid-drag-${sanitizeId(header.column.id)}`}
+            {...dragAttributes}
+            {...dragListeners}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="pointer-events-none h-3 w-3 shrink-0" aria-hidden="true" />
+          </button>
+        )}
+        <div className="relative z-[2] flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
+          {children}
+        </div>
       </div>
       {resizer}
     </TableHead>
