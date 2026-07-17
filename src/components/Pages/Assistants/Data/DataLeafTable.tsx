@@ -187,9 +187,12 @@ export function DataLeafTable({
     onRowsChange?.(rows.map(toDataRow));
   }, [rows, onRowsChange]);
 
+  const refetchRef = React.useRef(refetch);
+  refetchRef.current = refetch;
+
   React.useEffect(() => {
-    if (refreshToken > 0) refetch();
-  }, [refreshToken, refetch]);
+    if (refreshToken > 0) refetchRef.current();
+  }, [refreshToken]);
 
   const refreshAll = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['logFields', 'Assistants', context] });
