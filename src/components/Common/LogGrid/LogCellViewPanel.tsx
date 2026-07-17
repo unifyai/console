@@ -131,7 +131,10 @@ export function groupCellsByColumn(cells: LogCellSelection[]): ColumnGroup[] {
 
   return columnOrder.map((columnId) => ({
     columnId,
-    values: [...byColumn.get(columnId)!.values()].map(sortValueGroup),
+    values: [...byColumn.get(columnId)!.values()]
+      .map(sortValueGroup)
+      // Ascending by lowest `#` in each group (selection order is arbitrary).
+      .sort((a, b) => compareRowLabels(a.rowLabels[0]!, b.rowLabels[0]!)),
   }));
 }
 
