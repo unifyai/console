@@ -119,11 +119,27 @@ export function parseRosterGroup(raw: Record<string, unknown>): RosterGroup {
   };
 }
 
+export interface RosterAssistant {
+  assistantId: number;
+  name: string;
+  image: string | null;
+}
+
+export function parseRosterAssistant(raw: Record<string, unknown>): RosterAssistant {
+  return {
+    assistantId: Number(raw.assistant_id),
+    name: typeof raw.name === 'string' ? raw.name : '',
+    image: typeof raw.image === 'string' ? raw.image : null,
+  };
+}
+
 export interface OrgRoster {
   organizationId: number;
   humans: RosterHuman[];
   teams: RosterTeam[];
   groups: RosterGroup[];
+  /** Assistant directory (names + faces) for call tiles and mentions. */
+  assistants: RosterAssistant[];
 }
 
 export function parseOrgRoster(raw: Record<string, unknown>): OrgRoster {
@@ -137,6 +153,9 @@ export function parseOrgRoster(raw: Record<string, unknown>): OrgRoster {
       : [],
     groups: Array.isArray(raw.groups)
       ? raw.groups.map((g) => parseRosterGroup(g as Record<string, unknown>))
+      : [],
+    assistants: Array.isArray(raw.assistants)
+      ? raw.assistants.map((a) => parseRosterAssistant(a as Record<string, unknown>))
       : [],
   };
 }

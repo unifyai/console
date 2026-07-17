@@ -123,6 +123,25 @@ export function useInfiniteLogQuery({
 
   const count = infiniteQuery.data?.pages.at(-1)?.count ?? 0;
 
+  const { refetch: refetchFields } = fieldsQuery;
+  const {
+    refetch: refetchInfinite,
+    fetchNextPage: fetchInfiniteNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = infiniteQuery;
+
+  const fetchNextPage = React.useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchInfiniteNextPage();
+    }
+  }, [fetchInfiniteNextPage, hasNextPage, isFetchingNextPage]);
+
+  const refetch = React.useCallback(() => {
+    void refetchFields();
+    void refetchInfinite();
+  }, [refetchFields, refetchInfinite]);
+
   return {
     rows,
     count,
@@ -131,16 +150,9 @@ export function useInfiniteLogQuery({
     isFetching: infiniteQuery.isFetching,
     isFetchingNextPage: infiniteQuery.isFetchingNextPage,
     hasNextPage: !!infiniteQuery.hasNextPage,
-    fetchNextPage: () => {
-      if (infiniteQuery.hasNextPage && !infiniteQuery.isFetchingNextPage) {
-        void infiniteQuery.fetchNextPage();
-      }
-    },
+    fetchNextPage,
     error: (infiniteQuery.error ?? fieldsQuery.error) as Error | null,
-    refetch: () => {
-      void fieldsQuery.refetch();
-      void infiniteQuery.refetch();
-    },
+    refetch,
     spec,
   };
 }

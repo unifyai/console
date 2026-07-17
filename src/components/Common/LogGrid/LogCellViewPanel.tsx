@@ -51,6 +51,36 @@ interface LogCellViewPanelProps {
   className?: string;
 }
 
+const PANEL_WIDTH_KEY = 'console:log-cell-view-panel-width';
+const PANEL_DEFAULT_WIDTH = 384;
+const PANEL_MIN_WIDTH = 280;
+const PANEL_MIN_MAIN_WIDTH = 280;
+const PANEL_MAX_WIDTH = 720;
+
+function clampPanelWidth(width: number, maxWidth = PANEL_MAX_WIDTH): number {
+  return Math.min(maxWidth, Math.max(PANEL_MIN_WIDTH, Math.round(width)));
+}
+
+function readPanelWidth(): number {
+  if (typeof window === 'undefined') return PANEL_DEFAULT_WIDTH;
+  try {
+    const raw = window.localStorage.getItem(PANEL_WIDTH_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? clampPanelWidth(parsed) : PANEL_DEFAULT_WIDTH;
+  } catch {
+    return PANEL_DEFAULT_WIDTH;
+  }
+}
+
+function writePanelWidth(width: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(PANEL_WIDTH_KEY, String(clampPanelWidth(width)));
+  } catch {
+    /* width persistence is optional */
+  }
+}
+
 /** Plain text display: strings/primitives as-is; objects as pretty JSON. */
 function formatDisplayValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
@@ -231,19 +261,22 @@ function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
 
 function ValueCopyButton({ value }: { value: unknown }) {
   return (
-    <CopyButton
-      content={formatRawValue(value)}
-      copyMessage="Copied!"
-      className="absolute right-1 top-1 z-10 h-7 w-7 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-    />
+    <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+      <CopyButton
+        content={formatRawValue(value)}
+        copyMessage="Copied!"
+        className="pointer-events-auto h-5 w-5 p-0 [&_svg]:size-3"
+      />
+    </div>
   );
 }
 
 /** Clipped `#` / range gutter; full label via native title on hover. */
-function RowGutter({ label }: { label: string }) {
+function RowGutter({ label, widthCh }: { label: string; widthCh: number }) {
   return (
     <span
-      className="max-w-[4.5rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 font-mono text-[12px] leading-snug text-muted-foreground"
+      className="max-w-[4.5rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 text-right font-mono text-[12px] tabular-nums leading-snug text-muted-foreground"
+      style={{ width: `calc(${widthCh}ch + 0.75rem)` }}
       title={label}
       data-testid="log-cell-view-row-label"
     >
@@ -252,10 +285,23 @@ function RowGutter({ label }: { label: string }) {
   );
 }
 
+/** Widest compressed row label in the pane — keeps gutter dividers aligned. */
+function maxRowLabelWidthCh(columns: ColumnGroup[]): number {
+  let max = 1;
+  for (const column of columns) {
+    for (const valueGroup of column.values) {
+      const len = compressRowLabels(valueGroup.rowLabels).length;
+      if (len > max) max = len;
+    }
+  }
+  return max;
+}
+
 function CellBody({
   value,
   fieldName,
   rowLabel,
+  gutterCh,
   editable,
   draftText,
   onCommit,
@@ -263,6 +309,7 @@ function CellBody({
   value: unknown;
   fieldName: string;
   rowLabel: string;
+  gutterCh: number;
   editable: boolean;
   draftText: string;
   onCommit?: (draft: string) => Promise<boolean>;
@@ -342,7 +389,7 @@ function CellBody({
       data-testid="log-cell-view-value"
       data-editable={editable ? 'true' : 'false'}
     >
-      <RowGutter label={rowLabel} />
+      <RowGutter label={rowLabel} widthCh={gutterCh} />
       <div className="relative min-w-0 flex-1">{content}</div>
     </div>
   );
@@ -350,7 +397,7 @@ function CellBody({
   if (isEditing) {
     return (
       <div className="relative flex min-w-0 overflow-hidden rounded-md border border-primary bg-background font-mono text-[12px]">
-        <RowGutter label={rowLabel} />
+        <RowGutter label={rowLabel} widthCh={gutterCh} />
         <div className="relative min-w-0 flex-1">
           <Textarea
             ref={inputRef}
@@ -408,11 +455,13 @@ function CellBody({
 
 function ColumnGroupDisplay({
   group,
+  gutterCh,
   isColumnEditable,
   onCommitEdit,
   draftForValue,
 }: {
   group: ColumnGroup;
+  gutterCh: number;
   isColumnEditable?: (columnId: string) => boolean;
   onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
   draftForValue?: (columnId: string, value: unknown) => string;
@@ -464,6 +513,7 @@ function ColumnGroupDisplay({
                   value={valueGroup.value}
                   fieldName={label}
                   rowLabel={rowLabel}
+                  gutterCh={gutterCh}
                   editable={editable}
                   draftText={draftText === '—' ? '' : draftText}
                   onCommit={
@@ -496,41 +546,130 @@ export function LogCellViewPanel({
   className,
 }: LogCellViewPanelProps) {
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
+  const gutterCh = React.useMemo(() => maxRowLabelWidthCh(columns), [columns]);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const [width, setWidth] = React.useState(PANEL_DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = React.useState(false);
 
-  if (cells.length === 0) {
-    return (
-      <div
-        className={cn('flex w-80 shrink-0 flex-col border-l border-border bg-card', className)}
-        data-testid="log-cell-view-panel-empty"
-      >
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <span className="text-title text-foreground">Selection</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-caption p-4 text-muted-foreground">
-          Select cells, then open the view pane to inspect them.
-        </p>
-      </div>
+  React.useEffect(() => {
+    setWidth(readPanelWidth());
+  }, []);
+
+  const getMaxWidth = React.useCallback(() => {
+    const parent = panelRef.current?.parentElement;
+    if (!parent) return PANEL_MAX_WIDTH;
+    return Math.min(
+      PANEL_MAX_WIDTH,
+      Math.max(PANEL_MIN_WIDTH, parent.getBoundingClientRect().width - PANEL_MIN_MAIN_WIDTH)
     );
-  }
+  }, []);
+
+  const setWidthWithinBounds = React.useCallback(
+    (next: number) => {
+      const clamped = clampPanelWidth(next, getMaxWidth());
+      setWidth(clamped);
+      writePanelWidth(clamped);
+    },
+    [getMaxWidth]
+  );
+
+  const handleResizeKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setWidthWithinBounds(width + 24);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setWidthWithinBounds(width - 24);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        setWidthWithinBounds(PANEL_MIN_WIDTH);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        setWidthWithinBounds(getMaxWidth());
+      }
+    },
+    [getMaxWidth, setWidthWithinBounds, width]
+  );
+
+  const handleResizeStart = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const parent = panelRef.current?.parentElement;
+      if (!parent) return;
+
+      e.preventDefault();
+      const rect = parent.getBoundingClientRect();
+      const maxWidth = Math.min(
+        PANEL_MAX_WIDTH,
+        Math.max(PANEL_MIN_WIDTH, rect.width - PANEL_MIN_MAIN_WIDTH)
+      );
+      const previousCursor = document.body.style.cursor;
+      const previousUserSelect = document.body.style.userSelect;
+      let nextWidth = clampPanelWidth(width, maxWidth);
+
+      setIsResizing(true);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMove = (ev: PointerEvent) => {
+        nextWidth = clampPanelWidth(rect.right - ev.clientX, maxWidth);
+        setWidth(nextWidth);
+      };
+
+      const onUp = () => {
+        setIsResizing(false);
+        document.body.style.cursor = previousCursor;
+        document.body.style.userSelect = previousUserSelect;
+        writePanelWidth(nextWidth);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    },
+    [width]
+  );
+
+  const isEmpty = cells.length === 0;
+  const title = isEmpty
+    ? 'Selection'
+    : cells.length === 1
+      ? 'Selected cell'
+      : `${cells.length} cells`;
 
   return (
     <div
-      className={cn('flex w-96 shrink-0 flex-col border-l border-border bg-card', className)}
-      data-testid="log-cell-view-panel"
+      ref={panelRef}
+      className={cn(
+        'relative flex shrink-0 flex-col border-l border-border bg-card',
+        isResizing && 'select-none',
+        className
+      )}
+      style={{ width, minWidth: PANEL_MIN_WIDTH }}
+      data-testid={isEmpty ? 'log-cell-view-panel-empty' : 'log-cell-view-panel'}
     >
+      <div
+        role="separator"
+        aria-label="Resize cell view pane"
+        aria-orientation="vertical"
+        aria-valuemin={PANEL_MIN_WIDTH}
+        aria-valuenow={width}
+        tabIndex={0}
+        onKeyDown={handleResizeKeyDown}
+        onPointerDown={handleResizeStart}
+        className={cn(
+          'absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize touch-none bg-transparent transition-colors duration-200',
+          'hover:bg-primary-tint-20 focus-visible:bg-primary-tint-20 focus-visible:outline-none active:bg-primary-tint-40',
+          isResizing && 'bg-primary-tint-40'
+        )}
+        data-testid="log-cell-view-panel-resize-handle"
+      />
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <span className="text-title text-foreground">
-          {cells.length === 1 ? 'Selected cell' : `${cells.length} cells`}
-        </span>
+        <span className="text-title text-foreground">{title}</span>
         <Button
           variant="ghost"
           size="sm"
@@ -541,19 +680,26 @@ export function LogCellViewPanel({
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-1 p-3">
-          {columns.map((column) => (
-            <ColumnGroupDisplay
-              key={column.columnId}
-              group={column}
-              isColumnEditable={isColumnEditable}
-              onCommitEdit={onCommitEdit}
-              draftForValue={draftForValue}
-            />
-          ))}
-        </div>
-      </ScrollArea>
+      {isEmpty ? (
+        <p className="text-caption p-4 text-muted-foreground">
+          Select cells, then open the view pane to inspect them.
+        </p>
+      ) : (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="space-y-1 p-3">
+            {columns.map((column) => (
+              <ColumnGroupDisplay
+                key={column.columnId}
+                group={column}
+                gutterCh={gutterCh}
+                isColumnEditable={isColumnEditable}
+                onCommitEdit={onCommitEdit}
+                draftForValue={draftForValue}
+              />
+            ))}
+          </div>
+        </ScrollArea>
+      )}
     </div>
   );
 }

@@ -23,7 +23,7 @@ export function CopyButton({ content, copyMessage, tooltipContent, className }: 
     <ActionButton
       variant="ghost"
       tooltip={tooltipContent ?? 'Copy'}
-      className={`relative ${className}`}
+      className={cn('relative', className)}
       aria-label="Copy to clipboard"
       onClick={(e) => {
         e.stopPropagation();

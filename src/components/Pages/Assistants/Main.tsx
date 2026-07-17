@@ -38,7 +38,7 @@ import {
 } from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
-import { useOrgCall } from '@/hooks/Assistants/useOrgCall';
+import { useOrgCallContext } from '@/components/Pages/Assistants/OrgChat/OrgCallProvider';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
 import { HumanInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/HumanInfoSidePanelContent';
 import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
@@ -46,9 +46,6 @@ import { TeamInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/
 import { GroupWorkspace } from '@/components/Pages/Assistants/OrgChat/GroupWorkspace';
 import { GroupInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/GroupInfoSidePanelContent';
 import { CreateGroupDialog } from '@/components/Pages/Assistants/OrgChat/CreateGroupDialog';
-import { IncomingHumanCallCard } from '@/components/Pages/Assistants/OrgChat/IncomingHumanCallCard';
-import { OrgCallMeetStage } from '@/components/Pages/Assistants/OrgChat/OrgCallMeetStage';
-import type { OrgCallSession } from '@/types/orgChat';
 import {
   TeamBrainSectionsHost,
   isTeamBrainSectionId,
@@ -341,21 +338,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const { roster, markHumanOnline, refresh: refreshOrgRoster } = useOrgRoster(activeOrganizationId);
   const [createGroupOpen, setCreateGroupOpen] = React.useState(false);
   usePresenceHeartbeat(!!activeOrganizationId);
-  const humanCallHandlersRef = React.useRef<{
-    onIncoming?: (call: OrgCallSession) => void;
-    onAnswered?: (call: OrgCallSession) => void;
-    onEnded?: (call: OrgCallSession) => void;
-    onParticipant?: (call: OrgCallSession) => void;
-  }>({});
   const orgChat = useOrgChat({
     orgId: activeOrganizationId,
     currentUserId,
     enabled: !!activeOrganizationId,
     onHumanActivity: markHumanOnline,
-    onIncomingCall: (call) => humanCallHandlersRef.current.onIncoming?.(call),
-    onCallAnswered: (call) => humanCallHandlersRef.current.onAnswered?.(call),
-    onCallEnded: (call) => humanCallHandlersRef.current.onEnded?.(call),
-    onCallParticipantUpdate: (call) => humanCallHandlersRef.current.onParticipant?.(call),
   });
   const rosterTeams = React.useMemo(
     () =>
@@ -1280,24 +1267,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     redock,
   } = useCallContext();
 
-  const humanCall = useOrgCall({
-    orgId: activeOrganizationId,
-    currentUserId,
-    assistantCallActive: !!activeCallAssistant,
-  });
-  React.useEffect(() => {
-    humanCallHandlersRef.current = {
-      onIncoming: humanCall.handleIncomingCall,
-      onAnswered: humanCall.handleCallAnswered,
-      onEnded: humanCall.handleRemoteEnded,
-      onParticipant: humanCall.handleParticipantUpdate,
-    };
-  }, [
-    humanCall.handleIncomingCall,
-    humanCall.handleCallAnswered,
-    humanCall.handleRemoteEnded,
-    humanCall.handleParticipantUpdate,
-  ]);
+  const humanCall = useOrgCallContext();
 
   const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
   React.useEffect(() => {
@@ -4540,98 +4510,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onDecline={handleDeclineIncomingMeet}
           />
         )}
-        {humanCall.incomingCall && !activeCallAssistant && (
-          <IncomingHumanCallCard
-            callerName={
-              humanCall.incomingCall.scope === 'team'
-                ? rosterTeams
-                    .find((t) => t.teamId === humanCall.incomingCall?.teamId)
-                    ?.name?.trim() || 'Team call'
-                : humanCall.incomingCall.scope === 'group'
-                  ? rosterGroups
-                      .find((g) => g.groupId === humanCall.incomingCall?.groupId)
-                      ?.name?.trim() || 'Group call'
-                  : rosterHumansById[humanCall.incomingCall.callerUserId]?.name?.trim() ||
-                    'Teammate'
-            }
-            subtitle={
-              humanCall.incomingCall.scope === 'team'
-                ? 'Team call ringing…'
-                : humanCall.incomingCall.scope === 'group'
-                  ? 'Group call ringing…'
-                  : 'is calling you…'
-            }
-            onAnswer={() => void humanCall.answerCall(humanCall.incomingCall!)}
-            onDecline={() => void humanCall.declineCall(humanCall.incomingCall!)}
-          />
-        )}
-        {humanCall.isConnected && humanCall.activeCall && (
-          <OrgCallMeetStage
-            call={humanCall.activeCall}
-            room={humanCall.room}
-            roomEpoch={humanCall.roomEpoch}
-            currentUserId={currentUserId}
-            humansById={Object.fromEntries(
-              Object.entries(rosterHumansById).map(([id, h]) => [
-                id,
-                { userId: h.userId, name: h.name, image: h.image },
-              ])
-            )}
-            assistantsById={Object.fromEntries(
-              Object.entries(assistantFacesById).map(([id, a]) => [
-                id,
-                {
-                  agentId: a.agentId,
-                  name: a.name,
-                  image: a.image ?? null,
-                },
-              ])
-            )}
-            localName={
-              (currentUserId && rosterHumansById[currentUserId]?.name) || userMeta.email || 'You'
-            }
-            localImage={
-              (currentUserId && rosterHumansById[currentUserId]?.image) || userMeta.image || null
-            }
-            micEnabled={humanCall.micEnabled}
-            camEnabled={humanCall.camEnabled}
-            isHost={humanCall.isHost}
-            addableAssistants={
-              humanCall.activeCall.scope === 'team' && humanCall.activeCall.teamId != null
-                ? (
-                    rosterTeams.find((t) => t.teamId === humanCall.activeCall?.teamId)
-                      ?.assistantMemberIds ?? []
-                  )
-                    .filter((id) => !humanCall.activeCall?.assistantIds.includes(id))
-                    .map((id) => assistantFacesById[String(id)])
-                    .filter(Boolean)
-                    .map((a) => ({
-                      agentId: a.agentId,
-                      name: a.name,
-                      image: a.image ?? null,
-                    }))
-                : humanCall.activeCall.scope === 'group' && humanCall.activeCall.groupId != null
-                  ? (
-                      rosterGroups.find((g) => g.groupId === humanCall.activeCall?.groupId)
-                        ?.assistantMemberIds ?? []
-                    )
-                      .filter((id) => !humanCall.activeCall?.assistantIds.includes(id))
-                      .map((id) => assistantFacesById[String(id)])
-                      .filter(Boolean)
-                      .map((a) => ({
-                        agentId: a.agentId,
-                        name: a.name,
-                        image: a.image ?? null,
-                      }))
-                  : []
-            }
-            onToggleMic={() => void humanCall.toggleMic()}
-            onToggleCam={() => void humanCall.toggleCam()}
-            onLeave={() => void humanCall.leaveCall()}
-            onEnd={() => void humanCall.endCall()}
-            onAddAssistant={(assistantId) => void humanCall.addAssistant(assistantId)}
-          />
-        )}
+        {/* Incoming ring, the Meet stage, and the minimized widget are all
+            rendered app-wide by OrgCallProvider. */}
         {activeOrganizationId ? (
           <CreateGroupDialog
             open={createGroupOpen}

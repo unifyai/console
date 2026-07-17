@@ -130,8 +130,9 @@ export function DataLeafTable({
   });
 
   React.useEffect(() => {
+    // Keep rowLabels: LogGrid sets them in a child effect, and wiping here
+    // afterwards (child effects run first) leaves the view-pane gutter empty.
     setBrowseRows([]);
-    setRowLabels(new Map());
   }, [context]);
 
   React.useEffect(() => {
@@ -187,9 +188,12 @@ export function DataLeafTable({
     onRowsChange?.(rows.map(toDataRow));
   }, [rows, onRowsChange]);
 
+  const refetchRef = React.useRef(refetch);
+  refetchRef.current = refetch;
+
   React.useEffect(() => {
-    if (refreshToken > 0) refetch();
-  }, [refreshToken, refetch]);
+    if (refreshToken > 0) refetchRef.current();
+  }, [refreshToken]);
 
   const refreshAll = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['logFields', 'Assistants', context] });
