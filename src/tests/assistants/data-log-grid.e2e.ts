@@ -502,22 +502,64 @@ test('refresh mode menu supports Refresh, Freeze, and Live', async ({ authedPage
   expect(modeBox!.x).toBeLessThan(derivedBox!.x);
 
   await modeBtn.click();
-  await page.getByTestId('log-grid-refresh-mode-freeze').click();
-  // Freeze uses primary variant on the trigger
-  await expect(modeBtn).toHaveAttribute('data-testid', 'log-grid-refresh-mode');
-  await modeBtn.click();
-  await expect(page.getByTestId('log-grid-refresh-mode-freeze')).toBeVisible();
-  // Checkmark present on Freeze while active (first svg in the item row is Check)
+  // Refresh is an action, not a selectable mode — no checkmark while idle
   await expect(
-    page.getByTestId('log-grid-refresh-mode-freeze').locator('svg').first()
+    page.getByTestId('log-grid-refresh-mode-refresh').locator('.lucide-check')
+  ).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-refresh-mode-freeze')).toHaveAttribute(
+    'data-active',
+    'false'
+  );
+  await expect(page.getByTestId('log-grid-refresh-mode-live')).toHaveAttribute(
+    'data-active',
+    'false'
+  );
+
+  await page.getByTestId('log-grid-refresh-mode-freeze').click();
+  await modeBtn.click();
+  await expect(page.getByTestId('log-grid-refresh-mode-freeze')).toHaveAttribute(
+    'data-active',
+    'true'
+  );
+  await expect(page.getByTestId('log-grid-refresh-mode-live')).toHaveAttribute(
+    'data-active',
+    'false'
+  );
+  await expect(
+    page.getByTestId('log-grid-refresh-mode-freeze').locator('.lucide-check')
   ).toBeVisible();
+  await expect(
+    page.getByTestId('log-grid-refresh-mode-refresh').locator('.lucide-check')
+  ).toHaveCount(0);
 
   await page.getByTestId('log-grid-refresh-mode-live').click();
   await modeBtn.click();
-  await expect(page.getByTestId('log-grid-refresh-mode-live').locator('svg').first()).toBeVisible();
+  await expect(page.getByTestId('log-grid-refresh-mode-live')).toHaveAttribute(
+    'data-active',
+    'true'
+  );
+  await expect(page.getByTestId('log-grid-refresh-mode-freeze')).toHaveAttribute(
+    'data-active',
+    'false'
+  );
+  await expect(
+    page.getByTestId('log-grid-refresh-mode-live').locator('.lucide-check')
+  ).toBeVisible();
 
   await page.getByTestId('log-grid-refresh-mode-refresh').click();
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
     timeout: 30_000,
   });
+  await modeBtn.click();
+  await expect(page.getByTestId('log-grid-refresh-mode-freeze')).toHaveAttribute(
+    'data-active',
+    'false'
+  );
+  await expect(page.getByTestId('log-grid-refresh-mode-live')).toHaveAttribute(
+    'data-active',
+    'false'
+  );
+  await expect(
+    page.getByTestId('log-grid-refresh-mode-refresh').locator('.lucide-check')
+  ).toHaveCount(0);
 });

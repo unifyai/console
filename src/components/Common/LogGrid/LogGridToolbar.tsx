@@ -177,15 +177,14 @@ export function LogGridToolbar({
             title="Refresh logs"
             onClick={() => selectMode('refresh')}
           >
-            <span className="flex w-3.5 shrink-0 justify-center">
-              {mode === 'refresh' ? <Check className="h-3.5 w-3.5" /> : null}
-            </span>
+            <span className="flex w-3.5 shrink-0" aria-hidden="true" />
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid="log-grid-refresh-mode-freeze"
+            data-active={mode === 'freeze' ? 'true' : 'false'}
             title={freezeTooltip}
             onClick={() => selectMode('freeze')}
           >
@@ -198,6 +197,7 @@ export function LogGridToolbar({
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid="log-grid-refresh-mode-live"
+            data-active={mode === 'live' ? 'true' : 'false'}
             disabled={groupingActive}
             title={liveTooltip}
             onClick={() => selectMode('live')}
