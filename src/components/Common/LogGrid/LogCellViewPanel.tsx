@@ -371,7 +371,7 @@ export function LogCellViewPanel({ cells, onClose, onEditCell, className }: LogC
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0"
+            className="h-8 w-8 p-0"
             onClick={onClose}
             aria-label="Close"
           >
@@ -396,7 +396,7 @@ export function LogCellViewPanel({ cells, onClose, onEditCell, className }: LogC
         </span>
         <div className="flex items-center gap-1">
           <Select value={mode} onValueChange={(v) => setMode(v as DisplayMode)}>
-            <SelectTrigger className="h-7 w-[100px]" data-testid="log-cell-view-mode">
+            <SelectTrigger className="h-8 w-[100px]" data-testid="log-cell-view-mode">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -408,7 +408,7 @@ export function LogCellViewPanel({ cells, onClose, onEditCell, className }: LogC
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0"
+            className="h-8 w-8 p-0"
             onClick={onClose}
             aria-label="Close"
           >
