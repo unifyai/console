@@ -95,7 +95,7 @@ async function openPeopleTable(page: Page) {
   });
 }
 
-/** Selection does not auto-open the pane — unfold via toolbar, Enter, or double-click. */
+/** Selection does not auto-open the pane — unfold via toolbar, Enter (toggles), or double-click. */
 async function openCellViewPanel(page: Page) {
   const toggle = page.getByTestId('log-grid-view-panel-toggle');
   await expect(toggle).toBeEnabled({ timeout: 10_000 });
@@ -181,7 +181,7 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
 });
 
-test('double-click and Enter open the cell view pane', async ({ authedPage: page }) => {
+test('double-click opens and Enter toggles the cell view pane', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
   const firstRow = logGridRows(page).first();
@@ -196,6 +196,10 @@ test('double-click and Enter open the cell view pane', async ({ authedPage: page
   await nameCell.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await page.getByTestId('data-leaf-table').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
 });

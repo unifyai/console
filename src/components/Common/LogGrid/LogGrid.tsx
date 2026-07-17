@@ -154,7 +154,7 @@ export interface LogGridProps {
   hasSelection?: boolean;
   viewPanelOpen?: boolean;
   onToggleViewPanel?: () => void;
-  /** Opens the cell view pane (e.g. Enter / double-click). No-op if already open. */
+  /** Opens the cell view pane (e.g. double-click). No-op if already open. */
   onOpenViewPanel?: () => void;
   className?: string;
   testId?: string;
@@ -816,7 +816,7 @@ export function LogGrid({
     if (e.key === 'Enter') {
       if (selection.selectedCells.length === 0) return;
       e.preventDefault();
-      openViewPanel();
+      onToggleViewPanel?.();
       return;
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
