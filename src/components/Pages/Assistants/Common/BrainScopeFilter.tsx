@@ -25,7 +25,7 @@ interface UseBrainScopeFilterOptions {
   includeAll?: boolean;
 }
 
-interface BrainScopeFilterState {
+export interface BrainScopeFilterState {
   /** The root to hand to the pane's data hook (null = merged). */
   root: ContextRoot | null;
   options: BrainScopeOption[];
