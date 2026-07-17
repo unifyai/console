@@ -319,16 +319,24 @@ export function DataPane({
   const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<DataRow | null>(null);
   const [editField, setEditField] = React.useState<string | null>(null);
+  const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
+  const [viewPanelOpen, setViewPanelOpen] = React.useState(false);
   const [refreshToken, setRefreshToken] = React.useState(0);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const isStackedLayout = useMatchesBelow('tablet');
   const [mobileShowTree, setMobileShowTree] = React.useState(true);
 
   React.useEffect(() => {
-    if (isStackedLayout) {
-      setSidebarOpen(false);
-    }
-  }, [isStackedLayout]);
+    if (!isStackedLayout) return;
+    setSidebarOpen(false);
+    // Keep the open table visible when crossing into stacked layout on resize.
+    if (selected) setMobileShowTree(false);
+  }, [isStackedLayout, selected]);
+
+  React.useEffect(() => {
+    setSelectedCells([]);
+    setViewPanelOpen(false);
+  }, [selected]);
 
   const loadContextNames = React.useCallback(async (): Promise<string[]> => {
     const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
@@ -576,6 +584,10 @@ export function DataPane({
         setSelectedRow(row);
         setEditField(options?.editField ?? null);
       }}
+      selectedCells={selectedCells}
+      onSelectCells={setSelectedCells}
+      viewPanelOpen={viewPanelOpen}
+      onViewPanelOpenChange={setViewPanelOpen}
       onMetaChange={setLeafMeta}
       refreshToken={refreshToken}
     />

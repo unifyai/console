@@ -62,6 +62,11 @@ interface DataLeafTableProps {
   mode: DataBrowserMode;
   selectedRowId: string | null;
   onRowSelect: (row: DataRow | null, options?: { editField?: string }) => void;
+  /** Lifted so layout remounts (stacked ↔ desktop) keep the current cell selection. */
+  selectedCells: string[];
+  onSelectCells: (cells: string[]) => void;
+  viewPanelOpen: boolean;
+  onViewPanelOpenChange: (open: boolean) => void;
   onMetaChange?: (meta: {
     count: number;
     loaded: number;
@@ -81,15 +86,17 @@ export function DataLeafTable({
   mode,
   selectedRowId: _selectedRowId,
   onRowSelect,
+  selectedCells,
+  onSelectCells,
+  viewPanelOpen,
+  onViewPanelOpenChange,
   onMetaChange,
   refreshToken = 0,
   onRowsChange,
 }: DataLeafTableProps) {
   const queryClient = useQueryClient();
   const [view, setView, replaceView] = useLogViewState(context);
-  const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
   const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
-  const [viewPanelOpen, setViewPanelOpen] = React.useState(false);
 
   const initializedRef = React.useRef<string | null>(null);
 
@@ -113,9 +120,7 @@ export function DataLeafTable({
   });
 
   React.useEffect(() => {
-    setSelectedCells([]);
     setBrowseRows([]);
-    setViewPanelOpen(false);
   }, [context]);
 
   React.useEffect(() => {
@@ -196,9 +201,9 @@ export function DataLeafTable({
     () => ({
       mode: 'cell',
       selectedCells,
-      onSelectCells: setSelectedCells,
+      onSelectCells,
     }),
-    [selectedCells]
+    [selectedCells, onSelectCells]
   );
 
   const panelRows = React.useMemo(
@@ -214,8 +219,8 @@ export function DataLeafTable({
   const showPanel = viewPanelOpen && selectedCells.length > 0;
 
   React.useEffect(() => {
-    if (selectedCells.length === 0) setViewPanelOpen(false);
-  }, [selectedCells.length]);
+    if (selectedCells.length === 0) onViewPanelOpenChange(false);
+  }, [selectedCells.length, onViewPanelOpenChange]);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -239,8 +244,8 @@ export function DataLeafTable({
         selection={selection}
         hasSelection={selectedCells.length > 0}
         viewPanelOpen={viewPanelOpen}
-        onToggleViewPanel={() => setViewPanelOpen((open) => !open)}
-        onOpenViewPanel={() => setViewPanelOpen(true)}
+        onToggleViewPanel={() => onViewPanelOpenChange(!viewPanelOpen)}
+        onOpenViewPanel={() => onViewPanelOpenChange(true)}
         filterExpr={spec?.filterExpr}
         onDerivedCreated={() => {
           void refreshAll();
@@ -253,7 +258,7 @@ export function DataLeafTable({
       {showPanel && (
         <LogCellViewPanel
           cells={cellSelections}
-          onClose={() => setViewPanelOpen(false)}
+          onClose={() => onViewPanelOpenChange(false)}
           onEditCell={(logId, columnId) => {
             const match = panelRows.find((r) => r.logId === logId);
             onRowSelect(match ? toDataRow(match) : null, { editField: columnId });
