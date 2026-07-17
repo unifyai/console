@@ -106,7 +106,7 @@ test('All shows branded sections; Personal and Team scopes flatten the tree', as
 }) => {
   await openDataTranscripts(page);
 
-  await expect(page.getByTestId('data-scope-dropdown')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('brain-scope-dropdown')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-scope', 'all');
 
   await expect(page.getByTestId('data-scope-section-personal')).toBeVisible();
@@ -119,8 +119,8 @@ test('All shows branded sections; Personal and Team scopes flatten the tree', as
   const transcriptsNodes = page.getByTestId('data-table-node').filter({ hasText: /^Transcripts$/ });
   await expect(transcriptsNodes).toHaveCount(2);
 
-  await page.getByTestId('data-scope-dropdown').click();
-  await page.getByTestId('data-scope-personal').click();
+  await page.getByTestId('brain-scope-dropdown').click();
+  await page.getByTestId('brain-scope-personal').click();
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-scope', 'personal');
   await expect(page.getByTestId('data-scope-section-personal')).toHaveCount(0);
   await expect(page.getByTestId(`data-scope-section-team-${team.teamId}`)).toHaveCount(0);
@@ -131,8 +131,8 @@ test('All shows branded sections; Personal and Team scopes flatten the tree', as
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: 'Transcripts' })).toBeVisible();
 
-  await page.getByTestId('data-scope-dropdown').click();
-  await page.getByTestId(`data-scope-team-${team.teamId}`).click();
+  await page.getByTestId('brain-scope-dropdown').click();
+  await page.getByTestId(`brain-scope-team-${team.teamId}`).click();
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-scope', `team-${team.teamId}`);
   await expect(page.getByTestId('data-scope-section-personal')).toHaveCount(0);
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });

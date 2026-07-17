@@ -28,15 +28,16 @@ import {
 } from '@/lib/assistants/dataBrowser';
 import { useShellResource } from '@/hooks/Common/useShellResource';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TeamAvatar } from '../OrgChat/TeamAvatar';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
-import { DataScopeDropdown } from './DataScopeDropdown';
 import type { DataField, DataRow } from './dataTypes';
 import type { Assistant } from '@/types/assistants/assistant';
+import { resolveManagedTeamDisplayName } from '@/utils/teams/managedTeamDisplay';
 
 interface DataPaneProps {
   assistant: Assistant;
@@ -145,14 +146,28 @@ function TreeRow({
   );
 }
 
-function ScopeSectionHeader({ section }: { section: DataScopeSection }) {
+function ScopeSectionHeader({
+  section,
+  imageUrl,
+  isOrgWideSharing,
+}: {
+  section: DataScopeSection;
+  imageUrl?: string | null;
+  isOrgWideSharing?: boolean;
+}) {
   return (
     <div
       className="flex items-center gap-2 px-2 pb-1 pt-2"
       data-testid={`data-scope-section-${section.key}`}
     >
       {section.kind === 'team' ? (
-        <TeamAvatar name={section.label} className="h-5 w-5" iconClassName="h-3 w-3" />
+        <TeamAvatar
+          name={section.label}
+          imageUrl={imageUrl}
+          isOrgWideSharing={isOrgWideSharing}
+          className="h-5 w-5"
+          iconClassName="h-3 w-3"
+        />
       ) : (
         <span
           className="rounded-control flex h-5 w-5 shrink-0 items-center justify-center border border-border bg-muted text-muted-foreground"
@@ -161,10 +176,12 @@ function ScopeSectionHeader({ section }: { section: DataScopeSection }) {
           <UserRound className="h-3 w-3" />
         </span>
       )}
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <p className="text-title truncate text-foreground">{section.label}</p>
         {section.kind === 'team' ? (
-          <p className="text-caption uppercase tracking-[0.06em] text-muted-foreground">Team</p>
+          <p className="text-caption shrink-0 uppercase tracking-[0.06em] text-muted-foreground">
+            Team
+          </p>
         ) : null}
       </div>
     </div>
@@ -228,10 +245,11 @@ function buildDataScopeSections(
   assistant: Assistant,
   ownerId: string,
   assistantId: string,
-  effectiveRoot: ContextRoot | null
+  effectiveRoot: ContextRoot | null,
+  orgName: string | null
 ): DataScopeSection[] {
-  const teamNamesById = new Map(
-    (assistant.teamSummaries ?? []).map((summary) => [summary.teamId, summary.name])
+  const teamSummariesById = new Map(
+    (assistant.teamSummaries ?? []).map((summary) => [summary.teamId, summary])
   );
 
   const toSection = (r: ContextRoot): DataScopeSection => {
@@ -243,10 +261,15 @@ function buildDataScopeSections(
         browserRoot: { prefix: `${ownerId}/${assistantId}/`, group: null },
       };
     }
+    const summary = teamSummariesById.get(r.teamId) ?? {
+      teamId: r.teamId,
+      name: `Team ${r.teamId}`,
+      description: null,
+    };
     return {
       key: `team-${r.teamId}`,
       kind: 'team',
-      label: teamNamesById.get(r.teamId) ?? `Team ${r.teamId}`,
+      label: resolveManagedTeamDisplayName(summary, orgName),
       teamId: r.teamId,
       browserRoot: { prefix: `Teams/${r.teamId}/`, group: null },
     };
@@ -266,9 +289,13 @@ export function DataPane({
   enabled = true,
 }: DataPaneProps) {
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root, includeAll: true });
+  const orgName =
+    scope.options.find((option) => option.isOrgWideSharing)?.label ??
+    scope.options.find((option) => option.key.startsWith('team-'))?.label ??
+    null;
   const scopeSections = React.useMemo(
-    () => buildDataScopeSections(assistant, ownerId, assistantId, scope.root),
-    [assistant, ownerId, assistantId, scope.root]
+    () => buildDataScopeSections(assistant, ownerId, assistantId, scope.root, orgName),
+    [assistant, ownerId, assistantId, scope.root, orgName]
   );
   const showScopeHeaders = scope.showFilter && scope.root == null && scopeSections.length > 1;
   const dataRoots = React.useMemo(
@@ -508,7 +535,15 @@ export function DataPane({
           if (nodes.length === 0 && !showScopeHeaders) return null;
           return (
             <div key={section.key} className={showScopeHeaders ? 'mb-2' : undefined}>
-              {showScopeHeaders ? <ScopeSectionHeader section={section} /> : null}
+              {showScopeHeaders ? (
+                <ScopeSectionHeader
+                  section={section}
+                  imageUrl={scope.options.find((option) => option.key === section.key)?.imageUrl}
+                  isOrgWideSharing={
+                    scope.options.find((option) => option.key === section.key)?.isOrgWideSharing
+                  }
+                />
+              ) : null}
               {nodes.length === 0 ? (
                 <p className="text-caption px-2 py-1.5 text-muted-foreground">No tables</p>
               ) : (
@@ -534,6 +569,7 @@ export function DataPane({
   const leafTable = selected ? (
     <DataLeafTable
       context={selected}
+      mode={mode}
       selectedRowId={selectedRow ? String(selectedRow.logId) : null}
       onRowSelect={setSelectedRow}
       onMetaChange={setLeafMeta}
@@ -566,7 +602,7 @@ export function DataPane({
   const modeToolbar = (
     <div className="flex flex-wrap items-start justify-between gap-2">
       <ModeSegments mode={mode} onChange={changeMode} />
-      <DataScopeDropdown scope={scope} />
+      <BrainScopeDropdown scope={scope} ariaLabel="Data ownership scope" />
     </div>
   );
 
@@ -718,6 +754,7 @@ export function DataPane({
             title={selectedTableName ?? selectedDisplayPath ?? 'Data row'}
             description={selectedDisplayPath ?? undefined}
             fields={leafMeta?.fields ?? {}}
+            mode={mode}
             onSave={saveField}
             onDelete={deleteSelectedRow}
             onClose={() => setSelectedRow(null)}

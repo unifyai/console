@@ -20,7 +20,8 @@ import { AssistantMarkdown } from '../Common/AssistantMarkdown';
 import { StaleReasonChips } from '../Common/StaleReasonChips';
 import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
-import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -362,8 +363,8 @@ export function KnowledgePane({
         isRefreshing={isRefreshing}
         refreshTitle="Refresh"
         refreshTestId="knowledge-refresh"
+        trailing={<BrainScopeDropdown scope={scope} />}
       />
-      <BrainScopeChips scope={scope} />
 
       <SplitPaneLayout
         paneId="knowledge-claims"

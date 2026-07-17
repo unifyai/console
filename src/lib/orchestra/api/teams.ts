@@ -24,12 +24,19 @@ function responseError(
 
 function toSharedTeamSummary(team: Record<string, unknown>): SharedTeamSummary {
   const teamId = Number(team.teamId ?? team.team_id ?? team.id);
+  const isOrgWideSharing = Boolean(team.isOrgWideSharing ?? team.is_org_wide_sharing);
+  const image =
+    typeof team.image === 'string'
+      ? team.image
+      : ((team.image as string | null | undefined) ?? null);
   return {
     teamId,
     name: String(team.name ?? ''),
     description: (team.description as string | null | undefined) ?? null,
     organizationId: (team.organizationId as number | null | undefined) ?? null,
     status: (team.status as SharedTeamSummary['status']) ?? undefined,
+    isOrgWideSharing: isOrgWideSharing || undefined,
+    image,
   };
 }
 

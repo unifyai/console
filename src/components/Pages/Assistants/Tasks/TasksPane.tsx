@@ -11,7 +11,8 @@ import { Button } from '@/components/UI/button';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
 import { TabToolbar } from '../Common/TabToolbar';
-import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -184,18 +185,21 @@ export function TasksPane({
         searchTestId="tasks-search"
         searchClearTestId="tasks-search-clear"
         trailing={
-          hasRunningTaskRun && (
-            <span
-              className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
-              data-testid="tasks-snapshot-status"
-            >
+          <>
+            <BrainScopeDropdown scope={scope} />
+            {hasRunningTaskRun ? (
               <span
-                className={cn('h-1.5 w-1.5 rounded-full', TASK_LIVE_DOT_CLASS)}
-                data-testid="tasks-snapshot-working-indicator"
-              />
-              <span>Working</span>
-            </span>
-          )
+                className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
+                data-testid="tasks-snapshot-status"
+              >
+                <span
+                  className={cn('h-1.5 w-1.5 rounded-full', TASK_LIVE_DOT_CLASS)}
+                  data-testid="tasks-snapshot-working-indicator"
+                />
+                <span>Working</span>
+              </span>
+            ) : null}
+          </>
         }
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
@@ -216,7 +220,6 @@ export function TasksPane({
         //   </Button>
         // }
       />
-      <BrainScopeChips scope={scope} />
 
       {/* Body — expandable task cards */}
       <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="tasks-body">

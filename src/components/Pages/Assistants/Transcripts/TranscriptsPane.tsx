@@ -20,7 +20,8 @@ import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { useShellResource } from '@/hooks/Common/useShellResource';
 import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
-import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -452,6 +453,7 @@ export function TranscriptsPane({
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
         refreshTitle="Refresh transcripts"
+        trailing={<BrainScopeDropdown scope={scope} />}
         leading={
           <div className="flex flex-wrap items-center gap-2">
             <TabSegmentGroup testId="transcripts-view-mode">
@@ -518,7 +520,6 @@ export function TranscriptsPane({
           </div>
         }
       />
-      <BrainScopeChips scope={scope} />
 
       {/* Threads split: list + reader */}
       {isInitialLoading ? (

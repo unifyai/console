@@ -10,7 +10,8 @@ import { DashboardGrid } from './DashboardGrid';
 import { DashboardTileCard } from './DashboardTileCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
 import { TabToolbar } from '../Common/TabToolbar';
-import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
@@ -155,19 +156,21 @@ export function DashboardsPane({
           ) : undefined
         }
         trailing={
-          !isEmpty ? (
-            <DashboardCollapseAllButton
-              allCollapsed={allCollapsed === true}
-              onToggleCollapseAll={toggleCollapseAll}
-            />
-          ) : undefined
+          <>
+            <BrainScopeDropdown scope={scope} />
+            {!isEmpty ? (
+              <DashboardCollapseAllButton
+                allCollapsed={allCollapsed === true}
+                onToggleCollapseAll={toggleCollapseAll}
+              />
+            ) : null}
+          </>
         }
         onRefresh={handleRefresh}
         isRefreshing={showRefreshing}
         refreshTitle="Refresh dashboards"
         refreshTestId="dashboards-refresh"
       />
-      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-testid="dashboards-body">
         {isInitialLoading ? (

@@ -21,7 +21,8 @@ import { AssistantMarkdown } from '../Common/AssistantMarkdown';
 import { StaleReasonChips } from '../Common/StaleReasonChips';
 import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
-import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -304,6 +305,7 @@ export function DocLibraryPane({
         isRefreshing={isRefreshing}
         refreshTitle="Refresh"
         refreshTestId="doc-refresh"
+        trailing={<BrainScopeDropdown scope={scope} />}
         // TODO(wire-backend): guidance creation is not wired to any
         // backend (DocAddDrawer.onSave only toasts). Restore this addAction +
         // the DocAddDrawer below once a doc-create endpoint exists.
@@ -319,7 +321,6 @@ export function DocLibraryPane({
         //   </Button>
         // }
       />
-      <BrainScopeChips scope={scope} />
 
       <SplitPaneLayout
         paneId="doc-library-guidance"
