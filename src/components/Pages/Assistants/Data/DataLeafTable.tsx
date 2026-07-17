@@ -201,8 +201,8 @@ export function DataLeafTable({
   );
 
   const cellSelections = React.useMemo(
-    () => cellsFromSelection(selectedCells, panelRows),
-    [selectedCells, panelRows]
+    () => cellsFromSelection(selectedCells, panelRows, view.offset),
+    [selectedCells, panelRows, view.offset]
   );
 
   const showPanel = viewPanelOpen && selectedCells.length > 0;

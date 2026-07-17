@@ -70,7 +70,7 @@ export function LogGridToolbar({
             offset: 0,
           })
         }
-        placeholder="Search all columns…"
+        placeholder="Search..."
         className="h-8 min-w-[8rem] max-w-xs shrink font-mono"
         data-testid="log-grid-common-filter"
       />

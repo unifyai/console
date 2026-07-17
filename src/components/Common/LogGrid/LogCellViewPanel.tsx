@@ -26,6 +26,8 @@ import { cn } from '@/lib/utils';
 export type LogCellSelection = {
   cellId: string;
   logId: number;
+  /** 1-based `#` column index in the current grid (matches the left index column). */
+  rowNumber: number;
   columnId: string;
   value: unknown;
   row?: LogGridRow;
@@ -35,6 +37,7 @@ type ValueGroup = {
   columnId: string;
   value: unknown;
   logIds: number[];
+  rowNumbers: number[];
 };
 
 interface LogCellViewPanelProps {
@@ -80,7 +83,7 @@ function valueGroupKey(value: unknown): string {
 
 /**
  * Group selected cells by column, then by equal value — Interfaces view-tile style.
- * Each group shows the value once with the list of row log ids that share it.
+ * Each group shows the value once with the `#` display row numbers that share it.
  */
 export function groupCellsByColumnValue(cells: LogCellSelection[]): ValueGroup[] {
   const columnOrder: string[] = [];
@@ -95,12 +98,16 @@ export function groupCellsByColumnValue(cells: LogCellSelection[]): ValueGroup[]
     const key = valueGroupKey(cell.value);
     const existing = colMap.get(key);
     if (existing) {
-      if (!existing.logIds.includes(cell.logId)) existing.logIds.push(cell.logId);
+      if (!existing.logIds.includes(cell.logId)) {
+        existing.logIds.push(cell.logId);
+        existing.rowNumbers.push(cell.rowNumber);
+      }
     } else {
       colMap.set(key, {
         columnId: cell.columnId,
         value: cell.value,
         logIds: [cell.logId],
+        rowNumbers: [cell.rowNumber],
       });
     }
   }
@@ -109,17 +116,21 @@ export function groupCellsByColumnValue(cells: LogCellSelection[]): ValueGroup[]
   for (const columnId of columnOrder) {
     const colMap = byColumn.get(columnId)!;
     for (const group of colMap.values()) {
-      group.logIds.sort((a, b) => a - b);
+      const order = group.rowNumbers
+        .map((_, i) => i)
+        .sort((a, b) => group.rowNumbers[a] - group.rowNumbers[b]);
+      group.rowNumbers = order.map((i) => group.rowNumbers[i]);
+      group.logIds = order.map((i) => group.logIds[i]);
       groups.push(group);
     }
   }
   return groups;
 }
 
-/** Compress sorted numeric ids like [10,11,12,15] → "10-12, 15" (no +1; ids are log ids). */
-function compressLogIds(ids: number[]): string {
-  if (!ids.length) return '';
-  const sorted = [...new Set(ids)].sort((a, b) => a - b);
+/** Compress sorted display row numbers like [3,4,5,8] → "3-5, 8". */
+function compressRowNumbers(nums: number[]): string {
+  if (!nums.length) return '';
+  const sorted = [...new Set(nums)].sort((a, b) => a - b);
   const ranges: string[] = [];
   let start = sorted[0];
   let end = start;
@@ -346,7 +357,7 @@ export function LogCellViewPanel({
           {groups.map((group) => {
             const type = getValueType(group.value);
             const label = sanitizeId(group.columnId);
-            const rowLabel = compressLogIds(group.logIds);
+            const rowLabel = compressRowNumbers(group.rowNumbers);
             const groupKey = `${group.columnId}:${valueGroupKey(group.value)}:${group.logIds.join(',')}`;
             return (
               <div
@@ -363,7 +374,7 @@ export function LogCellViewPanel({
                         {label}
                       </div>
                       <div className="text-caption text-muted-foreground">
-                        {group.logIds.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
+                        {group.rowNumbers.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
                       </div>
                     </div>
                   </div>
@@ -394,9 +405,11 @@ export function LogCellViewPanel({
 
 export function cellsFromSelection(
   selectedCells: string[],
-  rows: LogGridRow[]
+  rows: LogGridRow[],
+  offset = 0
 ): LogCellSelection[] {
   const byId = new Map(rows.map((r) => [String(r.logId), r]));
+  const rowNumberByLogId = new Map(rows.map((r, i) => [String(r.logId), offset + i + 1]));
   return selectedCells
     .map((cellId) => {
       const { logId, columnId } = parseCellId(cellId);
@@ -406,6 +419,7 @@ export function cellsFromSelection(
       return {
         cellId,
         logId: Number(logId) || 0,
+        rowNumber: rowNumberByLogId.get(logId) ?? 0,
         columnId,
         value,
         row,
