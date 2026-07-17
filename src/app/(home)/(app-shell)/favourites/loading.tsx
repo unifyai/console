@@ -2,8 +2,9 @@ import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
 import { FavouritesBodySkeleton } from '@/components/Pages/Favourites/FavouritesBodySkeleton';
 
 /**
- * Route-level loading UI for /favourites. Keep the page title visible while
- * projects/favourites resolve so the shell does not flash a header-less body.
+ * Route-level loading UI for /favourites while the segment prepares. Mirrors the
+ * synchronous title chrome in `page.tsx` so a slow first paint never shows a
+ * header-less body.
  */
 export default function FavouritesLoading() {
   return (

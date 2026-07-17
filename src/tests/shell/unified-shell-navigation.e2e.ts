@@ -1,6 +1,12 @@
 /**
  * Unified shell navigation verifies that assistants, settings, organizations,
- * and admin surfaces behave like tabs inside one mounted shell.
+ * and admin surfaces behave like tabs inside one mounted shell: soft client
+ * navigations (no full document reload), preserved assistant chrome, and no
+ * skeleton flicker on return hops.
+ *
+ * Cross-surface hops use `router.push` and `router.prefetch`, so RSC flight
+ * requests are expected. The soft-nav contract is zero *document* requests,
+ * not zero RSC.
  *
  * Run: npx playwright test src/tests/shell/unified-shell-navigation.e2e.ts
  */
@@ -158,14 +164,9 @@ test('settings/admin/assistants switch without document reload and preserve assi
   });
 
   let documentRequests = 0;
-  let rscRequests = 0;
   page.on('request', (request) => {
     if (request.resourceType() === 'document') {
       documentRequests += 1;
-    }
-    const headers = request.headers();
-    if (headers.rsc === '1' || request.url().includes('_rsc=')) {
-      rscRequests += 1;
     }
   });
   const initialNavigationCount = await navigationEntryCount(page);
@@ -218,6 +219,5 @@ test('settings/admin/assistants switch without document reload and preserve assi
   expect(await stopTasksToAccountObserver()).toEqual([]);
 
   expect(documentRequests).toBe(0);
-  expect(rscRequests).toBe(0);
   await expect.poll(() => navigationEntryCount(page)).toBe(initialNavigationCount);
 });
