@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../../../../../_utils/auth';
-
-const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
+import { forwardToOrchestra, resolveThreadId } from '../../../../../../../chat/_utils/orchestra';
 
 interface RouteParams {
   params: Promise<{ orgId: string; groupId: string; messageId: string }>;
 }
 
+/** Toggle the caller's emoji reaction on a chat-group message. */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { orgId, groupId, messageId } = await params;
 
@@ -29,28 +29,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return badRequest('Invalid JSON body');
   }
 
-  try {
-    const response = await fetch(
-      `${ORCHESTRA_URL}/v0/organizations/${organizationId}/groups/${groupIdNum}/messages/${messageIdNum}/reactions`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ emoji: body.emoji ?? null }),
-      }
-    );
+  const thread = await resolveThreadId(apiKey, { kind: 'group', group_id: groupIdNum });
+  if ('error' in thread) return thread.error;
 
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      return NextResponse.json(data || { detail: 'Failed to update reaction' }, {
-        status: response.status,
-      });
-    }
-
-    return NextResponse.json(data, { status: 200 });
-  } catch {
-    return NextResponse.json({ detail: 'Failed to update reaction' }, { status: 500 });
-  }
+  return forwardToOrchestra(
+    request,
+    `/chat/threads/${thread.threadId}/messages/${messageIdNum}/reactions`,
+    { method: 'POST', body: { emoji: body.emoji ?? null }, apiKey }
+  );
 }

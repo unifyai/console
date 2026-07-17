@@ -309,18 +309,25 @@ export function useOrgChat(params: UseOrgChatParams) {
           return;
         }
         if (!frame.event || typeof frame.event !== 'object') return;
-        if (frame.thread === 'team_message') {
-          handleTeamFrameRef.current(frame.event);
-        } else if (frame.thread === 'team_message_reaction') {
-          handleTeamReactionFrameRef.current(frame.event);
-        } else if (frame.thread === 'group_message') {
-          handleGroupFrameRef.current(frame.event);
-        } else if (frame.thread === 'group_message_reaction') {
-          handleGroupReactionFrameRef.current(frame.event);
-        } else if (frame.thread === 'dm_message') {
-          handleDmFrameRef.current(frame.event);
-        } else if (frame.thread === 'dm_message_reaction') {
-          handleDmReactionFrameRef.current(frame.event);
+        // Unified chat-store frames: one thread name, demuxed by the
+        // message payload's thread kind.
+        const kind = (frame.event as Record<string, unknown>).kind;
+        if (frame.thread === 'chat_message') {
+          if (kind === 'team') {
+            handleTeamFrameRef.current(frame.event);
+          } else if (kind === 'group') {
+            handleGroupFrameRef.current(frame.event);
+          } else if (kind === 'dm') {
+            handleDmFrameRef.current(frame.event);
+          }
+        } else if (frame.thread === 'chat_reaction') {
+          if (kind === 'team') {
+            handleTeamReactionFrameRef.current(frame.event);
+          } else if (kind === 'group') {
+            handleGroupReactionFrameRef.current(frame.event);
+          } else if (kind === 'dm') {
+            handleDmReactionFrameRef.current(frame.event);
+          }
         } else if (isOrgCallThread(frame.thread)) {
           const call = parseOrgCallSession(frame.event);
           if (!call.callId) return;

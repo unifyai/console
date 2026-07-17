@@ -64,61 +64,138 @@ export interface SeedTranscriptOpts {
   medium?: string;
   exchangeId?: number;
   receiverIds?: number[];
-  context?: string;
   selfContactId?: number;
   bossContactId?: number;
-  authoringAssistantId?: number | null;
+  /** Post into a team/group room thread instead of the assistant DM. */
+  teamId?: number;
+  groupId?: number;
   metadata?: Record<string, unknown>;
 }
 
 /**
- * Seed a transcript log entry (a historical chat message). Bound to the
- * spec's default self/boss contact ids; per-call overrides via opts.
+ * Resolve (get-or-create) the caller's assistant-DM thread in the unified
+ * chat store. Cached per (apiKey, assistantId).
+ */
+const resolvedThreadIds = new Map<string, number>();
+
+export async function resolveAssistantDmThreadId(
+  apiKey: string,
+  assistantId: number
+): Promise<number> {
+  const key = `${apiKey}:${assistantId}`;
+  const cached = resolvedThreadIds.get(key);
+  if (cached !== undefined) return cached;
+  const res = await orchestraFetch(
+    '/v0/chat/threads/resolve',
+    {
+      method: 'POST',
+      /* eslint-disable-next-line @typescript-eslint/naming-convention */
+      body: JSON.stringify({ kind: 'assistant_dm', assistant_id: assistantId }),
+    },
+    apiKey
+  );
+  if (!res.ok) throw new Error(`Failed to resolve chat thread: ${res.status} ${await res.text()}`);
+  const data = await res.json();
+  const threadId = Number(data.thread_id);
+  resolvedThreadIds.set(key, threadId);
+  return threadId;
+}
+
+/**
+ * Seed one historical chat message into the unified chat store (the source
+ * Console reads history from). Bound to the spec's default self/boss contact
+ * ids; a sender matching the assistant's self contact seeds an
+ * assistant-authored message via the runtime send route.
+ *
+ * `medium: 'unify_meet'` seeds a call-transcript utterance instead
+ * (`exchangeId` groups utterances into one call).
  */
 export function createTranscriptSeeder(defaults: { selfContactId: number; bossContactId: number }) {
-  let messageCounter = 1000;
-
   return async function seedTranscript(
     apiKey: string,
     userId: string,
     assistantId: number,
     opts: SeedTranscriptOpts
   ): Promise<number> {
-    const msgId = messageCounter++;
-    const ts = opts.timestamp || new Date().toISOString();
     const selfId = opts.selfContactId ?? defaults.selfContactId;
-    const bossId = opts.bossContactId ?? defaults.bossContactId;
+    const isAssistantAuthored = opts.senderId === selfId;
 
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const entries: Record<string, unknown> = {
-      medium: opts.medium ?? 'unify_message',
-      sender_id: opts.senderId,
-      receiver_ids: opts.receiverIds ?? (opts.senderId === selfId ? [bossId] : [selfId]),
-      content: opts.content,
-      message_id: msgId,
-      timestamp: ts,
-    };
-    if (opts.exchangeId !== undefined) entries.exchange_id = opts.exchangeId;
-    if ('authoringAssistantId' in opts) {
-      entries.authoring_assistant_id = opts.authoringAssistantId;
+    if ((opts.medium ?? 'unify_message') === 'unify_meet') {
+      const callId = `e2e-call-${assistantId}-${opts.exchangeId ?? 0}`;
+      const res = await orchestraFetch(
+        `/v0/assistant/${assistantId}/calls/utterances`,
+        {
+          method: 'POST',
+          /* eslint-disable @typescript-eslint/naming-convention */
+          body: JSON.stringify({
+            call_id: callId,
+            utterances: [
+              {
+                content: opts.content,
+                speaker_name: isAssistantAuthored ? 'Assistant' : 'You',
+                speaker_assistant_id: isAssistantAuthored ? assistantId : null,
+                ...(opts.timestamp ? { spoken_at: opts.timestamp } : {}),
+                metadata: opts.metadata ?? {},
+              },
+            ],
+          }),
+          /* eslint-enable @typescript-eslint/naming-convention */
+        },
+        apiKey
+      );
+      if (!res.ok) throw new Error(`Failed to seed utterance: ${res.status} ${await res.text()}`);
+      const data = await res.json();
+      return Number(data.utterances?.[0]?.id ?? 0);
     }
-    if (opts.metadata) entries.metadata = opts.metadata;
-    /* eslint-enable @typescript-eslint/naming-convention */
 
-    const res = await orchestraFetch(
-      '/v0/logs',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          project_name: 'Assistants',
-          context: opts.context ?? `${userId}/${assistantId}/Transcripts`,
-          entries: [entries],
-        }),
-      },
-      apiKey
-    );
-    if (!res.ok) throw new Error(`Failed to seed transcript: ${res.status} ${await res.text()}`);
-    return msgId;
+    let res: Response;
+    if (isAssistantAuthored || opts.teamId !== undefined || opts.groupId !== undefined) {
+      // The runtime send route resolves DM/team/group threads server-side.
+      /* eslint-disable @typescript-eslint/naming-convention */
+      const body: Record<string, unknown> = { content: opts.content };
+      if (opts.teamId !== undefined) body.team_id = opts.teamId;
+      if (opts.groupId !== undefined) body.group_id = opts.groupId;
+      /* eslint-enable @typescript-eslint/naming-convention */
+      if (!isAssistantAuthored && (opts.teamId !== undefined || opts.groupId !== undefined)) {
+        // Human-authored room message: post via the thread endpoint.
+        const scope =
+          opts.teamId !== undefined
+            ? /* eslint-disable-next-line @typescript-eslint/naming-convention */
+              { kind: 'team', team_id: opts.teamId }
+            : /* eslint-disable-next-line @typescript-eslint/naming-convention */
+              { kind: 'group', group_id: opts.groupId };
+        const resolveRes = await orchestraFetch(
+          '/v0/chat/threads/resolve',
+          { method: 'POST', body: JSON.stringify(scope) },
+          apiKey
+        );
+        if (!resolveRes.ok) {
+          throw new Error(`Failed to resolve room thread: ${resolveRes.status}`);
+        }
+        const thread = await resolveRes.json();
+        res = await orchestraFetch(
+          `/v0/chat/threads/${thread.thread_id}/messages`,
+          { method: 'POST', body: JSON.stringify({ content: opts.content }) },
+          apiKey
+        );
+      } else {
+        res = await orchestraFetch(
+          `/v0/assistant/${assistantId}/chat/messages`,
+          { method: 'POST', body: JSON.stringify(body) },
+          apiKey
+        );
+      }
+    } else {
+      const threadId = await resolveAssistantDmThreadId(apiKey, assistantId);
+      res = await orchestraFetch(
+        `/v0/chat/threads/${threadId}/messages`,
+        { method: 'POST', body: JSON.stringify({ content: opts.content }) },
+        apiKey
+      );
+    }
+    if (!res.ok) throw new Error(`Failed to seed chat message: ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    return Number(data.id);
   };
 }
 
@@ -161,23 +238,26 @@ export async function ensurePubSubTopic(assistantId: number): Promise<void> {
 
 export async function publishUnifyMessageOutbound(
   assistantId: number,
-  opts: { content: string; contactId: number }
+  opts: { content: string; contactId: number; userId?: string; messageId?: number }
 ): Promise<void> {
   const topicName = `unity-${assistantId}-staging`;
-  const payload = {
-    thread: 'unify_message_outbound',
-    event: {
-      content: opts.content,
-      role: 'assistant',
-      /* eslint-disable-next-line @typescript-eslint/naming-convention */
-      contact_id: opts.contactId,
-    },
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const event: Record<string, unknown> = {
+    kind: 'assistant_dm',
+    assistant_id: assistantId,
+    sender_kind: 'assistant',
+    content: opts.content,
+    timestamp: new Date().toISOString(),
   };
+  if (opts.userId) event.user_id = opts.userId;
+  if (opts.messageId !== undefined) event.id = opts.messageId;
+  /* eslint-enable @typescript-eslint/naming-convention */
+  const payload = { thread: 'chat_message', event };
   const body = {
     messages: [
       {
         data: Buffer.from(JSON.stringify(payload)).toString('base64'),
-        attributes: { thread: 'unify_message_outbound' },
+        attributes: { thread: 'chat_message', kind: 'assistant_dm' },
       },
     ],
   };

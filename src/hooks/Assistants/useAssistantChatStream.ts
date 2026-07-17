@@ -93,6 +93,12 @@ export interface UseAssistantChatStreamOptions {
   /** Threaded into `setLogContext` on connect for log correlation. */
   userEmail?: string | null;
   /**
+   * Signed-in user's id. Unified chat-store frames carry the assistant-DM
+   * thread's human party as `user_id`; frames for other users' threads with
+   * the same assistant are dropped client-side.
+   */
+  userId?: string | null;
+  /**
    * When set AND the tab is currently visible, the unread count for
    * `activeAssistantId` is never bumped — those messages are considered
    * "seen as they arrive" because the user is already looking at the chat.
@@ -675,6 +681,7 @@ export function useAssistantChatStream(
         const cutoff = optionsRef.current.getCutoff?.(assistantId) ?? 0;
         const frame = parseChatSseFrame(event.data, {
           myContactId,
+          myUserId: optionsRef.current.userId ?? undefined,
           rootKey: pair.rootKey,
           sourceContext: pair.sourceContext,
           cutoffMs: cutoff,

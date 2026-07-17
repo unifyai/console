@@ -119,7 +119,7 @@ function createBenignStream(request: NextRequest): Response {
 }
 
 const CHAT_FILTER =
-  'attributes.thread = "unify_message_outbound" OR attributes.thread = "unify_message_reaction_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "unify_meet_incoming"';
+  'attributes.thread = "chat_message" OR attributes.thread = "chat_reaction" OR attributes.thread = "unify_message_outbound" OR attributes.thread = "unify_message_reaction_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "unify_meet_incoming"';
 
 const MAX_PAIRS = 50;
 
@@ -369,6 +369,8 @@ export async function GET(request: NextRequest) {
             // the filter. Drop them here so inbound unify_message payloads are not
             // rendered as assistant chat bubbles on the client.
             if (
+              thread !== 'chat_message' &&
+              thread !== 'chat_reaction' &&
               thread !== 'unify_message_outbound' &&
               thread !== 'unify_message_reaction_outbound' &&
               thread !== 'assistant_desktop_ready' &&
@@ -408,7 +410,11 @@ export async function GET(request: NextRequest) {
             // stream.
             payload.assistantId = assistantId;
             if (payload.event && typeof payload.event === 'object') {
-              payload.event.id = message.id;
+              // Unified chat-store frames already carry the store message id;
+              // never clobber it with the Pub/Sub delivery id.
+              if (payload.event.id === undefined || payload.event.id === null) {
+                payload.event.id = message.id;
+              }
               payload.event.publishTime = publishTime;
             }
 

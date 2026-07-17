@@ -127,9 +127,8 @@ export interface CallPill {
   type: 'call_pill';
   timestamp: Date;
   durationSeconds: number;
-  exchangeId?: number;
-  sourceContext?: string;
-  selfContactId?: number;
+  /** Unified call-utterance store key (org call session id or room name). */
+  callId?: string;
   recordingUrl?: string;
 }
 
@@ -182,9 +181,9 @@ export interface ChatSearchResult {
   content: string;
   timestamp: Date;
   messageId?: number;
-  sourceContext?: string;
   medium: string;
-  exchangeId?: number;
+  /** Unified call-utterance store key for unify_meet results. */
+  callId?: string;
   attachments?: Attachment[];
 }
 

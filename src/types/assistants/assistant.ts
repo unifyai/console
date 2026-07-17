@@ -574,7 +574,7 @@ export interface AssistantActions {
     getTranscripts: (
       contactId: number,
       assistant: Assistant,
-      before?: { timestamp: string; excludedKeys?: string[] }
+      before?: { beforeId?: number }
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     reactToMessage: (payload: UnifyMessageReaction) => Promise<ResponseProps & { info?: string }>;
