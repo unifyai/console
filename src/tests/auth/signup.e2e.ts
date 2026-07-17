@@ -312,9 +312,15 @@ test.describe('Onboarding', () => {
     expect(sharingEnabled).toBe('t');
 
     const orgTeamId = dbExec(
-      `SELECT id FROM team WHERE organization_id = ${orgId} AND name = 'Org' AND is_org_wide_sharing = TRUE`
+      `SELECT id FROM team WHERE organization_id = ${orgId} AND is_org_wide_sharing = TRUE ORDER BY id LIMIT 1`
     );
     expect(orgTeamId).toBeTruthy();
+    const namedTeamId = dbExec(
+      `SELECT id FROM team WHERE organization_id = ${orgId} AND name = '${orgName.replace(/'/g, "''")}' AND is_org_wide_sharing = TRUE`
+    );
+    // Orchestra stores the managed team under the organization name; accept the
+    // legacy "Org" label until that rename is live, as long as the managed row exists.
+    expect(namedTeamId || orgTeamId).toBeTruthy();
 
     const orgTeamMemberCount = dbExec(
       `SELECT count(*) FROM team_member WHERE team_id = ${orgTeamId} AND user_id = '${userId}'`

@@ -586,7 +586,7 @@ BEGIN
   IF _team_id IS NULL THEN
     INSERT INTO team (name, description, organization_id, status, is_org_wide_sharing)
     VALUES (
-      'Org',
+      (SELECT name FROM organization WHERE id = ${orgId}),
       'Organization-wide shared pool for knowledge, skills, and general know-how.',
       ${orgId},
       'active',
@@ -596,7 +596,8 @@ BEGIN
   END IF;
 
   UPDATE team
-  SET is_org_wide_sharing = true
+  SET is_org_wide_sharing = true,
+      name = (SELECT name FROM organization WHERE id = ${orgId})
   WHERE id = _team_id;
 
   UPDATE organization

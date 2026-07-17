@@ -400,9 +400,10 @@ export async function openRailSection(page: Page, sectionId: string) {
 }
 
 /**
- * Open the hire dialog via the "Onboard" button under Colleagues (or at the
- * bottom of the flat list in personal workspaces). If the dialog is already
- * open (e.g. auto-opened on empty state), skip.
+ * Open the hire dialog via the "Onboard" button in the unity switcher list.
+ * In org workspaces the button lives under Org or Colleagues creation actions;
+ * in personal workspaces it sits at the bottom of the assistant list. If the
+ * dialog is already open (e.g. auto-opened on empty state), skip.
  */
 export async function openHireDialog(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const dialog = page.locator('[role="dialog"]');

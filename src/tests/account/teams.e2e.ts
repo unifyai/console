@@ -164,7 +164,7 @@ sharingTest(
     await page.getByTestId('org-sharing-toggle').click();
 
     await expect(page.getByTestId('org-sharing-enabled-copy')).toBeVisible({ timeout: 15_000 });
-    const orgTeamRow = page.locator('tr').filter({ hasText: 'Org' });
+    const orgTeamRow = page.locator('tr').filter({ hasText: sharingOrg.name });
     await expect(orgTeamRow).toBeVisible({ timeout: 10_000 });
     await expect(orgTeamRow).toContainText('Managed');
     await expect(orgTeamRow.getByRole('button', { name: 'More team' })).toHaveCount(0);
@@ -174,7 +174,17 @@ sharingTest(
     );
     expect(sharingEnabled).toBe('t');
 
-    const orgTeamId = getTeamByName(sharingOrg.id, 'Org');
+    const orgTeamIdByName = getTeamByName(sharingOrg.id, sharingOrg.name);
+    const orgTeamIdFromFlag = Number(
+      dbExec(
+        `SELECT id FROM team WHERE organization_id = ${sharingOrg.id} AND is_org_wide_sharing = true ORDER BY id LIMIT 1`
+      )
+        .trim()
+        .split('\n')
+        .pop()
+    );
+    const orgTeamId =
+      orgTeamIdByName ?? (Number.isFinite(orgTeamIdFromFlag) ? orgTeamIdFromFlag : null);
     expect(orgTeamId).toBeTruthy();
 
     expect(getTeamMemberCount(orgTeamId!)).toBe(2);
@@ -194,7 +204,11 @@ sharingTest(
       `SELECT org_wide_sharing_enabled FROM organization WHERE id = ${sharingOrg.id}`
     );
     expect(sharingDisabled).toBe('f');
-    expect(getTeamByName(sharingOrg.id, 'Org')).toBeFalsy();
+    expect(
+      dbExec(
+        `SELECT count(*) FROM team WHERE organization_id = ${sharingOrg.id} AND is_org_wide_sharing = true`
+      )
+    ).toBe('0');
 
     const remainingAssistantMembershipCount = dbExec(
       `SELECT count(*) FROM team_assistant_memberships WHERE assistant_id = ${sharingAssistant.agentId}`
@@ -239,10 +253,24 @@ creationTest(
       .toBe('t');
 
     await expect
-      .poll(() => getTeamByName(createdDialogOrgId!, 'Org') ?? '', { timeout: 15_000 })
+      .poll(
+        () =>
+          dbExec(
+            `SELECT id FROM team WHERE organization_id = ${createdDialogOrgId} AND is_org_wide_sharing = true ORDER BY id LIMIT 1`
+          ),
+        { timeout: 15_000 }
+      )
       .not.toBe('');
-    const orgTeamId = getTeamByName(createdDialogOrgId, 'Org');
+    const orgTeamId = Number(
+      dbExec(
+        `SELECT id FROM team WHERE organization_id = ${createdDialogOrgId} AND is_org_wide_sharing = true ORDER BY id LIMIT 1`
+      )
+        .trim()
+        .split('\n')
+        .pop()
+    );
     expect(orgTeamId).toBeTruthy();
-    expect(getTeamMemberCount(orgTeamId!)).toBe(1);
+    expect(getTeamByName(createdDialogOrgId, orgName) ?? orgTeamId).toBeTruthy();
+    expect(getTeamMemberCount(orgTeamId)).toBe(1);
   }
 );

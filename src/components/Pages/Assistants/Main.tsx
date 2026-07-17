@@ -31,7 +31,11 @@ import {
   teamEntityKey,
 } from '@/lib/assistants/selectedEntity';
 import { useOrgRoster } from '@/hooks/Assistants/useOrgRoster';
-import { withOrgProfileImageForTeams, type RosterHuman } from '@/types/orgChat';
+import {
+  withOrgProfileImageForTeams,
+  withOrgNameForManagedTeams,
+  type RosterHuman,
+} from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
 import { useOrgCall } from '@/hooks/Assistants/useOrgCall';
@@ -356,11 +360,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   });
   const rosterTeams = React.useMemo(
     () =>
-      withOrgProfileImageForTeams(
-        roster?.teams ?? [],
-        activeWorkspace?.type === 'organization' ? activeWorkspace.image : null
+      withOrgNameForManagedTeams(
+        withOrgProfileImageForTeams(
+          roster?.teams ?? [],
+          activeWorkspace?.type === 'organization' ? activeWorkspace.image : null
+        ),
+        activeWorkspace?.type === 'organization' ? activeWorkspace.name : null
       ),
-    [activeWorkspace?.image, activeWorkspace?.type, roster?.teams]
+    [activeWorkspace?.image, activeWorkspace?.name, activeWorkspace?.type, roster?.teams]
   );
 
   const syncProfileQueryParam = React.useCallback(
@@ -3834,6 +3841,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSelectTeam: handleSelectTeam,
       onSelectGroup: handleSelectGroup,
       onCreateGroup: () => setCreateGroupOpen(true),
+      onCreateTeam: () => {
+        router.push('/organizations?tab=teams');
+      },
       entityUnreadCounts: orgChat.unread,
       orgCallActiveUserIds:
         humanCall.isConnected && humanCall.activeCall
@@ -3872,6 +3882,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleSelectHuman,
       handleSelectTeam,
       handleSelectGroup,
+      router,
       orgChat.unread,
       humanCall.isConnected,
       humanCall.activeCall,

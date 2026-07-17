@@ -92,9 +92,13 @@ test('seeded assistants appear in the list with correct names @push @critical @a
   await expect(item1).toBeVisible({ timeout: 15_000 });
   await expect(item2).toBeVisible({ timeout: 5_000 });
 
-  // Solo assistants (no shared team) must not be bucketed into a team section.
-  // The pinned Coordinator group is always present and is expected.
+  // Personal workspaces only list virtual assistants — no Real/Virtual filters
+  // and no org roster nesting (Teams / Groups / Colleagues).
+  await expect(page.getByTestId('assistant-list-filter-real')).toHaveCount(0);
+  await expect(page.getByTestId('assistant-list-filter-virtual')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
+  await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
+  await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
   await expect(item1).toContainText('Alpha');
   await expect(item2).toContainText('Beta');
 });

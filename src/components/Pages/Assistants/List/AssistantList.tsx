@@ -101,6 +101,8 @@ interface AssistantListProps {
   onSelectTeam?: (teamId: number) => void;
   onSelectGroup?: (groupId: number) => void;
   onCreateGroup?: () => void;
+  /** Navigate to Organization → Teams to create a custom team. */
+  onCreateTeam?: () => void;
   /** Unread counts keyed by entity key (`team:{id}` / `human:{userId}` / `group:{id}`). */
   entityUnreadCounts?: Record<string, number>;
   /** User ids currently joined on the active org call (list ping badge). */
@@ -385,6 +387,7 @@ export function AssistantList({
   onSelectTeam,
   onSelectGroup,
   onCreateGroup,
+  onCreateTeam,
   entityUnreadCounts,
   orgCallActiveUserIds,
   orgCallActiveTeamId = null,
@@ -394,6 +397,11 @@ export function AssistantList({
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
   const [showReal, setShowReal] = React.useState(true);
   const [showVirtual, setShowVirtual] = React.useState(true);
+  // Personal workspaces only list virtual assistants — Real/Virtual filters and
+  // Groups/Colleagues/Teams nesting are org-workspace concepts.
+  const isOrgWorkspace = workspace.type === 'organization';
+  const includeReal = isOrgWorkspace && showReal;
+  const includeVirtual = !isOrgWorkspace || showVirtual;
   const orgCallUserIdSet = React.useMemo(() => {
     if (!orgCallActiveUserIds) return new Set<string>();
     return orgCallActiveUserIds instanceof Set
@@ -590,7 +598,7 @@ export function AssistantList({
     const { assistants: sourceAssistants, coordinatorCount } = foldedAssistantRows;
     // Coordinator (T-W1N) stays visible when Virtual is off; other assistants do not.
     const flatAssistants =
-      isFolded || showVirtual
+      isFolded || includeVirtual
         ? sourceAssistants
         : sourceAssistants.filter(
             (assistant) =>
@@ -628,7 +636,7 @@ export function AssistantList({
     });
 
     return renderedRows;
-  }, [canonicalCoordinatorId, foldedAssistantRows, isFolded, renderAssistantRow, showVirtual]);
+  }, [canonicalCoordinatorId, foldedAssistantRows, includeVirtual, isFolded, renderAssistantRow]);
 
   const renderHumanRows = React.useCallback(
     (teamHumans: RosterHuman[], keyPrefix: string) => {
@@ -654,8 +662,8 @@ export function AssistantList({
 
   const renderTeamMembers = React.useCallback(
     (groupId: string, teamHumans: RosterHuman[], virtualEntries: AssistantListEntry[]) => {
-      const visibleHumans = showReal && Boolean(onSelectHuman) ? teamHumans : [];
-      const visibleVirtual = showVirtual ? virtualEntries : [];
+      const visibleHumans = includeReal && Boolean(onSelectHuman) ? teamHumans : [];
+      const visibleVirtual = includeVirtual ? virtualEntries : [];
       if (visibleHumans.length === 0 && visibleVirtual.length === 0) return null;
 
       return (
@@ -670,7 +678,7 @@ export function AssistantList({
         </div>
       );
     },
-    [onSelectHuman, renderAssistantRow, renderHumanRows, showReal, showVirtual]
+    [includeReal, includeVirtual, onSelectHuman, renderAssistantRow, renderHumanRows]
   );
 
   const renderRosterTeam = React.useCallback(
@@ -744,7 +752,7 @@ export function AssistantList({
           {!isGroupFolded && group.kind === 'team' ? (
             renderTeamMembers(group.id, [], group.rows)
           ) : !isGroupFolded ? (
-            showVirtual ? (
+            includeVirtual ? (
               <div className="min-w-0 space-y-1 pt-1">
                 {group.rows.map((entry) =>
                   renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
@@ -755,7 +763,14 @@ export function AssistantList({
         </div>
       );
     },
-    [foldedGroups, renderAssistantRow, renderTeamMembers, showVirtual, teamsById, toggleGroupFold]
+    [
+      foldedGroups,
+      includeVirtual,
+      renderAssistantRow,
+      renderTeamMembers,
+      teamsById,
+      toggleGroupFold,
+    ]
   );
 
   const renderSection = React.useCallback(
@@ -790,10 +805,11 @@ export function AssistantList({
   );
 
   const hasNonAssistantRows =
-    filteredHumans.length > 0 ||
-    filteredSelectableTeams.length > 0 ||
-    (Boolean(onSelectHuman) && showHireButton) ||
-    (Boolean(onSelectGroup) && (filteredSelectableGroups.length > 0 || Boolean(onCreateGroup)));
+    isOrgWorkspace &&
+    (filteredHumans.length > 0 ||
+      filteredSelectableTeams.length > 0 ||
+      (Boolean(onSelectHuman) && showHireButton) ||
+      (Boolean(onSelectGroup) && (filteredSelectableGroups.length > 0 || Boolean(onCreateGroup))));
   const shouldRenderFlatList =
     isFolded ||
     (!hasNonAssistantRows && assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
@@ -809,9 +825,10 @@ export function AssistantList({
     return byId;
   }, [teamGroups]);
   // Prefer the roster order, then append any team groups that matched search via
-  // assistant name even when the team name itself did not.
-  const teamsForSection = React.useMemo(() => {
-    if (!onSelectTeam) return [] as RosterTeam[];
+  // assistant name even when the team name itself did not. The managed Org team
+  // is elevated out of TEAMS (rendered under T-W1N); only custom teams remain.
+  const selectableTeamsForList = React.useMemo(() => {
+    if (!isOrgWorkspace || !onSelectTeam) return [] as RosterTeam[];
     const byId = new Map<number, RosterTeam>();
     for (const team of filteredSelectableTeams) {
       byId.set(team.teamId, team);
@@ -822,11 +839,39 @@ export function AssistantList({
       if (rosterTeam) byId.set(group.teamId, rosterTeam);
     }
     return Array.from(byId.values());
-  }, [filteredSelectableTeams, onSelectTeam, rosterTeamsById, teamGroups]);
-  const showTeamsSection = teamsForSection.length > 0 || (!onSelectTeam && teamGroups.length > 0);
-  const showGroupsSection = Boolean(onSelectGroup);
+  }, [filteredSelectableTeams, isOrgWorkspace, onSelectTeam, rosterTeamsById, teamGroups]);
+  const elevatedOrgTeam = React.useMemo(
+    () => selectableTeamsForList.find((team) => team.isOrgWideSharing) ?? null,
+    [selectableTeamsForList]
+  );
+  const customTeamsForSection = React.useMemo(
+    () => selectableTeamsForList.filter((team) => !team.isOrgWideSharing),
+    [selectableTeamsForList]
+  );
+  const customTeamGroups = React.useMemo(
+    () =>
+      teamGroups.filter((group) => {
+        if (group.kind !== 'team') return false;
+        return rosterTeamsById[group.teamId]?.isOrgWideSharing !== true;
+      }),
+    [rosterTeamsById, teamGroups]
+  );
+  // TEAMS collapses entirely when the only team is the managed Org team.
+  // GROUPS only appears once at least one group exists.
+  const showTeamsSection =
+    isOrgWorkspace &&
+    (customTeamsForSection.length > 0 || (!onSelectTeam && customTeamGroups.length > 0));
+  const showGroupsSection =
+    isOrgWorkspace && Boolean(onSelectGroup) && filteredSelectableGroups.length > 0;
+  // When the managed Org team exists, every human/assistant is already on it —
+  // COLLEAGUES would duplicate that roster, so hide the section.
+  const hasManagedOrgTeam =
+    isOrgWorkspace && (selectableTeams ?? []).some((team) => team.isOrgWideSharing);
   const showColleaguesSection =
-    Boolean(onSelectHuman) && ((showReal && filteredHumans.length > 0) || showHireButton);
+    isOrgWorkspace &&
+    !hasManagedOrgTeam &&
+    Boolean(onSelectHuman) &&
+    ((includeReal && filteredHumans.length > 0) || showHireButton);
   const onboardListButton = renderOnboardButton(
     <Button
       type="button"
@@ -842,14 +887,61 @@ export function AssistantList({
       Onboard
     </Button>
   );
+  // Create group / Create team / Onboard sit under Org or Colleagues
+  // (mutually exclusive), not under an empty GROUPS nest.
+  const showOrgCreationActions =
+    isOrgWorkspace && (Boolean(elevatedOrgTeam) || showColleaguesSection);
+  const orgCreationActions = showOrgCreationActions ? (
+    <div className="min-w-0 space-y-1" data-testid="assistant-list-org-actions">
+      {onCreateGroup ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
+          onClick={onCreateGroup}
+          aria-label="Create group"
+          data-testid="create-group-button"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create group
+        </Button>
+      ) : null}
+      {onCreateTeam ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
+          onClick={onCreateTeam}
+          aria-label="Create team"
+          data-testid="create-team-button"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create team
+        </Button>
+      ) : null}
+      {onboardListButton}
+    </div>
+  ) : null;
   const showRosterSections = showTeamsSection || showGroupsSection || showColleaguesSection;
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
-      {pinnedGroup ? (
-        <div className="min-w-0 space-y-1" data-testid="assistant-list-group-pinned">
-          {pinnedGroup.rows.map((entry) =>
-            renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
-          )}
+      {pinnedGroup || elevatedOrgTeam ? (
+        <div className="min-w-0 space-y-1">
+          {pinnedGroup ? (
+            <div className="min-w-0 space-y-1" data-testid="assistant-list-group-pinned">
+              {pinnedGroup.rows.map((entry) =>
+                renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
+              )}
+            </div>
+          ) : null}
+          {elevatedOrgTeam ? (
+            <div className="min-w-0 space-y-1" data-testid="assistant-list-elevated-org-team">
+              {renderRosterTeam(elevatedOrgTeam, teamRowsById.get(elevatedOrgTeam.teamId) ?? [])}
+              {!showColleaguesSection ? orgCreationActions : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {showRosterSections ? (
@@ -858,13 +950,13 @@ export function AssistantList({
             ? renderSection(
                 'section:teams',
                 'Teams',
-                teamsForSection.length || teamGroups.length,
+                customTeamsForSection.length || customTeamGroups.length,
                 <>
-                  {teamsForSection.length > 0
-                    ? teamsForSection.map((team) =>
+                  {customTeamsForSection.length > 0
+                    ? customTeamsForSection.map((team) =>
                         renderRosterTeam(team, teamRowsById.get(team.teamId) ?? [])
                       )
-                    : teamGroups.map(renderGroup)}
+                    : customTeamGroups.map(renderGroup)}
                 </>,
                 'assistant-list-section-teams',
                 {
@@ -878,61 +970,43 @@ export function AssistantList({
                 'Groups',
                 filteredSelectableGroups.length,
                 <div className="min-w-0 space-y-1">
-                  {filteredSelectableGroups.length === 0 ? (
-                    <p className="text-caption px-2 py-1 text-muted-foreground">No groups yet.</p>
-                  ) : (
-                    filteredSelectableGroups.map((group) => {
-                      const faceMembers = [
-                        ...group.memberUserIds.map((userId) => {
-                          const human = humansById[userId];
-                          return {
-                            id: `u:${userId}`,
-                            name:
-                              human?.name?.trim() ||
-                              human?.email ||
-                              (userId === currentUserId ? 'You' : userId),
-                            image: human?.image,
-                          };
-                        }),
-                        ...group.assistantMemberIds.map((assistantId) => {
-                          const assistant = assistantsByAgentId[String(assistantId)];
-                          return {
-                            id: `a:${assistantId}`,
-                            name: assistant
-                              ? assistantDisplayName(assistant)
-                              : `Assistant ${assistantId}`,
-                            image:
-                              assistant?.signedProfilePhotoUrl || assistant?.profilePhoto || null,
-                          };
-                        }),
-                      ];
-                      return (
-                        <GroupListRow
-                          key={`group:${group.groupId}`}
-                          group={group}
-                          faceMembers={faceMembers}
-                          isSelected={selectedEntityKey === groupEntityKey(group.groupId)}
-                          unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
-                          isCallActive={orgCallActiveGroupId === group.groupId}
-                          onSelect={() => onSelectGroup?.(group.groupId)}
-                        />
-                      );
-                    })
-                  )}
-                  {onCreateGroup ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-                      onClick={onCreateGroup}
-                      aria-label="Create group"
-                      data-testid="create-group-button"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Create group
-                    </Button>
-                  ) : null}
+                  {filteredSelectableGroups.map((group) => {
+                    const faceMembers = [
+                      ...group.memberUserIds.map((userId) => {
+                        const human = humansById[userId];
+                        return {
+                          id: `u:${userId}`,
+                          name:
+                            human?.name?.trim() ||
+                            human?.email ||
+                            (userId === currentUserId ? 'You' : userId),
+                          image: human?.image,
+                        };
+                      }),
+                      ...group.assistantMemberIds.map((assistantId) => {
+                        const assistant = assistantsByAgentId[String(assistantId)];
+                        return {
+                          id: `a:${assistantId}`,
+                          name: assistant
+                            ? assistantDisplayName(assistant)
+                            : `Assistant ${assistantId}`,
+                          image:
+                            assistant?.signedProfilePhotoUrl || assistant?.profilePhoto || null,
+                        };
+                      }),
+                    ];
+                    return (
+                      <GroupListRow
+                        key={`group:${group.groupId}`}
+                        group={group}
+                        faceMembers={faceMembers}
+                        isSelected={selectedEntityKey === groupEntityKey(group.groupId)}
+                        unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
+                        isCallActive={orgCallActiveGroupId === group.groupId}
+                        onSelect={() => onSelectGroup?.(group.groupId)}
+                      />
+                    );
+                  })}
                 </div>,
                 'assistant-list-section-groups',
                 {
@@ -946,7 +1020,7 @@ export function AssistantList({
                 'Colleagues',
                 filteredHumans.length,
                 <div className="min-w-0 space-y-1">
-                  {showReal
+                  {includeReal
                     ? filteredHumans.map((human) => (
                         <HumanListRow
                           key={`human:${human.userId}`}
@@ -959,7 +1033,7 @@ export function AssistantList({
                         />
                       ))
                     : null}
-                  {onboardListButton}
+                  {orgCreationActions}
                 </div>,
                 'assistant-list-section-people',
                 {
@@ -969,14 +1043,14 @@ export function AssistantList({
             : null}
         </div>
       ) : null}
-      {showVirtual && soloGroup ? (
+      {includeVirtual && soloGroup ? (
         <div className="min-w-0 space-y-1" data-testid="assistant-list-section-solo">
           {soloRows.map((entry) =>
             renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
           )}
-          {!showColleaguesSection ? onboardListButton : null}
+          {!showOrgCreationActions ? onboardListButton : null}
         </div>
-      ) : !showColleaguesSection ? (
+      ) : !showOrgCreationActions ? (
         onboardListButton
       ) : null}
     </div>
@@ -1031,36 +1105,38 @@ export function AssistantList({
                 disabled={isLoading || !!error}
               />
             </div>
-            <div
-              className="flex shrink-0 flex-col gap-1"
-              role="group"
-              aria-label="Show real and virtual teammates"
-            >
-              <Label
-                htmlFor="assistant-list-filter-real"
-                className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
+            {isOrgWorkspace ? (
+              <div
+                className="flex shrink-0 flex-col gap-1"
+                role="group"
+                aria-label="Show real and virtual teammates"
               >
-                <Checkbox
-                  id="assistant-list-filter-real"
-                  checked={showReal}
-                  onCheckedChange={(checked) => setShowReal(checked === true)}
-                  data-testid="assistant-list-filter-real"
-                />
-                Real
-              </Label>
-              <Label
-                htmlFor="assistant-list-filter-virtual"
-                className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
-              >
-                <Checkbox
-                  id="assistant-list-filter-virtual"
-                  checked={showVirtual}
-                  onCheckedChange={(checked) => setShowVirtual(checked === true)}
-                  data-testid="assistant-list-filter-virtual"
-                />
-                Virtual
-              </Label>
-            </div>
+                <Label
+                  htmlFor="assistant-list-filter-real"
+                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
+                >
+                  <Checkbox
+                    id="assistant-list-filter-real"
+                    checked={showReal}
+                    onCheckedChange={(checked) => setShowReal(checked === true)}
+                    data-testid="assistant-list-filter-real"
+                  />
+                  Real
+                </Label>
+                <Label
+                  htmlFor="assistant-list-filter-virtual"
+                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
+                >
+                  <Checkbox
+                    id="assistant-list-filter-virtual"
+                    checked={showVirtual}
+                    onCheckedChange={(checked) => setShowVirtual(checked === true)}
+                    data-testid="assistant-list-filter-virtual"
+                  />
+                  Virtual
+                </Label>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

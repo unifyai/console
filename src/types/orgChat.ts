@@ -68,7 +68,7 @@ export function parseRosterTeam(raw: Record<string, unknown>): RosterTeam {
   };
 }
 
-/** Org-wide "Org" teams inherit the organization profile photo when they have none of their own. */
+/** Org-wide managed teams inherit the organization profile photo when they have none of their own. */
 export function withOrgProfileImageForTeams<
   T extends { isOrgWideSharing?: boolean; image?: string | null },
 >(teams: T[], orgImage: string | null | undefined): T[] {
@@ -76,6 +76,16 @@ export function withOrgProfileImageForTeams<
   return teams.map((team) =>
     team.isOrgWideSharing && !team.image ? { ...team, image: orgImage } : team
   );
+}
+
+/** Managed org-wide teams display as the organization name, not a fixed "Org" label. */
+export function withOrgNameForManagedTeams<T extends { isOrgWideSharing?: boolean; name: string }>(
+  teams: T[],
+  orgName: string | null | undefined
+): T[] {
+  const name = orgName?.trim();
+  if (!name) return teams;
+  return teams.map((team) => (team.isOrgWideSharing ? { ...team, name } : team));
 }
 
 export interface RosterGroup {

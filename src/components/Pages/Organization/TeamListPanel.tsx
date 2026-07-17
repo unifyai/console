@@ -48,7 +48,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
-import { withOrgProfileImageForTeams } from '@/types/orgChat';
+import { withOrgProfileImageForTeams, withOrgNameForManagedTeams } from '@/types/orgChat';
 
 interface TeamListPanelProps {
   teams: Team[];
@@ -58,6 +58,8 @@ interface TeamListPanelProps {
   canManageOrgSharing: boolean;
   /** Organization profile photo used as the Org team's default face. */
   organizationImage?: string | null;
+  /** Organization display name used as the managed team's label. */
+  organizationName?: string | null;
   /** When true, non-managed team avatars are clickable for photo upload. */
   canManageTeams?: boolean;
   onCreateTeam: (name: string, desc: string) => void;
@@ -182,6 +184,7 @@ const TeamListPanel = ({
   orgSharingMode,
   canManageOrgSharing,
   organizationImage = null,
+  organizationName = null,
   canManageTeams = false,
   onCreateTeam,
   onUpdateTeam,
@@ -201,7 +204,10 @@ const TeamListPanel = ({
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
-  const teamsWithOrgFace = withOrgProfileImageForTeams(teams, organizationImage);
+  const teamsWithOrgFace = withOrgNameForManagedTeams(
+    withOrgProfileImageForTeams(teams, organizationImage),
+    organizationName
+  );
   const filteredTeams = teamsWithOrgFace.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase())
   );
