@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Ban,
   EyeOff,
   Filter,
   GripVertical,
@@ -64,16 +65,25 @@ export function LogGridColumnHeader({
 }: LogGridColumnHeaderProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [filterOpen, setFilterOpen] = React.useState(false);
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  const openFilterAfterMenuCloseRef = React.useRef(false);
   const sorted = column.getIsSorted() as SortDirection | false;
   const hasFilter = columnHasFilter(filters, columnKey);
 
   const openFilter = () => {
+    openFilterAfterMenuCloseRef.current = true;
     setMenuOpen(false);
-    window.setTimeout(() => setFilterOpen(true), 0);
+    // Wait for the menu close cycle so the click that selected "Filter…"
+    // is not treated as an outside click on the newly opened popover.
+    window.setTimeout(() => {
+      setFilterOpen(true);
+      openFilterAfterMenuCloseRef.current = false;
+    }, 0);
   };
 
   return (
     <div
+      ref={headerRef}
       className="group/header relative flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden"
       data-testid={`log-grid-header-${fieldKey}`}
     >
@@ -99,6 +109,7 @@ export function LogGridColumnHeader({
           open={filterOpen}
           onOpenChange={setFilterOpen}
           showTrigger={hasFilter}
+          anchorRef={headerRef}
         />
       </div>
 
@@ -119,7 +130,15 @@ export function LogGridColumnHeader({
             <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[11rem]">
+        <DropdownMenuContent
+          align="end"
+          className="min-w-[11rem]"
+          collisionPadding={16}
+          onCloseAutoFocus={(e) => {
+            // Keep focus from jumping back into the header while the filter popover opens.
+            if (openFilterAfterMenuCloseRef.current) e.preventDefault();
+          }}
+        >
           <DropdownMenuSub>
             <DropdownMenuSubTrigger
               className="text-body-sm gap-2"
@@ -160,6 +179,7 @@ export function LogGridColumnHeader({
                   setMenuOpen(false);
                 }}
               >
+                <Ban className="h-3.5 w-3.5" />
                 Clear
               </DropdownMenuItem>
             </DropdownMenuSubContent>

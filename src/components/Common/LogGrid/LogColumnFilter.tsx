@@ -29,6 +29,12 @@ interface LogColumnFilterProps {
    * Defaults to true when the column already has an active filter.
    */
   showTrigger?: boolean;
+  /**
+   * Stable positioning target when the header filter icon is hidden.
+   * Prefer the column header element so RHS-edge columns still get a real
+   * bounding box (a zero-size placeholder anchors off-screen in narrow layouts).
+   */
+  anchorRef?: React.RefObject<HTMLElement | null>;
 }
 
 type Clause = { fn: string; value: string };
@@ -179,6 +185,7 @@ export function LogColumnFilter({
   open: openControlled,
   onOpenChange,
   showTrigger,
+  anchorRef,
 }: LogColumnFilterProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const open = openControlled ?? uncontrolledOpen;
@@ -231,15 +238,22 @@ export function LogColumnFilter({
             <Filter className="h-3 w-3" aria-hidden="true" />
           </Button>
         </PopoverTrigger>
+      ) : anchorRef ? (
+        // Position against the real column header — not a zero-size placeholder —
+        // so collision detection can keep the panel on-screen for RHS columns.
+        <PopoverAnchor virtualRef={anchorRef as React.RefObject<HTMLElement>} />
       ) : (
         <PopoverAnchor asChild>
-          <span className="pointer-events-none absolute inset-0" aria-hidden="true" />
+          <span className="inline-block h-6 w-px shrink-0" aria-hidden="true" />
         </PopoverAnchor>
       )}
       <PopoverContent
         align="start"
-        className="w-72 space-y-2 p-3"
+        side="bottom"
+        collisionPadding={16}
+        className="z-[80] w-72 space-y-2 p-3"
         onClick={(e) => e.stopPropagation()}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="text-caption font-medium text-foreground">Filter {sanitizeId(column)}</div>
         {clauses.map((clause, index) => (
