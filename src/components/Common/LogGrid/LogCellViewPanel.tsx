@@ -264,7 +264,7 @@ function ValueCopyButton({ value }: { value: unknown }) {
     <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
       <CopyButton
         content={formatRawValue(value)}
-        copyMessage="Copied!"
+        showSuccessNotification={false}
         className="pointer-events-auto h-5 w-5 p-0 [&_svg]:size-3"
       />
     </div>
@@ -275,8 +275,8 @@ function ValueCopyButton({ value }: { value: unknown }) {
 function RowGutter({ label, widthCh }: { label: string; widthCh: number }) {
   return (
     <span
-      className="max-w-[4.5rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 text-right font-mono text-[12px] tabular-nums leading-snug text-muted-foreground"
-      style={{ width: `calc(${widthCh}ch + 0.75rem)` }}
+      className="min-w-[2.25rem] max-w-[6rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 text-right font-mono text-[12px] tabular-nums leading-snug text-muted-foreground"
+      style={{ width: `calc(${widthCh}ch + 1.25rem)` }}
       title={label}
       data-testid="log-cell-view-row-label"
     >
@@ -381,7 +381,7 @@ function CellBody({
         editable && 'cursor-text',
         extraClassName
       )}
-      onDoubleClick={(event) => {
+      onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
         startEdit();
@@ -402,11 +402,12 @@ function CellBody({
           <Textarea
             ref={inputRef}
             value={draft}
+            rows={1}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
             onBlur={() => void commitEdit()}
             disabled={isSaving}
-            className="min-h-[2.5rem] resize-y border-0 bg-transparent p-1.5 font-mono text-[12px] shadow-none focus-visible:ring-0"
+            className="min-h-0 resize-y border-0 bg-transparent p-1.5 font-mono text-[12px] leading-snug shadow-none focus-visible:ring-0"
             data-testid="log-cell-view-editor"
             aria-label={`Edit ${fieldName}`}
           />
@@ -535,7 +536,7 @@ function ColumnGroupDisplay({
  * Viewing panel for selected LogGrid cells.
  * Groups by column under foldable headings (expanded by default), then
  * collapses identical values within a column to one entry with a compressed
- * row-number range. Double-click an editable value box to edit inline.
+ * row-number range. Click an editable value box to edit inline.
  */
 export function LogCellViewPanel({
   cells,

@@ -166,7 +166,7 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'Contacts');
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
 
-  // Select the locked contact_id cell and confirm double-click does not enter edit.
+  // Select the locked contact_id cell and confirm click does not enter edit.
   const contactIdHeader = page.getByTestId(/log-grid-header-(contact_id|contactId)/);
   await expect(contactIdHeader).toBeVisible({ timeout: 30_000 });
   const contactIdCell = page
@@ -184,11 +184,11 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
     )
     .getByTestId('log-cell-view-value');
   await expect(lockedValue).toHaveAttribute('data-editable', 'false');
-  await lockedValue.dblclick();
+  await lockedValue.click();
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
   await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
 
-  // Select an allowlisted field and confirm double-click opens an inline editor.
+  // Select an allowlisted field and confirm click opens an inline editor.
   const firstNameCell = page
     .locator('tr[data-testid^="log-grid-row-"]')
     .first()
@@ -204,7 +204,7 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
     )
     .getByTestId('log-cell-view-value');
   await expect(editableValue).toHaveAttribute('data-editable', 'true');
-  await editableValue.dblclick();
+  await editableValue.click();
   await expect(page.getByTestId('log-cell-view-editor')).toBeVisible({ timeout: 10_000 });
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
@@ -225,7 +225,7 @@ test('Transcripts SM mode: fully read-only and no delete', async ({ authedPage: 
 
   const valueBox = page.getByTestId('log-cell-view-value').first();
   await expect(valueBox).toHaveAttribute('data-editable', 'false');
-  await valueBox.dblclick();
+  await valueBox.click();
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 
   const firstRow = page.locator('tr[data-testid^="log-grid-row-"]').first();
