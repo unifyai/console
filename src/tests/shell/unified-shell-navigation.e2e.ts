@@ -21,7 +21,8 @@ import { ensureUnifyOrg } from '../helpers/seeds/client';
 import { assistantRail, railSection, visibleShellTestId } from '../helpers/shell';
 
 const user = createTestUser({ name: 'UnifiedShell', lastName: 'Navigator', credits: 50_000 });
-ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
+// Admin link in settings is gated on isUnifyAdmin (Unify org owner/admin).
+ensureUnifyOrg({ memberId: user.id, memberRole: 'Admin', credits: 50_000 });
 ensureProjectSync(user.apiKey);
 
 const test = createAssistantTest(user);
