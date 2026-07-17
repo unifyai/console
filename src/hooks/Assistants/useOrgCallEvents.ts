@@ -11,10 +11,8 @@ export interface OrgCallEventHandlers {
   onParticipantUpdate: (call: OrgCallSession) => void;
 }
 
-function isOrgCallThread(thread: string | undefined): boolean {
-  return (
-    typeof thread === 'string' && (thread.startsWith('org_call_') || thread.startsWith('dm_call_'))
-  );
+function isCallThread(thread: string | undefined): boolean {
+  return typeof thread === 'string' && thread.startsWith('call_');
 }
 
 /**
@@ -53,10 +51,10 @@ export function useOrgCallEvents(orgId: string | null, handlers: OrgCallEventHan
           return;
         }
         if (!frame.event || typeof frame.event !== 'object') return;
-        if (!isOrgCallThread(frame.thread)) return;
+        if (!isCallThread(frame.thread)) return;
         const call = parseOrgCallSession(frame.event);
         if (!call.callId) return;
-        const action = frame.thread!.replace(/^(org_call_|dm_call_)/, '');
+        const action = frame.thread!.replace(/^call_/, '');
         if (action === 'incoming') {
           handlersRef.current.onIncoming(call);
         } else if (action === 'answered') {

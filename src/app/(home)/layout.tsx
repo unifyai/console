@@ -12,9 +12,10 @@ import { TimezoneSync } from '@/components/Layout/TimezoneSync';
 import { NetworkStatusToast } from '@/components/Layout/NetworkStatusToast';
 import { SelfHostRuntimeBootstrap } from '@/components/SelfHost/SelfHostRuntimeBootstrap';
 import { Toaster } from '@/components/UI/Chat/sonner';
-import { CallProviderActions } from '@/components/Pages/Assistants/Communication/CallProvider';
-import { CallProviderGate } from '@/components/Pages/Assistants/Communication/CallProviderGate';
-import { OrgCallProvider } from '@/components/Pages/Assistants/OrgChat/OrgCallProvider';
+import {
+  CallProvider,
+  CallProviderActions,
+} from '@/components/Pages/Assistants/Communication/CallProvider';
 import { AppShellNavigationProvider } from '@/lib/navigation/AppShellRouter';
 import { AssistantSwitcherBridgeProvider } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
 import { getCurrentUser } from '@/lib/user/user';
@@ -27,11 +28,6 @@ import {
   getAssistantOwnerById,
   uploadAttachment,
 } from '@/lib/assistants/chat';
-import {
-  getCallConnectionDetails,
-  dispatchAssistantToCall,
-  deleteCallRoom,
-} from '@/lib/assistants/call';
 import {
   getLiveviewUrl,
   buildLiveviewUrl,
@@ -67,11 +63,6 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
       getAssistantOwnerById,
       uploadAttachment,
     },
-    call: {
-      getConnectionDetails: getCallConnectionDetails,
-      dispatchToCall: dispatchAssistantToCall,
-      deleteRoom: deleteCallRoom,
-    },
     desktop: {
       getLiveviewUrl,
       buildLiveviewUrl,
@@ -103,21 +94,17 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
         <ThemeLoader>
           <AppShellNavigationProvider>
             <AssistantSwitcherBridgeProvider>
-              <CallProviderGate callActions={callActions} userMeta={callUserMeta}>
-                {/* Multi-party org calls live beside the 1:1 assistant call
-                  engine so both survive navigation across (home) pages. */}
-                <OrgCallProvider>
-                  {/* The MFA gate is an async server component, so it must be
-                    instantiated here in the server layout and handed to the client
-                    chrome as a child — rendering it from inside HomeChrome would make
-                    React treat it as an async client component and crash the tree. */}
-                  <HomeChrome>
-                    <MfaEnforcementGate>
-                      <NuqsAdapter>{children}</NuqsAdapter>
-                    </MfaEnforcementGate>
-                  </HomeChrome>
-                </OrgCallProvider>
-              </CallProviderGate>
+              <CallProvider callActions={callActions} userMeta={callUserMeta}>
+                {/* The MFA gate is an async server component, so it must be
+                  instantiated here in the server layout and handed to the client
+                  chrome as a child — rendering it from inside HomeChrome would make
+                  React treat it as an async client component and crash the tree. */}
+                <HomeChrome>
+                  <MfaEnforcementGate>
+                    <NuqsAdapter>{children}</NuqsAdapter>
+                  </MfaEnforcementGate>
+                </HomeChrome>
+              </CallProvider>
             </AssistantSwitcherBridgeProvider>
           </AppShellNavigationProvider>
           <Toaster position="bottom-right" closeButton />

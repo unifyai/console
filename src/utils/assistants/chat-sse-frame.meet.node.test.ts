@@ -9,43 +9,62 @@ const baseOpts = {
   cutoffMs: 0,
 };
 
-describe('parseChatSseFrame — unify_meet_incoming', () => {
-  it('parses a meet-incoming ring frame with its event data', () => {
+describe('parseChatSseFrame — call session frames', () => {
+  it('parses an assistant ring (call_incoming) with its session event', () => {
     const raw = JSON.stringify({
-      thread: 'unify_meet_incoming',
-      event: { call_session_id: 'meet-ring-1', reason: 'Continuing onboarding', contact_id: 1 },
+      thread: 'call_incoming',
+      event: {
+        call_id: 'sess-ring-1',
+        scope: 'assistant_dm',
+        created_by_assistant_id: 42,
+        status: 'ringing',
+      },
     });
 
     const frame = parseChatSseFrame(raw, baseOpts);
 
-    expect(frame.kind).toBe('meet-incoming');
-    if (frame.kind === 'meet-incoming') {
-      expect(frame.ackId).toBeUndefined();
-      expect(frame.eventData.call_session_id).toBe('meet-ring-1');
-      expect(frame.eventData.reason).toBe('Continuing onboarding');
+    expect(frame.kind).toBe('call-frame');
+    if (frame.kind === 'call-frame') {
+      expect(frame.action).toBe('incoming');
+      expect(frame.eventData.call_id).toBe('sess-ring-1');
+      expect(frame.eventData.created_by_assistant_id).toBe(42);
     }
   });
 
-  it('bypasses the transcript cutoff (it is an idempotent lifecycle signal)', () => {
+  it('parses lifecycle updates (answered/ended/declined)', () => {
+    for (const action of ['answered', 'ended', 'declined'] as const) {
+      const raw = JSON.stringify({
+        thread: `call_${action}`,
+        event: { call_id: 'sess-ring-1', scope: 'assistant_dm', status: 'ended' },
+      });
+      const frame = parseChatSseFrame(raw, baseOpts);
+      expect(frame.kind).toBe('call-frame');
+      if (frame.kind === 'call-frame') {
+        expect(frame.action).toBe(action);
+      }
+    }
+  });
+
+  it('bypasses the transcript cutoff (idempotent lifecycle signal)', () => {
     const raw = JSON.stringify({
-      thread: 'unify_meet_incoming',
+      thread: 'call_incoming',
       publishTime: new Date(0).toISOString(),
-      event: { call_session_id: 'x', contact_id: 1 },
+      event: { call_id: 'x', scope: 'assistant_dm', created_by_assistant_id: 1 },
     });
 
     const frame = parseChatSseFrame(raw, { ...baseOpts, cutoffMs: Date.now() });
 
-    expect(frame.kind).toBe('meet-incoming');
+    expect(frame.kind).toBe('call-frame');
   });
 
-  it('still respects the per-contact filter', () => {
+  it('ignores unknown call actions', () => {
     const raw = JSON.stringify({
-      thread: 'unify_meet_incoming',
-      event: { call_session_id: 'x', contact_id: 2 },
+      thread: 'call_participant_joined_bogus_extra',
+      event: { call_id: 'x' },
     });
 
     const frame = parseChatSseFrame(raw, baseOpts);
 
-    expect(frame.kind).toBe('filtered');
+    expect(frame.kind).toBe('ignored');
   });
 });

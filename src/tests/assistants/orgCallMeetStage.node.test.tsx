@@ -87,7 +87,9 @@ function makeCall(overrides: Partial<OrgCallSession> = {}): OrgCallSession {
     calleeUserId: null,
     teamId: 7,
     groupId: null,
-    dmThreadId: null,
+    organizationId: 1,
+    createdByAssistantId: null,
+    threadId: null,
     userIds: ['me', 'peer'],
     assistantIds: [],
     participants: [

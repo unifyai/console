@@ -361,7 +361,7 @@ export function parseOrgChatSearchResult(raw: Record<string, unknown>): OrgChatS
   };
 }
 
-export type OrgCallScope = 'dm' | 'team' | 'group';
+export type OrgCallScope = 'dm' | 'team' | 'group' | 'assistant_dm';
 export type OrgCallStatus = 'ringing' | 'active' | 'ended';
 export type OrgCallParticipantStatus = 'invited' | 'joined' | 'declined' | 'left';
 
@@ -376,12 +376,14 @@ export interface OrgCallSession {
   roomName: string;
   status: OrgCallStatus;
   scope: OrgCallScope;
+  organizationId: number | null;
   createdByUserId: string;
+  createdByAssistantId: number | null;
   callerUserId: string;
   calleeUserId: string | null;
   teamId: number | null;
   groupId: number | null;
-  dmThreadId: number | null;
+  threadId: number | null;
   userIds: string[];
   participants: OrgCallParticipant[];
   assistantIds: number[];
@@ -405,7 +407,8 @@ export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSessio
   const status: OrgCallStatus =
     statusRaw === 'active' || statusRaw === 'ended' ? statusRaw : 'ringing';
   const scopeRaw = String(raw.scope ?? 'dm');
-  const scope: OrgCallScope = scopeRaw === 'team' ? 'team' : scopeRaw === 'group' ? 'group' : 'dm';
+  const scope: OrgCallScope =
+    scopeRaw === 'team' || scopeRaw === 'group' || scopeRaw === 'assistant_dm' ? scopeRaw : 'dm';
   const participantsRaw = Array.isArray(raw.participants) ? raw.participants : [];
   const participants: OrgCallParticipant[] = participantsRaw.map((p) => {
     const row = (p ?? {}) as Record<string, unknown>;
@@ -440,16 +443,21 @@ export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSessio
     roomName: typeof raw.room_name === 'string' ? raw.room_name : '',
     status,
     scope,
+    organizationId:
+      raw.organization_id == null || raw.organization_id === ''
+        ? null
+        : Number(raw.organization_id),
     createdByUserId: createdBy,
+    createdByAssistantId:
+      raw.created_by_assistant_id == null || raw.created_by_assistant_id === ''
+        ? null
+        : Number(raw.created_by_assistant_id),
     callerUserId: String(raw.caller_user_id ?? createdBy),
     calleeUserId:
       raw.callee_user_id == null || raw.callee_user_id === '' ? null : String(raw.callee_user_id),
     teamId: raw.team_id == null || raw.team_id === '' ? null : Number(raw.team_id),
     groupId: raw.group_id == null || raw.group_id === '' ? null : Number(raw.group_id),
-    dmThreadId:
-      raw.dm_thread_id == null && raw.thread_id == null
-        ? null
-        : Number(raw.dm_thread_id ?? raw.thread_id),
+    threadId: raw.thread_id == null || raw.thread_id === '' ? null : Number(raw.thread_id),
     userIds,
     participants,
     assistantIds: Array.isArray(raw.assistant_ids)
@@ -458,5 +466,3 @@ export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSessio
     roster,
   };
 }
-
-export const parseHumanCallSession = parseOrgCallSession;

@@ -300,7 +300,7 @@ export function useOrgChat(params: UseOrgChatParams) {
           }
         }
         // Org call signaling frames stream on the app-level `channel=calls`
-        // connection owned by OrgCallProvider, not this chat stream.
+        // connection owned by the app-level CallProvider, not this chat stream.
       };
 
       eventSource.onerror = () => {
