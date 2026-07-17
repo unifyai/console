@@ -11,10 +11,12 @@ export {
   buildFilterExpression,
   buildFilterExpressionArgument,
   filtersToExpression,
+  compileClausesToExpression,
   searchParamToFilters,
   combineFilters,
   initFilters,
 } from './filters';
+export type { FilterClause } from './filters';
 export {
   tileDataToLogViewState,
   tileDataToLogQuerySpec,

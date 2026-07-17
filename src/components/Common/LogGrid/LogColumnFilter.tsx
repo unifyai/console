@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Filter, Plus, X } from 'lucide-react';
+import { Filter, Parentheses, Plus, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
@@ -12,9 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/UI/select';
-import { searchParamToFilters } from '@/lib/logs/filters';
+import { searchParamToFilters, type FilterClause } from '@/lib/logs/filters';
 import { sanitizeId } from '@/lib/logs/columns';
 import type { FiltersByColumn } from '@/types/interfaces/columns';
+import { cn } from '@/lib/utils';
 
 interface LogColumnFilterProps {
   column: string;
@@ -37,7 +38,7 @@ interface LogColumnFilterProps {
   anchorRef?: React.RefObject<HTMLElement | null>;
 }
 
-type Clause = { fn: string; value: string };
+type Clause = FilterClause;
 
 function defaultFnForType(dataType?: string): string {
   if (dataType === 'int' || dataType === 'float') return '==';
@@ -136,16 +137,39 @@ function stripColumn(filters: string, column: string): string {
     .join('§');
 }
 
-function parseClauses(column: string, filters: string): Clause[] {
+function displayValue(raw: string): string {
+  if (raw.startsWith('"') && raw.endsWith('"')) return raw.slice(1, -1);
+  return raw;
+}
+
+function parseClauses(column: string, filters: string, dataType?: string): Clause[] {
   const parsed = searchParamToFilters(filters || undefined, undefined);
   const columnFilters = parsed[column] ?? {};
-  const clauses = Object.entries(columnFilters).map(([fn, value]) => {
-    const raw = value ?? '';
-    const cleaned =
-      raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1) : raw === 'true' ? 'true' : raw;
-    return { fn, value: cleaned };
-  });
-  return clauses.length ? clauses : [{ fn: defaultFnForType(), value: '' }];
+
+  if (columnFilters.clauses) {
+    const stored = JSON.parse(columnFilters.clauses) as FilterClause[];
+    if (Array.isArray(stored) && stored.length > 0) {
+      return stored.map((clause, index) => ({
+        fn: clause.fn,
+        value: displayValue(clause.value ?? ''),
+        ...(index > 0
+          ? { join: clause.join === 'or' ? 'or' : 'and', grouped: !!clause.grouped }
+          : {}),
+      }));
+    }
+  }
+
+  const clauses = Object.entries(columnFilters)
+    .filter(([fn]) => fn !== 'clauses' && fn !== 'expression')
+    .map(([fn, value], index) => {
+      const raw = value ?? '';
+      return {
+        fn,
+        value: displayValue(raw),
+        ...(index > 0 ? { join: 'and' as const, grouped: false } : {}),
+      };
+    });
+  return clauses.length ? clauses : [{ fn: defaultFnForType(dataType), value: '' }];
 }
 
 function encodeValue(fn: string, value: string, dataType?: string): string {
@@ -166,15 +190,31 @@ function encodeValue(fn: string, value: string, dataType?: string): string {
   return `"${trimmed.replace(/"/g, '')}"`;
 }
 
+/** Maximal spans where consecutive `grouped` joins share one parenthesized group. */
+function clauseSpans(clauses: Clause[]): { start: number; end: number }[] {
+  const spans: { start: number; end: number }[] = [];
+  let i = 0;
+  while (i < clauses.length) {
+    let j = i;
+    while (j + 1 < clauses.length && clauses[j + 1].grouped) j++;
+    spans.push({ start: i, end: j });
+    i = j + 1;
+  }
+  return spans;
+}
+
 export function columnHasFilter(filters: string, column: string): boolean {
-  return (
-    Object.keys(searchParamToFilters(filters || undefined, undefined)[column] ?? {}).length > 0
-  );
+  const columnFilters = searchParamToFilters(filters || undefined, undefined)[column] ?? {};
+  if (columnFilters.clauses) {
+    const stored = JSON.parse(columnFilters.clauses) as FilterClause[];
+    return Array.isArray(stored) && stored.length > 0;
+  }
+  return Object.keys(columnFilters).length > 0;
 }
 
 /**
- * Column filter popover with type-aware operators, exists/isNone, and multi-clause filters.
- * Encodes the same `col~fn~value§…` bag Interfaces table tiles use.
+ * Column filter popover with type-aware operators, and/or joins, and adjacent clause grouping.
+ * Persists as `col~clauses~JSON`; legacy `col~fn~value` bags still open as a flat and-joined list.
  * The header trigger only shows when a filter is active; otherwise open via controlled state.
  */
 export function LogColumnFilter({
@@ -190,30 +230,40 @@ export function LogColumnFilter({
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const open = openControlled ?? uncontrolledOpen;
   const setOpen = onOpenChange ?? setUncontrolledOpen;
-  const [clauses, setClauses] = React.useState<Clause[]>(() => parseClauses(column, filters));
+  const [clauses, setClauses] = React.useState<Clause[]>(() =>
+    parseClauses(column, filters, dataType)
+  );
 
   React.useEffect(() => {
-    if (open) setClauses(parseClauses(column, filters));
-  }, [open, column, filters]);
+    if (open) setClauses(parseClauses(column, filters, dataType));
+  }, [open, column, filters, dataType]);
 
   const hasFilter = columnHasFilter(filters, column);
   const showIcon = showTrigger ?? hasFilter;
   const ops = opsForType(dataType);
   const isNumeric = dataType === 'int' || dataType === 'float';
+  const spans = clauseSpans(clauses);
 
   const apply = () => {
     const without = stripColumn(filters, column);
-    const nextForCol: FiltersByColumn = { [column]: {} };
-    for (const clause of clauses) {
-      if (needsValue(clause.fn) && !clause.value.trim()) continue;
-      nextForCol[column][clause.fn] = encodeValue(clause.fn, clause.value, dataType);
-    }
-    if (Object.keys(nextForCol[column]).length === 0) {
+    const valid = clauses.filter((clause) => !needsValue(clause.fn) || clause.value.trim());
+    if (valid.length === 0) {
       onChange(without);
-    } else {
-      const encoded = encodeFiltersBag(nextForCol);
-      onChange(without ? `${without}§${encoded}` : encoded);
+      setOpen(false);
+      return;
     }
+    const stored: FilterClause[] = valid.map((clause, index) => ({
+      fn: clause.fn,
+      value: encodeValue(clause.fn, clause.value, dataType),
+      ...(index > 0
+        ? { join: clause.join === 'or' ? 'or' : 'and', grouped: !!clause.grouped }
+        : {}),
+    }));
+    const nextForCol: FiltersByColumn = {
+      [column]: { clauses: JSON.stringify(stored) },
+    };
+    const encoded = encodeFiltersBag(nextForCol);
+    onChange(without ? `${without}§${encoded}` : encoded);
     setOpen(false);
   };
 
@@ -221,6 +271,121 @@ export function LogColumnFilter({
     onChange(stripColumn(filters, column));
     setClauses([{ fn: defaultFnForType(dataType), value: '' }]);
     setOpen(false);
+  };
+
+  const removeClause = (index: number) => {
+    setClauses((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) return [{ fn: defaultFnForType(dataType), value: '' }];
+      if (index === 0) {
+        const first = next[0];
+        next[0] = { fn: first.fn, value: first.value };
+      }
+      return next;
+    });
+  };
+
+  const renderClauseCard = (clause: Clause, index: number) => (
+    <div key={index} className="space-y-1.5 rounded-md border border-border bg-background p-2">
+      <div className="flex items-center gap-1">
+        <Select
+          value={clause.fn}
+          onValueChange={(fn) =>
+            setClauses((prev) => prev.map((c, i) => (i === index ? { ...c, fn } : c)))
+          }
+        >
+          <SelectTrigger
+            className="h-8"
+            data-testid={index === 0 ? 'log-grid-filter-fn' : `log-grid-filter-fn-${index}`}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ops.map((op) => (
+              <SelectItem key={op.value} value={op.value}>
+                {op.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {clauses.length > 1 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => removeClause(index)}
+            aria-label="Remove clause"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+      {needsValue(clause.fn) && (
+        <Input
+          value={clause.value}
+          onChange={(e) =>
+            setClauses((prev) =>
+              prev.map((c, i) => (i === index ? { ...c, value: e.target.value } : c))
+            )
+          }
+          placeholder={
+            dataType === 'bool'
+              ? 'true / false'
+              : isNumeric
+                ? 'Number'
+                : dataType === 'timestamp' || dataType === 'date'
+                  ? 'ISO date or relative'
+                  : 'Value'
+          }
+          className="h-8"
+          data-testid={index === 0 ? 'log-grid-filter-value' : `log-grid-filter-value-${index}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') apply();
+          }}
+        />
+      )}
+    </div>
+  );
+
+  const renderJoinControls = (index: number) => {
+    const clause = clauses[index];
+    const join = clause.join === 'or' ? 'or' : 'and';
+    const grouped = !!clause.grouped;
+    return (
+      <div className="flex items-center justify-center gap-1 py-0.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-caption h-6 px-2 text-muted-foreground"
+          data-testid={`log-grid-filter-join-${index}`}
+          onClick={() =>
+            setClauses((prev) =>
+              prev.map((c, i) => (i === index ? { ...c, join: c.join === 'or' ? 'and' : 'or' } : c))
+            )
+          }
+        >
+          {join}
+        </Button>
+        <Button
+          type="button"
+          variant={grouped ? 'secondary' : 'ghost'}
+          size="sm"
+          className={cn('text-caption h-6 gap-1 px-2', grouped && 'text-foreground')}
+          data-testid={`log-grid-filter-group-${index}`}
+          aria-pressed={grouped}
+          aria-label={grouped ? 'Ungroup from previous clause' : 'Group with previous clause'}
+          onClick={() =>
+            setClauses((prev) =>
+              prev.map((c, i) => (i === index ? { ...c, grouped: !c.grouped } : c))
+            )
+          }
+        >
+          <Parentheses className="h-3 w-3" aria-hidden="true" />
+          {grouped ? 'Ungroup' : 'Group'}
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -251,78 +416,52 @@ export function LogColumnFilter({
         align="start"
         side="bottom"
         collisionPadding={16}
-        className="z-[80] w-72 space-y-2 p-3"
+        className="z-[80] w-80 space-y-2 p-3"
         onClick={(e) => e.stopPropagation()}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="text-caption font-medium text-foreground">Filter {sanitizeId(column)}</div>
-        {clauses.map((clause, index) => (
-          <div key={index} className="space-y-1.5 rounded-md border border-border p-2">
-            <div className="flex items-center gap-1">
-              <Select
-                value={clause.fn}
-                onValueChange={(fn) =>
-                  setClauses((prev) => prev.map((c, i) => (i === index ? { ...c, fn } : c)))
-                }
-              >
-                <SelectTrigger
-                  className="h-8"
-                  data-testid={index === 0 ? 'log-grid-filter-fn' : undefined}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ops.map((op) => (
-                    <SelectItem key={op.value} value={op.value}>
-                      {op.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {clauses.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setClauses((prev) => prev.filter((_, i) => i !== index))}
-                  aria-label="Remove clause"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
+        {spans.map((span, spanIndex) => {
+          const isGroupedSpan = span.end > span.start;
+          const body = (
+            <div className={cn('space-y-1', isGroupedSpan && 'pl-1')}>
+              {Array.from({ length: span.end - span.start + 1 }, (_, offset) => {
+                const index = span.start + offset;
+                return (
+                  <React.Fragment key={index}>
+                    {offset > 0 && renderJoinControls(index)}
+                    {renderClauseCard(clauses[index], index)}
+                  </React.Fragment>
+                );
+              })}
             </div>
-            {needsValue(clause.fn) && (
-              <Input
-                value={clause.value}
-                onChange={(e) =>
-                  setClauses((prev) =>
-                    prev.map((c, i) => (i === index ? { ...c, value: e.target.value } : c))
-                  )
-                }
-                placeholder={
-                  dataType === 'bool'
-                    ? 'true / false'
-                    : isNumeric
-                      ? 'Number'
-                      : dataType === 'timestamp' || dataType === 'date'
-                        ? 'ISO date or relative'
-                        : 'Value'
-                }
-                className="h-8"
-                data-testid={index === 0 ? 'log-grid-filter-value' : undefined}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') apply();
-                }}
-              />
-            )}
-          </div>
-        ))}
+          );
+
+          return (
+            <React.Fragment key={`${span.start}-${span.end}`}>
+              {span.start > 0 && renderJoinControls(span.start)}
+              {isGroupedSpan ? (
+                <div
+                  className="bg-muted/30 space-y-1 rounded-md border border-border p-2"
+                  data-testid={`log-grid-filter-span-${spanIndex}`}
+                >
+                  {body}
+                </div>
+              ) : (
+                body
+              )}
+            </React.Fragment>
+          );
+        })}
         <Button
           variant="ghost"
           size="sm"
           className="h-7 w-full gap-1"
           onClick={() =>
-            setClauses((prev) => [...prev, { fn: defaultFnForType(dataType), value: '' }])
+            setClauses((prev) => [
+              ...prev,
+              { fn: defaultFnForType(dataType), value: '', join: 'and', grouped: false },
+            ])
           }
           data-testid="log-grid-filter-add-clause"
         >

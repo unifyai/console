@@ -3,6 +3,7 @@ import {
   separateFunctionFilters,
   searchParamToFilters,
   filtersToExpression,
+  compileClausesToExpression,
   buildFilterExpression,
   toRelativeDate,
   toAbsoluteDate,
@@ -88,6 +89,25 @@ describe('filters', () => {
       };
       const result = filtersToExpression(filters, mockFields);
       expect(result).toContain('(x > 5)');
+    });
+
+    it('compiles structured clauses with grouped or spans', () => {
+      const clauses = [
+        { fn: 'in', value: '"Ada"' },
+        { fn: 'in', value: '"Alan"', join: 'or' as const, grouped: true },
+        { fn: '!=', value: '"x"', join: 'and' as const, grouped: false },
+        { fn: '!=', value: '"y"', join: 'or' as const, grouped: true },
+      ];
+      const compiled = compileClausesToExpression(clauses, 'entries/str', mockFields);
+      expect(compiled).toBe(
+        `("Ada" in entries/str or "Alan" in entries/str) and (entries/str != "x" or entries/str != "y")`
+      );
+
+      const filters = {
+        'entries/str': { clauses: JSON.stringify(clauses) },
+      };
+      const result = filtersToExpression(filters, mockFields);
+      expect(result).toContain(compiled);
     });
   });
 

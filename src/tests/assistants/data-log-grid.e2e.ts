@@ -191,6 +191,51 @@ test('common text filter narrows rows', async ({ authedPage: page }) => {
   await expect(page.getByText('Alan Turing')).toBeVisible();
 });
 
+test('column filter supports grouped or and top-level and', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const nameHeader = page.getByTestId('log-grid-header-name');
+  await nameHeader.hover();
+  await page.getByTestId('log-grid-column-menu-name').click({ force: true });
+  await page.getByTestId('log-grid-filter-open-name').click({ force: true });
+
+  await expect(page.getByTestId('log-grid-filter-value')).toBeVisible({ timeout: 15_000 });
+  // Add the second clause before editing values so the popover layout stays stable.
+  await page.getByTestId('log-grid-filter-add-clause').click({ force: true });
+  await expect(page.getByTestId('log-grid-filter-value-1')).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('log-grid-filter-value').fill('Ada');
+  await page.getByTestId('log-grid-filter-value-1').fill('Alan');
+  await page.getByTestId('log-grid-filter-join-1').click({ force: true }); // and → or
+  await expect(page.getByTestId('log-grid-filter-join-1')).toHaveText('or');
+  await page.getByTestId('log-grid-filter-group-1').click({ force: true });
+  await expect(page.getByTestId('log-grid-filter-span-0')).toBeVisible();
+  await page.getByTestId('log-grid-filter-apply').click({ force: true });
+
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 2/, {
+    timeout: 30_000,
+  });
+  await expect(page.getByText('Ada Lovelace')).toBeVisible();
+  await expect(page.getByText('Alan Turing')).toBeVisible();
+  await expect(page.getByText('Grace Hopper')).toHaveCount(0);
+
+  // Re-open and add an ungrouped AND clause that excludes Ada → only Alan remains
+  await page.getByTestId('log-grid-filter-name').click({ force: true });
+  await expect(page.getByTestId('log-grid-filter-add-clause')).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('log-grid-filter-add-clause').click({ force: true });
+  await expect(page.getByTestId('log-grid-filter-fn-2')).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('log-grid-filter-fn-2').click({ force: true });
+  await page.getByRole('option', { name: 'does not contain' }).click({ force: true });
+  await page.getByTestId('log-grid-filter-value-2').fill('Ada');
+  await expect(page.getByTestId('log-grid-filter-join-2')).toHaveText('and');
+  await page.getByTestId('log-grid-filter-apply').click({ force: true });
+
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 1/, {
+    timeout: 30_000,
+  });
+  await expect(page.getByText('Alan Turing')).toBeVisible();
+  await expect(page.getByText('Ada Lovelace')).toHaveCount(0);
+});
+
 test('loaded status shows 1–N of total without page controls', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
