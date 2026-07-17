@@ -31,6 +31,12 @@ export type LogCellSelection = {
   row?: LogGridRow;
 };
 
+type ValueGroup = {
+  columnId: string;
+  value: unknown;
+  logIds: number[];
+};
+
 interface LogCellViewPanelProps {
   cells: LogCellSelection[];
   onClose: () => void;
@@ -57,6 +63,78 @@ function formatValue(value: unknown, mode: DisplayMode): string {
   } catch {
     return String(value);
   }
+}
+
+/** Stable map key for grouping identical cell values within a column. */
+function valueGroupKey(value: unknown): string {
+  if (value === undefined) return '::undefined::';
+  if (value === null) return '::null::';
+  if (typeof value === 'string') return `s:${value}`;
+  if (typeof value === 'number' || typeof value === 'boolean') return `p:${String(value)}`;
+  try {
+    return `j:${JSON.stringify(value)}`;
+  } catch {
+    return `r:${String(value)}`;
+  }
+}
+
+/**
+ * Group selected cells by column, then by equal value — Interfaces view-tile style.
+ * Each group shows the value once with the list of row log ids that share it.
+ */
+export function groupCellsByColumnValue(cells: LogCellSelection[]): ValueGroup[] {
+  const columnOrder: string[] = [];
+  const byColumn = new Map<string, Map<string, ValueGroup>>();
+
+  for (const cell of cells) {
+    if (!byColumn.has(cell.columnId)) {
+      columnOrder.push(cell.columnId);
+      byColumn.set(cell.columnId, new Map());
+    }
+    const colMap = byColumn.get(cell.columnId)!;
+    const key = valueGroupKey(cell.value);
+    const existing = colMap.get(key);
+    if (existing) {
+      if (!existing.logIds.includes(cell.logId)) existing.logIds.push(cell.logId);
+    } else {
+      colMap.set(key, {
+        columnId: cell.columnId,
+        value: cell.value,
+        logIds: [cell.logId],
+      });
+    }
+  }
+
+  const groups: ValueGroup[] = [];
+  for (const columnId of columnOrder) {
+    const colMap = byColumn.get(columnId)!;
+    for (const group of colMap.values()) {
+      group.logIds.sort((a, b) => a - b);
+      groups.push(group);
+    }
+  }
+  return groups;
+}
+
+/** Compress sorted numeric ids like [10,11,12,15] → "10-12, 15" (no +1; ids are log ids). */
+function compressLogIds(ids: number[]): string {
+  if (!ids.length) return '';
+  const sorted = [...new Set(ids)].sort((a, b) => a - b);
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let end = start;
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    if (current === end + 1) {
+      end = current;
+    } else {
+      ranges.push(start === end ? String(start) : `${start}-${end}`);
+      start = current;
+      end = current;
+    }
+  }
+  ranges.push(start === end ? String(start) : `${start}-${end}`);
+  return ranges.join(', ');
 }
 
 function ComplexBody({ fieldName, value }: { fieldName: string; value: unknown }) {
@@ -185,7 +263,8 @@ function CellBody({
 
 /**
  * Interfaces-style viewing panel for selected LogGrid cells.
- * Reuses ViewTypes + nested Dict/List views; no tile store / multi-panel / diff.
+ * Groups identical values per column so a multi-row empty selection shows
+ * one card per column with a compressed row-id range, not N duplicate cards.
  */
 export function LogCellViewPanel({
   cells,
@@ -195,6 +274,7 @@ export function LogCellViewPanel({
   className,
 }: LogCellViewPanelProps) {
   const [mode, setMode] = React.useState<DisplayMode>('text');
+  const groups = React.useMemo(() => groupCellsByColumnValue(cells), [cells]);
 
   if (cells.length === 0) {
     return (
@@ -215,7 +295,7 @@ export function LogCellViewPanel({
           </Button>
         </div>
         <p className="text-caption p-4 text-muted-foreground">
-          Click a cell to inspect it here (Interfaces view-tile style).
+          Select cells, then open the view pane to inspect them.
         </p>
       </div>
     );
@@ -263,14 +343,17 @@ export function LogCellViewPanel({
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-4 p-3">
-          {cells.map((cell) => {
-            const type = getValueType(cell.value);
-            const label = sanitizeId(cell.columnId);
+          {groups.map((group) => {
+            const type = getValueType(group.value);
+            const label = sanitizeId(group.columnId);
+            const rowLabel = compressLogIds(group.logIds);
+            const groupKey = `${group.columnId}:${valueGroupKey(group.value)}:${group.logIds.join(',')}`;
             return (
               <div
-                key={cell.cellId}
+                key={groupKey}
                 className="space-y-2 rounded-md border border-border p-3"
-                data-testid={`log-cell-view-${cell.cellId}`}
+                data-testid="log-cell-view-group"
+                data-column={label}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
@@ -279,17 +362,19 @@ export function LogCellViewPanel({
                       <div className="truncate font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground">
                         {label}
                       </div>
-                      <div className="text-caption text-muted-foreground">row {cell.logId}</div>
+                      <div className="text-caption text-muted-foreground">
+                        {group.logIds.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
+                      </div>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <CopyButton content={formatValue(cell.value, 'raw')} className="h-7 w-7" />
-                    {onEditRow && (
+                    <CopyButton content={formatValue(group.value, 'raw')} className="h-7 w-7" />
+                    {onEditRow && group.logIds.length === 1 && (
                       <Button
                         variant="outline"
                         size="sm"
                         className="h-7"
-                        onClick={() => onEditRow(cell.logId)}
+                        onClick={() => onEditRow(group.logIds[0])}
                         data-testid="log-cell-view-edit-row"
                       >
                         Edit row
@@ -297,7 +382,7 @@ export function LogCellViewPanel({
                     )}
                   </div>
                 </div>
-                <CellBody value={cell.value} fieldName={label} mode={mode} />
+                <CellBody value={group.value} fieldName={label} mode={mode} />
               </div>
             );
           })}

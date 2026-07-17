@@ -42,7 +42,8 @@ const assistant = createAssistant({
 
 const PEOPLE = [
   { name: 'Ada Lovelace', city: 'London', score: 95 },
-  { name: 'Alan Turing', city: 'Manchester', score: 88 },
+  // Shared city with Ada so multi-row selection can collapse city into one value group
+  { name: 'Alan Turing', city: 'London', score: 88 },
   { name: 'Grace Hopper', city: 'New York', score: 91 },
   { name: 'Katherine Johnson', city: 'Hampton', score: 97 },
   { name: 'Donald Knuth', city: 'Stanford', score: 84 },
@@ -103,6 +104,11 @@ async function openCellViewPanel(page: Page) {
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
 }
 
+/** Body rows only — excludes `log-grid-row-index-header` which also matches the prefix. */
+function logGridRows(page: Page) {
+  return page.locator('tr[data-testid^="log-grid-row-"]');
+}
+
 test('hides a column, filters, sorts, and opens row detail via cell panel', async ({
   authedPage: page,
 }) => {
@@ -154,7 +160,7 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await page.getByTestId('log-grid-column-menu-score').click({ force: true });
   await page.getByTestId('log-grid-sort-menu-score').hover();
   await page.getByTestId('log-grid-sort-desc-score').click({ force: true });
-  const firstRow = page.locator('[data-testid^="log-grid-row-"]').first();
+  const firstRow = logGridRows(page).first();
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');
 
@@ -178,10 +184,11 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
 test('common text filter narrows rows', async ({ authedPage: page }) => {
   await openPeopleTable(page);
   await page.getByTestId('log-grid-common-filter').fill('London');
-  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 1/, {
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 2/, {
     timeout: 30_000,
   });
   await expect(page.getByText('Ada Lovelace')).toBeVisible();
+  await expect(page.getByText('Alan Turing')).toBeVisible();
 });
 
 test('loaded status shows 1–N of total without page controls', async ({ authedPage: page }) => {
@@ -198,8 +205,8 @@ test('loaded status shows 1–N of total without page controls', async ({ authed
 test('row index selects whole rows with click, ctrl, and shift', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
-  const firstRow = page.locator('[data-testid^="log-grid-row-"]').nth(0);
-  const thirdRow = page.locator('[data-testid^="log-grid-row-"]').nth(2);
+  const firstRow = logGridRows(page).nth(0);
+  const thirdRow = logGridRows(page).nth(2);
   await expect(firstRow).toBeVisible({ timeout: 30_000 });
 
   const firstIndex = firstRow.locator('[data-testid^="log-grid-row-index-"]');
@@ -208,30 +215,38 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await firstIndex.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
-  // People has name/city/score → 3 cells for one row
+  // People has name/city/score → 3 cells for one row → 3 value groups
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
+  await expect(page.getByTestId('log-cell-view-group')).toHaveCount(3);
 
   await thirdIndex.click({ modifiers: ['Shift'] });
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('9 cells', {
     timeout: 15_000,
   });
+  // Distinct values across 3 rows → still 9 groups (no collapse)
+  await expect(page.getByTestId('log-cell-view-group')).toHaveCount(9);
 
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
 
-  await firstIndex.click();
-  await thirdIndex.click({ modifiers: ['Control'] });
+  // Ada + Alan share city=London → city collapses to 1 group; name/score stay distinct
+  const adaRow = logGridRows(page).filter({ hasText: 'Ada Lovelace' });
+  const alanRow = logGridRows(page).filter({ hasText: 'Alan Turing' });
+  await adaRow.locator('[data-testid^="log-grid-row-index-"]').click();
+  await alanRow.locator('[data-testid^="log-grid-row-index-"]').click({ modifiers: ['Control'] });
   await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
     timeout: 15_000,
   });
+  await expect(page.getByTestId('log-cell-view-group')).toHaveCount(5);
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('rows [');
 });
 
 test('shift-click selects the bounding cell region', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
-  const firstRow = page.locator('[data-testid^="log-grid-row-"]').nth(0);
-  const thirdRow = page.locator('[data-testid^="log-grid-row-"]').nth(2);
+  const firstRow = logGridRows(page).nth(0);
+  const thirdRow = logGridRows(page).nth(2);
   await expect(firstRow).toBeVisible({ timeout: 30_000 });
 
   const startCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
@@ -250,8 +265,8 @@ test('shift-click selects the bounding cell region', async ({ authedPage: page }
 test('click-drag selects the bounding cell region', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
-  const firstRow = page.locator('[data-testid^="log-grid-row-"]').nth(0);
-  const thirdRow = page.locator('[data-testid^="log-grid-row-"]').nth(2);
+  const firstRow = logGridRows(page).nth(0);
+  const thirdRow = logGridRows(page).nth(2);
   await expect(firstRow).toBeVisible({ timeout: 30_000 });
 
   const startCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
