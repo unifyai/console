@@ -11,6 +11,7 @@ import {
   Filter,
   GripVertical,
   Group,
+  Lock,
   MoreHorizontal,
   Pencil,
   Ungroup,
@@ -43,6 +44,8 @@ type LogGridColumnHeaderProps = {
   grouping: string;
   onGroupingChange: (grouping: string) => void;
   isDerived: boolean;
+  /** System-owned / non-editable column — show a lock beside the label. */
+  isLocked?: boolean;
   onEditDerived?: () => void;
   reorderEnabled: boolean;
   onEnableReorder: () => void;
@@ -65,6 +68,7 @@ export function LogGridColumnHeader({
   grouping,
   onGroupingChange,
   isDerived,
+  isLocked = false,
   onEditDerived,
   reorderEnabled,
   onEnableReorder,
@@ -101,6 +105,13 @@ export function LogGridColumnHeader({
         data-testid={`log-grid-label-${fieldKey}`}
       >
         <span className="truncate">{fieldKey}</span>
+        {isLocked && (
+          <Lock
+            className="h-3 w-3 shrink-0 text-muted-foreground"
+            aria-label="Read-only column"
+            data-testid={`log-grid-column-lock-${fieldKey}`}
+          />
+        )}
         {sorted === 'asc' && (
           <ArrowUp className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
         )}

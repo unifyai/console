@@ -329,6 +329,7 @@ export function DataLeafTable({
           else setEditNonce(0);
           onViewPanelOpenChange(true);
         }}
+        isColumnEditable={isColumnEditable}
         filterExpr={spec?.filterExpr}
         onDerivedCreated={() => {
           void refreshAll();

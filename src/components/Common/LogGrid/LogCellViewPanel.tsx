@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Lock, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Textarea } from '@/components/UI/textarea';
@@ -266,11 +266,11 @@ function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
 
 function ValueCopyButton({ value }: { value: unknown }) {
   return (
-    <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+    <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
       <CopyButton
         content={formatRawValue(value)}
         showSuccessNotification={false}
-        className="pointer-events-auto h-5 w-5 p-0 [&_svg]:size-3"
+        className="pointer-events-auto h-4 w-4 p-0 [&_svg]:size-2.5"
       />
     </div>
   );
@@ -280,8 +280,8 @@ function ValueCopyButton({ value }: { value: unknown }) {
 function RowGutter({ label, widthCh }: { label: string; widthCh: number }) {
   return (
     <span
-      className="min-w-[2.25rem] max-w-[6rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 text-right font-mono text-[12px] tabular-nums leading-snug text-muted-foreground"
-      style={{ width: `calc(${widthCh}ch + 1.25rem)` }}
+      className="min-w-[2rem] max-w-[6rem] shrink-0 self-stretch truncate border-r border-border px-1 py-0.5 text-right font-mono text-[11px] tabular-nums leading-snug text-muted-foreground"
+      style={{ width: `calc(${widthCh}ch + 1rem)` }}
       title={label}
       data-testid="log-cell-view-row-label"
     >
@@ -395,7 +395,7 @@ function CellBody({
   const boxShell = (content: React.ReactNode, extraClassName?: string) => (
     <div
       className={cn(
-        'bg-muted/30 group relative flex min-w-0 overflow-hidden rounded-md border border-border font-mono text-[12px]',
+        'bg-muted/30 group relative flex min-w-0 overflow-hidden rounded border border-border font-mono text-[11px]',
         editable && 'cursor-text',
         extraClassName
       )}
@@ -414,7 +414,7 @@ function CellBody({
 
   if (isEditing) {
     return (
-      <div className="relative flex min-w-0 overflow-hidden rounded-md border border-primary bg-background font-mono text-[12px]">
+      <div className="relative flex min-w-0 overflow-hidden rounded border border-primary bg-background font-mono text-[11px]">
         <RowGutter label={rowLabel} widthCh={gutterCh} />
         <div className="relative min-w-0 flex-1">
           <Textarea
@@ -425,7 +425,7 @@ function CellBody({
             onKeyDown={onKeyDown}
             onBlur={() => void commitEdit()}
             disabled={isSaving}
-            className="min-h-0 resize-y border-0 bg-transparent p-1.5 font-mono text-[12px] leading-snug shadow-none focus-visible:ring-0"
+            className="min-h-0 resize-y border-0 bg-transparent px-1.5 py-0.5 font-mono text-[11px] leading-snug shadow-none focus-visible:ring-0"
             data-testid="log-cell-view-editor"
             aria-label={`Edit ${fieldName}`}
           />
@@ -442,7 +442,7 @@ function CellBody({
         {boxShell(
           <>
             <ValueCopyButton value={value} />
-            <div className="p-1.5">
+            <div className="px-1.5 py-0.5">
               <ComplexBody fieldName={fieldName} value={value} />
             </div>
           </>
@@ -455,7 +455,7 @@ function CellBody({
       <>
         <ValueCopyButton value={value} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={value} alt="" className="max-h-64 max-w-full p-1.5" />
+        <img src={value} alt="" className="max-h-64 max-w-full p-1" />
       </>
     );
   }
@@ -464,7 +464,7 @@ function CellBody({
     <>
       <ValueCopyButton value={value} />
       <div className="max-h-80 overflow-auto">
-        <pre className="whitespace-pre-wrap break-words p-1.5 leading-snug text-foreground">
+        <pre className="whitespace-pre-wrap break-words px-1.5 py-0.5 leading-snug text-foreground">
           {text}
         </pre>
       </div>
@@ -491,6 +491,7 @@ function ColumnGroupDisplay({
   const label = sanitizeId(group.columnId);
   const sampleType = getValueType(group.values[0]?.value);
   const columnEditable = isColumnEditable?.(group.columnId) ?? false;
+  const showLock = isColumnEditable != null && !columnEditable;
 
   return (
     <div
@@ -501,21 +502,32 @@ function ColumnGroupDisplay({
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="text-title hover:bg-muted/50 flex w-full items-center gap-2 px-1 py-2 text-left"
+        className="hover:bg-muted/50 flex w-full items-center gap-1 px-0.5 py-1 text-left"
         aria-expanded={isExpanded}
         data-testid="log-cell-view-column-toggle"
       >
         <span className="shrink-0 text-muted-foreground">
-          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {isExpanded ? (
+            <ChevronDown className="h-2.5 w-2.5" />
+          ) : (
+            <ChevronRight className="h-2.5 w-2.5" />
+          )}
         </span>
-        <span className="shrink-0">{getTypeIcon(sampleType)}</span>
-        <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground">
+        <span className="shrink-0 [&_svg]:size-3">{getTypeIcon(sampleType)}</span>
+        <span className="truncate font-mono text-[10px] font-semibold uppercase tracking-wide text-foreground">
           {label}
         </span>
+        {showLock && (
+          <Lock
+            className="h-2.5 w-2.5 shrink-0 text-muted-foreground"
+            aria-label="Read-only column"
+            data-testid={`log-cell-view-column-lock-${label}`}
+          />
+        )}
       </button>
 
       {isExpanded && (
-        <div className="relative ml-4 space-y-1 border-l border-l-muted pb-2 pl-3">
+        <div className="relative ml-2.5 space-y-0.5 border-l border-l-muted pb-1 pl-2">
           {group.values.map((valueGroup) => {
             const rowLabel = compressRowLabels(valueGroup.rowLabels);
             const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
@@ -524,12 +536,7 @@ function ColumnGroupDisplay({
             const draftText =
               draftForValue?.(group.columnId, valueGroup.value) ?? formatRawValue(valueGroup.value);
             return (
-              <div
-                key={groupKey}
-                className="py-0.5"
-                data-testid="log-cell-view-group"
-                data-column={label}
-              >
+              <div key={groupKey} data-testid="log-cell-view-group" data-column={label}>
                 <CellBody
                   value={valueGroup.value}
                   fieldName={label}
@@ -693,25 +700,25 @@ export function LogCellViewPanel({
         )}
         data-testid="log-cell-view-panel-resize-handle"
       />
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <span className="text-title text-foreground">{title}</span>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-2.5 py-1.5">
+        <span className="font-mono text-[11px] font-semibold text-foreground">{title}</span>
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0"
+          className="h-6 w-6 p-0"
           onClick={onClose}
           aria-label="Close"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </Button>
       </div>
       {isEmpty ? (
-        <p className="text-caption p-4 text-muted-foreground">
+        <p className="text-caption p-3 text-muted-foreground">
           Select cells, then open the view pane to inspect them.
         </p>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-1 p-3">
+          <div className="space-y-0 p-2">
             {columns.map((column) => (
               <ColumnGroupDisplay
                 key={column.columnId}

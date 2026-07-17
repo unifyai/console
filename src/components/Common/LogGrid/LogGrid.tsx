@@ -163,6 +163,8 @@ export interface LogGridProps {
    * Pass `{ edit: true }` from a cell double-click to enter inline edit.
    */
   onOpenViewPanel?: (opts?: { edit?: boolean }) => void;
+  /** When provided, non-editable columns show a lock icon in the header. */
+  isColumnEditable?: (columnId: string) => boolean;
   /** When false, hide row/cell delete affordances (default true). */
   allowDelete?: boolean;
   className?: string;
@@ -196,6 +198,7 @@ export function LogGrid({
   viewPanelOpen = false,
   onToggleViewPanel,
   onOpenViewPanel,
+  isColumnEditable,
   allowDelete = true,
   className,
   testId = 'log-grid',
@@ -398,6 +401,7 @@ export function LogGrid({
               grouping={view.grouping}
               onGroupingChange={setGrouping}
               isDerived={isDerived}
+              isLocked={!!isColumnEditable && !isColumnEditable(key)}
               onEditDerived={isDerived ? () => openDerivedEditRef.current(key) : undefined}
               reorderEnabled={reorderEnabled}
               onEnableReorder={() => setReorderEnabled(true)}
@@ -488,6 +492,7 @@ export function LogGrid({
     setGrouping,
     isGrouped,
     rowLabelMap,
+    isColumnEditable,
   ]);
 
   const table = useReactTable({

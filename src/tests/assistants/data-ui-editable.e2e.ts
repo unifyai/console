@@ -169,6 +169,7 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
   // Select the locked contact_id cell and confirm click does not enter edit.
   const contactIdHeader = page.getByTestId(/log-grid-header-(contact_id|contactId)/);
   await expect(contactIdHeader).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId(/log-grid-column-lock-(contact_id|contactId)/)).toBeVisible();
   const contactIdCell = page
     .locator('tr[data-testid^="log-grid-row-"]')
     .first()
@@ -178,6 +179,7 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
   await contactIdCell.click();
   await page.getByTestId('log-grid-view-panel-toggle').click();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId(/log-cell-view-column-lock-(contact_id|contactId)/)).toBeVisible();
   const lockedValue = page
     .locator(
       '[data-testid="log-cell-view-column"][data-column="contact_id"], [data-testid="log-cell-view-column"][data-column="contactId"]'
@@ -198,6 +200,8 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
   await firstNameCell.click();
   await page.getByTestId('log-grid-view-panel-toggle').click();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId(/log-grid-column-lock-(first_name|firstName)/)).toHaveCount(0);
+  await expect(page.getByTestId(/log-cell-view-column-lock-(first_name|firstName)/)).toHaveCount(0);
   const editableValue = page
     .locator(
       '[data-testid="log-cell-view-column"][data-column="first_name"], [data-testid="log-cell-view-column"][data-column="firstName"]'
