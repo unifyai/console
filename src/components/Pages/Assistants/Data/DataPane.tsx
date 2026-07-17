@@ -197,10 +197,16 @@ export function DataPane({
     if (root?.kind === 'team') {
       return [{ prefix: `Teams/${root.teamId}/`, group: null }];
     }
+    const teamNamesById = new Map(
+      (assistant.teamSummaries ?? []).map((summary) => [summary.teamId, summary.name])
+    );
     return roots(assistant).map((r) =>
       r.kind === 'personal'
         ? { prefix: `${ownerId}/${assistantId}/`, group: null }
-        : { prefix: `Teams/${r.teamId}/`, group: `Team ${r.teamId}` }
+        : {
+            prefix: `Teams/${r.teamId}/`,
+            group: teamNamesById.get(r.teamId) ?? `Team ${r.teamId}`,
+          }
     );
   }, [assistant, ownerId, assistantId, root]);
 
