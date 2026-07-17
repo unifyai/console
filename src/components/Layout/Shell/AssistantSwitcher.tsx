@@ -61,6 +61,11 @@ interface AssistantSwitcherProps {
   /** Full prop bag forwarded to the embedded `AssistantList` (the switcher). */
   listProps: React.ComponentProps<typeof AssistantList>;
   collapsed: boolean;
+  /**
+   * When true, the popover stays open through focus/pointer moves into a nested
+   * overlay (hire / create-group). Closing that overlay returns to the switcher.
+   */
+  nestedOverlayOpen?: boolean;
 }
 
 function entityInitials(label: string): string {
@@ -83,8 +88,19 @@ export function AssistantSwitcher({
   isInitialAssistantIdentityLoading = false,
   listProps,
   collapsed,
+  nestedOverlayOpen = false,
 }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
+
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      // Nested dialogs steal focus; keep the switcher mounted underneath so
+      // dismissing the dialog returns to the list instead of a closed rail.
+      if (!open && nestedOverlayOpen) return;
+      setSwitcherOpen(open);
+    },
+    [nestedOverlayOpen]
+  );
 
   const showSkeletonFace = !activeUnity && !activeEntityFace && isInitialAssistantIdentityLoading;
   const unityName = activeEntityFace
@@ -109,7 +125,7 @@ export function AssistantSwitcher({
     : null;
 
   return (
-    <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
+    <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -214,6 +230,12 @@ export function AssistantSwitcher({
         sideOffset={6}
         data-testid="rail-unity-switcher-popover"
         className="flex h-[70vh] max-h-[560px] w-[320px] flex-col overflow-hidden p-0"
+        onInteractOutside={(event) => {
+          if (nestedOverlayOpen) event.preventDefault();
+        }}
+        onFocusOutside={(event) => {
+          if (nestedOverlayOpen) event.preventDefault();
+        }}
       >
         <AssistantList {...listProps} isFolded={false} onToggleFold={undefined} />
       </PopoverContent>

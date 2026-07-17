@@ -44,6 +44,7 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
       activeUnity={bridge.activeUnity}
       activeEntityFace={bridge.activeEntityFace ?? null}
       listProps={bridge.listProps}
+      nestedOverlayOpen={bridge.nestedOverlayOpen === true}
       collapsed={collapsed}
     />
   );

@@ -25,6 +25,8 @@ interface AssistantRailProps {
   onBrandClick?: () => void;
   /** Selected entity kind — filters which rail sections are shown. */
   entityKind?: SelectorEntityKind;
+  /** Keep the switcher open while hire / create-group overlays are up. */
+  nestedOverlayOpen?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export function AssistantRail({
   onCollapsedChange,
   onBrandClick,
   entityKind = 'assistant',
+  nestedOverlayOpen = false,
 }: AssistantRailProps) {
   return (
     <AppRail
@@ -59,6 +62,7 @@ export function AssistantRail({
           activeEntityFace={activeEntityFace}
           isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
           listProps={listProps}
+          nestedOverlayOpen={nestedOverlayOpen}
           collapsed={collapsed}
         />
       }

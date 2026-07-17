@@ -4039,6 +4039,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         activeUnity={profileAssistant}
         activeEntityFace={activeEntityFace}
         listProps={railListProps}
+        nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
       />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
@@ -4063,6 +4064,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     entityKind={selectedEntityKind}
                     isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                     listProps={railListProps}
+                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
                     activeSection={railActiveSectionId}
                     sectionActivity={railSectionActivity}
                     onBrandClick={requestPlatformHomeNavigation}
@@ -4088,6 +4090,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 entityKind={selectedEntityKind}
                 isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                 listProps={railListProps}
+                nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
                 activeSection={railActiveSectionId}
                 sectionActivity={railSectionActivity}
                 onBrandClick={requestPlatformHomeNavigation}

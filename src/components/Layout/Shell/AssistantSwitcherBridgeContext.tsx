@@ -11,6 +11,8 @@ export type AssistantSwitcherBridgeValue = {
   activeUnity: Assistant | null;
   activeEntityFace?: ActiveEntityFace | null;
   listProps: React.ComponentProps<typeof AssistantList> | null;
+  /** Keep the switcher open while hire / create-group overlays are up. */
+  nestedOverlayOpen?: boolean;
 };
 
 const AssistantSwitcherBridgeContext = React.createContext<{

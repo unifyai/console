@@ -205,3 +205,39 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
   await page.getByTestId('create-team-button').click();
   await expect(page).toHaveURL(/\/organizations\?tab=teams/, { timeout: 15_000 });
 });
+
+test('create group and onboard dismissals return to the unity switcher', async ({
+  ownerPage: page,
+}) => {
+  test.setTimeout(90_000);
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+
+  const orgTeamGroup = page.getByTestId(`assistant-list-group-team:${orgTeamId}`);
+  const orgTeamRow = orgTeamGroup.getByTestId(`team-list-item-${orgTeamId}`);
+  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
+    await orgTeamRow.click();
+  }
+  const orgActions = orgTeamGroup.getByTestId('assistant-list-org-actions');
+  await expect(orgActions).toBeVisible({ timeout: 15_000 });
+
+  const switcherPopover = page.getByTestId('rail-unity-switcher-popover');
+
+  await orgActions.getByTestId('create-group-button').click();
+  await expect(page.getByTestId('create-group-dialog')).toBeVisible({ timeout: 5_000 });
+  await expect(switcherPopover).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('create-group-dialog')).toHaveCount(0, { timeout: 5_000 });
+  await expect(switcherPopover).toBeVisible();
+
+  await orgActions.getByTestId('assistant-onboard-button').click();
+  await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(switcherPopover).toBeVisible();
+  await page.getByRole('button', { name: 'Close onboard dialog' }).click();
+  await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toHaveCount(0, {
+    timeout: 5_000,
+  });
+  await expect(switcherPopover).toBeVisible();
+});
