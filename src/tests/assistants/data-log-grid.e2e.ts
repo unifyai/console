@@ -334,7 +334,10 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   // 3 columns; city collapses to 1 value entry → 5 total
   await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(5);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText(`rows [${rowRangeLabel}]`);
+  // Collapsed city value shows compressed `#` range in the in-box gutter.
+  await expect(
+    page.getByTestId('log-cell-view-row-label').filter({ hasText: rowRangeLabel })
+  ).toBeVisible();
 });
 
 test('shift-click selects the bounding cell region', async ({ authedPage: page }) => {

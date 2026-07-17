@@ -4,13 +4,6 @@ import * as React from 'react';
 import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/UI/select';
 import { Textarea } from '@/components/UI/textarea';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import {
@@ -58,19 +51,21 @@ interface LogCellViewPanelProps {
   className?: string;
 }
 
-type DisplayMode = 'markdown' | 'text' | 'raw';
-
-function formatValue(value: unknown, mode: DisplayMode): string {
+/** Plain text display: strings/primitives as-is; objects as pretty JSON. */
+function formatDisplayValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
-  if (mode === 'raw') {
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return String(value);
-    }
-  }
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+/** JSON form for copy / edit drafts. */
+function formatRawValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
   try {
     return JSON.stringify(value, null, 2);
   } catch {
@@ -237,24 +232,37 @@ function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
 function ValueCopyButton({ value }: { value: unknown }) {
   return (
     <CopyButton
-      content={formatValue(value, 'raw')}
+      content={formatRawValue(value)}
       copyMessage="Copied!"
       className="absolute right-1 top-1 z-10 h-7 w-7 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
     />
   );
 }
 
+/** Clipped `#` / range gutter; full label via native title on hover. */
+function RowGutter({ label }: { label: string }) {
+  return (
+    <span
+      className="max-w-[4.5rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 font-mono text-[12px] leading-snug text-muted-foreground"
+      title={label}
+      data-testid="log-cell-view-row-label"
+    >
+      {label}
+    </span>
+  );
+}
+
 function CellBody({
   value,
   fieldName,
-  mode,
+  rowLabel,
   editable,
   draftText,
   onCommit,
 }: {
   value: unknown;
   fieldName: string;
-  mode: DisplayMode;
+  rowLabel: string;
   editable: boolean;
   draftText: string;
   onCommit?: (draft: string) => Promise<boolean>;
@@ -319,101 +327,92 @@ function CellBody({
     }
   };
 
+  const boxShell = (content: React.ReactNode, extraClassName?: string) => (
+    <div
+      className={cn(
+        'bg-muted/30 group relative flex min-w-0 overflow-hidden rounded-md border border-border font-mono text-[12px]',
+        editable && 'cursor-text',
+        extraClassName
+      )}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        startEdit();
+      }}
+      data-testid="log-cell-view-value"
+      data-editable={editable ? 'true' : 'false'}
+    >
+      <RowGutter label={rowLabel} />
+      <div className="relative min-w-0 flex-1">{content}</div>
+    </div>
+  );
+
   if (isEditing) {
     return (
-      <div className="relative rounded-md border border-primary bg-background">
-        <Textarea
-          ref={inputRef}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={onKeyDown}
-          onBlur={() => void commitEdit()}
-          disabled={isSaving}
-          className="min-h-[2.75rem] resize-y border-0 bg-transparent p-3 text-sm shadow-none focus-visible:ring-0"
-          data-testid="log-cell-view-editor"
-          aria-label={`Edit ${fieldName}`}
-        />
+      <div className="relative flex min-w-0 overflow-hidden rounded-md border border-primary bg-background font-mono text-[12px]">
+        <RowGutter label={rowLabel} />
+        <div className="relative min-w-0 flex-1">
+          <Textarea
+            ref={inputRef}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onKeyDown}
+            onBlur={() => void commitEdit()}
+            disabled={isSaving}
+            className="min-h-[2.5rem] resize-y border-0 bg-transparent p-1.5 font-mono text-[12px] shadow-none focus-visible:ring-0"
+            data-testid="log-cell-view-editor"
+            aria-label={`Edit ${fieldName}`}
+          />
+        </div>
       </div>
     );
   }
 
   const type = getValueType(value);
-  const boxProps = {
-    onDoubleClick: (event: React.MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      startEdit();
-    },
-    'data-testid': 'log-cell-view-value',
-    'data-editable': editable ? 'true' : 'false',
-  } as const;
 
-  if (mode !== 'raw' && (type === 'dict' || type === 'list' || type === 'matrix')) {
+  if (type === 'dict' || type === 'list' || type === 'matrix') {
     return (
       <LogPanelExpandProvider>
-        <div
-          className={cn(
-            'bg-muted/20 group relative rounded-md border border-border p-2',
-            editable && 'cursor-text'
-          )}
-          {...boxProps}
-        >
-          <ValueCopyButton value={value} />
-          <ComplexBody fieldName={fieldName} value={value} />
-        </div>
+        {boxShell(
+          <>
+            <ValueCopyButton value={value} />
+            <div className="p-1.5">
+              <ComplexBody fieldName={fieldName} value={value} />
+            </div>
+          </>
+        )}
       </LogPanelExpandProvider>
     );
   }
   if (type === 'image' && typeof value === 'string') {
-    return (
-      <div
-        className={cn('group relative inline-block max-w-full', editable && 'cursor-text')}
-        {...boxProps}
-      >
+    return boxShell(
+      <>
         <ValueCopyButton value={value} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={value} alt="" className="max-h-64 max-w-full rounded-md border border-border" />
-      </div>
+        <img src={value} alt="" className="max-h-64 max-w-full p-1.5" />
+      </>
     );
   }
-  const text = formatValue(value, mode);
-  const mono =
-    mode === 'raw' || type === 'dict' || type === 'list' || type === 'matrix' || type === 'number';
-  return (
-    <div
-      className={cn(
-        'bg-muted/30 group relative rounded-md border border-border',
-        mono && 'font-mono text-[12px]',
-        editable && 'cursor-text'
-      )}
-      {...boxProps}
-    >
+  const text = formatDisplayValue(value);
+  return boxShell(
+    <>
       <ValueCopyButton value={value} />
       <div className="max-h-80 overflow-auto">
-        <pre
-          className={cn(
-            'whitespace-pre-wrap break-words p-3 text-sm text-foreground',
-            mode === 'markdown' &&
-              type === 'string' &&
-              'prose prose-sm max-w-none dark:prose-invert'
-          )}
-        >
+        <pre className="whitespace-pre-wrap break-words p-1.5 leading-snug text-foreground">
           {text}
         </pre>
       </div>
-    </div>
+    </>
   );
 }
 
 function ColumnGroupDisplay({
   group,
-  mode,
   isColumnEditable,
   onCommitEdit,
   draftForValue,
 }: {
   group: ColumnGroup;
-  mode: DisplayMode;
   isColumnEditable?: (columnId: string) => boolean;
   onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
   draftForValue?: (columnId: string, value: unknown) => string;
@@ -446,29 +445,25 @@ function ColumnGroupDisplay({
       </button>
 
       {isExpanded && (
-        <div className="relative ml-4 border-l border-l-muted pb-2 pl-3">
+        <div className="relative ml-4 space-y-1 border-l border-l-muted pb-2 pl-3">
           {group.values.map((valueGroup) => {
             const rowLabel = compressRowLabels(valueGroup.rowLabels);
             const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
             const singleLogId = valueGroup.logIds.length === 1 ? valueGroup.logIds[0] : null;
             const editable = columnEditable && singleLogId != null && !!onCommitEdit;
             const draftText =
-              draftForValue?.(group.columnId, valueGroup.value) ??
-              formatValue(valueGroup.value, 'raw');
+              draftForValue?.(group.columnId, valueGroup.value) ?? formatRawValue(valueGroup.value);
             return (
               <div
                 key={groupKey}
-                className="space-y-2 py-2"
+                className="py-0.5"
                 data-testid="log-cell-view-group"
                 data-column={label}
               >
-                <div className="text-caption text-muted-foreground">
-                  {valueGroup.rowLabels.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
-                </div>
                 <CellBody
                   value={valueGroup.value}
                   fieldName={label}
-                  mode={mode}
+                  rowLabel={rowLabel}
                   editable={editable}
                   draftText={draftText === '—' ? '' : draftText}
                   onCommit={
@@ -500,7 +495,6 @@ export function LogCellViewPanel({
   draftForValue,
   className,
 }: LogCellViewPanelProps) {
-  const [mode, setMode] = React.useState<DisplayMode>('text');
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
 
   if (cells.length === 0) {
@@ -537,27 +531,15 @@ export function LogCellViewPanel({
         <span className="text-title text-foreground">
           {cells.length === 1 ? 'Selected cell' : `${cells.length} cells`}
         </span>
-        <div className="flex items-center gap-1">
-          <Select value={mode} onValueChange={(v) => setMode(v as DisplayMode)}>
-            <SelectTrigger className="h-8 w-[100px]" data-testid="log-cell-view-mode">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="text">Text</SelectItem>
-              <SelectItem value="markdown">Markdown</SelectItem>
-              <SelectItem value="raw">Raw</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-1 p-3">
@@ -565,7 +547,6 @@ export function LogCellViewPanel({
             <ColumnGroupDisplay
               key={column.columnId}
               group={column}
-              mode={mode}
               isColumnEditable={isColumnEditable}
               onCommitEdit={onCommitEdit}
               draftForValue={draftForValue}
