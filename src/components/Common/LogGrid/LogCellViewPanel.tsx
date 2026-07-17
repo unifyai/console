@@ -44,8 +44,11 @@ interface LogCellViewPanelProps {
   onClose: () => void;
   /** Whether a column may be edited inline (e.g. `ui_editable`). */
   isColumnEditable?: (columnId: string) => boolean;
-  /** Persist an inline edit. Return true when saved. */
-  onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
+  /**
+   * Persist an inline edit to one or more rows (broadcast when a value group
+   * covers multiple selected cells). Return true when saved.
+   */
+  onCommitEdit?: (logIds: number[], columnId: string, draft: string) => Promise<boolean>;
   /** Initial draft text for the editor (typed / JSON string form of the value). */
   draftForValue?: (columnId: string, value: unknown) => string;
   /**
@@ -302,6 +305,9 @@ function maxRowLabelWidthCh(columns: ColumnGroup[]): number {
   return max;
 }
 
+/** Matches preview `max-h-80` — edit grows with content up to this, then scrolls. */
+const CELL_EDIT_MAX_HEIGHT_PX = 320;
+
 function CellBody({
   value,
   fieldName,
@@ -328,18 +334,49 @@ function CellBody({
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const skipCommitRef = React.useRef(false);
   const commitInFlightRef = React.useRef(false);
+  /** Place caret at end + scroll to tail once when edit mode opens. */
+  const placeCaretAtEndRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!isEditing) setDraft(draftText);
   }, [draftText, isEditing]);
 
-  React.useEffect(() => {
-    if (isEditing) inputRef.current?.focus();
-  }, [isEditing]);
+  // Grow with wrapped content up to CELL_EDIT_MAX_HEIGHT_PX; overflow scrolls.
+  React.useLayoutEffect(() => {
+    if (!isEditing) return;
+    const el = inputRef.current;
+    if (!el) return;
+
+    el.style.height = 'auto';
+    el.style.overflowY = 'hidden';
+    const next = el.scrollHeight;
+    if (next > CELL_EDIT_MAX_HEIGHT_PX) {
+      el.style.height = `${CELL_EDIT_MAX_HEIGHT_PX}px`;
+      el.style.overflowY = 'auto';
+    } else {
+      el.style.height = `${next}px`;
+    }
+
+    if (placeCaretAtEndRef.current) {
+      placeCaretAtEndRef.current = false;
+      const end = el.value.length;
+      el.focus();
+      try {
+        el.setSelectionRange(end, end);
+      } catch {
+        /* some browsers reject selection on disabled inputs */
+      }
+      // Preview shows the head; edit shows the tail when content is clipped.
+      if (el.scrollHeight > el.clientHeight) {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+  }, [isEditing, draft]);
 
   const startEdit = () => {
     if (!editable || !onCommit || isSaving) return;
     skipCommitRef.current = false;
+    placeCaretAtEndRef.current = true;
     setDraft(draftText);
     setIsEditing(true);
   };
@@ -348,6 +385,7 @@ function CellBody({
   React.useEffect(() => {
     if (editNonce <= 0 || !editable || !onCommit || isSaving) return;
     skipCommitRef.current = false;
+    placeCaretAtEndRef.current = true;
     setDraft(draftText);
     setIsEditing(true);
     // Intentionally keyed only on editNonce so Enter/unfold remounts do not re-enter edit.
@@ -425,7 +463,8 @@ function CellBody({
             onKeyDown={onKeyDown}
             onBlur={() => void commitEdit()}
             disabled={isSaving}
-            className="min-h-0 resize-y border-0 bg-transparent px-1.5 py-0.5 font-mono text-[11px] leading-snug shadow-none focus-visible:ring-0"
+            className="min-h-0 resize-none border-0 bg-transparent px-1.5 py-0.5 font-mono text-[11px] leading-snug shadow-none focus-visible:ring-0"
+            style={{ scrollbarWidth: 'thin' }}
             data-testid="log-cell-view-editor"
             aria-label={`Edit ${fieldName}`}
           />
@@ -463,7 +502,7 @@ function CellBody({
   return boxShell(
     <>
       <ValueCopyButton value={value} />
-      <div className="max-h-80 overflow-auto">
+      <div className="overflow-auto" style={{ maxHeight: CELL_EDIT_MAX_HEIGHT_PX }}>
         <pre className="whitespace-pre-wrap break-words px-1.5 py-0.5 leading-snug text-foreground">
           {text}
         </pre>
@@ -483,7 +522,7 @@ function ColumnGroupDisplay({
   group: ColumnGroup;
   gutterCh: number;
   isColumnEditable?: (columnId: string) => boolean;
-  onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
+  onCommitEdit?: (logIds: number[], columnId: string, draft: string) => Promise<boolean>;
   draftForValue?: (columnId: string, value: unknown) => string;
   editNonce?: number;
 }) {
@@ -531,8 +570,7 @@ function ColumnGroupDisplay({
           {group.values.map((valueGroup) => {
             const rowLabel = compressRowLabels(valueGroup.rowLabels);
             const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
-            const singleLogId = valueGroup.logIds.length === 1 ? valueGroup.logIds[0] : null;
-            const editable = columnEditable && singleLogId != null && !!onCommitEdit;
+            const editable = columnEditable && valueGroup.logIds.length > 0 && !!onCommitEdit;
             const draftText =
               draftForValue?.(group.columnId, valueGroup.value) ?? formatRawValue(valueGroup.value);
             return (
@@ -546,8 +584,8 @@ function ColumnGroupDisplay({
                   draftText={draftText === '—' ? '' : draftText}
                   editNonce={editNonce}
                   onCommit={
-                    editable && singleLogId != null
-                      ? (draft) => onCommitEdit(singleLogId, group.columnId, draft)
+                    editable
+                      ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)
                       : undefined
                   }
                 />
@@ -563,9 +601,10 @@ function ColumnGroupDisplay({
 /**
  * Viewing panel for selected LogGrid cells.
  * Groups by column under foldable headings (expanded by default), then
- * collapses identical values within a column to one entry with a compressed
- * row-number range. Click an editable value box to edit inline, or open via
- * cell double-click to land directly in edit mode.
+ * collapses identical values within a column to a single entry with compressed
+ * `#` display row labels. Click an editable value box to edit inline (broadcasts
+ * to every row in a multi-cell value group), or open via cell double-click to
+ * land directly in edit mode.
  */
 export function LogCellViewPanel({
   cells,
@@ -700,7 +739,7 @@ export function LogCellViewPanel({
         )}
         data-testid="log-cell-view-panel-resize-handle"
       />
-      <div className="flex items-center justify-between gap-2 border-b border-border px-2.5 py-1.5">
+      <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-border px-2.5">
         <span className="font-mono text-[11px] font-semibold text-foreground">{title}</span>
         <Button
           variant="ghost"

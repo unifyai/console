@@ -268,9 +268,13 @@ export function DataLeafTable({
   );
 
   const onCommitEdit = React.useCallback(
-    async (logId: number, columnId: string, draft: string) => {
+    async (logIds: number[], columnId: string, draft: string) => {
+      if (logIds.length === 0) return true;
       const { key, field } = resolveField(columnId);
-      const row = panelRows.find((r) => r.logId === logId);
+      // Value groups only collapse equal cells, so any member's current value
+      // is representative for coerce / no-op detection.
+      const sampleId = logIds[0]!;
+      const row = panelRows.find((r) => r.logId === sampleId);
       const current = row?.entries[key] ?? row?.entries[columnId];
       let nextValue: unknown;
       try {
@@ -284,7 +288,7 @@ export function DataLeafTable({
       const result = await updateLogEntries({
         projectName: 'Assistants',
         context,
-        logId,
+        logIds,
         entries: { [key]: nextValue },
       });
       if (!result.ok) {
@@ -298,60 +302,60 @@ export function DataLeafTable({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
-      <LogGrid
-        projectName="Assistants"
-        context={context}
-        rows={rows}
-        fields={fields}
-        columns={columns}
-        totalCount={count}
-        view={view}
-        onViewChange={setView}
-        isLoading={isLoading}
-        isFetching={isFetching}
-        hasNextPage={hasNextPage}
-        isFetchingNextPage={isFetchingNextPage}
-        onLoadMore={fetchNextPage}
-        error={error}
-        onRetry={() => void refetch()}
-        onBrowseRowsChange={setBrowseRows}
-        onRowLabelsChange={setRowLabels}
-        selection={selection}
-        hasSelection={selectedCells.length > 0}
-        viewPanelOpen={viewPanelOpen}
-        onToggleViewPanel={() => {
-          setEditNonce(0);
-          onViewPanelOpenChange(!viewPanelOpen);
-        }}
-        onOpenViewPanel={(opts) => {
-          if (opts?.edit) setEditNonce((n) => n + 1);
-          else setEditNonce(0);
-          onViewPanelOpenChange(true);
-        }}
-        isColumnEditable={isColumnEditable}
-        filterExpr={spec?.filterExpr}
-        onDerivedCreated={() => {
-          void refreshAll();
-        }}
-        onMutated={() => void refreshAll()}
-        allowDelete={!isStateManagerMode(mode)}
-        testId="data-leaf-table"
-        className="min-h-0 min-w-0 flex-1"
-      />
-      {showPanel && (
-        <LogCellViewPanel
-          cells={cellSelections}
-          onClose={() => {
-            setEditNonce(0);
-            onViewPanelOpenChange(false);
-          }}
-          isColumnEditable={isColumnEditable}
-          onCommitEdit={onCommitEdit}
-          draftForValue={draftForValue}
-          editNonce={editNonce}
-        />
-      )}
-    </div>
+    <LogGrid
+      projectName="Assistants"
+      context={context}
+      rows={rows}
+      fields={fields}
+      columns={columns}
+      totalCount={count}
+      view={view}
+      onViewChange={setView}
+      isLoading={isLoading}
+      isFetching={isFetching}
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      onLoadMore={fetchNextPage}
+      error={error}
+      onRetry={() => void refetch()}
+      onBrowseRowsChange={setBrowseRows}
+      onRowLabelsChange={setRowLabels}
+      selection={selection}
+      hasSelection={selectedCells.length > 0}
+      viewPanelOpen={viewPanelOpen}
+      onToggleViewPanel={() => {
+        setEditNonce(0);
+        onViewPanelOpenChange(!viewPanelOpen);
+      }}
+      onOpenViewPanel={(opts) => {
+        if (opts?.edit) setEditNonce((n) => n + 1);
+        else setEditNonce(0);
+        onViewPanelOpenChange(true);
+      }}
+      isColumnEditable={isColumnEditable}
+      filterExpr={spec?.filterExpr}
+      onDerivedCreated={() => {
+        void refreshAll();
+      }}
+      onMutated={() => void refreshAll()}
+      allowDelete={!isStateManagerMode(mode)}
+      testId="data-leaf-table"
+      className="min-h-0 min-w-0 flex-1"
+      viewPanel={
+        showPanel ? (
+          <LogCellViewPanel
+            cells={cellSelections}
+            onClose={() => {
+              setEditNonce(0);
+              onViewPanelOpenChange(false);
+            }}
+            isColumnEditable={isColumnEditable}
+            onCommitEdit={onCommitEdit}
+            draftForValue={draftForValue}
+            editNonce={editNonce}
+          />
+        ) : null
+      }
+    />
   );
 }
