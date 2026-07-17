@@ -83,16 +83,15 @@ test('user can add and remove a reaction optimistically in the chat UI @push @ar
   });
 
   await openAssistantChat(page);
-  await page.waitForSelector('[data-testid="message-bubble"][data-role="assistant"]', {
-    timeout: 30_000,
-  });
-
-  // The unified shell can keep a hidden duplicate chat surface mounted, so
-  // scope the hover/click/assert chain to the visible bubble only — page-wide
-  // locators can hit the hidden copy, whose state never updates.
+  // Scope to this test's seeded bubble. Earlier tests in this file leave
+  // transcripts on the same assistant — `.first()` can hit a prior message
+  // that already has 👍, and clicking 👍 then toggles it *off*.
   const assistantBubble = page
     .locator('[data-testid="message-bubble"][data-role="assistant"]:visible')
+    .filter({ hasText: 'React to me!' })
     .first();
+  await expect(assistantBubble).toBeVisible({ timeout: 30_000 });
+
   const reactionPicker = assistantBubble.getByTestId('chat-reaction-picker');
   // Picker stays disabled until the bubble has a transcript id and the panel
   // has resolved currentContactId — clicking earlier was a silent no-op.
@@ -120,13 +119,12 @@ test('user can pick a custom emoji from the expanded reaction picker @push @area
   });
 
   await openAssistantChat(page);
-  await page.waitForSelector('[data-testid="message-bubble"][data-role="assistant"]', {
-    timeout: 30_000,
-  });
-
   const assistantBubble = page
     .locator('[data-testid="message-bubble"][data-role="assistant"]:visible')
+    .filter({ hasText: 'Pick a party emoji!' })
     .first();
+  await expect(assistantBubble).toBeVisible({ timeout: 30_000 });
+
   const reactionPicker = assistantBubble.getByTestId('chat-reaction-picker');
   await expect(reactionPicker).toBeEnabled({ timeout: 30_000 });
   await assistantBubble.hover();

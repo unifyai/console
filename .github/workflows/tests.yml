@@ -171,23 +171,25 @@ jobs:
       # remain diagnosable after the runner is gone.
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-report-push-gate
           path: playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload Playwright test results
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-results-push-gate
           path: test-results/
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: test-logs-push-gate
           path: |
@@ -198,6 +200,7 @@ jobs:
             /tmp/pubsub-ci.log
             /tmp/pubsub-emulator-apt.log
           retention-days: 7
+          if-no-files-found: ignore
 
   pr-gate-assistants:
     needs: resolve-tier
