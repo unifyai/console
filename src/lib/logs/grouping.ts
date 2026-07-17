@@ -10,8 +10,9 @@ import {
   getGroupingFilters,
   getUpdatedGroupingExpression,
 } from '@/utils/interfaces/table/grouping';
+import { isEqual } from '@/utils/misc/isEqual';
 import { entriesColumnId, sanitizeId } from './columns';
-import type { LogGridRow } from './types';
+import { makeCellId, type LogGridRow } from './types';
 
 function stripPrivateFields(entries: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -147,6 +148,39 @@ export function flattenLeafRows(rows: LogGridRow[]): LogGridRow[] {
     }
   }
   return out;
+}
+
+/** Cell ids that are new or changed between two grid snapshots (for fade-accent flash). */
+export function getNewGridCellIds(previous: LogGridRow[], next: LogGridRow[]): string[] {
+  const prevLeaves = flattenLeafRows(previous);
+  const nextLeaves = flattenLeafRows(next);
+  if (!nextLeaves.length) return [];
+
+  const prevMap = new Map(prevLeaves.map((row) => [row.logId, row]));
+  const ids: string[] = [];
+
+  for (const row of nextLeaves) {
+    const prior = prevMap.get(row.logId);
+    if (!prior) {
+      for (const key of Object.keys(row.entries)) {
+        ids.push(makeCellId(row.logId, key));
+      }
+      continue;
+    }
+    for (const key of Object.keys(row.entries)) {
+      if (!Object.prototype.hasOwnProperty.call(prior.entries, key)) {
+        ids.push(makeCellId(row.logId, key));
+      } else if (!isEqual(row.entries[key], prior.entries[key])) {
+        ids.push(makeCellId(row.logId, key));
+      }
+    }
+  }
+  return ids;
+}
+
+/** Freeze watermark format used by Interfaces / Orchestra `createdAt < "…"`. */
+export function formatFreezeTimestamp(date = new Date()): string {
+  return date.toISOString().replace('T', ' ').replace('Z', '');
 }
 
 /** Immutable replace of a group's subRows by group id. */

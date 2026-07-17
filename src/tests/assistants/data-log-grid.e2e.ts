@@ -482,3 +482,42 @@ test('row index column stays pinned while scrolling horizontally', async ({ auth
   await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
 });
+
+test('refresh mode menu supports Refresh, Freeze, and Live', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const modeBtn = page.getByTestId('log-grid-refresh-mode');
+  await expect(modeBtn).toBeVisible({ timeout: 30_000 });
+
+  // Sit between Columns and derived +
+  const columnsBtn = page.getByTestId('log-grid-columns');
+  const derivedBtn = page.getByTestId('log-grid-derived-open');
+  const modeBox = await modeBtn.boundingBox();
+  const columnsBox = await columnsBtn.boundingBox();
+  const derivedBox = await derivedBtn.boundingBox();
+  expect(modeBox).toBeTruthy();
+  expect(columnsBox).toBeTruthy();
+  expect(derivedBox).toBeTruthy();
+  expect(modeBox!.x).toBeGreaterThan(columnsBox!.x);
+  expect(modeBox!.x).toBeLessThan(derivedBox!.x);
+
+  await modeBtn.click();
+  await page.getByTestId('log-grid-refresh-mode-freeze').click();
+  // Freeze uses primary variant on the trigger
+  await expect(modeBtn).toHaveAttribute('data-testid', 'log-grid-refresh-mode');
+  await modeBtn.click();
+  await expect(page.getByTestId('log-grid-refresh-mode-freeze')).toBeVisible();
+  // Checkmark present on Freeze while active (first svg in the item row is Check)
+  await expect(
+    page.getByTestId('log-grid-refresh-mode-freeze').locator('svg').first()
+  ).toBeVisible();
+
+  await page.getByTestId('log-grid-refresh-mode-live').click();
+  await modeBtn.click();
+  await expect(page.getByTestId('log-grid-refresh-mode-live').locator('svg').first()).toBeVisible();
+
+  await page.getByTestId('log-grid-refresh-mode-refresh').click();
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
+    timeout: 30_000,
+  });
+});

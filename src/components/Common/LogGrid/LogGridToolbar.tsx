@@ -1,7 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, PanelRight, Plus, Trash2 } from 'lucide-react';
+import {
+  Check,
+  MoreHorizontal,
+  PanelRight,
+  Plus,
+  RefreshCw,
+  Repeat,
+  Snowflake,
+  Timer,
+  Trash2,
+} from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
@@ -11,9 +21,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { encodeCommonTextFilter, type LogViewState } from '@/lib/logs';
+import {
+  encodeCommonTextFilter,
+  formatFreezeTimestamp,
+  parseGrouping,
+  type LogViewState,
+} from '@/lib/logs';
 import { cn } from '@/lib/utils';
 import { LogColumnVisibility } from './LogColumnVisibility';
+
+export type LogRefreshMode = 'refresh' | 'freeze' | 'live';
 
 export type LogGridToolbarProps = {
   columns: string[];
@@ -25,6 +42,8 @@ export type LogGridToolbarProps = {
   canDelete: boolean;
   isFetching: boolean;
   onDeleteRows: () => void;
+  /** One-shot refetch (Refresh mode / Refresh action). */
+  onRefresh?: () => void;
   /** Opens the derived-column create dialog. */
   onAddDerivedColumn?: () => void;
   /** Whether any cells are currently selected (enables the view-pane toggle). */
@@ -34,9 +53,15 @@ export type LogGridToolbarProps = {
   onToggleViewPanel?: () => void;
 };
 
+function currentRefreshMode(view: LogViewState): LogRefreshMode {
+  if (view.autoUpdate) return 'live';
+  if (view.freeze) return 'freeze';
+  return 'refresh';
+}
+
 /**
- * LogGrid chrome: search, columns, optional delete overflow, loaded-row status,
- * and a right-pinned cell view-pane toggle.
+ * LogGrid chrome: search, columns, refresh/freeze/live, derived +, optional delete,
+ * loaded-row status, and a right-pinned cell view-pane toggle.
  */
 export function LogGridToolbar({
   columns,
@@ -48,6 +73,7 @@ export function LogGridToolbar({
   canDelete,
   isFetching,
   onDeleteRows,
+  onRefresh,
   onAddDerivedColumn,
   hasSelection = false,
   viewPanelOpen = false,
@@ -59,6 +85,33 @@ export function LogGridToolbar({
     : viewPanelOpen
       ? 'Hide cell view'
       : 'Show cell view';
+
+  const mode = currentRefreshMode(view);
+  const groupingActive = parseGrouping(view.grouping).length > 0;
+  const freezeTooltip = view.freeze
+    ? `Get latest logs. (Current freeze: ${view.freeze})`
+    : 'Only get logs before freeze';
+  const liveTooltip = groupingActive
+    ? "Auto refresh doesn't work with grouping"
+    : 'Auto refresh every 5s';
+
+  const selectMode = (next: LogRefreshMode) => {
+    if (next === 'refresh') {
+      onViewChange({ autoUpdate: false, freeze: undefined, offset: 0 });
+      onRefresh?.();
+      return;
+    }
+    if (next === 'freeze') {
+      onViewChange({
+        autoUpdate: false,
+        freeze: formatFreezeTimestamp(),
+        offset: 0,
+      });
+      return;
+    }
+    if (groupingActive) return;
+    onViewChange({ autoUpdate: true, freeze: undefined, offset: 0 });
+  };
 
   return (
     <div
@@ -82,6 +135,82 @@ export function LogGridToolbar({
         hiddenColumns={view.hiddenColumns}
         onChange={(hiddenColumns) => onViewChange({ hiddenColumns })}
       />
+
+      <DropdownMenu modal={false}>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant={mode === 'refresh' ? 'outline' : 'primary'}
+                  size="sm"
+                  className={cn(
+                    'h-8 w-8 shrink-0 p-0',
+                    mode === 'live' && isFetching && 'text-primary-foreground'
+                  )}
+                  aria-label="Refresh mode"
+                  data-testid="log-grid-refresh-mode"
+                >
+                  <Repeat
+                    className={cn('h-3.5 w-3.5', mode === 'live' && isFetching && 'animate-spin')}
+                    aria-hidden="true"
+                  />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>
+                {mode === 'live'
+                  ? 'Auto-refreshing…'
+                  : mode === 'freeze'
+                    ? freezeTooltip
+                    : 'Refresh logs'}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <DropdownMenuContent align="start" className="min-w-[11rem]">
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid="log-grid-refresh-mode-refresh"
+            title="Refresh logs"
+            onClick={() => selectMode('refresh')}
+          >
+            <span className="flex w-3.5 shrink-0 justify-center">
+              {mode === 'refresh' ? <Check className="h-3.5 w-3.5" /> : null}
+            </span>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid="log-grid-refresh-mode-freeze"
+            title={freezeTooltip}
+            onClick={() => selectMode('freeze')}
+          >
+            <span className="flex w-3.5 shrink-0 justify-center">
+              {mode === 'freeze' ? <Check className="h-3.5 w-3.5" /> : null}
+            </span>
+            <Snowflake className="h-3.5 w-3.5" />
+            Freeze
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid="log-grid-refresh-mode-live"
+            disabled={groupingActive}
+            title={liveTooltip}
+            onClick={() => selectMode('live')}
+          >
+            <span className="flex w-3.5 shrink-0 justify-center">
+              {mode === 'live' ? <Check className="h-3.5 w-3.5" /> : null}
+            </span>
+            <Timer className="h-3.5 w-3.5" />
+            Live
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       {onAddDerivedColumn && (
         <TooltipProvider delayDuration={100}>
           <Tooltip>

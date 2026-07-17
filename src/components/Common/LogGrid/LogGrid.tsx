@@ -74,6 +74,7 @@ import { sanitizeId, visibleColumnIds } from '@/lib/logs/columns';
 import {
   fetchGroupChildren,
   flattenLeafRows,
+  getNewGridCellIds,
   parseGrouping,
   updateGridGroupSubRows,
   withGroupedColumnsFirst,
@@ -197,6 +198,9 @@ export function LogGrid({
   const [treeRows, setTreeRows] = React.useState<LogGridRow[]>(rows);
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
   const [expandingId, setExpandingId] = React.useState<string | null>(null);
+  const [newCells, setNewCells] = React.useState<Set<string>>(() => new Set());
+  const prevDisplayRowsRef = React.useRef<LogGridRow[]>([]);
+  const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement>(null);
   const loadMoreSentinelRef = React.useRef<HTMLDivElement>(null);
@@ -220,9 +224,19 @@ export function LogGrid({
   }, [displayRows, isGrouped, onBrowseRowsChange]);
 
   React.useEffect(() => {
-    if (!view.freeze && !view.autoUpdate) return;
-    onViewChange({ freeze: undefined, autoUpdate: false, ...(view.freeze ? { offset: 0 } : {}) });
-  }, [view.freeze, view.autoUpdate, onViewChange]);
+    const prev = prevDisplayRowsRef.current;
+    if (prev.length > 0) {
+      const ids = getNewGridCellIds(prev, displayRows);
+      if (ids.length) setNewCells(new Set(ids));
+    }
+    prevDisplayRowsRef.current = displayRows;
+  }, [displayRows]);
+
+  React.useEffect(() => {
+    if (newCells.size === 0) return;
+    const timer = window.setTimeout(() => setNewCells(new Set()), 3_000);
+    return () => window.clearTimeout(timer);
+  }, [newCells]);
 
   const orderKey = columns.join('\0');
   const lastOrderKey = React.useRef('');
@@ -261,6 +275,7 @@ export function LogGrid({
       onViewChange({
         grouping: nextGrouping,
         offset: 0,
+        autoUpdate: false,
         columnOrder: withGroupedColumnsFirst(order, nextIds),
       });
       setExpanded({});
@@ -855,6 +870,7 @@ export function LogGrid({
             canDelete={canDelete}
             isFetching={isFetching || isFetchingNextPage}
             onDeleteRows={() => setDeleteConfirmOpen(true)}
+            onRefresh={onRetry}
             onAddDerivedColumn={() => {
               setEditColumn(null);
               setDerivedOpen(true);
@@ -1049,6 +1065,7 @@ export function LogGrid({
                                 }
                                 const cellId = makeCellId(row.original.logId, cell.column.id);
                                 const cellSelected = selectedCells?.has(cellId);
+                                const isNewCell = newCells.has(cellId);
                                 return (
                                   <TableCell
                                     key={cell.id}
@@ -1060,7 +1077,8 @@ export function LogGrid({
                                       'max-w-[220px] truncate border-r border-border px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
                                       selection?.mode === 'cell' && 'select-none',
                                       cellSelected &&
-                                        'bg-primary-tint-10 ring-1 ring-inset ring-primary'
+                                        'bg-primary-tint-10 ring-1 ring-inset ring-primary',
+                                      isNewCell && 'animate-fade-accent'
                                     )}
                                     onMouseDown={(e) => onCellPointerDown(e, cellId)}
                                     onMouseEnter={(e) => onCellPointerEnter(e, cellId)}

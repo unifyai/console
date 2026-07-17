@@ -92,6 +92,8 @@ export function useInfiniteLogQuery({
       groupingKey,
       pageSize,
       columnContext ?? '',
+      view.freeze ?? '',
+      !!view.autoUpdate,
     ],
     queryFn: ({ pageParam, signal }) =>
       fetchLogs(
@@ -110,6 +112,7 @@ export function useInfiniteLogQuery({
       return allPages.length;
     },
     enabled: fieldsReady,
+    refetchInterval: view.autoUpdate ? 5_000 : false,
   });
 
   const rows = React.useMemo(
