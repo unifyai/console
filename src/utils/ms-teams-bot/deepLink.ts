@@ -5,7 +5,7 @@
  * The Unify Teams bot is reply-only: it cannot open a conversation, so during
  * onboarding the user has to message it first (that inbound seeds the
  * conversation reference the bot needs before it can reply). This builds the
- * link the "Send your first message to Twin on Teams" checklist row opens.
+ * link the "Send your first message to T-W1N on Teams" checklist row opens.
  *
  * When the public Teams app catalog id is configured we prefer the app
  * add/launch link (`l/app/<catalogId>`): it prompts the one-time personal
