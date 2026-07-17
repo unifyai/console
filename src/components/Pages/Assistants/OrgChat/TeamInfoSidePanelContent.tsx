@@ -43,7 +43,7 @@ export function TeamInfoSidePanelContent({
     [team.assistantMemberIds, assistantsById]
   );
 
-  const subtitle = `${humanMembers.length} human${humanMembers.length === 1 ? '' : 's'} · ${assistantMembers.length} AI teammate${assistantMembers.length === 1 ? '' : 's'}`;
+  const subtitle = `${humanMembers.length} real · ${assistantMembers.length} virtual`;
   const description = team.description?.trim() || null;
 
   return (

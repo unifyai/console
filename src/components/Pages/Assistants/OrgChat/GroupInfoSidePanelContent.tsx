@@ -59,7 +59,7 @@ export function GroupInfoSidePanelContent({
     [humanMembers, assistantMembers]
   );
 
-  const subtitle = `${humanMembers.length} human${humanMembers.length === 1 ? '' : 's'} · ${assistantMembers.length} AI teammate${assistantMembers.length === 1 ? '' : 's'}`;
+  const subtitle = `${humanMembers.length} real · ${assistantMembers.length} virtual`;
 
   return (
     <ScrollArea className={cn('flex-1', className)} data-testid="group-info-panel">

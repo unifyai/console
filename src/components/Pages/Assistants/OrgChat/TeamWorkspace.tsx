@@ -90,7 +90,7 @@ export function TeamWorkspace({
     [assistantMembers, humanMembers]
   );
 
-  const subtitle = `${humanMembers.length} human${humanMembers.length === 1 ? '' : 's'} · ${assistantMembers.length} AI teammate${assistantMembers.length === 1 ? '' : 's'}`;
+  const subtitle = `${humanMembers.length} real · ${assistantMembers.length} virtual`;
 
   const rawMessages = teamMessages[team.teamId];
   const isLoading = rawMessages === undefined;
