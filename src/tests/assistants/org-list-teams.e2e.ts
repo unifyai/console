@@ -141,6 +141,7 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   const elevated = page.getByTestId('assistant-list-elevated-org-team');
   await expect(elevated).toBeVisible({ timeout: 15_000 });
   await expect(elevated.getByTestId(`team-list-item-${orgTeamId}`)).toBeVisible();
+  await expect(elevated.getByTestId(`team-list-item-${orgTeamId}`)).toContainText(org.name);
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
   // No custom teams yet — TEAMS nesting must not appear. GROUPS stays.

@@ -66,7 +66,7 @@ export function TeamAvatar({
   iconClassName = 'h-4 w-4',
 }: TeamAvatarProps) {
   const resolvedImageUrl = useResolvedImageUrl(imageUrl);
-  const displayName = name.trim() || (isOrgWideSharing ? 'Org' : 'Team');
+  const displayName = name.trim() || (isOrgWideSharing ? 'Organization' : 'Team');
 
   if (isOrgWideSharing) {
     if (resolvedImageUrl) {
