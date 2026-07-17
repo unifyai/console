@@ -150,7 +150,11 @@ export function flattenLeafRows(rows: LogGridRow[]): LogGridRow[] {
   return out;
 }
 
-/** Cell ids that are new or changed between two grid snapshots (for fade-accent flash). */
+/**
+ * Cell ids for the fade-accent flash: changed cells on existing rows, plus cells on
+ * rows inserted above previously-known rows (live/refresh). Rows only appended after
+ * all previously-known rows (infinite-scroll pagination) are excluded.
+ */
 export function getNewGridCellIds(previous: LogGridRow[], next: LogGridRow[]): string[] {
   const prevLeaves = flattenLeafRows(previous);
   const nextLeaves = flattenLeafRows(next);
@@ -159,9 +163,12 @@ export function getNewGridCellIds(previous: LogGridRow[], next: LogGridRow[]): s
   const prevMap = new Map(prevLeaves.map((row) => [row.logId, row]));
   const ids: string[] = [];
 
-  for (const row of nextLeaves) {
+  for (let i = 0; i < nextLeaves.length; i++) {
+    const row = nextLeaves[i]!;
     const prior = prevMap.get(row.logId);
     if (!prior) {
+      const insertedAboveKnown = nextLeaves.slice(i + 1).some((later) => prevMap.has(later.logId));
+      if (!insertedAboveKnown) continue;
       for (const key of Object.keys(row.entries)) {
         ids.push(makeCellId(row.logId, key));
       }

@@ -200,6 +200,8 @@ export function LogGrid({
   const [expandingId, setExpandingId] = React.useState<string | null>(null);
   const [newCells, setNewCells] = React.useState<Set<string>>(() => new Set());
   const prevDisplayRowsRef = React.useRef<LogGridRow[]>([]);
+  /** Skip one flash pass after lazy group expand (children are not live/refresh inserts). */
+  const suppressNextFlashRef = React.useRef(false);
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement>(null);
@@ -225,6 +227,11 @@ export function LogGrid({
 
   React.useEffect(() => {
     const prev = prevDisplayRowsRef.current;
+    if (suppressNextFlashRef.current) {
+      suppressNextFlashRef.current = false;
+      prevDisplayRowsRef.current = displayRows;
+      return;
+    }
     if (prev.length > 0) {
       const ids = getNewGridCellIds(prev, displayRows);
       if (ids.length) setNewCells(new Set(ids));
@@ -301,6 +308,7 @@ export function LogGrid({
         fields,
         pageSize: view.limit || 50,
       });
+      suppressNextFlashRef.current = true;
       setTreeRows((prev) => updateGridGroupSubRows(prev, group.id, result.rows, result.count));
       setExpandingId(null);
     },
