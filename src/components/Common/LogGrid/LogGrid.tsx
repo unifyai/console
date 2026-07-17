@@ -44,7 +44,6 @@ import {
 } from '@/components/UI/table';
 import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
-import { Input } from '@/components/UI/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,7 +79,7 @@ import {
   withGroupedColumnsFirst,
 } from '@/lib/logs/grouping';
 import { sortingStateToOrchestra } from '@/lib/logs/querySpec';
-import { deleteLogRow, updateLogEntries } from '@/lib/logs/mutations';
+import { deleteLogRow } from '@/lib/logs/mutations';
 import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
 import { LogCellValue } from './LogCellValue';
 import { LogGridColumnHeader, LogGridSortableHead } from './LogGridColumnHeader';
@@ -155,6 +154,8 @@ export interface LogGridProps {
   hasSelection?: boolean;
   viewPanelOpen?: boolean;
   onToggleViewPanel?: () => void;
+  /** Opens the cell view pane (e.g. Enter / double-click). No-op if already open. */
+  onOpenViewPanel?: () => void;
   className?: string;
   testId?: string;
 }
@@ -184,6 +185,7 @@ export function LogGrid({
   hasSelection = false,
   viewPanelOpen = false,
   onToggleViewPanel,
+  onOpenViewPanel,
   className,
   testId = 'log-grid',
 }: LogGridProps) {
@@ -191,8 +193,6 @@ export function LogGrid({
   const [editColumn, setEditColumn] = React.useState<{ key: string; equation: string } | null>(
     null
   );
-  const [editing, setEditing] = React.useState<{ logId: number; columnId: string } | null>(null);
-  const [editValue, setEditValue] = React.useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [treeRows, setTreeRows] = React.useState<LogGridRow[]>(rows);
@@ -327,23 +327,6 @@ export function LogGrid({
     onViewChange({ columnSizing: next });
   };
 
-  const commitEdit = async () => {
-    if (!editing) return;
-    const meta = fields[editing.columnId];
-    let parsed: unknown = editValue;
-    if (meta?.dataType === 'int') parsed = Number.parseInt(editValue, 10);
-    else if (meta?.dataType === 'float') parsed = Number.parseFloat(editValue);
-    else if (meta?.dataType === 'bool') parsed = editValue === 'true';
-    const result = await updateLogEntries({
-      projectName,
-      context,
-      logId: editing.logId,
-      entries: { [sanitizeId(editing.columnId)]: parsed },
-    });
-    setEditing(null);
-    if (result.ok) onMutated?.();
-  };
-
   const openDerivedEdit = (key: string) => {
     const meta = fields[key] ?? fields[sanitizeId(key)];
     setEditColumn({ key: sanitizeId(key), equation: meta?.artifacts ?? '' });
@@ -368,7 +351,6 @@ export function LogGrid({
       const fieldKey = sanitizeId(key);
       const meta = fields[key] ?? fields[fieldKey];
       const isDerived = meta?.fieldType === 'derived_entry';
-      const mutable = meta?.mutable !== 'false' && !isDerived;
       return {
         id: key,
         accessorFn: (row) => row.entries[fieldKey] ?? row.entries[key],
@@ -448,40 +430,8 @@ export function LogGrid({
           if (group) {
             return null;
           }
-          const isEditing = editing?.logId === row.original.logId && editing.columnId === key;
-          if (isEditing) {
-            return (
-              <Input
-                autoFocus
-                className="h-7 font-mono text-[12px]"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={() => void commitEdit()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void commitEdit();
-                  if (e.key === 'Escape') setEditing(null);
-                }}
-                data-testid={`log-grid-cell-edit-${fieldKey}`}
-                onClick={(e) => e.stopPropagation()}
-              />
-            );
-          }
           return (
-            <div
-              className="min-w-0"
-              onDoubleClick={(e) => {
-                if (!mutable) return;
-                e.stopPropagation();
-                setEditing({ logId: row.original.logId, columnId: key });
-                setEditValue(
-                  raw === null || raw === undefined
-                    ? ''
-                    : typeof raw === 'object'
-                      ? JSON.stringify(raw)
-                      : String(raw)
-                );
-              }}
-            >
+            <div className="min-w-0">
               <LogCellValue value={raw} />
             </div>
           );
@@ -490,7 +440,6 @@ export function LogGrid({
       };
     });
     return [indexColumn, ...dataColumns];
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- commitEdit closes over latest view via refs
   }, [
     visible,
     fields,
@@ -498,8 +447,7 @@ export function LogGrid({
     view.grouping,
     view.offset,
     view.hiddenColumns,
-    editing,
-    editValue,
+    view.columnSizing,
     reorderEnabled,
     expandingId,
     expandGroup,
@@ -675,7 +623,11 @@ export function LogGrid({
       if ('button' in e && e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
+      // Second click of a double-click would otherwise toggle the cell off before
+      // onDoubleClick runs — skip selection churn and let dblclick force-select.
+      if ('detail' in e && e.detail > 1) return;
       isSelectingRef.current = true;
+      rootRef.current?.focus({ preventScroll: true });
       if (e.shiftKey) {
         selectCell(cellId, { range: true });
       } else if (e.metaKey || e.ctrlKey) {
@@ -707,7 +659,9 @@ export function LogGrid({
       if ('button' in e && e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
+      if ('detail' in e && e.detail > 1) return;
       isSelectingRef.current = true;
+      rootRef.current?.focus({ preventScroll: true });
       if (e.shiftKey) {
         selectRow(logId, { range: true });
       } else if (e.metaKey || e.ctrlKey) {
@@ -735,6 +689,34 @@ export function LogGrid({
   const onCellPointerUp = React.useCallback(() => {
     isSelectingRef.current = false;
   }, []);
+
+  const openViewPanel = React.useCallback(() => {
+    onOpenViewPanel?.();
+  }, [onOpenViewPanel]);
+
+  const onCellDoubleClick = React.useCallback(
+    (cellId: string) => {
+      if (selection?.mode !== 'cell') return;
+      selection.onSelectCells([cellId]);
+      selectionAnchorRef.current = cellId;
+      rootRef.current?.focus({ preventScroll: true });
+      openViewPanel();
+    },
+    [selection, openViewPanel]
+  );
+
+  const onRowIndexDoubleClick = React.useCallback(
+    (logId: string) => {
+      if (selection?.mode !== 'cell') return;
+      const rowCells = cellsForRow(logId, visible);
+      if (!rowCells.length) return;
+      selection.onSelectCells(rowCells);
+      selectionAnchorRef.current = rowCells[0] ?? null;
+      rootRef.current?.focus({ preventScroll: true });
+      openViewPanel();
+    },
+    [selection, visible, openViewPanel]
+  );
 
   const selectedCellLogIds = React.useMemo(() => {
     if (selection?.mode !== 'cell') return [] as number[];
@@ -821,6 +803,12 @@ export function LogGrid({
       e.preventDefault();
       selection.onSelectCells([]);
       selectionAnchorRef.current = null;
+      return;
+    }
+    if (e.key === 'Enter') {
+      if (selection.selectedCells.length === 0) return;
+      e.preventDefault();
+      openViewPanel();
       return;
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
@@ -1049,6 +1037,7 @@ export function LogGrid({
                                       onMouseDown={(e) => onRowIndexPointerDown(e, logId)}
                                       onMouseEnter={(e) => onRowIndexPointerEnter(e, logId)}
                                       onMouseUp={onCellPointerUp}
+                                      onDoubleClick={() => onRowIndexDoubleClick(logId)}
                                     >
                                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                     </TableCell>
@@ -1085,6 +1074,7 @@ export function LogGrid({
                                     onMouseDown={(e) => onCellPointerDown(e, cellId)}
                                     onMouseEnter={(e) => onCellPointerEnter(e, cellId)}
                                     onMouseUp={onCellPointerUp}
+                                    onDoubleClick={() => onCellDoubleClick(cellId)}
                                   >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                   </TableCell>

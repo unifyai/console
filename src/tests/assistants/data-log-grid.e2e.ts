@@ -95,7 +95,7 @@ async function openPeopleTable(page: Page) {
   });
 }
 
-/** Selection no longer auto-opens the pane — unfold via the toolbar toggle. */
+/** Selection does not auto-open the pane — unfold via toolbar, Enter, or double-click. */
 async function openCellViewPanel(page: Page) {
   const toggle = page.getByTestId('log-grid-view-panel-toggle');
   await expect(toggle).toBeEnabled({ timeout: 10_000 });
@@ -164,7 +164,7 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');
 
-  // Cell selection does not auto-open the pane; unfold via toolbar toggle
+  // Single click selects but does not open the pane; unfold via toolbar toggle
   const nameCell = firstRow
     .locator('[data-testid^="log-grid-cell-"]')
     .filter({ hasText: 'Katherine' });
@@ -179,6 +179,25 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await openCellViewPanel(page);
   await page.getByTestId('log-cell-view-edit-row').click();
   await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
+});
+
+test('double-click and Enter open the cell view pane', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const firstRow = logGridRows(page).first();
+  await expect(firstRow).toBeVisible({ timeout: 30_000 });
+  const nameCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
+
+  await nameCell.dblclick();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('log-cell-view-clear').click();
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+
+  await nameCell.click();
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await page.getByTestId('data-leaf-table').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
 });
 
 test('common text filter narrows rows', async ({ authedPage: page }) => {

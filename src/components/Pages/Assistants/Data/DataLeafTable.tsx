@@ -238,6 +238,7 @@ export function DataLeafTable({
         hasSelection={selectedCells.length > 0}
         viewPanelOpen={viewPanelOpen}
         onToggleViewPanel={() => setViewPanelOpen((open) => !open)}
+        onOpenViewPanel={() => setViewPanelOpen(true)}
         filterExpr={spec?.filterExpr}
         onDerivedCreated={() => {
           void refreshAll();
