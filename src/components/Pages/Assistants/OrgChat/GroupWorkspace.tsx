@@ -21,6 +21,7 @@ import {
   RosterHuman,
 } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { toast } from 'sonner';
 
 interface GroupWorkspaceProps {
@@ -124,7 +125,11 @@ export function GroupWorkspace({
     [assistantMembers, humanMembers]
   );
 
-  const subtitle = `${humanMembers.length} real · ${assistantMembers.length} virtual`;
+  const subtitle = formatRealVirtualSubtitle(
+    group.memberUserIds,
+    assistantMembers.length,
+    currentUserId
+  );
   const canLeave = Boolean(currentUserId && currentUserId !== group.createdByUserId);
 
   const rawMessages = groupMessages[group.groupId];

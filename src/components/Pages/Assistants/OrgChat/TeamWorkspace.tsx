@@ -8,6 +8,7 @@ import { OrgChatSearchDialog } from './OrgChatSearchDialog';
 import { TeamMembersList, type TeamMemberAssistant } from './TeamMembersList';
 import { ChatMention, OrgChatAttachment, RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 
 interface TeamWorkspaceProps {
   team: RosterTeam;
@@ -90,7 +91,11 @@ export function TeamWorkspace({
     [assistantMembers, humanMembers]
   );
 
-  const subtitle = `${humanMembers.length} real · ${assistantMembers.length} virtual`;
+  const subtitle = formatRealVirtualSubtitle(
+    team.memberUserIds,
+    assistantMembers.length,
+    currentUserId
+  );
 
   const rawMessages = teamMessages[team.teamId];
   const isLoading = rawMessages === undefined;
