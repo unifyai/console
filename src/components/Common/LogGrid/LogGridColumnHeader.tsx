@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  EyeOff,
   Filter,
   GripVertical,
   MoreHorizontal,
@@ -39,6 +40,7 @@ type LogGridColumnHeaderProps = {
   reorderEnabled: boolean;
   onEnableReorder: () => void;
   onDisableReorder: () => void;
+  onHideColumn: () => void;
 };
 
 /**
@@ -58,6 +60,7 @@ export function LogGridColumnHeader({
   reorderEnabled,
   onEnableReorder,
   onDisableReorder,
+  onHideColumn,
 }: LogGridColumnHeaderProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [filterOpen, setFilterOpen] = React.useState(false);
@@ -168,6 +171,17 @@ export function LogGridColumnHeader({
           >
             <Filter className="h-3.5 w-3.5" />
             {hasFilter ? 'Edit filter' : 'Filter…'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid={`log-grid-hide-column-${fieldKey}`}
+            onClick={() => {
+              onHideColumn();
+              setMenuOpen(false);
+            }}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+            Hide column
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {reorderEnabled ? (

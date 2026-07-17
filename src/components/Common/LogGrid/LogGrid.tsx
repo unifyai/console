@@ -120,6 +120,10 @@ export interface LogGridProps {
   onViewChange: (patch: Partial<LogViewState>) => void;
   isLoading?: boolean;
   isFetching?: boolean;
+  /** Whether more pages are available for infinite scroll. */
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
   selection?: SelectionModel;
   onRowActivate?: (row: LogGridRow) => void;
   onDerivedCreated?: () => void;
@@ -129,6 +133,10 @@ export interface LogGridProps {
   onRetry?: () => void;
   /** Flat rows currently browsable for selection inspectors. */
   onBrowseRowsChange?: (rows: LogGridRow[]) => void;
+  /** Whether any cells are selected (enables the view-pane toolbar toggle). */
+  hasSelection?: boolean;
+  viewPanelOpen?: boolean;
+  onToggleViewPanel?: () => void;
   className?: string;
   testId?: string;
 }
@@ -144,6 +152,9 @@ export function LogGrid({
   onViewChange,
   isLoading = false,
   isFetching = false,
+  hasNextPage = false,
+  isFetchingNextPage = false,
+  onLoadMore,
   selection,
   onRowActivate,
   onDerivedCreated,
@@ -151,6 +162,9 @@ export function LogGrid({
   error = null,
   onRetry,
   onBrowseRowsChange,
+  hasSelection = false,
+  viewPanelOpen = false,
+  onToggleViewPanel,
   className,
   testId = 'log-grid',
 }: LogGridProps) {
@@ -164,6 +178,8 @@ export function LogGrid({
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const scrollViewportRef = React.useRef<HTMLDivElement>(null);
+  const loadMoreSentinelRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setReorderEnabled(false);
@@ -287,6 +303,12 @@ export function LogGrid({
               reorderEnabled={reorderEnabled}
               onEnableReorder={() => setReorderEnabled(true)}
               onDisableReorder={() => setReorderEnabled(false)}
+              onHideColumn={() => {
+                if (view.hiddenColumns.includes(key)) return;
+                onViewChangeRef.current({
+                  hiddenColumns: [...view.hiddenColumns, key],
+                });
+              }}
             />
           );
         },
@@ -339,7 +361,16 @@ export function LogGrid({
     });
     return [indexColumn, ...dataColumns];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- commitEdit closes over latest view via refs
-  }, [visible, fields, view.filters, view.offset, editing, editValue, reorderEnabled]);
+  }, [
+    visible,
+    fields,
+    view.filters,
+    view.offset,
+    view.hiddenColumns,
+    editing,
+    editValue,
+    reorderEnabled,
+  ]);
 
   const table = useReactTable({
     data: rows,
@@ -358,14 +389,28 @@ export function LogGrid({
     defaultColumn: { size: 160, minSize: 80, maxSize: 640 },
   });
 
-  const pageStart = view.offset;
-  const pageEnd = Math.min(view.offset + rows.length, totalCount);
-  const canPrev = view.offset > 0;
-  const canNext = view.offset + view.limit < totalCount;
+  const loadedCount = rows.length;
 
   const commonSearch = view.commonFilter.includes('§')
     ? view.commonFilter.split('§').slice(1).join('§')
     : '';
+
+  React.useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    const root = scrollViewportRef.current;
+    if (!sentinel || !onLoadMore || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          onLoadMore();
+        }
+      },
+      { root, rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [onLoadMore, hasNextPage, isFetchingNextPage, loadedCount]);
 
   const selectedRowId = selection?.mode === 'row' ? selection.selectedRowId : null;
   const selectedCells = selection?.mode === 'cell' ? new Set(selection.selectedCells) : null;
@@ -679,14 +724,14 @@ export function LogGrid({
             view={view}
             onViewChange={onViewChange}
             commonSearch={commonSearch}
+            loadedCount={loadedCount}
             totalCount={totalCount}
-            pageStart={pageStart}
-            pageEnd={pageEnd}
-            canPrev={canPrev}
-            canNext={canNext}
             canDelete={canDelete}
-            isFetching={isFetching}
+            isFetching={isFetching || isFetchingNextPage}
             onDeleteRows={() => setDeleteConfirmOpen(true)}
+            hasSelection={hasSelection}
+            viewPanelOpen={viewPanelOpen}
+            onToggleViewPanel={onToggleViewPanel}
           />
 
           {showError ? (
@@ -706,7 +751,7 @@ export function LogGrid({
               <p className="text-body-muted">No rows match the current filters.</p>
             </div>
           ) : (
-            <ScrollArea className="min-h-0 flex-1">
+            <ScrollArea className="min-h-0 flex-1" viewportRef={scrollViewportRef}>
               <div className="overflow-hidden border-b border-border">
                 <DndContext
                   sensors={sensors}
@@ -861,6 +906,17 @@ export function LogGrid({
                   </SortableContext>
                 </DndContext>
               </div>
+              {hasNextPage && (
+                <div
+                  ref={loadMoreSentinelRef}
+                  className="flex h-8 items-center justify-center"
+                  data-testid="log-grid-load-more-sentinel"
+                >
+                  {isFetchingNextPage && (
+                    <span className="text-caption text-muted-foreground">Loading more…</span>
+                  )}
+                </div>
+              )}
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           )}

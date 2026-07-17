@@ -1,6 +1,6 @@
 /**
  * Data LogGrid E2E — column visibility, server filters/sort, cell view panel,
- * page size, cell/row range selection on the Assistants Data tab.
+ * infinite-scroll status, and cell/row range selection on the Assistants Data tab.
  *
  * Run: npx playwright test src/tests/assistants/data-log-grid.e2e.ts
  */
@@ -94,20 +94,34 @@ async function openPeopleTable(page: Page) {
   });
 }
 
+/** Selection no longer auto-opens the pane — unfold via the toolbar toggle. */
+async function openCellViewPanel(page: Page) {
+  const toggle = page.getByTestId('log-grid-view-panel-toggle');
+  await expect(toggle).toBeEnabled({ timeout: 10_000 });
+  await expect(page.getByTestId('log-grid-view-panel-dot')).toBeVisible();
+  await toggle.click();
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+}
+
 test('hides a column, filters, sorts, and opens row detail via cell panel', async ({
   authedPage: page,
 }) => {
   await openPeopleTable(page);
 
-  // Selection panel is absent until a cell is selected
+  // View pane stays closed until the toolbar unfold control is used
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await expect(page.getByTestId('log-cell-view-panel-empty')).toHaveCount(0);
-  await expect(page.getByTestId('log-grid-page-size')).toBeVisible();
+  await expect(page.getByTestId('log-grid-page-status')).toBeVisible();
+  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeDisabled();
+  await expect(page.getByTestId('log-grid-page-size')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-prev')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-next')).toHaveCount(0);
 
-  // Column visibility: hide city
-  await page.getByTestId('log-grid-columns').click();
-  await page.getByTestId('log-grid-column-toggle-city').click();
-  await page.keyboard.press('Escape');
+  // Column visibility: hide city via column ⋯ menu
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-hide-column-city').click({ force: true });
   await expect(page.getByTestId('log-grid-label-city')).toHaveCount(0);
   await expect(page.getByTestId('log-grid-label-name')).toBeVisible();
 
@@ -144,17 +158,19 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');
 
-  // Cell selection opens Interfaces-style view panel; Clear dismisses it
+  // Cell selection does not auto-open the pane; unfold via toolbar toggle
   const nameCell = firstRow
     .locator('[data-testid^="log-grid-cell-"]')
     .filter({ hasText: 'Katherine' });
   await nameCell.click();
-  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await openCellViewPanel(page);
   await page.getByTestId('log-cell-view-clear').click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeDisabled();
 
   await nameCell.click();
-  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await openCellViewPanel(page);
   await page.getByTestId('log-cell-view-edit-row').click();
   await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
 });
@@ -168,14 +184,15 @@ test('common text filter narrows rows', async ({ authedPage: page }) => {
   await expect(page.getByText('Ada Lovelace')).toBeVisible();
 });
 
-test('page size changes the loaded page window', async ({ authedPage: page }) => {
+test('loaded status shows 1–N of total without page controls', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
-  await page.getByTestId('log-grid-page-size').click();
-  await page.getByRole('option', { name: '20/page' }).click();
-  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 5/, {
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/1–5 of 5/, {
     timeout: 30_000,
   });
+  await expect(page.getByTestId('log-grid-page-size')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-prev')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-next')).toHaveCount(0);
 });
 
 test('row index selects whole rows with click, ctrl, and shift', async ({ authedPage: page }) => {
@@ -189,7 +206,8 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   const thirdIndex = thirdRow.locator('[data-testid^="log-grid-row-index-"]');
 
   await firstIndex.click();
-  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await openCellViewPanel(page);
   // People has name/city/score → 3 cells for one row
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
 
@@ -203,6 +221,7 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
 
   await firstIndex.click();
   await thirdIndex.click({ modifiers: ['Control'] });
+  await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
     timeout: 15_000,
   });
@@ -218,7 +237,8 @@ test('shift-click selects the bounding cell region', async ({ authedPage: page }
   const startCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
   const endCell = thirdRow.locator('[data-testid^="log-grid-cell-"]').nth(1);
   await startCell.click();
-  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('Selected cell');
 
   await endCell.click({ modifiers: ['Shift'] });
@@ -249,6 +269,8 @@ test('click-drag selects the bounding cell region', async ({ authedPage: page })
   });
   await page.mouse.up();
 
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
     timeout: 15_000,
   });

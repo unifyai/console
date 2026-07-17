@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LogGrid } from '@/components/Common/LogGrid';
 import { LogCellViewPanel, cellsFromSelection } from '@/components/Common/LogGrid/LogCellViewPanel';
-import { useLogQuery } from '@/hooks/logs/useLogQuery';
+import { useInfiniteLogQuery } from '@/hooks/logs/useInfiniteLogQuery';
 import { useLogViewState } from '@/hooks/logs/useLogViewState';
 import {
   DEFAULT_LOG_PAGE_SIZE,
@@ -68,7 +68,7 @@ interface DataLeafTableProps {
 }
 
 /**
- * Data-tab leaf host: session view-state + server log query + shared LogGrid
+ * Data-tab leaf host: session view-state + infinite log query + shared LogGrid
  * with cell-selection viewing panel (Interfaces view-tile style).
  */
 export function DataLeafTable({
@@ -83,10 +83,23 @@ export function DataLeafTable({
   const [view, setView, replaceView] = useLogViewState(context);
   const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
   const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
+  const [viewPanelOpen, setViewPanelOpen] = React.useState(false);
 
   const initializedRef = React.useRef<string | null>(null);
 
-  const { rows, count, fields, isLoading, isFetching, error, refetch, spec } = useLogQuery({
+  const {
+    rows,
+    count,
+    fields,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error,
+    refetch,
+    spec,
+  } = useInfiniteLogQuery({
     projectName: 'Assistants',
     context,
     view,
@@ -96,6 +109,7 @@ export function DataLeafTable({
   React.useEffect(() => {
     setSelectedCells([]);
     setBrowseRows([]);
+    setViewPanelOpen(false);
   }, [context]);
 
   React.useEffect(() => {
@@ -114,11 +128,14 @@ export function DataLeafTable({
           ...existing,
           columnOrder: fieldNames.sort((a, b) => a.localeCompare(b)),
           hiddenColumns: existing.hiddenColumns.length ? existing.hiddenColumns : defaults,
-          limit: existing.limit || DEFAULT_LOG_PAGE_SIZE,
+          limit: DEFAULT_LOG_PAGE_SIZE,
+          offset: 0,
         })
       );
+    } else if (existing.limit !== DEFAULT_LOG_PAGE_SIZE || existing.offset !== 0) {
+      setView({ limit: DEFAULT_LOG_PAGE_SIZE, offset: 0 });
     }
-  }, [context, fields, view, replaceView]);
+  }, [context, fields, view, replaceView, setView]);
 
   const columns = React.useMemo(() => {
     const set = new Set(Object.keys(fields));
@@ -155,7 +172,7 @@ export function DataLeafTable({
   const refreshAll = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['logFields', 'Assistants', context] });
     await queryClient.refetchQueries({ queryKey: ['logFields', 'Assistants', context] });
-    await queryClient.invalidateQueries({ queryKey: ['logQuery', 'Assistants', context] });
+    await queryClient.invalidateQueries({ queryKey: ['logInfiniteQuery', 'Assistants', context] });
     await queryClient.invalidateQueries({ queryKey: ['logMetrics'] });
     await refetch();
   }, [queryClient, context, refetch]);
@@ -188,8 +205,15 @@ export function DataLeafTable({
     [selectedCells, panelRows]
   );
 
-  const showPanel = selectedCells.length > 0;
-  const clearSelection = React.useCallback(() => setSelectedCells([]), []);
+  const showPanel = viewPanelOpen && selectedCells.length > 0;
+  const clearSelection = React.useCallback(() => {
+    setSelectedCells([]);
+    setViewPanelOpen(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (selectedCells.length === 0) setViewPanelOpen(false);
+  }, [selectedCells.length]);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -204,10 +228,16 @@ export function DataLeafTable({
         onViewChange={setView}
         isLoading={isLoading}
         isFetching={isFetching}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={fetchNextPage}
         error={error}
         onRetry={() => void refetch()}
         onBrowseRowsChange={setBrowseRows}
         selection={selection}
+        hasSelection={selectedCells.length > 0}
+        viewPanelOpen={viewPanelOpen}
+        onToggleViewPanel={() => setViewPanelOpen((open) => !open)}
         filterExpr={spec?.filterExpr}
         onDerivedCreated={() => void refreshAll()}
         onMutated={() => void refreshAll()}
@@ -217,7 +247,7 @@ export function DataLeafTable({
       {showPanel && (
         <LogCellViewPanel
           cells={cellSelections}
-          onClose={clearSelection}
+          onClose={() => setViewPanelOpen(false)}
           onClear={clearSelection}
           onEditRow={(logId) => {
             const match = panelRows.find((r) => r.logId === logId);
