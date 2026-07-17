@@ -16,7 +16,9 @@ if [ "${#SPECS[@]}" -eq 0 ]; then
   exit 1
 fi
 
-CMD=(npx playwright test "${SPECS[@]}" --reporter=list --max-failures="$MAX_FAILURES")
+# list for CI logs; html so failure artifact uploads of playwright-report/ are non-empty
+# (a lone --reporter=list overrides playwright.config.ts and skips the HTML report).
+CMD=(npx playwright test "${SPECS[@]}" --reporter=list,html --max-failures="$MAX_FAILURES")
 
 if [ -n "$SHARD" ]; then
   CMD+=(--shard="$SHARD")
