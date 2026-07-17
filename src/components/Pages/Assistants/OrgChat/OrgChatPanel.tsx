@@ -1,7 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { Send, Loader2, Paperclip, Mic, Square, Camera, File, Search, Phone } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  Paperclip,
+  Mic,
+  Square,
+  Camera,
+  File,
+  Search,
+  Phone,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
@@ -14,12 +26,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { ChatMention, OrgChatAttachment } from '@/types/orgChat';
-import type { Attachment } from '@/types/assistants/chat';
+import { ChatMention, OrgChatAttachment, OrgChatReaction } from '@/types/orgChat';
+import type { Attachment, MessageReaction } from '@/types/assistants/chat';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
+import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { PendingAttachmentList } from '@/components/Chat/ChatAttachments';
 import { CameraCapture } from '@/components/Chat/CameraCapture';
+import { EmojiReactionPicker } from '@/components/Chat/EmojiReactionPicker';
+import { MessageReactionsBar } from '@/components/Chat/MessageReactionsBar';
 import {
   createAttachment,
   isOversized,
@@ -28,6 +43,10 @@ import {
 } from '@/components/Chat/attachmentUtils';
 import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+
+const messageActionButtonClass =
+  'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors text-muted-foreground/50 hover:text-muted-foreground';
+const messageActionIconClass = 'h-3.5 w-3.5';
 
 export interface OrgChatPanelMessage {
   id: string;
@@ -38,6 +57,7 @@ export interface OrgChatPanelMessage {
   timestamp: string | null;
   avatarUrl?: string | null;
   attachments?: OrgChatAttachment[];
+  reactions?: OrgChatReaction[];
 }
 
 export interface OrgChatPanelProps {
@@ -64,6 +84,9 @@ export interface OrgChatPanelProps {
   onOpenSearch?: () => void;
   /** Scroll / highlight target after search jump. */
   highlightMessageId?: string | null;
+  currentUserId?: string | null;
+  onToggleReaction?: (messageId: string, emoji: string) => void;
+  canReact?: boolean;
 }
 
 function initials(name: string): string {
@@ -82,6 +105,73 @@ function formatTime(timestamp: string | null): string | null {
   const date = new Date(timestamp);
   if (isNaN(date.getTime())) return null;
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function toMessageReactions(reactions: OrgChatReaction[] | undefined): MessageReaction[] {
+  return (reactions ?? []).map((reaction) => ({
+    userId: reaction.userId,
+    emoji: reaction.emoji,
+    ...(reaction.updatedAt ? { updatedAt: new Date(reaction.updatedAt) } : {}),
+  }));
+}
+
+function OrgChatMessageActions({
+  content,
+  canReact,
+  onToggleReaction,
+}: {
+  content: string;
+  canReact: boolean;
+  onToggleReaction?: (emoji: string) => void;
+}) {
+  const { isCopied, handleCopy } = useCopyToClipboard({
+    text: content,
+    copyMessage: 'Message copied',
+    showSuccessNotification: false,
+  });
+  const canCopy = !!content;
+
+  if (!canCopy && !(canReact && onToggleReaction)) return null;
+
+  return (
+    <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+      {canCopy && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label={isCopied ? 'Message copied' : 'Copy message'}
+                data-testid="message-copy-button"
+                data-copied={isCopied || undefined}
+                className={cn(messageActionButtonClass, isCopied && 'text-primary')}
+              >
+                {isCopied ? (
+                  <Check className={messageActionIconClass} />
+                ) : (
+                  <Copy className={messageActionIconClass} />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{isCopied ? 'Message copied' : 'Copy message'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+      {canReact && onToggleReaction ? (
+        <EmojiReactionPicker
+          onSelect={onToggleReaction}
+          className={cn(
+            messageActionButtonClass,
+            'inline-flex hover:bg-transparent disabled:cursor-not-allowed disabled:opacity-50'
+          )}
+          iconClassName={messageActionIconClass}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 function findActiveMention(value: string, caret: number): { at: number; query: string } | null {
@@ -112,6 +202,9 @@ export function OrgChatPanel({
   isConnectingCall = false,
   onOpenSearch,
   highlightMessageId = null,
+  currentUserId = null,
+  onToggleReaction,
+  canReact = false,
 }: OrgChatPanelProps) {
   const { transcription: transcriptionEnabled, voiceCalls } = useFeatures();
   const [input, setInput] = React.useState('');
@@ -421,7 +514,7 @@ export function OrgChatPanel({
                     messageRefs.current[message.id] = el;
                   }}
                   className={cn(
-                    'min-w-0',
+                    'group min-w-0',
                     isGroupStart && 'mt-3',
                     highlighted && 'rounded-lg ring-2 ring-primary'
                   )}
@@ -448,6 +541,28 @@ export function OrgChatPanel({
                           {timeString}
                         </time>
                       )}
+                      <OrgChatMessageActions
+                        content={message.content}
+                        canReact={canReact}
+                        onToggleReaction={
+                          onToggleReaction
+                            ? (emoji) => onToggleReaction(message.id, emoji)
+                            : undefined
+                        }
+                      />
+                    </div>
+                  )}
+                  {!isGroupStart && (
+                    <div className="mb-0.5 flex h-5 items-center gap-2">
+                      <OrgChatMessageActions
+                        content={message.content}
+                        canReact={canReact}
+                        onToggleReaction={
+                          onToggleReaction
+                            ? (emoji) => onToggleReaction(message.id, emoji)
+                            : undefined
+                        }
+                      />
                     </div>
                   )}
                   <div className="max-w-[85%] break-words rounded-lg bg-muted p-2.5 font-sans text-sm leading-snug">
@@ -456,6 +571,15 @@ export function OrgChatPanel({
                     ) : null}
                     {renderAttachments(message.attachments)}
                   </div>
+                  <MessageReactionsBar
+                    reactions={toMessageReactions(message.reactions)}
+                    currentUserId={currentUserId}
+                    onToggleReaction={
+                      canReact && onToggleReaction
+                        ? (emoji) => onToggleReaction(message.id, emoji)
+                        : undefined
+                    }
+                  />
                 </div>
               );
             })}

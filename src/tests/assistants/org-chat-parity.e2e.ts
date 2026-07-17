@@ -1,6 +1,7 @@
 /**
  * Org chat chrome parity: real (human) DM surface matches virtual chat
- * toolbar/composer affordances (search, call, attach).
+ * toolbar/composer affordances (search, call, attach), plus copy/emoji on
+ * peer messages (no audio playback).
  *
  * Run: npx playwright test src/tests/assistants/org-chat-parity.e2e.ts
  */
@@ -16,6 +17,7 @@ import {
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
 import { assistantRail } from '../helpers/shell';
+import { closeHireDialogIfOpen, openUnitySwitcher } from './helpers';
 
 const owner = createTestUser({ name: 'ChatParity', lastName: 'Owner', credits: 50_000 });
 const member = createTestUser({ name: 'ChatParity', lastName: 'Member', credits: 50_000 });
@@ -102,6 +104,8 @@ test.afterAll(async () => {
 test('real DM chat shows virtual-parity chrome', async ({ ownerPage: page }) => {
   test.setTimeout(90_000);
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
+  await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
 
   const humanRow = page.getByTestId(`human-list-item-${member.id}`);
   await expect(humanRow).toBeVisible({ timeout: 30_000 });
@@ -114,6 +118,34 @@ test('real DM chat shows virtual-parity chrome', async ({ ownerPage: page }) => 
   await expect(page.getByTestId('org-chat-attach-button')).toBeVisible();
   await expect(page.getByTestId('org-chat-composer')).toBeVisible();
   await expect(page.getByTestId('org-chat-send')).toBeVisible();
+
+  const orchestraOrigin = (process.env.ORCHESTRA_URL || 'http://127.0.0.1:8000').replace(
+    /\/v0\/?$/,
+    ''
+  );
+  const seedRes = await fetch(
+    `${orchestraOrigin}/v0/organizations/${org.id}/dms/${encodeURIComponent(owner.id)}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${member.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content: 'Hello from member' }),
+    }
+  );
+  expect(seedRes.ok).toBeTruthy();
+
+  // Re-open the DM so history includes the seeded peer message.
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+  await page.getByTestId(`human-list-item-${member.id}`).click();
+
+  const peerBubble = page.getByTestId(/org-chat-message-/).filter({ hasText: 'Hello from member' });
+  await expect(peerBubble).toBeVisible({ timeout: 20_000 });
+  await peerBubble.hover();
+  await expect(peerBubble.getByTestId('message-copy-button')).toBeVisible();
+  await expect(peerBubble.getByTestId('chat-reaction-picker')).toBeVisible();
+  await expect(peerBubble.locator('[aria-label="Play audio"]')).toHaveCount(0);
 
   await page.getByTestId('org-chat-search').click();
   await expect(page.getByTestId('org-chat-search-dialog')).toBeVisible({ timeout: 5_000 });

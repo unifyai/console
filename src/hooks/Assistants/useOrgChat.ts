@@ -5,12 +5,15 @@ import {
   GroupChatMessage,
   OrgCallSession,
   OrgChatAttachment,
+  OrgChatReaction,
   TeamChatMessage,
   parseDmMessage,
   parseGroupChatMessage,
   parseOrgCallSession,
   parseTeamChatMessage,
 } from '@/types/orgChat';
+import { applyOrgReactionUpdate } from '@/utils/assistants/chat-reactions';
+import { toast } from 'sonner';
 
 const SSE_MAX_RECONNECT_ATTEMPTS = 5;
 const SSE_RECONNECT_BASE_DELAY = 1000;
@@ -87,6 +90,24 @@ function isOrgCallThread(thread: string | undefined): boolean {
   return (
     typeof thread === 'string' && (thread.startsWith('org_call_') || thread.startsWith('dm_call_'))
   );
+}
+
+function toOrgReactions(reactions: ReturnType<typeof applyOrgReactionUpdate>): OrgChatReaction[] {
+  return reactions
+    .filter((reaction): reaction is typeof reaction & { userId: string } => !!reaction.userId)
+    .map((reaction) => ({
+      userId: reaction.userId,
+      emoji: reaction.emoji,
+      ...(reaction.updatedAt ? { updatedAt: reaction.updatedAt.toISOString() } : {}),
+    }));
+}
+
+function asMessageReactions(reactions: OrgChatReaction[] | undefined) {
+  return (reactions ?? []).map((reaction) => ({
+    userId: reaction.userId,
+    emoji: reaction.emoji,
+    ...(reaction.updatedAt ? { updatedAt: new Date(reaction.updatedAt) } : {}),
+  }));
 }
 
 /**
@@ -207,12 +228,62 @@ export function useOrgChat(params: UseOrgChatParams) {
     [bumpUnread]
   );
 
+  const handleTeamReactionFrame = React.useCallback((event: Record<string, unknown>) => {
+    const message = parseTeamChatMessage(event);
+    if (isNaN(message.teamId) || isNaN(message.messageId)) return;
+    setTeamMessages((prev) => {
+      const current = prev[message.teamId] ?? [];
+      const index = current.findIndex((m) => m.messageId === message.messageId);
+      if (index === -1) return prev;
+      const updated = [...current];
+      updated[index] = { ...updated[index], reactions: message.reactions };
+      return { ...prev, [message.teamId]: updated };
+    });
+  }, []);
+
+  const handleGroupReactionFrame = React.useCallback((event: Record<string, unknown>) => {
+    const message = parseGroupChatMessage(event);
+    if (isNaN(message.groupId) || isNaN(message.messageId)) return;
+    setGroupMessages((prev) => {
+      const current = prev[message.groupId] ?? [];
+      const index = current.findIndex((m) => m.messageId === message.messageId);
+      if (index === -1) return prev;
+      const updated = [...current];
+      updated[index] = { ...updated[index], reactions: message.reactions };
+      return { ...prev, [message.groupId]: updated };
+    });
+  }, []);
+
+  const handleDmReactionFrame = React.useCallback((event: Record<string, unknown>) => {
+    const myUserId = currentUserIdRef.current;
+    if (!myUserId) return;
+    const userIds = Array.isArray(event.user_ids) ? event.user_ids.map(String) : [];
+    const otherUserId = userIds.find((id) => id !== myUserId);
+    if (!otherUserId) return;
+    const message = parseDmMessage(event);
+    if (isNaN(message.id)) return;
+    setDmMessages((prev) => {
+      const current = prev[otherUserId] ?? [];
+      const index = current.findIndex((m) => m.id === message.id);
+      if (index === -1) return prev;
+      const updated = [...current];
+      updated[index] = { ...updated[index], reactions: message.reactions };
+      return { ...prev, [otherUserId]: updated };
+    });
+  }, []);
+
   const handleTeamFrameRef = React.useRef(handleTeamFrame);
   handleTeamFrameRef.current = handleTeamFrame;
   const handleGroupFrameRef = React.useRef(handleGroupFrame);
   handleGroupFrameRef.current = handleGroupFrame;
   const handleDmFrameRef = React.useRef(handleDmFrame);
   handleDmFrameRef.current = handleDmFrame;
+  const handleTeamReactionFrameRef = React.useRef(handleTeamReactionFrame);
+  handleTeamReactionFrameRef.current = handleTeamReactionFrame;
+  const handleGroupReactionFrameRef = React.useRef(handleGroupReactionFrame);
+  handleGroupReactionFrameRef.current = handleGroupReactionFrame;
+  const handleDmReactionFrameRef = React.useRef(handleDmReactionFrame);
+  handleDmReactionFrameRef.current = handleDmReactionFrame;
 
   React.useEffect(() => {
     if (!enabled || !orgId) return;
@@ -240,10 +311,16 @@ export function useOrgChat(params: UseOrgChatParams) {
         if (!frame.event || typeof frame.event !== 'object') return;
         if (frame.thread === 'team_message') {
           handleTeamFrameRef.current(frame.event);
+        } else if (frame.thread === 'team_message_reaction') {
+          handleTeamReactionFrameRef.current(frame.event);
         } else if (frame.thread === 'group_message') {
           handleGroupFrameRef.current(frame.event);
+        } else if (frame.thread === 'group_message_reaction') {
+          handleGroupReactionFrameRef.current(frame.event);
         } else if (frame.thread === 'dm_message') {
           handleDmFrameRef.current(frame.event);
+        } else if (frame.thread === 'dm_message_reaction') {
+          handleDmReactionFrameRef.current(frame.event);
         } else if (isOrgCallThread(frame.thread)) {
           const call = parseOrgCallSession(frame.event);
           if (!call.callId) return;
@@ -356,6 +433,7 @@ export function useOrgChat(params: UseOrgChatParams) {
         content,
         mentions,
         attachments,
+        reactions: [],
       };
       setTeamMessages((prev) => ({
         ...prev,
@@ -408,6 +486,7 @@ export function useOrgChat(params: UseOrgChatParams) {
         content,
         mentions,
         attachments,
+        reactions: [],
       };
       setGroupMessages((prev) => ({
         ...prev,
@@ -455,6 +534,7 @@ export function useOrgChat(params: UseOrgChatParams) {
         content,
         createdAt: new Date().toISOString(),
         attachments,
+        reactions: [],
       };
       setDmMessages((prev) => ({
         ...prev,
@@ -489,6 +569,184 @@ export function useOrgChat(params: UseOrgChatParams) {
     [orgId]
   );
 
+  const toggleTeamReaction = React.useCallback(
+    async (teamId: number, messageId: number, emoji: string) => {
+      if (!orgId || !currentUserIdRef.current) return;
+      const userId = currentUserIdRef.current;
+      let previous: OrgChatReaction[] | undefined;
+      setTeamMessages((prev) => {
+        const current = prev[teamId] ?? [];
+        const index = current.findIndex((m) => m.messageId === messageId);
+        if (index === -1) return prev;
+        previous = current[index].reactions;
+        const existing = previous?.find((reaction) => reaction.userId === userId);
+        const nextEmoji = existing?.emoji === emoji ? null : emoji;
+        const updated = [...current];
+        updated[index] = {
+          ...updated[index],
+          reactions: toOrgReactions(
+            applyOrgReactionUpdate(asMessageReactions(previous), userId, nextEmoji)
+          ),
+        };
+        return { ...prev, [teamId]: updated };
+      });
+      if (previous === undefined) return;
+
+      try {
+        const response = await fetch(
+          `/api/organizations/${orgId}/teams/${teamId}/messages/${messageId}/reactions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              emoji: previous.find((r) => r.userId === userId)?.emoji === emoji ? null : emoji,
+            }),
+          }
+        );
+        if (!response.ok) throw new Error(`react failed (${response.status})`);
+        const data = await response.json();
+        const serverMessage = parseTeamChatMessage(data);
+        setTeamMessages((prev) => {
+          const current = prev[teamId] ?? [];
+          const index = current.findIndex((m) => m.messageId === messageId);
+          if (index === -1) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: serverMessage.reactions };
+          return { ...prev, [teamId]: updated };
+        });
+      } catch {
+        setTeamMessages((prev) => {
+          const current = prev[teamId] ?? [];
+          const index = current.findIndex((m) => m.messageId === messageId);
+          if (index === -1 || previous === undefined) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: previous };
+          return { ...prev, [teamId]: updated };
+        });
+        toast.error('Could not update reaction. Please try again.');
+      }
+    },
+    [orgId]
+  );
+
+  const toggleGroupReaction = React.useCallback(
+    async (groupId: number, messageId: number, emoji: string) => {
+      if (!orgId || !currentUserIdRef.current) return;
+      const userId = currentUserIdRef.current;
+      let previous: OrgChatReaction[] | undefined;
+      let nextEmoji: string | null = null;
+      setGroupMessages((prev) => {
+        const current = prev[groupId] ?? [];
+        const index = current.findIndex((m) => m.messageId === messageId);
+        if (index === -1) return prev;
+        previous = current[index].reactions;
+        const existing = previous?.find((reaction) => reaction.userId === userId);
+        nextEmoji = existing?.emoji === emoji ? null : emoji;
+        const updated = [...current];
+        updated[index] = {
+          ...updated[index],
+          reactions: toOrgReactions(
+            applyOrgReactionUpdate(asMessageReactions(previous), userId, nextEmoji)
+          ),
+        };
+        return { ...prev, [groupId]: updated };
+      });
+      if (previous === undefined) return;
+
+      try {
+        const response = await fetch(
+          `/api/organizations/${orgId}/groups/${groupId}/messages/${messageId}/reactions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emoji: nextEmoji }),
+          }
+        );
+        if (!response.ok) throw new Error(`react failed (${response.status})`);
+        const data = await response.json();
+        const serverMessage = parseGroupChatMessage(data);
+        setGroupMessages((prev) => {
+          const current = prev[groupId] ?? [];
+          const index = current.findIndex((m) => m.messageId === messageId);
+          if (index === -1) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: serverMessage.reactions };
+          return { ...prev, [groupId]: updated };
+        });
+      } catch {
+        setGroupMessages((prev) => {
+          const current = prev[groupId] ?? [];
+          const index = current.findIndex((m) => m.messageId === messageId);
+          if (index === -1 || previous === undefined) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: previous };
+          return { ...prev, [groupId]: updated };
+        });
+        toast.error('Could not update reaction. Please try again.');
+      }
+    },
+    [orgId]
+  );
+
+  const toggleDmReaction = React.useCallback(
+    async (otherUserId: string, messageId: number, emoji: string) => {
+      if (!orgId || !currentUserIdRef.current) return;
+      const userId = currentUserIdRef.current;
+      let previous: OrgChatReaction[] | undefined;
+      let nextEmoji: string | null = null;
+      setDmMessages((prev) => {
+        const current = prev[otherUserId] ?? [];
+        const index = current.findIndex((m) => m.id === messageId);
+        if (index === -1) return prev;
+        previous = current[index].reactions;
+        const existing = previous?.find((reaction) => reaction.userId === userId);
+        nextEmoji = existing?.emoji === emoji ? null : emoji;
+        const updated = [...current];
+        updated[index] = {
+          ...updated[index],
+          reactions: toOrgReactions(
+            applyOrgReactionUpdate(asMessageReactions(previous), userId, nextEmoji)
+          ),
+        };
+        return { ...prev, [otherUserId]: updated };
+      });
+      if (previous === undefined) return;
+
+      try {
+        const response = await fetch(
+          `/api/organizations/${orgId}/dms/${encodeURIComponent(otherUserId)}/messages/${messageId}/reactions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emoji: nextEmoji }),
+          }
+        );
+        if (!response.ok) throw new Error(`react failed (${response.status})`);
+        const data = await response.json();
+        const serverMessage = parseDmMessage(data);
+        setDmMessages((prev) => {
+          const current = prev[otherUserId] ?? [];
+          const index = current.findIndex((m) => m.id === messageId);
+          if (index === -1) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: serverMessage.reactions };
+          return { ...prev, [otherUserId]: updated };
+        });
+      } catch {
+        setDmMessages((prev) => {
+          const current = prev[otherUserId] ?? [];
+          const index = current.findIndex((m) => m.id === messageId);
+          if (index === -1 || previous === undefined) return prev;
+          const updated = [...current];
+          updated[index] = { ...updated[index], reactions: previous };
+          return { ...prev, [otherUserId]: updated };
+        });
+        toast.error('Could not update reaction. Please try again.');
+      }
+    },
+    [orgId]
+  );
+
   return {
     teamMessages,
     groupMessages,
@@ -501,5 +759,8 @@ export function useOrgChat(params: UseOrgChatParams) {
     sendTeamMessage,
     sendGroupMessage,
     sendDmMessage,
+    toggleTeamReaction,
+    toggleGroupReaction,
+    toggleDmReaction,
   };
 }

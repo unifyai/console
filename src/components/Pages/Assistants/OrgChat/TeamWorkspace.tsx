@@ -48,7 +48,7 @@ export function TeamWorkspace({
   isConnectingCall,
   canJoinActiveCall,
 }: TeamWorkspaceProps) {
-  const { loadTeamHistory, sendTeamMessage, teamMessages } = chat;
+  const { loadTeamHistory, sendTeamMessage, teamMessages, toggleTeamReaction } = chat;
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [highlightMessageId, setHighlightMessageId] = React.useState<string | null>(null);
 
@@ -114,6 +114,7 @@ export function TeamWorkspace({
           timestamp: message.timestamp,
           avatarUrl,
           attachments: message.attachments,
+          reactions: message.reactions,
         };
       }),
     [rawMessages, currentUserId, humansById, assistantsById]
@@ -123,6 +124,13 @@ export function TeamWorkspace({
     (content: string, mentions: ChatMention[], attachments: OrgChatAttachment[]) =>
       sendTeamMessage(team.teamId, content, mentions, attachments),
     [sendTeamMessage, team.teamId]
+  );
+
+  const handleToggleReaction = React.useCallback(
+    (messageId: string, emoji: string) => {
+      void toggleTeamReaction(team.teamId, Number(messageId), emoji);
+    },
+    [toggleTeamReaction, team.teamId]
   );
 
   return (
@@ -147,6 +155,9 @@ export function TeamWorkspace({
             }
             isConnectingCall={isConnectingCall}
             highlightMessageId={highlightMessageId}
+            currentUserId={currentUserId}
+            canReact={!!currentUserId}
+            onToggleReaction={handleToggleReaction}
           />
           <OrgChatSearchDialog
             open={searchOpen}

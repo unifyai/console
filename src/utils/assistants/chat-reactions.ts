@@ -16,16 +16,27 @@ export function mapTranscriptReactions(metadata: unknown): MessageReaction[] | u
       if (!item || typeof item !== 'object') return null;
       const record = item as Record<string, unknown>;
       const contactId = record.contactId ?? record.contact_id;
+      const userId = record.userId ?? record.user_id;
       const emoji = record.emoji;
-      if (typeof contactId !== 'number' || typeof emoji !== 'string' || !emoji.trim()) {
+      if (typeof emoji !== 'string' || !emoji.trim()) {
         return null;
       }
       const updatedRaw = record.updatedAt ?? record.updated_at;
-      return {
-        contactId,
-        emoji,
-        ...(typeof updatedRaw === 'string' ? { updatedAt: new Date(updatedRaw) } : {}),
-      };
+      if (typeof contactId === 'number') {
+        return {
+          contactId,
+          emoji,
+          ...(typeof updatedRaw === 'string' ? { updatedAt: new Date(updatedRaw) } : {}),
+        };
+      }
+      if (typeof userId === 'string' && userId) {
+        return {
+          userId,
+          emoji,
+          ...(typeof updatedRaw === 'string' ? { updatedAt: new Date(updatedRaw) } : {}),
+        };
+      }
+      return null;
     })
     .filter((item): item is MessageReaction => item !== null);
 
@@ -59,4 +70,38 @@ export function applyReactionUpdate(
   }
   existing[index] = next;
   return existing;
+}
+
+export function applyOrgReactionUpdate(
+  messages: MessageReaction[] | undefined,
+  userId: string,
+  emoji: string | null
+): MessageReaction[] {
+  const existing = [...(messages ?? [])];
+  const index = existing.findIndex((item) => item.userId === userId);
+  if (!emoji) {
+    if (index === -1) return existing;
+    existing.splice(index, 1);
+    return existing;
+  }
+  const next: MessageReaction = {
+    userId,
+    emoji,
+    updatedAt: new Date(),
+  };
+  if (index === -1) {
+    existing.push(next);
+    return existing;
+  }
+  if (existing[index]?.emoji === emoji) {
+    existing.splice(index, 1);
+    return existing;
+  }
+  existing[index] = next;
+  return existing;
+}
+
+export function mapOrgChatReactions(raw: unknown): MessageReaction[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  return mapTranscriptReactions({ reactions: raw });
 }
