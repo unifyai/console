@@ -31,8 +31,9 @@ const test = createAssistantTest(user);
 test.setTimeout(180_000);
 
 async function gotoAppShellRoute(page: import('@playwright/test').Page, path: string) {
+  // domcontentloaded only — AppShell keeps Main mounted (hidden) on library
+  // routes, and its SSE/chat traffic prevents networkidle from ever settling.
   await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => {});
   await dismissCoordinatorOnboardingIfOpen(page);
 }
 

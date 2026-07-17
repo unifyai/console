@@ -1,6 +1,12 @@
 /**
  * Unified shell navigation verifies that assistants, settings, organizations,
- * and admin surfaces behave like tabs inside one mounted shell.
+ * and admin surfaces behave like tabs inside one mounted shell: soft client
+ * navigations (no full document reload), preserved assistant chrome, and no
+ * skeleton flicker on return hops.
+ *
+ * Cross-surface hops use `router.push` and `router.prefetch`, so RSC flight
+ * requests are expected. The soft-nav contract is zero *document* requests,
+ * not zero RSC.
  *
  * Run: npx playwright test src/tests/shell/unified-shell-navigation.e2e.ts
  */
@@ -47,7 +53,7 @@ async function expectNoWorkspaceCube(page: import('@playwright/test').Page): Pro
 }
 
 async function expectNoSectionBodySkeleton(page: import('@playwright/test').Page): Promise<void> {
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0);
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0);
 }
 
 async function expectNoAssistantTabSkeletons(page: import('@playwright/test').Page): Promise<void> {
@@ -62,7 +68,9 @@ async function expectNoAssistantTabSkeletons(page: import('@playwright/test').Pa
     'live-actions-loading',
   ];
   for (const testId of skeletonTestIds) {
-    await expect(page.getByTestId(testId)).toHaveCount(0);
+    // Unified shell keeps Main mounted (often hidden) across settings/admin, so
+    // page-wide skeleton queries can hit inert copies. Only visible ones matter.
+    await expect(page.locator(`[data-testid="${testId}"]:visible`)).toHaveCount(0);
   }
 }
 
@@ -91,8 +99,16 @@ async function observeSkeletonFlicker(page: Page): Promise<() => Promise<string[
     w.__shellSkeletonFlickerObserver?.observer.disconnect();
     const seen = new Set<string>();
     const selector = testIds.map((testId) => `[data-testid="${testId}"]`).join(',');
+    const isVisible = (element: Element): boolean => {
+      if (!(element instanceof HTMLElement)) return false;
+      if (typeof element.checkVisibility === 'function') {
+        return element.checkVisibility();
+      }
+      return element.getClientRects().length > 0;
+    };
     const recordMatches = () => {
       document.querySelectorAll(selector).forEach((element) => {
+        if (!isVisible(element)) return;
         const testId = element.getAttribute('data-testid');
         if (testId) seen.add(testId);
       });
@@ -102,7 +118,7 @@ async function observeSkeletonFlicker(page: Page): Promise<() => Promise<string[
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['data-testid'],
+      attributeFilter: ['data-testid', 'class', 'style', 'hidden', 'aria-hidden'],
     });
     w.__shellSkeletonFlickerObserver = { observer, seen };
   }, SHELL_FLICKER_SKELETON_TEST_IDS);
@@ -143,17 +159,14 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await railSection(page, 'tasks').click();
   await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
   await expectNoWorkspaceCube(page);
-  await expect(page.getByTestId('tasks-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="tasks-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
 
   let documentRequests = 0;
-  let rscRequests = 0;
   page.on('request', (request) => {
     if (request.resourceType() === 'document') {
       documentRequests += 1;
-    }
-    const headers = request.headers();
-    if (headers.rsc === '1' || request.url().includes('_rsc=')) {
-      rscRequests += 1;
     }
   });
   const initialNavigationCount = await navigationEntryCount(page);
@@ -161,7 +174,9 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await visibleShellTestId(page, 'rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/);
   await expect(page.getByTestId('settings-subrail')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
   await expectNoWorkspaceCube(page);
 
   await page.getByTestId('settings-nav-contact-info').click();
@@ -172,20 +187,27 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await page.getByTestId('settings-link-organizations').click();
   await expect(page).toHaveURL(/\/organizations/);
   await expect(page.getByTestId('settings-subrail')).toBeVisible();
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
   await expectNoWorkspaceCube(page);
 
   await page.getByTestId('settings-link-admin').click();
   await expect(page).toHaveURL(/\/admin/);
   await expect(page.getByTestId('admin-nav-organizations')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
   await expectNoWorkspaceCube(page);
 
   const stopAdminToTasksObserver = await observeSkeletonFlicker(page);
   await railSection(page, 'tasks').click();
   await expect(page).toHaveURL(/\/assistants/);
   await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByText('ShellNav')).toBeVisible();
+  // Unified shell keeps list + desktop chrome mounted; scope to the visible rail.
+  await expect(
+    assistantRail(page).getByText('ShellNav Tester', { exact: true }).first()
+  ).toBeVisible();
   await expectNoWorkspaceCube(page);
   await expectNoAssistantTabSkeletons(page);
   expect(await stopAdminToTasksObserver()).toEqual([]);
@@ -197,6 +219,5 @@ test('settings/admin/assistants switch without document reload and preserve assi
   expect(await stopTasksToAccountObserver()).toEqual([]);
 
   expect(documentRequests).toBe(0);
-  expect(rscRequests).toBe(0);
   await expect.poll(() => navigationEntryCount(page)).toBe(initialNavigationCount);
 });
