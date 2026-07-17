@@ -640,7 +640,7 @@ export function DataPane({
       <button
         type="button"
         onClick={() => setSidebarOpen((open) => !open)}
-        className="text-body-muted inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+        className="text-body-muted inline-flex shrink-0 items-center rounded-md p-1.5 transition-colors hover:bg-muted hover:text-foreground"
         aria-label={sidebarOpen ? 'Collapse data directory' : 'Expand data directory'}
         aria-expanded={sidebarOpen}
         data-testid={sidebarOpen ? 'data-sidebar-collapse' : 'data-sidebar-expand'}
@@ -650,7 +650,6 @@ export function DataPane({
         ) : (
           <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
         )}
-        <span className="text-title text-foreground">{sidebarTitle}</span>
       </button>
     ) : null;
 
