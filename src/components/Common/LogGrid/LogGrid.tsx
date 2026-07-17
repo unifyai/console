@@ -79,6 +79,7 @@ import {
   updateGridGroupSubRows,
   withGroupedColumnsFirst,
 } from '@/lib/logs/grouping';
+import { buildNestedRowLabelMap } from '@/lib/logs/rowLabels';
 import { sortingStateToOrchestra } from '@/lib/logs/querySpec';
 import { deleteLogRow } from '@/lib/logs/mutations';
 import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
@@ -151,6 +152,8 @@ export interface LogGridProps {
   onRetry?: () => void;
   /** Flat rows currently browsable for selection inspectors. */
   onBrowseRowsChange?: (rows: LogGridRow[]) => void;
+  /** `#` column labels keyed by logId (leaves) or group.id (headers). */
+  onRowLabelsChange?: (labels: Map<string, string>) => void;
   /** Whether any cells are selected (enables the view-pane toolbar toggle). */
   hasSelection?: boolean;
   viewPanelOpen?: boolean;
@@ -185,6 +188,7 @@ export function LogGrid({
   error = null,
   onRetry,
   onBrowseRowsChange,
+  onRowLabelsChange,
   hasSelection = false,
   viewPanelOpen = false,
   onToggleViewPanel,
@@ -215,6 +219,11 @@ export function LogGrid({
   const isGrouped = groupingIds.length > 0;
   const displayRows = isGrouped ? treeRows : rows;
 
+  const rowLabelMap = React.useMemo(
+    () => buildNestedRowLabelMap(displayRows, { offset: view.offset, grouped: isGrouped }),
+    [displayRows, view.offset, isGrouped]
+  );
+
   React.useEffect(() => {
     setReorderEnabled(false);
     setExpanded({});
@@ -228,6 +237,10 @@ export function LogGrid({
   React.useEffect(() => {
     onBrowseRowsChange?.(isGrouped ? flattenLeafRows(displayRows) : displayRows);
   }, [displayRows, isGrouped, onBrowseRowsChange]);
+
+  React.useEffect(() => {
+    onRowLabelsChange?.(rowLabelMap);
+  }, [rowLabelMap, onRowLabelsChange]);
 
   React.useEffect(() => {
     const prev = prevDisplayRowsRef.current;
@@ -349,13 +362,17 @@ export function LogGrid({
   openDerivedEditRef.current = openDerivedEdit;
 
   const columnDefs = React.useMemo<ColumnDef<LogGridRow>[]>(() => {
+    const indexSize = isGrouped ? 88 : 48;
     const indexColumn: ColumnDef<LogGridRow> = {
       id: LOG_ROW_NUMBER_COL,
       header: '#',
-      cell: ({ row }) => view.offset + row.index + 1,
-      size: 48,
-      minSize: 40,
-      maxSize: 64,
+      cell: ({ row }) => {
+        const key = row.original.group?.id ?? String(row.original.logId);
+        return rowLabelMap.get(key) ?? String(view.offset + row.index + 1);
+      },
+      size: indexSize,
+      minSize: isGrouped ? 72 : 40,
+      maxSize: isGrouped ? 140 : 64,
       enableResizing: false,
       enableSorting: false,
     };
@@ -466,6 +483,8 @@ export function LogGrid({
     expandingId,
     expandGroup,
     setGrouping,
+    isGrouped,
+    rowLabelMap,
   ]);
 
   const table = useReactTable({

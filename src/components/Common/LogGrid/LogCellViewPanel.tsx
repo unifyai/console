@@ -22,13 +22,14 @@ import ListView from '@/components/Pages/Interfaces/Blocks/Selection/Views/ListV
 import { PanelExpandProvider } from '@/components/Common/Views/PanelExpandContext';
 import { sanitizeId } from '@/lib/logs/columns';
 import { parseCellId, type LogGridRow } from '@/lib/logs/types';
+import { compareRowLabels, compressRowLabels } from '@/lib/logs/rowLabels';
 import { cn } from '@/lib/utils';
 
 export type LogCellSelection = {
   cellId: string;
   logId: number;
-  /** 1-based `#` column index in the current grid (matches the left index column). */
-  rowNumber: number;
+  /** `#` column label in the current grid (flat `1` or nested `1.2.3`). */
+  rowLabel: string;
   columnId: string;
   value: unknown;
   row?: LogGridRow;
@@ -37,7 +38,7 @@ export type LogCellSelection = {
 type ValueGroup = {
   value: unknown;
   logIds: number[];
-  rowNumbers: number[];
+  rowLabels: string[];
 };
 
 type ColumnGroup = {
@@ -87,20 +88,20 @@ function valueGroupKey(value: unknown): string {
 }
 
 function sortValueGroup(group: ValueGroup): ValueGroup {
-  const order = group.rowNumbers
+  const order = group.rowLabels
     .map((_, i) => i)
-    .sort((a, b) => group.rowNumbers[a] - group.rowNumbers[b]);
+    .sort((a, b) => compareRowLabels(group.rowLabels[a]!, group.rowLabels[b]!));
   return {
     value: group.value,
-    rowNumbers: order.map((i) => group.rowNumbers[i]),
-    logIds: order.map((i) => group.logIds[i]),
+    rowLabels: order.map((i) => group.rowLabels[i]!),
+    logIds: order.map((i) => group.logIds[i]!),
   };
 }
 
 /**
  * Group selected cells by column, then by equal value — Table ViewPane style.
  * Each column is one foldable heading; identical values within a column collapse
- * to a single entry with compressed `#` display row numbers.
+ * to a single entry with compressed `#` display row labels.
  */
 export function groupCellsByColumn(cells: LogCellSelection[]): ColumnGroup[] {
   const columnOrder: string[] = [];
@@ -117,13 +118,13 @@ export function groupCellsByColumn(cells: LogCellSelection[]): ColumnGroup[] {
     if (existing) {
       if (!existing.logIds.includes(cell.logId)) {
         existing.logIds.push(cell.logId);
-        existing.rowNumbers.push(cell.rowNumber);
+        existing.rowLabels.push(cell.rowLabel);
       }
     } else {
       colMap.set(key, {
         value: cell.value,
         logIds: [cell.logId],
-        rowNumbers: [cell.rowNumber],
+        rowLabels: [cell.rowLabel],
       });
     }
   }
@@ -141,27 +142,6 @@ export function groupCellsByColumnValue(
   return groupCellsByColumn(cells).flatMap((column) =>
     column.values.map((value) => ({ ...value, columnId: column.columnId }))
   );
-}
-
-/** Compress sorted display row numbers like [3,4,5,8] → "3-5, 8". */
-function compressRowNumbers(nums: number[]): string {
-  if (!nums.length) return '';
-  const sorted = [...new Set(nums)].sort((a, b) => a - b);
-  const ranges: string[] = [];
-  let start = sorted[0];
-  let end = start;
-  for (let i = 1; i < sorted.length; i++) {
-    const current = sorted[i];
-    if (current === end + 1) {
-      end = current;
-    } else {
-      ranges.push(start === end ? String(start) : `${start}-${end}`);
-      start = current;
-      end = current;
-    }
-  }
-  ranges.push(start === end ? String(start) : `${start}-${end}`);
-  return ranges.join(', ');
 }
 
 function ComplexBody({ fieldName, value }: { fieldName: string; value: unknown }) {
@@ -326,7 +306,7 @@ function ColumnGroupDisplay({
       {isExpanded && (
         <div className="relative ml-4 border-l border-l-muted pb-2 pl-3">
           {group.values.map((valueGroup) => {
-            const rowLabel = compressRowNumbers(valueGroup.rowNumbers);
+            const rowLabel = compressRowLabels(valueGroup.rowLabels);
             const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
             return (
               <div
@@ -337,7 +317,7 @@ function ColumnGroupDisplay({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-caption text-muted-foreground">
-                    {valueGroup.rowNumbers.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
+                    {valueGroup.rowLabels.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <CopyButton
@@ -455,10 +435,9 @@ export function LogCellViewPanel({ cells, onClose, onEditCell, className }: LogC
 export function cellsFromSelection(
   selectedCells: string[],
   rows: LogGridRow[],
-  offset = 0
+  rowLabels: Map<string, string> = new Map()
 ): LogCellSelection[] {
   const byId = new Map(rows.map((r) => [String(r.logId), r]));
-  const rowNumberByLogId = new Map(rows.map((r, i) => [String(r.logId), offset + i + 1]));
   return selectedCells
     .map((cellId) => {
       const { logId, columnId } = parseCellId(cellId);
@@ -468,7 +447,7 @@ export function cellsFromSelection(
       return {
         cellId,
         logId: Number(logId) || 0,
-        rowNumber: rowNumberByLogId.get(logId) ?? 0,
+        rowLabel: rowLabels.get(logId) ?? '',
         columnId,
         value,
         row,

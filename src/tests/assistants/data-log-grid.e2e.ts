@@ -496,6 +496,60 @@ test('group by snake_case field uses Orchestra keys not camelCase', async ({
   await expect(logGridRows(page).first()).toBeVisible({ timeout: 30_000 });
 });
 
+test('grouped rows use nested x.y.z labels in grid and view pane', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+
+  const groupIndexes = page.locator('[data-testid^="log-grid-group-index-"]');
+  await expect(groupIndexes.first()).toBeVisible({ timeout: 30_000 });
+  // Top-level group headers are single-segment labels (1, 2, …) — not dotted.
+  await expect(groupIndexes.first()).toHaveText(/^\d+$/);
+
+  await page.getByTestId('log-grid-group-expand-city').first().click();
+  const firstLeafIndex = logGridRows(page).first().locator('[data-testid^="log-grid-row-index-"]');
+  await expect(firstLeafIndex).toHaveText(/^\d+\.\d+$/, { timeout: 30_000 });
+
+  const groupLabel = ((await groupIndexes.first().textContent()) ?? '').trim();
+  const leafLabel = ((await firstLeafIndex.textContent()) ?? '').trim();
+  expect(leafLabel.startsWith(`${groupLabel}.`)).toBe(true);
+
+  // Expand a second city group so we can select across nests.
+  const expands = page.getByTestId('log-grid-group-expand-city');
+  expect(await expands.count()).toBeGreaterThanOrEqual(2);
+  await expands.nth(1).click();
+
+  const leafRows = logGridRows(page);
+  await expect(leafRows.first()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => leafRows.count()).toBeGreaterThanOrEqual(2);
+
+  const rowA = leafRows.first();
+  const rowB = leafRows.last();
+  const labelA = (
+    (await rowA.locator('[data-testid^="log-grid-row-index-"]').textContent()) ?? ''
+  ).trim();
+  const labelB = (
+    (await rowB.locator('[data-testid^="log-grid-row-index-"]').textContent()) ?? ''
+  ).trim();
+  expect(labelA).toMatch(/^\d+\.\d+$/);
+  expect(labelB).toMatch(/^\d+\.\d+$/);
+  expect(labelA).not.toBe(labelB);
+
+  await rowA.locator('[data-testid^="log-grid-cell-"]').first().click();
+  await rowB
+    .locator('[data-testid^="log-grid-cell-"]')
+    .first()
+    .click({ modifiers: ['Control'] });
+  await openCellViewPanel(page);
+
+  const panel = page.getByTestId('log-cell-view-panel');
+  await expect(panel).toContainText(labelA);
+  await expect(panel).toContainText(labelB);
+});
+
 test('row index column stays pinned while scrolling horizontally', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 

@@ -97,6 +97,7 @@ export function DataLeafTable({
   const queryClient = useQueryClient();
   const [view, setView, replaceView] = useLogViewState(context);
   const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
+  const [rowLabels, setRowLabels] = React.useState<Map<string, string>>(() => new Map());
 
   const initializedRef = React.useRef<string | null>(null);
 
@@ -121,6 +122,7 @@ export function DataLeafTable({
 
   React.useEffect(() => {
     setBrowseRows([]);
+    setRowLabels(new Map());
   }, [context]);
 
   React.useEffect(() => {
@@ -212,8 +214,8 @@ export function DataLeafTable({
   );
 
   const cellSelections = React.useMemo(
-    () => cellsFromSelection(selectedCells, panelRows, view.offset),
-    [selectedCells, panelRows, view.offset]
+    () => cellsFromSelection(selectedCells, panelRows, rowLabels),
+    [selectedCells, panelRows, rowLabels]
   );
 
   const showPanel = viewPanelOpen && selectedCells.length > 0;
@@ -241,6 +243,7 @@ export function DataLeafTable({
         error={error}
         onRetry={() => void refetch()}
         onBrowseRowsChange={setBrowseRows}
+        onRowLabelsChange={setRowLabels}
         selection={selection}
         hasSelection={selectedCells.length > 0}
         viewPanelOpen={viewPanelOpen}
