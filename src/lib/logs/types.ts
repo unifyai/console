@@ -175,6 +175,35 @@ export function isAllRowSelected(
 }
 
 /**
+ * Inset box-shadows for the top/left/bottom outer edges of a contiguous
+ * selection. The right edge is drawn via `border-r` (same 1px grid slot) so it
+ * overlays the existing column rule without doubling. Shared edges between
+ * adjacent selected cells are omitted so the perimeter stays single-thickness.
+ */
+export function selectionPerimeterBoxShadow(
+  selected: Set<string>,
+  logId: string | number,
+  columnId: string,
+  columnIds: string[],
+  rows: Array<{ logId: number }>
+): string | undefined {
+  const colIdx = columnIds.indexOf(columnId);
+  const rowIdx = rows.findIndex((row) => String(row.logId) === String(logId));
+  if (colIdx < 0 || rowIdx < 0) return undefined;
+
+  const leftSelected = colIdx > 0 && selected.has(makeCellId(logId, columnIds[colIdx - 1]!));
+  const topSelected = rowIdx > 0 && selected.has(makeCellId(rows[rowIdx - 1]!.logId, columnId));
+  const bottomSelected =
+    rowIdx < rows.length - 1 && selected.has(makeCellId(rows[rowIdx + 1]!.logId, columnId));
+
+  const parts: string[] = [];
+  if (!topSelected) parts.push('inset 0 1px 0 0 var(--primary)');
+  if (!bottomSelected) parts.push('inset 0 -1px 0 0 var(--primary)');
+  if (!leftSelected) parts.push('inset 1px 0 0 0 var(--primary)');
+  return parts.length > 0 ? parts.join(', ') : undefined;
+}
+
+/**
  * Cell ids in the inclusive axis-aligned rectangle between two cells,
  * using the given row order and visible column order (Interfaces-style).
  */
