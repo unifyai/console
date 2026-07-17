@@ -47,7 +47,7 @@ async function expectNoWorkspaceCube(page: import('@playwright/test').Page): Pro
 }
 
 async function expectNoSectionBodySkeleton(page: import('@playwright/test').Page): Promise<void> {
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0);
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0);
 }
 
 async function expectNoAssistantTabSkeletons(page: import('@playwright/test').Page): Promise<void> {
@@ -62,7 +62,9 @@ async function expectNoAssistantTabSkeletons(page: import('@playwright/test').Pa
     'live-actions-loading',
   ];
   for (const testId of skeletonTestIds) {
-    await expect(page.getByTestId(testId)).toHaveCount(0);
+    // Unified shell keeps Main mounted (often hidden) across settings/admin, so
+    // page-wide skeleton queries can hit inert copies. Only visible ones matter.
+    await expect(page.locator(`[data-testid="${testId}"]:visible`)).toHaveCount(0);
   }
 }
 
@@ -91,8 +93,16 @@ async function observeSkeletonFlicker(page: Page): Promise<() => Promise<string[
     w.__shellSkeletonFlickerObserver?.observer.disconnect();
     const seen = new Set<string>();
     const selector = testIds.map((testId) => `[data-testid="${testId}"]`).join(',');
+    const isVisible = (element: Element): boolean => {
+      if (!(element instanceof HTMLElement)) return false;
+      if (typeof element.checkVisibility === 'function') {
+        return element.checkVisibility();
+      }
+      return element.getClientRects().length > 0;
+    };
     const recordMatches = () => {
       document.querySelectorAll(selector).forEach((element) => {
+        if (!isVisible(element)) return;
         const testId = element.getAttribute('data-testid');
         if (testId) seen.add(testId);
       });
@@ -102,7 +112,7 @@ async function observeSkeletonFlicker(page: Page): Promise<() => Promise<string[
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['data-testid'],
+      attributeFilter: ['data-testid', 'class', 'style', 'hidden', 'aria-hidden'],
     });
     w.__shellSkeletonFlickerObserver = { observer, seen };
   }, SHELL_FLICKER_SKELETON_TEST_IDS);
@@ -143,7 +153,9 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await railSection(page, 'tasks').click();
   await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
   await expectNoWorkspaceCube(page);
-  await expect(page.getByTestId('tasks-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="tasks-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
 
   let documentRequests = 0;
   let rscRequests = 0;
@@ -161,7 +173,9 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await visibleShellTestId(page, 'rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/);
   await expect(page.getByTestId('settings-subrail')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
   await expectNoWorkspaceCube(page);
 
   await page.getByTestId('settings-nav-contact-info').click();
@@ -172,13 +186,17 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await page.getByTestId('settings-link-organizations').click();
   await expect(page).toHaveURL(/\/organizations/);
   await expect(page.getByTestId('settings-subrail')).toBeVisible();
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
   await expectNoWorkspaceCube(page);
 
   await page.getByTestId('settings-link-admin').click();
   await expect(page).toHaveURL(/\/admin/);
   await expect(page.getByTestId('admin-nav-organizations')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('section-body-skeleton')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('[data-testid="section-body-skeleton"]:visible')).toHaveCount(0, {
+    timeout: 15_000,
+  });
   await expectNoWorkspaceCube(page);
 
   const stopAdminToTasksObserver = await observeSkeletonFlicker(page);
