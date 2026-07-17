@@ -17,6 +17,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { TableHead } from '@/components/UI/table';
@@ -39,7 +42,7 @@ type LogGridColumnHeaderProps = {
 };
 
 /**
- * Clean column header: label + active-only sort/filter icons; hover ⋯ for
+ * Clean column header: label with active sort/filter indicators; hover ⋯ opens
  * sort/filter/reorder/derived actions. Drag listeners are attached by the
  * parent SortableHeader when reorder is enabled.
  */
@@ -71,12 +74,9 @@ export function LogGridColumnHeader({
       className="group/header relative flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden"
       data-testid={`log-grid-header-${fieldKey}`}
     >
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-1 h-7 min-w-0 flex-1 justify-start gap-1 px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted hover:text-foreground"
-        onClick={() => column.toggleSorting(sorted === 'asc')}
-        data-testid={`log-grid-sort-${fieldKey}`}
+      <div
+        className="-ml-1 flex h-7 min-w-0 flex-1 items-center gap-1 px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+        data-testid={`log-grid-label-${fieldKey}`}
       >
         <span className="truncate">{fieldKey}</span>
         {sorted === 'asc' && (
@@ -85,7 +85,7 @@ export function LogGridColumnHeader({
         {sorted === 'desc' && (
           <ArrowDown className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
         )}
-      </Button>
+      </div>
 
       <div className="relative flex shrink-0 items-center">
         <LogColumnFilter
@@ -117,38 +117,50 @@ export function LogGridColumnHeader({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[11rem]">
-          <DropdownMenuItem
-            className="text-body-sm gap-2"
-            onClick={() => {
-              column.toggleSorting(false);
-              setMenuOpen(false);
-            }}
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-            Sort ascending
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-body-sm gap-2"
-            onClick={() => {
-              column.toggleSorting(true);
-              setMenuOpen(false);
-            }}
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-            Sort descending
-          </DropdownMenuItem>
-          {sorted && (
-            <DropdownMenuItem
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger
               className="text-body-sm gap-2"
-              onClick={() => {
-                column.clearSorting();
-                setMenuOpen(false);
-              }}
+              data-testid={`log-grid-sort-menu-${fieldKey}`}
             >
               <ArrowUpDown className="h-3.5 w-3.5" />
-              Clear sort
-            </DropdownMenuItem>
-          )}
+              Sort
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="min-w-[9rem]">
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                data-testid={`log-grid-sort-asc-${fieldKey}`}
+                onClick={() => {
+                  column.toggleSorting(false);
+                  setMenuOpen(false);
+                }}
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+                Ascending
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                data-testid={`log-grid-sort-desc-${fieldKey}`}
+                onClick={() => {
+                  column.toggleSorting(true);
+                  setMenuOpen(false);
+                }}
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+                Descending
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                data-testid={`log-grid-sort-clear-${fieldKey}`}
+                disabled={!sorted}
+                onClick={() => {
+                  column.clearSorting();
+                  setMenuOpen(false);
+                }}
+              >
+                Clear
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid={`log-grid-filter-open-${fieldKey}`}

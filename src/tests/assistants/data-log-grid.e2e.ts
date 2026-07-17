@@ -108,8 +108,8 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await page.getByTestId('log-grid-columns').click();
   await page.getByTestId('log-grid-column-toggle-city').click();
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('log-grid-sort-city')).toHaveCount(0);
-  await expect(page.getByTestId('log-grid-sort-name')).toBeVisible();
+  await expect(page.getByTestId('log-grid-label-city')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-label-name')).toBeVisible();
 
   // Server filter via column ⋯ menu
   const nameHeader = page.getByTestId('log-grid-header-name');
@@ -134,9 +134,12 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
     timeout: 30_000,
   });
 
-  // Server sort by score descending
-  await page.getByTestId('log-grid-sort-score').click(); // asc
-  await page.getByTestId('log-grid-sort-score').click(); // desc
+  // Server sort by score descending via column ⋯ → Sort submenu
+  const scoreHeader = page.getByTestId('log-grid-header-score');
+  await scoreHeader.hover();
+  await page.getByTestId('log-grid-column-menu-score').click({ force: true });
+  await page.getByTestId('log-grid-sort-menu-score').hover();
+  await page.getByTestId('log-grid-sort-desc-score').click({ force: true });
   const firstRow = page.locator('[data-testid^="log-grid-row-"]').first();
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');

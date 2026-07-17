@@ -613,7 +613,7 @@ export function LogGrid({
                                   key={header.id}
                                   header={header}
                                   reorderEnabled={reorderColumnId === header.column.id}
-                                  className="relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground"
+                                  className="relative h-8 whitespace-nowrap border-r border-border px-1 text-[11px] text-muted-foreground"
                                   style={{
                                     width: header.getSize(),
                                   }}
@@ -625,7 +625,7 @@ export function LogGrid({
                                         onMouseDown={header.getResizeHandler()}
                                         onTouchStart={header.getResizeHandler()}
                                         className={cn(
-                                          'bg-border/60 absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none hover:bg-primary',
+                                          'absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary',
                                           header.column.getIsResizing() && 'bg-primary'
                                         )}
                                         data-testid={`log-grid-resize-${sanitizeId(header.column.id)}`}
@@ -652,7 +652,10 @@ export function LogGrid({
                             <TableRow
                               key={row.id}
                               data-testid={`log-grid-row-${row.original.logId}`}
-                              className={cn('cursor-pointer', isSelected && 'bg-muted/60')}
+                              className={cn(
+                                'cursor-pointer hover:bg-transparent',
+                                isSelected && 'bg-muted/60'
+                              )}
                               onClick={() => {
                                 if (selection?.mode === 'row') {
                                   selection.onSelectRow(String(row.original.logId));
@@ -671,7 +674,7 @@ export function LogGrid({
                                       width: cell.column.getSize(),
                                     }}
                                     className={cn(
-                                      'max-w-[220px] truncate px-2.5 py-1.5 font-mono text-[12px]',
+                                      'max-w-[220px] truncate border-r border-border px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
                                       selection?.mode === 'cell' && 'select-none',
                                       cellSelected &&
                                         'bg-primary-tint-10 ring-1 ring-inset ring-primary'
