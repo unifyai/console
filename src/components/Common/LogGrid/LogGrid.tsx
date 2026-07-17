@@ -731,7 +731,7 @@ export function LogGrid({
     isSelectingRef.current = false;
   }, []);
 
-  /** Empty chrome / headers / non-cell clicks clear the selection (Excel-style). */
+  /** Empty chrome / non-cell clicks clear the selection (Excel-style). */
   const clearSelectionOnBackgroundPointerDown = React.useCallback(
     (e: React.MouseEvent) => {
       if (selection?.mode !== 'cell') return;
@@ -747,10 +747,11 @@ export function LogGrid({
       ) {
         return;
       }
-      // Keep selection when using header menus, filters, resize handles, etc.
+      // Headers, menus, filters, and portaled overlays (React portals still bubble
+      // through the component tree into this ScrollArea handler).
       if (
         target.closest(
-          'button, input, textarea, [role="separator"], [role="menu"], [role="menuitem"], [data-radix-popper-content-wrapper]'
+          'thead, [data-testid^="log-grid-header-"], [data-testid="log-grid-row-index-header"], button, input, textarea, [role="separator"], [role="menu"], [role="menuitem"], [data-radix-portal], [data-radix-popper-content-wrapper], [data-radix-popover-content]'
         )
       ) {
         return;

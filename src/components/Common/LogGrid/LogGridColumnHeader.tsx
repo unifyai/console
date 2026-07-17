@@ -86,12 +86,15 @@ export function LogGridColumnHeader({
   const openFilter = () => {
     openFilterAfterMenuCloseRef.current = true;
     setMenuOpen(false);
-    // Wait for the menu close cycle so the click that selected "Filter…"
-    // is not treated as an outside click on the newly opened popover.
+    // Defer past the menu-dismiss pointer cycle. A zero-delay timeout races with
+    // click fall-through onto the header/ScrollArea (especially with background
+    // mousedown handlers), which immediately closes the newly opened popover.
     window.setTimeout(() => {
       setFilterOpen(true);
+    }, 50);
+    window.setTimeout(() => {
       openFilterAfterMenuCloseRef.current = false;
-    }, 0);
+    }, 100);
   };
 
   return (
@@ -211,7 +214,12 @@ export function LogGridColumnHeader({
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid={`log-grid-filter-open-${fieldKey}`}
-            onClick={openFilter}
+            onSelect={(event) => {
+              // Prevent the menu from restoring focus into the header on close;
+              // that focus move dismisses the filter popover as an outside click.
+              event.preventDefault();
+              openFilter();
+            }}
           >
             <Filter className="h-3.5 w-3.5" />
             {hasFilter ? 'Edit filter' : 'Filter…'}
