@@ -14,6 +14,15 @@ import {
   type SelectionModel,
 } from '@/lib/logs';
 import type { DataField, DataRow } from './dataTypes';
+import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
+import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
+
+function normalizeBoolFlag(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
 
 function fieldsToDataFields(
   fields: Record<
@@ -22,6 +31,7 @@ function fieldsToDataFields(
       dataType?: string;
       fieldType?: string;
       mutable?: string | boolean;
+      uiEditable?: string | boolean;
       enumValues?: string[] | null;
       restrict?: boolean;
       [key: string]: unknown;
@@ -34,14 +44,8 @@ function fieldsToDataFields(
       {
         dataType: value.dataType,
         fieldType: value.fieldType,
-        mutable:
-          typeof value.mutable === 'boolean'
-            ? value.mutable
-            : value.mutable === 'true'
-              ? true
-              : value.mutable === 'false'
-                ? false
-                : undefined,
+        mutable: normalizeBoolFlag(value.mutable),
+        uiEditable: normalizeBoolFlag(value.uiEditable),
         enumValues: Array.isArray(value.enumValues) ? (value.enumValues as string[]) : null,
         restrict: typeof value.restrict === 'boolean' ? value.restrict : undefined,
       } satisfies DataField,
@@ -55,6 +59,7 @@ function toDataRow(row: LogGridRow): DataRow {
 
 interface DataLeafTableProps {
   context: string;
+  mode: DataBrowserMode;
   selectedRowId: string | null;
   onRowSelect: (row: DataRow | null) => void;
   onMetaChange?: (meta: {
@@ -73,6 +78,7 @@ interface DataLeafTableProps {
  */
 export function DataLeafTable({
   context,
+  mode,
   selectedRowId: _selectedRowId,
   onRowSelect,
   onMetaChange,
@@ -244,6 +250,7 @@ export function DataLeafTable({
           void refreshAll();
         }}
         onMutated={() => void refreshAll()}
+        allowDelete={!isStateManagerMode(mode)}
         testId="data-leaf-table"
         className="min-h-0 min-w-0 flex-1"
       />

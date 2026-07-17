@@ -63,6 +63,7 @@ import {
   cellsForRow,
   cellsForRowRange,
   isAllRowSelected,
+  selectionPerimeterBoxShadow,
   LOG_ROW_NUMBER_COL,
   type LogFieldsResponseProps,
   type LogGridRow,
@@ -156,6 +157,8 @@ export interface LogGridProps {
   onToggleViewPanel?: () => void;
   /** Opens the cell view pane (e.g. double-click). No-op if already open. */
   onOpenViewPanel?: () => void;
+  /** When false, hide row/cell delete affordances (default true). */
+  allowDelete?: boolean;
   className?: string;
   testId?: string;
 }
@@ -186,6 +189,7 @@ export function LogGrid({
   viewPanelOpen = false,
   onToggleViewPanel,
   onOpenViewPanel,
+  allowDelete = true,
   className,
   testId = 'log-grid',
 }: LogGridProps) {
@@ -761,8 +765,9 @@ export function LogGrid({
   };
 
   const canDelete =
-    (selection?.mode === 'row' && !!selection.selectedRowId) ||
-    (selection?.mode === 'cell' && selectedCellLogIds.length > 0);
+    allowDelete &&
+    ((selection?.mode === 'row' && !!selection.selectedRowId) ||
+      (selection?.mode === 'cell' && selectedCellLogIds.length > 0));
 
   const moveCellFocus = (key: string) => {
     if (selection?.mode !== 'cell' || !selectableRows.length || !visible.length) return;
@@ -1027,6 +1032,10 @@ export function LogGrid({
                                   const rowFullySelected =
                                     !!selectedCells &&
                                     isAllRowSelected(selectedCells, logId, visible);
+                                  const firstColSelected =
+                                    !!selectedCells &&
+                                    visible.length > 0 &&
+                                    selectedCells.has(makeCellId(logId, visible[0]!));
                                   return (
                                     <TableCell
                                       key={cell.id}
@@ -1036,7 +1045,8 @@ export function LogGrid({
                                         minWidth: cell.column.getSize(),
                                       }}
                                       className={cn(
-                                        'sticky left-0 z-20 cursor-pointer select-none border-r border-border px-1 py-1.5 text-center font-mono text-[12px]',
+                                        'sticky left-0 z-20 cursor-pointer select-none border-r px-1 py-1.5 text-center font-mono text-[12px]',
+                                        firstColSelected ? 'border-transparent' : 'border-border',
                                         rowFullySelected
                                           ? 'bg-primary text-primary-foreground'
                                           : // Opaque hover: muted/primary-tint mix with transparent.
@@ -1065,18 +1075,39 @@ export function LogGrid({
                                 const cellId = makeCellId(row.original.logId, cell.column.id);
                                 const cellSelected = selectedCells?.has(cellId);
                                 const isNewCell = newCells.has(cellId);
+                                const colIdx = visible.indexOf(cell.column.id);
+                                const rightNeighborSelected =
+                                  !!selectedCells &&
+                                  colIdx >= 0 &&
+                                  colIdx < visible.length - 1 &&
+                                  selectedCells.has(
+                                    makeCellId(row.original.logId, visible[colIdx + 1]!)
+                                  );
                                 return (
                                   <TableCell
                                     key={cell.id}
                                     data-testid={`log-grid-cell-${cellId}`}
                                     style={{
                                       width: cell.column.getSize(),
+                                      boxShadow:
+                                        cellSelected && selectedCells
+                                          ? selectionPerimeterBoxShadow(
+                                              selectedCells,
+                                              row.original.logId,
+                                              cell.column.id,
+                                              visible,
+                                              selectableRows
+                                            )
+                                          : undefined,
                                     }}
                                     className={cn(
-                                      'max-w-[220px] truncate border-r border-border px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
+                                      'max-w-[220px] truncate border-r px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
                                       selection?.mode === 'cell' && 'select-none',
-                                      cellSelected &&
-                                        'bg-primary-tint-10 ring-1 ring-inset ring-primary',
+                                      cellSelected
+                                        ? rightNeighborSelected
+                                          ? 'border-transparent bg-primary-tint-10'
+                                          : 'border-primary bg-primary-tint-10'
+                                        : 'border-border',
                                       isNewCell && 'animate-fade-accent'
                                     )}
                                     onMouseDown={(e) => onCellPointerDown(e, cellId)}
