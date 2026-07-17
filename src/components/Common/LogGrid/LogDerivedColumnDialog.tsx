@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { Plus } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
@@ -12,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/UI/dialog';
+import FormulaInput from '@/components/Common/Input/Formula';
 import {
   derivedFunctionToExpression,
   expressionToDerivedFunction,
@@ -24,11 +24,11 @@ interface LogDerivedColumnDialogProps {
   onOpenChange: (open: boolean) => void;
   projectName: string;
   context: string;
-  tableName: string;
   columns: string[];
   /** When set, dialog updates this derived column instead of creating. */
   editColumn?: { key: string; equation: string } | null;
-  onCreated: () => void;
+  /** Called after a successful create/update with the column key. */
+  onCreated: (key: string, meta: { created: boolean }) => void;
 }
 
 export function LogDerivedColumnDialog({
@@ -48,6 +48,18 @@ export function LogDerivedColumnDialog({
 
   const flatColumns = React.useMemo(() => columns.map((c) => sanitizeId(c)), [columns]);
   const tableAlias = 't';
+
+  const formulaOptions = React.useMemo(
+    () => [
+      { name: tableAlias, type: 'Table Name', children: flatColumns },
+      ...flatColumns.map((column) => ({
+        name: column,
+        type: 'Column Name',
+        children: [] as string[],
+      })),
+    ],
+    [flatColumns]
+  );
 
   React.useEffect(() => {
     if (!open) {
@@ -71,6 +83,10 @@ export function LogDerivedColumnDialog({
     }
     if (!expression.trim()) {
       setError('Expression is required');
+      return;
+    }
+    if (!isEdit && flatColumns.includes(key)) {
+      setError(`${key} already used as a column name.`);
       return;
     }
     setPending(true);
@@ -106,7 +122,7 @@ export function LogDerivedColumnDialog({
       return;
     }
     onOpenChange(false);
-    onCreated();
+    onCreated(key, { created: !isEdit });
   };
 
   return (
@@ -115,7 +131,8 @@ export function LogDerivedColumnDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit derived column' : 'Add derived column'}</DialogTitle>
           <DialogDescription>
-            Define a formula using existing column names (e.g. score * 2).
+            Enter a Python-style expression using existing column names as variables (e.g. score *
+            2). Press Tab for suggestions.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
@@ -134,16 +151,16 @@ export function LogDerivedColumnDialog({
           </div>
           <div className="space-y-1.5">
             <label className="text-caption text-muted-foreground" htmlFor="derived-expr">
-              Expression
+              Derived expression
             </label>
-            <Input
-              id="derived-expr"
-              value={expression}
-              onChange={(e) => setExpression(e.target.value)}
-              placeholder="score * 2"
-              className="font-mono"
-              data-testid="log-grid-derived-expression"
-            />
+            <div data-testid="log-grid-derived-expression">
+              <FormulaInput
+                options={formulaOptions}
+                value={expression}
+                setValue={setExpression}
+                placeholder="Press Tab for suggestions"
+              />
+            </div>
           </div>
           {error && <p className="text-caption text-destructive">{error}</p>}
         </div>
@@ -161,20 +178,5 @@ export function LogDerivedColumnDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-export function LogDerivedColumnTrigger({ onClick }: { onClick: () => void }) {
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="h-8 gap-1.5"
-      onClick={onClick}
-      data-testid="log-grid-derived-open"
-    >
-      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-      Derived
-    </Button>
   );
 }

@@ -303,6 +303,49 @@ test('click-drag selects the bounding cell region', async ({ authedPage: page })
   });
 });
 
+test('creates a derived column from the toolbar and pins it on the far right', async ({
+  authedPage: page,
+}) => {
+  await openPeopleTable(page);
+
+  const derivedKey = `doubled_score_${Date.now()}`;
+  // Console field keys are camelCased at the Orchestra boundary.
+  const derivedColumnId = derivedKey.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+
+  await page.getByTestId('log-grid-derived-open').click();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('log-grid-derived-name').fill(derivedKey);
+  await page.getByTestId('log-grid-derived-expression').locator('input').fill('score * 2');
+  await page.getByTestId('log-grid-derived-submit').click();
+
+  await expect(page.getByTestId('log-grid-derived-dialog')).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.getByTestId(`log-grid-header-${derivedColumnId}`)).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // New derived column is the last data header (after name/city/score).
+  const headers = page.locator('thead [data-testid^="log-grid-header-"]');
+  await expect(headers.last()).toHaveAttribute('data-testid', `log-grid-header-${derivedColumnId}`);
+
+  // Ada's score is 95 → derived value 190 should appear in the grid.
+  await expect(logGridRows(page).filter({ hasText: 'Ada Lovelace' })).toContainText('190', {
+    timeout: 30_000,
+  });
+
+  const fieldsRes = await orchestraFetch(
+    `/v0/logs/fields?${new URLSearchParams({
+      project_name: 'Assistants',
+      context: contextPath,
+    }).toString()}`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(fieldsRes.ok).toBe(true);
+  const fields = (await fieldsRes.json()) as Record<string, { field_type?: string }>;
+  // Orchestra stores the snake_case key the client submitted.
+  expect(fields[derivedKey]?.field_type).toBe('derived_entry');
+});
+
 test('column search works', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 

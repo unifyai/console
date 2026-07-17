@@ -84,6 +84,7 @@ import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
 import { LogCellValue } from './LogCellValue';
 import { LogGridColumnHeader, LogGridSortableHead } from './LogGridColumnHeader';
 import { LogGridToolbar } from './LogGridToolbar';
+import { snakeToCamel } from '@/utils/casing';
 
 function SortableHeader({
   header,
@@ -141,7 +142,8 @@ export interface LogGridProps {
   onLoadMore?: () => void;
   selection?: SelectionModel;
   onRowActivate?: (row: LogGridRow) => void;
-  onDerivedCreated?: () => void;
+  /** Refresh fields/rows after a derived column is created or updated. */
+  onDerivedCreated?: (key: string) => void;
   onMutated?: () => void;
   filterExpr?: string | null;
   error?: Error | null;
@@ -195,7 +197,6 @@ export function LogGrid({
   const [treeRows, setTreeRows] = React.useState<LogGridRow[]>(rows);
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
   const [expandingId, setExpandingId] = React.useState<string | null>(null);
-  const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement>(null);
   const loadMoreSentinelRef = React.useRef<HTMLDivElement>(null);
@@ -854,6 +855,10 @@ export function LogGrid({
             canDelete={canDelete}
             isFetching={isFetching || isFetchingNextPage}
             onDeleteRows={() => setDeleteConfirmOpen(true)}
+            onAddDerivedColumn={() => {
+              setEditColumn(null);
+              setDerivedOpen(true);
+            }}
             hasSelection={hasSelection}
             viewPanelOpen={viewPanelOpen}
             onToggleViewPanel={onToggleViewPanel}
@@ -1096,10 +1101,20 @@ export function LogGrid({
             }}
             projectName={projectName}
             context={context}
-            tableName={tableName}
             columns={columns}
             editColumn={editColumn}
-            onCreated={() => onDerivedCreated?.()}
+            onCreated={(key, { created }) => {
+              // Fields responses are camelCased at the Orchestra boundary, so pin
+              // the camelCase id that LogGrid will actually render.
+              const columnId = snakeToCamel(key);
+              if (created) {
+                const order = view.columnOrder.length ? view.columnOrder : columns;
+                if (!order.includes(columnId)) {
+                  onViewChange({ columnOrder: [...order, columnId] });
+                }
+              }
+              onDerivedCreated?.(columnId);
+            }}
           />
 
           <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

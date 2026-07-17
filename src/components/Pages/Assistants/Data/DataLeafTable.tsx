@@ -239,7 +239,9 @@ export function DataLeafTable({
         viewPanelOpen={viewPanelOpen}
         onToggleViewPanel={() => setViewPanelOpen((open) => !open)}
         filterExpr={spec?.filterExpr}
-        onDerivedCreated={() => void refreshAll()}
+        onDerivedCreated={() => {
+          void refreshAll();
+        }}
         onMutated={() => void refreshAll()}
         testId="data-leaf-table"
         className="min-h-0 min-w-0 flex-1"

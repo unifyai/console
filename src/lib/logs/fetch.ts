@@ -78,9 +78,16 @@ export async function fetchLogs(
   }
 
   const rows: LogGridRow[] = (Array.isArray(rawLogs) ? rawLogs : []).map(
-    (log: { id?: number; entries?: Record<string, unknown> }) => ({
+    (log: {
+      id?: number;
+      entries?: Record<string, unknown>;
+      derivedEntries?: Record<string, unknown>;
+    }) => ({
       logId: log.id ?? 0,
-      entries: stripPrivateFields(log.entries ?? {}),
+      entries: stripPrivateFields({
+        ...(log.entries ?? {}),
+        ...(log.derivedEntries ?? {}),
+      }),
       raw: log as unknown as LogGridRow['raw'],
     })
   );

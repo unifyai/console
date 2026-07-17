@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, PanelRight, Trash2 } from 'lucide-react';
+import { MoreHorizontal, PanelRight, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
@@ -25,6 +25,8 @@ export type LogGridToolbarProps = {
   canDelete: boolean;
   isFetching: boolean;
   onDeleteRows: () => void;
+  /** Opens the derived-column create dialog. */
+  onAddDerivedColumn?: () => void;
   /** Whether any cells are currently selected (enables the view-pane toggle). */
   hasSelection?: boolean;
   /** Whether the cell view pane is open. */
@@ -46,6 +48,7 @@ export function LogGridToolbar({
   canDelete,
   isFetching,
   onDeleteRows,
+  onAddDerivedColumn,
   hasSelection = false,
   viewPanelOpen = false,
   onToggleViewPanel,
@@ -79,6 +82,28 @@ export function LogGridToolbar({
         hiddenColumns={view.hiddenColumns}
         onChange={(hiddenColumns) => onViewChange({ hiddenColumns })}
       />
+      {onAddDerivedColumn && (
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 shrink-0 p-0"
+                onClick={onAddDerivedColumn}
+                aria-label="Add derived column"
+                data-testid="log-grid-derived-open"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Add derived column</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
       {canDelete && (
         <DropdownMenu modal={false}>
