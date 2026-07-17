@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Room, Track } from 'livekit-client';
+import { RemoteParticipant, Room, Track } from 'livekit-client';
 import { Mic, MicOff, PhoneOff, Video, VideoOff, UserPlus, LogOut } from 'lucide-react';
 import { RoomContext, useIsSpeaking, useTracks } from '@livekit/components-react';
 import { Button } from '@/components/UI/button';
@@ -99,17 +99,39 @@ function LocalHumanTile({
 function RemoteHumanTile({
   name,
   image,
-  identity,
+  userId,
   room,
 }: {
   name: string;
   image: string | null;
-  identity: string;
+  userId: string;
   room: Room | null;
 }) {
+  // A participant can be "joined" in the Orchestra session before (or without)
+  // their LiveKit connection existing — e.g. the answer API succeeded but the
+  // room connect is still in flight. Participant-context hooks throw when
+  // given undefined, so only mount the connected tile once the peer is
+  // actually present in the room.
   const participant = room
-    ? [...room.remoteParticipants.values()].find((p) => p.identity === identity || p.name === name)
+    ? [...room.remoteParticipants.values()].find(
+        (p) => p.identity.startsWith(`user-${userId}-`) || p.name === name
+      )
     : undefined;
+  if (!participant) {
+    return <HumanTile name={name} image={image} isSpeaking={false} />;
+  }
+  return <ConnectedRemoteHumanTile name={name} image={image} participant={participant} />;
+}
+
+function ConnectedRemoteHumanTile({
+  name,
+  image,
+  participant,
+}: {
+  name: string;
+  image: string | null;
+  participant: RemoteParticipant;
+}) {
   const isSpeaking = useIsSpeaking(participant);
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }], {
     onlySubscribed: true,
@@ -117,7 +139,7 @@ function RemoteHumanTile({
   const cam = tracks.find(
     (t) =>
       !t.participant.isLocal &&
-      (t.participant.identity === identity || t.participant.name === name) &&
+      t.participant.identity === participant.identity &&
       t.publication?.track
   );
   let videoEl: React.ReactNode = null;
@@ -208,16 +230,12 @@ function MeetBody({
       <LocalHumanTile name={localName} image={localImage} room={room} />
       {remoteHumans.map((p) => {
         const human = humansById[p.userId];
-        const identity =
-          [...room.remoteParticipants.values()].find(
-            (rp) => rp.name === human?.name || rp.identity.includes(p.userId)
-          )?.identity || p.userId;
         return (
           <RemoteHumanTile
             key={p.userId}
             name={human?.name || 'Teammate'}
             image={human?.image ?? null}
-            identity={identity}
+            userId={p.userId}
             room={room}
           />
         );
