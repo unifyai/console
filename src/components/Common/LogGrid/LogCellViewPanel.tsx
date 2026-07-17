@@ -272,10 +272,11 @@ function ValueCopyButton({ value }: { value: unknown }) {
 }
 
 /** Clipped `#` / range gutter; full label via native title on hover. */
-function RowGutter({ label }: { label: string }) {
+function RowGutter({ label, widthCh }: { label: string; widthCh: number }) {
   return (
     <span
-      className="max-w-[4.5rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 font-mono text-[12px] leading-snug text-muted-foreground"
+      className="max-w-[4.5rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 text-right font-mono text-[12px] tabular-nums leading-snug text-muted-foreground"
+      style={{ width: `calc(${widthCh}ch + 0.75rem)` }}
       title={label}
       data-testid="log-cell-view-row-label"
     >
@@ -284,10 +285,23 @@ function RowGutter({ label }: { label: string }) {
   );
 }
 
+/** Widest compressed row label in the pane — keeps gutter dividers aligned. */
+function maxRowLabelWidthCh(columns: ColumnGroup[]): number {
+  let max = 1;
+  for (const column of columns) {
+    for (const valueGroup of column.values) {
+      const len = compressRowLabels(valueGroup.rowLabels).length;
+      if (len > max) max = len;
+    }
+  }
+  return max;
+}
+
 function CellBody({
   value,
   fieldName,
   rowLabel,
+  gutterCh,
   editable,
   draftText,
   onCommit,
@@ -295,6 +309,7 @@ function CellBody({
   value: unknown;
   fieldName: string;
   rowLabel: string;
+  gutterCh: number;
   editable: boolean;
   draftText: string;
   onCommit?: (draft: string) => Promise<boolean>;
@@ -374,7 +389,7 @@ function CellBody({
       data-testid="log-cell-view-value"
       data-editable={editable ? 'true' : 'false'}
     >
-      <RowGutter label={rowLabel} />
+      <RowGutter label={rowLabel} widthCh={gutterCh} />
       <div className="relative min-w-0 flex-1">{content}</div>
     </div>
   );
@@ -382,7 +397,7 @@ function CellBody({
   if (isEditing) {
     return (
       <div className="relative flex min-w-0 overflow-hidden rounded-md border border-primary bg-background font-mono text-[12px]">
-        <RowGutter label={rowLabel} />
+        <RowGutter label={rowLabel} widthCh={gutterCh} />
         <div className="relative min-w-0 flex-1">
           <Textarea
             ref={inputRef}
@@ -440,11 +455,13 @@ function CellBody({
 
 function ColumnGroupDisplay({
   group,
+  gutterCh,
   isColumnEditable,
   onCommitEdit,
   draftForValue,
 }: {
   group: ColumnGroup;
+  gutterCh: number;
   isColumnEditable?: (columnId: string) => boolean;
   onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
   draftForValue?: (columnId: string, value: unknown) => string;
@@ -496,6 +513,7 @@ function ColumnGroupDisplay({
                   value={valueGroup.value}
                   fieldName={label}
                   rowLabel={rowLabel}
+                  gutterCh={gutterCh}
                   editable={editable}
                   draftText={draftText === '—' ? '' : draftText}
                   onCommit={
@@ -528,6 +546,7 @@ export function LogCellViewPanel({
   className,
 }: LogCellViewPanelProps) {
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
+  const gutterCh = React.useMemo(() => maxRowLabelWidthCh(columns), [columns]);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(PANEL_DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = React.useState(false);
@@ -672,6 +691,7 @@ export function LogCellViewPanel({
               <ColumnGroupDisplay
                 key={column.columnId}
                 group={column}
+                gutterCh={gutterCh}
                 isColumnEditable={isColumnEditable}
                 onCommitEdit={onCommitEdit}
                 draftForValue={draftForValue}
