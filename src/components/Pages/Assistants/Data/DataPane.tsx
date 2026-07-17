@@ -30,7 +30,7 @@ import { useShellResource } from '@/hooks/Common/useShellResource';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFooter } from '../Common/TabFooter';
-import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
+import { TabSegment } from '../Common/TabSegmentGroup';
 import { TeamAvatar } from '../OrgChat/TeamAvatar';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
@@ -216,27 +216,25 @@ function ModeSegments({
   onChange: (mode: DataBrowserMode) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5" data-testid="data-browser-mode">
-      <TabSegmentGroup>
+    <div
+      className="flex min-w-0 flex-nowrap items-center gap-0.5 overflow-x-auto"
+      data-testid="data-browser-mode"
+    >
+      <TabSegment
+        label="Data"
+        active={mode === 'data'}
+        onClick={() => onChange('data')}
+        testId="data-mode-data"
+      />
+      {STATE_MANAGER_ROOTS.map((root) => (
         <TabSegment
-          label="Data"
-          active={mode === 'data'}
-          onClick={() => onChange('data')}
-          testId="data-mode-data"
+          key={root}
+          label={root}
+          active={mode === root}
+          onClick={() => onChange(root)}
+          testId={`data-mode-${root}`}
         />
-      </TabSegmentGroup>
-      <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-      <TabSegmentGroup className="inline-grid grid-cols-2 justify-items-start">
-        {STATE_MANAGER_ROOTS.map((root) => (
-          <TabSegment
-            key={root}
-            label={root}
-            active={mode === root}
-            onClick={() => onChange(root)}
-            testId={`data-mode-${root}`}
-          />
-        ))}
-      </TabSegmentGroup>
+      ))}
     </div>
   );
 }
@@ -616,49 +614,68 @@ export function DataPane({
   );
 
   const modeToolbar = (
-    <div className="flex flex-wrap items-start justify-between gap-2">
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
       <ModeSegments mode={mode} onChange={changeMode} />
-      <BrainScopeDropdown scope={scope} ariaLabel="Data ownership scope" />
+      <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        <BrainScopeDropdown scope={scope} ariaLabel="Data ownership scope" />
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshingTree}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+          aria-label="Refresh data contexts"
+          data-testid="data-refresh"
+        >
+          <RefreshCw
+            className={cn('h-3.5 w-3.5', isRefreshingTree && 'animate-spin')}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
     </div>
   );
 
-  const sidebarHeader = (
-    <div className="flex flex-col gap-2 border-b border-border px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-title flex min-w-0 items-center gap-2 text-foreground">
-          <Database className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="truncate">{sidebarTitle}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshingTree}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-            aria-label="Refresh data contexts"
-            data-testid="data-refresh"
-          >
-            <RefreshCw
-              className={cn('h-3.5 w-3.5', isRefreshingTree && 'animate-spin')}
-              aria-hidden="true"
-            />
-          </button>
-          {!isStackedLayout && showDirectory && (
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(false)}
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Collapse data layer sidebar"
-              data-testid="data-sidebar-collapse"
-            >
-              <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      </div>
+  const directoryToggle =
+    showDirectory && !isStackedLayout ? (
+      <button
+        type="button"
+        onClick={() => setSidebarOpen((open) => !open)}
+        className="text-body-muted inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+        aria-label={sidebarOpen ? 'Collapse data directory' : 'Expand data directory'}
+        aria-expanded={sidebarOpen}
+        data-testid={sidebarOpen ? 'data-sidebar-collapse' : 'data-sidebar-expand'}
+      >
+        {sidebarOpen ? (
+          <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
+        ) : (
+          <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+        <span className="text-title text-foreground">{sidebarTitle}</span>
+      </button>
+    ) : null;
+
+  const topToolbar = (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
+      {isStackedLayout && showDirectory && selected && !mobileShowTree ? (
+        <button
+          type="button"
+          onClick={() => setMobileShowTree(true)}
+          className="text-body-muted inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+          data-testid="data-mobile-back"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          {sidebarTitle}
+        </button>
+      ) : (
+        directoryToggle
+      )}
       {modeToolbar}
     </div>
   );
+
+  const showTreeSidebar =
+    showDirectory && (isStackedLayout ? mobileShowTree || !selected : sidebarOpen);
+  const showLeafPane = !isStackedLayout || !showDirectory || (selected && !mobileShowTree);
 
   return (
     <div
@@ -684,84 +701,36 @@ export function DataPane({
             </div>
           )}
 
+          {topToolbar}
+
           <div className="flex min-h-0 flex-1 overflow-hidden">
-            {isStackedLayout ? (
-              showDirectory && (mobileShowTree || !selected) ? (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
-                  {sidebarHeader}
-                  {treeList}
-                </div>
-              ) : (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                  <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
-                    {showDirectory ? (
-                      <button
-                        type="button"
-                        onClick={() => setMobileShowTree(true)}
-                        className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
-                        data-testid="data-mobile-back"
-                      >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        {sidebarTitle}
-                      </button>
-                    ) : (
-                      <span className="text-title text-foreground">{sidebarTitle}</span>
-                    )}
-                    {modeToolbar}
-                  </div>
-                  {selected ? (
-                    leafChrome
-                  ) : (
-                    <div className="flex h-full items-center justify-center p-8 text-center">
+            {showTreeSidebar && (
+              <div
+                className={cn(
+                  'flex min-h-0 flex-col overflow-hidden bg-card',
+                  isStackedLayout ? 'min-w-0 flex-1' : 'w-72 shrink-0 border-r border-border'
+                )}
+              >
+                {treeList}
+              </div>
+            )}
+
+            {showLeafPane && (
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                {selected ? (
+                  leafChrome
+                ) : (
+                  <div className="flex h-full items-center justify-center p-8 text-center">
+                    <div className="max-w-sm">
+                      <Table2
+                        className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                       <p className="text-body-muted">{emptySelectCopy}</p>
                     </div>
-                  )}
-                </div>
-              )
-            ) : (
-              <>
-                {(sidebarOpen || !showDirectory) && (
-                  <div
-                    className={cn(
-                      'flex shrink-0 flex-col border-r border-border bg-card',
-                      showDirectory ? 'w-72' : 'w-72'
-                    )}
-                  >
-                    {sidebarHeader}
-                    {showDirectory ? treeList : null}
                   </div>
                 )}
-
-                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                  {!sidebarOpen && showDirectory && (
-                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => setSidebarOpen(true)}
-                        className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
-                        data-testid="data-sidebar-expand"
-                      >
-                        <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                        {sidebarTitle}
-                      </button>
-                      {modeToolbar}
-                    </div>
-                  )}
-                  {!selected ? (
-                    <div className="flex h-full items-center justify-center p-8 text-center">
-                      <div className="max-w-sm">
-                        <Table2
-                          className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                        <p className="text-body-muted">{emptySelectCopy}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    leafChrome
-                  )}
-                </div>
-              </>
+              </div>
             )}
           </div>
 
