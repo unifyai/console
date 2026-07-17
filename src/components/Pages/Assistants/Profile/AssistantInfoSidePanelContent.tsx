@@ -229,10 +229,11 @@ function ProfileTabTrigger({ triggerRef }: { triggerRef?: React.Ref<HTMLButtonEl
  *      Tapping the header itself does nothing; interactions stay attached
  *      to explicit controls.
  *   2. A tabbed body. While onboarding is in progress we render two
- *      tabs (Onboarding / Profile); the moment every onboarding step
+ *      tabs (Profile / Onboarding); the moment every onboarding step
  *      resolves we drop the tab strip entirely and show Profile inline.
  *      This is the "panel progressively settles into its standard shape"
- *      arc.
+ *      arc. Onboarding is auto-selected while onboarding is active;
+ *      Profile is the default when onboarding is paused or complete.
  */
 export function AssistantInfoSidePanelContent({
   assistant,
@@ -310,10 +311,11 @@ function CoordinatorAssistantInfoSidePanelContent({
   isActiveSurface?: boolean;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
+  const isOnboardingActive = coordinatorOnboarding?.isOnboardingActive === true;
   const taskBeats = useCoordinatorTaskBeats(assistant, {
     enabled: showOnboardingTab,
     isActiveSurface,
-    isOnboardingActive: coordinatorOnboarding?.isOnboardingActive === true,
+    isOnboardingActive,
   });
 
   const appendRequestSentAck = coordinatorOnboarding?.appendRequestSentAck;
@@ -328,7 +330,7 @@ function CoordinatorAssistantInfoSidePanelContent({
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
-    showOnboardingTab ? 'onboarding' : 'profile'
+    showOnboardingTab && isOnboardingActive ? 'onboarding' : 'profile'
   );
   const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
   const profileSectionsRef = React.useRef<HTMLElement>(null);
@@ -343,8 +345,12 @@ function CoordinatorAssistantInfoSidePanelContent({
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
   }, [focusProfileFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
-    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('profile');
-  }, [showOnboardingTab, activeTab]);
+    if (!showOnboardingTab) {
+      setActiveTab('profile');
+      return;
+    }
+    setActiveTab(isOnboardingActive ? 'onboarding' : 'profile');
+  }, [showOnboardingTab, isOnboardingActive]);
 
   const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -400,6 +406,7 @@ function CoordinatorAssistantInfoSidePanelContent({
           className="flex min-h-0 flex-1 flex-col gap-3"
         >
           <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
+            <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
             <TabsTrigger
               value="onboarding"
               data-testid="assistant-info-tab-onboarding"
@@ -407,8 +414,20 @@ function CoordinatorAssistantInfoSidePanelContent({
             >
               Onboarding
             </TabsTrigger>
-            <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
           </TabsList>
+          <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
+            <ProfileSectionsPanel
+              assistant={assistant}
+              onEditProfile={onEditProfile}
+              isEditProfileOpening={isEditProfileOpening}
+              onOpenContactManager={onOpenContactManager}
+              onOpenWorkspaceManager={onOpenWorkspaceManager}
+              onOpenBrainManager={onOpenBrainManager}
+              onConnectDesktop={onConnectDesktop}
+              canWrite={canWrite}
+              sectionsRef={profileSectionsRef}
+            />
+          </TabsContent>
           {coordinatorOnboarding && (
             <TabsContent
               value="onboarding"
@@ -445,19 +464,6 @@ function CoordinatorAssistantInfoSidePanelContent({
               />
             </TabsContent>
           )}
-          <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
-            <ProfileSectionsPanel
-              assistant={assistant}
-              onEditProfile={onEditProfile}
-              isEditProfileOpening={isEditProfileOpening}
-              onOpenContactManager={onOpenContactManager}
-              onOpenWorkspaceManager={onOpenWorkspaceManager}
-              onOpenBrainManager={onOpenBrainManager}
-              onConnectDesktop={onConnectDesktop}
-              canWrite={canWrite}
-              sectionsRef={profileSectionsRef}
-            />
-          </TabsContent>
         </Tabs>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
@@ -605,6 +611,7 @@ function RegularAssistantInfoSidePanelContent({
                 trigger's 2px underline can sit flush on top of it
                 (same `items-end` trick the right pane uses). */}
             <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
+              <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
               <TabsTrigger
                 value="onboarding"
                 data-testid="assistant-info-tab-onboarding"
@@ -618,8 +625,10 @@ function RegularAssistantInfoSidePanelContent({
                   {onboardingState.totalSteps - onboardingState.resolvedSteps}
                 </span>
               </TabsTrigger>
-              <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
             </TabsList>
+            <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
+              {profileBody()}
+            </TabsContent>
             <TabsContent value="onboarding" className="mt-0">
               <AssistantSetupRoadmap
                 assistant={assistant}
@@ -631,9 +640,6 @@ function RegularAssistantInfoSidePanelContent({
                 userEmail={roadmap.userEmail}
                 userPhoneNumber={roadmap.userPhoneNumber}
               />
-            </TabsContent>
-            <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
-              {profileBody()}
             </TabsContent>
           </Tabs>
         ) : (
