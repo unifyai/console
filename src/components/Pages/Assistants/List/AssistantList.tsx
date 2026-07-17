@@ -859,8 +859,13 @@ export function AssistantList({
     isOrgWorkspace &&
     (customTeamsForSection.length > 0 || (!onSelectTeam && customTeamGroups.length > 0));
   const showGroupsSection = isOrgWorkspace && Boolean(onSelectGroup);
+  // When the managed Org team exists, every human/assistant is already on it —
+  // COLLEAGUES would duplicate that roster, so hide the section.
+  const hasManagedOrgTeam =
+    isOrgWorkspace && (selectableTeams ?? []).some((team) => team.isOrgWideSharing);
   const showColleaguesSection =
     isOrgWorkspace &&
+    !hasManagedOrgTeam &&
     Boolean(onSelectHuman) &&
     ((includeReal && filteredHumans.length > 0) || showHireButton);
   const onboardListButton = renderOnboardButton(

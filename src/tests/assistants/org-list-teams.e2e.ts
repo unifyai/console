@@ -144,8 +144,10 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
   // No custom teams yet — TEAMS nesting must not appear. GROUPS stays.
+  // COLLEAGUES is hidden whenever the managed Org team exists (roster lives there).
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toBeVisible();
+  await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
 
   const customTeamName = `CustomTeam_${Date.now()}`;
   const rawCustomTeamId = dbExec(`
@@ -176,4 +178,5 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
   await expect(teamsSection.getByTestId(`team-list-item-${customTeamId}`)).toBeVisible();
   await expect(teamsSection.getByTestId(`team-list-item-${orgTeamId}`)).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toBeVisible();
+  await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
 });
