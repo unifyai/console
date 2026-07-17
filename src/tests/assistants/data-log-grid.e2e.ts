@@ -283,15 +283,17 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await firstIndex.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
-  // People has name/city/score → 3 cells for one row → 3 value groups
+  // People has name/city/score → 3 column headings, one value each
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(3);
 
   await thirdIndex.click({ modifiers: ['Shift'] });
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('9 cells', {
     timeout: 15_000,
   });
-  // Distinct values across 3 rows → still 9 groups (no collapse)
+  // Still 3 columns; distinct values across 3 rows → 9 value entries
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(9);
 
   await page.keyboard.press('Escape');
@@ -318,6 +320,8 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
     timeout: 15_000,
   });
+  // 3 columns; city collapses to 1 value entry → 5 total
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(5);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText(`rows [${rowRangeLabel}]`);
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { X } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import {
@@ -34,10 +34,14 @@ export type LogCellSelection = {
 };
 
 type ValueGroup = {
-  columnId: string;
   value: unknown;
   logIds: number[];
   rowNumbers: number[];
+};
+
+type ColumnGroup = {
+  columnId: string;
+  values: ValueGroup[];
 };
 
 interface LogCellViewPanelProps {
@@ -81,11 +85,23 @@ function valueGroupKey(value: unknown): string {
   }
 }
 
+function sortValueGroup(group: ValueGroup): ValueGroup {
+  const order = group.rowNumbers
+    .map((_, i) => i)
+    .sort((a, b) => group.rowNumbers[a] - group.rowNumbers[b]);
+  return {
+    value: group.value,
+    rowNumbers: order.map((i) => group.rowNumbers[i]),
+    logIds: order.map((i) => group.logIds[i]),
+  };
+}
+
 /**
- * Group selected cells by column, then by equal value — Interfaces view-tile style.
- * Each group shows the value once with the `#` display row numbers that share it.
+ * Group selected cells by column, then by equal value — Table ViewPane style.
+ * Each column is one foldable heading; identical values within a column collapse
+ * to a single entry with compressed `#` display row numbers.
  */
-export function groupCellsByColumnValue(cells: LogCellSelection[]): ValueGroup[] {
+export function groupCellsByColumn(cells: LogCellSelection[]): ColumnGroup[] {
   const columnOrder: string[] = [];
   const byColumn = new Map<string, Map<string, ValueGroup>>();
 
@@ -104,7 +120,6 @@ export function groupCellsByColumnValue(cells: LogCellSelection[]): ValueGroup[]
       }
     } else {
       colMap.set(key, {
-        columnId: cell.columnId,
         value: cell.value,
         logIds: [cell.logId],
         rowNumbers: [cell.rowNumber],
@@ -112,19 +127,19 @@ export function groupCellsByColumnValue(cells: LogCellSelection[]): ValueGroup[]
     }
   }
 
-  const groups: ValueGroup[] = [];
-  for (const columnId of columnOrder) {
-    const colMap = byColumn.get(columnId)!;
-    for (const group of colMap.values()) {
-      const order = group.rowNumbers
-        .map((_, i) => i)
-        .sort((a, b) => group.rowNumbers[a] - group.rowNumbers[b]);
-      group.rowNumbers = order.map((i) => group.rowNumbers[i]);
-      group.logIds = order.map((i) => group.logIds[i]);
-      groups.push(group);
-    }
-  }
-  return groups;
+  return columnOrder.map((columnId) => ({
+    columnId,
+    values: [...byColumn.get(columnId)!.values()].map(sortValueGroup),
+  }));
+}
+
+/** Flat list of value groups (column order preserved) — useful for tests/assertions. */
+export function groupCellsByColumnValue(
+  cells: LogCellSelection[]
+): Array<ValueGroup & { columnId: string }> {
+  return groupCellsByColumn(cells).flatMap((column) =>
+    column.values.map((value) => ({ ...value, columnId: column.columnId }))
+  );
 }
 
 /** Compress sorted display row numbers like [3,4,5,8] → "3-5, 8". */
@@ -272,10 +287,90 @@ function CellBody({
   );
 }
 
+function ColumnGroupDisplay({
+  group,
+  mode,
+  onEditRow,
+}: {
+  group: ColumnGroup;
+  mode: DisplayMode;
+  onEditRow?: (logId: number) => void;
+}) {
+  const [isExpanded, setIsExpanded] = React.useState(true);
+  const label = sanitizeId(group.columnId);
+  const sampleType = getValueType(group.values[0]?.value);
+
+  return (
+    <div
+      className="border-border/50 border-b"
+      data-testid="log-cell-view-column"
+      data-column={label}
+    >
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="text-title hover:bg-muted/50 flex w-full items-center gap-2 px-1 py-2 text-left"
+        aria-expanded={isExpanded}
+        data-testid="log-cell-view-column-toggle"
+      >
+        <span className="shrink-0 text-muted-foreground">
+          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        </span>
+        <span className="shrink-0">{getTypeIcon(sampleType)}</span>
+        <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground">
+          {label}
+        </span>
+      </button>
+
+      {isExpanded && (
+        <div className="relative ml-4 border-l border-l-muted pb-2 pl-3">
+          {group.values.map((valueGroup) => {
+            const rowLabel = compressRowNumbers(valueGroup.rowNumbers);
+            const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
+            return (
+              <div
+                key={groupKey}
+                className="space-y-2 py-2"
+                data-testid="log-cell-view-group"
+                data-column={label}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-caption text-muted-foreground">
+                    {valueGroup.rowNumbers.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <CopyButton
+                      content={formatValue(valueGroup.value, 'raw')}
+                      className="h-7 w-7"
+                    />
+                    {onEditRow && valueGroup.logIds.length === 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7"
+                        onClick={() => onEditRow(valueGroup.logIds[0])}
+                        data-testid="log-cell-view-edit-row"
+                      >
+                        Edit row
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <CellBody value={valueGroup.value} fieldName={label} mode={mode} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
- * Interfaces-style viewing panel for selected LogGrid cells.
- * Groups identical values per column so a multi-row empty selection shows
- * one card per column with a compressed row-id range, not N duplicate cards.
+ * Viewing panel for selected LogGrid cells.
+ * Groups by column under foldable headings (expanded by default), then
+ * collapses identical values within a column to one entry with a compressed
+ * row-number range.
  */
 export function LogCellViewPanel({
   cells,
@@ -285,7 +380,7 @@ export function LogCellViewPanel({
   className,
 }: LogCellViewPanelProps) {
   const [mode, setMode] = React.useState<DisplayMode>('text');
-  const groups = React.useMemo(() => groupCellsByColumnValue(cells), [cells]);
+  const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
 
   if (cells.length === 0) {
     return (
@@ -353,50 +448,15 @@ export function LogCellViewPanel({
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-4 p-3">
-          {groups.map((group) => {
-            const type = getValueType(group.value);
-            const label = sanitizeId(group.columnId);
-            const rowLabel = compressRowNumbers(group.rowNumbers);
-            const groupKey = `${group.columnId}:${valueGroupKey(group.value)}:${group.logIds.join(',')}`;
-            return (
-              <div
-                key={groupKey}
-                className="space-y-2 rounded-md border border-border p-3"
-                data-testid="log-cell-view-group"
-                data-column={label}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    {getTypeIcon(type)}
-                    <div className="min-w-0">
-                      <div className="truncate font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground">
-                        {label}
-                      </div>
-                      <div className="text-caption text-muted-foreground">
-                        {group.rowNumbers.length === 1 ? `row ${rowLabel}` : `rows [${rowLabel}]`}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <CopyButton content={formatValue(group.value, 'raw')} className="h-7 w-7" />
-                    {onEditRow && group.logIds.length === 1 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7"
-                        onClick={() => onEditRow(group.logIds[0])}
-                        data-testid="log-cell-view-edit-row"
-                      >
-                        Edit row
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <CellBody value={group.value} fieldName={label} mode={mode} />
-              </div>
-            );
-          })}
+        <div className="space-y-1 p-3">
+          {columns.map((column) => (
+            <ColumnGroupDisplay
+              key={column.columnId}
+              group={column}
+              mode={mode}
+              onEditRow={onEditRow}
+            />
+          ))}
         </div>
       </ScrollArea>
     </div>
