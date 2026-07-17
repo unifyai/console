@@ -326,17 +326,29 @@ export async function switchWorkspace(page: Page, workspaceId: string | number):
 }
 
 /**
- * Close the auto-opened hire dialog if it's visible.
+ * The hire dialog title. Prefer this over a bare `[role="dialog"]` locator —
+ * the unity switcher popover is also a dialog and may stay open underneath.
+ */
+export const HIRE_DIALOG_NAME = 'Onboard Teammate';
+
+/** Locator for the hire dialog (not the unity switcher popover). */
+export function hireDialog(page: Page) {
+  return page.getByRole('dialog', { name: HIRE_DIALOG_NAME });
+}
+
+/**
+ * Close the hire dialog if it's visible.
  * Uses Escape key as primary close mechanism (works with Radix Dialog).
+ * Targets the hire dialog by name so an open unity switcher popover is ignored.
  */
 export async function closeHireDialogIfOpen(page: Page) {
-  const dialog = page.locator('[role="dialog"]');
+  const dialog = hireDialog(page);
   if (await dialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
     // If still open (e.g. busy state prevented close), try the close button
     if (await dialog.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      const closeBtn = page.getByRole('button', { name: /close/i }).first();
+      const closeBtn = dialog.getByRole('button', { name: /close/i }).first();
       if (await closeBtn.isVisible({ timeout: 1_000 }).catch(() => false)) {
         await closeBtn.click();
         await page.waitForTimeout(500);
@@ -406,7 +418,7 @@ export async function openRailSection(page: Page, sectionId: string) {
  * dialog is already open (e.g. auto-opened on empty state), skip.
  */
 export async function openHireDialog(page: Page, opts?: { userId?: string; apiKey?: string }) {
-  const dialog = page.locator('[role="dialog"]');
+  const dialog = hireDialog(page);
   if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
     return;
   }
@@ -420,7 +432,9 @@ export async function openHireDialog(page: Page, opts?: { userId?: string; apiKe
   }
   await expect(onboardBtn).toBeEnabled({ timeout: 30_000 });
   await onboardBtn.click();
-  await page.waitForTimeout(1_000);
+  // Switcher may remain open under the hire dialog; assert the hire dialog
+  // specifically rather than any [role="dialog"].
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
 }
 
 /**
