@@ -261,11 +261,13 @@ function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
 
 function ValueCopyButton({ value }: { value: unknown }) {
   return (
-    <CopyButton
-      content={formatRawValue(value)}
-      copyMessage="Copied!"
-      className="absolute right-1 top-1 z-10 h-7 w-7 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-    />
+    <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+      <CopyButton
+        content={formatRawValue(value)}
+        copyMessage="Copied!"
+        className="pointer-events-auto h-5 w-5 p-0 [&_svg]:size-3"
+      />
+    </div>
   );
 }
 
