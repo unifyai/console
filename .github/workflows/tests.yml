@@ -166,6 +166,25 @@ jobs:
           PLAYWRIGHT_WORKERS: 3
           MAX_FAILURES: 1
 
+      # Keep the same failure surfaces as PR gates (HTML report) plus raw
+      # Playwright output (traces, error-context.md) so Push Gate regressions
+      # remain diagnosable after the runner is gone.
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-push-gate
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload Playwright test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results-push-gate
+          path: test-results/
+          retention-days: 7
+
       - name: Upload logs
         uses: actions/upload-artifact@v4
         if: failure()
