@@ -394,6 +394,11 @@ export function AssistantList({
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
   const [showReal, setShowReal] = React.useState(true);
   const [showVirtual, setShowVirtual] = React.useState(true);
+  // Personal workspaces only list virtual assistants — Real/Virtual filters and
+  // Groups/Colleagues/Teams nesting are org-workspace concepts.
+  const isOrgWorkspace = workspace.type === 'organization';
+  const includeReal = isOrgWorkspace && showReal;
+  const includeVirtual = !isOrgWorkspace || showVirtual;
   const orgCallUserIdSet = React.useMemo(() => {
     if (!orgCallActiveUserIds) return new Set<string>();
     return orgCallActiveUserIds instanceof Set
@@ -590,7 +595,7 @@ export function AssistantList({
     const { assistants: sourceAssistants, coordinatorCount } = foldedAssistantRows;
     // Coordinator (T-W1N) stays visible when Virtual is off; other assistants do not.
     const flatAssistants =
-      isFolded || showVirtual
+      isFolded || includeVirtual
         ? sourceAssistants
         : sourceAssistants.filter(
             (assistant) =>
@@ -628,7 +633,7 @@ export function AssistantList({
     });
 
     return renderedRows;
-  }, [canonicalCoordinatorId, foldedAssistantRows, isFolded, renderAssistantRow, showVirtual]);
+  }, [canonicalCoordinatorId, foldedAssistantRows, includeVirtual, isFolded, renderAssistantRow]);
 
   const renderHumanRows = React.useCallback(
     (teamHumans: RosterHuman[], keyPrefix: string) => {
@@ -654,8 +659,8 @@ export function AssistantList({
 
   const renderTeamMembers = React.useCallback(
     (groupId: string, teamHumans: RosterHuman[], virtualEntries: AssistantListEntry[]) => {
-      const visibleHumans = showReal && Boolean(onSelectHuman) ? teamHumans : [];
-      const visibleVirtual = showVirtual ? virtualEntries : [];
+      const visibleHumans = includeReal && Boolean(onSelectHuman) ? teamHumans : [];
+      const visibleVirtual = includeVirtual ? virtualEntries : [];
       if (visibleHumans.length === 0 && visibleVirtual.length === 0) return null;
 
       return (
@@ -670,7 +675,7 @@ export function AssistantList({
         </div>
       );
     },
-    [onSelectHuman, renderAssistantRow, renderHumanRows, showReal, showVirtual]
+    [includeReal, includeVirtual, onSelectHuman, renderAssistantRow, renderHumanRows]
   );
 
   const renderRosterTeam = React.useCallback(
@@ -744,7 +749,7 @@ export function AssistantList({
           {!isGroupFolded && group.kind === 'team' ? (
             renderTeamMembers(group.id, [], group.rows)
           ) : !isGroupFolded ? (
-            showVirtual ? (
+            includeVirtual ? (
               <div className="min-w-0 space-y-1 pt-1">
                 {group.rows.map((entry) =>
                   renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
@@ -755,7 +760,14 @@ export function AssistantList({
         </div>
       );
     },
-    [foldedGroups, renderAssistantRow, renderTeamMembers, showVirtual, teamsById, toggleGroupFold]
+    [
+      foldedGroups,
+      includeVirtual,
+      renderAssistantRow,
+      renderTeamMembers,
+      teamsById,
+      toggleGroupFold,
+    ]
   );
 
   const renderSection = React.useCallback(
@@ -790,10 +802,11 @@ export function AssistantList({
   );
 
   const hasNonAssistantRows =
-    filteredHumans.length > 0 ||
-    filteredSelectableTeams.length > 0 ||
-    (Boolean(onSelectHuman) && showHireButton) ||
-    (Boolean(onSelectGroup) && (filteredSelectableGroups.length > 0 || Boolean(onCreateGroup)));
+    isOrgWorkspace &&
+    (filteredHumans.length > 0 ||
+      filteredSelectableTeams.length > 0 ||
+      (Boolean(onSelectHuman) && showHireButton) ||
+      (Boolean(onSelectGroup) && (filteredSelectableGroups.length > 0 || Boolean(onCreateGroup))));
   const shouldRenderFlatList =
     isFolded ||
     (!hasNonAssistantRows && assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
@@ -811,7 +824,7 @@ export function AssistantList({
   // Prefer the roster order, then append any team groups that matched search via
   // assistant name even when the team name itself did not.
   const teamsForSection = React.useMemo(() => {
-    if (!onSelectTeam) return [] as RosterTeam[];
+    if (!isOrgWorkspace || !onSelectTeam) return [] as RosterTeam[];
     const byId = new Map<number, RosterTeam>();
     for (const team of filteredSelectableTeams) {
       byId.set(team.teamId, team);
@@ -822,11 +835,14 @@ export function AssistantList({
       if (rosterTeam) byId.set(group.teamId, rosterTeam);
     }
     return Array.from(byId.values());
-  }, [filteredSelectableTeams, onSelectTeam, rosterTeamsById, teamGroups]);
-  const showTeamsSection = teamsForSection.length > 0 || (!onSelectTeam && teamGroups.length > 0);
-  const showGroupsSection = Boolean(onSelectGroup);
+  }, [filteredSelectableTeams, isOrgWorkspace, onSelectTeam, rosterTeamsById, teamGroups]);
+  const showTeamsSection =
+    isOrgWorkspace && (teamsForSection.length > 0 || (!onSelectTeam && teamGroups.length > 0));
+  const showGroupsSection = isOrgWorkspace && Boolean(onSelectGroup);
   const showColleaguesSection =
-    Boolean(onSelectHuman) && ((showReal && filteredHumans.length > 0) || showHireButton);
+    isOrgWorkspace &&
+    Boolean(onSelectHuman) &&
+    ((includeReal && filteredHumans.length > 0) || showHireButton);
   const onboardListButton = renderOnboardButton(
     <Button
       type="button"
@@ -946,7 +962,7 @@ export function AssistantList({
                 'Colleagues',
                 filteredHumans.length,
                 <div className="min-w-0 space-y-1">
-                  {showReal
+                  {includeReal
                     ? filteredHumans.map((human) => (
                         <HumanListRow
                           key={`human:${human.userId}`}
@@ -969,7 +985,7 @@ export function AssistantList({
             : null}
         </div>
       ) : null}
-      {showVirtual && soloGroup ? (
+      {includeVirtual && soloGroup ? (
         <div className="min-w-0 space-y-1" data-testid="assistant-list-section-solo">
           {soloRows.map((entry) =>
             renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
@@ -1031,36 +1047,38 @@ export function AssistantList({
                 disabled={isLoading || !!error}
               />
             </div>
-            <div
-              className="flex shrink-0 flex-col gap-1"
-              role="group"
-              aria-label="Show real and virtual teammates"
-            >
-              <Label
-                htmlFor="assistant-list-filter-real"
-                className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
+            {isOrgWorkspace ? (
+              <div
+                className="flex shrink-0 flex-col gap-1"
+                role="group"
+                aria-label="Show real and virtual teammates"
               >
-                <Checkbox
-                  id="assistant-list-filter-real"
-                  checked={showReal}
-                  onCheckedChange={(checked) => setShowReal(checked === true)}
-                  data-testid="assistant-list-filter-real"
-                />
-                Real
-              </Label>
-              <Label
-                htmlFor="assistant-list-filter-virtual"
-                className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
-              >
-                <Checkbox
-                  id="assistant-list-filter-virtual"
-                  checked={showVirtual}
-                  onCheckedChange={(checked) => setShowVirtual(checked === true)}
-                  data-testid="assistant-list-filter-virtual"
-                />
-                Virtual
-              </Label>
-            </div>
+                <Label
+                  htmlFor="assistant-list-filter-real"
+                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
+                >
+                  <Checkbox
+                    id="assistant-list-filter-real"
+                    checked={showReal}
+                    onCheckedChange={(checked) => setShowReal(checked === true)}
+                    data-testid="assistant-list-filter-real"
+                  />
+                  Real
+                </Label>
+                <Label
+                  htmlFor="assistant-list-filter-virtual"
+                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
+                >
+                  <Checkbox
+                    id="assistant-list-filter-virtual"
+                    checked={showVirtual}
+                    onCheckedChange={(checked) => setShowVirtual(checked === true)}
+                    data-testid="assistant-list-filter-virtual"
+                  />
+                  Virtual
+                </Label>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
