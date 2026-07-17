@@ -7,6 +7,7 @@ import {
   DEFAULT_LOG_PAGE_SIZE,
   fetchLogFields,
   fetchLogs,
+  parseGrouping,
   type LogFieldsResponseProps,
   type LogGridRow,
   type LogQuerySpec,
@@ -42,6 +43,7 @@ export type UseInfiniteLogQueryResult = {
 /**
  * Accumulating log query: loads pages of `pageSize` (default 50) and appends
  * rows as the consumer calls `fetchNextPage` (infinite scroll).
+ * When `view.grouping` is set, pages are top-level groups (`groupLimit`/`groupOffset`).
  */
 export function useInfiniteLogQuery({
   projectName,
@@ -64,6 +66,8 @@ export function useInfiniteLogQuery({
     [fieldsOverride, fieldsQuery.data]
   );
 
+  const groupingKey = parseGrouping(view.grouping).join(',');
+
   const spec = React.useMemo(() => {
     if (!context) return null;
     return buildLogQuerySpec({
@@ -85,6 +89,7 @@ export function useInfiniteLogQuery({
       context,
       spec?.filterExpr ?? '',
       spec?.sorting ?? '',
+      groupingKey,
       pageSize,
       columnContext ?? '',
     ],

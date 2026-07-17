@@ -11,6 +11,8 @@ export type LogQuerySpec = {
   limit: number;
   offset: number;
   columnContext?: string | null;
+  /** Orchestra `group_by` values (`Entries/field`, …). */
+  groupBy?: string[] | null;
 };
 
 export const LOG_PAGE_SIZE_OPTIONS = [20, 50, 100, 200] as const;
@@ -28,6 +30,11 @@ export type LogViewState = {
   sorting: SortingState;
   offset: number;
   limit: number;
+  /**
+   * Comma-joined flat field ids for Orchestra `group_by` nest order
+   * (e.g. `city,name`). Empty / omitted = ungrouped.
+   */
+  grouping: string;
   /** ISO timestamp watermark — appends `createdAt < freeze` to filterExpr. */
   freeze?: string;
   /** Footer aggregate metric name (`mean`, `count`, …). */
@@ -60,6 +67,7 @@ export function emptyLogViewState(overrides?: Partial<LogViewState>): LogViewSta
     sorting: [],
     offset: 0,
     limit: DEFAULT_LOG_PAGE_SIZE,
+    grouping: '',
     freeze: undefined,
     metric: 'mean',
     autoUpdate: false,
@@ -97,6 +105,17 @@ export type LogGridRow = {
   entries: Record<string, unknown>;
   /** Raw Orchestra log when available (Interfaces adapters). */
   raw?: LogProps;
+  /** Present when this row is a server-side group header (lazy-expand tree). */
+  group?: {
+    id: string;
+    groupingColumnId: string;
+    fieldKey: string;
+    groupingValue: unknown;
+    groupCount: number;
+    isPopulated: boolean;
+    totalChildren?: number;
+  };
+  subRows?: LogGridRow[];
 };
 
 export type LogQueryResult = {

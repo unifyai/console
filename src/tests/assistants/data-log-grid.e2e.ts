@@ -229,9 +229,21 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
 
-  // Ada + Alan share city=London → city collapses to 1 group; name/score stay distinct
+  // Ada + Alan share city=London → city collapses to 1 group; name/score stay distinct.
+  // View pane uses the same `#` display indices as the grid (not Orchestra log ids).
   const adaRow = logGridRows(page).filter({ hasText: 'Ada Lovelace' });
   const alanRow = logGridRows(page).filter({ hasText: 'Alan Turing' });
+  const adaNum = Number(
+    (await adaRow.locator('[data-testid^="log-grid-row-index-"]').textContent())?.trim()
+  );
+  const alanNum = Number(
+    (await alanRow.locator('[data-testid^="log-grid-row-index-"]').textContent())?.trim()
+  );
+  expect(adaNum).toBeGreaterThan(0);
+  expect(alanNum).toBeGreaterThan(0);
+  const [lo, hi] = adaNum < alanNum ? [adaNum, alanNum] : [alanNum, adaNum];
+  const rowRangeLabel = hi === lo + 1 ? `${lo}-${hi}` : `${lo}, ${hi}`;
+
   await adaRow.locator('[data-testid^="log-grid-row-index-"]').click();
   await alanRow.locator('[data-testid^="log-grid-row-index-"]').click({ modifiers: ['Control'] });
   await openCellViewPanel(page);
@@ -239,7 +251,7 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
     timeout: 15_000,
   });
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(5);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('rows [');
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(`rows [${rowRangeLabel}]`);
 });
 
 test('shift-click selects the bounding cell region', async ({ authedPage: page }) => {
@@ -303,4 +315,82 @@ test('column search works', async ({ authedPage: page }) => {
   await expect(page.getByTestId('log-grid-column-toggle-score')).toBeVisible();
   await expect(page.getByTestId('log-grid-column-toggle-name')).toHaveCount(0);
   await page.keyboard.press('Escape');
+});
+
+test('group by nests columns and expands leaf rows', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
+    timeout: 30_000,
+  });
+  // Ada + Alan both London → one London group among others
+  await expect(page.getByText('London').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('log-grid-group-expand-city').first()).toBeVisible();
+
+  // Nested group-by: append name under city
+  const nameHeader = page.getByTestId('log-grid-header-name');
+  await nameHeader.hover();
+  await page.getByTestId('log-grid-column-menu-name').click({ force: true });
+  await page.getByTestId('log-grid-group-by-name').click({ force: true });
+
+  const cityExpand = page.getByTestId('log-grid-group-expand-city').first();
+  await cityExpand.click();
+  await expect(page.getByTestId('log-grid-group-expand-name').first()).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await page.getByTestId('log-grid-group-expand-name').first().click();
+  await expect(logGridRows(page).first()).toBeVisible({ timeout: 30_000 });
+
+  // Ungroup city (leaves name grouping)
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+  await expect(page.getByTestId('log-grid-group-expand-name').first()).toBeVisible({
+    timeout: 30_000,
+  });
+});
+
+test('row index column stays pinned while scrolling horizontally', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const viewport = page.getByTestId('log-grid-scroll-viewport');
+  const indexHeader = page.getByTestId('log-grid-row-index-header');
+  const firstIndex = logGridRows(page).first().locator('[data-testid^="log-grid-row-index-"]');
+  await expect(indexHeader).toBeVisible({ timeout: 30_000 });
+
+  // Force horizontal overflow so scrollLeft is meaningful on a narrow People table.
+  await page.locator('[data-testid="data-leaf-table"] table').evaluate((table) => {
+    table.style.width = '2400px';
+  });
+
+  const before = await indexHeader.boundingBox();
+  expect(before).toBeTruthy();
+
+  await viewport.evaluate((el) => {
+    el.scrollLeft = 600;
+  });
+  await expect.poll(async () => viewport.evaluate((el) => el.scrollLeft)).toBeGreaterThan(100);
+
+  const afterHeader = await indexHeader.boundingBox();
+  const afterCell = await firstIndex.boundingBox();
+  const viewportBox = await viewport.boundingBox();
+  expect(afterHeader).toBeTruthy();
+  expect(afterCell).toBeTruthy();
+  expect(viewportBox).toBeTruthy();
+
+  // Pinned column should remain at the left edge of the scroll viewport.
+  expect(Math.abs(afterHeader!.x - viewportBox!.x)).toBeLessThan(4);
+  expect(Math.abs(afterCell!.x - viewportBox!.x)).toBeLessThan(4);
+  expect(Math.abs(afterHeader!.x - before!.x)).toBeLessThan(4);
+
+  // Row selection via the pinned index still works after scroll.
+  await firstIndex.click();
+  await openCellViewPanel(page);
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
 });

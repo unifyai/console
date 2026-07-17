@@ -9,8 +9,10 @@ import {
   EyeOff,
   Filter,
   GripVertical,
+  Group,
   MoreHorizontal,
   Pencil,
+  Ungroup,
 } from 'lucide-react';
 import type { Column, Header, SortDirection } from '@tanstack/react-table';
 import { Button } from '@/components/UI/button';
@@ -27,6 +29,7 @@ import {
 import { TableHead } from '@/components/UI/table';
 import { cn } from '@/lib/utils';
 import { sanitizeId } from '@/lib/logs/columns';
+import { parseGrouping, toggleGroupingColumn } from '@/lib/logs/grouping';
 import { columnHasFilter, LogColumnFilter } from './LogColumnFilter';
 
 type LogGridColumnHeaderProps = {
@@ -36,6 +39,8 @@ type LogGridColumnHeaderProps = {
   dataType?: string;
   filters: string;
   onFiltersChange: (filters: string) => void;
+  grouping: string;
+  onGroupingChange: (grouping: string) => void;
   isDerived: boolean;
   onEditDerived?: () => void;
   reorderEnabled: boolean;
@@ -56,6 +61,8 @@ export function LogGridColumnHeader({
   dataType,
   filters,
   onFiltersChange,
+  grouping,
+  onGroupingChange,
   isDerived,
   onEditDerived,
   reorderEnabled,
@@ -69,6 +76,7 @@ export function LogGridColumnHeader({
   const openFilterAfterMenuCloseRef = React.useRef(false);
   const sorted = column.getIsSorted() as SortDirection | false;
   const hasFilter = columnHasFilter(filters, columnKey);
+  const isGrouped = parseGrouping(grouping).includes(columnKey);
 
   const openFilter = () => {
     openFilterAfterMenuCloseRef.current = true;
@@ -202,6 +210,17 @@ export function LogGridColumnHeader({
           >
             <EyeOff className="h-3.5 w-3.5" />
             Hide column
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid={`log-grid-group-by-${fieldKey}`}
+            onClick={() => {
+              onGroupingChange(toggleGroupingColumn(grouping, columnKey));
+              setMenuOpen(false);
+            }}
+          >
+            {isGrouped ? <Ungroup className="h-3.5 w-3.5" /> : <Group className="h-3.5 w-3.5" />}
+            {isGrouped ? 'Ungroup' : 'Group by'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {reorderEnabled ? (
