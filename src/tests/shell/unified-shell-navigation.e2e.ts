@@ -185,7 +185,10 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await railSection(page, 'tasks').click();
   await expect(page).toHaveURL(/\/assistants/);
   await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByText('ShellNav')).toBeVisible();
+  // Unified shell keeps list + desktop chrome mounted; scope to the visible rail.
+  await expect(
+    assistantRail(page).getByText('ShellNav Tester', { exact: true }).first()
+  ).toBeVisible();
   await expectNoWorkspaceCube(page);
   await expectNoAssistantTabSkeletons(page);
   expect(await stopAdminToTasksObserver()).toEqual([]);

@@ -7,7 +7,7 @@ import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
  */
 export function FavouritesBodySkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-8">
+    <div className="mx-auto w-full max-w-6xl">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SkeletonCard lines={6} />
         <SkeletonCard lines={6} />
