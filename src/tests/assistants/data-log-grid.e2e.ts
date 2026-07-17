@@ -164,6 +164,14 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');
 
+  // Sort submenu mirrors active direction with a tick (data-active)
+  await scoreHeader.hover();
+  await page.getByTestId('log-grid-column-menu-score').click({ force: true });
+  await page.getByTestId('log-grid-sort-menu-score').hover();
+  await expect(page.getByTestId('log-grid-sort-desc-score')).toHaveAttribute('data-active', 'true');
+  await expect(page.getByTestId('log-grid-sort-asc-score')).toHaveAttribute('data-active', 'false');
+  await page.keyboard.press('Escape');
+
   // Single click selects but does not open the pane; unfold via toolbar toggle
   const nameCell = firstRow
     .locator('[data-testid^="log-grid-cell-"]')

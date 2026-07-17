@@ -6,6 +6,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   Ban,
+  Check,
   EyeOff,
   Filter,
   GripVertical,
@@ -159,6 +160,7 @@ export function LogGridColumnHeader({
               <DropdownMenuItem
                 className="text-body-sm gap-2"
                 data-testid={`log-grid-sort-asc-${fieldKey}`}
+                data-active={sorted === 'asc' ? 'true' : 'false'}
                 onClick={() => {
                   column.toggleSorting(false);
                   setMenuOpen(false);
@@ -166,10 +168,12 @@ export function LogGridColumnHeader({
               >
                 <ArrowUp className="h-3.5 w-3.5" />
                 Ascending
+                {sorted === 'asc' ? <Check className="ml-auto h-3.5 w-3.5" /> : null}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-body-sm gap-2"
                 data-testid={`log-grid-sort-desc-${fieldKey}`}
+                data-active={sorted === 'desc' ? 'true' : 'false'}
                 onClick={() => {
                   column.toggleSorting(true);
                   setMenuOpen(false);
@@ -177,6 +181,7 @@ export function LogGridColumnHeader({
               >
                 <ArrowDown className="h-3.5 w-3.5" />
                 Descending
+                {sorted === 'desc' ? <Check className="ml-auto h-3.5 w-3.5" /> : null}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-body-sm gap-2"
