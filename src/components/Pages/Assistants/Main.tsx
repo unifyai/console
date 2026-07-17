@@ -3841,6 +3841,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSelectTeam: handleSelectTeam,
       onSelectGroup: handleSelectGroup,
       onCreateGroup: () => setCreateGroupOpen(true),
+      onCreateTeam: () => {
+        router.push('/organizations?tab=teams');
+      },
       entityUnreadCounts: orgChat.unread,
       orgCallActiveUserIds:
         humanCall.isConnected && humanCall.activeCall
@@ -3879,6 +3882,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleSelectHuman,
       handleSelectTeam,
       handleSelectGroup,
+      router,
       orgChat.unread,
       humanCall.isConnected,
       humanCall.activeCall,

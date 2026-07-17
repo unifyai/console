@@ -144,11 +144,16 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   await expect(elevated.getByTestId(`team-list-item-${orgTeamId}`)).toContainText(org.name);
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
-  // No custom teams yet — TEAMS nesting must not appear. GROUPS stays.
-  // COLLEAGUES is hidden whenever the managed Org team exists (roster lives there).
+  // No custom teams / groups yet — TEAMS and GROUPS nests stay hidden.
+  // Creation actions live under the elevated Org team instead.
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
-  await expect(page.getByTestId('assistant-list-section-groups')).toBeVisible();
+  await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
+  const orgActions = page.getByTestId('assistant-list-org-actions');
+  await expect(orgActions).toBeVisible();
+  await expect(orgActions.getByTestId('create-group-button')).toBeVisible();
+  await expect(orgActions.getByTestId('create-team-button')).toBeVisible();
+  await expect(orgActions.getByTestId('assistant-onboard-button')).toBeVisible();
 
   const customTeamName = `CustomTeam_${Date.now()}`;
   const rawCustomTeamId = dbExec(`
@@ -178,6 +183,10 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
   await expect(teamsSection).toBeVisible({ timeout: 15_000 });
   await expect(teamsSection.getByTestId(`team-list-item-${customTeamId}`)).toBeVisible();
   await expect(teamsSection.getByTestId(`team-list-item-${orgTeamId}`)).toHaveCount(0);
-  await expect(page.getByTestId('assistant-list-section-groups')).toBeVisible();
+  await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
+  await expect(page.getByTestId('assistant-list-org-actions')).toBeVisible();
+
+  await page.getByTestId('create-team-button').click();
+  await expect(page).toHaveURL(/\/organizations\?tab=teams/, { timeout: 15_000 });
 });

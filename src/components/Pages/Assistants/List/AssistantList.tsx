@@ -101,6 +101,8 @@ interface AssistantListProps {
   onSelectTeam?: (teamId: number) => void;
   onSelectGroup?: (groupId: number) => void;
   onCreateGroup?: () => void;
+  /** Navigate to Organization → Teams to create a custom team. */
+  onCreateTeam?: () => void;
   /** Unread counts keyed by entity key (`team:{id}` / `human:{userId}` / `group:{id}`). */
   entityUnreadCounts?: Record<string, number>;
   /** User ids currently joined on the active org call (list ping badge). */
@@ -385,6 +387,7 @@ export function AssistantList({
   onSelectTeam,
   onSelectGroup,
   onCreateGroup,
+  onCreateTeam,
   entityUnreadCounts,
   orgCallActiveUserIds,
   orgCallActiveTeamId = null,
@@ -854,11 +857,12 @@ export function AssistantList({
     [rosterTeamsById, teamGroups]
   );
   // TEAMS collapses entirely when the only team is the managed Org team.
-  // GROUPS stays visible even with zero groups (create affordance).
+  // GROUPS only appears once at least one group exists.
   const showTeamsSection =
     isOrgWorkspace &&
     (customTeamsForSection.length > 0 || (!onSelectTeam && customTeamGroups.length > 0));
-  const showGroupsSection = isOrgWorkspace && Boolean(onSelectGroup);
+  const showGroupsSection =
+    isOrgWorkspace && Boolean(onSelectGroup) && filteredSelectableGroups.length > 0;
   // When the managed Org team exists, every human/assistant is already on it —
   // COLLEAGUES would duplicate that roster, so hide the section.
   const hasManagedOrgTeam =
@@ -883,6 +887,43 @@ export function AssistantList({
       Onboard
     </Button>
   );
+  // Create group / Create team / Onboard sit under Org or Colleagues
+  // (mutually exclusive), not under an empty GROUPS nest.
+  const showOrgCreationActions =
+    isOrgWorkspace && (Boolean(elevatedOrgTeam) || showColleaguesSection);
+  const orgCreationActions = showOrgCreationActions ? (
+    <div className="min-w-0 space-y-1" data-testid="assistant-list-org-actions">
+      {onCreateGroup ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
+          onClick={onCreateGroup}
+          aria-label="Create group"
+          data-testid="create-group-button"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create group
+        </Button>
+      ) : null}
+      {onCreateTeam ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
+          onClick={onCreateTeam}
+          aria-label="Create team"
+          data-testid="create-team-button"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create team
+        </Button>
+      ) : null}
+      {onboardListButton}
+    </div>
+  ) : null;
   const showRosterSections = showTeamsSection || showGroupsSection || showColleaguesSection;
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
@@ -896,8 +937,9 @@ export function AssistantList({
             </div>
           ) : null}
           {elevatedOrgTeam ? (
-            <div data-testid="assistant-list-elevated-org-team">
+            <div className="min-w-0 space-y-1" data-testid="assistant-list-elevated-org-team">
               {renderRosterTeam(elevatedOrgTeam, teamRowsById.get(elevatedOrgTeam.teamId) ?? [])}
+              {!showColleaguesSection ? orgCreationActions : null}
             </div>
           ) : null}
         </div>
@@ -928,61 +970,43 @@ export function AssistantList({
                 'Groups',
                 filteredSelectableGroups.length,
                 <div className="min-w-0 space-y-1">
-                  {filteredSelectableGroups.length === 0 ? (
-                    <p className="text-caption px-2 py-1 text-muted-foreground">No groups yet.</p>
-                  ) : (
-                    filteredSelectableGroups.map((group) => {
-                      const faceMembers = [
-                        ...group.memberUserIds.map((userId) => {
-                          const human = humansById[userId];
-                          return {
-                            id: `u:${userId}`,
-                            name:
-                              human?.name?.trim() ||
-                              human?.email ||
-                              (userId === currentUserId ? 'You' : userId),
-                            image: human?.image,
-                          };
-                        }),
-                        ...group.assistantMemberIds.map((assistantId) => {
-                          const assistant = assistantsByAgentId[String(assistantId)];
-                          return {
-                            id: `a:${assistantId}`,
-                            name: assistant
-                              ? assistantDisplayName(assistant)
-                              : `Assistant ${assistantId}`,
-                            image:
-                              assistant?.signedProfilePhotoUrl || assistant?.profilePhoto || null,
-                          };
-                        }),
-                      ];
-                      return (
-                        <GroupListRow
-                          key={`group:${group.groupId}`}
-                          group={group}
-                          faceMembers={faceMembers}
-                          isSelected={selectedEntityKey === groupEntityKey(group.groupId)}
-                          unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
-                          isCallActive={orgCallActiveGroupId === group.groupId}
-                          onSelect={() => onSelectGroup?.(group.groupId)}
-                        />
-                      );
-                    })
-                  )}
-                  {onCreateGroup ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-                      onClick={onCreateGroup}
-                      aria-label="Create group"
-                      data-testid="create-group-button"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Create group
-                    </Button>
-                  ) : null}
+                  {filteredSelectableGroups.map((group) => {
+                    const faceMembers = [
+                      ...group.memberUserIds.map((userId) => {
+                        const human = humansById[userId];
+                        return {
+                          id: `u:${userId}`,
+                          name:
+                            human?.name?.trim() ||
+                            human?.email ||
+                            (userId === currentUserId ? 'You' : userId),
+                          image: human?.image,
+                        };
+                      }),
+                      ...group.assistantMemberIds.map((assistantId) => {
+                        const assistant = assistantsByAgentId[String(assistantId)];
+                        return {
+                          id: `a:${assistantId}`,
+                          name: assistant
+                            ? assistantDisplayName(assistant)
+                            : `Assistant ${assistantId}`,
+                          image:
+                            assistant?.signedProfilePhotoUrl || assistant?.profilePhoto || null,
+                        };
+                      }),
+                    ];
+                    return (
+                      <GroupListRow
+                        key={`group:${group.groupId}`}
+                        group={group}
+                        faceMembers={faceMembers}
+                        isSelected={selectedEntityKey === groupEntityKey(group.groupId)}
+                        unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
+                        isCallActive={orgCallActiveGroupId === group.groupId}
+                        onSelect={() => onSelectGroup?.(group.groupId)}
+                      />
+                    );
+                  })}
                 </div>,
                 'assistant-list-section-groups',
                 {
@@ -1009,7 +1033,7 @@ export function AssistantList({
                         />
                       ))
                     : null}
-                  {onboardListButton}
+                  {orgCreationActions}
                 </div>,
                 'assistant-list-section-people',
                 {
@@ -1024,9 +1048,9 @@ export function AssistantList({
           {soloRows.map((entry) =>
             renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
           )}
-          {!showColleaguesSection ? onboardListButton : null}
+          {!showOrgCreationActions ? onboardListButton : null}
         </div>
-      ) : !showColleaguesSection ? (
+      ) : !showOrgCreationActions ? (
         onboardListButton
       ) : null}
     </div>
