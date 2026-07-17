@@ -36,6 +36,7 @@ import {
 import { Pencil, Trash2 } from 'lucide-react';
 import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
 import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
+import { sanitizeId } from '@/lib/logs/columns';
 import { isDataFieldEditable, type DataField, type DataRow } from './dataTypes';
 
 const IMAGE_EXTENSIONS = new Set(['avif', 'gif', 'jpeg', 'jpg', 'png', 'webp']);
@@ -47,6 +48,8 @@ interface DataRowDetailProps {
   description?: string;
   fields: Record<string, DataField>;
   mode: DataBrowserMode;
+  /** When set, open directly in edit mode for this field only. */
+  initialEditField?: string | null;
   onSave: (updates: Record<string, unknown>) => Promise<void>;
   onDelete: () => Promise<void>;
   onClose: () => void;
@@ -231,6 +234,7 @@ export function DataRowDetail({
   description,
   fields: fieldMetadata,
   mode,
+  initialEditField = null,
   onSave,
   onDelete,
   onClose,
@@ -250,39 +254,113 @@ export function DataRowDetail({
   const hasEditableFields = fields.some(([key]) =>
     isDataFieldEditable(fieldMetadata[key] ?? {}, mode)
   );
-  const [isEditing, setIsEditing] = React.useState(false);
+  /** `null` = not editing; `'all'` = full row; otherwise only listed field keys. */
+  const [editingFields, setEditingFields] = React.useState<'all' | string[] | null>(null);
   const [drafts, setDrafts] = React.useState<Record<string, string | boolean>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const isEditing = editingFields !== null;
 
-  const startEditing = () => {
-    setDrafts(
+  const buildDraftsForKeys = React.useCallback(
+    (keys: string[]) =>
       Object.fromEntries(
-        fields.map(([key, value]) => [
+        keys.map((key) => {
+          const value = displayRow?.entries[key];
+          return [
+            key,
+            /^(bool|boolean)$/i.test(fieldMetadata[key]?.dataType ?? '')
+              ? Boolean(value)
+              : draftValueForField(fieldMetadata[key] ?? {}, value),
+          ];
+        })
+      ),
+    [displayRow?.entries, fieldMetadata]
+  );
+
+  const startEditingRow = () => {
+    const keys = fields
+      .map(([key]) => key)
+      .filter((key) => isDataFieldEditable(fieldMetadata[key] ?? {}, mode));
+    setDrafts(buildDraftsForKeys(keys));
+    setErrors({});
+    setEditingFields('all');
+  };
+
+  const startEditingField = (fieldKey: string) => {
+    if (!isDataFieldEditable(fieldMetadata[fieldKey] ?? {}, mode)) return;
+    setDrafts(buildDraftsForKeys([fieldKey]));
+    setErrors({});
+    setEditingFields([fieldKey]);
+  };
+
+  const resolveEntryKey = React.useCallback(
+    (columnOrField: string): string | null => {
+      const sanitized = sanitizeId(columnOrField);
+      if (fields.some(([key]) => key === sanitized)) return sanitized;
+      if (fields.some(([key]) => key === columnOrField)) return columnOrField;
+      const lower = sanitized.toLowerCase();
+      const match = fields.find(([key]) => key.toLowerCase() === lower);
+      return match?.[0] ?? null;
+    },
+    [fields]
+  );
+
+  const appliedInitialEditRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!row) {
+      appliedInitialEditRef.current = null;
+      setEditingFields(null);
+      setDrafts({});
+      setErrors({});
+      return;
+    }
+    if (!initialEditField) return;
+
+    const token = `${row.logId}:${initialEditField}`;
+    if (appliedInitialEditRef.current === token) return;
+    appliedInitialEditRef.current = token;
+
+    const key = resolveEntryKey(initialEditField);
+    if (!key || !isDataFieldEditable(fieldMetadata[key] ?? {}, mode)) {
+      setEditingFields(null);
+      return;
+    }
+    setDrafts(
+      Object.fromEntries([
+        [
           key,
           /^(bool|boolean)$/i.test(fieldMetadata[key]?.dataType ?? '')
-            ? Boolean(value)
-            : draftValueForField(fieldMetadata[key] ?? {}, value),
-        ])
-      )
+            ? Boolean(row.entries[key])
+            : draftValueForField(fieldMetadata[key] ?? {}, row.entries[key]),
+        ],
+      ])
     );
     setErrors({});
-    setIsEditing(true);
-  };
+    setEditingFields([key]);
+  }, [row, initialEditField, fieldMetadata, mode, resolveEntryKey]);
 
   const discardChanges = () => {
     setErrors({});
-    setIsEditing(false);
+    setEditingFields(null);
   };
+
+  const isFieldBeingEdited = (key: string) =>
+    editingFields === 'all' || (Array.isArray(editingFields) && editingFields.includes(key));
 
   const saveChanges = async () => {
     const updates: Record<string, unknown> = {};
     const nextErrors: Record<string, string> = {};
+    const keysToSave =
+      editingFields === 'all'
+        ? fields.map(([key]) => key)
+        : (editingFields ?? []).filter((key) => fields.some(([k]) => k === key));
 
-    for (const [key, value] of fields) {
+    for (const key of keysToSave) {
+      const value = displayRow?.entries[key];
       const fieldInfo = fieldMetadata[key] ?? {};
       if (!isDataFieldEditable(fieldInfo, mode)) continue;
 
@@ -316,7 +394,7 @@ export function DataRowDetail({
     setIsSaving(true);
     try {
       await onSave(updates);
-      setIsEditing(false);
+      setEditingFields(null);
     } catch (error) {
       setErrors({
         rowError: error instanceof Error ? error.message : 'Unable to save this row.',
@@ -381,7 +459,7 @@ export function DataRowDetail({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={startEditing}
+                    onClick={startEditingRow}
                     data-testid="data-row-detail-edit"
                   >
                     <Pencil className="mr-1.5 h-3.5 w-3.5" />
@@ -397,6 +475,7 @@ export function DataRowDetail({
           <dl className="space-y-4 pr-4" data-testid="data-row-detail-fields">
             {fields.map(([key, value]) => {
               const formatted = formatDetailValue(key, value);
+              const editingThis = isFieldBeingEdited(key);
               return (
                 <div key={key} className="group/field">
                   <dt className="text-title flex items-center justify-between gap-3">
@@ -415,8 +494,9 @@ export function DataRowDetail({
                             variant="ghost"
                             size="icon"
                             className="h-5 w-5 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/field:opacity-100"
-                            onClick={startEditing}
+                            onClick={() => startEditingField(key)}
                             aria-label={`Edit ${key}`}
+                            data-testid={`data-row-detail-edit-field-${key}`}
                           >
                             <Pencil className="h-3 w-3" />
                           </Button>
@@ -425,7 +505,7 @@ export function DataRowDetail({
                     )}
                   </dt>
                   <dd className="text-caption mt-1">
-                    {isEditing ? (
+                    {editingThis ? (
                       <FieldEditor
                         field={key}
                         fieldInfo={fieldMetadata[key] ?? {}}

@@ -171,13 +171,12 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await nameCell.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
-  await page.getByTestId('log-cell-view-clear').click();
+  await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
-  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeDisabled();
 
   await nameCell.click();
   await openCellViewPanel(page);
-  await page.getByTestId('log-cell-view-edit-row').click();
+  await page.getByTestId('log-cell-view-edit-cell').click();
   await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
 });
 
@@ -190,7 +189,7 @@ test('double-click opens and Enter toggles the cell view pane', async ({ authedP
 
   await nameCell.dblclick();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('log-cell-view-clear').click();
+  await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
 
   await nameCell.click();

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import {
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
+import Tooltip from '@/components/Common/Misc/Tooltip';
 import {
   getValueType,
   getTypeIcon,
@@ -47,8 +48,8 @@ type ColumnGroup = {
 interface LogCellViewPanelProps {
   cells: LogCellSelection[];
   onClose: () => void;
-  onClear: () => void;
-  onEditRow?: (logId: number) => void;
+  /** Open edit UI for a single cell (log + column), not the whole row. */
+  onEditCell?: (logId: number, columnId: string) => void;
   className?: string;
 }
 
@@ -290,11 +291,11 @@ function CellBody({
 function ColumnGroupDisplay({
   group,
   mode,
-  onEditRow,
+  onEditCell,
 }: {
   group: ColumnGroup;
   mode: DisplayMode;
-  onEditRow?: (logId: number) => void;
+  onEditCell?: (logId: number, columnId: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
   const label = sanitizeId(group.columnId);
@@ -343,16 +344,19 @@ function ColumnGroupDisplay({
                       content={formatValue(valueGroup.value, 'raw')}
                       className="h-7 w-7"
                     />
-                    {onEditRow && valueGroup.logIds.length === 1 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7"
-                        onClick={() => onEditRow(valueGroup.logIds[0])}
-                        data-testid="log-cell-view-edit-row"
-                      >
-                        Edit row
-                      </Button>
+                    {onEditCell && valueGroup.logIds.length === 1 && (
+                      <Tooltip content={`Edit ${label}`}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => onEditCell(valueGroup.logIds[0], group.columnId)}
+                          aria-label={`Edit ${label}`}
+                          data-testid="log-cell-view-edit-cell"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </Tooltip>
                     )}
                   </div>
                 </div>
@@ -372,13 +376,7 @@ function ColumnGroupDisplay({
  * collapses identical values within a column to one entry with a compressed
  * row-number range.
  */
-export function LogCellViewPanel({
-  cells,
-  onClose,
-  onClear,
-  onEditRow,
-  className,
-}: LogCellViewPanelProps) {
+export function LogCellViewPanel({ cells, onClose, onEditCell, className }: LogCellViewPanelProps) {
   const [mode, setMode] = React.useState<DisplayMode>('text');
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
 
@@ -430,15 +428,6 @@ export function LogCellViewPanel({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7"
-            onClick={onClear}
-            data-testid="log-cell-view-clear"
-          >
-            Clear
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             className="h-7 w-7 p-0"
             onClick={onClose}
             aria-label="Close"
@@ -454,7 +443,7 @@ export function LogCellViewPanel({
               key={column.columnId}
               group={column}
               mode={mode}
-              onEditRow={onEditRow}
+              onEditCell={onEditCell}
             />
           ))}
         </div>

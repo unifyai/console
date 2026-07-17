@@ -61,7 +61,7 @@ interface DataLeafTableProps {
   context: string;
   mode: DataBrowserMode;
   selectedRowId: string | null;
-  onRowSelect: (row: DataRow | null) => void;
+  onRowSelect: (row: DataRow | null, options?: { editField?: string }) => void;
   onMetaChange?: (meta: {
     count: number;
     loaded: number;
@@ -212,10 +212,6 @@ export function DataLeafTable({
   );
 
   const showPanel = viewPanelOpen && selectedCells.length > 0;
-  const clearSelection = React.useCallback(() => {
-    setSelectedCells([]);
-    setViewPanelOpen(false);
-  }, []);
 
   React.useEffect(() => {
     if (selectedCells.length === 0) setViewPanelOpen(false);
@@ -258,10 +254,9 @@ export function DataLeafTable({
         <LogCellViewPanel
           cells={cellSelections}
           onClose={() => setViewPanelOpen(false)}
-          onClear={clearSelection}
-          onEditRow={(logId) => {
+          onEditCell={(logId, columnId) => {
             const match = panelRows.find((r) => r.logId === logId);
-            onRowSelect(match ? toDataRow(match) : null);
+            onRowSelect(match ? toDataRow(match) : null, { editField: columnId });
           }}
         />
       )}

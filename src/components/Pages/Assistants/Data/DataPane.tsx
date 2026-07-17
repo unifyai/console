@@ -318,6 +318,7 @@ export function DataPane({
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<DataRow | null>(null);
+  const [editField, setEditField] = React.useState<string | null>(null);
   const [refreshToken, setRefreshToken] = React.useState(0);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const isStackedLayout = useMatchesBelow('tablet');
@@ -571,7 +572,10 @@ export function DataPane({
       context={selected}
       mode={mode}
       selectedRowId={selectedRow ? String(selectedRow.logId) : null}
-      onRowSelect={setSelectedRow}
+      onRowSelect={(row, options) => {
+        setSelectedRow(row);
+        setEditField(options?.editField ?? null);
+      }}
       onMetaChange={setLeafMeta}
       refreshToken={refreshToken}
     />
@@ -755,9 +759,13 @@ export function DataPane({
             description={selectedDisplayPath ?? undefined}
             fields={leafMeta?.fields ?? {}}
             mode={mode}
+            initialEditField={editField}
             onSave={saveField}
             onDelete={deleteSelectedRow}
-            onClose={() => setSelectedRow(null)}
+            onClose={() => {
+              setSelectedRow(null);
+              setEditField(null);
+            }}
           />
 
           <TabFooter

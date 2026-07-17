@@ -156,8 +156,13 @@ async function openRowDetailFromFirstCell(page: Page) {
   await expect(toggle).toBeEnabled({ timeout: 10_000 });
   await toggle.click();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('log-cell-view-edit-row').click();
+  await page.getByTestId('log-cell-view-edit-cell').click();
   await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
+  // Editable cells open in single-field edit; exit so callers can use Edit row.
+  const discard = page.getByRole('button', { name: 'Discard changes' });
+  if ((await discard.count()) > 0) {
+    await discard.click();
+  }
 }
 
 test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no delete', async ({
