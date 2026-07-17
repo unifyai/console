@@ -95,7 +95,7 @@ async function openPeopleTable(page: Page) {
   });
 }
 
-/** Selection does not auto-open the pane — unfold via toolbar, Enter (toggles), or double-click. */
+/** Selection does not auto-open the pane — unfold via toolbar or Enter (toggles). Double-click also opens edit. */
 async function openCellViewPanel(page: Page) {
   const toggle = page.getByTestId('log-grid-view-panel-toggle');
   await expect(toggle).toBeEnabled({ timeout: 10_000 });
@@ -192,7 +192,9 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 });
 
-test('double-click opens and Enter toggles the cell view pane', async ({ authedPage: page }) => {
+test('double-click opens edit mode; Enter and unfold only open the pane', async ({
+  authedPage: page,
+}) => {
   await openPeopleTable(page);
 
   const firstRow = logGridRows(page).first();
@@ -201,6 +203,7 @@ test('double-click opens and Enter toggles the cell view pane', async ({ authedP
 
   await nameCell.dblclick();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('log-cell-view-editor')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
 
@@ -209,10 +212,17 @@ test('double-click opens and Enter toggles the cell view pane', async ({ authedP
   await page.getByTestId('data-leaf-table').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
+  await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
+
+  await nameCell.click();
+  await openCellViewPanel(page);
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 });
 
 test('common text filter narrows rows', async ({ authedPage: page }) => {

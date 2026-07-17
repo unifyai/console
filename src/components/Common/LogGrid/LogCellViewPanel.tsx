@@ -48,6 +48,11 @@ interface LogCellViewPanelProps {
   onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
   /** Initial draft text for the editor (typed / JSON string form of the value). */
   draftForValue?: (columnId: string, value: unknown) => string;
+  /**
+   * Incremented when the grid opens this pane via cell double-click so an
+   * editable value box starts in edit mode. `0` means no auto-edit.
+   */
+  editNonce?: number;
   className?: string;
 }
 
@@ -305,6 +310,7 @@ function CellBody({
   editable,
   draftText,
   onCommit,
+  editNonce = 0,
 }: {
   value: unknown;
   fieldName: string;
@@ -313,6 +319,8 @@ function CellBody({
   editable: boolean;
   draftText: string;
   onCommit?: (draft: string) => Promise<boolean>;
+  /** Bumped on grid cell double-click to open this box in edit mode. */
+  editNonce?: number;
 }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(draftText);
@@ -335,6 +343,16 @@ function CellBody({
     setDraft(draftText);
     setIsEditing(true);
   };
+
+  // Cell double-click opens the pane already in edit mode (Excel-style).
+  React.useEffect(() => {
+    if (editNonce <= 0 || !editable || !onCommit || isSaving) return;
+    skipCommitRef.current = false;
+    setDraft(draftText);
+    setIsEditing(true);
+    // Intentionally keyed only on editNonce so Enter/unfold remounts do not re-enter edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editNonce]);
 
   const cancelEdit = () => {
     skipCommitRef.current = true;
@@ -460,12 +478,14 @@ function ColumnGroupDisplay({
   isColumnEditable,
   onCommitEdit,
   draftForValue,
+  editNonce = 0,
 }: {
   group: ColumnGroup;
   gutterCh: number;
   isColumnEditable?: (columnId: string) => boolean;
   onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
   draftForValue?: (columnId: string, value: unknown) => string;
+  editNonce?: number;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
   const label = sanitizeId(group.columnId);
@@ -517,6 +537,7 @@ function ColumnGroupDisplay({
                   gutterCh={gutterCh}
                   editable={editable}
                   draftText={draftText === '—' ? '' : draftText}
+                  editNonce={editNonce}
                   onCommit={
                     editable && singleLogId != null
                       ? (draft) => onCommitEdit(singleLogId, group.columnId, draft)
@@ -536,7 +557,8 @@ function ColumnGroupDisplay({
  * Viewing panel for selected LogGrid cells.
  * Groups by column under foldable headings (expanded by default), then
  * collapses identical values within a column to one entry with a compressed
- * row-number range. Click an editable value box to edit inline.
+ * row-number range. Click an editable value box to edit inline, or open via
+ * cell double-click to land directly in edit mode.
  */
 export function LogCellViewPanel({
   cells,
@@ -544,10 +566,12 @@ export function LogCellViewPanel({
   isColumnEditable,
   onCommitEdit,
   draftForValue,
+  editNonce = 0,
   className,
 }: LogCellViewPanelProps) {
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
   const gutterCh = React.useMemo(() => maxRowLabelWidthCh(columns), [columns]);
+  const autoEditNonce = cells.length === 1 ? editNonce : 0;
   const panelRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(PANEL_DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = React.useState(false);
@@ -696,6 +720,7 @@ export function LogCellViewPanel({
                 isColumnEditable={isColumnEditable}
                 onCommitEdit={onCommitEdit}
                 draftForValue={draftForValue}
+                editNonce={autoEditNonce}
               />
             ))}
           </div>

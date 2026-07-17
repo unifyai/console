@@ -107,6 +107,8 @@ export function DataLeafTable({
   const [view, setView, replaceView] = useLogViewState(context);
   const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
   const [rowLabels, setRowLabels] = React.useState<Map<string, string>>(() => new Map());
+  /** Bumped on cell double-click so the view pane opens already editing. */
+  const [editNonce, setEditNonce] = React.useState(0);
 
   const initializedRef = React.useRef<string | null>(null);
 
@@ -234,7 +236,10 @@ export function DataLeafTable({
   const showPanel = viewPanelOpen && selectedCells.length > 0;
 
   React.useEffect(() => {
-    if (selectedCells.length === 0) onViewPanelOpenChange(false);
+    if (selectedCells.length === 0) {
+      setEditNonce(0);
+      onViewPanelOpenChange(false);
+    }
   }, [selectedCells.length, onViewPanelOpenChange]);
 
   const dataFields = React.useMemo(() => fieldsToDataFields(fields), [fields]);
@@ -315,8 +320,15 @@ export function DataLeafTable({
         selection={selection}
         hasSelection={selectedCells.length > 0}
         viewPanelOpen={viewPanelOpen}
-        onToggleViewPanel={() => onViewPanelOpenChange(!viewPanelOpen)}
-        onOpenViewPanel={() => onViewPanelOpenChange(true)}
+        onToggleViewPanel={() => {
+          setEditNonce(0);
+          onViewPanelOpenChange(!viewPanelOpen);
+        }}
+        onOpenViewPanel={(opts) => {
+          if (opts?.edit) setEditNonce((n) => n + 1);
+          else setEditNonce(0);
+          onViewPanelOpenChange(true);
+        }}
         filterExpr={spec?.filterExpr}
         onDerivedCreated={() => {
           void refreshAll();
@@ -329,10 +341,14 @@ export function DataLeafTable({
       {showPanel && (
         <LogCellViewPanel
           cells={cellSelections}
-          onClose={() => onViewPanelOpenChange(false)}
+          onClose={() => {
+            setEditNonce(0);
+            onViewPanelOpenChange(false);
+          }}
           isColumnEditable={isColumnEditable}
           onCommitEdit={onCommitEdit}
           draftForValue={draftForValue}
+          editNonce={editNonce}
         />
       )}
     </div>

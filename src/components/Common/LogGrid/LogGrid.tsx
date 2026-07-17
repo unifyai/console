@@ -158,8 +158,11 @@ export interface LogGridProps {
   hasSelection?: boolean;
   viewPanelOpen?: boolean;
   onToggleViewPanel?: () => void;
-  /** Opens the cell view pane (e.g. double-click). No-op if already open. */
-  onOpenViewPanel?: () => void;
+  /**
+   * Opens the cell view pane (e.g. double-click). No-op if already open.
+   * Pass `{ edit: true }` from a cell double-click to enter inline edit.
+   */
+  onOpenViewPanel?: (opts?: { edit?: boolean }) => void;
   /** When false, hide row/cell delete affordances (default true). */
   allowDelete?: boolean;
   className?: string;
@@ -723,9 +726,12 @@ export function LogGrid({
     isSelectingRef.current = false;
   }, []);
 
-  const openViewPanel = React.useCallback(() => {
-    onOpenViewPanel?.();
-  }, [onOpenViewPanel]);
+  const openViewPanel = React.useCallback(
+    (opts?: { edit?: boolean }) => {
+      onOpenViewPanel?.(opts);
+    },
+    [onOpenViewPanel]
+  );
 
   const onCellDoubleClick = React.useCallback(
     (cellId: string) => {
@@ -733,7 +739,7 @@ export function LogGrid({
       selection.onSelectCells([cellId]);
       selectionAnchorRef.current = cellId;
       rootRef.current?.focus({ preventScroll: true });
-      openViewPanel();
+      openViewPanel({ edit: true });
     },
     [selection, openViewPanel]
   );
