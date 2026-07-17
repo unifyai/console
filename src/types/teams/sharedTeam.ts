@@ -8,4 +8,7 @@ export interface SharedTeamSummary {
   description: string | null;
   organizationId?: number | null;
   status?: TeamStatus;
+  /** Managed org-wide pool — display as the organization name/logo. */
+  isOrgWideSharing?: boolean;
+  image?: string | null;
 }

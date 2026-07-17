@@ -1,5 +1,5 @@
 import { Filters, FiltersByColumn } from '@/types/interfaces/columns';
-import { processContext } from '@/lib/logs/columns';
+import { processContext, toOrchestraFieldName, sanitizeId } from '@/lib/logs/columns';
 import { LogFieldsResponseProps, GetLogsParameters } from '@/types/interfaces/logs';
 import { AbsoluteDateString, RelativeDateString } from '@/types/interfaces/filters';
 import {
@@ -19,6 +19,12 @@ import {
   subYears,
 } from 'date-fns';
 import { TileProps } from '@/types/interfaces/grid';
+
+function fieldMeta(fields: LogFieldsResponseProps, cKey: string) {
+  return (
+    fields[cKey] ?? fields[sanitizeId(cKey)] ?? fields[toOrchestraFieldName(cKey)] ?? undefined
+  );
+}
 
 /* Initialization constants and utils*/
 export const now = new Date(Date.now());
@@ -174,14 +180,17 @@ function joinFunctionFilters(
   fields: LogFieldsResponseProps
 ) {
   let joined = '';
+  const meta = fieldMeta(fields, cKey);
+  // Orchestra JSONB keys are snake_case; UI column ids may be camelCase.
+  const orchestraKey = toOrchestraFieldName(cKey);
 
   /* Fallback value */
   if (!filter) return '';
 
   /* Single filters: Filters with a single value per function */
   // Handle images
-  if (fields[cKey] && fields[cKey].dataType === 'image') {
-    joined = filter === 'false' ? `isNone(${cKey})` : `not isNone(${cKey})`;
+  if (meta && meta.dataType === 'image') {
+    joined = filter === 'false' ? `isNone(${orchestraKey})` : `not isNone(${orchestraKey})`;
     return ' and ' + joined;
   }
 
@@ -200,11 +209,7 @@ function joinFunctionFilters(
       let value = item;
 
       // Handle relative timestamps
-      if (
-        fields[cKey] &&
-        ['timestamp', 'time', 'date'].includes(fields[cKey].dataType) &&
-        value.includes(';')
-      ) {
+      if (meta && ['timestamp', 'time', 'date'].includes(meta.dataType) && value.includes(';')) {
         const date = toAbsoluteDate(value as RelativeDateString);
         value = `${date.replace('T', ' ').replace('Z', '')}`;
         value = value.startsWith('"') ? value : `"${value}`;
@@ -212,21 +217,21 @@ function joinFunctionFilters(
       }
 
       // Handle datetime
-      if (fields[cKey] && fields[cKey].dataType === 'date') {
+      if (meta && meta.dataType === 'date') {
         value = value.split(' ')[0];
         value = value.startsWith('"') ? value : `"${value}`;
         value = value.endsWith('"') ? value : `${value}"`;
       }
 
       // Handle time
-      if (fields[cKey] && fields[cKey].dataType === 'time') {
+      if (meta && meta.dataType === 'time') {
         value = value.split(' ')[1];
         value = value.startsWith('"') ? value : `"${value}`;
         value = value.endsWith('"') ? value : `${value}"`;
       }
 
       // Handle timedelta (relative by default)
-      if (fields[cKey] && fields[cKey].dataType === 'timedelta') {
+      if (meta && meta.dataType === 'timedelta') {
         value = relativeToTimeDelta(value as RelativeDateString);
         value = value.startsWith('"') ? value : `"${value}`;
         value = value.endsWith('"') ? value : `${value}"`;
@@ -234,15 +239,19 @@ function joinFunctionFilters(
 
       // Handle isNone / exists / inclusion
       if (fn === 'isNone') {
-        joined += value.includes('true') ? `isNone(${cKey})` : `not isNone(${cKey})`;
+        joined += value.includes('true')
+          ? `isNone(${orchestraKey})`
+          : `not isNone(${orchestraKey})`;
       } else if (fn === 'exists') {
-        joined += value.includes('true') ? `exists(${cKey})` : `not exists(${cKey})`;
+        joined += value.includes('true')
+          ? `exists(${orchestraKey})`
+          : `not exists(${orchestraKey})`;
       } else if (['in str', 'not in str'].includes(fn)) {
-        joined += `${value} ${fn.replace(' str', '')} str(${cKey})`;
+        joined += `${value} ${fn.replace(' str', '')} str(${orchestraKey})`;
       } else if (['in', 'not in'].includes(fn)) {
-        joined += `${value} ${fn} ${cKey}`;
+        joined += `${value} ${fn} ${orchestraKey}`;
       } else {
-        joined += `${cKey} ${fn} ${value}`;
+        joined += `${orchestraKey} ${fn} ${value}`;
       }
     }
     // Append join operator
@@ -498,9 +507,13 @@ export const buildFilterExpression = (
       const processFilter = (value: string, column: string, columnContext: string | undefined) =>
         value.replace(
           new RegExp(column, 'g'),
-          columnContext ? processContext('merge', columnContext, column) : column
+          toOrchestraFieldName(
+            columnContext ? processContext('merge', columnContext, column) : column
+          )
         );
-      Object.keys(fields).forEach((column) => processFilter(filter, column, columnContext));
+      Object.keys(fields).forEach((column) => {
+        filter = processFilter(filter, column, columnContext);
+      });
       commonFiltersExpression = filter;
     } else {
       const validFields = Object.fromEntries(
@@ -508,7 +521,9 @@ export const buildFilterExpression = (
       ); // Exclude images
       const filterValue = maybeWrapFilterInQuotes(commonFilterValue);
       const processFilter = (value: string, column: string, columnContext: string | undefined) =>
-        `${value} in str(${columnContext ? processContext('merge', columnContext, column) : column})`;
+        `${value} in str(${toOrchestraFieldName(
+          columnContext ? processContext('merge', columnContext, column) : column
+        )})`;
       commonFiltersExpression = Object.keys(validFields)
         .map((column) => processFilter(filterValue, column, columnContext))
         .join(' or ');

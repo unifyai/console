@@ -2,12 +2,6 @@ import * as React from 'react';
 import { CallPill, CallTranscriptUtterance } from '@/types/assistants/chat';
 import { Assistant } from '@/types/assistants/assistant';
 import { fetchMeetExchangesDirect } from './useContactIdPrefetch';
-import {
-  contactIdentityForRoot,
-  roleFromRootSenderId,
-  rootContext,
-  roots,
-} from '@/lib/assistants/scope';
 
 interface UseCallPillsOptions {
   assistant: Assistant | null;
@@ -35,61 +29,34 @@ const EMPTY_CALL_PILLS: readonly CallPill[] = Object.freeze([]);
 
 async function fetchCallTranscriptDirect(
   assistant: Assistant,
-  exchangeId: number,
-  sourceContext?: string,
-  selfContactId?: number
+  callId: string
 ): Promise<CallTranscriptUtterance[]> {
   try {
-    const filterExpr = `medium == "unify_meet" and exchange_id == ${exchangeId}`;
-    const queries = sourceContext
-      ? [{ context: sourceContext, selfContactId: selfContactId ?? assistant.selfContactId }]
-      : roots(assistant).flatMap((root) => {
-          const identity = contactIdentityForRoot(assistant, root);
-          if (!identity) return [];
-          return [
-            {
-              context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
-              selfContactId: identity.selfContactId,
-            },
-          ];
-        });
-    const rootLogs = await Promise.all(
-      queries.map(async (query) => {
-        const params = new URLSearchParams({
-          projectName: 'Assistants',
-          context: query.context,
-          limit: '1000',
-          filterExpr,
-        });
-
-        const response = await fetch(`/api/logs?${params.toString()}`, {
-          cache: 'no-store',
-        });
-
-        if (response.status === 404 || !response.ok) return [];
-
-        const data = await response.json();
-        const rootLogs = data?.logs;
-        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
-      })
+    const params = new URLSearchParams({ assistantId: assistant.agentId });
+    const response = await fetch(
+      `/api/calls/${encodeURIComponent(callId)}/utterances?${params.toString()}`,
+      { cache: 'no-store' }
     );
-    const logs = rootLogs.flat();
-    if (!Array.isArray(logs) || logs.length === 0) return [];
-
-    return logs
-      .map(({ log, query }): CallTranscriptUtterance | null => {
-        const { entries, id } = log;
-        if (!entries || typeof entries.content !== 'string') return null;
+    if (!response.ok) return [];
+    const data = await response.json();
+    const utterances = Array.isArray(data?.utterances) ? data.utterances : [];
+    return utterances
+      .map((raw: Record<string, unknown>): CallTranscriptUtterance | null => {
+        const content = typeof raw.content === 'string' ? raw.content : null;
+        if (content === null) return null;
+        const spokenAt = raw.spoken_at ? new Date(raw.spoken_at as string) : new Date();
+        const metadata = (raw.metadata ?? {}) as Record<string, unknown>;
         return {
-          id: String(id),
-          role: roleFromRootSenderId(query, entries.senderId as number),
-          content: entries.content,
-          timestamp: new Date(entries.timestamp as string),
-          callUtteranceTimestamp: entries.metadata?.callUtteranceTimestamp as string | undefined,
+          id: String(raw.id),
+          role: raw.speaker_assistant_id != null ? 'assistant' : 'user',
+          content,
+          timestamp: spokenAt,
+          callUtteranceTimestamp:
+            (metadata.call_utterance_timestamp as string | undefined) ??
+            (metadata.callUtteranceTimestamp as string | undefined),
         };
       })
-      .filter((u: CallTranscriptUtterance | null): u is CallTranscriptUtterance => u !== null)
-      .reverse();
+      .filter((u: CallTranscriptUtterance | null): u is CallTranscriptUtterance => u !== null);
   } catch {
     return [];
   }
@@ -153,52 +120,36 @@ export function useCallPills({
 
   const openTranscript = React.useCallback(
     async (pill: CallPill) => {
-      if (!assistant || contactId === null) return;
+      if (!assistant) return;
 
       setActiveTranscriptPill(pill);
       setTranscriptDialogOpen(true);
       setActiveTranscriptLoading(true);
 
       try {
-        let resolvedExchangeId = pill.exchangeId;
-        let resolvedSourceContext = pill.sourceContext;
-        let resolvedSelfContactId = pill.selfContactId;
+        let resolvedCallId = pill.callId;
 
-        if (resolvedExchangeId === undefined) {
-          const exchanges = await fetchMeetExchangesDirect(contactId, assistant);
-          if (exchanges.length === 0) {
+        if (resolvedCallId === undefined) {
+          const calls = await fetchMeetExchangesDirect(contactId ?? 0, assistant);
+          if (calls.length === 0) {
             setActiveTranscript([]);
             return;
           }
-          const latest = exchanges[exchanges.length - 1];
-          resolvedExchangeId = latest.exchangeId;
-          resolvedSourceContext = latest.sourceContext;
-          resolvedSelfContactId = latest.selfContactId;
+          const latest = calls[calls.length - 1];
+          resolvedCallId = latest.callId;
 
-          if (resolvedExchangeId !== undefined && assistantId && setCallPillHistories) {
+          if (resolvedCallId !== undefined && assistantId && setCallPillHistories) {
             setCallPillHistories((prev) => ({
               ...prev,
               [assistantId]: (prev[assistantId] || []).map((p) =>
-                p.id === pill.id
-                  ? {
-                      ...p,
-                      exchangeId: resolvedExchangeId,
-                      sourceContext: resolvedSourceContext,
-                      selfContactId: resolvedSelfContactId,
-                    }
-                  : p
+                p.id === pill.id ? { ...p, callId: resolvedCallId } : p
               ),
             }));
           }
         }
 
-        if (resolvedExchangeId !== undefined) {
-          const utterances = await fetchCallTranscriptDirect(
-            assistant,
-            resolvedExchangeId,
-            resolvedSourceContext,
-            resolvedSelfContactId
-          );
+        if (resolvedCallId !== undefined) {
+          const utterances = await fetchCallTranscriptDirect(assistant, resolvedCallId);
           setActiveTranscript(utterances);
         } else {
           setActiveTranscript([]);

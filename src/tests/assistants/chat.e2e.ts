@@ -173,7 +173,7 @@ test('chat input is disabled when credits are exhausted and re-enables after fun
   await expect(chatComposer(page)).toBeEnabled({ timeout: 20_000 });
 });
 
-test('shared-root chat history merges root-local identities and paginates', async ({
+test('team room messages never leak into the assistant DM, and DM history paginates', async ({
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatSharedOrg_${Date.now()}`, ownerId: user.id });
@@ -196,104 +196,54 @@ test('shared-root chat history merges root-local identities and paginates', asyn
     sharedAssistant.bossContactId
   );
 
-  const sharedSelfContactId = 70;
-  const sharedBossContactId = 77;
-  const sharedAssistantId = sharedAssistant.agentId;
   const { teamId } = createTeamForAssistant(sharedAssistant, {
     name: `Chat Root E2E ${Date.now()}`,
-    description: 'Shared chat root e2e description for pagination coverage',
-    selfContactId: sharedSelfContactId,
-    bossContactId: sharedBossContactId,
+    description: 'Room isolation + pagination coverage',
+    selfContactId: 70,
+    bossContactId: 77,
   });
-  const sharedContext = `Teams/${teamId}/Transcripts`;
 
   const stamp = Date.now();
-  const boundaryTimestamp = new Date(stamp - 60_000).toISOString();
-  const sharedBoundary = `Shared same timestamp page two ${stamp}`;
-  const personalBoundary = `Personal same timestamp boundary ${stamp}`;
-  const personalLatest = `Personal root latest ${stamp}`;
-  const sharedLatest = `Shared root latest ${stamp}`;
-  const sharedAuthored = `Shared authored visible ${stamp}`;
-  const sharedLegacyNull = `Shared null-authored visible ${stamp}`;
-  const sharedForeign = `Shared foreign-authored hidden ${stamp}`;
-  const decoy = `Shared decoy personal contact ${stamp}`;
+  const dmLatest = `DM latest ${stamp}`;
+  const dmOldest = `DM oldest page-two ${stamp}`;
+  const teamRoomMessage = `Team room message must stay in the room ${stamp}`;
+  const teamAssistantReply = `Team assistant reply must stay in the room ${stamp}`;
 
+  // The DM thread: an old boundary message, filler beyond one page, then a
+  // fresh latest message.
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedAssistant.bossContactId,
+    content: dmOldest,
+  });
   for (let i = 0; i < 48; i++) {
     await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
       senderId: sharedAssistant.bossContactId,
       content: `Merged filler ${stamp}-${i}`,
-      timestamp: new Date(stamp - i * 1000).toISOString(),
-      receiverIds: [sharedAssistant.selfContactId],
     });
   }
   await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedAssistant.bossContactId,
-    content: personalLatest,
-    timestamp: new Date(stamp + 1000).toISOString(),
-    receiverIds: [sharedAssistant.selfContactId],
+    content: dmLatest,
   });
-  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
-    senderId: sharedBossContactId,
-    content: sharedLatest,
-    timestamp: new Date(stamp + 2000).toISOString(),
-    receiverIds: [sharedSelfContactId],
-    context: sharedContext,
-    authoringAssistantId: sharedAssistantId,
-  });
-  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
-    senderId: sharedBossContactId,
-    content: sharedAuthored,
-    timestamp: new Date(stamp + 2500).toISOString(),
-    receiverIds: [sharedSelfContactId],
-    context: sharedContext,
-    authoringAssistantId: sharedAssistantId,
-  });
-  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
-    senderId: sharedBossContactId,
-    content: sharedLegacyNull,
-    timestamp: new Date(stamp + 2600).toISOString(),
-    receiverIds: [sharedSelfContactId],
-    context: sharedContext,
-    authoringAssistantId: null,
-  });
-  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
-    senderId: sharedBossContactId,
-    content: sharedForeign,
-    timestamp: new Date(stamp + 2700).toISOString(),
-    receiverIds: [sharedSelfContactId],
-    context: sharedContext,
-    authoringAssistantId: sharedAssistantId + 1,
-  });
+
+  // The team room: one human message and one assistant reply. Neither may
+  // appear in the 1-on-1 DM panel — they live in the team's own thread.
   await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedAssistant.bossContactId,
-    content: decoy,
-    timestamp: new Date(stamp + 3000).toISOString(),
-    receiverIds: [sharedSelfContactId],
-    context: sharedContext,
+    content: teamRoomMessage,
+    teamId,
   });
   await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
-    senderId: sharedAssistant.bossContactId,
-    content: personalBoundary,
-    timestamp: boundaryTimestamp,
-    receiverIds: [sharedAssistant.selfContactId],
-  });
-  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
-    senderId: sharedBossContactId,
-    content: sharedBoundary,
-    timestamp: boundaryTimestamp,
-    receiverIds: [sharedSelfContactId],
-    context: sharedContext,
-    authoringAssistantId: sharedAssistantId,
+    senderId: sharedAssistant.selfContactId,
+    content: teamAssistantReply,
+    teamId,
   });
 
   await openAssistantChat(page, sharedAssistant);
 
-  await expect(page.locator(`text=${personalLatest}`).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(`text=${sharedLatest}`).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(`text=${sharedAuthored}`).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(`text=${sharedLegacyNull}`).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(`text=${sharedForeign}`)).toHaveCount(0);
-  await expect(page.locator(`text=${decoy}`)).toHaveCount(0);
+  await expect(page.locator(`text=${dmLatest}`).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(`text=${teamRoomMessage}`)).toHaveCount(0);
+  await expect(page.locator(`text=${teamAssistantReply}`)).toHaveCount(0);
 
   const viewport = page
     .getByTestId('chat-scroll-area')
@@ -303,6 +253,6 @@ test('shared-root chat history merges root-local identities and paginates', asyn
     el.dispatchEvent(new Event('scroll'));
   });
 
-  await expect(page.locator(`text=${personalBoundary}`).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(`text=${sharedBoundary}`).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(`text=${dmOldest}`).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(`text=${teamRoomMessage}`)).toHaveCount(0);
 });

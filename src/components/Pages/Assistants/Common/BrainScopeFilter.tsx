@@ -1,15 +1,24 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
 import { currentTeamIds, type ContextRoot } from '@/lib/assistants/scope';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import type { Assistant } from '@/types/assistants/assistant';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
+import {
+  isManagedOrgWideTeam,
+  resolveManagedTeamDisplayName,
+  resolveManagedTeamImageUrl,
+} from '@/utils/teams/managedTeamDisplay';
 
 export interface BrainScopeOption {
   key: string;
   label: string;
   /** null = merged view across every readable root. */
   root: ContextRoot | null;
+  imageUrl?: string | null;
+  isOrgWideSharing?: boolean;
 }
 
 interface UseBrainScopeFilterOptions {
@@ -31,8 +40,20 @@ export interface BrainScopeFilterState {
   options: BrainScopeOption[];
   activeKey: string;
   setActiveKey: (key: string) => void;
-  /** True when the chip row should render (assistant view with teams). */
+  /** True when the ownership control should render (assistant view with teams). */
   showFilter: boolean;
+}
+
+async function fetchAssistantTeams(assistantId: string): Promise<SharedTeamSummary[]> {
+  const response = await fetch(`/api/assistant/${assistantId}/teams`, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error('Failed to load teams');
+  }
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected teams response');
+  }
+  return data as SharedTeamSummary[];
 }
 
 /**
@@ -46,15 +67,46 @@ export function useBrainScopeFilter(
   assistant: Assistant,
   { fixedRoot = null, includeAll = true }: UseBrainScopeFilterOptions = {}
 ): BrainScopeFilterState {
+  const { activeWorkspace } = useWorkspace();
+  const orgName = activeWorkspace?.type === 'organization' ? activeWorkspace.name : null;
+  const orgImage =
+    activeWorkspace?.type === 'organization' ? (activeWorkspace.image ?? null) : null;
+
+  const teamIds = React.useMemo(() => currentTeamIds(assistant), [assistant]);
+  const { data: fetchedTeams = [] } = useQuery({
+    queryKey: ['assistant-teams', assistant.agentId, teamIds.join(',')],
+    queryFn: () => fetchAssistantTeams(String(assistant.agentId)),
+    enabled: teamIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const options = React.useMemo<BrainScopeOption[]>(() => {
-    const teamNamesById = new Map(
-      (assistant.teamSummaries ?? []).map((summary) => [summary.teamId, summary.name])
-    );
-    const teamOptions = currentTeamIds(assistant).map((teamId) => ({
-      key: `team-${teamId}`,
-      label: teamNamesById.get(teamId) ?? `Team ${teamId}`,
-      root: { kind: 'team', teamId } as ContextRoot,
-    }));
+    const teamsById = new Map<number, SharedTeamSummary>();
+    for (const summary of assistant.teamSummaries ?? []) {
+      teamsById.set(summary.teamId, summary);
+    }
+    for (const team of fetchedTeams) {
+      const existing = teamsById.get(team.teamId);
+      teamsById.set(team.teamId, existing ? { ...existing, ...team } : team);
+    }
+
+    const teamOptions = teamIds.map((teamId) => {
+      const summary = teamsById.get(teamId) ?? {
+        teamId,
+        name: `Team ${teamId}`,
+        description: null,
+      };
+      const label = resolveManagedTeamDisplayName(summary, orgName);
+      const isOrgWideSharing = isManagedOrgWideTeam(summary);
+      return {
+        key: `team-${teamId}`,
+        label,
+        root: { kind: 'team', teamId } as ContextRoot,
+        imageUrl: resolveManagedTeamImageUrl(summary, orgImage),
+        isOrgWideSharing,
+      };
+    });
+
     const baseOptions: BrainScopeOption[] = includeAll
       ? [{ key: 'all', label: 'All', root: null }]
       : [];
@@ -63,7 +115,7 @@ export function useBrainScopeFilter(
       { key: 'personal', label: 'Personal', root: { kind: 'personal' } },
       ...teamOptions,
     ];
-  }, [assistant, includeAll]);
+  }, [assistant.teamSummaries, fetchedTeams, includeAll, orgImage, orgName, teamIds]);
 
   const defaultKey = includeAll ? 'all' : 'personal';
   const [activeKey, setActiveKey] = React.useState(defaultKey);
@@ -78,7 +130,7 @@ export function useBrainScopeFilter(
     }
   }, [assistantId, defaultKey]);
 
-  const hasTeams = currentTeamIds(assistant).length > 0;
+  const hasTeams = teamIds.length > 0;
   const showFilter = fixedRoot == null && hasTeams;
 
   const resolvedKey = options.some((option) => option.key === activeKey) ? activeKey : defaultKey;
@@ -91,47 +143,4 @@ export function useBrainScopeFilter(
     setActiveKey,
     showFilter,
   };
-}
-
-interface BrainScopeChipsProps {
-  scope: BrainScopeFilterState;
-  className?: string;
-}
-
-/** The chip row itself; render directly beneath the pane's toolbar. */
-export function BrainScopeChips({ scope, className }: BrainScopeChipsProps) {
-  if (!scope.showFilter) return null;
-  return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center gap-1.5 border-b border-border px-3 py-1.5',
-        className
-      )}
-      data-testid="brain-scope-filter"
-      role="tablist"
-      aria-label="Memory scope"
-    >
-      {scope.options.map((option) => {
-        const isActive = option.key === scope.activeKey;
-        return (
-          <button
-            key={option.key}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            data-testid={`brain-scope-${option.key}`}
-            onClick={() => scope.setActiveKey(option.key)}
-            className={cn(
-              'text-caption rounded-full border px-2.5 py-0.5 transition-colors',
-              isActive
-                ? 'border-primary-tint-30 bg-primary-tint-10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-            )}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
 }

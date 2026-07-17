@@ -13,7 +13,25 @@ import {
   type LogGridRow,
   type SelectionModel,
 } from '@/lib/logs';
-import type { DataField, DataRow } from './dataTypes';
+import {
+  coerceFieldDraft,
+  draftStringForField,
+  isDataFieldEditable,
+  type DataField,
+  type DataRow,
+} from './dataTypes';
+import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
+import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
+import { updateLogEntries } from '@/lib/logs/mutations';
+import { sanitizeId } from '@/lib/logs/columns';
+import { toast } from 'sonner';
+
+function normalizeBoolFlag(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
 
 function fieldsToDataFields(
   fields: Record<
@@ -22,6 +40,7 @@ function fieldsToDataFields(
       dataType?: string;
       fieldType?: string;
       mutable?: string | boolean;
+      uiEditable?: string | boolean;
       enumValues?: string[] | null;
       restrict?: boolean;
       [key: string]: unknown;
@@ -34,14 +53,8 @@ function fieldsToDataFields(
       {
         dataType: value.dataType,
         fieldType: value.fieldType,
-        mutable:
-          typeof value.mutable === 'boolean'
-            ? value.mutable
-            : value.mutable === 'true'
-              ? true
-              : value.mutable === 'false'
-                ? false
-                : undefined,
+        mutable: normalizeBoolFlag(value.mutable),
+        uiEditable: normalizeBoolFlag(value.uiEditable),
         enumValues: Array.isArray(value.enumValues) ? (value.enumValues as string[]) : null,
         restrict: typeof value.restrict === 'boolean' ? value.restrict : undefined,
       } satisfies DataField,
@@ -55,8 +68,14 @@ function toDataRow(row: LogGridRow): DataRow {
 
 interface DataLeafTableProps {
   context: string;
+  mode: DataBrowserMode;
   selectedRowId: string | null;
-  onRowSelect: (row: DataRow | null) => void;
+  onRowSelect: (row: DataRow | null, options?: { editField?: string }) => void;
+  /** Lifted so layout remounts (stacked ↔ desktop) keep the current cell selection. */
+  selectedCells: string[];
+  onSelectCells: (cells: string[]) => void;
+  viewPanelOpen: boolean;
+  onViewPanelOpenChange: (open: boolean) => void;
   onMetaChange?: (meta: {
     count: number;
     loaded: number;
@@ -73,17 +92,21 @@ interface DataLeafTableProps {
  */
 export function DataLeafTable({
   context,
+  mode,
   selectedRowId: _selectedRowId,
-  onRowSelect,
+  onRowSelect: _onRowSelect,
+  selectedCells,
+  onSelectCells,
+  viewPanelOpen,
+  onViewPanelOpenChange,
   onMetaChange,
   refreshToken = 0,
   onRowsChange,
 }: DataLeafTableProps) {
   const queryClient = useQueryClient();
   const [view, setView, replaceView] = useLogViewState(context);
-  const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
   const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
-  const [viewPanelOpen, setViewPanelOpen] = React.useState(false);
+  const [rowLabels, setRowLabels] = React.useState<Map<string, string>>(() => new Map());
 
   const initializedRef = React.useRef<string | null>(null);
 
@@ -107,9 +130,8 @@ export function DataLeafTable({
   });
 
   React.useEffect(() => {
-    setSelectedCells([]);
     setBrowseRows([]);
-    setViewPanelOpen(false);
+    setRowLabels(new Map());
   }, [context]);
 
   React.useEffect(() => {
@@ -190,9 +212,9 @@ export function DataLeafTable({
     () => ({
       mode: 'cell',
       selectedCells,
-      onSelectCells: setSelectedCells,
+      onSelectCells,
     }),
-    [selectedCells]
+    [selectedCells, onSelectCells]
   );
 
   const panelRows = React.useMemo(
@@ -201,19 +223,70 @@ export function DataLeafTable({
   );
 
   const cellSelections = React.useMemo(
-    () => cellsFromSelection(selectedCells, panelRows, view.offset),
-    [selectedCells, panelRows, view.offset]
+    () => cellsFromSelection(selectedCells, panelRows, rowLabels),
+    [selectedCells, panelRows, rowLabels]
   );
 
   const showPanel = viewPanelOpen && selectedCells.length > 0;
-  const clearSelection = React.useCallback(() => {
-    setSelectedCells([]);
-    setViewPanelOpen(false);
-  }, []);
 
   React.useEffect(() => {
-    if (selectedCells.length === 0) setViewPanelOpen(false);
-  }, [selectedCells.length]);
+    if (selectedCells.length === 0) onViewPanelOpenChange(false);
+  }, [selectedCells.length, onViewPanelOpenChange]);
+
+  const dataFields = React.useMemo(() => fieldsToDataFields(fields), [fields]);
+
+  const resolveField = React.useCallback(
+    (columnId: string): { key: string; field: DataField } => {
+      const sanitized = sanitizeId(columnId);
+      if (dataFields[sanitized]) return { key: sanitized, field: dataFields[sanitized]! };
+      if (dataFields[columnId]) return { key: columnId, field: dataFields[columnId]! };
+      const lower = sanitized.toLowerCase();
+      const match = Object.entries(dataFields).find(([key]) => key.toLowerCase() === lower);
+      if (match) return { key: match[0], field: match[1] };
+      return { key: sanitized, field: {} };
+    },
+    [dataFields]
+  );
+
+  const isColumnEditable = React.useCallback(
+    (columnId: string) => isDataFieldEditable(resolveField(columnId).field, mode),
+    [resolveField, mode]
+  );
+
+  const draftForValue = React.useCallback(
+    (columnId: string, value: unknown) => draftStringForField(resolveField(columnId).field, value),
+    [resolveField]
+  );
+
+  const onCommitEdit = React.useCallback(
+    async (logId: number, columnId: string, draft: string) => {
+      const { key, field } = resolveField(columnId);
+      const row = panelRows.find((r) => r.logId === logId);
+      const current = row?.entries[key] ?? row?.entries[columnId];
+      let nextValue: unknown;
+      try {
+        nextValue = coerceFieldDraft(field, draft, current);
+      } catch (error) {
+        console.error('Invalid cell edit draft', error);
+        toast.error('Could not save changes. Please try again.');
+        return false;
+      }
+      if (JSON.stringify(nextValue) === JSON.stringify(current)) return true;
+      const result = await updateLogEntries({
+        projectName: 'Assistants',
+        context,
+        logId,
+        entries: { [key]: nextValue },
+      });
+      if (!result.ok) {
+        toast.error('Could not save changes. Please try again.');
+        return false;
+      }
+      await refreshAll();
+      return true;
+    },
+    [resolveField, panelRows, context, refreshAll]
+  );
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -234,28 +307,28 @@ export function DataLeafTable({
         error={error}
         onRetry={() => void refetch()}
         onBrowseRowsChange={setBrowseRows}
+        onRowLabelsChange={setRowLabels}
         selection={selection}
         hasSelection={selectedCells.length > 0}
         viewPanelOpen={viewPanelOpen}
-        onToggleViewPanel={() => setViewPanelOpen((open) => !open)}
-        onOpenViewPanel={() => setViewPanelOpen(true)}
+        onToggleViewPanel={() => onViewPanelOpenChange(!viewPanelOpen)}
+        onOpenViewPanel={() => onViewPanelOpenChange(true)}
         filterExpr={spec?.filterExpr}
         onDerivedCreated={() => {
           void refreshAll();
         }}
         onMutated={() => void refreshAll()}
+        allowDelete={!isStateManagerMode(mode)}
         testId="data-leaf-table"
         className="min-h-0 min-w-0 flex-1"
       />
       {showPanel && (
         <LogCellViewPanel
           cells={cellSelections}
-          onClose={() => setViewPanelOpen(false)}
-          onClear={clearSelection}
-          onEditRow={(logId) => {
-            const match = panelRows.find((r) => r.logId === logId);
-            onRowSelect(match ? toDataRow(match) : null);
-          }}
+          onClose={() => onViewPanelOpenChange(false)}
+          isColumnEditable={isColumnEditable}
+          onCommitEdit={onCommitEdit}
+          draftForValue={draftForValue}
         />
       )}
     </div>

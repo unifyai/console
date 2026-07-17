@@ -1,13 +1,16 @@
 import type { LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { buildFilterExpression } from '@/lib/logs/filters';
 import { parseGrouping, toOrchestraGroupBy } from '@/lib/logs/grouping';
+import { toOrchestraFieldName } from '@/lib/logs/columns';
 import type { LogQuerySpec, LogViewState } from './types';
 import type { SortingState } from '@tanstack/react-table';
 
 /** Map TanStack sorting to Orchestra `sorting` JSON string. */
 export function sortingStateToOrchestra(sorting: SortingState): string | null {
   if (!sorting.length) return null;
-  const obj = Object.fromEntries(sorting.map((s) => [s.id, s.desc ? 'descending' : 'ascending']));
+  const obj = Object.fromEntries(
+    sorting.map((s) => [toOrchestraFieldName(s.id), s.desc ? 'descending' : 'ascending'])
+  );
   return JSON.stringify(obj);
 }
 

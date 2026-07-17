@@ -253,18 +253,24 @@ export async function GET(request: NextRequest) {
         const thread = payload?.thread ?? message.attributes?.thread;
         const event = payload?.event;
 
+        // Unified chat-store frames carry one thread name; membership is
+        // checked against the message payload's thread kind + scope ids.
+        const kind =
+          thread === 'chat_message' || thread === 'chat_reaction'
+            ? (message.attributes?.kind ?? event?.kind)
+            : undefined;
+
         let allowed = false;
-        if (thread === 'team_message' || thread === 'team_message_reaction') {
+        if (kind === 'team') {
           const teamIdRaw = message.attributes?.team_id ?? event?.team_id;
           const teamId = Number(teamIdRaw);
           allowed = !isNaN(teamId) && allowedTeamIds.has(teamId);
-        } else if (thread === 'group_message' || thread === 'group_message_reaction') {
+        } else if (kind === 'group') {
           const groupIdRaw = message.attributes?.group_id ?? event?.group_id;
           const groupId = Number(groupIdRaw);
           allowed = !isNaN(groupId) && allowedGroupIds.has(groupId);
         } else if (
-          thread === 'dm_message' ||
-          thread === 'dm_message_reaction' ||
+          kind === 'dm' ||
           (typeof thread === 'string' &&
             (thread.startsWith('dm_call_') || thread.startsWith('org_call_')))
         ) {

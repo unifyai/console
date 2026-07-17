@@ -16,16 +16,9 @@ import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { camelToSnakeObject } from '@/utils/casing';
 import type { Assistant } from '@/types/assistants/assistant';
-import { mergeRootRows } from '@/lib/client/read_across_roots';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
-import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
-import { isReactionAuditMedium, mapTranscriptReactions } from '@/utils/assistants/chat-reactions';
-import {
-  contactScopedRootQueries,
-  roleFromRootSenderId,
-  rootContext,
-  transcriptFilterForRoot,
-} from '@/lib/assistants/scope';
+import { mapOrgChatReactions } from '@/utils/assistants/chat-reactions';
+import { rootContext } from '@/lib/assistants/scope';
 
 /** Message payload with optional attachments */
 export interface UnifyMessageWithAttachments extends UnifyMessage {
@@ -89,117 +82,104 @@ export async function getContactIdByEmail(
     return null;
   }
 }
+function mapStoreMessageEntry(raw: Record<string, unknown>): ChatMessage | null {
+  const messageId = Number(raw.id);
+  if (!Number.isFinite(messageId)) return null;
+  const content = typeof raw.content === 'string' ? raw.content : '';
+  const senderKind = (raw.sender_kind ?? raw.senderKind) as string | undefined;
+  const timestampRaw = (raw.timestamp ?? raw.created_at) as string | undefined;
+  const timestamp = timestampRaw ? new Date(timestampRaw) : new Date();
+  if (isNaN(timestamp.getTime())) return null;
+  const rawAttachments = raw.attachments;
+  return {
+    id: String(messageId),
+    role: senderKind === 'assistant' ? 'assistant' : 'user',
+    content,
+    timestamp,
+    messageId,
+    attachments: Array.isArray(rawAttachments)
+      ? (rawAttachments as Record<string, unknown>[]).map(
+          (a): Attachment => ({
+            id: (a.id as string) || String(messageId),
+            filename: (a.filename as string) || 'attachment',
+            gsUrl: (a.gs_url ?? a.gsUrl) as string | undefined,
+            contentType: (a.content_type ?? a.contentType) as string | undefined,
+            sizeBytes: (a.size_bytes ?? a.sizeBytes) as number | undefined,
+          })
+        )
+      : [],
+    reactions: mapOrgChatReactions(raw.reactions),
+  };
+}
+
 /**
- * Fetches chat transcripts for a specific user's conversation with an assistant.
+ * Resolve (get-or-create) the caller's assistant-DM thread in the unified
+ * chat store. Returns the thread id, or an error payload.
+ */
+export async function resolveAssistantThread(
+  assistant: Assistant
+): Promise<{ threadId: number } | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const response = await fetch(`${getInternalApiBaseUrl()}/api/chat/threads/resolve`, {
+      method: 'POST',
+      headers: { apiKey: apiKey, 'Content-Type': 'application/json' },
+      // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
+      body: JSON.stringify({ kind: 'assistant_dm', assistant_id: parseInt(assistant.agentId, 10) }),
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return { detail: data?.detail || `Failed to resolve chat thread (${response.status})` };
+    }
+    const threadId = Number(data?.thread_id);
+    if (!Number.isFinite(threadId)) {
+      return { detail: 'Chat thread resolution returned no thread id.' };
+    }
+    return { threadId };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error resolving thread.';
+    return { detail: message };
+  }
+}
+
+/**
+ * Fetches the user's 1-on-1 chat history with an assistant from the unified
+ * chat store (most recent first).
  *
- * @param contactId - The current user's contact_id (used for filtering)
- * @param ownerId - The owner's user ID (used in security filter)
- * @param assistantId - The assistant's ID (used in security filter)
- * @param before - Optional merged cursor for pagination
- *
- * Filter: Shows messages sent by the current user OR assistant responses to the current user.
+ * @param contactId - Retained for call-panel identity; not used for history.
+ * @param before - Optional pagination cursor: fetch messages older than
+ *   `beforeId` (a unified chat-store message id).
  */
 export async function getTranscripts(
   contactId: number,
   assistant: Assistant,
-  before?: { timestamp: string; excludedKeys?: string[] }
+  before?: { beforeId?: number }
 ): Promise<ChatMessage[] | ResponseProps> {
   const apiKey = await requireUserApiKey();
   try {
-    const project = 'Assistants';
-    const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
-    const excludedKeys = new Set(before?.excludedKeys ?? []);
-    const rootLimit = limit + excludedKeys.size;
-    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
-    const rootLogs = await Promise.all(
-      queries.map(async (query) => {
-        let filterExpr = transcriptFilterForRoot(query, assistant.agentId);
-        if (before) {
-          filterExpr += ` and timestamp <= "${before.timestamp}"`;
-        }
-        const sorting = encodeURIComponent(JSON.stringify({ timestamp: 'descending' }));
-        const url = `${getInternalApiBaseUrl()}/api/logs?projectName=${project}&context=${query.context}&limit=${rootLimit}&sorting=${sorting}&filterExpr=${encodeURIComponent(filterExpr)}`;
+    const thread = await resolveAssistantThread(assistant);
+    if ('detail' in thread) return thread;
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: { apiKey: apiKey },
-          cache: 'no-store',
-        });
-
-        if (response.status === 404) {
-          return [];
-        }
-        if (!response.ok) {
-          let errorDetail = `Failed to get chat history with status ${response.status}: ${response.statusText}`;
-          try {
-            const errorData = await response.json();
-            errorDetail = errorData.detail || errorDetail;
-          } catch (e) {
-            const textError = await response.text();
-            console.error('[getTranscripts] Non-JSON error response from /api/logs:', textError);
-            errorDetail = textError || errorDetail;
-          }
-          throw new Error(errorDetail);
-        }
-
-        const data = await response.json();
-        const logsResponse = data as LogsResponseProps;
-        return (logsResponse.logs as LogProps[]).map((log) => ({ log, query }));
-      })
-    );
-    const logs = mergeRootRows(rootLogs.flat(), {
-      limit: rootLimit,
-      sortValue: ({ log }) => log.entries?.timestamp,
-      dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
-    })
-      .filter(({ log, query }) => {
-        const contextKey = `${query.context}:${log.entries?.messageId ?? log.id}`;
-        if (excludedKeys.has(contextKey)) return false;
-        const mergeKey = transcriptMergeDedupeKey(log.entries, log.id);
-        if (excludedKeys.has(mergeKey)) return false;
-        return true;
-      })
-      .slice(0, limit);
-
-    const mappedMessages = logs
-      .map(({ log, query }): ChatMessage | null => {
-        const { entries, id } = log;
-        if (
-          !entries ||
-          typeof entries.content !== 'string' ||
-          typeof entries.senderId === 'undefined'
-        ) {
-          console.warn('[getTranscripts] Skipping invalid log entry:', log);
-          return null;
-        }
-        if (isReactionAuditMedium(entries.medium)) {
-          return null;
-        }
-        const senderId = entries.senderId as number;
-        return {
-          id: String(id),
-          role: roleFromRootSenderId(query, senderId),
-          content: entries.content,
-          timestamp: new Date(entries.timestamp as string),
-          messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
-          sourceContext: query.context,
-          mergeKey: transcriptMergeDedupeKey(entries, id),
-          attachments: Array.isArray(entries.attachments)
-            ? (entries.attachments as Record<string, unknown>[]).map(
-                (a): Attachment => ({
-                  id: (a.id as string) || String(id),
-                  filename: (a.filename as string) || 'attachment',
-                  gsUrl: a.gsUrl as string | undefined,
-                  contentType: a.contentType as string | undefined,
-                  sizeBytes: a.sizeBytes as number | undefined,
-                })
-              )
-            : [],
-          reactions: mapTranscriptReactions(entries.metadata),
-        };
-      })
-      .filter((msg): msg is ChatMessage => msg !== null);
-    return mappedMessages;
+    const params = new URLSearchParams({
+      limit: String(ASSISTANT_CHAT_LOADED_MESSAGES_COUNT),
+    });
+    if (before?.beforeId) params.set('before_id', String(before.beforeId));
+    const url = `${getInternalApiBaseUrl()}/api/chat/threads/${thread.threadId}/messages?${params.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { apiKey: apiKey },
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return { detail: data?.detail || `Failed to get chat history (${response.status})` };
+    }
+    const rawMessages = Array.isArray(data?.messages) ? data.messages : [];
+    return rawMessages
+      .map((raw: Record<string, unknown>) => mapStoreMessageEntry(raw))
+      .filter((message: ChatMessage | null): message is ChatMessage => message !== null)
+      .reverse();
   } catch (error) {
     console.error(
       `[getTranscripts] CATCH block error for assistant '${assistant.agentId}':`,

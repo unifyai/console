@@ -247,7 +247,7 @@ function parseAttachments(raw: unknown): OrgChatAttachment[] {
 
 export function parseTeamChatMessage(raw: Record<string, unknown>): TeamChatMessage {
   return {
-    messageId: Number(raw.message_id),
+    messageId: Number(raw.id ?? raw.message_id),
     teamId: Number(raw.team_id),
     timestamp: typeof raw.timestamp === 'string' ? raw.timestamp : null,
     senderKind: raw.sender_kind === 'assistant' ? 'assistant' : 'user',
@@ -277,7 +277,7 @@ export interface GroupChatMessage {
 
 export function parseGroupChatMessage(raw: Record<string, unknown>): GroupChatMessage {
   return {
-    messageId: Number(raw.message_id),
+    messageId: Number(raw.id ?? raw.message_id),
     groupId: Number(raw.group_id),
     timestamp: typeof raw.timestamp === 'string' ? raw.timestamp : null,
     senderKind: raw.sender_kind === 'assistant' ? 'assistant' : 'user',

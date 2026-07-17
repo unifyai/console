@@ -12,7 +12,8 @@ import {
   getOrFetchTranscripts,
 } from './useContactIdPrefetch';
 import { clientLog, setLogContext } from '@/lib/logging/client-log-buffer';
-import { applyReactionUpdate } from '@/utils/assistants/chat-reactions';
+import { applyOrgReactionUpdate } from '@/utils/assistants/chat-reactions';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import type { ChatStreamConnectionStatus } from './useAssistantChatStream';
 
 /**
@@ -79,6 +80,8 @@ export function useAssistantProfileChat(
   onFirstViewCompleted?: () => void
 ) {
   const assistantId = assistant?.agentId || null;
+  // Reactions in the unified chat store are keyed by the signed-in user's id.
+  const { currentUserId } = useWorkspace();
 
   const messages = React.useMemo(() => {
     const raw = assistantId ? chatHistories[assistantId] || [] : [];
@@ -532,15 +535,16 @@ export function useAssistantProfileChat(
       return;
     }
 
+    if (oldestMessage.messageId === undefined) {
+      setHasMoreMessages(false);
+      return;
+    }
+
     setLoadMoreError(false);
     setIsLoadingMore(true);
     try {
       const result = await assistantActions.chat.getTranscripts(contactId, assistant, {
-        timestamp: oldestMessage.timestamp.toISOString(),
-        excludedKeys: messages.map(
-          (message) =>
-            message.mergeKey ?? `${message.sourceContext ?? ''}:${message.messageId ?? message.id}`
-        ),
+        beforeId: oldestMessage.messageId,
       });
       setHasFetchedHistory(true);
       if ('detail' in result) {
@@ -886,14 +890,18 @@ export function useAssistantProfileChat(
 
   const toggleReaction = React.useCallback(
     async (targetMessageId: number, emoji: string) => {
-      if (!assistant || contactId === null) return;
+      if (!assistant || !currentUserId) return;
       const currentMessages = chatHistories[assistant.agentId] ?? messages;
       const target = currentMessages.find((msg) => msg.messageId === targetMessageId);
       if (!target) return;
 
-      const existing = target.reactions?.find((reaction) => reaction.contactId === contactId);
+      const existing = target.reactions?.find((reaction) => reaction.userId === currentUserId);
       const nextEmoji = existing?.emoji === emoji ? null : emoji;
-      const optimisticReactions = applyReactionUpdate(target.reactions, contactId, nextEmoji);
+      const optimisticReactions = applyOrgReactionUpdate(
+        target.reactions,
+        currentUserId,
+        nextEmoji
+      );
 
       setChatHistories((prev) => {
         const current = prev[assistant.agentId] || [];
@@ -918,7 +926,7 @@ export function useAssistantProfileChat(
 
       const result = await assistantActions.chat.reactToMessage({
         assistantId: parseInt(assistant.agentId, 10),
-        contactId,
+        contactId: contactId ?? 0,
         targetMessageId,
         emoji: nextEmoji,
       });
@@ -934,7 +942,15 @@ export function useAssistantProfileChat(
         toast.error('Could not update reaction. Please try again.');
       }
     },
-    [assistant, assistantActions.chat, chatHistories, contactId, messages, setChatHistories]
+    [
+      assistant,
+      assistantActions.chat,
+      chatHistories,
+      contactId,
+      currentUserId,
+      messages,
+      setChatHistories,
+    ]
   );
 
   // =========================================================================

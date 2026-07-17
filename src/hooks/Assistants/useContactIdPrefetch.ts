@@ -1,18 +1,10 @@
 import * as React from 'react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ChatMessage, Attachment, CallPill } from '@/types/assistants/chat';
+import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { clientLog } from '@/lib/logging/client-log-buffer';
-import { mergeRootRows } from '@/lib/client/read_across_roots';
-import {
-  contactScopedRootQueries,
-  meetExchangeFilterForRoot,
-  roleFromRootSenderId,
-  rootContext,
-  transcriptFilterForRoot,
-} from '@/lib/assistants/scope';
-import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
-import { isReactionAuditMedium, mapTranscriptReactions } from '@/utils/assistants/chat-reactions';
+import { rootContext } from '@/lib/assistants/scope';
+import { fetchThreadMessages, resolveAssistantDmThread } from '@/lib/assistants/chatStore';
 
 const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
 const TRANSCRIPT_LIMIT = 50;
@@ -133,7 +125,7 @@ export function getOrFetchTranscripts(
   getTranscripts: (
     contactId: number,
     assistant: Assistant,
-    before?: { timestamp: string; excludedKeys?: string[] }
+    before?: { beforeId?: number }
   ) => Promise<ChatMessage[] | ResponseProps>,
   contactId: number,
   assistant: Assistant
@@ -195,80 +187,11 @@ export async function fetchTranscriptsDirect(
   assistant: Assistant,
   limit: number = TRANSCRIPT_LIMIT
 ): Promise<ChatMessage[] | ResponseProps> {
-  try {
-    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
-    const rootLogs = await Promise.all(
-      queries.map(async (query) => {
-        const filterExpr = transcriptFilterForRoot(query, assistant.agentId);
-        const params = new URLSearchParams({
-          projectName: 'Assistants',
-          context: query.context,
-          limit: String(limit),
-          filterExpr,
-          sorting: JSON.stringify({ timestamp: 'descending' }),
-        });
-
-        const response = await fetch(`/api/logs?${params.toString()}`, {
-          cache: 'no-store',
-        });
-
-        if (response.status === 404) return [];
-        if (!response.ok) {
-          throw new Error(`Failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        const rootLogs = data?.logs;
-        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
-      })
-    );
-    const logs = mergeRootRows(rootLogs.flat(), {
-      limit,
-      sortValue: ({ log }) => log.entries?.timestamp,
-      dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
-    });
-
-    return logs
-      .map(({ log, query }): ChatMessage | null => {
-        const entries = log.entries;
-        const id = log.id;
-        if (
-          !entries ||
-          typeof entries.content !== 'string' ||
-          typeof entries.senderId === 'undefined'
-        ) {
-          return null;
-        }
-        if (isReactionAuditMedium(entries.medium)) {
-          return null;
-        }
-        return {
-          id: String(id),
-          role: roleFromRootSenderId(query, entries.senderId as number),
-          content: entries.content,
-          timestamp: new Date(entries.timestamp as string),
-          messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
-          sourceContext: query.context,
-          mergeKey: transcriptMergeDedupeKey(entries, id),
-          attachments: Array.isArray(entries.attachments)
-            ? (entries.attachments as Record<string, unknown>[]).map(
-                (a): Attachment => ({
-                  id: (a.id as string) || String(id),
-                  filename: (a.filename as string) || 'attachment',
-                  gsUrl: a.gsUrl as string | undefined,
-                  contentType: a.contentType as string | undefined,
-                  sizeBytes: a.sizeBytes as number | undefined,
-                })
-              )
-            : [],
-          reactions: mapTranscriptReactions(entries.metadata),
-        };
-      })
-      .filter((msg: ChatMessage | null): msg is ChatMessage => msg !== null);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return { detail: message };
+  const threadId = await resolveAssistantDmThread(assistant.agentId);
+  if (threadId === null) {
+    return { detail: 'Failed to resolve chat thread' };
   }
+  return fetchThreadMessages(threadId, { limit });
 }
 
 export async function fetchMeetExchangesDirect(
@@ -276,83 +199,32 @@ export async function fetchMeetExchangesDirect(
   assistant: Assistant
 ): Promise<CallPill[]> {
   try {
-    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
-    const rootLogs = await Promise.all(
-      queries.map(async (query) => {
-        const filterExpr = meetExchangeFilterForRoot(query, assistant.agentId);
-        const params = new URLSearchParams({
-          projectName: 'Assistants',
-          context: query.context,
-          limit: '500',
-          filterExpr,
-        });
-
-        const response = await fetch(`/api/logs?${params.toString()}`, {
-          cache: 'no-store',
-        });
-
-        if (response.status === 404 || !response.ok) return [];
-
-        const data = await response.json();
-        const rootLogs = data?.logs;
-        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
-      })
-    );
-    const logs = rootLogs.flat();
-
-    if (!Array.isArray(logs) || logs.length === 0) return [];
-
-    const exchangeGroups = new Map<
-      string,
-      {
-        exchangeId: number;
-        sourceContext: string;
-        selfContactId: number;
-        minTs: Date;
-        maxTs: Date;
-        count: number;
-      }
-    >();
-    for (const { log, query } of logs) {
-      const entries = log.entries;
-      if (!entries) continue;
-      const xid = typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined;
-      if (xid === undefined) continue;
-      const ts = new Date(entries.timestamp as string);
-      if (isNaN(ts.getTime())) continue;
-
-      const groupKey = `${query.context}:${xid}`;
-      const existing = exchangeGroups.get(groupKey);
-      if (existing) {
-        if (ts < existing.minTs) existing.minTs = ts;
-        if (ts > existing.maxTs) existing.maxTs = ts;
-        existing.count++;
-      } else {
-        exchangeGroups.set(groupKey, {
-          exchangeId: xid,
-          sourceContext: query.context,
-          selfContactId: query.selfContactId,
-          minTs: ts,
-          maxTs: ts,
-          count: 1,
-        });
-      }
-    }
-
-    return Array.from(exchangeGroups.values())
-      .map((group) => {
-        const durationSeconds = Math.round((group.maxTs.getTime() - group.minTs.getTime()) / 1000);
+    const params = new URLSearchParams({ assistantId: assistant.agentId });
+    const response = await fetch(`/api/calls?${params.toString()}`, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const calls = Array.isArray(data?.calls) ? data.calls : [];
+    return calls
+      .map((call: Record<string, unknown>): CallPill | null => {
+        const callId = typeof call.call_id === 'string' ? call.call_id : null;
+        if (!callId) return null;
+        const startedAt = call.started_at ? new Date(call.started_at as string) : null;
+        const endedAt = call.ended_at ? new Date(call.ended_at as string) : startedAt;
+        if (!endedAt || isNaN(endedAt.getTime())) return null;
+        const durationSeconds =
+          startedAt && !isNaN(startedAt.getTime())
+            ? Math.round((endedAt.getTime() - startedAt.getTime()) / 1000)
+            : 0;
         return {
-          id: `call-pill-${group.sourceContext}-${group.exchangeId}`,
+          id: `call-pill-${callId}`,
           type: 'call_pill' as const,
-          timestamp: group.maxTs,
+          timestamp: endedAt,
           durationSeconds: Math.max(durationSeconds, 0),
-          exchangeId: group.exchangeId,
-          sourceContext: group.sourceContext,
-          selfContactId: group.selfContactId,
+          callId,
         };
       })
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      .filter((pill: CallPill | null): pill is CallPill => pill !== null)
+      .sort((a: CallPill, b: CallPill) => a.timestamp.getTime() - b.timestamp.getTime());
   } catch {
     return [];
   }

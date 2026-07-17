@@ -80,11 +80,8 @@ export function LogGridToolbar({
   onToggleViewPanel,
 }: LogGridToolbarProps) {
   const viewToggleEnabled = hasSelection && !!onToggleViewPanel;
-  const viewToggleLabel = !hasSelection
-    ? 'Select cells to open the view pane'
-    : viewPanelOpen
-      ? 'Hide cell view'
-      : 'Show cell view';
+  const viewToggleLabel = hasSelection ? 'Show cell view' : 'Select cells to open the view pane';
+  const showViewToggle = !!onToggleViewPanel && !(viewPanelOpen && hasSelection);
 
   const mode = currentRefreshMode(view);
   const groupingActive = parseGrouping(view.grouping).length > 0;
@@ -273,41 +270,42 @@ export function LogGridToolbar({
         <span className="text-caption text-muted-foreground" data-testid="log-grid-page-status">
           {totalCount === 0 ? '0 rows' : `1–${loadedCount} of ${totalCount.toLocaleString()}`}
         </span>
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="relative">
-                <Button
-                  type="button"
-                  variant={viewPanelOpen && hasSelection ? 'primary' : 'ghost'}
-                  size="sm"
-                  className={cn(
-                    'h-8 w-8 shrink-0 p-0 text-muted-foreground',
-                    viewToggleEnabled && !viewPanelOpen && 'hover:text-foreground',
-                    !viewToggleEnabled && 'cursor-not-allowed opacity-40'
+        {showViewToggle && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-8 w-8 shrink-0 p-0 text-muted-foreground',
+                      viewToggleEnabled && 'hover:text-foreground',
+                      !viewToggleEnabled && 'cursor-not-allowed opacity-40'
+                    )}
+                    disabled={!viewToggleEnabled}
+                    onClick={() => onToggleViewPanel?.()}
+                    aria-label={viewToggleLabel}
+                    data-testid="log-grid-view-panel-toggle"
+                  >
+                    <PanelRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  {hasSelection && (
+                    <span
+                      data-testid="log-grid-view-panel-dot"
+                      aria-hidden="true"
+                      className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-card"
+                    />
                   )}
-                  disabled={!viewToggleEnabled}
-                  onClick={() => onToggleViewPanel?.()}
-                  aria-label={viewToggleLabel}
-                  aria-pressed={viewPanelOpen && hasSelection}
-                  data-testid="log-grid-view-panel-toggle"
-                >
-                  <PanelRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                {hasSelection && !viewPanelOpen && (
-                  <span
-                    data-testid="log-grid-view-panel-dot"
-                    aria-hidden="true"
-                    className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-card"
-                  />
-                )}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{viewToggleLabel}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{viewToggleLabel}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );

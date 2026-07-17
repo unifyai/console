@@ -1,18 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../../../_utils/auth';
-
-const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
+import { forwardToOrchestra, resolveThreadId } from '../../../../../chat/_utils/orchestra';
 
 interface RouteParams {
   params: Promise<{ orgId: string; userId: string }>;
 }
 
+/** Human DM history via the unified chat store (most recent last). */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { orgId, userId } = await params;
-
   const organizationId = parseInt(orgId, 10);
-  if (isNaN(organizationId)) {
-    return badRequest('Invalid organization ID format. Must be an integer.');
+  if (isNaN(organizationId) || !userId) {
+    return badRequest('Invalid organization ID or user ID.');
   }
 
   const apiKey = await getApiKeyFromRequest(request);
@@ -20,45 +19,34 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return unauthorized();
   }
 
-  const searchParams = new URLSearchParams();
+  const thread = await resolveThreadId(apiKey, {
+    kind: 'dm',
+    organization_id: organizationId,
+    peer_user_id: userId,
+  });
+  if ('error' in thread) return thread.error;
+
+  const query = new URLSearchParams();
   const limit = request.nextUrl.searchParams.get('limit');
   const beforeId = request.nextUrl.searchParams.get('before_id');
-  if (limit) searchParams.set('limit', limit);
-  if (beforeId) searchParams.set('before_id', beforeId);
-  const query = searchParams.toString();
+  const q = request.nextUrl.searchParams.get('q');
+  if (limit) query.set('limit', limit);
+  if (beforeId) query.set('before_id', beforeId);
+  if (q) query.set('q', q);
 
-  try {
-    const response = await fetch(
-      `${ORCHESTRA_URL}/v0/organizations/${organizationId}/dms/${encodeURIComponent(userId)}/messages${query ? `?${query}` : ''}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      }
-    );
-
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      return NextResponse.json(data || { detail: 'Failed to fetch DM messages' }, {
-        status: response.status,
-      });
-    }
-
-    return NextResponse.json(data, { status: 200 });
-  } catch {
-    return NextResponse.json({ detail: 'Failed to fetch DM messages' }, { status: 500 });
-  }
+  return forwardToOrchestra(request, `/chat/threads/${thread.threadId}/messages`, {
+    method: 'GET',
+    query,
+    apiKey,
+  });
 }
 
+/** Send one DM to another org member via the unified chat store. */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { orgId, userId } = await params;
-
   const organizationId = parseInt(orgId, 10);
-  if (isNaN(organizationId)) {
-    return badRequest('Invalid organization ID format. Must be an integer.');
+  if (isNaN(organizationId) || !userId) {
+    return badRequest('Invalid organization ID or user ID.');
   }
 
   const apiKey = await getApiKeyFromRequest(request);
@@ -78,28 +66,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return badRequest('Missing content or attachments');
   }
 
-  try {
-    const response = await fetch(
-      `${ORCHESTRA_URL}/v0/organizations/${organizationId}/dms/${encodeURIComponent(userId)}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content, attachments }),
-      }
-    );
+  const thread = await resolveThreadId(apiKey, {
+    kind: 'dm',
+    organization_id: organizationId,
+    peer_user_id: userId,
+  });
+  if ('error' in thread) return thread.error;
 
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      return NextResponse.json(data || { detail: 'Failed to send DM message' }, {
-        status: response.status,
-      });
-    }
-
-    return NextResponse.json(data, { status: response.status });
-  } catch {
-    return NextResponse.json({ detail: 'Failed to send DM message' }, { status: 500 });
-  }
+  return forwardToOrchestra(request, `/chat/threads/${thread.threadId}/messages`, {
+    method: 'POST',
+    body: { content, attachments },
+    apiKey,
+  });
 }

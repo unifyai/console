@@ -8,14 +8,7 @@ import type {
   Attachment,
 } from '@/types/assistants/chat';
 import type { Assistant } from '@/types/assistants/assistant';
-import { mergeRootRows } from '@/lib/client/read_across_roots';
-import {
-  authoringAssistantFilterForRoot,
-  contactScopedRootQueries,
-  roleFromRootSenderId,
-  type ContactScopedRootQuery,
-} from '@/lib/assistants/scope';
-import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
+import { mapStoreAttachments, resolveAssistantDmThread } from '@/lib/assistants/chatStore';
 
 const SEARCH_PAGE_SIZE = 30;
 
@@ -42,64 +35,108 @@ interface UseChatSearchReturn {
   reset: () => void;
 }
 
-function buildFilterExpr(
+async function searchChatMessages(
+  assistant: Assistant,
   filters: ChatSearchFilters,
-  query: Pick<ContactScopedRootQuery, 'root' | 'contactId' | 'selfContactId'>,
-  assistantId: string
-): string {
-  const clauses: string[] = [];
-  const { contactId, selfContactId: selfId } = query;
+  limit: number,
+  offset: number
+): Promise<{ results: ChatSearchResult[]; hasMore: boolean }> {
+  const threadId = await resolveAssistantDmThread(assistant.agentId);
+  if (threadId === null) return { results: [], hasMore: false };
 
-  // Medium filter
-  if (filters.medium === 'chat') {
-    clauses.push('medium == "unify_message"');
-  } else if (filters.medium === 'call') {
-    clauses.push('medium == "unify_meet"');
-  } else {
-    clauses.push('(medium == "unify_message" or medium == "unify_meet")');
-  }
-
-  // Sender filter
-  if (filters.sender === 'assistant') {
-    clauses.push(`sender_id == ${selfId}`);
-  } else if (filters.sender === 'me') {
-    clauses.push(`sender_id == ${contactId}`);
-  } else {
-    clauses.push(`(sender_id == ${contactId} or sender_id == ${selfId})`);
-  }
-
-  // Receiver scoping — only show messages relevant to this contact
-  clauses.push(
-    `(${contactId} in receiver_ids or receiver_ids == [${selfId}] or sender_id == ${contactId})`
-  );
-  const authoringFilter = authoringAssistantFilterForRoot(query.root, assistantId);
-  if (authoringFilter) {
-    clauses.push(authoringFilter);
-  }
-
-  // Content search (case-insensitive via .lower() on both sides)
-  if (filters.query.trim()) {
-    const escaped = filters.query.trim().toLowerCase().replace(/"/g, '\\"');
-    clauses.push(`"${escaped}" in content.lower()`);
-  }
-
-  // Attachment presence — narrow server-side to messages that have attachments;
-  // the specific type match is still applied client-side.
-  if (filters.attachmentType) {
-    clauses.push('attachments != None');
-  }
-
-  // Date range
-  if (filters.startDate) {
-    clauses.push(`timestamp >= "${filters.startDate.toISOString()}"`);
-  }
+  const params = new URLSearchParams({ limit: String(limit + 1), offset: String(offset) });
+  if (filters.query.trim()) params.set('q', filters.query.trim());
+  if (filters.sender === 'assistant') params.set('sender_kind', 'assistant');
+  if (filters.sender === 'me') params.set('sender_kind', 'user');
+  if (filters.attachmentType) params.set('has_attachments', 'true');
+  if (filters.startDate) params.set('after', filters.startDate.toISOString());
   if (filters.endDate) {
     const endOfDay = new Date(filters.endDate);
     endOfDay.setHours(23, 59, 59, 999);
-    clauses.push(`timestamp <= "${endOfDay.toISOString()}"`);
+    params.set('before', endOfDay.toISOString());
   }
 
-  return clauses.join(' and ');
+  const response = await fetch(`/api/chat/threads/${threadId}/search?${params.toString()}`, {
+    cache: 'no-store',
+  });
+  if (!response.ok) return { results: [], hasMore: false };
+  const data = await response.json();
+  const rawMessages: Record<string, unknown>[] = Array.isArray(data?.messages) ? data.messages : [];
+
+  const results = rawMessages
+    .slice(0, limit)
+    .map((raw): ChatSearchResult | null => {
+      const messageId = Number(raw.id);
+      const content = typeof raw.content === 'string' ? raw.content : null;
+      if (!Number.isFinite(messageId) || content === null) return null;
+      const attachments = mapStoreAttachments(raw.attachments, String(messageId));
+      return {
+        id: String(messageId),
+        role: raw.sender_kind === 'assistant' ? 'assistant' : 'user',
+        content,
+        timestamp: new Date(raw.timestamp as string),
+        messageId,
+        medium: 'unify_message',
+        attachments: attachments.length > 0 ? (attachments as Attachment[]) : undefined,
+      };
+    })
+    .filter((r: ChatSearchResult | null): r is ChatSearchResult => r !== null);
+
+  return { results, hasMore: rawMessages.length > limit };
+}
+
+async function searchCallUtterances(
+  assistant: Assistant,
+  filters: ChatSearchFilters,
+  limit: number,
+  offset: number
+): Promise<{ results: ChatSearchResult[]; hasMore: boolean }> {
+  if (!filters.query.trim()) return { results: [], hasMore: false };
+  const params = new URLSearchParams({
+    assistantId: assistant.agentId,
+    q: filters.query.trim(),
+    limit: String(limit + 1),
+    offset: String(offset),
+  });
+  const response = await fetch(`/api/calls/search?${params.toString()}`, { cache: 'no-store' });
+  if (!response.ok) return { results: [], hasMore: false };
+  const data = await response.json();
+  const rawUtterances: Record<string, unknown>[] = Array.isArray(data?.utterances)
+    ? data.utterances
+    : [];
+
+  const results = rawUtterances
+    .slice(0, limit)
+    .map((raw): ChatSearchResult | null => {
+      const content = typeof raw.content === 'string' ? raw.content : null;
+      if (content === null) return null;
+      const role: 'assistant' | 'user' = raw.speaker_assistant_id != null ? 'assistant' : 'user';
+      return {
+        id: `utterance-${String(raw.id)}`,
+        role,
+        content,
+        timestamp: new Date(raw.spoken_at as string),
+        medium: 'unify_meet',
+        callId: typeof raw.call_id === 'string' ? raw.call_id : undefined,
+      };
+    })
+    .filter((r: ChatSearchResult | null): r is ChatSearchResult => r !== null)
+    .filter((r) => {
+      if (filters.sender === 'assistant') return r.role === 'assistant';
+      if (filters.sender === 'me') return r.role === 'user';
+      return true;
+    })
+    .filter((r) => {
+      if (filters.startDate && r.timestamp < filters.startDate) return false;
+      if (filters.endDate) {
+        const endOfDay = new Date(filters.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (r.timestamp > endOfDay) return false;
+      }
+      return true;
+    });
+
+  return { results, hasMore: rawUtterances.length > limit };
 }
 
 async function executeSearch(
@@ -109,72 +146,24 @@ async function executeSearch(
   limit: number,
   offset: number
 ): Promise<{ results: ChatSearchResult[]; hasMore: boolean }> {
-  const queryLimit = offset + limit + 1;
-  const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
-  const rootLogs = await Promise.all(
-    queries.map(async (query) => {
-      const filterExpr = buildFilterExpr(filters, query, assistant.agentId);
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context: query.context,
-        limit: String(queryLimit),
-        filterExpr,
-        sorting: JSON.stringify({ timestamp: 'descending' }),
-      });
+  const wantChat = filters.medium !== 'call';
+  const wantCalls =
+    (filters.medium === 'call' || filters.medium === 'all') && !filters.attachmentType;
 
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        cache: 'no-store',
-      });
+  const [chatPage, callPage] = await Promise.all([
+    wantChat
+      ? searchChatMessages(assistant, filters, limit, offset)
+      : Promise.resolve({ results: [] as ChatSearchResult[], hasMore: false }),
+    wantCalls
+      ? searchCallUtterances(assistant, filters, limit, offset)
+      : Promise.resolve({ results: [] as ChatSearchResult[], hasMore: false }),
+  ]);
 
-      if (response.status === 404 || !response.ok) return [];
+  const combined = [...chatPage.results, ...callPage.results]
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, limit);
 
-      const data = await response.json();
-      const rootLogs = data?.logs;
-      return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
-    })
-  );
-
-  const mergedLogs = mergeRootRows(rootLogs.flat(), {
-    limit: limit + 1,
-    offset,
-    sortValue: ({ log }) => log.entries?.timestamp,
-    dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
-  });
-
-  if (!Array.isArray(mergedLogs) || mergedLogs.length === 0) {
-    return { results: [], hasMore: false };
-  }
-
-  const results = mergedLogs
-    .slice(0, limit)
-    .map(({ log, query }): ChatSearchResult | null => {
-      const { entries, id } = log;
-      if (!entries || typeof entries.content !== 'string') return null;
-      return {
-        id: String(id),
-        role: roleFromRootSenderId(query, entries.senderId as number),
-        content: entries.content,
-        timestamp: new Date(entries.timestamp as string),
-        messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
-        sourceContext: query.context,
-        medium: (entries.medium as string) || 'unify_message',
-        exchangeId: typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined,
-        attachments: Array.isArray(entries.attachments)
-          ? (entries.attachments as Record<string, unknown>[]).map(
-              (a): Attachment => ({
-                id: (a.id as string) || String(id),
-                filename: (a.filename as string) || 'attachment',
-                gsUrl: a.gsUrl as string | undefined,
-                contentType: a.contentType as string | undefined,
-                sizeBytes: a.sizeBytes as number | undefined,
-              })
-            )
-          : undefined,
-      };
-    })
-    .filter((r: ChatSearchResult | null): r is ChatSearchResult => r !== null);
-
-  return { results, hasMore: mergedLogs.length > limit };
+  return { results: combined, hasMore: chatPage.hasMore || callPage.hasMore };
 }
 
 function matchesAttachmentType(

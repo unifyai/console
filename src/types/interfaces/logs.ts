@@ -76,6 +76,7 @@ export interface LogFieldsResponseProps {
     fieldType: 'entry' | 'derived_entry';
     artifacts: string;
     mutable: 'true' | 'false';
+    uiEditable?: boolean | 'true' | 'false';
     createdAt: string;
     description?: string;
   };

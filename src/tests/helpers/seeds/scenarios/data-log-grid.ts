@@ -5,7 +5,7 @@
  * (column visibility, filters, sort, derived columns) without Prospects-scale data.
  *
  * Context: `{userId}/{assistantId}/Data/Demo/People`
- * Columns: name (str), city (str), score (int)
+ * Columns: name (str), city (str), score (int), team_id (int)
  */
 
 import type { SeededState } from '../types';
@@ -18,15 +18,15 @@ import {
 } from '../client';
 
 const PEOPLE: Record<string, unknown>[] = [
-  { name: 'Ada Lovelace', city: 'London', score: 95 },
+  { name: 'Ada Lovelace', city: 'London', score: 95, team_id: 1 },
   // Shared city with Ada so multi-row selection can collapse city into one value group
-  { name: 'Alan Turing', city: 'London', score: 88 },
-  { name: 'Grace Hopper', city: 'New York', score: 91 },
-  { name: 'Katherine Johnson', city: 'Hampton', score: 97 },
-  { name: 'Donald Knuth', city: 'Stanford', score: 84 },
-  { name: 'Barbara Liskov', city: 'Boston', score: 90 },
-  { name: 'Edsger Dijkstra', city: 'Amsterdam', score: 86 },
-  { name: 'Margaret Hamilton', city: 'Cambridge', score: 93 },
+  { name: 'Alan Turing', city: 'London', score: 88, team_id: 1 },
+  { name: 'Grace Hopper', city: 'New York', score: 91, team_id: 2 },
+  { name: 'Katherine Johnson', city: 'Hampton', score: 97, team_id: 2 },
+  { name: 'Donald Knuth', city: 'Stanford', score: 84, team_id: 0 },
+  { name: 'Barbara Liskov', city: 'Boston', score: 90, team_id: 0 },
+  { name: 'Edsger Dijkstra', city: 'Amsterdam', score: 86, team_id: 0 },
+  { name: 'Margaret Hamilton', city: 'Cambridge', score: 93, team_id: 1 },
 ];
 
 export async function seedDataLogGrid(): Promise<SeededState> {

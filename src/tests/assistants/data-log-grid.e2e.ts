@@ -41,12 +41,12 @@ const assistant = createAssistant({
 });
 
 const PEOPLE = [
-  { name: 'Ada Lovelace', city: 'London', score: 95 },
+  { name: 'Ada Lovelace', city: 'London', score: 95, team_id: 1 },
   // Shared city with Ada so multi-row selection can collapse city into one value group
-  { name: 'Alan Turing', city: 'London', score: 88 },
-  { name: 'Grace Hopper', city: 'New York', score: 91 },
-  { name: 'Katherine Johnson', city: 'Hampton', score: 97 },
-  { name: 'Donald Knuth', city: 'Stanford', score: 84 },
+  { name: 'Alan Turing', city: 'London', score: 88, team_id: 1 },
+  { name: 'Grace Hopper', city: 'New York', score: 91, team_id: 2 },
+  { name: 'Katherine Johnson', city: 'Hampton', score: 97, team_id: 2 },
+  { name: 'Donald Knuth', city: 'Stanford', score: 84, team_id: 0 },
 ];
 
 const contextPath = `${user.id}/${assistant.agentId}/Data/Demo/People`;
@@ -95,7 +95,7 @@ async function openPeopleTable(page: Page) {
   });
 }
 
-/** Selection does not auto-open the pane — unfold via toolbar, Enter, or double-click. */
+/** Selection does not auto-open the pane — unfold via toolbar, Enter (toggles), or double-click. */
 async function openCellViewPanel(page: Page) {
   const toggle = page.getByTestId('log-grid-view-panel-toggle');
   await expect(toggle).toBeEnabled({ timeout: 10_000 });
@@ -164,6 +164,14 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await expect(firstRow).toContainText('97', { timeout: 30_000 });
   await expect(firstRow).toContainText('Katherine');
 
+  // Sort submenu mirrors active direction with a tick (data-active)
+  await scoreHeader.hover();
+  await page.getByTestId('log-grid-column-menu-score').click({ force: true });
+  await page.getByTestId('log-grid-sort-menu-score').hover();
+  await expect(page.getByTestId('log-grid-sort-desc-score')).toHaveAttribute('data-active', 'true');
+  await expect(page.getByTestId('log-grid-sort-asc-score')).toHaveAttribute('data-active', 'false');
+  await page.keyboard.press('Escape');
+
   // Single click selects but does not open the pane; unfold via toolbar toggle
   const nameCell = firstRow
     .locator('[data-testid^="log-grid-cell-"]')
@@ -171,17 +179,20 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await nameCell.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
-  await page.getByTestId('log-cell-view-clear').click();
+  await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
-  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeDisabled();
 
   await nameCell.click();
   await openCellViewPanel(page);
-  await page.getByTestId('log-cell-view-edit-row').click();
-  await expect(page.getByTestId('data-row-detail')).toBeVisible({ timeout: 15_000 });
+  const valueBox = page.getByTestId('log-cell-view-value').first();
+  await expect(valueBox).toHaveAttribute('data-editable', 'true');
+  await valueBox.dblclick();
+  await expect(page.getByTestId('log-cell-view-editor')).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 });
 
-test('double-click and Enter open the cell view pane', async ({ authedPage: page }) => {
+test('double-click opens and Enter toggles the cell view pane', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
   const firstRow = logGridRows(page).first();
@@ -190,12 +201,16 @@ test('double-click and Enter open the cell view pane', async ({ authedPage: page
 
   await nameCell.dblclick();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('log-cell-view-clear').click();
+  await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
 
   await nameCell.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await page.getByTestId('data-leaf-table').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
 });
@@ -279,15 +294,17 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await firstIndex.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
-  // People has name/city/score → 3 cells for one row → 3 value groups
+  // People has name/city/score → 3 column headings, one value each
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(3);
 
   await thirdIndex.click({ modifiers: ['Shift'] });
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('9 cells', {
     timeout: 15_000,
   });
-  // Distinct values across 3 rows → still 9 groups (no collapse)
+  // Still 3 columns; distinct values across 3 rows → 9 value entries
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(9);
 
   await page.keyboard.press('Escape');
@@ -314,8 +331,13 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
     timeout: 15_000,
   });
+  // 3 columns; city collapses to 1 value entry → 5 total
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(5);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText(`rows [${rowRangeLabel}]`);
+  // Collapsed city value shows compressed `#` range in the in-box gutter.
+  await expect(
+    page.getByTestId('log-cell-view-row-label').filter({ hasText: rowRangeLabel })
+  ).toBeVisible();
 });
 
 test('shift-click selects the bounding cell region', async ({ authedPage: page }) => {
@@ -461,6 +483,86 @@ test('group by nests columns and expands leaf rows', async ({ authedPage: page }
   await expect(page.getByTestId('log-grid-group-expand-name').first()).toBeVisible({
     timeout: 30_000,
   });
+});
+
+test('group by snake_case field uses Orchestra keys not camelCase', async ({
+  authedPage: page,
+}) => {
+  // Regression: response casing turns team_id → teamId in the UI; group_by must
+  // send Entries/team_id or Orchestra collapses every row into a single null group.
+  await openPeopleTable(page);
+
+  const teamHeader = page.getByTestId('log-grid-header-teamId');
+  await expect(teamHeader).toBeVisible({ timeout: 30_000 });
+  await teamHeader.hover();
+  await page.getByTestId('log-grid-column-menu-teamId').click({ force: true });
+  await page.getByTestId('log-grid-group-by-teamId').click({ force: true });
+
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
+    timeout: 30_000,
+  });
+  // Three team_id values (0, 1, 2) — must not collapse to a single "(n) null" group.
+  await expect(page.getByTestId('log-grid-group-expand-teamId')).toHaveCount(3, {
+    timeout: 30_000,
+  });
+  await expect(page.getByText('null')).toHaveCount(0);
+
+  await page.getByTestId('log-grid-group-expand-teamId').first().click();
+  await expect(logGridRows(page).first()).toBeVisible({ timeout: 30_000 });
+});
+
+test('grouped rows use nested x.y.z labels in grid and view pane', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+
+  const groupIndexes = page.locator('[data-testid^="log-grid-group-index-"]');
+  await expect(groupIndexes.first()).toBeVisible({ timeout: 30_000 });
+  // Top-level group headers are single-segment labels (1, 2, …) — not dotted.
+  await expect(groupIndexes.first()).toHaveText(/^\d+$/);
+
+  await page.getByTestId('log-grid-group-expand-city').first().click();
+  const firstLeafIndex = logGridRows(page).first().locator('[data-testid^="log-grid-row-index-"]');
+  await expect(firstLeafIndex).toHaveText(/^\d+\.\d+$/, { timeout: 30_000 });
+
+  const groupLabel = ((await groupIndexes.first().textContent()) ?? '').trim();
+  const leafLabel = ((await firstLeafIndex.textContent()) ?? '').trim();
+  expect(leafLabel.startsWith(`${groupLabel}.`)).toBe(true);
+
+  // Expand a second city group so we can select across nests.
+  const expands = page.getByTestId('log-grid-group-expand-city');
+  expect(await expands.count()).toBeGreaterThanOrEqual(2);
+  await expands.nth(1).click();
+
+  const leafRows = logGridRows(page);
+  await expect(leafRows.first()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => leafRows.count()).toBeGreaterThanOrEqual(2);
+
+  const rowA = leafRows.first();
+  const rowB = leafRows.last();
+  const labelA = (
+    (await rowA.locator('[data-testid^="log-grid-row-index-"]').textContent()) ?? ''
+  ).trim();
+  const labelB = (
+    (await rowB.locator('[data-testid^="log-grid-row-index-"]').textContent()) ?? ''
+  ).trim();
+  expect(labelA).toMatch(/^\d+\.\d+$/);
+  expect(labelB).toMatch(/^\d+\.\d+$/);
+  expect(labelA).not.toBe(labelB);
+
+  await rowA.locator('[data-testid^="log-grid-cell-"]').first().click();
+  await rowB
+    .locator('[data-testid^="log-grid-cell-"]')
+    .first()
+    .click({ modifiers: ['Control'] });
+  await openCellViewPanel(page);
+
+  const panel = page.getByTestId('log-cell-view-panel');
+  await expect(panel).toContainText(labelA);
+  await expect(panel).toContainText(labelB);
 });
 
 test('row index column stays pinned while scrolling horizontally', async ({ authedPage: page }) => {

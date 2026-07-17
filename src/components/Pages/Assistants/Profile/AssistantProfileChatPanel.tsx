@@ -261,11 +261,10 @@ export function AssistantProfileChatPanel({
 
   const handleGoToMessage = React.useCallback(
     (result: import('@/types/assistants/chat').ChatSearchResult) => {
-      if (result.medium === 'unify_meet' && result.exchangeId != null) {
+      if (result.medium === 'unify_meet' && result.callId) {
         requestAnimationFrame(() => {
-          const exchangeKey = `${result.sourceContext ?? ''}:${result.exchangeId}`;
           const el = scrollAreaRef.current?.querySelector<HTMLElement>(
-            `[data-exchange-key="${CSS.escape(exchangeKey)}"]`
+            `[data-call-id="${CSS.escape(result.callId!)}"]`
           );
           if (el) {
             el.scrollIntoView({ block: 'center', behavior: 'smooth' });

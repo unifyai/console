@@ -21,7 +21,8 @@ import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { AssistantMarkdown, fencedCode } from '../Common/AssistantMarkdown';
 import { StaleReasonChips } from '../Common/StaleReasonChips';
 import { TabToolbar } from '../Common/TabToolbar';
-import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -259,8 +260,8 @@ export function FunctionsPane({
         isRefreshing={isRefreshing}
         refreshTitle="Refresh functions"
         refreshTestId="functions-refresh"
+        trailing={<BrainScopeDropdown scope={scope} />}
       />
-      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="functions-body">
         {isLoading && !hasLoaded ? (

@@ -7,6 +7,7 @@ export * from './metrics';
 export * from './mutations';
 export * from './derivedColumns';
 export * from './grouping';
+export * from './rowLabels';
 export {
   buildFilterExpression,
   buildFilterExpressionArgument,

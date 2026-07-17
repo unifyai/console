@@ -5,6 +5,7 @@
  */
 
 import { expect } from '@playwright/test';
+import { createTranscriptSeeder } from './chat-helpers';
 import {
   createTestUser,
   cleanupUser,
@@ -39,8 +40,6 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-let messageCounter = 5000;
-
 async function seedContact(apiKey: string, userId: string, assistantId: number, email: string) {
   /* eslint-disable @typescript-eslint/naming-convention */
   const res = await orchestraFetch(
@@ -59,45 +58,10 @@ async function seedContact(apiKey: string, userId: string, assistantId: number, 
   if (!res.ok) throw new Error(`Failed to seed contact: ${res.status} ${await res.text()}`);
 }
 
-async function seedTranscript(
-  apiKey: string,
-  userId: string,
-  assistantId: number,
-  opts: {
-    senderId: number;
-    content: string;
-    timestamp?: string;
-  }
-) {
-  const msgId = messageCounter++;
-  const ts = opts.timestamp || new Date().toISOString();
-
-  /* eslint-disable @typescript-eslint/naming-convention */
-  const res = await orchestraFetch(
-    '/v0/logs',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        project_name: 'Assistants',
-        context: `${userId}/${assistantId}/Transcripts`,
-        entries: [
-          {
-            medium: 'unify_message',
-            sender_id: opts.senderId,
-            receiver_ids:
-              opts.senderId === ASSISTANT_CONTACT_ID ? [CONTACT_ID] : [ASSISTANT_CONTACT_ID],
-            content: opts.content,
-            message_id: msgId,
-            timestamp: ts,
-          },
-        ],
-      }),
-    },
-    apiKey
-  );
-  /* eslint-enable @typescript-eslint/naming-convention */
-  if (!res.ok) throw new Error(`Failed to seed transcript: ${res.status} ${await res.text()}`);
-}
+const seedTranscript = createTranscriptSeeder({
+  selfContactId: ASSISTANT_CONTACT_ID,
+  bossContactId: CONTACT_ID,
+});
 
 async function openAssistantChat(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);

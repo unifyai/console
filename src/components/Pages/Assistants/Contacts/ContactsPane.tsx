@@ -21,7 +21,8 @@ import { useBrainData } from '@/hooks/Assistants/useBrainData';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { TabToolbar } from '../Common/TabToolbar';
-import { BrainScopeChips, useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
@@ -264,23 +265,25 @@ export function ContactsPane({
           />
         }
         trailing={
-          onManageContacts ? (
-            <Button
-              size="sm"
-              className="h-7 shrink-0"
-              onClick={onManageContacts}
-              data-testid="contacts-add"
-            >
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add contact
-            </Button>
-          ) : undefined
+          <>
+            <BrainScopeDropdown scope={scope} />
+            {onManageContacts ? (
+              <Button
+                size="sm"
+                className="h-7 shrink-0"
+                onClick={onManageContacts}
+                data-testid="contacts-add"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add contact
+              </Button>
+            ) : null}
+          </>
         }
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
         refreshTitle="Refresh contacts"
         refreshTestId="contacts-refresh"
       />
-      <BrainScopeChips scope={scope} />
 
       <div className="min-h-0 flex-1" data-testid="contacts-body">
         {isLoading && !hasLoaded ? (

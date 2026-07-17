@@ -12,11 +12,13 @@ import {
   createAssistant,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  orchestraFetch,
 } from './helpers';
 import {
   createContactSeeder,
   createTranscriptSeeder,
   createOpenAssistantChat,
+  resolveAssistantDmThreadId,
 } from './chat-helpers';
 
 const user = createTestUser({ name: 'ReactionsE2E', lastName: 'Tester', credits: 50_000 });
@@ -48,15 +50,21 @@ test('seeded reactions render from transcript metadata @push @area(assistants.ch
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+  const messageId = await seedTranscript(user.apiKey, user.id, assistant.agentId, {
     senderId: ASSISTANT_CONTACT_ID,
     content: 'Message with a saved reaction',
     medium: 'unify_message',
-    receiverIds: [CONTACT_ID],
-    metadata: {
-      reactions: [{ contact_id: CONTACT_ID, emoji: '👍', updated_at: new Date().toISOString() }],
-    },
   });
+  // Persist the reaction in the unified chat store like the live UI would.
+  const threadId = await resolveAssistantDmThreadId(user.apiKey, assistant.agentId);
+  const reactionRes = await orchestraFetch(
+    `/v0/chat/threads/${threadId}/messages/${messageId}/reactions`,
+    { method: 'POST', body: JSON.stringify({ emoji: '👍' }) },
+    user.apiKey
+  );
+  if (!reactionRes.ok) {
+    throw new Error(`Failed to seed reaction: ${reactionRes.status}`);
+  }
 
   await openAssistantChat(page);
   await page.waitForSelector('[data-testid="message-bubble"][data-role="assistant"]', {

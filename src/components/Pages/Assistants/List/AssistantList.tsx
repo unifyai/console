@@ -38,6 +38,7 @@ import {
   type AssistantListGroup,
 } from './assistantListGroups';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import { GroupFaceStack } from '@/components/Pages/Assistants/OrgChat/GroupFaceStack';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
@@ -289,6 +290,7 @@ function TeamListRow({
   onSelect,
   isFoldedGroup,
   onToggleFold,
+  currentUserId,
 }: {
   team: RosterTeam;
   isSelected: boolean;
@@ -297,10 +299,13 @@ function TeamListRow({
   onSelect: () => void;
   isFoldedGroup?: boolean;
   onToggleFold?: () => void;
+  currentUserId?: string | null;
 }) {
-  const humanCount = team.memberUserIds.length;
-  const aiCount = team.assistantMemberIds.length;
-  const subtitle = `${humanCount} real · ${aiCount} virtual`;
+  const subtitle = formatRealVirtualSubtitle(
+    team.memberUserIds,
+    team.assistantMemberIds.length,
+    currentUserId
+  );
   const FoldIcon = isFoldedGroup ? ChevronRight : ChevronDown;
   const handleActivate = () => {
     onSelect();
@@ -707,6 +712,7 @@ export function AssistantList({
             onSelect={() => onSelectTeam?.(team.teamId)}
             isFoldedGroup={isGroupFolded}
             onToggleFold={hasNested ? () => toggleGroupFold(groupId) : undefined}
+            currentUserId={currentUserId}
           />
           {!isGroupFolded && hasNested ? (
             <>
@@ -720,6 +726,7 @@ export function AssistantList({
       );
     },
     [
+      currentUserId,
       entityUnreadCounts,
       filteredHumans,
       foldedGroups,

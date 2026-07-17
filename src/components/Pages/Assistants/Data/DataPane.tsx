@@ -28,15 +28,16 @@ import {
 } from '@/lib/assistants/dataBrowser';
 import { useShellResource } from '@/hooks/Common/useShellResource';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
+import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFooter } from '../Common/TabFooter';
-import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
+import { TabSegment } from '../Common/TabSegmentGroup';
 import { TeamAvatar } from '../OrgChat/TeamAvatar';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
-import { DataScopeDropdown } from './DataScopeDropdown';
 import type { DataField, DataRow } from './dataTypes';
 import type { Assistant } from '@/types/assistants/assistant';
+import { resolveManagedTeamDisplayName } from '@/utils/teams/managedTeamDisplay';
 
 interface DataPaneProps {
   assistant: Assistant;
@@ -145,14 +146,28 @@ function TreeRow({
   );
 }
 
-function ScopeSectionHeader({ section }: { section: DataScopeSection }) {
+function ScopeSectionHeader({
+  section,
+  imageUrl,
+  isOrgWideSharing,
+}: {
+  section: DataScopeSection;
+  imageUrl?: string | null;
+  isOrgWideSharing?: boolean;
+}) {
   return (
     <div
       className="flex items-center gap-2 px-2 pb-1 pt-2"
       data-testid={`data-scope-section-${section.key}`}
     >
       {section.kind === 'team' ? (
-        <TeamAvatar name={section.label} className="h-5 w-5" iconClassName="h-3 w-3" />
+        <TeamAvatar
+          name={section.label}
+          imageUrl={imageUrl}
+          isOrgWideSharing={isOrgWideSharing}
+          className="h-5 w-5"
+          iconClassName="h-3 w-3"
+        />
       ) : (
         <span
           className="rounded-control flex h-5 w-5 shrink-0 items-center justify-center border border-border bg-muted text-muted-foreground"
@@ -161,10 +176,12 @@ function ScopeSectionHeader({ section }: { section: DataScopeSection }) {
           <UserRound className="h-3 w-3" />
         </span>
       )}
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <p className="text-title truncate text-foreground">{section.label}</p>
         {section.kind === 'team' ? (
-          <p className="text-caption uppercase tracking-[0.06em] text-muted-foreground">Team</p>
+          <p className="text-caption shrink-0 uppercase tracking-[0.06em] text-muted-foreground">
+            Team
+          </p>
         ) : null}
       </div>
     </div>
@@ -199,27 +216,25 @@ function ModeSegments({
   onChange: (mode: DataBrowserMode) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5" data-testid="data-browser-mode">
-      <TabSegmentGroup>
+    <div
+      className="flex min-w-0 flex-nowrap items-center gap-0.5 overflow-x-auto"
+      data-testid="data-browser-mode"
+    >
+      <TabSegment
+        label="Data"
+        active={mode === 'data'}
+        onClick={() => onChange('data')}
+        testId="data-mode-data"
+      />
+      {STATE_MANAGER_ROOTS.map((root) => (
         <TabSegment
-          label="Data"
-          active={mode === 'data'}
-          onClick={() => onChange('data')}
-          testId="data-mode-data"
+          key={root}
+          label={root}
+          active={mode === root}
+          onClick={() => onChange(root)}
+          testId={`data-mode-${root}`}
         />
-      </TabSegmentGroup>
-      <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-      <TabSegmentGroup className="flex-wrap">
-        {STATE_MANAGER_ROOTS.map((root) => (
-          <TabSegment
-            key={root}
-            label={root}
-            active={mode === root}
-            onClick={() => onChange(root)}
-            testId={`data-mode-${root}`}
-          />
-        ))}
-      </TabSegmentGroup>
+      ))}
     </div>
   );
 }
@@ -228,10 +243,11 @@ function buildDataScopeSections(
   assistant: Assistant,
   ownerId: string,
   assistantId: string,
-  effectiveRoot: ContextRoot | null
+  effectiveRoot: ContextRoot | null,
+  orgName: string | null
 ): DataScopeSection[] {
-  const teamNamesById = new Map(
-    (assistant.teamSummaries ?? []).map((summary) => [summary.teamId, summary.name])
+  const teamSummariesById = new Map(
+    (assistant.teamSummaries ?? []).map((summary) => [summary.teamId, summary])
   );
 
   const toSection = (r: ContextRoot): DataScopeSection => {
@@ -243,10 +259,15 @@ function buildDataScopeSections(
         browserRoot: { prefix: `${ownerId}/${assistantId}/`, group: null },
       };
     }
+    const summary = teamSummariesById.get(r.teamId) ?? {
+      teamId: r.teamId,
+      name: `Team ${r.teamId}`,
+      description: null,
+    };
     return {
       key: `team-${r.teamId}`,
       kind: 'team',
-      label: teamNamesById.get(r.teamId) ?? `Team ${r.teamId}`,
+      label: resolveManagedTeamDisplayName(summary, orgName),
       teamId: r.teamId,
       browserRoot: { prefix: `Teams/${r.teamId}/`, group: null },
     };
@@ -266,9 +287,13 @@ export function DataPane({
   enabled = true,
 }: DataPaneProps) {
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root, includeAll: true });
+  const orgName =
+    scope.options.find((option) => option.isOrgWideSharing)?.label ??
+    scope.options.find((option) => option.key.startsWith('team-'))?.label ??
+    null;
   const scopeSections = React.useMemo(
-    () => buildDataScopeSections(assistant, ownerId, assistantId, scope.root),
-    [assistant, ownerId, assistantId, scope.root]
+    () => buildDataScopeSections(assistant, ownerId, assistantId, scope.root, orgName),
+    [assistant, ownerId, assistantId, scope.root, orgName]
   );
   const showScopeHeaders = scope.showFilter && scope.root == null && scopeSections.length > 1;
   const dataRoots = React.useMemo(
@@ -291,16 +316,25 @@ export function DataPane({
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<DataRow | null>(null);
+  const [editField, setEditField] = React.useState<string | null>(null);
+  const [selectedCells, setSelectedCells] = React.useState<string[]>([]);
+  const [viewPanelOpen, setViewPanelOpen] = React.useState(false);
   const [refreshToken, setRefreshToken] = React.useState(0);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const isStackedLayout = useMatchesBelow('tablet');
   const [mobileShowTree, setMobileShowTree] = React.useState(true);
 
   React.useEffect(() => {
-    if (isStackedLayout) {
-      setSidebarOpen(false);
-    }
-  }, [isStackedLayout]);
+    if (!isStackedLayout) return;
+    setSidebarOpen(false);
+    // Keep the open table visible when crossing into stacked layout on resize.
+    if (selected) setMobileShowTree(false);
+  }, [isStackedLayout, selected]);
+
+  React.useEffect(() => {
+    setSelectedCells([]);
+    setViewPanelOpen(false);
+  }, [selected]);
 
   const loadContextNames = React.useCallback(async (): Promise<string[]> => {
     const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
@@ -508,7 +542,15 @@ export function DataPane({
           if (nodes.length === 0 && !showScopeHeaders) return null;
           return (
             <div key={section.key} className={showScopeHeaders ? 'mb-2' : undefined}>
-              {showScopeHeaders ? <ScopeSectionHeader section={section} /> : null}
+              {showScopeHeaders ? (
+                <ScopeSectionHeader
+                  section={section}
+                  imageUrl={scope.options.find((option) => option.key === section.key)?.imageUrl}
+                  isOrgWideSharing={
+                    scope.options.find((option) => option.key === section.key)?.isOrgWideSharing
+                  }
+                />
+              ) : null}
               {nodes.length === 0 ? (
                 <p className="text-caption px-2 py-1.5 text-muted-foreground">No tables</p>
               ) : (
@@ -534,8 +576,16 @@ export function DataPane({
   const leafTable = selected ? (
     <DataLeafTable
       context={selected}
+      mode={mode}
       selectedRowId={selectedRow ? String(selectedRow.logId) : null}
-      onRowSelect={setSelectedRow}
+      onRowSelect={(row, options) => {
+        setSelectedRow(row);
+        setEditField(options?.editField ?? null);
+      }}
+      selectedCells={selectedCells}
+      onSelectCells={setSelectedCells}
+      viewPanelOpen={viewPanelOpen}
+      onViewPanelOpenChange={setViewPanelOpen}
       onMetaChange={setLeafMeta}
       refreshToken={refreshToken}
     />
@@ -564,49 +614,68 @@ export function DataPane({
   );
 
   const modeToolbar = (
-    <div className="flex flex-wrap items-start justify-between gap-2">
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
       <ModeSegments mode={mode} onChange={changeMode} />
-      <DataScopeDropdown scope={scope} />
+      <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        <BrainScopeDropdown scope={scope} ariaLabel="Data ownership scope" />
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshingTree}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+          aria-label="Refresh data contexts"
+          data-testid="data-refresh"
+        >
+          <RefreshCw
+            className={cn('h-3.5 w-3.5', isRefreshingTree && 'animate-spin')}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
     </div>
   );
 
-  const sidebarHeader = (
-    <div className="flex flex-col gap-2 border-b border-border px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-title flex min-w-0 items-center gap-2 text-foreground">
-          <Database className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="truncate">{sidebarTitle}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshingTree}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-            aria-label="Refresh data contexts"
-            data-testid="data-refresh"
-          >
-            <RefreshCw
-              className={cn('h-3.5 w-3.5', isRefreshingTree && 'animate-spin')}
-              aria-hidden="true"
-            />
-          </button>
-          {!isStackedLayout && showDirectory && (
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(false)}
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Collapse data layer sidebar"
-              data-testid="data-sidebar-collapse"
-            >
-              <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      </div>
+  const directoryToggle =
+    showDirectory && !isStackedLayout ? (
+      <button
+        type="button"
+        onClick={() => setSidebarOpen((open) => !open)}
+        className="text-body-muted inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+        aria-label={sidebarOpen ? 'Collapse data directory' : 'Expand data directory'}
+        aria-expanded={sidebarOpen}
+        data-testid={sidebarOpen ? 'data-sidebar-collapse' : 'data-sidebar-expand'}
+      >
+        {sidebarOpen ? (
+          <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
+        ) : (
+          <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+        <span className="text-title text-foreground">{sidebarTitle}</span>
+      </button>
+    ) : null;
+
+  const topToolbar = (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
+      {isStackedLayout && showDirectory && selected && !mobileShowTree ? (
+        <button
+          type="button"
+          onClick={() => setMobileShowTree(true)}
+          className="text-body-muted inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+          data-testid="data-mobile-back"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          {sidebarTitle}
+        </button>
+      ) : (
+        directoryToggle
+      )}
       {modeToolbar}
     </div>
   );
+
+  const showTreeSidebar =
+    showDirectory && (isStackedLayout ? mobileShowTree || !selected : sidebarOpen);
+  const showLeafPane = !isStackedLayout || !showDirectory || (selected && !mobileShowTree);
 
   return (
     <div
@@ -632,84 +701,36 @@ export function DataPane({
             </div>
           )}
 
+          {topToolbar}
+
           <div className="flex min-h-0 flex-1 overflow-hidden">
-            {isStackedLayout ? (
-              showDirectory && (mobileShowTree || !selected) ? (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
-                  {sidebarHeader}
-                  {treeList}
-                </div>
-              ) : (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                  <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
-                    {showDirectory ? (
-                      <button
-                        type="button"
-                        onClick={() => setMobileShowTree(true)}
-                        className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
-                        data-testid="data-mobile-back"
-                      >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        {sidebarTitle}
-                      </button>
-                    ) : (
-                      <span className="text-title text-foreground">{sidebarTitle}</span>
-                    )}
-                    {modeToolbar}
-                  </div>
-                  {selected ? (
-                    leafChrome
-                  ) : (
-                    <div className="flex h-full items-center justify-center p-8 text-center">
+            {showTreeSidebar && (
+              <div
+                className={cn(
+                  'flex min-h-0 flex-col overflow-hidden bg-card',
+                  isStackedLayout ? 'min-w-0 flex-1' : 'w-72 shrink-0 border-r border-border'
+                )}
+              >
+                {treeList}
+              </div>
+            )}
+
+            {showLeafPane && (
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                {selected ? (
+                  leafChrome
+                ) : (
+                  <div className="flex h-full items-center justify-center p-8 text-center">
+                    <div className="max-w-sm">
+                      <Table2
+                        className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                       <p className="text-body-muted">{emptySelectCopy}</p>
                     </div>
-                  )}
-                </div>
-              )
-            ) : (
-              <>
-                {(sidebarOpen || !showDirectory) && (
-                  <div
-                    className={cn(
-                      'flex shrink-0 flex-col border-r border-border bg-card',
-                      showDirectory ? 'w-72' : 'w-72'
-                    )}
-                  >
-                    {sidebarHeader}
-                    {showDirectory ? treeList : null}
                   </div>
                 )}
-
-                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                  {!sidebarOpen && showDirectory && (
-                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => setSidebarOpen(true)}
-                        className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
-                        data-testid="data-sidebar-expand"
-                      >
-                        <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                        {sidebarTitle}
-                      </button>
-                      {modeToolbar}
-                    </div>
-                  )}
-                  {!selected ? (
-                    <div className="flex h-full items-center justify-center p-8 text-center">
-                      <div className="max-w-sm">
-                        <Table2
-                          className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                        <p className="text-body-muted">{emptySelectCopy}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    leafChrome
-                  )}
-                </div>
-              </>
+              </div>
             )}
           </div>
 
@@ -718,9 +739,14 @@ export function DataPane({
             title={selectedTableName ?? selectedDisplayPath ?? 'Data row'}
             description={selectedDisplayPath ?? undefined}
             fields={leafMeta?.fields ?? {}}
+            mode={mode}
+            initialEditField={editField}
             onSave={saveField}
             onDelete={deleteSelectedRow}
-            onClose={() => setSelectedRow(null)}
+            onClose={() => {
+              setSelectedRow(null);
+              setEditField(null);
+            }}
           />
 
           <TabFooter

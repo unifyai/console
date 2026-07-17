@@ -12,6 +12,8 @@ import {
 import type { Assistant } from '@/types/assistants/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { currentTeamIds, type ContextRoot } from '@/lib/assistants/scope';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { resolveManagedTeamDisplayName } from '@/utils/teams/managedTeamDisplay';
 
 export const BRAIN_DESTINATION_ALL = 'all';
 export const BRAIN_DESTINATION_PERSONAL = 'personal';
@@ -50,6 +52,8 @@ export function brainDestinationRoot(value: BrainDestinationValue): ContextRoot 
 
 export function DestinationDropdown({ assistant, value, onValueChange }: DestinationDropdownProps) {
   const teamIds = useMemo(() => currentTeamIds(assistant), [assistant]);
+  const { activeWorkspace } = useWorkspace();
+  const orgName = activeWorkspace?.type === 'organization' ? activeWorkspace.name : null;
 
   const { data: teams = [] } = useQuery({
     queryKey: ['assistant-teams', assistant.agentId, teamIds.join(',')],
@@ -61,13 +65,13 @@ export function DestinationDropdown({ assistant, value, onValueChange }: Destina
   const teamNames = useMemo(() => {
     const names = new Map<number, string>();
     for (const summary of assistant.teamSummaries ?? []) {
-      names.set(summary.teamId, summary.name);
+      names.set(summary.teamId, resolveManagedTeamDisplayName(summary, orgName));
     }
     for (const team of teams) {
-      names.set(team.teamId, team.name);
+      names.set(team.teamId, resolveManagedTeamDisplayName(team, orgName));
     }
     return names;
-  }, [assistant.teamSummaries, teams]);
+  }, [assistant.teamSummaries, orgName, teams]);
 
   if (teamIds.length === 0) {
     return null;

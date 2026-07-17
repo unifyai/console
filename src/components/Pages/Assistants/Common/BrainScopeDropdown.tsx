@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
-import type { BrainScopeFilterState, BrainScopeOption } from '../Common/BrainScopeFilter';
+import type { BrainScopeFilterState, BrainScopeOption } from './BrainScopeFilter';
 
 function teamIdFromOptionKey(key: string): number | null {
   if (!key.startsWith('team-')) return null;
@@ -51,7 +51,15 @@ function ScopeOptionFace({
       </span>
     );
   }
-  return <TeamAvatar name={option.label} className={sizeClassName} iconClassName="h-3 w-3" />;
+  return (
+    <TeamAvatar
+      name={option.label}
+      imageUrl={option.imageUrl}
+      isOrgWideSharing={option.isOrgWideSharing}
+      className={sizeClassName}
+      iconClassName="h-3 w-3"
+    />
+  );
 }
 
 function ScopeOptionCopy({
@@ -63,12 +71,14 @@ function ScopeOptionCopy({
 }) {
   const isTeam = option.key.startsWith('team-');
   return (
-    <span className="min-w-0 flex-1 text-left">
-      <span className={cn('block truncate', compact ? 'text-caption text-semibold' : 'text-title')}>
+    <span className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+      <span
+        className={cn('min-w-0 truncate', compact ? 'text-caption text-semibold' : 'text-title')}
+      >
         {option.label}
       </span>
       {isTeam ? (
-        <span className="text-caption block truncate uppercase tracking-[0.06em] text-muted-foreground">
+        <span className="text-caption shrink-0 uppercase tracking-[0.06em] text-muted-foreground">
           Team
         </span>
       ) : null}
@@ -76,17 +86,22 @@ function ScopeOptionCopy({
   );
 }
 
-interface DataScopeDropdownProps {
+interface BrainScopeDropdownProps {
   scope: BrainScopeFilterState;
   className?: string;
+  /** Accessible name for the trigger (defaults to ownership scope). */
+  ariaLabel?: string;
 }
 
 /**
- * Ownership filter for the Data browser: All / Personal / each team, with
- * team faces and a "Team" sublabel so shared roots read as ownership scopes
- * rather than filesystem folders.
+ * Ownership filter shared by Storage / Data panes: All / Personal / each team,
+ * with team faces and an inline "Team" badge so names stay baseline-aligned.
  */
-export function DataScopeDropdown({ scope, className }: DataScopeDropdownProps) {
+export function BrainScopeDropdown({
+  scope,
+  className,
+  ariaLabel = 'Ownership scope',
+}: BrainScopeDropdownProps) {
   if (!scope.showFilter) return null;
 
   const activeOption =
@@ -98,11 +113,11 @@ export function DataScopeDropdown({ scope, className }: DataScopeDropdownProps) 
         <button
           type="button"
           className={cn(
-            'inline-flex h-7 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-1.5 text-foreground transition-colors hover:bg-muted',
+            'inline-flex h-7 max-w-[12rem] shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-1.5 text-foreground transition-colors hover:bg-muted',
             className
           )}
-          aria-label="Data ownership scope"
-          data-testid="data-scope-dropdown"
+          aria-label={ariaLabel}
+          data-testid="brain-scope-dropdown"
         >
           {activeOption ? (
             <>
@@ -120,7 +135,7 @@ export function DataScopeDropdown({ scope, className }: DataScopeDropdownProps) 
           return (
             <DropdownMenuItem
               key={option.key}
-              data-testid={`data-scope-${option.key}`}
+              data-testid={`brain-scope-${option.key}`}
               data-team-id={teamId ?? undefined}
               onSelect={() => scope.setActiveKey(option.key)}
               className="gap-2 py-2"

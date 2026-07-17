@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import type { RosterGroup, RosterHuman } from '@/types/orgChat';
+import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { GroupFaceStack } from './GroupFaceStack';
 import { TeamMembersList, type TeamMemberAssistant } from './TeamMembersList';
 
@@ -13,6 +14,7 @@ interface GroupInfoSidePanelContentProps {
   group: RosterGroup;
   humansById: Record<string, RosterHuman>;
   assistantsById: Record<string, TeamMemberAssistant>;
+  currentUserId?: string | null;
   onClose: () => void;
   hideHeaderActions?: boolean;
   className?: string;
@@ -23,6 +25,7 @@ export function GroupInfoSidePanelContent({
   group,
   humansById,
   assistantsById,
+  currentUserId = null,
   onClose,
   hideHeaderActions = false,
   className,
@@ -59,7 +62,11 @@ export function GroupInfoSidePanelContent({
     [humanMembers, assistantMembers]
   );
 
-  const subtitle = `${humanMembers.length} human${humanMembers.length === 1 ? '' : 's'} · ${assistantMembers.length} AI teammate${assistantMembers.length === 1 ? '' : 's'}`;
+  const subtitle = formatRealVirtualSubtitle(
+    group.memberUserIds,
+    assistantMembers.length,
+    currentUserId
+  );
 
   return (
     <ScrollArea className={cn('flex-1', className)} data-testid="group-info-panel">

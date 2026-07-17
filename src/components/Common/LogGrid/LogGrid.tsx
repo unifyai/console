@@ -63,6 +63,7 @@ import {
   cellsForRow,
   cellsForRowRange,
   isAllRowSelected,
+  selectionPerimeterBoxShadow,
   LOG_ROW_NUMBER_COL,
   type LogFieldsResponseProps,
   type LogGridRow,
@@ -78,6 +79,7 @@ import {
   updateGridGroupSubRows,
   withGroupedColumnsFirst,
 } from '@/lib/logs/grouping';
+import { buildNestedRowLabelMap } from '@/lib/logs/rowLabels';
 import { sortingStateToOrchestra } from '@/lib/logs/querySpec';
 import { deleteLogRow } from '@/lib/logs/mutations';
 import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
@@ -150,12 +152,16 @@ export interface LogGridProps {
   onRetry?: () => void;
   /** Flat rows currently browsable for selection inspectors. */
   onBrowseRowsChange?: (rows: LogGridRow[]) => void;
+  /** `#` column labels keyed by logId (leaves) or group.id (headers). */
+  onRowLabelsChange?: (labels: Map<string, string>) => void;
   /** Whether any cells are selected (enables the view-pane toolbar toggle). */
   hasSelection?: boolean;
   viewPanelOpen?: boolean;
   onToggleViewPanel?: () => void;
-  /** Opens the cell view pane (e.g. Enter / double-click). No-op if already open. */
+  /** Opens the cell view pane (e.g. double-click). No-op if already open. */
   onOpenViewPanel?: () => void;
+  /** When false, hide row/cell delete affordances (default true). */
+  allowDelete?: boolean;
   className?: string;
   testId?: string;
 }
@@ -182,10 +188,12 @@ export function LogGrid({
   error = null,
   onRetry,
   onBrowseRowsChange,
+  onRowLabelsChange,
   hasSelection = false,
   viewPanelOpen = false,
   onToggleViewPanel,
   onOpenViewPanel,
+  allowDelete = true,
   className,
   testId = 'log-grid',
 }: LogGridProps) {
@@ -200,6 +208,8 @@ export function LogGrid({
   const [expandingId, setExpandingId] = React.useState<string | null>(null);
   const [newCells, setNewCells] = React.useState<Set<string>>(() => new Set());
   const prevDisplayRowsRef = React.useRef<LogGridRow[]>([]);
+  /** Skip one flash pass after lazy group expand (children are not live/refresh inserts). */
+  const suppressNextFlashRef = React.useRef(false);
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement>(null);
@@ -208,6 +218,11 @@ export function LogGrid({
   const groupingIds = React.useMemo(() => parseGrouping(view.grouping), [view.grouping]);
   const isGrouped = groupingIds.length > 0;
   const displayRows = isGrouped ? treeRows : rows;
+
+  const rowLabelMap = React.useMemo(
+    () => buildNestedRowLabelMap(displayRows, { offset: view.offset, grouped: isGrouped }),
+    [displayRows, view.offset, isGrouped]
+  );
 
   React.useEffect(() => {
     setReorderEnabled(false);
@@ -224,7 +239,16 @@ export function LogGrid({
   }, [displayRows, isGrouped, onBrowseRowsChange]);
 
   React.useEffect(() => {
+    onRowLabelsChange?.(rowLabelMap);
+  }, [rowLabelMap, onRowLabelsChange]);
+
+  React.useEffect(() => {
     const prev = prevDisplayRowsRef.current;
+    if (suppressNextFlashRef.current) {
+      suppressNextFlashRef.current = false;
+      prevDisplayRowsRef.current = displayRows;
+      return;
+    }
     if (prev.length > 0) {
       const ids = getNewGridCellIds(prev, displayRows);
       if (ids.length) setNewCells(new Set(ids));
@@ -301,6 +325,7 @@ export function LogGrid({
         fields,
         pageSize: view.limit || 50,
       });
+      suppressNextFlashRef.current = true;
       setTreeRows((prev) => updateGridGroupSubRows(prev, group.id, result.rows, result.count));
       setExpandingId(null);
     },
@@ -337,13 +362,17 @@ export function LogGrid({
   openDerivedEditRef.current = openDerivedEdit;
 
   const columnDefs = React.useMemo<ColumnDef<LogGridRow>[]>(() => {
+    const indexSize = isGrouped ? 88 : 48;
     const indexColumn: ColumnDef<LogGridRow> = {
       id: LOG_ROW_NUMBER_COL,
       header: '#',
-      cell: ({ row }) => view.offset + row.index + 1,
-      size: 48,
-      minSize: 40,
-      maxSize: 64,
+      cell: ({ row }) => {
+        const key = row.original.group?.id ?? String(row.original.logId);
+        return rowLabelMap.get(key) ?? String(view.offset + row.index + 1);
+      },
+      size: indexSize,
+      minSize: isGrouped ? 72 : 40,
+      maxSize: isGrouped ? 140 : 64,
       enableResizing: false,
       enableSorting: false,
     };
@@ -398,7 +427,9 @@ export function LogGrid({
                 <button
                   type="button"
                   className={cn(
-                    'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-transform',
+                    // Size to the icon so its left edge matches leaf values (a fixed
+                    // w-5 centered target insets the glyph).
+                    'inline-flex shrink-0 items-center justify-center text-muted-foreground transition-transform',
                     row.getIsExpanded() && 'rotate-90'
                   )}
                   aria-label={row.getIsExpanded() ? 'Collapse group' : 'Expand group'}
@@ -452,6 +483,8 @@ export function LogGrid({
     expandingId,
     expandGroup,
     setGrouping,
+    isGrouped,
+    rowLabelMap,
   ]);
 
   const table = useReactTable({
@@ -753,8 +786,9 @@ export function LogGrid({
   };
 
   const canDelete =
-    (selection?.mode === 'row' && !!selection.selectedRowId) ||
-    (selection?.mode === 'cell' && selectedCellLogIds.length > 0);
+    allowDelete &&
+    ((selection?.mode === 'row' && !!selection.selectedRowId) ||
+      (selection?.mode === 'cell' && selectedCellLogIds.length > 0));
 
   const moveCellFocus = (key: string) => {
     if (selection?.mode !== 'cell' || !selectableRows.length || !visible.length) return;
@@ -808,7 +842,7 @@ export function LogGrid({
     if (e.key === 'Enter') {
       if (selection.selectedCells.length === 0) return;
       e.preventDefault();
-      openViewPanel();
+      onToggleViewPanel?.();
       return;
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
@@ -1019,6 +1053,10 @@ export function LogGrid({
                                   const rowFullySelected =
                                     !!selectedCells &&
                                     isAllRowSelected(selectedCells, logId, visible);
+                                  const firstColSelected =
+                                    !!selectedCells &&
+                                    visible.length > 0 &&
+                                    selectedCells.has(makeCellId(logId, visible[0]!));
                                   return (
                                     <TableCell
                                       key={cell.id}
@@ -1028,7 +1066,8 @@ export function LogGrid({
                                         minWidth: cell.column.getSize(),
                                       }}
                                       className={cn(
-                                        'sticky left-0 z-20 cursor-pointer select-none border-r border-border px-1 py-1.5 text-center font-mono text-[12px]',
+                                        'sticky left-0 z-20 cursor-pointer select-none border-r px-1 py-1.5 text-center font-mono text-[12px]',
+                                        firstColSelected ? 'border-transparent' : 'border-border',
                                         rowFullySelected
                                           ? 'bg-primary text-primary-foreground'
                                           : // Opaque hover: muted/primary-tint mix with transparent.
@@ -1057,18 +1096,39 @@ export function LogGrid({
                                 const cellId = makeCellId(row.original.logId, cell.column.id);
                                 const cellSelected = selectedCells?.has(cellId);
                                 const isNewCell = newCells.has(cellId);
+                                const colIdx = visible.indexOf(cell.column.id);
+                                const rightNeighborSelected =
+                                  !!selectedCells &&
+                                  colIdx >= 0 &&
+                                  colIdx < visible.length - 1 &&
+                                  selectedCells.has(
+                                    makeCellId(row.original.logId, visible[colIdx + 1]!)
+                                  );
                                 return (
                                   <TableCell
                                     key={cell.id}
                                     data-testid={`log-grid-cell-${cellId}`}
                                     style={{
                                       width: cell.column.getSize(),
+                                      boxShadow:
+                                        cellSelected && selectedCells
+                                          ? selectionPerimeterBoxShadow(
+                                              selectedCells,
+                                              row.original.logId,
+                                              cell.column.id,
+                                              visible,
+                                              selectableRows
+                                            )
+                                          : undefined,
                                     }}
                                     className={cn(
-                                      'max-w-[220px] truncate border-r border-border px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
+                                      'max-w-[220px] truncate border-r px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
                                       selection?.mode === 'cell' && 'select-none',
-                                      cellSelected &&
-                                        'bg-primary-tint-10 ring-1 ring-inset ring-primary',
+                                      cellSelected
+                                        ? rightNeighborSelected
+                                          ? 'border-transparent bg-primary-tint-10'
+                                          : 'border-primary bg-primary-tint-10'
+                                        : 'border-border',
                                       isNewCell && 'animate-fade-accent'
                                     )}
                                     onMouseDown={(e) => onCellPointerDown(e, cellId)}

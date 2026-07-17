@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import type { RosterHuman, RosterTeam } from '@/types/orgChat';
+import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { TeamAvatar } from './TeamAvatar';
 import { TeamMembersList, type TeamMemberAssistant } from './TeamMembersList';
 
@@ -13,6 +14,7 @@ interface TeamInfoSidePanelContentProps {
   team: RosterTeam;
   humansById: Record<string, RosterHuman>;
   assistantsById: Record<string, TeamMemberAssistant>;
+  currentUserId?: string | null;
   onClose: () => void;
   hideHeaderActions?: boolean;
   className?: string;
@@ -23,6 +25,7 @@ export function TeamInfoSidePanelContent({
   team,
   humansById,
   assistantsById,
+  currentUserId = null,
   onClose,
   hideHeaderActions = false,
   className,
@@ -43,7 +46,11 @@ export function TeamInfoSidePanelContent({
     [team.assistantMemberIds, assistantsById]
   );
 
-  const subtitle = `${humanMembers.length} human${humanMembers.length === 1 ? '' : 's'} · ${assistantMembers.length} AI teammate${assistantMembers.length === 1 ? '' : 's'}`;
+  const subtitle = formatRealVirtualSubtitle(
+    team.memberUserIds,
+    assistantMembers.length,
+    currentUserId
+  );
   const description = team.description?.trim() || null;
 
   return (

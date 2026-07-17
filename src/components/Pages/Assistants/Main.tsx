@@ -184,7 +184,6 @@ import {
   useAssistantChatStream,
   type ChatStreamPair,
 } from '@/hooks/Assistants/useAssistantChatStream';
-import { contactScopedRootQueries } from '@/lib/assistants/scope';
 import {
   useAssistantTranscriptReconciler,
   type TranscriptReconcilerPair,
@@ -1653,28 +1652,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // `useContactIdPrefetch` maintains; as new IDs resolve, React batches the
   // updates and the stream reconnects once per render pass rather than once
   // per network response.
+  // One pair per assistant: unified chat-store frames are published once per
+  // assistant topic (no per-root fan-out), demuxed client-side by the DM
+  // thread's `user_id`.
   const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
     () =>
-      chatReadableAssistants
-        .flatMap((a) => {
-          const cid = resolvedContactIds[a.agentId];
-          if (cid === undefined) return [];
-          const seenPairs = new Set<string>();
-          return contactScopedRootQueries(a, cid, 'Transcripts').flatMap((query) => {
-            const pairKey = `${query.contactId}:${query.rootKey}`;
-            if (seenPairs.has(pairKey)) return [];
-            seenPairs.add(pairKey);
-            return [
-              {
-                assistantId: a.agentId,
-                contactId: query.contactId,
-                rootKey: query.rootKey,
-                sourceContext: query.context,
-              },
-            ];
-          });
-        })
-        .filter((p): p is ChatStreamPair => p !== null),
+      chatReadableAssistants.flatMap((a) => {
+        const cid = resolvedContactIds[a.agentId];
+        if (cid === undefined) return [];
+        return [
+          {
+            assistantId: a.agentId,
+            contactId: cid,
+            rootKey: 'personal',
+            sourceContext: '',
+          },
+        ];
+      }),
     [chatReadableAssistants, resolvedContactIds]
   );
 
@@ -1936,6 +1930,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     },
     {
       userEmail: userMeta.email ?? undefined,
+      userId: currentUserId ?? undefined,
       // Suppress unread bumps for whichever assistant chat the user is
       // currently looking at — either the profile chat panel (only when
       // the right-pane Chat tab is visible in *either* the primary or
@@ -4180,6 +4175,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             team={selectedTeam}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
+                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />
@@ -4262,6 +4258,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             group={selectedGroup}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
+                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />
