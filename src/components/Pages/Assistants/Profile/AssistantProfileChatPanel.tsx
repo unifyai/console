@@ -827,7 +827,7 @@ export function AssistantProfileChatPanel({
                             transcriptMessageId={item.messageId}
                             reactions={item.reactions}
                             currentContactId={currentContactId}
-                            canReact={canChat && !isSpendingBlocked}
+                            canReact={canChat && !isSpendingBlocked && currentContactId !== null}
                             onToggleReaction={
                               item.messageId !== undefined
                                 ? (emoji) => toggleReaction(item.messageId!, emoji)
@@ -936,7 +936,7 @@ export function AssistantProfileChatPanel({
                         transcriptMessageId={msg.messageId}
                         reactions={msg.reactions}
                         currentContactId={currentContactId}
-                        canReact={canChat && !isSpendingBlocked}
+                        canReact={canChat && !isSpendingBlocked && currentContactId !== null}
                         onToggleReaction={
                           msg.messageId !== undefined
                             ? (emoji) => toggleReaction(msg.messageId!, emoji)
