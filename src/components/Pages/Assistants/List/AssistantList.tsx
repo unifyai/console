@@ -769,7 +769,11 @@ export function AssistantList({
     ) => {
       const isSectionFolded = foldedGroups[sectionId] === true;
       return (
-        <div key={sectionId} data-testid={testId} className="min-w-0 max-w-full">
+        <div
+          key={sectionId}
+          data-testid={testId}
+          className="min-w-0 max-w-full border-b border-border"
+        >
           <AssistantListGroupHeader
             label={label}
             isFolded={isSectionFolded}
@@ -838,6 +842,7 @@ export function AssistantList({
       Onboard
     </Button>
   );
+  const showRosterSections = showTeamsSection || showGroupsSection || showColleaguesSection;
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
       {pinnedGroup ? (
@@ -847,118 +852,123 @@ export function AssistantList({
           )}
         </div>
       ) : null}
-      {showTeamsSection
-        ? renderSection(
-            'section:teams',
-            'Teams',
-            teamsForSection.length || teamGroups.length,
-            <>
-              {teamsForSection.length > 0
-                ? teamsForSection.map((team) =>
-                    renderRosterTeam(team, teamRowsById.get(team.teamId) ?? [])
-                  )
-                : teamGroups.map(renderGroup)}
-            </>,
-            'assistant-list-section-teams',
-            {
-              icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
-            }
-          )
-        : null}
-      {showGroupsSection
-        ? renderSection(
-            'section:groups',
-            'Groups',
-            filteredSelectableGroups.length,
-            <div className="min-w-0 space-y-1">
-              {filteredSelectableGroups.length === 0 ? (
-                <p className="text-caption px-2 py-1 text-muted-foreground">No groups yet.</p>
-              ) : (
-                filteredSelectableGroups.map((group) => {
-                  const faceMembers = [
-                    ...group.memberUserIds.map((userId) => {
-                      const human = humansById[userId];
-                      return {
-                        id: `u:${userId}`,
-                        name:
-                          human?.name?.trim() ||
-                          human?.email ||
-                          (userId === currentUserId ? 'You' : userId),
-                        image: human?.image,
-                      };
-                    }),
-                    ...group.assistantMemberIds.map((assistantId) => {
-                      const assistant = assistantsByAgentId[String(assistantId)];
-                      return {
-                        id: `a:${assistantId}`,
-                        name: assistant
-                          ? assistantDisplayName(assistant)
-                          : `Assistant ${assistantId}`,
-                        image: assistant?.signedProfilePhotoUrl || assistant?.profilePhoto || null,
-                      };
-                    }),
-                  ];
-                  return (
-                    <GroupListRow
-                      key={`group:${group.groupId}`}
-                      group={group}
-                      faceMembers={faceMembers}
-                      isSelected={selectedEntityKey === groupEntityKey(group.groupId)}
-                      unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
-                      isCallActive={orgCallActiveGroupId === group.groupId}
-                      onSelect={() => onSelectGroup?.(group.groupId)}
-                    />
-                  );
-                })
-              )}
-              {onCreateGroup ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-                  onClick={onCreateGroup}
-                  aria-label="Create group"
-                  data-testid="create-group-button"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Create group
-                </Button>
-              ) : null}
-            </div>,
-            'assistant-list-section-groups',
-            {
-              icon: <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />,
-            }
-          )
-        : null}
-      {showColleaguesSection
-        ? renderSection(
-            'section:people',
-            'Colleagues',
-            filteredHumans.length,
-            <div className="min-w-0 space-y-1">
-              {showReal
-                ? filteredHumans.map((human) => (
-                    <HumanListRow
-                      key={`human:${human.userId}`}
-                      human={human}
-                      isSelected={selectedEntityKey === humanEntityKey(human.userId)}
-                      isYou={human.userId === currentUserId}
-                      unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
-                      isCallActive={orgCallUserIdSet.has(human.userId)}
-                      onSelect={() => onSelectHuman?.(human.userId)}
-                    />
-                  ))
-                : null}
-              {onboardListButton}
-            </div>,
-            'assistant-list-section-people',
-            {
-              icon: <User className="h-3.5 w-3.5" aria-hidden="true" />,
-            }
-          )
-        : null}
+      {showRosterSections ? (
+        <div className="min-w-0 max-w-full border-t border-border">
+          {showTeamsSection
+            ? renderSection(
+                'section:teams',
+                'Teams',
+                teamsForSection.length || teamGroups.length,
+                <>
+                  {teamsForSection.length > 0
+                    ? teamsForSection.map((team) =>
+                        renderRosterTeam(team, teamRowsById.get(team.teamId) ?? [])
+                      )
+                    : teamGroups.map(renderGroup)}
+                </>,
+                'assistant-list-section-teams',
+                {
+                  icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
+                }
+              )
+            : null}
+          {showGroupsSection
+            ? renderSection(
+                'section:groups',
+                'Groups',
+                filteredSelectableGroups.length,
+                <div className="min-w-0 space-y-1">
+                  {filteredSelectableGroups.length === 0 ? (
+                    <p className="text-caption px-2 py-1 text-muted-foreground">No groups yet.</p>
+                  ) : (
+                    filteredSelectableGroups.map((group) => {
+                      const faceMembers = [
+                        ...group.memberUserIds.map((userId) => {
+                          const human = humansById[userId];
+                          return {
+                            id: `u:${userId}`,
+                            name:
+                              human?.name?.trim() ||
+                              human?.email ||
+                              (userId === currentUserId ? 'You' : userId),
+                            image: human?.image,
+                          };
+                        }),
+                        ...group.assistantMemberIds.map((assistantId) => {
+                          const assistant = assistantsByAgentId[String(assistantId)];
+                          return {
+                            id: `a:${assistantId}`,
+                            name: assistant
+                              ? assistantDisplayName(assistant)
+                              : `Assistant ${assistantId}`,
+                            image:
+                              assistant?.signedProfilePhotoUrl || assistant?.profilePhoto || null,
+                          };
+                        }),
+                      ];
+                      return (
+                        <GroupListRow
+                          key={`group:${group.groupId}`}
+                          group={group}
+                          faceMembers={faceMembers}
+                          isSelected={selectedEntityKey === groupEntityKey(group.groupId)}
+                          unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
+                          isCallActive={orgCallActiveGroupId === group.groupId}
+                          onSelect={() => onSelectGroup?.(group.groupId)}
+                        />
+                      );
+                    })
+                  )}
+                  {onCreateGroup ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-caption h-7 w-full justify-start gap-1.5 px-2"
+                      onClick={onCreateGroup}
+                      aria-label="Create group"
+                      data-testid="create-group-button"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Create group
+                    </Button>
+                  ) : null}
+                </div>,
+                'assistant-list-section-groups',
+                {
+                  icon: <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />,
+                }
+              )
+            : null}
+          {showColleaguesSection
+            ? renderSection(
+                'section:people',
+                'Colleagues',
+                filteredHumans.length,
+                <div className="min-w-0 space-y-1">
+                  {showReal
+                    ? filteredHumans.map((human) => (
+                        <HumanListRow
+                          key={`human:${human.userId}`}
+                          human={human}
+                          isSelected={selectedEntityKey === humanEntityKey(human.userId)}
+                          isYou={human.userId === currentUserId}
+                          unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+                          isCallActive={orgCallUserIdSet.has(human.userId)}
+                          onSelect={() => onSelectHuman?.(human.userId)}
+                        />
+                      ))
+                    : null}
+                  {onboardListButton}
+                </div>,
+                'assistant-list-section-people',
+                {
+                  icon: <User className="h-3.5 w-3.5" aria-hidden="true" />,
+                }
+              )
+            : null}
+        </div>
+      ) : null}
       {showVirtual && soloGroup ? (
         <div className="min-w-0 space-y-1" data-testid="assistant-list-section-solo">
           {soloRows.map((entry) =>

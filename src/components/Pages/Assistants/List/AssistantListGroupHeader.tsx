@@ -39,10 +39,11 @@ export function AssistantListGroupHeader({
         type="button"
         className={cn(
           'flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-xs transition-colors hover:bg-muted hover:text-foreground',
-          // Borders live on the button with the padding so hover fills the
-          // full band flush to the rules (no cream gap above/below).
+          // Section rules live on the section stack/container so adjacent
+          // sections share one divider (no border-y + gap double-lines).
+          // Group/workspace keep borders on the button so hover fills flush.
           variant === 'section' &&
-            'border-y border-border px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
+            'px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
           variant === 'group' &&
             'border-y border-border px-2 py-1.5 font-semibold uppercase tracking-wide text-muted-foreground',
           variant === 'workspace' &&
