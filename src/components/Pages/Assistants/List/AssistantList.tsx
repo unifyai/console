@@ -313,7 +313,9 @@ function TeamListRow({
       data-testid={`team-list-item-${team.teamId}`}
       aria-expanded={onToggleFold ? !isFoldedGroup : undefined}
       className={cn(
-        'group flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors',
+        // Match AssistantListItem padding/gap so the team face shares the
+        // same avatar column (center-aligned with T-W1N above).
+        'group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-xl border p-2 transition-colors',
         isSelected
           ? 'border-primary-tint-30 bg-accent-soft'
           : 'bg-muted/15 border-border hover:border-primary-tint-30 hover:bg-primary-tint-5'
@@ -682,13 +684,14 @@ export function AssistantList({
   );
 
   const renderRosterTeam = React.useCallback(
-    (team: RosterTeam, virtualEntries: AssistantListEntry[]) => {
+    (team: RosterTeam, virtualEntries: AssistantListEntry[], nestedFooter?: React.ReactNode) => {
       const groupId = `team:${team.teamId}`;
       const isGroupFolded = foldedGroups[groupId] === true;
       const memberIds = new Set(team.memberUserIds);
       const teamHumans = filteredHumans.filter((human) => memberIds.has(human.userId));
-      const hasNested =
+      const hasMembers =
         (Boolean(onSelectHuman) && teamHumans.length > 0) || virtualEntries.length > 0;
+      const hasNested = hasMembers || Boolean(nestedFooter);
 
       return (
         <div
@@ -705,9 +708,14 @@ export function AssistantList({
             isFoldedGroup={isGroupFolded}
             onToggleFold={hasNested ? () => toggleGroupFold(groupId) : undefined}
           />
-          {!isGroupFolded && hasNested
-            ? renderTeamMembers(groupId, teamHumans, virtualEntries)
-            : null}
+          {!isGroupFolded && hasNested ? (
+            <>
+              {hasMembers ? renderTeamMembers(groupId, teamHumans, virtualEntries) : null}
+              {nestedFooter ? (
+                <div className="min-w-0 space-y-1 pl-3 pt-1">{nestedFooter}</div>
+              ) : null}
+            </>
+          ) : null}
         </div>
       );
     },
@@ -887,8 +895,9 @@ export function AssistantList({
       Onboard
     </Button>
   );
-  // Create group / Create team / Onboard sit under Org or Colleagues
-  // (mutually exclusive), not under an empty GROUPS nest.
+  // Create group / Create team / Onboard nest inside the managed Org team
+  // (or under Colleagues when there is no managed team) — not under an
+  // empty GROUPS section.
   const showOrgCreationActions =
     isOrgWorkspace && (Boolean(elevatedOrgTeam) || showColleaguesSection);
   const orgCreationActions = showOrgCreationActions ? (
@@ -938,8 +947,11 @@ export function AssistantList({
           ) : null}
           {elevatedOrgTeam ? (
             <div className="min-w-0 space-y-1" data-testid="assistant-list-elevated-org-team">
-              {renderRosterTeam(elevatedOrgTeam, teamRowsById.get(elevatedOrgTeam.teamId) ?? [])}
-              {!showColleaguesSection ? orgCreationActions : null}
+              {renderRosterTeam(
+                elevatedOrgTeam,
+                teamRowsById.get(elevatedOrgTeam.teamId) ?? [],
+                !showColleaguesSection ? orgCreationActions : null
+              )}
             </div>
           ) : null}
         </div>

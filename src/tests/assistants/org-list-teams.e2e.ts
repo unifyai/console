@@ -145,15 +145,26 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
   // No custom teams / groups yet — TEAMS and GROUPS nests stay hidden.
-  // Creation actions live under the elevated Org team instead.
+  // Creation actions nest inside the elevated Org team fold (hidden when folded).
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
-  const orgActions = page.getByTestId('assistant-list-org-actions');
+  const orgTeamGroup = page.getByTestId(`assistant-list-group-team:${orgTeamId}`);
+  const orgTeamRow = orgTeamGroup.getByTestId(`team-list-item-${orgTeamId}`);
+  // Ensure the nest is expanded so create actions are visible.
+  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
+    await orgTeamRow.click();
+  }
+  const orgActions = orgTeamGroup.getByTestId('assistant-list-org-actions');
   await expect(orgActions).toBeVisible();
   await expect(orgActions.getByTestId('create-group-button')).toBeVisible();
   await expect(orgActions.getByTestId('create-team-button')).toBeVisible();
   await expect(orgActions.getByTestId('assistant-onboard-button')).toBeVisible();
+
+  await orgTeamRow.click();
+  await expect(orgTeamGroup.getByTestId('assistant-list-org-actions')).toHaveCount(0);
+  await orgTeamRow.click();
+  await expect(orgActions).toBeVisible();
 
   const customTeamName = `CustomTeam_${Date.now()}`;
   const rawCustomTeamId = dbExec(`
@@ -185,7 +196,11 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
   await expect(teamsSection.getByTestId(`team-list-item-${orgTeamId}`)).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
-  await expect(page.getByTestId('assistant-list-org-actions')).toBeVisible();
+  await expect(
+    page
+      .getByTestId(`assistant-list-group-team:${orgTeamId}`)
+      .getByTestId('assistant-list-org-actions')
+  ).toBeVisible();
 
   await page.getByTestId('create-team-button').click();
   await expect(page).toHaveURL(/\/organizations\?tab=teams/, { timeout: 15_000 });
