@@ -74,11 +74,16 @@ export interface UseAssistantChatStreamCallbacks {
   /** Fires when an `assistant_desktop_ready` frame arrives. */
   onDesktopReady?: (assistantId: string, eventData: Record<string, unknown>) => void;
   /**
-   * Fires when a `unify_meet_incoming` frame arrives — the assistant is ringing
-   * the owner on Unify Meet. The caller shows a pinned incoming-call window;
-   * `eventData` carries `opening_config` and `call_session_id`.
+   * Fires when a call-session signaling frame arrives on the assistant topic
+   * (`call_incoming` when the assistant rings its human, plus
+   * answered/ended/declined lifecycle updates). `eventData` is the call
+   * session event payload.
    */
-  onUnifyMeetIncoming?: (assistantId: string, eventData: Record<string, unknown>) => void;
+  onCallFrame?: (
+    assistantId: string,
+    action: 'incoming' | 'answered' | 'ended' | 'declined',
+    eventData: Record<string, unknown>
+  ) => void;
   /**
    * Fires on every inbound SSE frame before parsing. Drives activity
    * indicators (typing bubbles, online presence) that should react to all
@@ -703,8 +708,8 @@ export function useAssistantChatStream(
             callbacksRef.current.onDesktopReady?.(assistantId, frame.eventData);
             return;
           }
-          case 'meet-incoming': {
-            callbacksRef.current.onUnifyMeetIncoming?.(assistantId, frame.eventData);
+          case 'call-frame': {
+            callbacksRef.current.onCallFrame?.(assistantId, frame.action, frame.eventData);
             return;
           }
           case 'reaction': {

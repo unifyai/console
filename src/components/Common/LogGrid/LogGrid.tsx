@@ -158,8 +158,18 @@ export interface LogGridProps {
   hasSelection?: boolean;
   viewPanelOpen?: boolean;
   onToggleViewPanel?: () => void;
-  /** Opens the cell view pane (e.g. double-click). No-op if already open. */
-  onOpenViewPanel?: () => void;
+  /**
+   * Opens the cell view pane (e.g. double-click). No-op if already open.
+   * Pass `{ edit: true }` from a cell double-click to enter inline edit.
+   */
+  onOpenViewPanel?: (opts?: { edit?: boolean }) => void;
+  /**
+   * Optional cell view pane rendered beside the table (below the toolbar),
+   * so its header aligns with the column-header row.
+   */
+  viewPanel?: React.ReactNode;
+  /** When provided, non-editable columns show a lock icon in the header. */
+  isColumnEditable?: (columnId: string) => boolean;
   /** When false, hide row/cell delete affordances (default true). */
   allowDelete?: boolean;
   className?: string;
@@ -193,6 +203,8 @@ export function LogGrid({
   viewPanelOpen = false,
   onToggleViewPanel,
   onOpenViewPanel,
+  viewPanel,
+  isColumnEditable,
   allowDelete = true,
   className,
   testId = 'log-grid',
@@ -395,6 +407,7 @@ export function LogGrid({
               grouping={view.grouping}
               onGroupingChange={setGrouping}
               isDerived={isDerived}
+              isLocked={!!isColumnEditable && !isColumnEditable(key)}
               onEditDerived={isDerived ? () => openDerivedEditRef.current(key) : undefined}
               reorderEnabled={reorderEnabled}
               onEnableReorder={() => setReorderEnabled(true)}
@@ -485,6 +498,7 @@ export function LogGrid({
     setGrouping,
     isGrouped,
     rowLabelMap,
+    isColumnEditable,
   ]);
 
   const table = useReactTable({
@@ -723,9 +737,43 @@ export function LogGrid({
     isSelectingRef.current = false;
   }, []);
 
-  const openViewPanel = React.useCallback(() => {
-    onOpenViewPanel?.();
-  }, [onOpenViewPanel]);
+  /** Empty chrome / non-cell clicks clear the selection (Excel-style). */
+  const clearSelectionOnBackgroundPointerDown = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (selection?.mode !== 'cell') return;
+      if (selection.selectedCells.length === 0) return;
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Cells and row indices manage selection themselves (and stopPropagation).
+      if (
+        target.closest(
+          '[data-testid^="log-grid-cell-"], [data-testid^="log-grid-row-index-"], [data-testid^="log-grid-group-expand-"], [data-testid^="log-grid-group-cell-"]'
+        )
+      ) {
+        return;
+      }
+      // Headers, menus, filters, and portaled overlays (React portals still bubble
+      // through the component tree into this ScrollArea handler).
+      if (
+        target.closest(
+          'thead, [data-testid^="log-grid-header-"], [data-testid="log-grid-row-index-header"], button, input, textarea, [role="separator"], [role="menu"], [role="menuitem"], [data-radix-portal], [data-radix-popper-content-wrapper], [data-radix-popover-content]'
+        )
+      ) {
+        return;
+      }
+      selection.onSelectCells([]);
+      selectionAnchorRef.current = null;
+    },
+    [selection]
+  );
+
+  const openViewPanel = React.useCallback(
+    (opts?: { edit?: boolean }) => {
+      onOpenViewPanel?.(opts);
+    },
+    [onOpenViewPanel]
+  );
 
   const onCellDoubleClick = React.useCallback(
     (cellId: string) => {
@@ -733,7 +781,7 @@ export function LogGrid({
       selection.onSelectCells([cellId]);
       selectionAnchorRef.current = cellId;
       rootRef.current?.focus({ preventScroll: true });
-      openViewPanel();
+      openViewPanel({ edit: true });
     },
     [selection, openViewPanel]
   );
@@ -902,266 +950,298 @@ export function LogGrid({
             onToggleViewPanel={onToggleViewPanel}
           />
 
-          {showError ? (
-            <div
-              className="flex flex-1 flex-col items-center justify-center gap-3 p-8"
-              data-testid="log-grid-error"
-            >
-              <p className="text-body-muted">Could not load rows. Please try again.</p>
-              {onRetry && (
-                <Button variant="outline" size="sm" onClick={onRetry} data-testid="log-grid-retry">
-                  Retry
-                </Button>
-              )}
-            </div>
-          ) : !isLoading && !hasData ? (
-            <div className="flex flex-1 items-center justify-center p-8">
-              <p className="text-body-muted">No rows match the current filters.</p>
-            </div>
-          ) : (
-            <ScrollArea
-              className="min-h-0 flex-1"
-              viewportRef={scrollViewportRef}
-              viewportTestId="log-grid-scroll-viewport"
-              // Radix wraps children in display:table which breaks position:sticky;
-              // block restores sticky left pinning for the row-index column.
-              viewportClassName="[&>div]:!block"
-            >
-              <div className="border-b border-border">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  modifiers={[restrictToHorizontalAxis]}
-                  onDragEnd={handleDragEnd}
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            {showError ? (
+              <div
+                className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-3 p-8"
+                data-testid="log-grid-error"
+              >
+                <p className="text-body-muted">Could not load rows. Please try again.</p>
+                {onRetry && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRetry}
+                    data-testid="log-grid-retry"
+                  >
+                    Retry
+                  </Button>
+                )}
+              </div>
+            ) : !isLoading && !hasData ? (
+              <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-8">
+                <p className="text-body-muted">No rows match the current filters.</p>
+              </div>
+            ) : (
+              <ScrollArea
+                className="min-h-0 min-w-0 flex-1"
+                viewportRef={scrollViewportRef}
+                viewportTestId="log-grid-scroll-viewport"
+                // Radix wraps children in display:table which breaks position:sticky;
+                // block restores sticky left pinning for the row-index column.
+                viewportClassName="[&>div]:!block"
+                viewportProps={{ onMouseDown: clearSelectionOnBackgroundPointerDown }}
+              >
+                {/* min-h-full so empty space below short tables still receives clicks */}
+                <div
+                  className="min-h-full"
+                  data-testid="log-grid-background"
+                  onMouseDown={clearSelectionOnBackgroundPointerDown}
                 >
-                  <SortableContext items={visible} strategy={horizontalListSortingStrategy}>
-                    <Table style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
-                      <colgroup>
-                        {table.getVisibleLeafColumns().map((column) => (
-                          <col key={column.id} style={{ width: column.getSize() }} />
-                        ))}
-                      </colgroup>
-                      <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                          <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                            {headerGroup.headers.map((header) => {
-                              if (header.column.id === LOG_ROW_NUMBER_COL) {
-                                return (
-                                  <TableHead
-                                    key={header.id}
-                                    className={cn(
-                                      // Opaque sticky corner: --muted/--surface/--secondary (dark)
-                                      // are translucent and let scrolled content bleed through the pin.
-                                      'sticky left-0 top-0 z-30 h-8 cursor-pointer select-none border-r border-border bg-card px-1 text-center text-[11px] text-muted-foreground hover:bg-card-2',
-                                      selection?.mode === 'cell' && 'select-none'
-                                    )}
-                                    style={{ width: header.getSize(), minWidth: header.getSize() }}
-                                    data-testid="log-grid-row-index-header"
-                                    onMouseDown={(e) => {
-                                      if (selection?.mode !== 'cell') return;
-                                      if (e.button !== 0) return;
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      selectAllRows();
-                                    }}
-                                  >
-                                    #
-                                  </TableHead>
-                                );
-                              }
-                              return (
-                                <SortableHeader
-                                  key={header.id}
-                                  header={header}
-                                  reorderEnabled={reorderEnabled}
-                                  className="sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground"
-                                  style={{
-                                    width: header.getSize(),
-                                  }}
-                                  resizer={
-                                    header.column.getCanResize() ? (
-                                      <div
-                                        role="separator"
-                                        aria-orientation="vertical"
-                                        onMouseDown={header.getResizeHandler()}
-                                        onTouchStart={header.getResizeHandler()}
+                  <div className="w-max border-b border-border">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[restrictToHorizontalAxis]}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext items={visible} strategy={horizontalListSortingStrategy}>
+                        <Table style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
+                          <colgroup>
+                            {table.getVisibleLeafColumns().map((column) => (
+                              <col key={column.id} style={{ width: column.getSize() }} />
+                            ))}
+                          </colgroup>
+                          <TableHeader>
+                            {table.getHeaderGroups().map((headerGroup) => (
+                              <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                                {headerGroup.headers.map((header) => {
+                                  if (header.column.id === LOG_ROW_NUMBER_COL) {
+                                    return (
+                                      <TableHead
+                                        key={header.id}
                                         className={cn(
-                                          'absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary',
-                                          header.column.getIsResizing() && 'bg-primary'
+                                          // Opaque sticky corner: --muted/--surface/--secondary (dark)
+                                          // are translucent and let scrolled content bleed through the pin.
+                                          'sticky left-0 top-0 z-30 h-8 cursor-pointer select-none border-r border-border bg-card px-1 text-center text-[11px] text-muted-foreground hover:bg-card-2',
+                                          selection?.mode === 'cell' && 'select-none'
                                         )}
-                                        data-testid={`log-grid-resize-${sanitizeId(header.column.id)}`}
-                                      />
-                                    ) : null
+                                        style={{
+                                          width: header.getSize(),
+                                          minWidth: header.getSize(),
+                                        }}
+                                        data-testid="log-grid-row-index-header"
+                                        onMouseDown={(e) => {
+                                          if (selection?.mode !== 'cell') return;
+                                          if (e.button !== 0) return;
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          selectAllRows();
+                                        }}
+                                      >
+                                        #
+                                      </TableHead>
+                                    );
                                   }
+                                  return (
+                                    <SortableHeader
+                                      key={header.id}
+                                      header={header}
+                                      reorderEnabled={reorderEnabled}
+                                      className="sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground"
+                                      style={{
+                                        width: header.getSize(),
+                                      }}
+                                      resizer={
+                                        header.column.getCanResize() ? (
+                                          <div
+                                            role="separator"
+                                            aria-orientation="vertical"
+                                            onMouseDown={header.getResizeHandler()}
+                                            onTouchStart={header.getResizeHandler()}
+                                            className={cn(
+                                              'absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary',
+                                              header.column.getIsResizing() && 'bg-primary'
+                                            )}
+                                            data-testid={`log-grid-resize-${sanitizeId(header.column.id)}`}
+                                          />
+                                        ) : null
+                                      }
+                                    >
+                                      {header.isPlaceholder
+                                        ? null
+                                        : flexRender(
+                                            header.column.columnDef.header,
+                                            header.getContext()
+                                          )}
+                                    </SortableHeader>
+                                  );
+                                })}
+                              </TableRow>
+                            ))}
+                          </TableHeader>
+                          <TableBody
+                            className={selection?.mode === 'cell' ? 'select-none' : undefined}
+                          >
+                            {table.getRowModel().rows.map((row) => {
+                              const isGroup = !!row.original.group;
+                              const isSelected =
+                                !isGroup && selectedRowId === String(row.original.logId);
+                              return (
+                                <TableRow
+                                  key={row.id}
+                                  data-testid={
+                                    isGroup
+                                      ? `log-grid-group-row-${row.original.group!.id}`
+                                      : `log-grid-row-${row.original.logId}`
+                                  }
+                                  className={cn(
+                                    'hover:bg-transparent',
+                                    !isGroup && 'cursor-pointer',
+                                    isSelected && 'bg-muted/60'
+                                  )}
+                                  onClick={() => {
+                                    if (isGroup) return;
+                                    if (selection?.mode === 'row') {
+                                      selection.onSelectRow(String(row.original.logId));
+                                    }
+                                    onRowActivate?.(row.original);
+                                  }}
                                 >
-                                  {header.isPlaceholder
-                                    ? null
-                                    : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                      )}
-                                </SortableHeader>
-                              );
-                            })}
-                          </TableRow>
-                        ))}
-                      </TableHeader>
-                      <TableBody className={selection?.mode === 'cell' ? 'select-none' : undefined}>
-                        {table.getRowModel().rows.map((row) => {
-                          const isGroup = !!row.original.group;
-                          const isSelected =
-                            !isGroup && selectedRowId === String(row.original.logId);
-                          return (
-                            <TableRow
-                              key={row.id}
-                              data-testid={
-                                isGroup
-                                  ? `log-grid-group-row-${row.original.group!.id}`
-                                  : `log-grid-row-${row.original.logId}`
-                              }
-                              className={cn(
-                                'hover:bg-transparent',
-                                !isGroup && 'cursor-pointer',
-                                isSelected && 'bg-muted/60'
-                              )}
-                              onClick={() => {
-                                if (isGroup) return;
-                                if (selection?.mode === 'row') {
-                                  selection.onSelectRow(String(row.original.logId));
-                                }
-                                onRowActivate?.(row.original);
-                              }}
-                            >
-                              {row.getVisibleCells().map((cell) => {
-                                if (cell.column.id === LOG_ROW_NUMBER_COL) {
-                                  if (isGroup) {
+                                  {row.getVisibleCells().map((cell) => {
+                                    if (cell.column.id === LOG_ROW_NUMBER_COL) {
+                                      if (isGroup) {
+                                        return (
+                                          <TableCell
+                                            key={cell.id}
+                                            data-testid={`log-grid-group-index-${row.original.group!.id}`}
+                                            style={{
+                                              width: cell.column.getSize(),
+                                              minWidth: cell.column.getSize(),
+                                            }}
+                                            className="sticky left-0 z-20 select-none border-r border-border bg-background px-1 py-1.5 text-center font-mono text-[12px] text-muted-foreground"
+                                          >
+                                            {flexRender(
+                                              cell.column.columnDef.cell,
+                                              cell.getContext()
+                                            )}
+                                          </TableCell>
+                                        );
+                                      }
+                                      const logId = String(row.original.logId);
+                                      const rowFullySelected =
+                                        !!selectedCells &&
+                                        isAllRowSelected(selectedCells, logId, visible);
+                                      const firstColSelected =
+                                        !!selectedCells &&
+                                        visible.length > 0 &&
+                                        selectedCells.has(makeCellId(logId, visible[0]!));
+                                      return (
+                                        <TableCell
+                                          key={cell.id}
+                                          data-testid={`log-grid-row-index-${logId}`}
+                                          style={{
+                                            width: cell.column.getSize(),
+                                            minWidth: cell.column.getSize(),
+                                          }}
+                                          className={cn(
+                                            'sticky left-0 z-20 cursor-pointer select-none border-r px-1 py-1.5 text-center font-mono text-[12px]',
+                                            firstColSelected
+                                              ? 'border-transparent'
+                                              : 'border-border',
+                                            rowFullySelected
+                                              ? 'bg-primary text-primary-foreground'
+                                              : // Opaque hover: muted/primary-tint mix with transparent.
+                                                'bg-background text-muted-foreground hover:bg-card-2'
+                                          )}
+                                          onMouseDown={(e) => onRowIndexPointerDown(e, logId)}
+                                          onMouseEnter={(e) => onRowIndexPointerEnter(e, logId)}
+                                          onMouseUp={onCellPointerUp}
+                                          onDoubleClick={() => onRowIndexDoubleClick(logId)}
+                                        >
+                                          {flexRender(
+                                            cell.column.columnDef.cell,
+                                            cell.getContext()
+                                          )}
+                                        </TableCell>
+                                      );
+                                    }
+                                    if (isGroup) {
+                                      return (
+                                        <TableCell
+                                          key={cell.id}
+                                          style={{ width: cell.column.getSize() }}
+                                          className="max-w-[220px] border-r border-border px-2.5 py-1.5 font-mono text-[12px]"
+                                        >
+                                          {flexRender(
+                                            cell.column.columnDef.cell,
+                                            cell.getContext()
+                                          )}
+                                        </TableCell>
+                                      );
+                                    }
+                                    const cellId = makeCellId(row.original.logId, cell.column.id);
+                                    const cellSelected = selectedCells?.has(cellId);
+                                    const isNewCell = newCells.has(cellId);
+                                    const colIdx = visible.indexOf(cell.column.id);
+                                    const rightNeighborSelected =
+                                      !!selectedCells &&
+                                      colIdx >= 0 &&
+                                      colIdx < visible.length - 1 &&
+                                      selectedCells.has(
+                                        makeCellId(row.original.logId, visible[colIdx + 1]!)
+                                      );
                                     return (
                                       <TableCell
                                         key={cell.id}
-                                        data-testid={`log-grid-group-index-${row.original.group!.id}`}
+                                        data-testid={`log-grid-cell-${cellId}`}
                                         style={{
                                           width: cell.column.getSize(),
-                                          minWidth: cell.column.getSize(),
+                                          boxShadow:
+                                            cellSelected && selectedCells
+                                              ? selectionPerimeterBoxShadow(
+                                                  selectedCells,
+                                                  row.original.logId,
+                                                  cell.column.id,
+                                                  visible,
+                                                  selectableRows
+                                                )
+                                              : undefined,
                                         }}
-                                        className="sticky left-0 z-20 select-none border-r border-border bg-background px-1 py-1.5 text-center font-mono text-[12px] text-muted-foreground"
+                                        className={cn(
+                                          'max-w-[220px] truncate border-r px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
+                                          selection?.mode === 'cell' && 'select-none',
+                                          cellSelected
+                                            ? rightNeighborSelected
+                                              ? 'border-transparent bg-primary-tint-10'
+                                              : 'border-primary bg-primary-tint-10'
+                                            : 'border-border',
+                                          isNewCell && 'animate-fade-accent'
+                                        )}
+                                        onMouseDown={(e) => onCellPointerDown(e, cellId)}
+                                        onMouseEnter={(e) => onCellPointerEnter(e, cellId)}
+                                        onMouseUp={onCellPointerUp}
+                                        onDoubleClick={() => onCellDoubleClick(cellId)}
                                       >
                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                       </TableCell>
                                     );
-                                  }
-                                  const logId = String(row.original.logId);
-                                  const rowFullySelected =
-                                    !!selectedCells &&
-                                    isAllRowSelected(selectedCells, logId, visible);
-                                  const firstColSelected =
-                                    !!selectedCells &&
-                                    visible.length > 0 &&
-                                    selectedCells.has(makeCellId(logId, visible[0]!));
-                                  return (
-                                    <TableCell
-                                      key={cell.id}
-                                      data-testid={`log-grid-row-index-${logId}`}
-                                      style={{
-                                        width: cell.column.getSize(),
-                                        minWidth: cell.column.getSize(),
-                                      }}
-                                      className={cn(
-                                        'sticky left-0 z-20 cursor-pointer select-none border-r px-1 py-1.5 text-center font-mono text-[12px]',
-                                        firstColSelected ? 'border-transparent' : 'border-border',
-                                        rowFullySelected
-                                          ? 'bg-primary text-primary-foreground'
-                                          : // Opaque hover: muted/primary-tint mix with transparent.
-                                            'bg-background text-muted-foreground hover:bg-card-2'
-                                      )}
-                                      onMouseDown={(e) => onRowIndexPointerDown(e, logId)}
-                                      onMouseEnter={(e) => onRowIndexPointerEnter(e, logId)}
-                                      onMouseUp={onCellPointerUp}
-                                      onDoubleClick={() => onRowIndexDoubleClick(logId)}
-                                    >
-                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                  );
-                                }
-                                if (isGroup) {
-                                  return (
-                                    <TableCell
-                                      key={cell.id}
-                                      style={{ width: cell.column.getSize() }}
-                                      className="max-w-[220px] border-r border-border px-2.5 py-1.5 font-mono text-[12px]"
-                                    >
-                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                  );
-                                }
-                                const cellId = makeCellId(row.original.logId, cell.column.id);
-                                const cellSelected = selectedCells?.has(cellId);
-                                const isNewCell = newCells.has(cellId);
-                                const colIdx = visible.indexOf(cell.column.id);
-                                const rightNeighborSelected =
-                                  !!selectedCells &&
-                                  colIdx >= 0 &&
-                                  colIdx < visible.length - 1 &&
-                                  selectedCells.has(
-                                    makeCellId(row.original.logId, visible[colIdx + 1]!)
-                                  );
-                                return (
-                                  <TableCell
-                                    key={cell.id}
-                                    data-testid={`log-grid-cell-${cellId}`}
-                                    style={{
-                                      width: cell.column.getSize(),
-                                      boxShadow:
-                                        cellSelected && selectedCells
-                                          ? selectionPerimeterBoxShadow(
-                                              selectedCells,
-                                              row.original.logId,
-                                              cell.column.id,
-                                              visible,
-                                              selectableRows
-                                            )
-                                          : undefined,
-                                    }}
-                                    className={cn(
-                                      'max-w-[220px] truncate border-r px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
-                                      selection?.mode === 'cell' && 'select-none',
-                                      cellSelected
-                                        ? rightNeighborSelected
-                                          ? 'border-transparent bg-primary-tint-10'
-                                          : 'border-primary bg-primary-tint-10'
-                                        : 'border-border',
-                                      isNewCell && 'animate-fade-accent'
-                                    )}
-                                    onMouseDown={(e) => onCellPointerDown(e, cellId)}
-                                    onMouseEnter={(e) => onCellPointerEnter(e, cellId)}
-                                    onMouseUp={onCellPointerUp}
-                                    onDoubleClick={() => onCellDoubleClick(cellId)}
-                                  >
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                  </TableCell>
-                                );
-                              })}
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </SortableContext>
-                </DndContext>
-              </div>
-              {hasNextPage && (
-                <div
-                  ref={loadMoreSentinelRef}
-                  className="flex h-8 items-center justify-center"
-                  data-testid="log-grid-load-more-sentinel"
-                >
-                  {isFetchingNextPage && (
-                    <span className="text-caption text-muted-foreground">Loading more…</span>
+                                  })}
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </SortableContext>
+                    </DndContext>
+                  </div>
+                  {hasNextPage && (
+                    <div
+                      ref={loadMoreSentinelRef}
+                      className="flex h-8 items-center justify-center"
+                      data-testid="log-grid-load-more-sentinel"
+                    >
+                      {isFetchingNextPage && (
+                        <span className="text-caption text-muted-foreground">Loading more…</span>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
-          )}
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            )}
+            {viewPanel}
+          </div>
 
           <LogDerivedColumnDialog
             open={derivedOpen}

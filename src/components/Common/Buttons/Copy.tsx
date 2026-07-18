@@ -11,12 +11,21 @@ type CopyButtonProps = {
   copyMessage?: string;
   tooltipContent?: string;
   className?: string;
+  /** When false, only the in-button checkmark feedback is shown (no toast). */
+  showSuccessNotification?: boolean;
 };
 
-export function CopyButton({ content, copyMessage, tooltipContent, className }: CopyButtonProps) {
+export function CopyButton({
+  content,
+  copyMessage,
+  tooltipContent,
+  className,
+  showSuccessNotification,
+}: CopyButtonProps) {
   const { isCopied, handleCopy } = useCopyToClipboard({
     text: content,
     copyMessage,
+    showSuccessNotification,
   });
 
   return (

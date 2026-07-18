@@ -1,0 +1,253 @@
+/**
+ * Unified call engine tests: sessions drive every call.
+ *
+ * Covers the invariants the legacy 1:1 engine encoded, retargeted onto the
+ * session-based flow: an assistant call creates an assistant_dm session and
+ * connects (dev mode short-circuits LiveKit), a ring answer answers the
+ * session instead of creating one, hangup ends the session (there is no
+ * client-side room deletion anymore), and a dropped agent is recovered by an
+ * idempotent server-side redispatch through POST /calls/{id}/assistants.
+ */
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Assistant } from '@/types/assistants/assistant';
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    loading: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+vi.mock('@/hooks/Assistants/useCallSounds', () => ({
+  useCallSounds: () => ({
+    startRinging: vi.fn(),
+    stopRinging: vi.fn(),
+    setRingingMuted: vi.fn(),
+    playHangup: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/Assistants/useDesktopReady', () => ({
+  useDesktopReady: () => ({
+    isDesktopReady: false,
+    eventLiveviewUrl: null,
+    eventBindingId: null,
+  }),
+}));
+
+vi.mock('@/lib/client/assistant', () => ({
+  fetchAssistantStatus: vi.fn(async () => null),
+}));
+
+vi.mock('@/components/Pages/Providers/EnvironmentProvider', () => ({
+  useFeatures: () => ({ voiceCalls: true }),
+}));
+
+const getConnectionDetailsMock = vi.fn(async (_roomName: string) => ({
+  serverUrl: '',
+  roomName: 'unity_call_sess-1',
+  token: '',
+  mode: 'dev' as const,
+}));
+
+vi.mock('@/lib/assistants/humanCall', () => ({
+  getHumanCallConnectionDetails: (roomName: string) => getConnectionDetailsMock(roomName),
+}));
+
+import { useCall } from '@/hooks/Assistants/useCall';
+
+type Handler = (...args: any[]) => void;
+
+class FakeRoom {
+  state = 'disconnected';
+  remoteParticipants = new Map();
+  handlers = new Map<string, Set<Handler>>();
+  localParticipant = {
+    setMicrophoneEnabled: vi.fn(async () => ({ mute: vi.fn(async () => undefined) })),
+    setCameraEnabled: vi.fn(async () => undefined),
+    setScreenShareEnabled: vi.fn(async () => undefined),
+  };
+
+  on(event: string, handler: Handler) {
+    const handlers = this.handlers.get(event) ?? new Set<Handler>();
+    handlers.add(handler);
+    this.handlers.set(event, handlers);
+    return this;
+  }
+
+  off(event: string, handler: Handler) {
+    this.handlers.get(event)?.delete(handler);
+    return this;
+  }
+
+  async connect() {
+    this.state = 'connected';
+  }
+
+  async disconnect() {
+    this.state = 'disconnected';
+    for (const handler of this.handlers.get('disconnected') ?? []) {
+      handler();
+    }
+  }
+}
+
+const assistant = {
+  agentId: '42',
+  userId: 'user-1',
+  organizationId: null,
+  name: 'T-W1N',
+  isCoordinator: false,
+} as unknown as Assistant;
+
+const desktopActions = {
+  desktop: {
+    getLiveviewUrl: vi.fn(),
+    buildLiveviewUrl: vi.fn(),
+    checkLiveviewHealth: vi.fn(),
+    sendSystemEvent: vi.fn(),
+  },
+} as any;
+
+function sessionPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    call_id: 'sess-1',
+    room_name: 'unity_call_sess-1',
+    status: 'active',
+    scope: 'assistant_dm',
+    created_by_user_id: 'user-1',
+    user_ids: ['user-1'],
+    assistant_ids: [42],
+    participants: [{ user_id: 'user-1', role: 'host', status: 'joined' }],
+    roster: [],
+    ...overrides,
+  };
+}
+
+function mockFetch() {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init });
+    return {
+      ok: true,
+      status: 200,
+      json: async () => sessionPayload(),
+    } as Response;
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return { calls, fetchMock };
+}
+
+describe('useCall (unified engine)', () => {
+  beforeEach(() => {
+    getConnectionDetailsMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('starting an assistant call creates an assistant_dm session and activates', async () => {
+    const { calls } = mockFetch();
+    const room = new FakeRoom();
+    const { result } = renderHook(() =>
+      useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+    );
+
+    await act(async () => {
+      await result.current.connect(assistant, 'audio');
+    });
+
+    const createCall = calls.find((c) => c.url === '/api/calls');
+    expect(createCall).toBeDefined();
+    const body = JSON.parse(String(createCall!.init?.body));
+    expect(body.kind).toBe('assistant_dm');
+    expect(body.assistantId).toBe(42);
+
+    expect(result.current.isConnected).toBe(true);
+    expect(result.current.callPhase).toBe('active');
+    expect(result.current.activeCall?.callId).toBe('sess-1');
+    expect(result.current.activeCallAssistant?.agentId).toBe('42');
+  });
+
+  it('answering a ring answers the existing session instead of creating one', async () => {
+    const { calls } = mockFetch();
+    const room = new FakeRoom();
+    const { result } = renderHook(() =>
+      useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+    );
+
+    await act(async () => {
+      await result.current.connect(assistant, 'audio', {
+        callSessionId: 'sess-1',
+        openingConfig: { mode: 'opener', openerText: '', source: 'unify_meet_ring' },
+        waitForAssistantReady: true,
+      });
+    });
+
+    expect(calls.some((c) => c.url === '/api/calls/sess-1/answer')).toBe(true);
+    expect(calls.some((c) => c.url === '/api/calls')).toBe(false);
+    expect(result.current.isConnected).toBe(true);
+  });
+
+  it('hangup ends the session server-side (no client room deletion)', async () => {
+    const { calls } = mockFetch();
+    const room = new FakeRoom();
+    const { result } = renderHook(() =>
+      useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+    );
+
+    await act(async () => {
+      await result.current.connect(assistant, 'audio');
+    });
+    await act(async () => {
+      await result.current.disconnect();
+    });
+
+    expect(calls.some((c) => c.url === '/api/calls/sess-1/end')).toBe(true);
+    expect(result.current.isConnected).toBe(false);
+    expect(result.current.activeCallAssistant).toBeNull();
+  });
+
+  it('addAssistant posts the idempotent server-side dispatch', async () => {
+    const { calls } = mockFetch();
+    const room = new FakeRoom();
+    const { result } = renderHook(() =>
+      useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+    );
+
+    await act(async () => {
+      await result.current.connect(assistant, 'audio');
+    });
+    await act(async () => {
+      await result.current.addAssistant(42);
+    });
+
+    const dispatchCall = calls.find((c) => c.url === '/api/calls/sess-1/assistants');
+    expect(dispatchCall).toBeDefined();
+    expect(JSON.parse(String(dispatchCall!.init?.body)).assistantId).toBe(42);
+  });
+
+  it('a remote ended frame tears the call down', async () => {
+    mockFetch();
+    const room = new FakeRoom();
+    const { result } = renderHook(() =>
+      useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+    );
+
+    await act(async () => {
+      await result.current.connect(assistant, 'audio');
+    });
+    const active = result.current.activeCall!;
+    await act(async () => {
+      await result.current.handleRemoteEnded({ ...active, status: 'ended' });
+    });
+
+    expect(result.current.isConnected).toBe(false);
+    expect(result.current.activeCall).toBeNull();
+  });
+});

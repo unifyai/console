@@ -38,7 +38,6 @@ import {
 } from '@/types/orgChat';
 import { usePresenceHeartbeat } from '@/hooks/Assistants/usePresenceHeartbeat';
 import { useOrgChat } from '@/hooks/Assistants/useOrgChat';
-import { useOrgCallContext } from '@/components/Pages/Assistants/OrgChat/OrgCallProvider';
 import { HumanWorkspace } from '@/components/Pages/Assistants/OrgChat/HumanWorkspace';
 import { HumanInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/HumanInfoSidePanelContent';
 import { TeamWorkspace } from '@/components/Pages/Assistants/OrgChat/TeamWorkspace';
@@ -1237,6 +1236,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // surface; the provider renders the floating window on other pages. Read
   // here (above the profile-selection and chat-stream effects) so they can use
   // the active-call assistant as a fallback / redock target.
+  const callContext = useCallContext();
   const {
     room,
     isConnecting: isConnectingCall,
@@ -1265,9 +1265,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isDocked,
     popOut,
     redock,
-  } = useCallContext();
+  } = callContext;
 
-  const humanCall = useOrgCallContext();
+  // Human/team/group calls run on the same unified engine.
+  const humanCall = callContext;
 
   const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
   React.useEffect(() => {
@@ -1616,7 +1617,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // the currently-open chat panel's message history, (c) the typing
   // indicator via `activityCounters`, and (d) the per-assistant online
   // status via `handleAssistantLiveActivity` (any inbound SSE frame,
-  // including unify_meet_incoming rings, plus call-connect fallbacks).
+  // including call_incoming rings, plus call-connect fallbacks).
   //
   // Pairs are assembled from the `resolvedContactIds` state that
   // `useContactIdPrefetch` maintains; as new IDs resolve, React batches the
@@ -1852,33 +1853,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     []
   );
 
-  // The assistant rang the owner on Unify Meet. We show a pinned incoming-call
-  // card; answering runs the normal connect flow. State only here - the Answer
-  // button (rendered below) calls handleStartCall, which is defined further down.
+  // The assistant rang the owner on Unify Meet: a ringing assistant_dm call
+  // session. We show a pinned incoming-call card; answering answers the
+  // session through the unified engine. Answered/ended/declined frames from
+  // other tabs or the ring timeout clear the card.
   const [incomingMeetCall, setIncomingMeetCall] = React.useState<{
     assistant: Assistant;
-    reason: string;
     callSessionId: string;
   } | null>(null);
   // Fan-out can deliver the same ring to multiple live connections (tabs /
-  // brief reconnect overlap). Dedupe by call_session_id within this tab.
+  // brief reconnect overlap). Dedupe by call session id within this tab.
   const seenMeetRingSessionIdsRef = React.useRef<Set<string>>(new Set());
 
-  const handleUnifyMeetIncoming = React.useCallback(
-    (assistantId: string, eventData: Record<string, unknown>) => {
-      const assistant = assistants.find((a) => a.agentId === assistantId);
-      if (!assistant) return;
-      const callSessionId =
-        typeof eventData.call_session_id === 'string' ? eventData.call_session_id : '';
-      if (callSessionId) {
+  const handleAssistantCallFrame = React.useCallback(
+    (
+      assistantId: string,
+      action: 'incoming' | 'answered' | 'ended' | 'declined',
+      eventData: Record<string, unknown>
+    ) => {
+      const callSessionId = typeof eventData.call_id === 'string' ? eventData.call_id : '';
+      if (!callSessionId) return;
+      if (action === 'incoming') {
+        // Only assistant-initiated rings surface the pinned card.
+        if (eventData.created_by_assistant_id == null) return;
+        const assistant = assistants.find((a) => a.agentId === assistantId);
+        if (!assistant) return;
         if (seenMeetRingSessionIdsRef.current.has(callSessionId)) return;
         seenMeetRingSessionIdsRef.current.add(callSessionId);
+        setIncomingMeetCall({ assistant, callSessionId });
+        return;
       }
-      setIncomingMeetCall({
-        assistant,
-        reason: typeof eventData.reason === 'string' ? eventData.reason : '',
-        callSessionId,
-      });
+      // answered (possibly in another tab), ended (ring timeout), declined.
+      setIncomingMeetCall((prev) => (prev && prev.callSessionId === callSessionId ? null : prev));
     },
     [assistants]
   );
@@ -1895,7 +1901,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onChatMessage: handleChatStreamMessage,
       onReactionUpdate: handleChatStreamReaction,
       onDesktopReady: handleChatStreamDesktopReady,
-      onUnifyMeetIncoming: handleUnifyMeetIncoming,
+      onCallFrame: handleAssistantCallFrame,
       onMessageActivity: handleAssistantLiveActivity,
     },
     {
@@ -2106,24 +2112,33 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleAnswerIncomingMeet = React.useCallback(() => {
     if (!incomingMeetCall) return;
-    const { assistant, reason, callSessionId } = incomingMeetCall;
+    const { assistant, callSessionId } = incomingMeetCall;
     setIncomingMeetCall(null);
     handleShowProfile(assistant.agentId);
+    // Answering the session triggers Orchestra's dispatch, which replays the
+    // opening config the assistant stored on the ring; the client-side hint
+    // only shapes the ready-to-speak phase gating.
     const openingConfig: CallOpeningConfig = {
       mode: 'opener',
-      openerText: reason || 'Continuing our conversation on the live call.',
+      openerText: '',
       source: 'unify_meet_ring',
     };
     void handleStartCall(assistant, 'audio', {
       openingConfig,
-      callSessionId: callSessionId || undefined,
+      callSessionId,
       waitForAssistantReady: true,
     });
   }, [incomingMeetCall, handleShowProfile, handleStartCall]);
 
   const handleDeclineIncomingMeet = React.useCallback(() => {
+    const declining = incomingMeetCall;
     setIncomingMeetCall(null);
-  }, []);
+    if (declining?.callSessionId) {
+      fetch(`/api/calls/${encodeURIComponent(declining.callSessionId)}/decline`, {
+        method: 'POST',
+      }).catch(() => {});
+    }
+  }, [incomingMeetCall]);
 
   // Dismiss the incoming-call card once a call is actually active (the owner
   // answered, or another call started), and time it out (~30s) if ignored - the
@@ -4511,7 +4526,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           />
         )}
         {/* Incoming ring, the Meet stage, and the minimized widget are all
-            rendered app-wide by OrgCallProvider. */}
+            rendered app-wide by CallProvider. */}
         {activeOrganizationId ? (
           <CreateGroupDialog
             open={createGroupOpen}

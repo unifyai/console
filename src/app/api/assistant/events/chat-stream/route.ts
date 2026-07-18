@@ -119,7 +119,7 @@ function createBenignStream(request: NextRequest): Response {
 }
 
 const CHAT_FILTER =
-  'attributes.thread = "chat_message" OR attributes.thread = "chat_reaction" OR attributes.thread = "unify_message_outbound" OR attributes.thread = "unify_message_reaction_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "unify_meet_incoming"';
+  'attributes.thread = "chat_message" OR attributes.thread = "chat_reaction" OR attributes.thread = "unify_message_outbound" OR attributes.thread = "unify_message_reaction_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "call_incoming" OR attributes.thread = "call_answered" OR attributes.thread = "call_ended" OR attributes.thread = "call_declined"';
 
 const MAX_PAIRS = 50;
 
@@ -374,7 +374,7 @@ export async function GET(request: NextRequest) {
               thread !== 'unify_message_outbound' &&
               thread !== 'unify_message_reaction_outbound' &&
               thread !== 'assistant_desktop_ready' &&
-              thread !== 'unify_meet_incoming'
+              !(typeof thread === 'string' && thread.startsWith('call_'))
             ) {
               log('MSG_SKIP', { msgId: message.id, assistantId, thread });
               message.ack();

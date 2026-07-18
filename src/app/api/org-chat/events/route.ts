@@ -275,11 +275,7 @@ export async function GET(request: NextRequest) {
           const groupIdRaw = message.attributes?.group_id ?? event?.group_id;
           const groupId = Number(groupIdRaw);
           allowed = !isNaN(groupId) && allowedGroupIds.has(groupId);
-        } else if (
-          kind === 'dm' ||
-          (typeof thread === 'string' &&
-            (thread.startsWith('dm_call_') || thread.startsWith('org_call_')))
-        ) {
+        } else if (kind === 'dm' || (typeof thread === 'string' && thread.startsWith('call_'))) {
           const participants: string[] = Array.isArray(event?.user_ids)
             ? event.user_ids.map(String)
             : [message.attributes?.dm_user_a, message.attributes?.dm_user_b].filter(

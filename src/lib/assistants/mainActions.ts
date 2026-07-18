@@ -51,11 +51,6 @@ import {
 } from '@/lib/assistants/workspace-files';
 import { getSecrets, createSecret, updateSecret, deleteSecret } from '@/lib/assistants/secret';
 import {
-  getCallConnectionDetails,
-  dispatchAssistantToCall,
-  deleteCallRoom,
-} from '@/lib/assistants/call';
-import {
   getLiveviewUrl,
   buildLiveviewUrl,
   checkLiveviewHealth,
@@ -154,11 +149,6 @@ export const assistantMainActions: AssistantActions = {
     getInstall: getInstallStatusAction,
     bindInstall: bindInstallAction,
     revokeInstall: revokeMsTeamsBotInstallAction,
-  },
-  call: {
-    getConnectionDetails: getCallConnectionDetails,
-    dispatchToCall: dispatchAssistantToCall,
-    deleteRoom: deleteCallRoom,
   },
   desktop: {
     getLiveviewUrl,

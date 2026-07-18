@@ -11,6 +11,7 @@ import {
   Filter,
   GripVertical,
   Group,
+  Lock,
   MoreHorizontal,
   Pencil,
   Ungroup,
@@ -43,6 +44,8 @@ type LogGridColumnHeaderProps = {
   grouping: string;
   onGroupingChange: (grouping: string) => void;
   isDerived: boolean;
+  /** System-owned / non-editable column — show a lock beside the label. */
+  isLocked?: boolean;
   onEditDerived?: () => void;
   reorderEnabled: boolean;
   onEnableReorder: () => void;
@@ -65,6 +68,7 @@ export function LogGridColumnHeader({
   grouping,
   onGroupingChange,
   isDerived,
+  isLocked = false,
   onEditDerived,
   reorderEnabled,
   onEnableReorder,
@@ -82,12 +86,15 @@ export function LogGridColumnHeader({
   const openFilter = () => {
     openFilterAfterMenuCloseRef.current = true;
     setMenuOpen(false);
-    // Wait for the menu close cycle so the click that selected "Filter…"
-    // is not treated as an outside click on the newly opened popover.
+    // Defer past the menu-dismiss pointer cycle. A zero-delay timeout races with
+    // click fall-through onto the header/ScrollArea (especially with background
+    // mousedown handlers), which immediately closes the newly opened popover.
     window.setTimeout(() => {
       setFilterOpen(true);
+    }, 50);
+    window.setTimeout(() => {
       openFilterAfterMenuCloseRef.current = false;
-    }, 0);
+    }, 100);
   };
 
   return (
@@ -101,6 +108,13 @@ export function LogGridColumnHeader({
         data-testid={`log-grid-label-${fieldKey}`}
       >
         <span className="truncate">{fieldKey}</span>
+        {isLocked && (
+          <Lock
+            className="h-2.5 w-2.5 shrink-0 text-muted-foreground"
+            aria-label="Read-only column"
+            data-testid={`log-grid-column-lock-${fieldKey}`}
+          />
+        )}
         {sorted === 'asc' && (
           <ArrowUp className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
         )}
@@ -200,7 +214,12 @@ export function LogGridColumnHeader({
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid={`log-grid-filter-open-${fieldKey}`}
-            onClick={openFilter}
+            onSelect={(event) => {
+              // Prevent the menu from restoring focus into the header on close;
+              // that focus move dismisses the filter popover as an outside click.
+              event.preventDefault();
+              openFilter();
+            }}
           >
             <Filter className="h-3.5 w-3.5" />
             {hasFilter ? 'Edit filter' : 'Filter…'}

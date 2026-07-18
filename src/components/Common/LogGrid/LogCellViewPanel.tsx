@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Lock, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Textarea } from '@/components/UI/textarea';
@@ -44,10 +44,18 @@ interface LogCellViewPanelProps {
   onClose: () => void;
   /** Whether a column may be edited inline (e.g. `ui_editable`). */
   isColumnEditable?: (columnId: string) => boolean;
-  /** Persist an inline edit. Return true when saved. */
-  onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
+  /**
+   * Persist an inline edit to one or more rows (broadcast when a value group
+   * covers multiple selected cells). Return true when saved.
+   */
+  onCommitEdit?: (logIds: number[], columnId: string, draft: string) => Promise<boolean>;
   /** Initial draft text for the editor (typed / JSON string form of the value). */
   draftForValue?: (columnId: string, value: unknown) => string;
+  /**
+   * Incremented when the grid opens this pane via cell double-click so an
+   * editable value box starts in edit mode. `0` means no auto-edit.
+   */
+  editNonce?: number;
   className?: string;
 }
 
@@ -261,11 +269,11 @@ function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
 
 function ValueCopyButton({ value }: { value: unknown }) {
   return (
-    <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+    <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
       <CopyButton
         content={formatRawValue(value)}
-        copyMessage="Copied!"
-        className="pointer-events-auto h-5 w-5 p-0 [&_svg]:size-3"
+        showSuccessNotification={false}
+        className="pointer-events-auto h-4 w-4 p-0 [&_svg]:size-2.5"
       />
     </div>
   );
@@ -275,8 +283,8 @@ function ValueCopyButton({ value }: { value: unknown }) {
 function RowGutter({ label, widthCh }: { label: string; widthCh: number }) {
   return (
     <span
-      className="max-w-[4.5rem] shrink-0 self-stretch truncate border-r border-border px-1.5 py-1.5 text-right font-mono text-[12px] tabular-nums leading-snug text-muted-foreground"
-      style={{ width: `calc(${widthCh}ch + 0.75rem)` }}
+      className="min-w-[2rem] max-w-[6rem] shrink-0 self-stretch truncate border-r border-border px-1 py-0.5 text-right font-mono text-[11px] tabular-nums leading-snug text-muted-foreground"
+      style={{ width: `calc(${widthCh}ch + 1rem)` }}
       title={label}
       data-testid="log-cell-view-row-label"
     >
@@ -297,6 +305,9 @@ function maxRowLabelWidthCh(columns: ColumnGroup[]): number {
   return max;
 }
 
+/** Matches preview `max-h-80` — edit grows with content up to this, then scrolls. */
+const CELL_EDIT_MAX_HEIGHT_PX = 320;
+
 function CellBody({
   value,
   fieldName,
@@ -305,6 +316,8 @@ function CellBody({
   editable,
   draftText,
   onCommit,
+  onLockedClick,
+  editNonce = 0,
 }: {
   value: unknown;
   fieldName: string;
@@ -313,6 +326,10 @@ function CellBody({
   editable: boolean;
   draftText: string;
   onCommit?: (draft: string) => Promise<boolean>;
+  /** Locked-column feedback (jiggle the column lock icon). */
+  onLockedClick?: () => void;
+  /** Bumped on grid cell double-click to open this box in edit mode. */
+  editNonce?: number;
 }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(draftText);
@@ -320,21 +337,63 @@ function CellBody({
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const skipCommitRef = React.useRef(false);
   const commitInFlightRef = React.useRef(false);
+  /** Place caret at end + scroll to tail once when edit mode opens. */
+  const placeCaretAtEndRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!isEditing) setDraft(draftText);
   }, [draftText, isEditing]);
 
-  React.useEffect(() => {
-    if (isEditing) inputRef.current?.focus();
-  }, [isEditing]);
+  // Grow with wrapped content up to CELL_EDIT_MAX_HEIGHT_PX; overflow scrolls.
+  React.useLayoutEffect(() => {
+    if (!isEditing) return;
+    const el = inputRef.current;
+    if (!el) return;
+
+    el.style.height = 'auto';
+    el.style.overflowY = 'hidden';
+    const next = el.scrollHeight;
+    if (next > CELL_EDIT_MAX_HEIGHT_PX) {
+      el.style.height = `${CELL_EDIT_MAX_HEIGHT_PX}px`;
+      el.style.overflowY = 'auto';
+    } else {
+      el.style.height = `${next}px`;
+    }
+
+    if (placeCaretAtEndRef.current) {
+      placeCaretAtEndRef.current = false;
+      const end = el.value.length;
+      el.focus();
+      try {
+        el.setSelectionRange(end, end);
+      } catch {
+        /* some browsers reject selection on disabled inputs */
+      }
+      // Preview shows the head; edit shows the tail when content is clipped.
+      if (el.scrollHeight > el.clientHeight) {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+  }, [isEditing, draft]);
 
   const startEdit = () => {
     if (!editable || !onCommit || isSaving) return;
     skipCommitRef.current = false;
+    placeCaretAtEndRef.current = true;
     setDraft(draftText);
     setIsEditing(true);
   };
+
+  // Cell double-click opens the pane already in edit mode (Excel-style).
+  React.useEffect(() => {
+    if (editNonce <= 0 || !editable || !onCommit || isSaving) return;
+    skipCommitRef.current = false;
+    placeCaretAtEndRef.current = true;
+    setDraft(draftText);
+    setIsEditing(true);
+    // Intentionally keyed only on editNonce so Enter/unfold remounts do not re-enter edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editNonce]);
 
   const cancelEdit = () => {
     skipCommitRef.current = true;
@@ -377,14 +436,18 @@ function CellBody({
   const boxShell = (content: React.ReactNode, extraClassName?: string) => (
     <div
       className={cn(
-        'bg-muted/30 group relative flex min-w-0 overflow-hidden rounded-md border border-border font-mono text-[12px]',
+        'bg-muted/30 group relative flex min-w-0 overflow-hidden rounded border border-border font-mono text-[11px]',
         editable && 'cursor-text',
         extraClassName
       )}
-      onDoubleClick={(event) => {
+      onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        startEdit();
+        if (editable) {
+          startEdit();
+          return;
+        }
+        onLockedClick?.();
       }}
       data-testid="log-cell-view-value"
       data-editable={editable ? 'true' : 'false'}
@@ -396,17 +459,19 @@ function CellBody({
 
   if (isEditing) {
     return (
-      <div className="relative flex min-w-0 overflow-hidden rounded-md border border-primary bg-background font-mono text-[12px]">
+      <div className="relative flex min-w-0 overflow-hidden rounded border border-primary bg-background font-mono text-[11px]">
         <RowGutter label={rowLabel} widthCh={gutterCh} />
         <div className="relative min-w-0 flex-1">
           <Textarea
             ref={inputRef}
             value={draft}
+            rows={1}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
             onBlur={() => void commitEdit()}
             disabled={isSaving}
-            className="min-h-[2.5rem] resize-y border-0 bg-transparent p-1.5 font-mono text-[12px] shadow-none focus-visible:ring-0"
+            className="min-h-0 resize-none border-0 bg-transparent px-1.5 py-0.5 font-mono text-[11px] leading-snug shadow-none focus-visible:ring-0"
+            style={{ scrollbarWidth: 'thin' }}
             data-testid="log-cell-view-editor"
             aria-label={`Edit ${fieldName}`}
           />
@@ -423,7 +488,7 @@ function CellBody({
         {boxShell(
           <>
             <ValueCopyButton value={value} />
-            <div className="p-1.5">
+            <div className="px-1.5 py-0.5">
               <ComplexBody fieldName={fieldName} value={value} />
             </div>
           </>
@@ -436,7 +501,7 @@ function CellBody({
       <>
         <ValueCopyButton value={value} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={value} alt="" className="max-h-64 max-w-full p-1.5" />
+        <img src={value} alt="" className="max-h-64 max-w-full p-1" />
       </>
     );
   }
@@ -444,8 +509,8 @@ function CellBody({
   return boxShell(
     <>
       <ValueCopyButton value={value} />
-      <div className="max-h-80 overflow-auto">
-        <pre className="whitespace-pre-wrap break-words p-1.5 leading-snug text-foreground">
+      <div className="overflow-auto" style={{ maxHeight: CELL_EDIT_MAX_HEIGHT_PX }}>
+        <pre className="whitespace-pre-wrap break-words px-1.5 py-0.5 leading-snug text-foreground">
           {text}
         </pre>
       </div>
@@ -459,56 +524,72 @@ function ColumnGroupDisplay({
   isColumnEditable,
   onCommitEdit,
   draftForValue,
+  editNonce = 0,
 }: {
   group: ColumnGroup;
   gutterCh: number;
   isColumnEditable?: (columnId: string) => boolean;
-  onCommitEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
+  onCommitEdit?: (logIds: number[], columnId: string, draft: string) => Promise<boolean>;
   draftForValue?: (columnId: string, value: unknown) => string;
+  editNonce?: number;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
+  const lockRef = React.useRef<HTMLSpanElement>(null);
   const label = sanitizeId(group.columnId);
   const sampleType = getValueType(group.values[0]?.value);
   const columnEditable = isColumnEditable?.(group.columnId) ?? false;
+  const showLock = isColumnEditable != null && !columnEditable;
+
+  const nudgeLock = React.useCallback(() => {
+    const el = lockRef.current;
+    if (!el) return;
+    // Same restart trick as LiveActions `animate-nudge` for non-expandable rows.
+    el.classList.remove('animate-nudge');
+    void el.offsetWidth;
+    el.classList.add('animate-nudge');
+  }, []);
 
   return (
-    <div
-      className="border-border/50 border-b"
-      data-testid="log-cell-view-column"
-      data-column={label}
-    >
+    <div data-testid="log-cell-view-column" data-column={label}>
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="text-title hover:bg-muted/50 flex w-full items-center gap-2 px-1 py-2 text-left"
+        className="hover:bg-muted/50 flex w-full items-center gap-1 px-0.5 py-1 text-left"
         aria-expanded={isExpanded}
         data-testid="log-cell-view-column-toggle"
       >
         <span className="shrink-0 text-muted-foreground">
-          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {isExpanded ? (
+            <ChevronDown className="h-2.5 w-2.5" />
+          ) : (
+            <ChevronRight className="h-2.5 w-2.5" />
+          )}
         </span>
-        <span className="shrink-0">{getTypeIcon(sampleType)}</span>
-        <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground">
+        <span className="shrink-0 [&_svg]:size-3">{getTypeIcon(sampleType)}</span>
+        <span className="truncate font-mono text-[10px] font-semibold uppercase tracking-wide text-foreground">
           {label}
         </span>
+        {showLock && (
+          <span ref={lockRef} className="inline-flex shrink-0">
+            <Lock
+              className="h-2.5 w-2.5 text-muted-foreground"
+              aria-label="Read-only column"
+              data-testid={`log-cell-view-column-lock-${label}`}
+            />
+          </span>
+        )}
       </button>
 
       {isExpanded && (
-        <div className="relative ml-4 space-y-1 border-l border-l-muted pb-2 pl-3">
+        <div className="relative ml-2.5 space-y-0.5 border-l border-l-muted pb-1 pl-2">
           {group.values.map((valueGroup) => {
             const rowLabel = compressRowLabels(valueGroup.rowLabels);
             const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
-            const singleLogId = valueGroup.logIds.length === 1 ? valueGroup.logIds[0] : null;
-            const editable = columnEditable && singleLogId != null && !!onCommitEdit;
+            const editable = columnEditable && valueGroup.logIds.length > 0 && !!onCommitEdit;
             const draftText =
               draftForValue?.(group.columnId, valueGroup.value) ?? formatRawValue(valueGroup.value);
             return (
-              <div
-                key={groupKey}
-                className="py-0.5"
-                data-testid="log-cell-view-group"
-                data-column={label}
-              >
+              <div key={groupKey} data-testid="log-cell-view-group" data-column={label}>
                 <CellBody
                   value={valueGroup.value}
                   fieldName={label}
@@ -516,9 +597,11 @@ function ColumnGroupDisplay({
                   gutterCh={gutterCh}
                   editable={editable}
                   draftText={draftText === '—' ? '' : draftText}
+                  editNonce={editNonce}
+                  onLockedClick={showLock ? nudgeLock : undefined}
                   onCommit={
-                    editable && singleLogId != null
-                      ? (draft) => onCommitEdit(singleLogId, group.columnId, draft)
+                    editable
+                      ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)
                       : undefined
                   }
                 />
@@ -534,8 +617,10 @@ function ColumnGroupDisplay({
 /**
  * Viewing panel for selected LogGrid cells.
  * Groups by column under foldable headings (expanded by default), then
- * collapses identical values within a column to one entry with a compressed
- * row-number range. Double-click an editable value box to edit inline.
+ * collapses identical values within a column to a single entry with compressed
+ * `#` display row labels. Click an editable value box to edit inline (broadcasts
+ * to every row in a multi-cell value group), or open via cell double-click to
+ * land directly in edit mode.
  */
 export function LogCellViewPanel({
   cells,
@@ -543,10 +628,12 @@ export function LogCellViewPanel({
   isColumnEditable,
   onCommitEdit,
   draftForValue,
+  editNonce = 0,
   className,
 }: LogCellViewPanelProps) {
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
   const gutterCh = React.useMemo(() => maxRowLabelWidthCh(columns), [columns]);
+  const autoEditNonce = cells.length === 1 ? editNonce : 0;
   const panelRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(PANEL_DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = React.useState(false);
@@ -668,25 +755,25 @@ export function LogCellViewPanel({
         )}
         data-testid="log-cell-view-panel-resize-handle"
       />
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <span className="text-title text-foreground">{title}</span>
+      <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-border px-2.5">
+        <span className="font-mono text-[11px] font-semibold text-foreground">{title}</span>
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0"
+          className="h-6 w-6 p-0"
           onClick={onClose}
           aria-label="Close"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </Button>
       </div>
       {isEmpty ? (
-        <p className="text-caption p-4 text-muted-foreground">
+        <p className="text-caption p-3 text-muted-foreground">
           Select cells, then open the view pane to inspect them.
         </p>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-1 p-3">
+          <div className="space-y-1 p-2">
             {columns.map((column) => (
               <ColumnGroupDisplay
                 key={column.columnId}
@@ -695,6 +782,7 @@ export function LogCellViewPanel({
                 isColumnEditable={isColumnEditable}
                 onCommitEdit={onCommitEdit}
                 draftForValue={draftForValue}
+                editNonce={autoEditNonce}
               />
             ))}
           </div>

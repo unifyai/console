@@ -62,7 +62,8 @@ export type ParsedChatFrame =
       ackId?: string;
     }
   | {
-      kind: 'meet-incoming';
+      kind: 'call-frame';
+      action: 'incoming' | 'answered' | 'ended' | 'declined';
       eventData: Record<string, unknown>;
       ackId?: string;
     }
@@ -191,15 +192,25 @@ export function parseChatSseFrame(
     };
   }
 
-  // The assistant is ringing the owner on Unify Meet. Like desktop-ready this
-  // is an idempotent lifecycle signal, not chat history, so it never applies the
-  // transcript cutoff.
-  if (thread === 'unify_meet_incoming') {
-    return {
-      kind: 'meet-incoming',
-      ackId,
-      eventData: (eventObj ?? {}) as Record<string, unknown>,
-    };
+  // Call session signaling for assistant_dm calls (the assistant ringing its
+  // human, answers, ends). Like desktop-ready these are idempotent lifecycle
+  // signals, not chat history, so they never apply the transcript cutoff.
+  if (typeof thread === 'string' && thread.startsWith('call_')) {
+    const action = thread.slice('call_'.length);
+    if (
+      action === 'incoming' ||
+      action === 'answered' ||
+      action === 'ended' ||
+      action === 'declined'
+    ) {
+      return {
+        kind: 'call-frame',
+        action,
+        ackId,
+        eventData: (eventObj ?? {}) as Record<string, unknown>,
+      };
+    }
+    return { kind: 'ignored', reason: 'thread', msgId, thread };
   }
 
   // Unified chat-store frames carry the DM thread's human party as

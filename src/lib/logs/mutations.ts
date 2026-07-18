@@ -5,14 +5,15 @@
 export async function updateLogEntries(args: {
   projectName: string;
   context: string;
-  logId: number;
+  logIds: number[];
   entries: Record<string, unknown>;
 }): Promise<{ ok: boolean }> {
+  if (args.logIds.length === 0) return { ok: true };
   const res = await fetch('/api/logs', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      logs: [args.logId],
+      logs: args.logIds,
       projectName: args.projectName,
       context: args.context,
       entries: args.entries,

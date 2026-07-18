@@ -652,19 +652,6 @@ export interface AssistantActions {
    * every assistant in the bound org becomes reachable through it.
    */
   msTeamsBot?: MsTeamsBotInstallActions;
-  call: {
-    getConnectionDetails: (
-      assistantId: string,
-      assistantName: string
-    ) => Promise<ConnectionDetails | ResponseProps>;
-    dispatchToCall: (
-      assistantId: string,
-      roomName: string,
-      openingConfig?: CallOpeningConfig,
-      callSessionId?: string
-    ) => Promise<ResponseProps>;
-    deleteRoom: (roomName: string) => Promise<ResponseProps>;
-  };
   desktop: {
     getLiveviewUrl: (
       assistantId: string,
