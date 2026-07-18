@@ -557,12 +557,20 @@ export function useCall(
       if (status !== 'idle' && status !== 'ended') return false;
       setStatus('ringing');
       setError(null);
+      let created: OrgCallSession | null = null;
       try {
         const data = await callApi('/api/calls', scope);
-        const call = parseOrgCallSession(data);
-        setActiveCall(call);
-        return await connectToRoom(call);
+        created = parseOrgCallSession(data);
+        setActiveCall(created);
+        const connected = await connectToRoom(created);
+        if (!connected) throw new Error(failureMessage);
+        return true;
       } catch {
+        // The session already exists server-side: end it, or every invitee
+        // keeps ringing into a call the caller never made it onto.
+        if (created?.callId) {
+          callApi(`/api/calls/${encodeURIComponent(created.callId)}/end`).catch(() => {});
+        }
         return await failCall(failureMessage);
       }
     },
@@ -872,12 +880,21 @@ export function useCall(
     async (call: OrgCallSession) => {
       setIncomingCall(null);
       setActiveCall(call);
+      let joinedServerSide = false;
       try {
         const data = await callApi(`/api/calls/${encodeURIComponent(call.callId)}/answer`);
+        joinedServerSide = true;
         const next = parseOrgCallSession(data);
         setActiveCall(next);
-        return await connectToRoom(next);
+        const connected = await connectToRoom(next);
+        if (!connected) throw new Error('Could not answer call');
+        return true;
       } catch {
+        // Undo the server-side "joined" mark, or the roster shows a ghost
+        // participant and /calls/active offers a bogus rejoin banner.
+        if (joinedServerSide) {
+          callApi(`/api/calls/${encodeURIComponent(call.callId)}/leave`).catch(() => {});
+        }
         return await failCall('Could not answer call');
       }
     },
@@ -888,12 +905,19 @@ export function useCall(
     async (call: OrgCallSession) => {
       setIncomingCall(null);
       setActiveCall(call);
+      let joinedServerSide = false;
       try {
         const data = await callApi(`/api/calls/${encodeURIComponent(call.callId)}/join`);
+        joinedServerSide = true;
         const next = parseOrgCallSession(data);
         setActiveCall(next);
-        return await connectToRoom(next);
+        const connected = await connectToRoom(next);
+        if (!connected) throw new Error('Could not join call');
+        return true;
       } catch {
+        if (joinedServerSide) {
+          callApi(`/api/calls/${encodeURIComponent(call.callId)}/leave`).catch(() => {});
+        }
         return await failCall('Could not join call');
       }
     },

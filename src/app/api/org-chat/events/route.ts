@@ -24,7 +24,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Message } from '@google-cloud/pubsub';
 import {
   getPubSubClient,
-  PERSISTENT_EXPIRATION_TTL,
+  EPHEMERAL_EXPIRATION_TTL,
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { topicSuffix } from '@/lib/environment/comms-env';
@@ -170,8 +170,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: 'Failed to resolve org membership.' }, { status: 500 });
   }
 
+  // Per-connection ephemeral subscription: a shared per-(org, user)
+  // subscription load-balances each frame to exactly ONE attached consumer,
+  // so a second tab (or an overlapping reconnect) silently steals messages
+  // and rings from the live tab. Each connection gets its own subscription,
+  // deleted on disconnect (with a TTL backstop for crashed instances).
+  const connectionId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const topicName = `unity-org-${organizationId}${topicSuffix()}`;
-  const subscriptionName = `${topicName}-console-${userId}${channel ? `-${channel}` : ''}`;
+  const subscriptionName = `${topicName}-console-${userId}${
+    channel ? `-${channel}` : ''
+  }-${connectionId}`;
 
   const connId = `org-chat:${organizationId}:${Date.now()}`;
   const log = (msg: string, data?: Record<string, unknown>) =>
@@ -189,7 +197,7 @@ export async function GET(request: NextRequest) {
 
   const createOrgSubscription = () =>
     pubsub.topic(topicName).createSubscription(subscriptionName, {
-      expirationPolicy: { ttl: { seconds: parseInt(PERSISTENT_EXPIRATION_TTL) } },
+      expirationPolicy: { ttl: { seconds: parseInt(EPHEMERAL_EXPIRATION_TTL) } },
       messageRetentionDuration: { seconds: parseInt(MESSAGE_RETENTION_DURATION) },
     });
 
@@ -363,6 +371,10 @@ export async function GET(request: NextRequest) {
         subscription.removeListener('message', messageHandler);
         subscription.removeListener('error', errorHandler);
         subscription.close();
+        pubsub
+          .subscription(subscriptionName)
+          .delete()
+          .catch(() => {});
         try {
           controller.close();
         } catch {
