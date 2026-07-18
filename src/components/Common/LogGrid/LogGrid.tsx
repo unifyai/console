@@ -84,9 +84,28 @@ import { sortingStateToOrchestra } from '@/lib/logs/querySpec';
 import { deleteLogRow } from '@/lib/logs/mutations';
 import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
 import { LogCellValue } from './LogCellValue';
+import { LogCellInlineEditor } from './LogCellInlineEditor';
 import { LogGridColumnHeader, LogGridSortableHead } from './LogGridColumnHeader';
 import { LogGridToolbar } from './LogGridToolbar';
 import { snakeToCamel } from '@/utils/casing';
+
+function nudgeElement(element: HTMLElement | null) {
+  if (!element) return;
+  element.classList.remove('animate-nudge');
+  void element.offsetWidth;
+  element.classList.add('animate-nudge');
+}
+
+function formatInlineDraft(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
 
 function SortableHeader({
   header,
@@ -159,10 +178,10 @@ export interface LogGridProps {
   viewPanelOpen?: boolean;
   onToggleViewPanel?: () => void;
   /**
-   * Opens the cell view pane (e.g. double-click). No-op if already open.
-   * Pass `{ edit: true }` from a cell double-click to enter inline edit.
+   * Opens the cell view pane (e.g. multi-cell Enter, row-index double-click).
+   * No-op if already open.
    */
-  onOpenViewPanel?: (opts?: { edit?: boolean }) => void;
+  onOpenViewPanel?: () => void;
   /**
    * Optional cell view pane rendered beside the table (below the toolbar),
    * so its header aligns with the column-header row.
@@ -170,6 +189,10 @@ export interface LogGridProps {
   viewPanel?: React.ReactNode;
   /** When provided, non-editable columns show a lock icon in the header. */
   isColumnEditable?: (columnId: string) => boolean;
+  /** Persist an in-cell edit. Return true when saved (or no-op). */
+  onCommitCellEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
+  /** Initial draft text for the in-cell editor. */
+  draftForCell?: (columnId: string, value: unknown) => string;
   /** When false, hide row/cell delete affordances (default true). */
   allowDelete?: boolean;
   className?: string;
@@ -205,6 +228,8 @@ export function LogGrid({
   onOpenViewPanel,
   viewPanel,
   isColumnEditable,
+  onCommitCellEdit,
+  draftForCell,
   allowDelete = true,
   className,
   testId = 'log-grid',
@@ -219,9 +244,13 @@ export function LogGrid({
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
   const [expandingId, setExpandingId] = React.useState<string | null>(null);
   const [newCells, setNewCells] = React.useState<Set<string>>(() => new Set());
+  const [editingCellId, setEditingCellId] = React.useState<string | null>(null);
+  const [editingAnchorEl, setEditingAnchorEl] = React.useState<HTMLElement | null>(null);
   const prevDisplayRowsRef = React.useRef<LogGridRow[]>([]);
   /** Skip one flash pass after lazy group expand (children are not live/refresh inserts). */
   const suppressNextFlashRef = React.useRef(false);
+  /** Last known DOM node per cell id — used when Enter starts edit without a click target. */
+  const cellElByIdRef = React.useRef(new Map<string, HTMLElement>());
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement>(null);
@@ -673,6 +702,9 @@ export function LogGrid({
       // Second click of a double-click would otherwise toggle the cell off before
       // onDoubleClick runs — skip selection churn and let dblclick force-select.
       if ('detail' in e && e.detail > 1) return;
+      if (e.currentTarget instanceof HTMLElement) {
+        cellElByIdRef.current.set(cellId, e.currentTarget);
+      }
       isSelectingRef.current = true;
       rootRef.current?.focus({ preventScroll: true });
       if (e.shiftKey) {
@@ -757,7 +789,7 @@ export function LogGrid({
       // through the component tree into this ScrollArea handler).
       if (
         target.closest(
-          'thead, [data-testid^="log-grid-header-"], [data-testid="log-grid-row-index-header"], button, input, textarea, [role="separator"], [role="menu"], [role="menuitem"], [data-radix-portal], [data-radix-popper-content-wrapper], [data-radix-popover-content]'
+          'thead, [data-testid^="log-grid-header-"], [data-testid="log-grid-row-index-header"], [data-testid="log-grid-inline-editor"], button, input, textarea, [role="separator"], [role="menu"], [role="menuitem"], [data-radix-portal], [data-radix-popper-content-wrapper], [data-radix-popover-content]'
         )
       ) {
         return;
@@ -768,22 +800,84 @@ export function LogGrid({
     [selection]
   );
 
-  const openViewPanel = React.useCallback(
-    (opts?: { edit?: boolean }) => {
-      onOpenViewPanel?.(opts);
-    },
-    [onOpenViewPanel]
-  );
+  const openViewPanel = React.useCallback(() => {
+    onOpenViewPanel?.();
+  }, [onOpenViewPanel]);
 
-  const onCellDoubleClick = React.useCallback(
-    (cellId: string) => {
+  const closeInlineEditor = React.useCallback(() => {
+    setEditingCellId(null);
+    setEditingAnchorEl(null);
+  }, []);
+
+  const nudgeColumnLock = React.useCallback((columnId: string) => {
+    const fieldKey = sanitizeId(columnId);
+    const testId = `log-grid-column-lock-${fieldKey}`;
+    const el = rootRef.current?.querySelector(
+      `[data-testid="${testId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`
+    ) as HTMLElement | null;
+    nudgeElement(el);
+  }, []);
+
+  const findCellElement = React.useCallback((cellId: string): HTMLElement | null => {
+    const cached = cellElByIdRef.current.get(cellId);
+    if (cached?.isConnected) return cached;
+
+    const testId = `log-grid-cell-${cellId}`;
+    const matchIn = (root: ParentNode | null): HTMLElement | null => {
+      if (!root) return null;
+      for (const el of root.querySelectorAll('[data-testid^="log-grid-cell-"]')) {
+        if (el.getAttribute('data-testid') === testId) return el as HTMLElement;
+      }
+      return null;
+    };
+    const found =
+      matchIn(rootRef.current) ?? matchIn(typeof document !== 'undefined' ? document : null);
+    if (found) cellElByIdRef.current.set(cellId, found);
+    return found;
+  }, []);
+
+  const beginCellEdit = React.useCallback(
+    (cellId: string, anchorEl?: HTMLElement | null) => {
       if (selection?.mode !== 'cell') return;
       selection.onSelectCells([cellId]);
       selectionAnchorRef.current = cellId;
       rootRef.current?.focus({ preventScroll: true });
-      openViewPanel({ edit: true });
+
+      const { columnId } = parseCellId(cellId);
+      if (!columnId) return;
+
+      if (isColumnEditable && !isColumnEditable(columnId)) {
+        closeInlineEditor();
+        nudgeColumnLock(columnId);
+        return;
+      }
+
+      if (!onCommitCellEdit) {
+        closeInlineEditor();
+        return;
+      }
+
+      const el = anchorEl ?? findCellElement(cellId);
+      if (!el) return;
+      setEditingCellId(cellId);
+      setEditingAnchorEl(el);
     },
-    [selection, openViewPanel]
+    [
+      selection,
+      isColumnEditable,
+      onCommitCellEdit,
+      closeInlineEditor,
+      nudgeColumnLock,
+      findCellElement,
+    ]
+  );
+
+  const onCellDoubleClick = React.useCallback(
+    (cellId: string, anchorEl: HTMLElement) => {
+      cellElByIdRef.current.set(cellId, anchorEl);
+      beginCellEdit(cellId, anchorEl);
+    },
+    [beginCellEdit]
   );
 
   const onRowIndexDoubleClick = React.useCallback(
@@ -791,12 +885,13 @@ export function LogGrid({
       if (selection?.mode !== 'cell') return;
       const rowCells = cellsForRow(logId, visible);
       if (!rowCells.length) return;
+      closeInlineEditor();
       selection.onSelectCells(rowCells);
       selectionAnchorRef.current = rowCells[0] ?? null;
       rootRef.current?.focus({ preventScroll: true });
       openViewPanel();
     },
-    [selection, visible, openViewPanel]
+    [selection, visible, openViewPanel, closeInlineEditor]
   );
 
   const selectedCellLogIds = React.useMemo(() => {
@@ -883,6 +978,10 @@ export function LogGrid({
 
     if (e.key === 'Escape') {
       e.preventDefault();
+      if (editingCellId) {
+        closeInlineEditor();
+        return;
+      }
       selection.onSelectCells([]);
       selectionAnchorRef.current = null;
       return;
@@ -890,7 +989,13 @@ export function LogGrid({
     if (e.key === 'Enter') {
       if (selection.selectedCells.length === 0) return;
       e.preventDefault();
-      onToggleViewPanel?.();
+      if (selection.selectedCells.length === 1) {
+        const cellId = selection.selectedCells[0]!;
+        beginCellEdit(cellId, findCellElement(cellId));
+        return;
+      }
+      closeInlineEditor();
+      openViewPanel();
       return;
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
@@ -917,6 +1022,19 @@ export function LogGrid({
 
   const hasData = displayRows.length > 0;
   const showError = Boolean(error && !displayRows.length);
+
+  const editingCellDraft = React.useMemo(() => {
+    if (!editingCellId) return null;
+    const { logId, columnId } = parseCellId(editingCellId);
+    if (!columnId) return null;
+    const row = selectableRows.find((r) => String(r.logId) === logId);
+    const fieldKey = sanitizeId(columnId);
+    const value = row?.entries[fieldKey] ?? row?.entries[columnId];
+    const draftText = draftForCell?.(columnId, value) ?? formatInlineDraft(value);
+    const logIdNum = Number(logId);
+    if (!Number.isFinite(logIdNum)) return null;
+    return { logId: logIdNum, columnId, fieldLabel: fieldKey, draftText };
+  }, [editingCellId, selectableRows, draftForCell]);
 
   return (
     <div
@@ -1211,7 +1329,9 @@ export function LogGrid({
                                         onMouseDown={(e) => onCellPointerDown(e, cellId)}
                                         onMouseEnter={(e) => onCellPointerEnter(e, cellId)}
                                         onMouseUp={onCellPointerUp}
-                                        onDoubleClick={() => onCellDoubleClick(cellId)}
+                                        onDoubleClick={(e) =>
+                                          onCellDoubleClick(cellId, e.currentTarget)
+                                        }
                                       >
                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                       </TableCell>
@@ -1286,6 +1406,19 @@ export function LogGrid({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {editingCellId && editingAnchorEl && editingCellDraft && onCommitCellEdit ? (
+            <LogCellInlineEditor
+              anchorEl={editingAnchorEl}
+              draftText={editingCellDraft.draftText}
+              fieldLabel={editingCellDraft.fieldLabel}
+              scrollParent={scrollViewportRef.current}
+              onCancel={closeInlineEditor}
+              onCommit={async (draft) =>
+                onCommitCellEdit(editingCellDraft.logId, editingCellDraft.columnId, draft)
+              }
+            />
+          ) : null}
         </>
       )}
     </div>

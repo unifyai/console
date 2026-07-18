@@ -190,14 +190,20 @@ test('Contacts SM mode: allowlisted fields editable, contact_id read-only, no de
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
   await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
 
+  // Double-click locked cell: no inline editor, no RHS panel (header lock jiggles).
+  await contactIdCell.dblclick();
+  await expect(page.getByTestId('log-grid-inline-editor')).toHaveCount(0);
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+
   // Select an allowlisted field and confirm click opens an inline editor.
   const firstNameCell = page
     .locator('tr[data-testid^="log-grid-row-"]')
     .first()
     .locator('[data-testid^="log-grid-cell-"]')
-    .filter({ hasText: 'Editable' })
+    .filter({ hasText: /^Editable$/ })
     .first();
   await firstNameCell.click();
+  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeEnabled({ timeout: 10_000 });
   await page.getByTestId('log-grid-view-panel-toggle').click();
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId(/log-grid-column-lock-(first_name|firstName)/)).toHaveCount(0);

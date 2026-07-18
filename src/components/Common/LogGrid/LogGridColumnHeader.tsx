@@ -109,11 +109,9 @@ export function LogGridColumnHeader({
       >
         <span className="truncate">{fieldKey}</span>
         {isLocked && (
-          <Lock
-            className="h-2.5 w-2.5 shrink-0 text-muted-foreground"
-            aria-label="Read-only column"
-            data-testid={`log-grid-column-lock-${fieldKey}`}
-          />
+          <span className="inline-flex shrink-0" data-testid={`log-grid-column-lock-${fieldKey}`}>
+            <Lock className="h-2.5 w-2.5 text-muted-foreground" aria-label="Read-only column" />
+          </span>
         )}
         {sorted === 'asc' && (
           <ArrowUp className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
