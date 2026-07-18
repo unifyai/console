@@ -1741,7 +1741,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // they reach this handler, so anything we get here is genuinely new
       // and the id-based dedup below only ever fires on duplicate
       // redeliveries that arrived before the cutoff caught up.
-      type MergeOutcome = 'skipped_no_history' | 'duplicate' | 'merged';
+      type MergeOutcome = 'skipped_no_history' | 'duplicate' | 'upgraded' | 'merged';
       const outcomeRef: { value: MergeOutcome } = { value: 'merged' };
       setProfileChatHistories((prev) => {
         const current = prev[assistantId];
@@ -1752,6 +1752,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         if (hasServerMessageId && current.some((m) => m.id === message.id)) {
           outcomeRef.value = 'duplicate';
           return prev;
+        }
+        // A user-authored frame with a server id is usually the echo of this
+        // client's own optimistic send (or a sibling tab's, relayed over
+        // BroadcastChannel). The optimistic copy carries a local uuid and no
+        // messageId, so the id dedup above can't catch it — match it by
+        // content and upgrade it in place with the persisted identity
+        // instead of appending a duplicate bubble.
+        if (hasServerMessageId && message.role === 'user') {
+          const optimisticIndex = current.findIndex(
+            (m) => m.role === 'user' && m.messageId === undefined && m.content === message.content
+          );
+          if (optimisticIndex !== -1) {
+            outcomeRef.value = 'upgraded';
+            const updated = [...current];
+            // Keep the optimistic (clamped) timestamp so the bubble doesn't
+            // jump; adopt the server id so reactions and future dedup work.
+            updated[optimisticIndex] = {
+              ...message,
+              timestamp: updated[optimisticIndex].timestamp,
+            };
+            return { ...prev, [assistantId]: updated };
+          }
         }
         const lastMsg = current[current.length - 1];
         if (
@@ -1770,7 +1792,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       });
       const mergeOutcome = outcomeRef.value;
 
-      if (mergeOutcome === 'duplicate') return;
+      // Upgraded echoes stay local: sibling tabs receive their own SSE copy
+      // and upgrade their own optimistic bubble the same way.
+      if (mergeOutcome === 'duplicate' || mergeOutcome === 'upgraded') return;
 
       if (mergeOutcome === 'merged' && message.role === 'assistant') {
         handleChatActivity(assistantId);

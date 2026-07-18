@@ -13,8 +13,11 @@ import {
 import { applyOrgReactionUpdate } from '@/utils/assistants/chat-reactions';
 import { toast } from 'sonner';
 
-const SSE_MAX_RECONNECT_ATTEMPTS = 5;
+// Retry forever with capped backoff: giving up permanently would leave the
+// session without live org chat until a reload (e.g. after a transient 503
+// while the per-org topic is provisioned).
 const SSE_RECONNECT_BASE_DELAY = 1000;
+const SSE_RECONNECT_MAX_DELAY = 60_000;
 
 export interface UseOrgChatParams {
   orgId: string | null;
@@ -28,12 +31,43 @@ export interface UseOrgChatParams {
   onHumanActivity?: (userId: string) => void;
 }
 
+/**
+ * Find a not-yet-confirmed optimistic send (negative temp id) matching an
+ * incoming server-id copy of the same message. The author's own SSE echo can
+ * beat the POST response, so upgrading the optimistic bubble in place (rather
+ * than appending) prevents a transient duplicate.
+ */
+function findOptimisticIndex<T>(
+  current: T[],
+  message: T,
+  getId: (m: T) => number,
+  getSender: (m: T) => string | null | undefined,
+  getContent: (m: T) => string
+): number {
+  return current.findIndex(
+    (m) =>
+      getId(m) < 0 && getSender(m) === getSender(message) && getContent(m) === getContent(message)
+  );
+}
+
 function appendTeamMessage(
   existing: TeamChatMessage[] | undefined,
   message: TeamChatMessage
 ): TeamChatMessage[] {
   const current = existing ?? [];
   if (current.some((m) => m.messageId === message.messageId)) return current;
+  const optimisticIndex = findOptimisticIndex(
+    current,
+    message,
+    (m) => m.messageId,
+    (m) => m.senderUserId,
+    (m) => m.content
+  );
+  if (optimisticIndex !== -1) {
+    const updated = [...current];
+    updated[optimisticIndex] = message;
+    return updated;
+  }
   return [...current, message];
 }
 
@@ -43,12 +77,36 @@ function appendGroupMessage(
 ): GroupChatMessage[] {
   const current = existing ?? [];
   if (current.some((m) => m.messageId === message.messageId)) return current;
+  const optimisticIndex = findOptimisticIndex(
+    current,
+    message,
+    (m) => m.messageId,
+    (m) => m.senderUserId,
+    (m) => m.content
+  );
+  if (optimisticIndex !== -1) {
+    const updated = [...current];
+    updated[optimisticIndex] = message;
+    return updated;
+  }
   return [...current, message];
 }
 
 function appendDmMessage(existing: DmMessage[] | undefined, message: DmMessage): DmMessage[] {
   const current = existing ?? [];
   if (current.some((m) => m.id === message.id)) return current;
+  const optimisticIndex = findOptimisticIndex(
+    current,
+    message,
+    (m) => m.id,
+    (m) => m.senderUserId,
+    (m) => m.content
+  );
+  if (optimisticIndex !== -1) {
+    const updated = [...current];
+    updated[optimisticIndex] = message;
+    return updated;
+  }
   return [...current, message];
 }
 
@@ -306,8 +364,11 @@ export function useOrgChat(params: UseOrgChatParams) {
       eventSource.onerror = () => {
         eventSource?.close();
         eventSource = null;
-        if (disposed || attempts >= SSE_MAX_RECONNECT_ATTEMPTS) return;
-        const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempts);
+        if (disposed) return;
+        const delay = Math.min(
+          SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempts),
+          SSE_RECONNECT_MAX_DELAY
+        );
         attempts += 1;
         reconnectTimer = setTimeout(connect, delay);
       };

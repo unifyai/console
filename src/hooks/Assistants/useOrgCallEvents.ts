@@ -1,8 +1,11 @@
 import * as React from 'react';
 import { OrgCallSession, parseOrgCallSession } from '@/types/orgChat';
 
-const SSE_MAX_RECONNECT_ATTEMPTS = 5;
+// Retry forever with capped backoff: giving up permanently would leave the
+// session deaf to incoming rings until a reload (e.g. after a transient
+// 503 while the per-org topic is provisioned).
 const SSE_RECONNECT_BASE_DELAY = 1000;
+const SSE_RECONNECT_MAX_DELAY = 60_000;
 
 export interface OrgCallEventHandlers {
   onIncoming: (call: OrgCallSession) => void;
@@ -59,8 +62,17 @@ export function useOrgCallEvents(orgId: string | null, handlers: OrgCallEventHan
           handlersRef.current.onIncoming(call);
         } else if (action === 'answered') {
           handlersRef.current.onAnswered(call);
-        } else if (action === 'ended' || action === 'declined') {
+        } else if (action === 'ended') {
           handlersRef.current.onEnded(call);
+        } else if (action === 'declined') {
+          // A decline only tears the call down when it actually ended it
+          // (e.g. the sole DM invitee declined). A partial team/group
+          // decline leaves the session live for everyone else.
+          if (call.status === 'ended') {
+            handlersRef.current.onEnded(call);
+          } else {
+            handlersRef.current.onParticipantUpdate(call);
+          }
         } else if (action === 'participant_joined' || action === 'participant_left') {
           handlersRef.current.onParticipantUpdate(call);
         }
@@ -69,8 +81,11 @@ export function useOrgCallEvents(orgId: string | null, handlers: OrgCallEventHan
       eventSource.onerror = () => {
         eventSource?.close();
         eventSource = null;
-        if (disposed || attempts >= SSE_MAX_RECONNECT_ATTEMPTS) return;
-        const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempts);
+        if (disposed) return;
+        const delay = Math.min(
+          SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempts),
+          SSE_RECONNECT_MAX_DELAY
+        );
         attempts += 1;
         reconnectTimer = setTimeout(connect, delay);
       };

@@ -24,7 +24,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Message } from '@google-cloud/pubsub';
 import {
   getPubSubClient,
-  PERSISTENT_EXPIRATION_TTL,
+  EPHEMERAL_EXPIRATION_TTL,
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { topicSuffix } from '@/lib/environment/comms-env';
@@ -170,8 +170,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: 'Failed to resolve org membership.' }, { status: 500 });
   }
 
+  // Per-connection ephemeral subscription: a shared per-(org, user)
+  // subscription load-balances each frame to exactly ONE attached consumer,
+  // so a second tab (or an overlapping reconnect) silently steals messages
+  // and rings from the live tab. Each connection gets its own subscription,
+  // deleted on disconnect (with a TTL backstop for crashed instances).
+  const connectionId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const topicName = `unity-org-${organizationId}${topicSuffix()}`;
-  const subscriptionName = `${topicName}-console-${userId}${channel ? `-${channel}` : ''}`;
+  const subscriptionName = `${topicName}-console-${userId}${
+    channel ? `-${channel}` : ''
+  }-${connectionId}`;
 
   const connId = `org-chat:${organizationId}:${Date.now()}`;
   const log = (msg: string, data?: Record<string, unknown>) =>
@@ -187,25 +195,55 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  try {
-    await pubsub.topic(topicName).createSubscription(subscriptionName, {
-      expirationPolicy: { ttl: { seconds: parseInt(PERSISTENT_EXPIRATION_TTL) } },
+  const createOrgSubscription = () =>
+    pubsub.topic(topicName).createSubscription(subscriptionName, {
+      expirationPolicy: { ttl: { seconds: parseInt(EPHEMERAL_EXPIRATION_TTL) } },
       messageRetentionDuration: { seconds: parseInt(MESSAGE_RETENTION_DURATION) },
     });
+
+  try {
+    await createOrgSubscription();
   } catch (err: any) {
     // 6 = ALREADY_EXISTS — subscription is already provisioned, reuse it.
     if (err.code !== 6) {
       // 5 = NOT_FOUND — the per-org topic hasn't been provisioned yet.
+      // Publishers (hosted adapters / local gateway) create it lazily on
+      // first publish, which means a fresh org can never receive its first
+      // live frame: the subscriber must exist before the publish. Create
+      // the topic here so subscribe-side provisioning mirrors publish-side.
       if (err.code === 5) {
         log('TOPIC_NOT_FOUND', { topicName });
-        return new NextResponse(JSON.stringify({ detail: 'org chat topic not ready' }), {
-          status: 503,
+        try {
+          await pubsub.createTopic(topicName);
+        } catch (createErr: any) {
+          if (createErr.code !== 6) {
+            log('TOPIC_CREATE_ERROR', { topicName, code: createErr.code });
+            return new NextResponse(JSON.stringify({ detail: 'org chat topic not ready' }), {
+              status: 503,
+            });
+          }
+        }
+        try {
+          await createOrgSubscription();
+        } catch (retryErr: any) {
+          if (retryErr.code !== 6) {
+            log('SUB_CREATE_ERROR', {
+              subscriptionName,
+              code: retryErr.code,
+              error: retryErr.message,
+            });
+            return new NextResponse(
+              JSON.stringify({ detail: 'Failed to subscribe to org chat.' }),
+              { status: 500 }
+            );
+          }
+        }
+      } else {
+        log('SUB_CREATE_ERROR', { subscriptionName, code: err.code, error: err.message });
+        return new NextResponse(JSON.stringify({ detail: 'Failed to subscribe to org chat.' }), {
+          status: 500,
         });
       }
-      log('SUB_CREATE_ERROR', { subscriptionName, code: err.code, error: err.message });
-      return new NextResponse(JSON.stringify({ detail: 'Failed to subscribe to org chat.' }), {
-        status: 500,
-      });
     }
   }
 
@@ -333,6 +371,10 @@ export async function GET(request: NextRequest) {
         subscription.removeListener('message', messageHandler);
         subscription.removeListener('error', errorHandler);
         subscription.close();
+        pubsub
+          .subscription(subscriptionName)
+          .delete()
+          .catch(() => {});
         try {
           controller.close();
         } catch {

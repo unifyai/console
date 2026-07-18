@@ -67,9 +67,12 @@ import {
 } from '@/lib/pubsub/ephemeral-subscription';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
+import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
+
+const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
 const encoder = new TextEncoder();
 
@@ -187,6 +190,33 @@ export async function GET(request: NextRequest) {
   const connId = `chat:${pairs.length}:${connectionId}`;
   const log = (msg: string, data?: Record<string, unknown>) =>
     console.log(`[Chat Stream SSE ${connId}] ${msg}`, data ? JSON.stringify(data) : '');
+
+  // Resolve the caller's identity server-side. A shared org assistant's
+  // topic carries every member's private DM/call frames, so per-user
+  // filtering must happen here — the browser must never receive other
+  // users' thread content on the wire.
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+  let callerUserId: string;
+  try {
+    const basicInfoResponse = await fetch(`${ORCHESTRA_URL}/v0/user/basic-info`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: 'no-store',
+    });
+    if (!basicInfoResponse.ok) {
+      return NextResponse.json({ detail: 'Failed to resolve user.' }, { status: 403 });
+    }
+    const basicInfo = await basicInfoResponse.json();
+    callerUserId = String(basicInfo?.user_id ?? basicInfo?.id ?? '');
+    if (!callerUserId) {
+      return NextResponse.json({ detail: 'Failed to resolve user.' }, { status: 403 });
+    }
+  } catch (error: any) {
+    console.error(`[Chat Stream SSE ${connId}] AUTHZ_ERROR`, error?.message);
+    return NextResponse.json({ detail: 'Failed to resolve user.' }, { status: 500 });
+  }
 
   interface SubConfig {
     assistantId: string;
@@ -387,6 +417,37 @@ export async function GET(request: NextRequest) {
             }
 
             const eventContactId = payload.event?.contact_id ?? payload.contact_id;
+
+            // Server-side privacy filter. A shared org assistant's topic
+            // multiplexes every member's private threads; the browser-side
+            // parser also filters, but content must be dropped before it
+            // reaches the wire. Frames without routing metadata (e.g.
+            // assistant_desktop_ready) pass through.
+            const eventUserId = payload.event?.user_id;
+            const eventUserIds: unknown = payload.event?.user_ids;
+            const isOtherUsersThread =
+              typeof eventUserId === 'string' && eventUserId !== '' && eventUserId !== callerUserId;
+            const isOtherUsersCall =
+              typeof thread === 'string' &&
+              thread.startsWith('call_') &&
+              Array.isArray(eventUserIds) &&
+              eventUserIds.length > 0 &&
+              !eventUserIds.map(String).includes(callerUserId);
+            const isOtherContactsFrame =
+              eventContactId !== undefined &&
+              eventContactId !== null &&
+              String(eventContactId) !== contactId;
+            if (isOtherUsersThread || isOtherUsersCall || isOtherContactsFrame) {
+              log('MSG_SKIP', {
+                msgId: message.id,
+                assistantId,
+                thread,
+                reason: 'other_user',
+              });
+              message.ack();
+              return;
+            }
+
             const content = payload.event?.content ?? payload.event?.body ?? payload.content ?? '';
             const contentPreview =
               typeof content === 'string' ? content.slice(0, 80) : String(content).slice(0, 80);
