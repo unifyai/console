@@ -118,8 +118,13 @@ function createBenignStream(request: NextRequest): Response {
   });
 }
 
+// Pub/Sub filter expressions are hard-capped at 256 characters, so prefix
+// matches stand in for thread lists: `chat_` covers chat_message/chat_reaction,
+// `unify_message_` covers the outbound frames (the runtime-bound
+// unify_message_reaction envelope also slips through and is dropped by the
+// thread check below), and `call_` covers all call-session signaling.
 const CHAT_FILTER =
-  'attributes.thread = "chat_message" OR attributes.thread = "chat_reaction" OR attributes.thread = "unify_message_outbound" OR attributes.thread = "unify_message_reaction_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "call_incoming" OR attributes.thread = "call_answered" OR attributes.thread = "call_ended" OR attributes.thread = "call_declined"';
+  'hasPrefix(attributes.thread, "chat_") OR hasPrefix(attributes.thread, "unify_message_") OR attributes.thread = "assistant_desktop_ready" OR hasPrefix(attributes.thread, "call_")';
 
 const MAX_PAIRS = 50;
 

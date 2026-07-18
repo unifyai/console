@@ -95,7 +95,7 @@ async function openPeopleTable(page: Page) {
   });
 }
 
-/** Selection does not auto-open the pane — unfold via toolbar or Enter (toggles). Double-click also opens edit. */
+/** Selection does not auto-open the pane — unfold via toolbar. Multi-cell Enter also opens. */
 async function openCellViewPanel(page: Page) {
   const toggle = page.getByTestId('log-grid-view-panel-toggle');
   await expect(toggle).toBeEnabled({ timeout: 10_000 });
@@ -192,7 +192,7 @@ test('hides a column, filters, sorts, and opens row detail via cell panel', asyn
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
 });
 
-test('double-click opens edit mode; Enter and unfold only open the pane', async ({
+test('double-click and Enter edit in place; multi-cell Enter opens the pane', async ({
   authedPage: page,
 }) => {
   await openPeopleTable(page);
@@ -202,27 +202,35 @@ test('double-click opens edit mode; Enter and unfold only open the pane', async 
   const nameCell = firstRow.locator('[data-testid^="log-grid-cell-"]').first();
 
   await nameCell.dblclick();
+  await expect(page.getByTestId('log-grid-inline-editor')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('log-grid-inline-editor')).toHaveCount(0);
+
+  // Escape keeps the cell selected (a second click would toggle it off).
+  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeEnabled({ timeout: 10_000 });
+  await page.getByTestId('data-leaf-table').press('Enter');
+  await expect(page.getByTestId('log-grid-inline-editor')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('log-grid-inline-editor')).toHaveCount(0);
+
+  // Multi-cell selection: Enter opens the RHS panel (not inline edit).
+  const secondRow = logGridRows(page).nth(1);
+  const secondCell = secondRow.locator('[data-testid^="log-grid-cell-"]').first();
+  await secondCell.click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('log-grid-view-panel-toggle')).toBeEnabled({ timeout: 10_000 });
+  await page.getByTestId('data-leaf-table').press('Enter');
   await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('log-cell-view-editor')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('log-grid-inline-editor')).toHaveCount(0);
   await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
 
-  await nameCell.click();
-  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
-  await page.getByTestId('data-leaf-table').focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
-  await page.keyboard.press('Enter');
-  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
-  await page.keyboard.press('Enter');
-  await expect(page.getByTestId('log-cell-view-panel')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
-  await page.getByTestId('log-cell-view-panel').getByRole('button', { name: 'Close' }).click();
-
-  await nameCell.click();
+  // Click a different cell so selection is a fresh single cell (not a toggle-off).
+  await secondCell.click();
   await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-editor')).toHaveCount(0);
+  await expect(page.getByTestId('log-grid-inline-editor')).toHaveCount(0);
 });
 
 test('clicking empty space outside cells clears the selection', async ({ authedPage: page }) => {

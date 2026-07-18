@@ -11,6 +11,8 @@ export {
 } from './LogCellViewPanel';
 export type { LogCellSelection } from './LogCellViewPanel';
 export { LogCellValue } from './LogCellValue';
+export { LogCellInlineEditor } from './LogCellInlineEditor';
+export type { LogCellInlineEditorProps } from './LogCellInlineEditor';
 export { LogGridColumnHeader, LogGridSortableHead } from './LogGridColumnHeader';
 export { LogGridToolbar, useContainerWidth } from './LogGridToolbar';
 export type { LogGridToolbarProps } from './LogGridToolbar';
