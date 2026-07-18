@@ -152,7 +152,7 @@ test.afterAll(async () => {
   await cleanupUser(member.id);
 });
 
-test('DM call opens Meet stage and persists org_call_session', async ({ ownerPage: page }) => {
+test('DM call opens Meet stage and persists call_session', async ({ ownerPage: page }) => {
   test.setTimeout(90_000);
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
 
@@ -169,7 +169,7 @@ test('DM call opens Meet stage and persists org_call_session', async ({ ownerPag
   await expect(page.getByTestId('org-call-meet-grid')).toBeVisible();
 
   const count = dbExec(
-    `SELECT count(*) FROM org_call_session WHERE organization_id = ${org.id} AND scope = 'dm'`
+    `SELECT count(*) FROM call_session WHERE organization_id = ${org.id} AND scope = 'dm'`
   );
   expect(parseInt(count.trim().split('\n').pop() || '0', 10)).toBeGreaterThanOrEqual(1);
 
@@ -177,7 +177,7 @@ test('DM call opens Meet stage and persists org_call_session', async ({ ownerPag
   await expect(page.getByTestId('org-call-meet-stage')).toBeHidden({ timeout: 10_000 });
 });
 
-test('team call button starts a team org_call_session', async ({ ownerPage: page }) => {
+test('team call button starts a team call_session', async ({ ownerPage: page }) => {
   test.setTimeout(90_000);
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
 
@@ -193,7 +193,7 @@ test('team call button starts a team org_call_session', async ({ ownerPage: page
   await expect(page.getByTestId('org-call-meet-stage')).toBeVisible({ timeout: 20_000 });
 
   const row = dbExec(
-    `SELECT scope, team_id, status FROM org_call_session
+    `SELECT scope, team_id, status FROM call_session
      WHERE organization_id = ${org.id} AND scope = 'team' AND team_id = ${teamId}
      ORDER BY created_at DESC LIMIT 1`
   );
@@ -235,7 +235,7 @@ test('team call can add two assistants and persists Contacts attribution keys', 
     .poll(
       () => {
         const row = dbExec(
-          `SELECT assistant_ids::text FROM org_call_session
+          `SELECT assistant_ids::text FROM call_session
            WHERE organization_id = ${org.id} AND scope = 'team' AND team_id = ${teamId}
            ORDER BY created_at DESC LIMIT 1`
         );
@@ -246,7 +246,7 @@ test('team call can add two assistants and persists Contacts attribution keys', 
     .toMatch(new RegExp(String(assistantOne.agentId)));
 
   const assistantIdsRow = dbExec(
-    `SELECT assistant_ids::text FROM org_call_session
+    `SELECT assistant_ids::text FROM call_session
      WHERE organization_id = ${org.id} AND scope = 'team' AND team_id = ${teamId}
      ORDER BY created_at DESC LIMIT 1`
   );

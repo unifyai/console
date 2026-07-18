@@ -227,7 +227,7 @@ test('create group from rail + opens dialog and persists membership', async ({
   });
 });
 
-test('group call starts org_call_session with scope=group', async ({ ownerPage: page }) => {
+test('group call starts call_session with scope=group', async ({ ownerPage: page }) => {
   test.setTimeout(90_000);
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
@@ -246,7 +246,7 @@ test('group call starts org_call_session with scope=group', async ({ ownerPage: 
     .poll(
       () => {
         const sessionRow = dbExec(
-          `SELECT scope, group_id, status FROM org_call_session
+          `SELECT scope, group_id, status FROM call_session
            WHERE organization_id = ${org.id} AND scope = 'group' AND group_id = ${seededGroup.groupId}
            ORDER BY created_at DESC LIMIT 1`
         );

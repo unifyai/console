@@ -187,25 +187,55 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  try {
-    await pubsub.topic(topicName).createSubscription(subscriptionName, {
+  const createOrgSubscription = () =>
+    pubsub.topic(topicName).createSubscription(subscriptionName, {
       expirationPolicy: { ttl: { seconds: parseInt(PERSISTENT_EXPIRATION_TTL) } },
       messageRetentionDuration: { seconds: parseInt(MESSAGE_RETENTION_DURATION) },
     });
+
+  try {
+    await createOrgSubscription();
   } catch (err: any) {
     // 6 = ALREADY_EXISTS — subscription is already provisioned, reuse it.
     if (err.code !== 6) {
       // 5 = NOT_FOUND — the per-org topic hasn't been provisioned yet.
+      // Publishers (hosted adapters / local gateway) create it lazily on
+      // first publish, which means a fresh org can never receive its first
+      // live frame: the subscriber must exist before the publish. Create
+      // the topic here so subscribe-side provisioning mirrors publish-side.
       if (err.code === 5) {
         log('TOPIC_NOT_FOUND', { topicName });
-        return new NextResponse(JSON.stringify({ detail: 'org chat topic not ready' }), {
-          status: 503,
+        try {
+          await pubsub.createTopic(topicName);
+        } catch (createErr: any) {
+          if (createErr.code !== 6) {
+            log('TOPIC_CREATE_ERROR', { topicName, code: createErr.code });
+            return new NextResponse(JSON.stringify({ detail: 'org chat topic not ready' }), {
+              status: 503,
+            });
+          }
+        }
+        try {
+          await createOrgSubscription();
+        } catch (retryErr: any) {
+          if (retryErr.code !== 6) {
+            log('SUB_CREATE_ERROR', {
+              subscriptionName,
+              code: retryErr.code,
+              error: retryErr.message,
+            });
+            return new NextResponse(
+              JSON.stringify({ detail: 'Failed to subscribe to org chat.' }),
+              { status: 500 }
+            );
+          }
+        }
+      } else {
+        log('SUB_CREATE_ERROR', { subscriptionName, code: err.code, error: err.message });
+        return new NextResponse(JSON.stringify({ detail: 'Failed to subscribe to org chat.' }), {
+          status: 500,
         });
       }
-      log('SUB_CREATE_ERROR', { subscriptionName, code: err.code, error: err.message });
-      return new NextResponse(JSON.stringify({ detail: 'Failed to subscribe to org chat.' }), {
-        status: 500,
-      });
     }
   }
 
