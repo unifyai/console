@@ -1,5 +1,6 @@
 import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
 import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
+import type { LogCellEditorDescriptor } from '@/components/Common/LogGrid/editorTypes';
 
 /** Orchestra data types offered when creating a Data-sheet column. */
 export const DATA_COLUMN_TYPE_OPTIONS = [
@@ -56,6 +57,29 @@ function isNumericField(field: DataField): boolean {
   return /^(int|integer|float|number|decimal)$/i.test(field.dataType ?? '');
 }
 
+/** Editor control selection for a field's declared Orchestra type and constraints. */
+export function editorDescriptorForDataField(
+  field: DataField,
+  value: unknown
+): LogCellEditorDescriptor {
+  if (field.restrict === true && (field.enumValues?.length ?? 0) > 0) {
+    return { kind: 'select', options: field.enumValues!, commitOnChange: true };
+  }
+  if (/^(bool|boolean)$/i.test(field.dataType ?? '')) {
+    return { kind: 'switch', commitOnChange: true };
+  }
+  if (isJsonValue(field, value)) return { kind: 'textarea' };
+
+  const type = field.dataType?.toLowerCase();
+  if (isNumericField(field)) return { kind: 'text', inputType: 'number' };
+  if (type === 'date') return { kind: 'text', inputType: 'date' };
+  if (type === 'time') return { kind: 'text', inputType: 'time' };
+  if (type === 'datetime' || type === 'date-time') {
+    return { kind: 'text', inputType: 'datetime-local' };
+  }
+  return { kind: 'text', inputType: 'text' };
+}
+
 /** Plain-text draft for inline / form editors. */
 export function draftStringForField(field: DataField, value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -68,6 +92,11 @@ export function draftStringForField(field: DataField, value: unknown): string {
 
 /** Coerce an editor draft back to a typed field value for Orchestra. */
 export function coerceFieldDraft(field: DataField, draft: string, currentValue: unknown): unknown {
+  if (field.restrict === true && (field.enumValues?.length ?? 0) > 0) {
+    if (!field.enumValues!.includes(draft)) {
+      throw new Error('Choose one of the allowed values.');
+    }
+  }
   if (isJsonValue(field, currentValue)) {
     return JSON.parse(draft);
   }

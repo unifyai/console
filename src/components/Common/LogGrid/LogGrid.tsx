@@ -90,6 +90,7 @@ import { deleteLogRow } from '@/lib/logs/mutations';
 import { LogDerivedColumnDialog } from './LogDerivedColumnDialog';
 import { LogCellValue } from './LogCellValue';
 import { LogCellInlineEditor } from './LogCellInlineEditor';
+import type { ResolveLogCellEditor } from './editorTypes';
 import { LogGridColumnHeader, LogGridSortableHead } from './LogGridColumnHeader';
 import { LogGridToolbar } from './LogGridToolbar';
 import { snakeToCamel } from '@/utils/casing';
@@ -238,6 +239,8 @@ export interface LogGridProps {
   onCommitCellEdit?: (logId: number, columnId: string, draft: string) => Promise<boolean>;
   /** Initial draft text for the in-cell editor. */
   draftForCell?: (columnId: string, value: unknown) => string;
+  /** Resolves the appropriate control for a field's declared type and constraints. */
+  editorForCell?: ResolveLogCellEditor;
   /** When false, hide row/cell delete affordances (default true). */
   allowDelete?: boolean;
   /** Schema/row mutations for Data-pane spreadsheet UX. */
@@ -281,6 +284,7 @@ export function LogGrid({
   isColumnEditable,
   onCommitCellEdit,
   draftForCell,
+  editorForCell,
   allowDelete = true,
   onAddRow,
   onAddColumn,
@@ -1236,7 +1240,7 @@ export function LogGrid({
     const draftText = draftForCell?.(columnId, value) ?? formatInlineDraft(value);
     const logIdNum = Number(logId);
     if (!Number.isFinite(logIdNum)) return null;
-    return { logId: logIdNum, columnId, fieldLabel: fieldKey, draftText };
+    return { logId: logIdNum, columnId, fieldLabel: fieldKey, draftText, value };
   }, [editingCellId, selectableRows, draftForCell]);
 
   return (
@@ -1777,6 +1781,7 @@ export function LogGrid({
               anchorEl={editingAnchorEl}
               draftText={editingCellDraft.draftText}
               fieldLabel={editingCellDraft.fieldLabel}
+              editor={editorForCell?.(editingCellDraft.columnId, editingCellDraft.value)}
               scrollParent={scrollViewportRef.current}
               onCancel={closeInlineEditor}
               onCommit={async (draft) =>

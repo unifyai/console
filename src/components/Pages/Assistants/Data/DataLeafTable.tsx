@@ -16,6 +16,7 @@ import {
 import {
   coerceFieldDraft,
   draftStringForField,
+  editorDescriptorForDataField,
   isDataFieldEditable,
   type DataField,
   type DataRow,
@@ -285,6 +286,12 @@ export function DataLeafTable({
     [resolveField]
   );
 
+  const editorForCell = React.useCallback(
+    (columnId: string, value: unknown) =>
+      editorDescriptorForDataField(resolveField(columnId).field, value),
+    [resolveField]
+  );
+
   const onCommitEdit = React.useCallback(
     async (logIds: number[], columnId: string, draft: string) => {
       if (logIds.length === 0) return true;
@@ -437,6 +444,7 @@ export function DataLeafTable({
         }}
         isColumnEditable={isColumnEditable}
         draftForCell={draftForValue}
+        editorForCell={editorForCell}
         onCommitCellEdit={async (logId, columnId, draft) => onCommitEdit([logId], columnId, draft)}
         filter={spec?.filter}
         onDerivedCreated={() => {
@@ -461,6 +469,7 @@ export function DataLeafTable({
               isColumnEditable={isColumnEditable}
               onCommitEdit={onCommitEdit}
               draftForValue={draftForValue}
+              editorForCell={editorForCell}
             />
           ) : null
         }
