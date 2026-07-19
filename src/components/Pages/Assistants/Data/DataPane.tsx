@@ -51,8 +51,6 @@ interface DataPaneProps {
 
 interface LeafMeta {
   count: number;
-  loaded: number;
-  columns: number;
   fields: Record<string, DataField>;
 }
 
@@ -185,26 +183,6 @@ function ScopeSectionHeader({
         ) : null}
       </div>
     </div>
-  );
-}
-
-function LeafHeaderStats({ meta }: { meta: LeafMeta | null }) {
-  if (!meta) return null;
-  return (
-    <dl className="flex shrink-0 flex-wrap gap-x-4 gap-y-1">
-      <div className="flex flex-col">
-        <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">Rows</dt>
-        <dd className="text-code font-semibold text-foreground">{meta.count.toLocaleString()}</dd>
-      </div>
-      <div className="flex flex-col">
-        <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">Loaded</dt>
-        <dd className="text-code font-semibold text-foreground">{meta.loaded.toLocaleString()}</dd>
-      </div>
-      <div className="flex flex-col">
-        <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">Columns</dt>
-        <dd className="text-code font-semibold text-foreground">{meta.columns}</dd>
-      </div>
-    </dl>
   );
 }
 
@@ -514,13 +492,6 @@ export function DataPane({
   const selectedTableName = selectedDisplayPath
     ? (selectedDisplayPath.split('/').pop() ?? selectedDisplayPath)
     : null;
-  const selectedPathPrefix =
-    selectedDisplayPath && selectedTableName
-      ? selectedDisplayPath
-          .slice(0, selectedDisplayPath.length - selectedTableName.length)
-          .replace(/\/$/, '')
-      : null;
-
   const emptyTreeCopy = mode === 'data' ? 'No ingested data yet.' : `No ${mode} contexts yet.`;
   const emptySelectCopy =
     mode === 'data'
@@ -590,28 +561,6 @@ export function DataPane({
       refreshToken={refreshToken}
     />
   ) : null;
-
-  const leafChrome = (
-    <>
-      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <h3 className="text-title truncate text-foreground">
-              {selectedTableName ?? selectedDisplayPath}
-            </h3>
-          </div>
-          {selectedPathPrefix && (
-            <p className="text-caption mt-0.5 truncate text-muted-foreground">
-              {selectedPathPrefix}
-            </p>
-          )}
-        </div>
-        <LeafHeaderStats meta={leafMeta} />
-      </div>
-      {leafTable}
-    </>
-  );
 
   const modeToolbar = (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -717,7 +666,7 @@ export function DataPane({
             {showLeafPane && (
               <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 {selected ? (
-                  leafChrome
+                  leafTable
                 ) : (
                   <div className="flex h-full items-center justify-center p-8 text-center">
                     <div className="max-w-sm">

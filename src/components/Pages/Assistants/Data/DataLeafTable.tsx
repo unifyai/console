@@ -76,12 +76,7 @@ interface DataLeafTableProps {
   onSelectCells: (cells: string[]) => void;
   viewPanelOpen: boolean;
   onViewPanelOpenChange: (open: boolean) => void;
-  onMetaChange?: (meta: {
-    count: number;
-    loaded: number;
-    columns: number;
-    fields: Record<string, DataField>;
-  }) => void;
+  onMetaChange?: (meta: { count: number; fields: Record<string, DataField> }) => void;
   refreshToken?: number;
   onRowsChange?: (rows: DataRow[]) => void;
 }
@@ -178,11 +173,9 @@ export function DataLeafTable({
   React.useEffect(() => {
     onMetaChange?.({
       count,
-      loaded: Math.max(rows.length, browseRows.length),
-      columns: columns.length,
       fields: fieldsToDataFields(fields),
     });
-  }, [count, rows.length, browseRows.length, columns.length, fields, onMetaChange]);
+  }, [count, fields, onMetaChange]);
 
   React.useEffect(() => {
     onRowsChange?.(rows.map(toDataRow));
