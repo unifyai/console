@@ -12,14 +12,27 @@ import {
   Table2,
   UserRound,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/UI/alert-dialog';
+import { Input } from '@/components/UI/input';
 import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 import {
   buildDataBrowserTree,
   collectSelectableContexts,
   contextMatchesDataBrowserMode,
   isStateManagerMode,
+  resolveDataTableContext,
   STATE_MANAGER_ROOTS,
   treeNeedsFolderView,
   type DataBrowserMode,
@@ -27,7 +40,11 @@ import {
   type DataCwd,
   type DataTreeNode,
 } from '@/lib/assistants/dataBrowser';
-import { listAssistantsContexts } from '@/lib/assistants/dataContexts';
+import {
+  deleteAssistantsContext,
+  listAssistantsContexts,
+  renameAssistantsContext,
+} from '@/lib/assistants/dataContexts';
 import { useShellResource } from '@/hooks/Common/useShellResource';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
@@ -38,6 +55,7 @@ import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
 import { DataFolderAddMenu } from './DataFolderAddMenu';
+import { DataTableMenu } from './DataTableMenu';
 import { DataCreateTableDialog } from './DataCreateTableDialog';
 import { DataImportDialog } from './DataImportDialog';
 import type { DataField, DataRow } from './dataTypes';
@@ -79,6 +97,14 @@ function formatCreateLocationLabel(
   return parts.join(' / ');
 }
 
+interface DataTableTarget {
+  context: string;
+  name: string;
+  sectionKey: string;
+  /** Path segments under Data/ including the leaf name. */
+  segments: string[];
+}
+
 function TreeRow({
   node,
   depth,
@@ -89,6 +115,13 @@ function TreeRow({
   selected,
   onSelect,
   onAddInFolder,
+  renamingContext,
+  renameDraft,
+  onRenameDraftChange,
+  onStartRename,
+  onCommitRename,
+  onCancelRename,
+  onRequestDelete,
 }: {
   node: DataTreeNode;
   depth: number;
@@ -100,6 +133,13 @@ function TreeRow({
   selected: string | null;
   onSelect: (context: string) => void;
   onAddInFolder?: (target: DataCwd) => { onNewTable: () => void; onUpload: () => void };
+  renamingContext: string | null;
+  renameDraft: string;
+  onRenameDraftChange: (value: string) => void;
+  onStartRename?: (target: DataTableTarget) => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+  onRequestDelete?: (target: DataTableTarget) => void;
 }) {
   const children = Array.from(node.children.values()).sort((a, b) => a.name.localeCompare(b.name));
   const hasChildren = children.length > 0;
@@ -108,13 +148,19 @@ function TreeRow({
   const isOpen = expanded.has(key);
   const isSelected = canSelect && selected === node.context;
   const isFolderNest = hasChildren;
+  const isLeafTable = canSelect && !hasChildren;
+  const isRenaming = isLeafTable && renamingContext === node.context;
   const addActions = isFolderNest && onAddInFolder ? onAddInFolder({ sectionKey, segments }) : null;
+  const tableTarget: DataTableTarget | null =
+    isLeafTable && node.context
+      ? { context: node.context, name: node.name, sectionKey, segments }
+      : null;
 
   return (
     <div>
       <div
         className={cn(
-          'flex w-full items-center gap-0.5 rounded-md text-sm transition-colors',
+          'group flex w-full items-center gap-0.5 rounded-md text-sm transition-colors',
           isSelected
             ? 'bg-primary-tint-10 text-primary'
             : 'text-foreground hover:bg-muted hover:text-foreground'
@@ -137,25 +183,60 @@ function TreeRow({
         ) : (
           <span className="w-6 shrink-0" />
         )}
-        <button
-          type="button"
-          onClick={() => (canSelect ? onSelect(node.context!) : toggle(key))}
-          data-testid={canSelect && !hasChildren ? 'data-table-node' : 'data-folder-node'}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left"
-        >
-          {canSelect && !hasChildren ? (
+        {isRenaming ? (
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 pr-1">
             <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          ) : (
-            <Folder className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          )}
-          <span className="truncate">{node.name}</span>
-        </button>
+            <Input
+              value={renameDraft}
+              onChange={(e) => onRenameDraftChange(e.target.value)}
+              autoFocus
+              className="h-7 min-w-0 flex-1 px-1.5 py-0 text-sm"
+              data-testid="data-table-rename-input"
+              aria-label={`Rename ${node.name}`}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCommitRename();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  onCancelRename();
+                }
+              }}
+              onBlur={() => onCommitRename()}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => (canSelect ? onSelect(node.context!) : toggle(key))}
+            data-testid={isLeafTable ? 'data-table-node' : 'data-folder-node'}
+            className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left"
+          >
+            {isLeafTable ? (
+              <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            ) : (
+              <Folder className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            )}
+            <span className="truncate">{node.name}</span>
+          </button>
+        )}
         {addActions ? (
           <DataFolderAddMenu
             folderLabel={node.name}
             pathKey={segments.join('/')}
             onNewTable={addActions.onNewTable}
             onUpload={addActions.onUpload}
+            className="mr-1"
+          />
+        ) : null}
+        {tableTarget && onStartRename && onRequestDelete && !isRenaming ? (
+          <DataTableMenu
+            tableLabel={node.name}
+            pathKey={segments.join('/')}
+            onRename={() => onStartRename(tableTarget)}
+            onDelete={() => onRequestDelete(tableTarget)}
             className="mr-1"
           />
         ) : null}
@@ -174,6 +255,13 @@ function TreeRow({
               selected={selected}
               onSelect={onSelect}
               onAddInFolder={onAddInFolder}
+              renamingContext={renamingContext}
+              renameDraft={renameDraft}
+              onRenameDraftChange={onRenameDraftChange}
+              onStartRename={onStartRename}
+              onCommitRename={onCommitRename}
+              onCancelRename={onCancelRename}
+              onRequestDelete={onRequestDelete}
             />
           ))}
         </div>
@@ -351,11 +439,22 @@ export function DataPane({
   const [createOpen, setCreateOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
   const [appendImportOpen, setAppendImportOpen] = React.useState(false);
+  const [renamingTarget, setRenamingTarget] = React.useState<DataTableTarget | null>(null);
+  const [renameDraft, setRenameDraft] = React.useState('');
+  const [renameSaving, setRenameSaving] = React.useState(false);
+  const renameCancelledRef = React.useRef(false);
+  const renameInFlightRef = React.useRef(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<DataTableTarget | null>(null);
+  const [deleteSaving, setDeleteSaving] = React.useState(false);
   const isStackedLayout = useMatchesBelow('tablet');
   const [mobileShowTree, setMobileShowTree] = React.useState(true);
 
   React.useEffect(() => {
-    if (mode !== 'data') setCreateTarget(null);
+    if (mode !== 'data') {
+      setCreateTarget(null);
+      setRenamingTarget(null);
+      setDeleteTarget(null);
+    }
   }, [mode]);
 
   React.useEffect(() => {
@@ -489,6 +588,95 @@ export function DataPane({
     }),
     [openCreateInFolder, openUploadInFolder]
   );
+
+  const startRenameTable = React.useCallback((target: DataTableTarget) => {
+    renameCancelledRef.current = false;
+    setRenamingTarget(target);
+    setRenameDraft(target.name);
+  }, []);
+
+  const cancelRenameTable = React.useCallback(() => {
+    if (renameSaving) return;
+    renameCancelledRef.current = true;
+    setRenamingTarget(null);
+    setRenameDraft('');
+  }, [renameSaving]);
+
+  const commitRenameTable = React.useCallback(async () => {
+    if (renameCancelledRef.current) {
+      renameCancelledRef.current = false;
+      return;
+    }
+    if (!renamingTarget || renameInFlightRef.current) return;
+    const draft = renameDraft.trim();
+    if (!draft || draft === renamingTarget.name) {
+      setRenamingTarget(null);
+      setRenameDraft('');
+      return;
+    }
+    if (draft.includes('/')) {
+      toast.error('Table name cannot contain /.');
+      return;
+    }
+    const section = scopeSections.find((s) => s.key === renamingTarget.sectionKey);
+    if (!section) {
+      toast.error('Could not rename table. Please try again.');
+      return;
+    }
+    const parentSegments = renamingTarget.segments.slice(0, -1);
+    const resolved = resolveDataTableContext(section.browserRoot.prefix, parentSegments, draft);
+    if ('error' in resolved) {
+      toast.error(resolved.error);
+      return;
+    }
+    if (resolved.context === renamingTarget.context) {
+      setRenamingTarget(null);
+      setRenameDraft('');
+      return;
+    }
+
+    renameInFlightRef.current = true;
+    setRenameSaving(true);
+    try {
+      const result = await renameAssistantsContext(renamingTarget.context, resolved.context);
+      if (!result.ok) {
+        toast.error('Could not rename table. Please try again.');
+        return;
+      }
+      const previous = renamingTarget.context;
+      setRenamingTarget(null);
+      setRenameDraft('');
+      await refreshTree();
+      if (selected === previous) {
+        selectLeaf(resolved.context);
+      }
+    } finally {
+      renameInFlightRef.current = false;
+      setRenameSaving(false);
+    }
+  }, [renamingTarget, renameDraft, scopeSections, refreshTree, selected, selectLeaf]);
+
+  const confirmDeleteTable = React.useCallback(async () => {
+    if (!deleteTarget || deleteSaving) return;
+    setDeleteSaving(true);
+    try {
+      const result = await deleteAssistantsContext(deleteTarget.context);
+      if (!result.ok) {
+        toast.error('Could not delete table. Please try again.');
+        return;
+      }
+      const removed = deleteTarget.context;
+      setDeleteTarget(null);
+      if (selected === removed) {
+        setSelected(null);
+        setSelectedRow(null);
+        setLeafMeta(null);
+      }
+      await refreshTree();
+    } finally {
+      setDeleteSaving(false);
+    }
+  }, [deleteTarget, deleteSaving, selected, refreshTree]);
 
   const saveField = React.useCallback(
     async (updates: Record<string, unknown>) => {
@@ -640,6 +828,13 @@ export function DataPane({
                       selected={selected}
                       onSelect={selectLeaf}
                       onAddInFolder={mode === 'data' ? addActionsForFolder : undefined}
+                      renamingContext={renamingTarget?.context ?? null}
+                      renameDraft={renameDraft}
+                      onRenameDraftChange={setRenameDraft}
+                      onStartRename={mode === 'data' ? startRenameTable : undefined}
+                      onCommitRename={() => void commitRenameTable()}
+                      onCancelRename={cancelRenameTable}
+                      onRequestDelete={mode === 'data' ? setDeleteTarget : undefined}
                     />
                   ))
                 )}
@@ -843,6 +1038,36 @@ export function DataPane({
               }}
             />
           ) : null}
+
+          <AlertDialog
+            open={deleteTarget != null}
+            onOpenChange={(open) => {
+              if (!open && !deleteSaving) setDeleteTarget(null);
+            }}
+          >
+            <AlertDialogContent data-testid="data-delete-table-dialog">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete table?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes “{deleteTarget?.name}” and all of its rows. This cannot
+                  be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteSaving}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void confirmDeleteTable();
+                  }}
+                  disabled={deleteSaving}
+                  data-testid="data-delete-table-confirm"
+                >
+                  {deleteSaving ? 'Deleting…' : 'Delete'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <TabFooter
             testId="data-footer"
