@@ -12,6 +12,7 @@ import {
 } from '@/components/Pages/Interfaces/Blocks/Selection/Views/ViewTypes';
 import DictionaryView from '@/components/Pages/Interfaces/Blocks/Selection/Views/DictionaryView';
 import ListView from '@/components/Pages/Interfaces/Blocks/Selection/Views/ListView';
+import { RowDisplayLabelsProvider } from '@/components/Pages/Interfaces/Blocks/Selection/Views/RowBadge';
 import { AccordionDensityProvider } from '@/components/UI/accordion';
 import { PanelExpandProvider } from '@/components/Common/Views/PanelExpandContext';
 import { sanitizeId } from '@/lib/logs/columns';
@@ -132,9 +133,9 @@ function sortValueGroup(group: ValueGroup): ValueGroup {
 }
 
 /**
- * Group selected cells by column, then by equal value — Table ViewPane style.
- * Each column is one foldable heading; identical values within a column collapse
- * to a single entry with compressed `#` display row labels.
+ * Group selected cells by column, then by equal value.
+ * Primitive columns keep one table row per distinct value. Complex columns
+ * (dict/list) are later merged Selection-style across all values in the column.
  */
 export function groupCellsByColumn(cells: LogCellSelection[]): ColumnGroup[] {
   const columnOrder: string[] = [];
@@ -180,12 +181,59 @@ export function groupCellsByColumnValue(
   );
 }
 
-function ComplexBody({ fieldName, value }: { fieldName: string; value: unknown }) {
+type ColumnEntry = {
+  value: unknown;
+  rowLabel: string;
+  logId: number;
+};
+
+/** Expand value groups back to one entry per selected row (row-label order). */
+function flattenColumnEntries(values: ValueGroup[]): ColumnEntry[] {
+  const entries: ColumnEntry[] = [];
+  for (const group of values) {
+    for (let i = 0; i < group.logIds.length; i++) {
+      entries.push({
+        value: group.value,
+        rowLabel: group.rowLabels[i]!,
+        logId: group.logIds[i]!,
+      });
+    }
+  }
+  return entries.sort((a, b) => compareRowLabels(a.rowLabel, b.rowLabel));
+}
+
+function isComplexNestValue(value: unknown): boolean {
+  const type = getValueType(value);
+  return type === 'dict' || type === 'list' || type === 'matrix';
+}
+
+/** Selection-style: merge nests when any selected value in the column is structured. */
+function shouldMergeColumnNests(values: ValueGroup[]): boolean {
+  return values.some((group) => isComplexNestValue(group.value));
+}
+
+/**
+ * One DictionaryView/ListView for all selected values in a column (Interfaces
+ * Selection). Shared keys appear once; differing leaves show multiple values
+ * with row badges mapped to `#` / `x.y.z` labels.
+ */
+function ComplexBody({
+  fieldName,
+  values,
+  rowLabels,
+}: {
+  fieldName: string;
+  values: unknown[];
+  rowLabels: string[];
+}) {
+  const labels = rowLabels.length > 0 ? rowLabels : [''];
+  const baseValue = values[0];
+  const comparables = values.slice(1);
   const commonProps = {
-    value,
-    comparables: [] as unknown[],
+    value: baseValue,
+    comparables,
     baseLogIndex: 0,
-    comparisonLogsIndex: [] as number[],
+    comparisonLogsIndex: comparables.map((_, i) => i + 1),
     diffMode: 'none' as const,
     splitView: false,
     displayMode: 'text' as const,
@@ -199,9 +247,15 @@ function ComplexBody({ fieldName, value }: { fieldName: string; value: unknown }
     baseLog: undefined,
     comparisonLogs: undefined,
   };
-  if (Array.isArray(value)) return <ListView {...commonProps} />;
-  if (value && typeof value === 'object') return <DictionaryView {...commonProps} />;
-  return null;
+  return (
+    <RowDisplayLabelsProvider labels={labels}>
+      {Array.isArray(baseValue) ? (
+        <ListView {...commonProps} />
+      ) : baseValue && typeof baseValue === 'object' ? (
+        <DictionaryView {...commonProps} />
+      ) : null}
+    </RowDisplayLabelsProvider>
+  );
 }
 
 function LogPanelExpandProvider({ children }: { children: React.ReactNode }) {
@@ -308,6 +362,7 @@ function CellBody({
   value,
   fieldName,
   rowLabel,
+  rowLabels,
   gutterCh,
   editable,
   draftText,
@@ -317,6 +372,8 @@ function CellBody({
   value: unknown;
   fieldName: string;
   rowLabel: string;
+  /** Per-row `#` / `x.y.z` labels for this value group (feeds nest RowBadges). */
+  rowLabels: string[];
   gutterCh: number;
   editable: boolean;
   draftText: string;
@@ -474,7 +531,11 @@ function CellBody({
             <ValueCopyButton value={value} />
             <div className="px-1.5 py-0.5">
               <AccordionDensityProvider density="compact">
-                <ComplexBody fieldName={fieldName} value={value} />
+                <ComplexBody
+                  fieldName={fieldName}
+                  values={rowLabels.map(() => value)}
+                  rowLabels={rowLabels}
+                />
               </AccordionDensityProvider>
             </div>
           </>
@@ -506,6 +567,50 @@ function CellBody({
         <pre className="whitespace-pre px-1.5 py-0.5 leading-snug text-foreground">{text}</pre>
       </div>
     </>
+  );
+}
+
+/**
+ * Selection-style merge: one nest tree for every selected value in a complex
+ * column. Shared keys once; leaf differences listed with row badges.
+ */
+function MergedComplexColumn({
+  fieldName,
+  entries,
+  gutterCh,
+}: {
+  fieldName: string;
+  entries: ColumnEntry[];
+  gutterCh: number;
+}) {
+  const rowLabels = entries.map((entry) => entry.rowLabel);
+  const values = entries.map((entry) => entry.value);
+  const rowLabel = compressRowLabels(rowLabels);
+
+  return (
+    <div
+      data-testid="log-cell-view-group"
+      data-column={fieldName}
+      className="bg-muted/30 w-max min-w-full overflow-hidden rounded border border-border"
+    >
+      <div
+        className="group relative flex w-max min-w-full font-mono text-[11px]"
+        data-testid="log-cell-view-value"
+        data-editable="false"
+      >
+        <RowGutter label={rowLabel} widthCh={gutterCh} />
+        <div className="relative min-w-max flex-1">
+          <ValueCopyButton value={values} />
+          <LogPanelExpandProvider>
+            <div className="px-1.5 py-0.5">
+              <AccordionDensityProvider density="compact">
+                <ComplexBody fieldName={fieldName} values={values} rowLabels={rowLabels} />
+              </AccordionDensityProvider>
+            </div>
+          </LogPanelExpandProvider>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -571,41 +676,49 @@ function ColumnGroupDisplay({
 
       {isExpanded && (
         <div className="relative ml-2.5 border-l border-l-muted pb-1 pl-2">
-          {/* One shared table shell per column — single dividers, outer rounding only.
-              w-max min-w-full: at least pane-wide, grow when values overflow. */}
-          <div className="bg-muted/30 w-max min-w-full overflow-hidden rounded border border-border">
-            {group.values.map((valueGroup, index) => {
-              const rowLabel = compressRowLabels(valueGroup.rowLabels);
-              const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
-              const editable = columnEditable && valueGroup.logIds.length > 0 && !!onCommitEdit;
-              const draftText =
-                draftForValue?.(group.columnId, valueGroup.value) ??
-                formatRawValue(valueGroup.value);
-              return (
-                <div
-                  key={groupKey}
-                  data-testid="log-cell-view-group"
-                  data-column={label}
-                  className={cn(index < group.values.length - 1 && 'border-b border-border')}
-                >
-                  <CellBody
-                    value={valueGroup.value}
-                    fieldName={label}
-                    rowLabel={rowLabel}
-                    gutterCh={gutterCh}
-                    editable={editable}
-                    draftText={draftText === '—' ? '' : draftText}
-                    onLockedClick={showLock ? nudgeLock : undefined}
-                    onCommit={
-                      editable
-                        ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)
-                        : undefined
-                    }
-                  />
-                </div>
-              );
-            })}
-          </div>
+          {shouldMergeColumnNests(group.values) && group.values.length > 1 ? (
+            <MergedComplexColumn
+              fieldName={label}
+              entries={flattenColumnEntries(group.values)}
+              gutterCh={gutterCh}
+            />
+          ) : (
+            /* One shared table shell per column — single dividers, outer rounding only. */
+            <div className="bg-muted/30 w-max min-w-full overflow-hidden rounded border border-border">
+              {group.values.map((valueGroup, index) => {
+                const rowLabel = compressRowLabels(valueGroup.rowLabels);
+                const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
+                const editable = columnEditable && valueGroup.logIds.length > 0 && !!onCommitEdit;
+                const draftText =
+                  draftForValue?.(group.columnId, valueGroup.value) ??
+                  formatRawValue(valueGroup.value);
+                return (
+                  <div
+                    key={groupKey}
+                    data-testid="log-cell-view-group"
+                    data-column={label}
+                    className={cn(index < group.values.length - 1 && 'border-b border-border')}
+                  >
+                    <CellBody
+                      value={valueGroup.value}
+                      fieldName={label}
+                      rowLabel={rowLabel}
+                      rowLabels={valueGroup.rowLabels}
+                      gutterCh={gutterCh}
+                      editable={editable}
+                      draftText={draftText === '—' ? '' : draftText}
+                      onLockedClick={showLock ? nudgeLock : undefined}
+                      onCommit={
+                        editable
+                          ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)
+                          : undefined
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -614,11 +727,11 @@ function ColumnGroupDisplay({
 
 /**
  * Viewing panel for selected LogGrid cells.
- * Groups by column under foldable headings (expanded by default), then
- * collapses identical values within a column to a single entry with compressed
- * `#` display row labels. Values under a column share one table shell (outer
- * rounding, single row dividers). Click an editable row to edit inline
- * (broadcasts to every row in a multi-cell value group).
+ * Groups by column under foldable headings (expanded by default). Primitive
+ * columns collapse identical values into table rows with compressed `#` labels.
+ * Complex columns (dict/list) merge Selection-style: one nest tree, shared keys
+ * once, differing leaves with row badges. Click an editable primitive/identical
+ * value to edit inline (broadcasts across a multi-cell value group).
  */
 export function LogCellViewPanel({
   cells,
