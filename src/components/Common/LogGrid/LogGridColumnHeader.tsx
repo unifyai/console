@@ -92,6 +92,8 @@ export function LogGridColumnHeader({
   const [filterOpen, setFilterOpen] = React.useState(false);
   const headerRef = React.useRef<HTMLDivElement>(null);
   const openFilterAfterMenuCloseRef = React.useRef(false);
+  /** Parent Dialog/AlertDialog openers deferred until the menu has closed. */
+  const pendingDialogActionRef = React.useRef<(() => void) | null>(null);
   const sorted = column.getIsSorted() as SortDirection | false;
   const hasFilter = columnHasFilter(filters, columnKey);
   const isGrouped = parseGrouping(grouping).includes(columnKey);
@@ -107,7 +109,21 @@ export function LogGridColumnHeader({
 
   const handleMenuOpenChange = (open: boolean) => {
     setMenuOpen(open);
-    if (!open) onMenuClose?.();
+    if (!open) {
+      onMenuClose?.();
+      const action = pendingDialogActionRef.current;
+      if (action) {
+        pendingDialogActionRef.current = null;
+        // Wait past the pointer-up that selected the item — otherwise that same
+        // event dismisses a Dialog opened on the next microtask.
+        window.setTimeout(action, 50);
+      }
+    }
+  };
+
+  const queueParentDialog = (open: () => void) => {
+    pendingDialogActionRef.current = open;
+    handleMenuOpenChange(false);
   };
 
   React.useEffect(() => {
@@ -323,8 +339,7 @@ export function LogGridColumnHeader({
                   data-testid={`log-grid-rename-column-${fieldKey}`}
                   onSelect={(event) => {
                     event.preventDefault();
-                    onRenameColumn();
-                    setMenuOpen(false);
+                    queueParentDialog(onRenameColumn);
                   }}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -337,8 +352,7 @@ export function LogGridColumnHeader({
                   data-testid={`log-grid-delete-column-${fieldKey}`}
                   onSelect={(event) => {
                     event.preventDefault();
-                    onDeleteColumn();
-                    setMenuOpen(false);
+                    queueParentDialog(onDeleteColumn);
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

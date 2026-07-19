@@ -565,12 +565,12 @@ export function LogGrid({
               isLocked={!!isColumnEditable && !isColumnEditable(key)}
               onEditDerived={isDerived ? () => openDerivedEditRef.current(key) : undefined}
               onRenameColumn={
-                !isDerived && onRenameColumnRef.current
+                !isDerived && onRenameColumn
                   ? () => onRenameColumnRef.current?.(fieldKey)
                   : undefined
               }
               onDeleteColumn={
-                !isDerived && onDeleteColumnRef.current
+                !isDerived && onDeleteColumn
                   ? () => onDeleteColumnRef.current?.(fieldKey)
                   : undefined
               }
@@ -666,6 +666,8 @@ export function LogGrid({
     isGrouped,
     rowLabelMap,
     isColumnEditable,
+    onRenameColumn,
+    onDeleteColumn,
   ]);
 
   const table = useReactTable({

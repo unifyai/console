@@ -33,10 +33,18 @@ export function DataColumnNameDialog({
 }: DataColumnNameDialogProps) {
   const [name, setName] = React.useState(initialName);
   const [saving, setSaving] = React.useState(false);
+  const openedAtRef = React.useRef(0);
 
   React.useEffect(() => {
-    if (open) setName(initialName);
+    if (open) {
+      setName(initialName);
+      openedAtRef.current = Date.now();
+    }
   }, [open, initialName]);
+
+  const ignoreStaleOutside = React.useCallback(() => {
+    return Date.now() - openedAtRef.current < 400;
+  }, []);
 
   const submit = async () => {
     const trimmed = name.trim();
@@ -52,7 +60,16 @@ export function DataColumnNameDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm" data-testid={testId}>
+      <DialogContent
+        className="max-w-sm"
+        data-testid={testId}
+        onPointerDownOutside={(event) => {
+          if (ignoreStaleOutside()) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (ignoreStaleOutside()) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

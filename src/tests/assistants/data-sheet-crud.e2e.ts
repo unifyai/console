@@ -123,15 +123,23 @@ test('adds a column and a row, edits a cell, renames a column, deletes a row', a
   await expect(page.getByTestId('log-grid-fetching')).toHaveCount(0, { timeout: 15_000 });
 
   await page.getByTestId('log-grid-column-menu-notes').click();
-  const renameItem = page.getByTestId('log-grid-rename-column-notes');
+  const renameItem = page.getByRole('menuitem', { name: 'Rename column' });
   await expect(renameItem).toBeVisible({ timeout: 5_000 });
   await renameItem.click();
-  await expect(page.getByTestId('data-rename-column-dialog')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('data-rename-column-dialog')).toBeVisible({ timeout: 15_000 });
   await page.getByTestId('data-rename-column-dialog-input').fill('memo');
   await page.getByTestId('data-rename-column-dialog-submit').click();
   await expect(page.getByTestId('log-grid-header-memo')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('log-grid-fetching')).toHaveCount(0, { timeout: 15_000 });
 
-  await firstRow.locator('[data-testid^="log-grid-cell-"]').first().click();
+  // Re-query after rename refresh; delete requires an active selection.
+  const seededRow = page
+    .locator('tr[data-testid^="log-grid-row-"]')
+    .filter({ hasText: 'Seeded' })
+    .first();
+  await expect(seededRow).toBeVisible({ timeout: 10_000 });
+  await seededRow.locator('[data-testid^="log-grid-row-index-"]').click();
+  await expect(page.getByTestId('log-grid-more')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('log-grid-more').click();
   await page.getByTestId('log-grid-delete-row').click();
   await page.getByTestId('log-grid-delete-confirm').click();
