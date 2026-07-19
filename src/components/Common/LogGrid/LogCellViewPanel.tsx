@@ -12,6 +12,7 @@ import {
 } from '@/components/Pages/Interfaces/Blocks/Selection/Views/ViewTypes';
 import DictionaryView from '@/components/Pages/Interfaces/Blocks/Selection/Views/DictionaryView';
 import ListView from '@/components/Pages/Interfaces/Blocks/Selection/Views/ListView';
+import { AccordionDensityProvider } from '@/components/UI/accordion';
 import { PanelExpandProvider } from '@/components/Common/Views/PanelExpandContext';
 import { sanitizeId } from '@/lib/logs/columns';
 import { parseCellId, type LogGridRow } from '@/lib/logs/types';
@@ -470,7 +471,9 @@ function CellBody({
           <>
             <ValueCopyButton value={value} />
             <div className="px-1.5 py-0.5">
-              <ComplexBody fieldName={fieldName} value={value} />
+              <AccordionDensityProvider density="compact">
+                <ComplexBody fieldName={fieldName} value={value} />
+              </AccordionDensityProvider>
             </div>
           </>
         )}
