@@ -84,18 +84,17 @@ export function LogGridColumnHeader({
   const isGrouped = parseGrouping(grouping).includes(columnKey);
 
   const openFilter = () => {
+    // Keep this set until the filter closes so the menu's delayed unmount
+    // autofocus (exit animation) cannot land on the ⋯ trigger and dismiss the
+    // newly opened popover via focus-outside.
     openFilterAfterMenuCloseRef.current = true;
     setMenuOpen(false);
-    // Defer past the menu-dismiss pointer cycle. A zero-delay timeout races with
-    // click fall-through onto the header/ScrollArea (especially with background
-    // mousedown handlers), which immediately closes the newly opened popover.
-    window.setTimeout(() => {
-      setFilterOpen(true);
-    }, 50);
-    window.setTimeout(() => {
-      openFilterAfterMenuCloseRef.current = false;
-    }, 100);
+    setFilterOpen(true);
   };
+
+  React.useEffect(() => {
+    if (!filterOpen) openFilterAfterMenuCloseRef.current = false;
+  }, [filterOpen]);
 
   return (
     <div
