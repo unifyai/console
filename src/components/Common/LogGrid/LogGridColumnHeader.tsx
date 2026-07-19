@@ -374,6 +374,8 @@ type SortableHeaderProps = {
   className?: string;
   style?: React.CSSProperties;
   reorderEnabled: boolean;
+  /** Whole-column selection highlight (mirrors row-index `bg-primary`). */
+  columnSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
   dragAttributes?: React.HTMLAttributes<HTMLElement>;
   dragListeners?: React.HTMLAttributes<HTMLElement>;
@@ -390,6 +392,7 @@ export function LogGridSortableHead({
   className,
   style,
   reorderEnabled,
+  columnSelected = false,
   onMouseDown,
   dragAttributes,
   dragListeners,
@@ -403,16 +406,25 @@ export function LogGridSortableHead({
       className={cn(
         // Overflow stays on the inner label row so full-height column resizers
         // can extend past the header into the body without being clipped.
-        'group relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground',
+        'group relative h-8 whitespace-nowrap px-1 text-[11px]',
+        columnSelected
+          ? // Beat TableHead's default `bg-card` / muted text the same way
+            // whole-row selection paints the index cell (`bg-primary`).
+            'text-primary-foreground [&_*]:text-primary-foreground'
+          : 'text-muted-foreground',
         className,
         isDragging && 'z-20 opacity-80'
       )}
       style={{
         ...style,
+        // Inline primary fill so TableHead's default `bg-card` cannot win.
+        backgroundColor: columnSelected ? 'var(--primary)' : style?.backgroundColor,
+        color: columnSelected ? 'var(--primary-foreground)' : style?.color,
         transform: transformStyle,
         transition: isDragging ? 'width transform 0.2s ease-in-out' : undefined,
       }}
       data-reorder={reorderEnabled ? 'true' : undefined}
+      data-column-selected={columnSelected ? 'true' : undefined}
       onMouseDown={onMouseDown}
     >
       <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">

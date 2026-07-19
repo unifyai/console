@@ -65,6 +65,7 @@ import {
   cellsForColumn,
   cellsForColumnRange,
   isAllRowSelected,
+  isAllColumnSelected,
   selectionPerimeterBoxShadow,
   LOG_ROW_NUMBER_COL,
   type LogFieldsResponseProps,
@@ -149,6 +150,7 @@ function SortableHeader({
   className,
   style,
   reorderEnabled,
+  columnSelected,
   onMouseDown,
 }: {
   header: Header<LogGridRow, unknown>;
@@ -157,6 +159,7 @@ function SortableHeader({
   className?: string;
   style?: React.CSSProperties;
   reorderEnabled: boolean;
+  columnSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
@@ -170,6 +173,7 @@ function SortableHeader({
       className={className}
       style={style}
       reorderEnabled={reorderEnabled}
+      columnSelected={columnSelected}
       onMouseDown={onMouseDown}
       dragAttributes={
         reorderEnabled ? (attributes as React.HTMLAttributes<HTMLElement>) : undefined
@@ -1385,14 +1389,25 @@ export function LogGrid({
                                       </TableHead>
                                     );
                                   }
+                                  const columnFullySelected =
+                                    !!selectedCells &&
+                                    isAllColumnSelected(
+                                      selectedCells,
+                                      header.column.id,
+                                      selectableRows
+                                    );
                                   return (
                                     <SortableHeader
                                       key={header.id}
                                       header={header}
                                       reorderEnabled={reorderEnabled}
+                                      columnSelected={columnFullySelected}
                                       className={cn(
-                                        'sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground',
-                                        selection?.mode === 'cell' && 'cursor-pointer select-none'
+                                        'sticky top-0 z-20 h-8 whitespace-nowrap border-r px-1 text-[11px]',
+                                        selection?.mode === 'cell' && 'cursor-pointer select-none',
+                                        columnFullySelected
+                                          ? 'border-transparent'
+                                          : 'border-border bg-card'
                                       )}
                                       style={{
                                         width: header.getSize(),

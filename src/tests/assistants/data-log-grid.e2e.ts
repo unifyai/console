@@ -398,6 +398,9 @@ test('column header selects whole columns with click, ctrl, and shift', async ({
 
   // 5 seeded people → clicking city selects 5 cells in that column.
   await page.getByTestId('log-grid-header-city').click();
+  await expect(
+    page.getByTestId('log-grid-header-city').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
   await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText(
     '5 rows · 1 column · 5 cells',
@@ -409,15 +412,24 @@ test('column header selects whole columns with click, ctrl, and shift', async ({
   // Ada+Alan share London → 4 distinct city values across 5 rows.
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(4);
 
-  // Shift from city → score selects both columns (10 cells).
+  // Shift from city → score selects the inclusive alpha range (city, name, score).
   await page.getByTestId('log-grid-header-score').click({ modifiers: ['Shift'] });
+  await expect(
+    page.getByTestId('log-grid-header-city').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
+  await expect(
+    page.getByTestId('log-grid-header-name').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
+  await expect(
+    page.getByTestId('log-grid-header-score').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
   await expect(page.getByTestId('log-cell-view-panel')).toContainText(
-    '5 rows · 2 columns · 10 cells',
+    '5 rows · 3 columns · 15 cells',
     {
       timeout: 15_000,
     }
   );
-  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(2);
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
 
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
