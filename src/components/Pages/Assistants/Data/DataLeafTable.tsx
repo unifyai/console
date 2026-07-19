@@ -29,7 +29,7 @@ import {
   renameLogField,
   updateLogEntries,
 } from '@/lib/logs/mutations';
-import { sanitizeId } from '@/lib/logs/columns';
+import { reconcileColumnOrder, sanitizeId } from '@/lib/logs/columns';
 import { toast } from 'sonner';
 import { DataColumnNameDialog } from './DataColumnNameDialog';
 import {
@@ -219,13 +219,18 @@ export function DataLeafTable({
     await refetch();
   }, [queryClient, context, refetch]);
 
+  const prevColumnsRef = React.useRef<string[]>([]);
+  React.useEffect(() => {
+    prevColumnsRef.current = [];
+  }, [context]);
+
   React.useEffect(() => {
     if (!columns.length) return;
-    const missing = columns.filter((id) => !view.columnOrder.includes(id));
-    if (missing.length === 0) return;
-    setView({
-      columnOrder: view.columnOrder.length ? [...view.columnOrder, ...missing] : columns,
-    });
+    const next = reconcileColumnOrder(view.columnOrder, columns, prevColumnsRef.current);
+    prevColumnsRef.current = columns;
+    const same =
+      next.length === view.columnOrder.length && next.every((id, i) => id === view.columnOrder[i]);
+    if (!same) setView({ columnOrder: next });
   }, [columns, view.columnOrder, setView]);
 
   const selection: SelectionModel = React.useMemo(
@@ -378,20 +383,26 @@ export function DataLeafTable({
 
   const handleDeleteColumn = React.useCallback(async () => {
     if (!deleteColumn) return;
+    const column = deleteColumn;
+    const prevOrder = view.columnOrder;
+    const prevHidden = view.hiddenColumns;
+    // Drop from the grid immediately on confirm; refresh catches up the schema.
+    setDeleteColumn(null);
+    setView({
+      columnOrder: prevOrder.filter((c) => c !== column),
+      hiddenColumns: prevHidden.filter((c) => c !== column),
+    });
     const result = await deleteLogField({
       projectName: 'Assistants',
       context,
-      fieldName: deleteColumn,
+      fieldName: column,
     });
     if (!result.ok) {
+      console.error('Failed to delete column', result);
+      setView({ columnOrder: prevOrder, hiddenColumns: prevHidden });
       toast.error('Could not delete column. Please try again.');
       return;
     }
-    setView({
-      columnOrder: view.columnOrder.filter((c) => c !== deleteColumn),
-      hiddenColumns: view.hiddenColumns.filter((c) => c !== deleteColumn),
-    });
-    setDeleteColumn(null);
     await refreshAll();
   }, [deleteColumn, context, refreshAll, setView, view.columnOrder, view.hiddenColumns]);
 

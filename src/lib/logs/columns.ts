@@ -108,6 +108,37 @@ export function visibleColumnIds(columnOrder: string[], hiddenColumns: string[])
   return columnOrder.filter((id) => !hidden.has(id));
 }
 
+/**
+ * Reconcile saved column order with the live column set.
+ *
+ * - Empty order → adopt `columns`.
+ * - Otherwise keep the existing order (dropping ids no longer in `columns`) and
+ *   append only ids that newly appeared since `prevColumns`.
+ *
+ * Using "newly appeared" (not "missing from order") avoids resurrecting columns
+ * the user just removed from `columnOrder` while stale field/row caches still
+ * list them — which previously flashed deleted columns on the far right.
+ */
+export function reconcileColumnOrder(
+  columnOrder: string[],
+  columns: string[],
+  prevColumns: string[]
+): string[] {
+  if (!columns.length) return columnOrder;
+  if (!columnOrder.length) return columns;
+
+  const columnSet = new Set(columns);
+  const kept = columnOrder.filter((id) => columnSet.has(id));
+  const keptSet = new Set(kept);
+  const prev = new Set(prevColumns);
+  const toAppend =
+    prevColumns.length === 0
+      ? columns.filter((id) => !keptSet.has(id))
+      : columns.filter((id) => !prev.has(id) && !keptSet.has(id));
+
+  return toAppend.length > 0 ? [...kept, ...toAppend] : kept;
+}
+
 /** Default-hide underscore-prefixed private/metadata fields. */
 export function defaultHiddenForFields(fieldNames: string[]): string[] {
   return fieldNames.filter((name) => sanitizeId(name).startsWith('_'));

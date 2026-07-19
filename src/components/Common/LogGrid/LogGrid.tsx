@@ -73,7 +73,7 @@ import {
   type LogViewState,
   type SelectionModel,
 } from '@/lib/logs';
-import { sanitizeId, visibleColumnIds } from '@/lib/logs/columns';
+import { reconcileColumnOrder, sanitizeId, visibleColumnIds } from '@/lib/logs/columns';
 import {
   appendGridGroupSubRows,
   fetchGroupChildren,
@@ -379,15 +379,16 @@ export function LogGrid({
 
   const orderKey = columns.join('\0');
   const lastOrderKey = React.useRef('');
+  const prevColumnsRef = React.useRef<string[]>([]);
+  React.useEffect(() => {
+    lastOrderKey.current = '';
+    prevColumnsRef.current = [];
+  }, [context]);
   React.useEffect(() => {
     if (!columns.length || orderKey === lastOrderKey.current) return;
     lastOrderKey.current = orderKey;
-    const order = view.columnOrder.length
-      ? [
-          ...view.columnOrder.filter((id) => columns.includes(id)),
-          ...columns.filter((id) => !view.columnOrder.includes(id)),
-        ]
-      : columns;
+    const order = reconcileColumnOrder(view.columnOrder, columns, prevColumnsRef.current);
+    prevColumnsRef.current = columns;
     const same =
       order.length === view.columnOrder.length &&
       order.every((id, i) => id === view.columnOrder[i]);
