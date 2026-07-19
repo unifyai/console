@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { ChevronDown, ChevronRight, Lock, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
-import { ScrollArea } from '@/components/UI/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
 import { Textarea } from '@/components/UI/textarea';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import {
@@ -418,7 +418,9 @@ function CellBody({
   const boxShell = (content: React.ReactNode, extraClassName?: string) => (
     <div
       className={cn(
-        'bg-muted/30 group relative flex min-w-0 overflow-hidden rounded border border-border font-mono text-[11px]',
+        // min-w-full keeps short rows flush with the table; min-w-max grows with long values
+        // so the pane ScrollArea can show a horizontal scrollbar.
+        'group relative flex w-max min-w-full font-mono text-[11px]',
         editable && 'cursor-text',
         extraClassName
       )}
@@ -435,15 +437,15 @@ function CellBody({
       data-editable={editable ? 'true' : 'false'}
     >
       <RowGutter label={rowLabel} widthCh={gutterCh} />
-      <div className="relative min-w-0 flex-1">{content}</div>
+      <div className="relative min-w-max flex-1">{content}</div>
     </div>
   );
 
   if (isEditing) {
     return (
-      <div className="relative flex min-w-0 overflow-hidden rounded border border-primary bg-background font-mono text-[11px]">
+      <div className="relative flex w-max min-w-full bg-background font-mono text-[11px] ring-1 ring-inset ring-primary">
         <RowGutter label={rowLabel} widthCh={gutterCh} />
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-max flex-1">
           <Textarea
             ref={inputRef}
             value={draft}
@@ -493,10 +495,15 @@ function CellBody({
   return boxShell(
     <>
       <ValueCopyButton value={value} />
-      <div className="overflow-auto" style={{ maxHeight: CELL_EDIT_MAX_HEIGHT_PX }}>
-        <pre className="whitespace-pre-wrap break-words px-1.5 py-0.5 leading-snug text-foreground">
-          {text}
-        </pre>
+      {/*
+        width:max-content so long lines widen the row (pane scrolls x) instead of
+        clipping inside this box; overflow-y only caps tall multi-line values.
+      */}
+      <div
+        className="overflow-y-auto"
+        style={{ maxHeight: CELL_EDIT_MAX_HEIGHT_PX, width: 'max-content', minWidth: '100%' }}
+      >
+        <pre className="whitespace-pre px-1.5 py-0.5 leading-snug text-foreground">{text}</pre>
       </div>
     </>
   );
@@ -563,32 +570,42 @@ function ColumnGroupDisplay({
       </button>
 
       {isExpanded && (
-        <div className="relative ml-2.5 space-y-0.5 border-l border-l-muted pb-1 pl-2">
-          {group.values.map((valueGroup) => {
-            const rowLabel = compressRowLabels(valueGroup.rowLabels);
-            const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
-            const editable = columnEditable && valueGroup.logIds.length > 0 && !!onCommitEdit;
-            const draftText =
-              draftForValue?.(group.columnId, valueGroup.value) ?? formatRawValue(valueGroup.value);
-            return (
-              <div key={groupKey} data-testid="log-cell-view-group" data-column={label}>
-                <CellBody
-                  value={valueGroup.value}
-                  fieldName={label}
-                  rowLabel={rowLabel}
-                  gutterCh={gutterCh}
-                  editable={editable}
-                  draftText={draftText === '—' ? '' : draftText}
-                  onLockedClick={showLock ? nudgeLock : undefined}
-                  onCommit={
-                    editable
-                      ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)
-                      : undefined
-                  }
-                />
-              </div>
-            );
-          })}
+        <div className="relative ml-2.5 border-l border-l-muted pb-1 pl-2">
+          {/* One shared table shell per column — single dividers, outer rounding only.
+              w-max min-w-full: at least pane-wide, grow when values overflow. */}
+          <div className="bg-muted/30 w-max min-w-full overflow-hidden rounded border border-border">
+            {group.values.map((valueGroup, index) => {
+              const rowLabel = compressRowLabels(valueGroup.rowLabels);
+              const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
+              const editable = columnEditable && valueGroup.logIds.length > 0 && !!onCommitEdit;
+              const draftText =
+                draftForValue?.(group.columnId, valueGroup.value) ??
+                formatRawValue(valueGroup.value);
+              return (
+                <div
+                  key={groupKey}
+                  data-testid="log-cell-view-group"
+                  data-column={label}
+                  className={cn(index < group.values.length - 1 && 'border-b border-border')}
+                >
+                  <CellBody
+                    value={valueGroup.value}
+                    fieldName={label}
+                    rowLabel={rowLabel}
+                    gutterCh={gutterCh}
+                    editable={editable}
+                    draftText={draftText === '—' ? '' : draftText}
+                    onLockedClick={showLock ? nudgeLock : undefined}
+                    onCommit={
+                      editable
+                        ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)
+                        : undefined
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -599,8 +616,9 @@ function ColumnGroupDisplay({
  * Viewing panel for selected LogGrid cells.
  * Groups by column under foldable headings (expanded by default), then
  * collapses identical values within a column to a single entry with compressed
- * `#` display row labels. Click an editable value box to edit inline (broadcasts
- * to every row in a multi-cell value group).
+ * `#` display row labels. Values under a column share one table shell (outer
+ * rounding, single row dividers). Click an editable row to edit inline
+ * (broadcasts to every row in a multi-cell value group).
  */
 export function LogCellViewPanel({
   cells,
@@ -750,8 +768,8 @@ export function LogCellViewPanel({
           Select cells, then open the view pane to inspect them.
         </p>
       ) : (
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-1 p-2">
+        <ScrollArea className="min-h-0 min-w-0 flex-1">
+          <div className="w-max min-w-full space-y-1 p-2">
             {columns.map((column) => (
               <ColumnGroupDisplay
                 key={column.columnId}
@@ -763,6 +781,7 @@ export function LogCellViewPanel({
               />
             ))}
           </div>
+          <ScrollBar orientation="horizontal" />
         </ScrollArea>
       )}
     </div>
