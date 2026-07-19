@@ -152,8 +152,7 @@ test('adds a column and a row, edits a cell, renames a column, deletes a row', a
     .first();
   await expect(seededRow).toBeVisible({ timeout: 10_000 });
   await seededRow.locator('[data-testid^="log-grid-row-index-"]').click();
-  await expect(page.getByTestId('log-grid-more')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('log-grid-more').click();
+  await expect(page.getByTestId('log-grid-delete-row')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('log-grid-delete-row').click();
   await page.getByTestId('log-grid-delete-confirm').click();
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 1/, {

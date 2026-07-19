@@ -6,7 +6,6 @@ import {
   Columns3,
   FilePlus2,
   FunctionSquare,
-  MoreHorizontal,
   PanelRight,
   Plus,
   RefreshCw,
@@ -304,29 +303,18 @@ export function LogGridToolbar({
       )}
 
       {canDelete && (
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 w-8 shrink-0 p-0"
-              aria-label="More table controls"
-              data-testid="log-grid-more"
-            >
-              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onSelect={() => onDeleteRows()}
-              data-testid="log-grid-delete-row"
-            >
-              <Trash2 className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-              Delete selected
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0 gap-1.5 px-2.5 text-destructive hover:text-destructive"
+          onClick={onDeleteRows}
+          aria-label="Delete selected"
+          data-testid="log-grid-delete-row"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          Delete selected
+        </Button>
       )}
 
       {isFetching && (
