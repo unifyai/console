@@ -8,6 +8,7 @@ import MarkdownRenderer from './Markdown/MarkdownRenderer';
 import { useEditablePrimitive } from '@/hooks/Interfaces/useEditablePrimitive';
 import { showErrorToast } from '@/components/Common/Toasts/notifications';
 import Tooltip from '@/components/Common/Misc/Tooltip';
+import { useAccordionDensity } from '@/components/UI/accordion';
 
 /**
  * Convert unknown => finite number, or null if not a valid number.
@@ -177,6 +178,7 @@ export default function NumberView({
   // Hooks must be called unconditionally. Declare state BEFORE any
   // potential early-return to keep hook order stable across renders.
   // ------------------------------------------------------------------
+  const density = useAccordionDensity();
   const [opIndex, setOpIndex] = React.useState(0);
   const currentSymbol = symbols[opIndex];
   function handleCycleSymbol() {
@@ -191,6 +193,34 @@ export default function NumberView({
     }
     // Ensure toString() is called on a valid number
     return val.toString();
+  }
+
+  const singleMode = !comparables || comparables.length === 0;
+
+  // Compact LogGrid nest leaves: skip Interfaces bordered card chrome.
+  if (density === 'compact' && nested && !cellEditMode) {
+    if (singleMode) {
+      return (
+        <pre className="m-0 whitespace-pre-wrap break-words p-0 font-mono text-[11px] leading-snug text-foreground">
+          {formatNumberVal(asFiniteNumber(value))}
+        </pre>
+      );
+    }
+    const groups = groupAllNumbersByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
+    return (
+      <div className="space-y-0.5">
+        {groups.map((group) =>
+          group.numVal === null ? null : (
+            <div key={group.rows.join(',')} className="flex min-w-0 items-start gap-1">
+              <RowBadge rowNumbers={group.rows} mode="none" />
+              <pre className="m-0 min-w-0 flex-1 whitespace-pre-wrap break-words p-0 font-mono text-[11px] leading-snug text-foreground">
+                {formatNumberVal(group.numVal)}
+              </pre>
+            </div>
+          )
+        )}
+      </div>
+    );
   }
 
   if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
@@ -255,7 +285,6 @@ export default function NumberView({
   }
 
   // --- Read-only rendering logic ---
-  const singleMode = !comparables || comparables.length === 0;
   const baseVer = version || '';
   const compVers = comparableVersions;
   const versionEmpty = !baseVer && compVers.every((s) => !s);

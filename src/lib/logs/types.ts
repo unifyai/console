@@ -138,6 +138,30 @@ export function makeCellId(logId: string | number, columnId: string): string {
 /** Util column id for the Excel-style row index / whole-row selector. */
 export const LOG_ROW_NUMBER_COL = 'RowNumbering';
 
+/** All data-cell ids for one column across the given row order. */
+export function cellsForColumn(rows: Array<{ logId: number }>, columnId: string): string[] {
+  return rows.map((row) => makeCellId(row.logId, columnId));
+}
+
+/** All data-cell ids across an inclusive column range in the given column order. */
+export function cellsForColumnRange(
+  rows: Array<{ logId: number }>,
+  columnIds: string[],
+  startColumnId: string,
+  endColumnId: string
+): string[] {
+  const c1 = columnIds.indexOf(startColumnId);
+  const c2 = columnIds.indexOf(endColumnId);
+  if (c1 < 0 || c2 < 0 || rows.length === 0) return [];
+  const cMin = Math.min(c1, c2);
+  const cMax = Math.max(c1, c2);
+  const out: string[] = [];
+  for (let c = cMin; c <= cMax; c++) {
+    out.push(...cellsForColumn(rows, columnIds[c]!));
+  }
+  return out;
+}
+
 /** All data-cell ids for one row (never includes the row-index column). */
 export function cellsForRow(logId: string | number, columnIds: string[]): string[] {
   return columnIds.map((columnId) => makeCellId(logId, columnId));

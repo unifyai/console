@@ -62,6 +62,8 @@ import {
   cellsInBoundingRange,
   cellsForRow,
   cellsForRowRange,
+  cellsForColumn,
+  cellsForColumnRange,
   isAllRowSelected,
   selectionPerimeterBoxShadow,
   LOG_ROW_NUMBER_COL,
@@ -107,6 +109,37 @@ function formatInlineDraft(value: unknown): string {
   }
 }
 
+function LogGridColumnResizer({
+  columnId,
+  isResizing,
+  resizeHandler,
+  tableHeight,
+}: {
+  columnId: string;
+  isResizing: boolean;
+  resizeHandler: (event: unknown) => void;
+  tableHeight: number;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        resizeHandler(e);
+      }}
+      onTouchStart={resizeHandler}
+      className={cn(
+        'absolute right-0 top-0 z-10 w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary',
+        isResizing && 'bg-primary'
+      )}
+      style={{ height: tableHeight > 0 ? tableHeight : '100%' }}
+      data-testid={`log-grid-resize-${sanitizeId(columnId)}`}
+    />
+  );
+}
+
 function SortableHeader({
   header,
   children,
@@ -114,6 +147,7 @@ function SortableHeader({
   className,
   style,
   reorderEnabled,
+  onMouseDown,
 }: {
   header: Header<LogGridRow, unknown>;
   children: React.ReactNode;
@@ -121,6 +155,7 @@ function SortableHeader({
   className?: string;
   style?: React.CSSProperties;
   reorderEnabled: boolean;
+  onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: header.column.id,
@@ -133,6 +168,7 @@ function SortableHeader({
       className={className}
       style={style}
       reorderEnabled={reorderEnabled}
+      onMouseDown={onMouseDown}
       dragAttributes={
         reorderEnabled ? (attributes as React.HTMLAttributes<HTMLElement>) : undefined
       }
@@ -254,6 +290,8 @@ export function LogGrid({
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement>(null);
+  const tableRef = React.useRef<HTMLTableElement>(null);
+  const [tableHeight, setTableHeight] = React.useState(0);
   const loadMoreSentinelRef = React.useRef<HTMLDivElement>(null);
 
   const groupingIds = React.useMemo(() => parseGrouping(view.grouping), [view.grouping]);
@@ -474,15 +512,16 @@ export function LogGrid({
             const busy = expandingId === group.id;
             return (
               <div
-                className="flex min-w-0 items-center gap-1"
+                className="-ml-1 flex min-w-0 items-center gap-1"
                 style={{ paddingLeft: row.depth * 12 }}
                 data-testid={`log-grid-group-cell-${group.id}`}
               >
                 <button
                   type="button"
                   className={cn(
-                    // Size to the icon so its left edge matches leaf values (a fixed
-                    // w-5 centered target insets the glyph).
+                    // Size to the icon so its left edge can align with leaf values (a fixed
+                    // w-5 centered target insets the glyph). -ml-1 above offsets Lucide's
+                    // viewBox padding so the chevron optically matches the numbers below.
                     'inline-flex shrink-0 items-center justify-center text-muted-foreground transition-transform',
                     row.getIsExpanded() && 'rotate-90'
                   )}
@@ -564,7 +603,19 @@ export function LogGrid({
     defaultColumn: { size: 160, minSize: 80, maxSize: 640 },
   });
 
-  const loadedCount = displayRows.length;
+  React.useEffect(() => {
+    const el = tableRef.current;
+    if (!el) return;
+    const update = () => setTableHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [displayRows, visible, isLoading]);
+
+  const selectableRows = React.useMemo(() => flattenLeafRows(displayRows), [displayRows]);
+  // Status shows leaf logs loaded in the tree, not top-level group headers.
+  const loadedCount = selectableRows.length;
 
   const commonSearch = view.commonFilter.includes('§')
     ? view.commonFilter.split('§').slice(1).join('§')
@@ -620,8 +671,6 @@ export function LogGrid({
       window.removeEventListener('blur', endSelect);
     };
   }, []);
-
-  const selectableRows = React.useMemo(() => flattenLeafRows(displayRows), [displayRows]);
 
   const selectCell = React.useCallback(
     (cellId: string, modifiers: { additive?: boolean; range?: boolean } = {}) => {
@@ -692,6 +741,43 @@ export function LogGrid({
 
       const allSelected = rowCells.every((id) => selection.selectedCells.includes(id));
       selection.onSelectCells(allSelected ? [] : rowCells);
+      selectionAnchorRef.current = anchorCell;
+    },
+    [selection, selectableRows, visible]
+  );
+
+  /** Whole-column selection via the column header (Interfaces header click). */
+  const selectColumn = React.useCallback(
+    (columnId: string, modifiers: { additive?: boolean; range?: boolean } = {}) => {
+      if (selection?.mode !== 'cell') return;
+      if (!visible.includes(columnId)) return;
+      const colCells = cellsForColumn(selectableRows, columnId);
+      if (!colCells.length) return;
+      const anchorCell = colCells[0]!;
+
+      if (modifiers.range) {
+        const anchor = selectionAnchorRef.current ?? selection.selectedCells[0] ?? anchorCell;
+        if (!selectionAnchorRef.current) selectionAnchorRef.current = anchor;
+        const startColumnId = parseCellId(anchor).columnId;
+        selection.onSelectCells(
+          cellsForColumnRange(selectableRows, visible, startColumnId, columnId)
+        );
+        return;
+      }
+
+      if (modifiers.additive) {
+        const allSelected = colCells.every((id) => selection.selectedCells.includes(id));
+        selection.onSelectCells(
+          allSelected
+            ? selection.selectedCells.filter((id) => !colCells.includes(id))
+            : [...selection.selectedCells, ...colCells]
+        );
+        selectionAnchorRef.current = anchorCell;
+        return;
+      }
+
+      const allSelected = colCells.every((id) => selection.selectedCells.includes(id));
+      selection.onSelectCells(allSelected ? [] : colCells);
       selectionAnchorRef.current = anchorCell;
     },
     [selection, selectableRows, visible]
@@ -1126,7 +1212,10 @@ export function LogGrid({
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext items={visible} strategy={horizontalListSortingStrategy}>
-                        <Table style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
+                        <Table
+                          ref={tableRef}
+                          style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}
+                        >
                           <colgroup>
                             {table.getVisibleLeafColumns().map((column) => (
                               <col key={column.id} style={{ width: column.getSize() }} />
@@ -1168,22 +1257,34 @@ export function LogGrid({
                                       key={header.id}
                                       header={header}
                                       reorderEnabled={reorderEnabled}
-                                      className="sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground"
+                                      className={cn(
+                                        'sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground',
+                                        selection?.mode === 'cell' && 'cursor-pointer select-none'
+                                      )}
                                       style={{
                                         width: header.getSize(),
                                       }}
+                                      onMouseDown={(e) => {
+                                        if (selection?.mode !== 'cell') return;
+                                        if (e.button !== 0) return;
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        rootRef.current?.focus({ preventScroll: true });
+                                        if (e.shiftKey) {
+                                          selectColumn(header.column.id, { range: true });
+                                        } else if (e.metaKey || e.ctrlKey) {
+                                          selectColumn(header.column.id, { additive: true });
+                                        } else {
+                                          selectColumn(header.column.id);
+                                        }
+                                      }}
                                       resizer={
                                         header.column.getCanResize() ? (
-                                          <div
-                                            role="separator"
-                                            aria-orientation="vertical"
-                                            onMouseDown={header.getResizeHandler()}
-                                            onTouchStart={header.getResizeHandler()}
-                                            className={cn(
-                                              'absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary',
-                                              header.column.getIsResizing() && 'bg-primary'
-                                            )}
-                                            data-testid={`log-grid-resize-${sanitizeId(header.column.id)}`}
+                                          <LogGridColumnResizer
+                                            columnId={header.column.id}
+                                            isResizing={header.column.getIsResizing()}
+                                            resizeHandler={header.getResizeHandler()}
+                                            tableHeight={tableHeight}
                                           />
                                         ) : null
                                       }

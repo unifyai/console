@@ -3,6 +3,26 @@
 import React from 'react';
 import Tooltip from '@/components/Common/Misc/Tooltip';
 import { useTheme } from 'next-themes';
+import { compressRowLabels } from '@/lib/logs/rowLabels';
+
+/**
+ * Optional map from the numeric indices passed to RowBadge → UI labels.
+ * Used by LogGrid's cell view pane so nests show `1.11` style labels instead of
+ * flat 1-based indices. Null keeps Interfaces table behavior (index + 1).
+ */
+const RowDisplayLabelsContext = React.createContext<string[] | null>(null);
+
+export function RowDisplayLabelsProvider({
+  labels,
+  children,
+}: {
+  labels: string[];
+  children: React.ReactNode;
+}) {
+  return (
+    <RowDisplayLabelsContext.Provider value={labels}>{children}</RowDisplayLabelsContext.Provider>
+  );
+}
 
 /**
  * Compresses row indices like [0,1,2,4,5,7] to a string "1-3,5-6,8".
@@ -14,8 +34,6 @@ import { useTheme } from 'next-themes';
  * @returns Formatted string of 1-based row numbers for display
  */
 function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return '';
-
   if (!rows.length) return '';
 
   // ALWAYS convert from 0-based to 1-based for display
@@ -74,7 +92,8 @@ export interface RowBadgeProps {
  * RowBadge:
  *  - Renders "[3, 5-7, 9]" or "[2]" etc. with a color-coded background.
  *  - On hover, shows a tooltip according to "mode" and row count.
- *  - IMPORTANT: Expects 0-based indices as input and converts to 1-based for display.
+ *  - IMPORTANT: Expects 0-based indices as input and converts to 1-based for display,
+ *    unless a RowDisplayLabelsProvider supplies explicit labels (e.g. nested `1.11`).
  */
 export default function RowBadge({
   rowNumbers,
@@ -84,13 +103,23 @@ export default function RowBadge({
 }: RowBadgeProps) {
   const { theme, resolvedTheme } = useTheme();
   const isDarkMode = theme === 'dark' || resolvedTheme === 'dark';
+  const displayLabels = React.useContext(RowDisplayLabelsContext);
 
   if (!rowNumbers.length) {
     return null;
   }
 
-  const label = compressRowNumbers(rowNumbers);
-  const count = rowNumbers.length;
+  const mappedLabels =
+    displayLabels != null
+      ? rowNumbers
+          .map((idx) => displayLabels[idx])
+          .filter((label): label is string => typeof label === 'string' && label.length > 0)
+      : null;
+  const label =
+    mappedLabels && mappedLabels.length > 0
+      ? compressRowLabels(mappedLabels)
+      : compressRowNumbers(rowNumbers);
+  const count = mappedLabels && mappedLabels.length > 0 ? mappedLabels.length : rowNumbers.length;
   const rowOrRows = count === 1 ? 'row' : 'rows';
 
   // Decide color classes

@@ -8,6 +8,7 @@ import MarkdownRenderer from './Markdown/MarkdownRenderer';
 import { useEditablePrimitive } from '@/hooks/Interfaces/useEditablePrimitive';
 import { showErrorToast } from '@/components/Common/Toasts/notifications';
 import Tooltip from '@/components/Common/Misc/Tooltip';
+import { useAccordionDensity } from '@/components/UI/accordion';
 
 /**
  * parseTimestamp: Convert a string to a Date. If invalid, returns null.
@@ -180,6 +181,8 @@ export default function TimestampView({
   nested = false,
   isImmutable,
 }: LogComparisonProps & { nested?: boolean; isImmutable?: boolean }) {
+  const density = useAccordionDensity();
+
   // If editable, group and render editable fields
   if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
     const timestampGroups = groupAllTimestampsByValue(
@@ -245,6 +248,30 @@ export default function TimestampView({
   // --- Read-only rendering logic ---
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = typeof value === 'string' ? value : String(value || '');
+
+  // Compact LogGrid nest leaves: skip Interfaces bordered card chrome.
+  if (density === 'compact' && nested) {
+    if (singleMode) {
+      return (
+        <pre className="m-0 whitespace-pre-wrap break-words p-0 font-mono text-[11px] leading-snug text-foreground">
+          {formatHumanReadable(baseStr)}
+        </pre>
+      );
+    }
+    const groups = groupAllTimestampsByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
+    return (
+      <div className="space-y-0.5">
+        {groups.map((group) => (
+          <div key={group.rows.join(',')} className="flex min-w-0 items-start gap-1">
+            <RowBadge rowNumbers={group.rows} mode="none" />
+            <pre className="m-0 min-w-0 flex-1 whitespace-pre-wrap break-words p-0 font-mono text-[11px] leading-snug text-foreground">
+              {formatHumanReadable(group.tsVal)}
+            </pre>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const baseVer = version || '';
   const compVers = comparableVersions;

@@ -9,6 +9,7 @@ import MarkdownRenderer from './Markdown/MarkdownRenderer';
 import RowBadge from './RowBadge';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import Tooltip from '@/components/Common/Misc/Tooltip';
+import { useAccordionDensity } from '@/components/UI/accordion';
 
 /**
  * Convert unknown value => string.
@@ -210,8 +211,36 @@ export default function StringView({
   nested = false,
   isImmutable,
 }: LogComparisonProps & { nested?: boolean; isImmutable?: boolean }) {
+  const density = useAccordionDensity();
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
+
+  // Compact LogGrid nest leaves: skip Interfaces bordered card chrome.
+  if (density === 'compact' && nested && !cellEditMode) {
+    if (singleMode) {
+      const text = toStringSafe(value);
+      return (
+        <pre className="m-0 whitespace-pre-wrap break-words p-0 font-mono text-[11px] leading-snug text-foreground">
+          {text || '—'}
+        </pre>
+      );
+    }
+    // Multi-compare compact: one tight row per distinct value.
+    const baseStr = toStringSafe(value);
+    const groups = groupAllByValue(baseStr, comparables, baseLogIndex, comparisonLogsIndex);
+    return (
+      <div className="space-y-0.5">
+        {groups.map((group) => (
+          <div key={group.rows.join(',')} className="flex min-w-0 items-start gap-1">
+            <RowBadge rowNumbers={group.rows} mode="none" />
+            <pre className="m-0 min-w-0 flex-1 whitespace-pre-wrap break-words p-0 font-mono text-[11px] leading-snug text-foreground">
+              {group.text || '—'}
+            </pre>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   // If editable => render editable fields
   if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
