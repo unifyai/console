@@ -5,6 +5,7 @@ import {
   Check,
   Columns3,
   FilePlus2,
+  FunctionSquare,
   MoreHorizontal,
   PanelRight,
   Plus,
@@ -69,7 +70,7 @@ function currentRefreshMode(view: LogViewState): LogRefreshMode {
 }
 
 /**
- * LogGrid chrome: search, columns, refresh/freeze/live, derived +, optional delete,
+ * LogGrid chrome: search, columns, refresh/freeze/live, add (+), optional delete,
  * loaded-row status, and a right-pinned cell view-pane toggle.
  */
 export function LogGridToolbar({
@@ -94,6 +95,7 @@ export function LogGridToolbar({
   const viewToggleEnabled = hasSelection && !!onToggleViewPanel;
   const viewToggleLabel = hasSelection ? 'Show cell view' : 'Select cells to open the view pane';
   const showViewToggle = !!onToggleViewPanel && !(viewPanelOpen && hasSelection);
+  const showAddMenu = !!(onAddRow || onAddColumn || onAddDerivedColumn);
 
   const mode = currentRefreshMode(view);
   const groupingActive = parseGrouping(view.grouping).length > 0;
@@ -220,73 +222,62 @@ export function LogGridToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {onAddRow && (
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 shrink-0 p-0"
+      {showAddMenu && (
+        <DropdownMenu modal={false}>
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 shrink-0 p-0"
+                    aria-label="Add"
+                    data-testid="log-grid-add-menu"
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Add</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <DropdownMenuContent align="start" className="min-w-[12rem]">
+            {onAddRow && (
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
                 onClick={onAddRow}
-                aria-label="Add row"
                 data-testid="log-grid-add-row"
               >
                 <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>Add row</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {onAddColumn && (
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 shrink-0 p-0"
+                Add row
+              </DropdownMenuItem>
+            )}
+            {onAddColumn && (
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
                 onClick={onAddColumn}
-                aria-label="Add column"
                 data-testid="log-grid-add-column"
               >
                 <Columns3 className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>Add column</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {onAddDerivedColumn && (
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 shrink-0 p-0"
+                Add column
+              </DropdownMenuItem>
+            )}
+            {onAddDerivedColumn && (
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
                 onClick={onAddDerivedColumn}
-                aria-label="Add derived column"
                 data-testid="log-grid-derived-open"
               >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>Add derived column</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                <FunctionSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                Add derived column
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
 
       {onImportRows && (

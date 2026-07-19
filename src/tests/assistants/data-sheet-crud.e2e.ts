@@ -99,12 +99,14 @@ test('adds a column and a row, edits a cell, renames a column, deletes a row', a
 }) => {
   await openSheetCrud(page);
 
+  await page.getByTestId('log-grid-add-menu').click();
   await page.getByTestId('log-grid-add-column').click();
   await expect(page.getByTestId('data-add-column-dialog')).toBeVisible();
   await page.getByTestId('data-add-column-dialog-input').fill('notes');
   await page.getByTestId('data-add-column-dialog-submit').click();
   await expect(page.getByTestId('log-grid-header-notes')).toBeVisible({ timeout: 20_000 });
 
+  await page.getByTestId('log-grid-add-menu').click();
   await page.getByTestId('log-grid-add-row').click();
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of 2/, {
     timeout: 20_000,

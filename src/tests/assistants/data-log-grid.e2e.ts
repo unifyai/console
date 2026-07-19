@@ -499,6 +499,7 @@ test('creates a derived column from the toolbar and pins it on the far right', a
   // Console field keys are camelCased at the Orchestra boundary.
   const derivedColumnId = derivedKey.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
+  await page.getByTestId('log-grid-add-menu').click();
   await page.getByTestId('log-grid-derived-open').click();
   await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('log-grid-derived-name').fill(derivedKey);
@@ -760,17 +761,17 @@ test('refresh mode menu supports Refresh, Freeze, and Live', async ({ authedPage
   const modeBtn = page.getByTestId('log-grid-refresh-mode');
   await expect(modeBtn).toBeVisible({ timeout: 30_000 });
 
-  // Sit between Columns and derived +
+  // Sit between Columns and Add (+)
   const columnsBtn = page.getByTestId('log-grid-columns');
-  const derivedBtn = page.getByTestId('log-grid-derived-open');
+  const addMenuBtn = page.getByTestId('log-grid-add-menu');
   const modeBox = await modeBtn.boundingBox();
   const columnsBox = await columnsBtn.boundingBox();
-  const derivedBox = await derivedBtn.boundingBox();
+  const addMenuBox = await addMenuBtn.boundingBox();
   expect(modeBox).toBeTruthy();
   expect(columnsBox).toBeTruthy();
-  expect(derivedBox).toBeTruthy();
+  expect(addMenuBox).toBeTruthy();
   expect(modeBox!.x).toBeGreaterThan(columnsBox!.x);
-  expect(modeBox!.x).toBeLessThan(derivedBox!.x);
+  expect(modeBox!.x).toBeLessThan(addMenuBox!.x);
 
   await modeBtn.click();
   // Refresh is an action, not a selectable mode — no checkmark while idle
