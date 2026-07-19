@@ -213,7 +213,17 @@ export function CallProvider({
   React.useEffect(() => {
     if (call.isConnected) setResumableCall(null);
   }, [call.isConnected]);
-  const dismissResumableCall = React.useCallback(() => setResumableCall(null), []);
+  const dismissResumableCall = React.useCallback(() => {
+    // Dismissing means "I'm not coming back": leave the session server-side,
+    // otherwise the stale joined participant re-surfaces this banner on
+    // every reload (and, as the last joined human, keeps a zombie session
+    // alive forever).
+    const callId = resumableCall?.callId;
+    setResumableCall(null);
+    if (callId) {
+      fetch(`/api/calls/${encodeURIComponent(callId)}/leave`, { method: 'POST' }).catch(() => {});
+    }
+  }, [resumableCall?.callId]);
 
   const humansById = React.useMemo<Record<string, OrgCallHumanInfo>>(() => {
     const byId: Record<string, OrgCallHumanInfo> = {};
