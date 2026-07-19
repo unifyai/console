@@ -718,11 +718,16 @@ export function LogCellViewPanel({
   );
 
   const isEmpty = cells.length === 0;
+  const rowCount = new Set(cells.map((cell) => cell.logId)).size;
+  const columnCount = columns.length;
+  const cellCount = cells.length;
   const title = isEmpty
     ? 'Selection'
-    : cells.length === 1
-      ? 'Selected cell'
-      : `${cells.length} cells`;
+    : [
+        `${rowCount} ${rowCount === 1 ? 'row' : 'rows'}`,
+        `${columnCount} ${columnCount === 1 ? 'column' : 'columns'}`,
+        `${cellCount} ${cellCount === 1 ? 'cell' : 'cells'}`,
+      ].join(' · ');
 
   return (
     <div

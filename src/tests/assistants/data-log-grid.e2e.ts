@@ -336,14 +336,19 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
   // People has name/city/score → 3 column headings, one value each
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '1 row · 3 columns · 3 cells'
+  );
   await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(3);
 
   await thirdIndex.click({ modifiers: ['Shift'] });
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('9 cells', {
-    timeout: 15_000,
-  });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '3 rows · 3 columns · 9 cells',
+    {
+      timeout: 15_000,
+    }
+  );
   // Still 3 columns; distinct values across 3 rows → 9 value entries
   await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(9);
@@ -369,9 +374,12 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   await adaRow.locator('[data-testid^="log-grid-row-index-"]').click();
   await alanRow.locator('[data-testid^="log-grid-row-index-"]').click({ modifiers: ['Control'] });
   await openCellViewPanel(page);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
-    timeout: 15_000,
-  });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '2 rows · 3 columns · 6 cells',
+    {
+      timeout: 15_000,
+    }
+  );
   // 3 columns; city collapses to 1 value entry → 5 total
   await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(5);
@@ -390,18 +398,24 @@ test('column header selects whole columns with click, ctrl, and shift', async ({
   // 5 seeded people → clicking city selects 5 cells in that column.
   await page.getByTestId('log-grid-header-city').click();
   await openCellViewPanel(page);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('5 cells', {
-    timeout: 15_000,
-  });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '5 rows · 1 column · 5 cells',
+    {
+      timeout: 15_000,
+    }
+  );
   await expect(page.getByTestId('log-cell-view-column')).toHaveCount(1);
   // Ada+Alan share London → 4 distinct city values across 5 rows.
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(4);
 
   // Shift from city → score selects both columns (10 cells).
   await page.getByTestId('log-grid-header-score').click({ modifiers: ['Shift'] });
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('10 cells', {
-    timeout: 15_000,
-  });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '5 rows · 2 columns · 10 cells',
+    {
+      timeout: 15_000,
+    }
+  );
   await expect(page.getByTestId('log-cell-view-column')).toHaveCount(2);
 
   await page.keyboard.press('Escape');
@@ -411,9 +425,12 @@ test('column header selects whole columns with click, ctrl, and shift', async ({
   await page.getByTestId('log-grid-header-name').click();
   await page.getByTestId('log-grid-header-city').click({ modifiers: ['Control'] });
   await openCellViewPanel(page);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('10 cells', {
-    timeout: 15_000,
-  });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '5 rows · 2 columns · 10 cells',
+    {
+      timeout: 15_000,
+    }
+  );
   await expect(page.getByTestId('log-cell-view-column')).toHaveCount(2);
 });
 
@@ -429,12 +446,15 @@ test('shift-click selects the bounding cell region', async ({ authedPage: page }
   await startCell.click();
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('Selected cell');
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('1 row · 1 column · 1 cell');
 
   await endCell.click({ modifiers: ['Shift'] });
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
-    timeout: 15_000,
-  });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '3 rows · 2 columns · 6 cells',
+    {
+      timeout: 15_000,
+    }
+  );
 });
 
 test('click-drag selects the bounding cell region', async ({ authedPage: page }) => {
@@ -461,9 +481,12 @@ test('click-drag selects the bounding cell region', async ({ authedPage: page })
 
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
   await openCellViewPanel(page);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('6 cells', {
-    timeout: 15_000,
-  });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '3 rows · 2 columns · 6 cells',
+    {
+      timeout: 15_000,
+    }
+  );
 });
 
 test('creates a derived column from the toolbar and pins it on the far right', async ({
@@ -700,7 +723,9 @@ test('row index column stays pinned while scrolling horizontally', async ({ auth
   // Row selection via the pinned index still works after scroll.
   await firstIndex.click();
   await openCellViewPanel(page);
-  await expect(page.getByTestId('log-cell-view-panel')).toContainText('3 cells');
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText(
+    '1 row · 3 columns · 3 cells'
+  );
 });
 
 test('refresh mode menu supports Refresh, Freeze, and Live', async ({ authedPage: page }) => {
