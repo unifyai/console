@@ -613,7 +613,9 @@ export function LogGrid({
     return () => observer.disconnect();
   }, [displayRows, visible, isLoading]);
 
-  const loadedCount = displayRows.length;
+  const selectableRows = React.useMemo(() => flattenLeafRows(displayRows), [displayRows]);
+  // Status shows leaf logs loaded in the tree, not top-level group headers.
+  const loadedCount = selectableRows.length;
 
   const commonSearch = view.commonFilter.includes('§')
     ? view.commonFilter.split('§').slice(1).join('§')
@@ -669,8 +671,6 @@ export function LogGrid({
       window.removeEventListener('blur', endSelect);
     };
   }, []);
-
-  const selectableRows = React.useMemo(() => flattenLeafRows(displayRows), [displayRows]);
 
   const selectCell = React.useCallback(
     (cellId: string, modifiers: { additive?: boolean; range?: boolean } = {}) => {
