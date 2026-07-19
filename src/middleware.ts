@@ -11,11 +11,35 @@ const ENFORCE_ACCOUNT_ONBOARDING = false;
 const CONSOLE_SESSION_MARKER_COOKIE = 'unify_console_session';
 const CONSOLE_SESSION_MARKER_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
-function consoleSessionMarkerDomain(hostname: string): string | undefined {
+function requestPublicHostname(request: NextRequestWithAuth): string {
+  const forwarded = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '';
+  const fromHeaders = forwarded.split(',')[0]?.trim().toLowerCase().replace(/:\d+$/, '');
+  if (fromHeaders) return fromHeaders;
+
+  const nextAuthUrl = process.env.NEXTAUTH_URL?.trim();
+  if (nextAuthUrl) {
+    try {
+      return new URL(nextAuthUrl).hostname.toLowerCase();
+    } catch {
+      // Fall through to nextUrl.
+    }
+  }
+
+  return request.nextUrl.hostname.toLowerCase();
+}
+
+function consoleSessionMarkerDomain(request: NextRequestWithAuth): string | undefined {
   const configured = process.env.LANDING_AUTH_COOKIE_DOMAIN?.trim();
   if (configured) return configured;
-  if (hostname === 'console.unify.ai') return '.unify.ai';
-  if (hostname.endsWith('.unify.ai')) return '.unify.ai';
+
+  const hostname = requestPublicHostname(request);
+  // Shared with apex marketing hosts (unify.ai / staging.unify.ai). Prefer
+  // Host / X-Forwarded-Host over nextUrl.hostname — behind Cloud Run the latter
+  // is often the *.run.app service host, which would leave the marker host-only
+  // on console and invisible to the landing page.
+  if (hostname === 'console.unify.ai' || hostname.endsWith('.unify.ai')) {
+    return '.unify.ai';
+  }
   return undefined;
 }
 
@@ -24,7 +48,7 @@ function withConsoleSessionMarker(
   request: NextRequestWithAuth,
   authenticated: boolean
 ) {
-  const domain = consoleSessionMarkerDomain(request.nextUrl.hostname);
+  const domain = consoleSessionMarkerDomain(request);
   response.cookies.set(CONSOLE_SESSION_MARKER_COOKIE, authenticated ? '1' : '', {
     ...(domain ? { domain } : {}),
     maxAge: authenticated ? CONSOLE_SESSION_MARKER_MAX_AGE_SECONDS : 0,
