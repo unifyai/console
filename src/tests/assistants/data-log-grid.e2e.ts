@@ -84,9 +84,10 @@ async function openPeopleTable(page: Page) {
 
   const peopleNode = page.getByTestId('data-table-node').filter({ hasText: 'People' });
   if (!(await peopleNode.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    const demoFolder = page.getByTestId('data-folder-node').filter({ hasText: /^Demo$/ });
-    await expect(demoFolder).toBeVisible({ timeout: 15_000 });
-    await demoFolder.click();
+    const expandDemo = page.getByRole('button', { name: 'Expand Demo' });
+    if (await expandDemo.isVisible().catch(() => false)) {
+      await expandDemo.click();
+    }
   }
   await expect(peopleNode).toBeVisible({ timeout: 15_000 });
   await peopleNode.click();

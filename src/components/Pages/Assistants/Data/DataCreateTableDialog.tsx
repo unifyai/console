@@ -85,7 +85,7 @@ export function DataCreateTableDialog({
             }}
           />
           <p className="text-caption text-muted-foreground">
-            Use / to nest under this folder (e.g. Inbound/Leads).
+            To create a new folder, include it in the name (e.g. Inbound/Leads).
           </p>
         </div>
         <DialogFooter>

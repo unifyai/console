@@ -62,9 +62,9 @@ test.afterAll(async () => {
   await cleanupUser(user.id);
 });
 
-async function ensureDataFolderBrowser(page: Page) {
-  const browser = page.getByTestId('data-folder-browser');
-  if (await browser.isVisible().catch(() => false)) return;
+async function ensureDataTree(page: Page) {
+  const tree = page.getByTestId('data-tree');
+  if (await tree.isVisible().catch(() => false)) return;
   const expand = page.getByTestId('data-sidebar-expand');
   if (await expand.isVisible().catch(() => false)) {
     await expand.click();
@@ -73,7 +73,7 @@ async function ensureDataFolderBrowser(page: Page) {
   if (await back.isVisible().catch(() => false)) {
     await back.click();
   }
-  await expect(browser).toBeVisible({ timeout: 30_000 });
+  await expect(tree).toBeVisible({ timeout: 30_000 });
 }
 
 async function openSheetCrud(page: Page) {
@@ -82,9 +82,9 @@ async function openSheetCrud(page: Page) {
   await selectAssistantInList(page, assistant.agentId);
   await openRailSection(page, 'data');
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 60_000 });
-  await ensureDataFolderBrowser(page);
+  await ensureDataTree(page);
   await page.getByTestId('data-refresh').click();
-  await ensureDataFolderBrowser(page);
+  await ensureDataTree(page);
   const node = page.getByTestId('data-table-node').filter({ hasText: 'SheetCrud' });
   await expect(node).toBeVisible({ timeout: 30_000 });
   await node.click();

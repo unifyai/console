@@ -17,7 +17,6 @@ import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 import {
   buildDataBrowserTree,
-  childrenAtCwd,
   collectSelectableContexts,
   contextMatchesDataBrowserMode,
   isStateManagerMode,
@@ -38,7 +37,7 @@ import { TeamAvatar } from '../OrgChat/TeamAvatar';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
-import { DataFolderBrowser } from './DataFolderBrowser';
+import { DataFolderAddMenu } from './DataFolderAddMenu';
 import { DataCreateTableDialog } from './DataCreateTableDialog';
 import { DataImportDialog } from './DataImportDialog';
 import type { DataField, DataRow } from './dataTypes';
@@ -68,20 +67,39 @@ interface DataScopeSection {
   browserRoot: DataBrowserRoot;
 }
 
+function formatCreateLocationLabel(
+  section: DataScopeSection | undefined,
+  segments: string[],
+  includeSectionLabel: boolean
+): string {
+  const parts: string[] = [];
+  if (includeSectionLabel && section) parts.push(section.label);
+  parts.push('Data');
+  parts.push(...segments);
+  return parts.join(' / ');
+}
+
 function TreeRow({
   node,
   depth,
+  segments,
+  sectionKey,
   expanded,
   toggle,
   selected,
   onSelect,
+  onAddInFolder,
 }: {
   node: DataTreeNode;
   depth: number;
+  /** Path segments under Data/ to this node (includes `node.name`). */
+  segments: string[];
+  sectionKey: string;
   expanded: Set<string>;
   toggle: (key: string) => void;
   selected: string | null;
   onSelect: (context: string) => void;
+  onAddInFolder?: (target: DataCwd) => { onNewTable: () => void; onUpload: () => void };
 }) {
   const children = Array.from(node.children.values()).sort((a, b) => a.name.localeCompare(b.name));
   const hasChildren = children.length > 0;
@@ -89,6 +107,8 @@ function TreeRow({
   const key = node.context ?? `${node.name}${depth}`;
   const isOpen = expanded.has(key);
   const isSelected = canSelect && selected === node.context;
+  const isFolderNest = hasChildren;
+  const addActions = isFolderNest && onAddInFolder ? onAddInFolder({ sectionKey, segments }) : null;
 
   return (
     <div>
@@ -120,16 +140,25 @@ function TreeRow({
         <button
           type="button"
           onClick={() => (canSelect ? onSelect(node.context!) : toggle(key))}
-          data-testid={canSelect ? 'data-table-node' : 'data-folder-node'}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-2 text-left"
+          data-testid={canSelect && !hasChildren ? 'data-table-node' : 'data-folder-node'}
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left"
         >
-          {canSelect ? (
+          {canSelect && !hasChildren ? (
             <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           ) : (
             <Folder className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           )}
           <span className="truncate">{node.name}</span>
         </button>
+        {addActions ? (
+          <DataFolderAddMenu
+            folderLabel={node.name}
+            pathKey={segments.join('/')}
+            onNewTable={addActions.onNewTable}
+            onUpload={addActions.onUpload}
+            className="mr-1"
+          />
+        ) : null}
       </div>
       {hasChildren && isOpen && (
         <div>
@@ -138,10 +167,13 @@ function TreeRow({
               key={child.name}
               node={child}
               depth={depth + 1}
+              segments={[...segments, child.name]}
+              sectionKey={sectionKey}
               expanded={expanded}
               toggle={toggle}
               selected={selected}
               onSelect={onSelect}
+              onAddInFolder={onAddInFolder}
             />
           ))}
         </div>
@@ -154,10 +186,12 @@ function ScopeSectionHeader({
   section,
   imageUrl,
   isOrgWideSharing,
+  addActions,
 }: {
   section: DataScopeSection;
   imageUrl?: string | null;
   isOrgWideSharing?: boolean;
+  addActions?: { onNewTable: () => void; onUpload: () => void } | null;
 }) {
   return (
     <div
@@ -188,6 +222,14 @@ function ScopeSectionHeader({
           </p>
         ) : null}
       </div>
+      {addActions ? (
+        <DataFolderAddMenu
+          folderLabel={`${section.label} Data`}
+          pathKey=""
+          onNewTable={addActions.onNewTable}
+          onUpload={addActions.onUpload}
+        />
+      ) : null}
     </div>
   );
 }
@@ -263,18 +305,6 @@ function buildDataScopeSections(
   return roots(assistant).map(toSection);
 }
 
-function cwdLocationLabel(
-  section: DataScopeSection | undefined,
-  segments: string[],
-  includeSectionLabel: boolean
-): string {
-  const parts: string[] = [];
-  if (includeSectionLabel && section) parts.push(section.label);
-  parts.push('Data');
-  parts.push(...segments);
-  return parts.join(' / ');
-}
-
 export function DataPane({
   assistant,
   ownerId,
@@ -309,7 +339,7 @@ export function DataPane({
 
   const [mode, setMode] = React.useState<DataBrowserMode>('data');
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
-  const [cwd, setCwd] = React.useState<DataCwd | null>(null);
+  const [createTarget, setCreateTarget] = React.useState<DataCwd | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<DataRow | null>(null);
@@ -324,18 +354,9 @@ export function DataPane({
   const isStackedLayout = useMatchesBelow('tablet');
   const [mobileShowTree, setMobileShowTree] = React.useState(true);
 
-  // Initialize / reset cwd when sections or mode change.
   React.useEffect(() => {
-    if (mode !== 'data') {
-      setCwd(null);
-      return;
-    }
-    if (scopeSections.length === 1) {
-      setCwd({ sectionKey: scopeSections[0]!.key, segments: [] });
-    } else {
-      setCwd(null);
-    }
-  }, [mode, scopeSections]);
+    if (mode !== 'data') setCreateTarget(null);
+  }, [mode]);
 
   React.useEffect(() => {
     if (!isStackedLayout) return;
@@ -451,6 +472,24 @@ export function DataPane({
     });
   }, []);
 
+  const openCreateInFolder = React.useCallback((target: DataCwd) => {
+    setCreateTarget(target);
+    setCreateOpen(true);
+  }, []);
+
+  const openUploadInFolder = React.useCallback((target: DataCwd) => {
+    setCreateTarget(target);
+    setImportOpen(true);
+  }, []);
+
+  const addActionsForFolder = React.useCallback(
+    (target: DataCwd) => ({
+      onNewTable: () => openCreateInFolder(target),
+      onUpload: () => openUploadInFolder(target),
+    }),
+    [openCreateInFolder, openUploadInFolder]
+  );
+
   const saveField = React.useCallback(
     async (updates: Record<string, unknown>) => {
       if (!selected || !selectedRow?.logId) throw new Error('This row cannot be updated.');
@@ -504,31 +543,6 @@ export function DataPane({
     setRefreshToken((t) => t + 1);
   }, [selected, selectedRow]);
 
-  const cwdSection = (() => {
-    const effective =
-      cwd ??
-      (mode === 'data' && scopeSections.length === 1
-        ? { sectionKey: scopeSections[0]!.key, segments: [] as string[] }
-        : null);
-    if (!effective) return undefined;
-    return scopeSections.find((s) => s.key === effective.sectionKey);
-  })();
-  const effectiveCwd: DataCwd | null =
-    cwd ??
-    (mode === 'data' && scopeSections.length === 1
-      ? { sectionKey: scopeSections[0]!.key, segments: [] }
-      : null);
-  const cwdTree = cwdSection
-    ? sectionTrees.find(({ section }) => section.key === cwdSection.key)?.tree
-    : undefined;
-  const folderChildren =
-    mode === 'data' && effectiveCwd && cwdTree ? childrenAtCwd(cwdTree, effectiveCwd.segments) : [];
-  const locationLabel = cwdLocationLabel(
-    cwdSection,
-    effectiveCwd?.segments ?? [],
-    showScopeHeaders || scopeSections.length > 1
-  );
-
   const onTableCreated = React.useCallback(
     async (context: string) => {
       await refreshTree();
@@ -555,79 +569,87 @@ export function DataPane({
         : `No ${mode} table found for this assistant.`;
   const sidebarTitle = mode === 'data' ? 'Data' : mode;
 
-  const smTreeList = (
-    <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-      {topNodeCount === 0 ? (
-        <p className="text-caption px-2 py-6 text-center">{emptyTreeCopy}</p>
-      ) : (
-        sectionTrees.map(({ section, tree: sectionTree }) => {
-          const nodes = Array.from(sectionTree.children.values()).sort((a, b) =>
-            a.name.localeCompare(b.name)
-          );
-          if (nodes.length === 0 && !showScopeHeaders) return null;
-          return (
-            <div key={section.key} className={showScopeHeaders ? 'mb-2' : undefined}>
-              {showScopeHeaders ? (
-                <ScopeSectionHeader
-                  section={section}
-                  imageUrl={scope.options.find((option) => option.key === section.key)?.imageUrl}
-                  isOrgWideSharing={
-                    scope.options.find((option) => option.key === section.key)?.isOrgWideSharing
-                  }
-                />
-              ) : null}
-              {nodes.length === 0 ? (
-                <p className="text-caption px-2 py-1.5 text-muted-foreground">No tables</p>
-              ) : (
-                nodes.map((node) => (
-                  <TreeRow
-                    key={`${section.key}:${node.name}`}
-                    node={node}
-                    depth={0}
-                    expanded={expanded}
-                    toggle={toggle}
-                    selected={selected}
-                    onSelect={selectLeaf}
-                  />
-                ))
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
+  const createTargetSection = createTarget
+    ? scopeSections.find((s) => s.key === createTarget.sectionKey)
+    : undefined;
+  const createLocationLabel = formatCreateLocationLabel(
+    createTargetSection,
+    createTarget?.segments ?? [],
+    showScopeHeaders || scopeSections.length > 1
   );
 
-  const dataFolderList =
-    mode === 'data' ? (
-      <DataFolderBrowser
-        cwd={effectiveCwd}
-        sections={scopeSections.map((section) => ({
-          key: section.key,
-          kind: section.kind,
-          label: section.label,
-          imageUrl: scope.options.find((option) => option.key === section.key)?.imageUrl,
-          isOrgWideSharing: scope.options.find((option) => option.key === section.key)
-            ?.isOrgWideSharing,
-        }))}
-        showSectionPicker={showScopeHeaders || scopeSections.length > 1}
-        entries={folderChildren}
-        selectedContext={selected}
-        locationLabel={locationLabel}
-        onEnterSection={(sectionKey) => setCwd({ sectionKey, segments: [] })}
-        onBackToScopes={() => setCwd(null)}
-        onNavigate={(segments) => {
-          const base = effectiveCwd;
-          if (!base) return;
-          setCwd({ sectionKey: base.sectionKey, segments });
-        }}
-        onOpenTable={selectLeaf}
-        onNewTable={() => setCreateOpen(true)}
-        onUpload={() => setImportOpen(true)}
-      />
-    ) : (
-      smTreeList
-    );
+  const treeList = (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden" data-testid="data-folder-browser">
+      {mode === 'data' && !showScopeHeaders && scopeSections[0] ? (
+        <div
+          className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-2 py-1.5"
+          data-testid="data-tree-root-chrome"
+        >
+          <p className="text-caption truncate text-muted-foreground">Data</p>
+          <DataFolderAddMenu
+            folderLabel="Data"
+            pathKey=""
+            {...addActionsForFolder({ sectionKey: scopeSections[0].key, segments: [] })}
+          />
+        </div>
+      ) : null}
+      <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
+        {topNodeCount === 0 && mode !== 'data' ? (
+          <p className="text-caption px-2 py-6 text-center">{emptyTreeCopy}</p>
+        ) : topNodeCount === 0 && mode === 'data' ? (
+          <div className="px-2 py-6 text-center" data-testid="data-folder-empty">
+            <p className="text-caption text-muted-foreground">No tables yet.</p>
+            <p className="text-caption mt-1 text-muted-foreground">
+              Use + to create a table or upload a file.
+            </p>
+          </div>
+        ) : (
+          sectionTrees.map(({ section, tree: sectionTree }) => {
+            const nodes = Array.from(sectionTree.children.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
+            if (nodes.length === 0 && !showScopeHeaders && mode !== 'data') return null;
+            const sectionAdd =
+              mode === 'data' && showScopeHeaders
+                ? addActionsForFolder({ sectionKey: section.key, segments: [] })
+                : null;
+            return (
+              <div key={section.key} className={showScopeHeaders ? 'mb-2' : undefined}>
+                {showScopeHeaders ? (
+                  <ScopeSectionHeader
+                    section={section}
+                    imageUrl={scope.options.find((option) => option.key === section.key)?.imageUrl}
+                    isOrgWideSharing={
+                      scope.options.find((option) => option.key === section.key)?.isOrgWideSharing
+                    }
+                    addActions={sectionAdd}
+                  />
+                ) : null}
+                {nodes.length === 0 ? (
+                  <p className="text-caption px-2 py-1.5 text-muted-foreground">No tables</p>
+                ) : (
+                  nodes.map((node) => (
+                    <TreeRow
+                      key={`${section.key}:${node.name}`}
+                      node={node}
+                      depth={0}
+                      segments={[node.name]}
+                      sectionKey={section.key}
+                      expanded={expanded}
+                      toggle={toggle}
+                      selected={selected}
+                      onSelect={selectLeaf}
+                      onAddInFolder={mode === 'data' ? addActionsForFolder : undefined}
+                    />
+                  ))
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 
   const leafTable = selected ? (
     <DataLeafTable
@@ -707,14 +729,13 @@ export function DataPane({
     </div>
   );
 
-  // Data mode always offers the folder browser (create/upload live there).
   const showTreeSidebar =
     (mode === 'data' || showDirectory) &&
     (isStackedLayout ? mobileShowTree || !selected : sidebarOpen);
   const showLeafPane =
     !isStackedLayout || !(mode === 'data' || showDirectory) || (selected && !mobileShowTree);
 
-  const canCreateInFolder = mode === 'data' && !!effectiveCwd && !!cwdSection;
+  const canCreateInFolder = mode === 'data' && !!createTarget && !!createTargetSection;
 
   return (
     <div
@@ -750,7 +771,7 @@ export function DataPane({
                   isStackedLayout ? 'min-w-0 flex-1' : 'w-72 shrink-0 border-r border-border'
                 )}
               >
-                {dataFolderList}
+                {treeList}
               </div>
             )}
 
@@ -788,23 +809,23 @@ export function DataPane({
             }}
           />
 
-          {canCreateInFolder && cwdSection && effectiveCwd ? (
+          {canCreateInFolder && createTargetSection && createTarget ? (
             <>
               <DataCreateTableDialog
                 open={createOpen}
                 onOpenChange={setCreateOpen}
-                scopePrefix={cwdSection.browserRoot.prefix}
-                cwdSegments={effectiveCwd.segments}
-                locationLabel={locationLabel}
+                scopePrefix={createTargetSection.browserRoot.prefix}
+                cwdSegments={createTarget.segments}
+                locationLabel={createLocationLabel}
                 onCreated={(context) => void onTableCreated(context)}
               />
               <DataImportDialog
                 open={importOpen}
                 onOpenChange={setImportOpen}
                 mode="create"
-                scopePrefix={cwdSection.browserRoot.prefix}
-                cwdSegments={effectiveCwd.segments}
-                locationLabel={locationLabel}
+                scopePrefix={createTargetSection.browserRoot.prefix}
+                cwdSegments={createTarget.segments}
+                locationLabel={createLocationLabel}
                 onComplete={(context) => void onTableCreated(context)}
               />
             </>
@@ -830,9 +851,7 @@ export function DataPane({
                 <Database className="h-3 w-3" aria-hidden="true" />
                 {selected && leafMeta
                   ? `${displayPathForContext(selected)} · ${leafMeta.count} ${leafMeta.count === 1 ? 'row' : 'rows'}`
-                  : mode === 'data' && effectiveCwd
-                    ? locationLabel
-                    : `${topNodeCount} ${topNodeCount === 1 ? 'group' : 'groups'} at this level`}
+                  : `${topNodeCount} ${topNodeCount === 1 ? 'group' : 'groups'} at this level`}
               </span>
             }
           />

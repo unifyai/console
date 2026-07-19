@@ -147,55 +147,11 @@ export function treeNeedsFolderView(root: DataTreeNode): boolean {
   return false;
 }
 
-/** Current folder under a scope section's `Data/` root. */
+/** Target nest under a scope section's `Data/` root for create / upload. */
 export interface DataCwd {
   sectionKey: string;
   /** Path segments under `Data/` (empty = Data root). */
   segments: string[];
-}
-
-/** Child of a folder: either a nested folder or a selectable table leaf. */
-export interface DataFolderChild {
-  name: string;
-  kind: 'folder' | 'table';
-  /** Full Orchestra context when `kind === 'table'`. */
-  context: string | null;
-}
-
-/** Walk `segments` from the tree root; returns null if the path does not exist. */
-export function nodeAtPath(root: DataTreeNode, segments: string[]): DataTreeNode | null {
-  let cursor: DataTreeNode = root;
-  for (const segment of segments) {
-    const next = cursor.children.get(segment);
-    if (!next) return null;
-    cursor = next;
-  }
-  return cursor;
-}
-
-/** Immediate children of `cwd` under a section tree (folders + tables). */
-export function childrenAtCwd(root: DataTreeNode, segments: string[]): DataFolderChild[] {
-  const node = nodeAtPath(root, segments);
-  if (!node) return [];
-  return Array.from(node.children.values())
-    .map((child) => {
-      const isFolder = child.children.size > 0;
-      const isTable = child.context != null;
-      // Prefer folder navigation when the node has both children and a context
-      // (parent path that is also a logged context — rare). Tables without
-      // children are leaves.
-      if (isFolder) {
-        return { name: child.name, kind: 'folder' as const, context: child.context };
-      }
-      if (isTable) {
-        return { name: child.name, kind: 'table' as const, context: child.context };
-      }
-      return { name: child.name, kind: 'folder' as const, context: null };
-    })
-    .sort((a, b) => {
-      if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
 }
 
 /**

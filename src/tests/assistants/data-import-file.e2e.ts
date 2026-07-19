@@ -58,7 +58,8 @@ test('uploads a CSV to create a table with rows', async ({ authedPage: page }) =
   await openRailSection(page, 'data');
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 30_000 });
 
-  await page.getByTestId('data-upload').click();
+  await page.getByTestId('data-tree-root-chrome').getByTestId('data-folder-add').click();
+  await page.getByTestId('data-folder-add-upload').click();
   await expect(page.getByTestId('data-import-dialog')).toBeVisible();
   await page.getByTestId('data-import-input').setInputFiles(csvPath);
   await expect(page.getByTestId('data-import-summary')).toContainText('2 rows', {
