@@ -74,9 +74,11 @@ import {
 } from '@/lib/logs';
 import { sanitizeId, visibleColumnIds } from '@/lib/logs/columns';
 import {
+  appendGridGroupSubRows,
   fetchGroupChildren,
   flattenLeafRows,
   getNewGridCellIds,
+  groupHasMoreChildren,
   parseGrouping,
   updateGridGroupSubRows,
   withGroupedColumnsFirst,
@@ -414,9 +416,42 @@ export function LogGrid({
         sorting: sortingStateToOrchestra(view.sorting),
         fields,
         pageSize: view.limit || 50,
+        offset: 0,
       });
       suppressNextFlashRef.current = true;
       setTreeRows((prev) => updateGridGroupSubRows(prev, group.id, result.rows, result.count));
+      setExpandingId(null);
+    },
+    [context, fields, filter, projectName, view.grouping, view.limit, view.sorting]
+  );
+
+  const loadMoreInGroup = React.useCallback(
+    async (row: LogGridRow) => {
+      if (!row.group || !groupHasMoreChildren(row)) return;
+      const group = row.group;
+      setExpandingId(group.id);
+      const parentId = group.id.includes('>') ? group.id.split('>').slice(0, -1).join('>') : null;
+      const offset = row.subRows?.length ?? 0;
+      const result = await fetchGroupChildren({
+        projectName,
+        context,
+        grouping: view.grouping,
+        groupingColumnId: group.groupingColumnId,
+        groupingValue: String(group.groupingValue),
+        parentId,
+        filter,
+        sorting: sortingStateToOrchestra(view.sorting),
+        fields,
+        pageSize: view.limit || 50,
+        offset,
+      });
+      suppressNextFlashRef.current = true;
+      setTreeRows((prev) =>
+        appendGridGroupSubRows(prev, group.id, result.rows, {
+          totalChildren: result.count || group.totalChildren,
+          exhausted: result.rows.length === 0,
+        })
+      );
       setExpandingId(null);
     },
     [context, fields, filter, projectName, view.grouping, view.limit, view.sorting]
@@ -1304,43 +1339,107 @@ export function LogGrid({
                           <TableBody
                             className={selection?.mode === 'cell' ? 'select-none' : undefined}
                           >
-                            {table.getRowModel().rows.map((row) => {
+                            {table.getRowModel().rows.map((row, rowIndex) => {
                               const isGroup = !!row.original.group;
                               const isSelected =
                                 !isGroup && selectedRowId === String(row.original.logId);
-                              return (
-                                <TableRow
-                                  key={row.id}
-                                  data-testid={
-                                    isGroup
-                                      ? `log-grid-group-row-${row.original.group!.id}`
-                                      : `log-grid-row-${row.original.logId}`
-                                  }
-                                  className={cn(
-                                    'hover:bg-transparent',
-                                    !isGroup && 'cursor-pointer',
-                                    isSelected && 'bg-muted/60'
-                                  )}
-                                  onClick={() => {
-                                    if (isGroup) return;
-                                    if (selection?.mode === 'row') {
-                                      selection.onSelectRow(String(row.original.logId));
+                              const flatRows = table.getRowModel().rows;
+                              const groupLoadMoreTargets: LogGridRow[] = [];
+                              let ancestor = row.getParentRow();
+                              while (ancestor) {
+                                if (
+                                  ancestor.original.group &&
+                                  groupHasMoreChildren(ancestor.original)
+                                ) {
+                                  const next = flatRows[rowIndex + 1];
+                                  let nextUnderAncestor = false;
+                                  if (next) {
+                                    let walk = next.getParentRow();
+                                    while (walk) {
+                                      if (walk.id === ancestor.id) {
+                                        nextUnderAncestor = true;
+                                        break;
+                                      }
+                                      walk = walk.getParentRow();
                                     }
-                                    onRowActivate?.(row.original);
-                                  }}
-                                >
-                                  {row.getVisibleCells().map((cell) => {
-                                    if (cell.column.id === LOG_ROW_NUMBER_COL) {
-                                      if (isGroup) {
+                                  }
+                                  if (!nextUnderAncestor) {
+                                    groupLoadMoreTargets.push(ancestor.original);
+                                  }
+                                }
+                                ancestor = ancestor.getParentRow();
+                              }
+                              return (
+                                <React.Fragment key={row.id}>
+                                  <TableRow
+                                    data-testid={
+                                      isGroup
+                                        ? `log-grid-group-row-${row.original.group!.id}`
+                                        : `log-grid-row-${row.original.logId}`
+                                    }
+                                    className={cn(
+                                      'hover:bg-transparent',
+                                      !isGroup && 'cursor-pointer',
+                                      isSelected && 'bg-muted/60'
+                                    )}
+                                    onClick={() => {
+                                      if (isGroup) return;
+                                      if (selection?.mode === 'row') {
+                                        selection.onSelectRow(String(row.original.logId));
+                                      }
+                                      onRowActivate?.(row.original);
+                                    }}
+                                  >
+                                    {row.getVisibleCells().map((cell) => {
+                                      if (cell.column.id === LOG_ROW_NUMBER_COL) {
+                                        if (isGroup) {
+                                          return (
+                                            <TableCell
+                                              key={cell.id}
+                                              data-testid={`log-grid-group-index-${row.original.group!.id}`}
+                                              style={{
+                                                width: cell.column.getSize(),
+                                                minWidth: cell.column.getSize(),
+                                              }}
+                                              className="sticky left-0 z-20 select-none border-r border-border bg-background px-1 py-1.5 text-center font-mono text-[12px] text-muted-foreground"
+                                            >
+                                              {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext()
+                                              )}
+                                            </TableCell>
+                                          );
+                                        }
+                                        const logId = String(row.original.logId);
+                                        const rowFullySelected =
+                                          !!selectedCells &&
+                                          isAllRowSelected(selectedCells, logId, visible);
+                                        const firstColSelected =
+                                          !!selectedCells &&
+                                          visible.length > 0 &&
+                                          selectedCells.has(makeCellId(logId, visible[0]!));
                                         return (
                                           <TableCell
                                             key={cell.id}
-                                            data-testid={`log-grid-group-index-${row.original.group!.id}`}
+                                            data-testid={`log-grid-row-index-${logId}`}
                                             style={{
                                               width: cell.column.getSize(),
                                               minWidth: cell.column.getSize(),
                                             }}
-                                            className="sticky left-0 z-20 select-none border-r border-border bg-background px-1 py-1.5 text-center font-mono text-[12px] text-muted-foreground"
+                                            className={cn(
+                                              'sticky left-0 z-20 cursor-pointer select-none border-r px-1 py-1.5 text-center font-mono text-[12px]',
+                                              firstColSelected
+                                                ? 'border-transparent'
+                                                : 'border-border',
+                                              rowFullySelected
+                                                ? 'bg-primary text-primary-foreground'
+                                                : // Opaque hover: muted/primary-tint mix with transparent.
+                                                  'bg-background text-muted-foreground hover:bg-card-2'
+                                            )}
+                                            onMouseDown={(e) => onRowIndexPointerDown(e, logId)}
+                                            onMouseEnter={(e) => onRowIndexPointerEnter(e, logId)}
+                                            onMouseUp={onCellPointerUp}
+                                            onDoubleClick={() => onRowIndexDoubleClick(logId)}
                                           >
                                             {flexRender(
                                               cell.column.columnDef.cell,
@@ -1349,36 +1448,64 @@ export function LogGrid({
                                           </TableCell>
                                         );
                                       }
-                                      const logId = String(row.original.logId);
-                                      const rowFullySelected =
+                                      if (isGroup) {
+                                        return (
+                                          <TableCell
+                                            key={cell.id}
+                                            style={{ width: cell.column.getSize() }}
+                                            className="max-w-[220px] border-r border-border px-2.5 py-1.5 font-mono text-[12px]"
+                                          >
+                                            {flexRender(
+                                              cell.column.columnDef.cell,
+                                              cell.getContext()
+                                            )}
+                                          </TableCell>
+                                        );
+                                      }
+                                      const cellId = makeCellId(row.original.logId, cell.column.id);
+                                      const cellSelected = selectedCells?.has(cellId);
+                                      const isNewCell = newCells.has(cellId);
+                                      const colIdx = visible.indexOf(cell.column.id);
+                                      const rightNeighborSelected =
                                         !!selectedCells &&
-                                        isAllRowSelected(selectedCells, logId, visible);
-                                      const firstColSelected =
-                                        !!selectedCells &&
-                                        visible.length > 0 &&
-                                        selectedCells.has(makeCellId(logId, visible[0]!));
+                                        colIdx >= 0 &&
+                                        colIdx < visible.length - 1 &&
+                                        selectedCells.has(
+                                          makeCellId(row.original.logId, visible[colIdx + 1]!)
+                                        );
                                       return (
                                         <TableCell
                                           key={cell.id}
-                                          data-testid={`log-grid-row-index-${logId}`}
+                                          data-testid={`log-grid-cell-${cellId}`}
                                           style={{
                                             width: cell.column.getSize(),
-                                            minWidth: cell.column.getSize(),
+                                            boxShadow:
+                                              cellSelected && selectedCells
+                                                ? selectionPerimeterBoxShadow(
+                                                    selectedCells,
+                                                    row.original.logId,
+                                                    cell.column.id,
+                                                    visible,
+                                                    selectableRows
+                                                  )
+                                                : undefined,
                                           }}
                                           className={cn(
-                                            'sticky left-0 z-20 cursor-pointer select-none border-r px-1 py-1.5 text-center font-mono text-[12px]',
-                                            firstColSelected
-                                              ? 'border-transparent'
+                                            'max-w-[220px] truncate border-r px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
+                                            selection?.mode === 'cell' && 'select-none',
+                                            cellSelected
+                                              ? rightNeighborSelected
+                                                ? 'border-transparent bg-primary-tint-10'
+                                                : 'border-primary bg-primary-tint-10'
                                               : 'border-border',
-                                            rowFullySelected
-                                              ? 'bg-primary text-primary-foreground'
-                                              : // Opaque hover: muted/primary-tint mix with transparent.
-                                                'bg-background text-muted-foreground hover:bg-card-2'
+                                            isNewCell && 'animate-fade-accent'
                                           )}
-                                          onMouseDown={(e) => onRowIndexPointerDown(e, logId)}
-                                          onMouseEnter={(e) => onRowIndexPointerEnter(e, logId)}
+                                          onMouseDown={(e) => onCellPointerDown(e, cellId)}
+                                          onMouseEnter={(e) => onCellPointerEnter(e, cellId)}
                                           onMouseUp={onCellPointerUp}
-                                          onDoubleClick={() => onRowIndexDoubleClick(logId)}
+                                          onDoubleClick={(e) =>
+                                            onCellDoubleClick(cellId, e.currentTarget)
+                                          }
                                         >
                                           {flexRender(
                                             cell.column.columnDef.cell,
@@ -1386,71 +1513,42 @@ export function LogGrid({
                                           )}
                                         </TableCell>
                                       );
-                                    }
-                                    if (isGroup) {
-                                      return (
-                                        <TableCell
-                                          key={cell.id}
-                                          style={{ width: cell.column.getSize() }}
-                                          className="max-w-[220px] border-r border-border px-2.5 py-1.5 font-mono text-[12px]"
-                                        >
-                                          {flexRender(
-                                            cell.column.columnDef.cell,
-                                            cell.getContext()
-                                          )}
-                                        </TableCell>
-                                      );
-                                    }
-                                    const cellId = makeCellId(row.original.logId, cell.column.id);
-                                    const cellSelected = selectedCells?.has(cellId);
-                                    const isNewCell = newCells.has(cellId);
-                                    const colIdx = visible.indexOf(cell.column.id);
-                                    const rightNeighborSelected =
-                                      !!selectedCells &&
-                                      colIdx >= 0 &&
-                                      colIdx < visible.length - 1 &&
-                                      selectedCells.has(
-                                        makeCellId(row.original.logId, visible[colIdx + 1]!)
-                                      );
+                                    })}
+                                  </TableRow>
+                                  {groupLoadMoreTargets.map((target) => {
+                                    const group = target.group!;
+                                    const busy = expandingId === group.id;
                                     return (
-                                      <TableCell
-                                        key={cell.id}
-                                        data-testid={`log-grid-cell-${cellId}`}
-                                        style={{
-                                          width: cell.column.getSize(),
-                                          boxShadow:
-                                            cellSelected && selectedCells
-                                              ? selectionPerimeterBoxShadow(
-                                                  selectedCells,
-                                                  row.original.logId,
-                                                  cell.column.id,
-                                                  visible,
-                                                  selectableRows
-                                                )
-                                              : undefined,
-                                        }}
-                                        className={cn(
-                                          'max-w-[220px] truncate border-r px-2.5 py-1.5 font-mono text-[12px] hover:bg-muted',
-                                          selection?.mode === 'cell' && 'select-none',
-                                          cellSelected
-                                            ? rightNeighborSelected
-                                              ? 'border-transparent bg-primary-tint-10'
-                                              : 'border-primary bg-primary-tint-10'
-                                            : 'border-border',
-                                          isNewCell && 'animate-fade-accent'
-                                        )}
-                                        onMouseDown={(e) => onCellPointerDown(e, cellId)}
-                                        onMouseEnter={(e) => onCellPointerEnter(e, cellId)}
-                                        onMouseUp={onCellPointerUp}
-                                        onDoubleClick={(e) =>
-                                          onCellDoubleClick(cellId, e.currentTarget)
-                                        }
+                                      <TableRow
+                                        key={`load-more-${group.id}`}
+                                        data-testid={`log-grid-group-load-more-${group.id}`}
                                       >
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                      </TableCell>
+                                        <TableCell
+                                          colSpan={visible.length + 1}
+                                          className="border-r border-border px-2.5 py-2"
+                                          style={{
+                                            paddingLeft: (row.depth + 1) * 12,
+                                          }}
+                                        >
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-caption h-7"
+                                            disabled={busy}
+                                            data-testid={`log-grid-group-load-more-btn-${sanitizeId(group.fieldKey)}`}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void loadMoreInGroup(target);
+                                            }}
+                                          >
+                                            {busy ? 'Loading more…' : 'Load more'}
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
                                     );
                                   })}
-                                </TableRow>
+                                </React.Fragment>
                               );
                             })}
                           </TableBody>

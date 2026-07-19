@@ -6,6 +6,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
+import { DEFAULT_LOG_PAGE_SIZE } from '@/lib/logs/types';
 import {
   createTestUser,
   cleanupUser,
@@ -836,4 +837,67 @@ test('resizes a column by dragging the boundary in the body', async ({ authedPag
   await expect
     .poll(async () => (await header.boundingBox())?.width ?? 0)
     .toBeGreaterThan((before?.width ?? 0) + 40);
+});
+
+test('expanded group load more fetches remaining children from Orchestra', async ({
+  authedPage: page,
+}) => {
+  // Page size is DEFAULT_LOG_PAGE_SIZE (50). Seed an oversized city into the
+  // existing People table so Group by uses the same path as other specs.
+  const bulkTotal = DEFAULT_LOG_PAGE_SIZE + 5;
+  const bulkCity = 'Bulkville';
+  const bulkRows = Array.from({ length: bulkTotal }, (_, i) => ({
+    name: `Bulk Person ${i}`,
+    city: bulkCity,
+    score: 50 + (i % 40),
+    team_id: 9,
+  }));
+  const seedRes = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: contextPath,
+        entries: bulkRows,
+      }),
+    },
+    user.apiKey
+  );
+  expect(seedRes.ok).toBe(true);
+
+  await openPeopleTable(page);
+
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await expect(cityHeader).toBeVisible({ timeout: 30_000 });
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+
+  await expect(page.getByText(bulkCity).first()).toBeVisible({ timeout: 30_000 });
+  // Bulkville sorts first among city groups — expand it.
+  await page.getByTestId('log-grid-group-expand-city').first().click();
+
+  await expect(logGridRows(page)).toHaveCount(DEFAULT_LOG_PAGE_SIZE, { timeout: 30_000 });
+  const loadMore = page.getByTestId('log-grid-group-load-more-btn-city');
+  await expect(loadMore).toBeVisible({ timeout: 15_000 });
+  await loadMore.click();
+
+  await expect(logGridRows(page)).toHaveCount(bulkTotal, { timeout: 30_000 });
+  await expect(loadMore).toHaveCount(0);
+
+  const params = new URLSearchParams({
+    project_name: 'Assistants',
+    context: contextPath,
+    filter: `city == "${bulkCity}"`,
+    limit: '1',
+  });
+  const listRes = await orchestraFetch(
+    `/v0/logs?${params.toString()}`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(listRes.ok).toBe(true);
+  const listJson = (await listRes.json()) as { count?: number };
+  expect(listJson.count).toBe(bulkTotal);
 });

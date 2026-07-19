@@ -229,7 +229,7 @@ export function LogGridColumnHeader({
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid={`log-grid-group-by-${fieldKey}`}
-            onClick={() => {
+            onSelect={() => {
               onGroupingChange(toggleGroupingColumn(grouping, columnKey));
               setMenuOpen(false);
             }}
