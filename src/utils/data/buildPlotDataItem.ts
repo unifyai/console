@@ -83,7 +83,7 @@ export async function fetchBarChartAggregatedData(
   yAxis: string, // Field to aggregate
   metric: string, // mean, sum, count, etc.
   groupBy: string | null, // Optional secondary grouping (color groups)
-  filterExpr: string | null,
+  filter: string | null,
   signal?: AbortSignal
 ): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean }> {
   const params = new URLSearchParams();
@@ -96,7 +96,7 @@ export async function fetchBarChartAggregatedData(
   const groupByFields = groupBy ? [sanitizeKey(groupBy), sanitizeKey(xAxis)] : [sanitizeKey(xAxis)];
   params.set('groupBy', JSON.stringify(groupByFields));
 
-  if (filterExpr) params.set('filterExpr', filterExpr);
+  if (filter) params.set('filter', filter);
 
   const response = await fetch(`/api/logs/${metric}?${params.toString()}`, {
     method: 'GET',
@@ -314,7 +314,7 @@ async function fetchPlotDataByTable(
     // Get params from pre-built plotArguments
     const context = plotArguments[tableName].context;
     const columnContext = plotArguments[tableName].columnContext;
-    const filterExpression = plotArguments[tableName].filterExpr;
+    const filteression = plotArguments[tableName].filter;
     const metric = plotArguments[tableName].metric;
     const grouping = plotArguments[tableName].grouping;
     const limit = plotArguments[tableName].limit;
@@ -364,7 +364,7 @@ async function fetchPlotDataByTable(
             yAxis,
             metricName,
             group || null,
-            filterExpression,
+            filteression,
             signal
           );
 
@@ -407,7 +407,7 @@ async function fetchPlotDataByTable(
         params.set('projectName', projectId);
         if (context) params.set('context', context);
         params.set('key', JSON.stringify(keyNames));
-        if (filterExpression) params.set('filterExpr', filterExpression);
+        if (filteression) params.set('filter', filteression);
         params.set('groupBy', JSON.stringify(groupFields));
 
         const metricsRes = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
@@ -434,7 +434,7 @@ async function fetchPlotDataByTable(
         params.set('projectName', projectId);
         if (context) params.set('context', context);
         if (columnContext) params.set('columnContext', columnContext);
-        if (filterExpression) params.set('filterExpr', filterExpression);
+        if (filteression) params.set('filter', filteression);
         if (subset) params.set('fromFields', subset);
         if (limit) params.set('limit', limit);
         if (randomize) params.set('randomize', randomize);

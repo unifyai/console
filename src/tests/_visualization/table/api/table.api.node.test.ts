@@ -385,7 +385,7 @@ describe('Table View API - Project Config', () => {
     expect(response.status).toBe(201);
   });
 
-  it('accepts filterExpr parameter', async () => {
+  it('accepts filter parameter', async () => {
     if (!TABLE_TEST_API_REAL) {
       server.use(...createTestScenario('success'));
     }
@@ -393,7 +393,7 @@ describe('Table View API - Project Config', () => {
     const response = await createTableViewRequest({
       projectConfig: {
         projectName: TEST_PROJECT,
-        filterExpr: "status == 'active'",
+        filter: "status == 'active'",
       },
     });
 

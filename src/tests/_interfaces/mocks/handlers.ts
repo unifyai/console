@@ -64,8 +64,7 @@ export const interfaceHandlers = [
     const limit = parseInt(url.searchParams.get('limit') || '20', 10);
 
     // Parse filter/sort expressions
-    const filterExpression =
-      url.searchParams.get('filter') || url.searchParams.get('filter_expression');
+    const filteression = url.searchParams.get('filter') || url.searchParams.get('filteression');
     const sortingExpression =
       url.searchParams.get('sorting') || url.searchParams.get('sorting_expression');
 
@@ -80,8 +79,8 @@ export const interfaceHandlers = [
     let totalCount = allLogs.count;
 
     // Apply filtering
-    if (filterExpression) {
-      logsArray = filterMockLogs(logsArray, filterExpression);
+    if (filteression) {
+      logsArray = filterMockLogs(logsArray, filteression);
       totalCount = logsArray.length;
     }
 

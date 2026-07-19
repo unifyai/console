@@ -78,7 +78,7 @@ interface ContextState<T = BrainRow> {
   fields: string[];
   hasMore: boolean;
   sorting: SortState | null;
-  filterExpr: string | null;
+  filter: string | null;
   searchQuery: string;
   lastLoadedAt: number | null;
 }
@@ -109,7 +109,7 @@ function emptyState<T = BrainRow>(): ContextState<T> {
     fields: [],
     hasMore: false,
     sorting: null,
-    filterExpr: null,
+    filter: null,
     searchQuery: '',
     lastLoadedAt: null,
   };
@@ -118,7 +118,7 @@ function emptyState<T = BrainRow>(): ContextState<T> {
 function contextStateFromData<T = BrainRow>(
   data: BrainContextData<T>,
   sorting: SortState | null,
-  filterExpr: string | null,
+  filter: string | null,
   searchQuery: string,
   loadedAt = Date.now()
 ): ContextState<T> {
@@ -126,7 +126,7 @@ function contextStateFromData<T = BrainRow>(
     ...data,
     hasMore: data.hasMore ?? data.rows.length < data.count,
     sorting,
-    filterExpr,
+    filter,
     searchQuery,
     lastLoadedAt: loadedAt,
   };
@@ -143,7 +143,7 @@ type ContextStates = {
 interface FetchForKeyOptions {
   sorting?: SortState | null;
   offset?: number;
-  filterExpr?: string | null;
+  filter?: string | null;
   searchQuery?: string;
   root?: ContextRoot | null;
 }
@@ -154,7 +154,7 @@ function fetchForKey(
   {
     sorting = null,
     offset = 0,
-    filterExpr = null,
+    filter = null,
     searchQuery = '',
     root = null,
   }: FetchForKeyOptions = {}
@@ -166,7 +166,7 @@ function fetchForKey(
       root,
       limit: KNOWLEDGE_PAGE_SIZE,
       offset,
-      filterExpr: filterExpr ?? KNOWLEDGE_DEFAULT_FILTER_EXPR,
+      filter: filter ?? KNOWLEDGE_DEFAULT_FILTER_EXPR,
       sorting: sortingParam,
     });
   }
@@ -181,7 +181,7 @@ function fetchForKey(
     limit: PAGE_SIZE,
     offset,
     sorting: sortingParam,
-    filterExpr: filterExpr ?? undefined,
+    filter: filter ?? undefined,
     root,
   });
 }
@@ -349,7 +349,7 @@ export function useBrainData({
       try {
         const data = await fetchForKey(assistant, activeContext, {
           sorting: newSorting,
-          filterExpr: current.filterExpr,
+          filter: current.filter,
           searchQuery: current.searchQuery,
           root,
         });
@@ -360,7 +360,7 @@ export function useBrainData({
           [activeContext]: contextStateFromData(
             data as any,
             newSorting,
-            current.filterExpr,
+            current.filter,
             current.searchQuery
           ),
         }));
@@ -383,12 +383,12 @@ export function useBrainData({
 
       const trimmed = query.trim();
       const currentFields = states[activeContext].fields;
-      const filterExpr = trimmed ? buildSearchFilterExpr(trimmed, currentFields) : null;
+      const filter = trimmed ? buildSearchFilterExpr(trimmed, currentFields) : null;
       const currentSorting = states[activeContext].sorting;
 
       setStates((prev) => ({
         ...prev,
-        [activeContext]: { ...prev[activeContext], rows: [], filterExpr, searchQuery: trimmed },
+        [activeContext]: { ...prev[activeContext], rows: [], filter, searchQuery: trimmed },
       }));
       const requestId = nextRequestId();
       setIsLoading(true);
@@ -396,7 +396,7 @@ export function useBrainData({
       try {
         const data = await fetchForKey(assistant, activeContext, {
           sorting: currentSorting,
-          filterExpr,
+          filter,
           searchQuery: trimmed,
           root,
         });
@@ -404,7 +404,7 @@ export function useBrainData({
 
         setStates((prev) => ({
           ...prev,
-          [activeContext]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
+          [activeContext]: contextStateFromData(data as any, currentSorting, filter, trimmed),
         }));
       } catch (err) {
         if (isLatestRequest(requestId)) {
@@ -426,7 +426,7 @@ export function useBrainData({
 
     setStates((prev) => ({
       ...prev,
-      [activeContext]: { ...prev[activeContext], rows: [], filterExpr: null, searchQuery: '' },
+      [activeContext]: { ...prev[activeContext], rows: [], filter: null, searchQuery: '' },
     }));
     const requestId = nextRequestId();
     setIsLoading(true);
@@ -481,10 +481,10 @@ export function useBrainData({
       const data = await fetchForKey(assistant, activeContext, {
         sorting: current.sorting,
         offset,
-        filterExpr:
+        filter:
           activeContext === 'Knowledge'
-            ? (current.filterExpr ?? KNOWLEDGE_DEFAULT_FILTER_EXPR)
-            : current.filterExpr,
+            ? (current.filter ?? KNOWLEDGE_DEFAULT_FILTER_EXPR)
+            : current.filter,
         searchQuery: current.searchQuery,
         root,
       });

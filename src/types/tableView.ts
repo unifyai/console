@@ -67,7 +67,7 @@ export interface ProjectConfig {
   /** Context filter */
   context?: string;
   /** Filter expression */
-  filterExpr?: string;
+  filter?: string;
   /** Fields to include */
   fromFields?: string;
   /** Fields to exclude */

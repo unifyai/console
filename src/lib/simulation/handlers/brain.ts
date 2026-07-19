@@ -28,18 +28,18 @@ function resolveTablePath(ctx: SimContext): string | null {
   return projectName && projectName !== 'Assistants' ? context : tablePathFromContext(context);
 }
 
-function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null): IdRow[] {
-  if (!filterExpr) return rows;
+function applyFilter(rows: IdRow[], tablePath: string, filter: string | null): IdRow[] {
+  if (!filter) return rows;
 
   // Tasks "running" gate — return rows whose run state is still active.
-  if (/state\s*==\s*["']running["']/.test(filterExpr)) {
+  if (/state\s*==\s*["']running["']/.test(filter)) {
     return rows.filter((r) => r.entries.state === 'running');
   }
 
   // Chat contact resolution by email → return the matching contact (or the
   // first non-system contact) so the optimistic chat flow has a contactId.
-  if (tablePath.endsWith('Contacts') && /email_address\s*==/.test(filterExpr)) {
-    const email = firstQuotedLiteral(filterExpr);
+  if (tablePath.endsWith('Contacts') && /email_address\s*==/.test(filter)) {
+    const email = firstQuotedLiteral(filter);
     const match = rows.find((r) => r.entries.emailAddress === email);
     if (match) return [match];
     const firstHuman = rows.find((r) => r.entries.isSystem !== true);
@@ -48,7 +48,7 @@ function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null
 
   // Transcript medium gating (chat history vs call pills).
   if (tablePath.endsWith('Transcripts')) {
-    const mediumMatch = filterExpr.match(/medium\s*==\s*["']([^"']+)["']/);
+    const mediumMatch = filter.match(/medium\s*==\s*["']([^"']+)["']/);
     if (mediumMatch) {
       const medium = mediumMatch[1];
       return rows.filter((r) => r.entries.medium === medium);
@@ -58,7 +58,7 @@ function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null
   // Knowledge claim lifecycle filter (default active ledger view).
   // Applied as a narrowing step so it composes with other filter clauses.
   if (tablePath === 'Knowledge' || tablePath.endsWith('/Knowledge')) {
-    const statusMatch = filterExpr.match(/status\s*==\s*["']([^"']+)["']/);
+    const statusMatch = filter.match(/status\s*==\s*["']([^"']+)["']/);
     if (statusMatch) {
       const status = statusMatch[1];
       rows = rows.filter((r) => String(r.entries.status ?? 'active') === status);
@@ -66,7 +66,7 @@ function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null
   }
 
   // Actions: roots only (`len(hierarchy) == 1`).
-  if (tablePath.endsWith('ManagerMethod') && /len\(hierarchy\)\s*==\s*1/.test(filterExpr)) {
+  if (tablePath.endsWith('ManagerMethod') && /len\(hierarchy\)\s*==\s*1/.test(filter)) {
     return rows.filter((r) => (r.entries.hierarchy as unknown[])?.length === 1);
   }
 
@@ -76,7 +76,7 @@ function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null
   // `hierarchy` array (e.g. ['act-002']) to avoid cross-contaminating one
   // action's steps onto another's expanded card.
   if (tablePath.endsWith('ToolLoop')) {
-    const prefixMatch = filterExpr.match(/hierarchy_label\.startswith\(\s*["']([^"']+)["']\s*\)/);
+    const prefixMatch = filter.match(/hierarchy_label\.startswith\(\s*["']([^"']+)["']\s*\)/);
     if (prefixMatch) {
       const prefix = prefixMatch[1];
       return rows.filter((r) => {
@@ -105,7 +105,7 @@ const logs: SimHandler = {
 
     const limit = Number(ctx.searchParams.get('limit') ?? '50');
     const offset = Number(ctx.searchParams.get('offset') ?? '0');
-    const filterExpr = ctx.searchParams.get('filter_expr') || ctx.searchParams.get('filterExpr');
+    const filter = ctx.searchParams.get('filter') || ctx.searchParams.get('filter');
     const sorting = parseSorting(ctx.searchParams.get('sorting'));
 
     const table = getTable(ctx.scenario.id, tablePath);
@@ -114,7 +114,7 @@ const logs: SimHandler = {
       entries,
     }));
 
-    rows = applyFilter(rows, tablePath, filterExpr);
+    rows = applyFilter(rows, tablePath, filter);
 
     if (sorting) {
       const dir = sorting.direction === 'ascending' ? 1 : -1;

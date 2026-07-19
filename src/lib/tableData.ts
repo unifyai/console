@@ -335,8 +335,8 @@ export async function fetchTableData(
     if (projectConfig.context) {
       logsParams.append('context', projectConfig.context as string);
     }
-    if (projectConfig.filterExpr) {
-      logsParams.append('filter_expr', projectConfig.filterExpr as string);
+    if (projectConfig.filter) {
+      logsParams.append('filter', projectConfig.filter as string);
     }
     if (projectConfig.fromFields) {
       logsParams.append('from_fields', projectConfig.fromFields as string);

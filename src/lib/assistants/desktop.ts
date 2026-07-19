@@ -110,12 +110,12 @@ export async function getLiveviewUrl(
 
     const internalApiBaseUrl = getInternalApiBaseUrl();
 
-    const filterExpr = `user_id == '${ownerId}' and assistant_id == '${assistantId}'`;
+    const filter = `user_id == '${ownerId}' and assistant_id == '${assistantId}'`;
 
     const url = new URL(`${internalApiBaseUrl}/api/logs`);
     url.searchParams.append('projectName', 'AssistantJobs');
     url.searchParams.append('context', 'startup_events');
-    url.searchParams.append('filterExpr', filterExpr);
+    url.searchParams.append('filter', filter);
     url.searchParams.append('limit', '10');
 
     const response = await fetch(url.toString(), {

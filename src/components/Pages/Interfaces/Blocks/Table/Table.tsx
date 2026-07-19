@@ -237,7 +237,7 @@ const LogsTable = ({
   // rather than hacking this to manually get the correct get logs expressions
   // for the infinite scrolls
   const groupingExpression = tileDataState?.grouping || null;
-  const filterExpression = buildFilterExpression(
+  const filteression = buildFilterExpression(
     tileDataState?.filters || undefined,
     tileDataState?.commonFilter || undefined,
     tileDataState?.columnContext || undefined,
@@ -362,7 +362,7 @@ const LogsTable = ({
     projectId: projectId || null,
     context: item?.context || globalContext || null,
     columnContext: item?.columnContext || null,
-    filterExpression,
+    filteression,
     sortingExpression,
     groupingExpression,
     groupSortingExpression,
@@ -929,7 +929,7 @@ const LogsTable = ({
     context,
     columnContext,
     effectiveColumnNames,
-    filterExpression,
+    filteression,
     groupingExpression,
     metric,
     fields,
@@ -998,7 +998,7 @@ const LogsTable = ({
       return calcGroupHasNextPageUtil(
         logs,
         groupingExpression,
-        filterExpression,
+        filteression,
         groupId,
         dataTypes,
         fields,
@@ -1009,7 +1009,7 @@ const LogsTable = ({
     [
       logs,
       groupingExpression,
-      filterExpression,
+      filteression,
       dataTypes,
       fields,
       tableTileState?.groupLimit,
@@ -1665,7 +1665,7 @@ const LogsTable = ({
                   tabId={tabId}
                   projectId={projectId}
                   pending={showSpinner}
-                  filterExpression={filterExpression}
+                  filteression={filteression}
                   sortingExpression={sortingExpression}
                   groupingExpression={groupingExpression}
                   groupSortingExpression={groupSortingExpression}
@@ -1897,7 +1897,7 @@ const LogsTable = ({
                             projectId={projectId!}
                             context={item?.context || context || globalContext || null}
                             columnContext={item?.columnContext || null}
-                            filterExpression={filterExpression}
+                            filteression={filteression}
                             sortingExpression={sortingExpression}
                             groupingExpression={groupingExpression}
                             groupSortingExpression={groupSortingExpression}
@@ -2113,7 +2113,7 @@ const LogsTable = ({
                                 projectId!,
                                 item?.context || context || globalContext || null,
                                 item?.columnContext ?? null,
-                                filterExpression,
+                                filteression,
                                 sortingExpression,
                                 groupingExpression,
                                 groupSortingExpression,
@@ -2148,7 +2148,7 @@ const LogsTable = ({
                             context={item?.context || context || globalContext || null}
                             columnContext={item?.columnContext || null}
                             columns={effectiveColumnNames}
-                            filterExpression={filterExpression}
+                            filteression={filteression}
                             groupingExpression={groupingExpression}
                             fields={fields}
                             logsActions={logsActions}
@@ -2192,7 +2192,7 @@ const LogsTable = ({
                                   setMetric={setState.setMetric}
                                   logs={logs}
                                   entriesProperties={entriesProperties}
-                                  filterExpression={filterExpression}
+                                  filteression={filteression}
                                   logsActions={logsActions}
                                 />
                               ) : null
@@ -2206,7 +2206,7 @@ const LogsTable = ({
                                 pending={summaryPending}
                                 draggingColumns={state.draggingColumns}
                                 entriesProperties={entriesProperties}
-                                filterExpression={filterExpression}
+                                filteression={filteression}
                                 logsLength={logs.length}
                                 logsActions={logsActions}
                                 enabled={showMetricsRow}

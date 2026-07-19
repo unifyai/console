@@ -109,7 +109,7 @@ export async function fetchBrainContext<T = BrainRow>(
   options?: {
     limit?: number;
     offset?: number;
-    filterExpr?: string;
+    filter?: string;
     sorting?: string;
     readAcrossRoots?: boolean;
     root?: ContextRoot | null;
@@ -131,7 +131,7 @@ export async function fetchBrainContext<T = BrainRow>(
       });
 
       if (requestedOffset) params.set('offset', String(requestedOffset));
-      if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
+      if (options?.filter) params.set('filter', options.filter);
       if (options?.sorting) params.set('sorting', options.sorting);
 
       const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
@@ -158,7 +158,7 @@ export async function fetchBrainContext<T = BrainRow>(
           limit: String(rootLimit),
         });
 
-        if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
+        if (options?.filter) params.set('filter', options.filter);
         if (options?.sorting) params.set('sorting', options.sorting);
 
         const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
@@ -221,14 +221,14 @@ export async function fetchKnowledgeClaims(
     root?: ContextRoot | null;
     limit?: number;
     offset?: number;
-    filterExpr?: string | null;
+    filter?: string | null;
     sorting?: string;
   }
 ): Promise<BrainContextData<KnowledgeClaim>> {
   const data = await fetchBrainContext<KnowledgeClaim>(assistant, 'Knowledge', {
     limit: options?.limit ?? KNOWLEDGE_PAGE_SIZE,
     offset: options?.offset ?? 0,
-    filterExpr: options?.filterExpr ?? KNOWLEDGE_DEFAULT_FILTER_EXPR,
+    filter: options?.filter ?? KNOWLEDGE_DEFAULT_FILTER_EXPR,
     sorting: options?.sorting,
     root: options?.root,
   });

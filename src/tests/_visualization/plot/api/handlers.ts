@@ -51,7 +51,7 @@ export interface CreatePlotRequest {
   description?: string;
   projectConfig: {
     projectName: string;
-    filterExpr?: string;
+    filter?: string;
     limit?: number;
     offset?: number;
     groupBy?: string[];

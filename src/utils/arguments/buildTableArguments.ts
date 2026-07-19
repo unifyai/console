@@ -37,7 +37,7 @@ export function buildTableArgumentsForTile(
   const tableArguments = { ...existingArguments };
 
   // Build filter expression
-  const filterExpression = buildFilterExpression(
+  const filteression = buildFilterExpression(
     tile.filters,
     tile.commonFilter,
     tile.columnContext,
@@ -79,11 +79,11 @@ export function buildTableArgumentsForTile(
 
   // Create or update this tile's arguments
   tableArguments[tileName] = tableArguments[tileName] || {
-    getLogsParameters: { filterExpr: '' },
+    getLogsParameters: { filter: '' },
   };
 
   // Set filter expression
-  tableArguments[tileName].getLogsParameters.filterExpr = filterExpression || '';
+  tableArguments[tileName].getLogsParameters.filter = filteression || '';
 
   // Add optional parameters
   if (tile.filters) tableArguments[tileName].getLogsParameters['column_filters'] = tile.filters;

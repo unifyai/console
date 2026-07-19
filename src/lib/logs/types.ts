@@ -6,7 +6,7 @@ import type { LogFieldsResponseProps, LogProps } from '@/types/interfaces/logs';
 export type LogQuerySpec = {
   projectName: string;
   context: string;
-  filterExpr?: string | null;
+  filter?: string | null;
   sorting?: string | null;
   limit: number;
   offset: number;
@@ -35,7 +35,7 @@ export type LogViewState = {
    * (e.g. `city,name`). Empty / omitted = ungrouped.
    */
   grouping: string;
-  /** ISO timestamp watermark — appends `createdAt < freeze` to filterExpr. */
+  /** ISO timestamp watermark — appends `createdAt < freeze` to filter. */
   freeze?: string;
   /** Footer aggregate metric name (`mean`, `count`, …). */
   metric?: string;

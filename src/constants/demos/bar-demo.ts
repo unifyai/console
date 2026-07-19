@@ -55,7 +55,7 @@ const barDemo = {
       '"tool_use:" + str( {Table:tool_use} ) + ",sys_msg:" + str(version( {Table:sys_msg} ))',
     referencedLogs: {
       Table: {
-        filterExpr: '',
+        filter: '',
       },
     },
   },

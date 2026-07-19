@@ -99,7 +99,7 @@ describe('useInfiniteLogsQuery', () => {
       projectId: 'project-1',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: null,
       groupSortingExpression: null,
@@ -178,7 +178,7 @@ describe('useInfiniteLogsQuery', () => {
       projectId: 'project-sliding',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: null,
       groupSortingExpression: null,
@@ -274,7 +274,7 @@ describe('useInfiniteLogsQuery', () => {
       projectId: 'project-bidir',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: null,
       groupSortingExpression: null,
@@ -364,7 +364,7 @@ describe('useInfiniteLogsQuery', () => {
       projectId: 'project-no-more',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: null,
       groupSortingExpression: null,
@@ -432,7 +432,7 @@ describe('useInfiniteLogsQuery', () => {
       projectId: 'project-no-more-grouped',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: 'entries/level',
       groupSortingExpression: null,
@@ -471,14 +471,14 @@ describe('useInfiniteLogsQuery', () => {
     fetchLogsCoreSpy.mockRestore();
   });
 
-  it('creates a new query when filterExpression changes and does not reuse old pages', async () => {
+  it('creates a new query when filteression changes and does not reuse old pages', async () => {
     const makeLogsForFilter = (filter: string | null): LogProps[] => {
       const label = filter ?? 'none';
       return [makeLog(`log-${label}`, `Filter ${label}`)];
     };
 
     const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockImplementation(async (p) => {
-      const logs = makeLogsForFilter(p.filterExpression ?? null);
+      const logs = makeLogsForFilter(p.filteression ?? null);
       return {
         response: {
           logs,
@@ -490,7 +490,7 @@ describe('useInfiniteLogsQuery', () => {
         currentCount: logs.length,
         hasMore: false,
         useGroupPagination: false,
-        updatedFilterExpression: p.filterExpression,
+        updatedFilterExpression: p.filteression,
         updatedGroupingExpression: null,
         targetGroupFilters: [],
         effectiveLimit: p.limit || 20,
@@ -513,7 +513,7 @@ describe('useInfiniteLogsQuery', () => {
       projectId: 'project-params',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: null,
       groupSortingExpression: null,
@@ -540,10 +540,7 @@ describe('useInfiniteLogsQuery', () => {
     });
 
     const { rerender } = render(
-      <TestComponent
-        params={{ ...baseParams, filterExpression: 'level=info' }}
-        onResult={onResult}
-      />,
+      <TestComponent params={{ ...baseParams, filteression: 'level=info' }} onResult={onResult} />,
       { queryClient }
     );
 
@@ -553,16 +550,13 @@ describe('useInfiniteLogsQuery', () => {
 
     const firstPageData = latestResult!.data!.pages[0].data;
     // There should be at least one core call with the initial filter
-    expect(
-      fetchLogsCoreSpy.mock.calls.some((call) => call[0].filterExpression === 'level=info')
-    ).toBe(true);
+    expect(fetchLogsCoreSpy.mock.calls.some((call) => call[0].filteression === 'level=info')).toBe(
+      true
+    );
 
-    // Change filterExpression and rerender with the same QueryClient
+    // Change filteression and rerender with the same QueryClient
     rerender(
-      <TestComponent
-        params={{ ...baseParams, filterExpression: 'level=error' }}
-        onResult={onResult}
-      />
+      <TestComponent params={{ ...baseParams, filteression: 'level=error' }} onResult={onResult} />
     );
 
     await waitFor(() => {
@@ -571,9 +565,9 @@ describe('useInfiniteLogsQuery', () => {
       expect(latestPage[0].entries.message).toContain('level=error');
     });
 
-    expect(
-      fetchLogsCoreSpy.mock.calls.some((call) => call[0].filterExpression === 'level=error')
-    ).toBe(true);
+    expect(fetchLogsCoreSpy.mock.calls.some((call) => call[0].filteression === 'level=error')).toBe(
+      true
+    );
 
     const secondPageData = latestResult!.data!.pages[0].data;
     expect(secondPageData).not.toEqual(firstPageData);

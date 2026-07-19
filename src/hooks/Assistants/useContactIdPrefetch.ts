@@ -157,11 +157,11 @@ export function getOrFetchTranscripts(
 
 async function fetchContactIdDirect(email: string, assistant: Assistant): Promise<number | null> {
   try {
-    const filterExpr = `email_address == "${email}"`;
+    const filter = `email_address == "${email}"`;
     const params = new URLSearchParams({
       projectName: 'Assistants',
       context: rootContext({ kind: 'personal' }, assistant.userId, assistant.agentId, 'Contacts'),
-      filterExpr,
+      filter,
       limit: '1',
     });
 

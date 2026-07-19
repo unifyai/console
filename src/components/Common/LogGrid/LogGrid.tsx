@@ -166,7 +166,7 @@ export interface LogGridProps {
   /** Refresh fields/rows after a derived column is created or updated. */
   onDerivedCreated?: (key: string) => void;
   onMutated?: () => void;
-  filterExpr?: string | null;
+  filter?: string | null;
   error?: Error | null;
   onRetry?: () => void;
   /** Flat rows currently browsable for selection inspectors. */
@@ -217,7 +217,7 @@ export function LogGrid({
   onRowActivate,
   onDerivedCreated,
   onMutated,
-  filterExpr = null,
+  filter = null,
   error = null,
   onRetry,
   onBrowseRowsChange,
@@ -361,7 +361,7 @@ export function LogGrid({
         groupingColumnId: group.groupingColumnId,
         groupingValue: String(group.groupingValue),
         parentId,
-        filterExpr,
+        filter,
         sorting: sortingStateToOrchestra(view.sorting),
         fields,
         pageSize: view.limit || 50,
@@ -370,7 +370,7 @@ export function LogGrid({
       setTreeRows((prev) => updateGridGroupSubRows(prev, group.id, result.rows, result.count));
       setExpandingId(null);
     },
-    [context, fields, filterExpr, projectName, view.grouping, view.limit, view.sorting]
+    [context, fields, filter, projectName, view.grouping, view.limit, view.sorting]
   );
 
   const sensors = useSensors(

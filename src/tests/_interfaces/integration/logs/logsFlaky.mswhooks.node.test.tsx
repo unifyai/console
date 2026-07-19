@@ -53,7 +53,7 @@ describe('useInfiniteLogsQuery (flaky backend scenarios via fetchLogsCore)', () 
       projectId: 'project-error',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: null,
       groupSortingExpression: null,

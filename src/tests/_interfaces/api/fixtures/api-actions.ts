@@ -657,7 +657,7 @@ export const logsApi = {
   ): Promise<LogsResponse> {
     const params = new URLSearchParams({ projectName: project });
     if (options.context) params.set('context', options.context);
-    if (options.filter) params.set('filter_expression', options.filter);
+    if (options.filter) params.set('filteression', options.filter);
     if (options.limit) params.set('limit', String(options.limit));
     if (options.offset) params.set('offset', String(options.offset));
 
@@ -686,7 +686,7 @@ export const logsApi = {
   ): Promise<Record<string, unknown>> {
     const params = new URLSearchParams({ projectName: project, key: keyName });
     if (options.context) params.set('context', options.context);
-    if (options.filter) params.set('filter_expression', options.filter);
+    if (options.filter) params.set('filteression', options.filter);
 
     // Route is /api/logs/[metricName] which proxies to /logs/metric/[metricName]
     const endpoint = `/api/logs/${encodeURIComponent(metricName)}?${params.toString()}`;

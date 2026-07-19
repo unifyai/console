@@ -52,7 +52,7 @@ const derivedColumnsDemo = {
     equation: '({Table:x} ** 2 + {Table:y} ** 2) ** 0.5',
     referencedLogs: {
       Table: {
-        filterExpr: '',
+        filter: '',
       },
     },
   },

@@ -320,7 +320,7 @@ export function maybeFlattenGroupedLogs(logProps?: LogProps[] | GroupedLogProps[
 }
 
 export function getGroupingFilters(
-  filterExpression: string | null,
+  filteression: string | null,
   groupingColumnId: string,
   groupingValue: string,
   parentId: string | null,
@@ -425,8 +425,8 @@ export function getGroupingFilters(
   const groupFilterExpression = filtersToExpression(columnFilters, fields);
 
   // Step 3: Combine with Existing Filters
-  const updatedFilterExpression = filterExpression
-    ? `${filterExpression} and ${groupFilterExpression}`
+  const updatedFilterExpression = filteression
+    ? `${filteression} and ${groupFilterExpression}`
     : groupFilterExpression;
 
   return { currentId, updatedFilterExpression, columnFilters };
@@ -484,7 +484,7 @@ export async function onGroupExpand(
   project: string,
   context: string | null,
   columnContext: string | null,
-  filterExpression: string | null,
+  filteression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
   groupSortingExpression: string | null,
@@ -522,7 +522,7 @@ export async function onGroupExpand(
       projectId: project,
       context,
       columnContext,
-      filterExpression,
+      filteression,
       sortingExpression,
       groupingExpression,
       groupSortingExpression,
@@ -599,7 +599,7 @@ export async function onGroupExpand(
           context,
           columnContext,
           columns,
-          filterExpression,
+          filteression,
           groupingExpression,
           metric,
         ];
@@ -1173,7 +1173,7 @@ export function decomposeGroupId(groupId: string): {
 export function calculateGroupHasNextPage(
   logs: LogProps[] | GroupedLogProps[],
   groupingExpression: string | null,
-  filterExpression: string | null,
+  filteression: string | null,
   groupId: string,
   dataTypes: { [key: string]: string },
   fields: LogFieldsResponseProps,
@@ -1187,7 +1187,7 @@ export function calculateGroupHasNextPage(
   // Build target filters from groupId ("col1:val1>col2:val2")
   // Build the target group filters
   const groupingFilters = getGroupingFilters(
-    filterExpression,
+    filteression,
     groupingColumnId,
     groupingValue,
     parentId || null,

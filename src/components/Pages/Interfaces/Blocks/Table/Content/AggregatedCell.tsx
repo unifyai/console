@@ -16,7 +16,7 @@ interface AggregatedCellProps {
   context: string | null;
   columnContext: string | null;
   columns: string[];
-  filterExpression: string | null;
+  filteression: string | null;
   groupingExpression: string | null;
   fields: LogFieldsResponseProps;
   logsActions: LogsActions;
@@ -33,7 +33,7 @@ const AggregatedCell = ({
   context,
   columnContext,
   columns,
-  filterExpression,
+  filteression,
   groupingExpression,
   fields,
   logsActions,
@@ -56,7 +56,7 @@ const AggregatedCell = ({
     context,
     columnContext,
     columns,
-    filterExpression,
+    filteression,
     groupingExpression,
     metric,
     fields,

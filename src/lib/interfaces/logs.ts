@@ -28,7 +28,7 @@ export async function getLogs(
   project: string,
   context: string | null,
   columnContext: string | null,
-  filterExpression: string | null,
+  filteression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
   groupSortingExpression: string | null,
@@ -51,7 +51,7 @@ export async function getLogs(
       `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}` +
         (context ? `&context=${context}` : '') +
         (columnContext ? `&columnContext=${columnContext}` : '') +
-        (filterExpression ? `&filterExpr=${encodeURIComponent(filterExpression)}` : '') +
+        (filteression ? `&filter=${encodeURIComponent(filteression)}` : '') +
         (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : '') +
         (groupingExpression
           ? groupingExpression
@@ -249,7 +249,7 @@ export async function renameLogFields(
 export async function getLogMetrics(
   project: string,
   context: string | null,
-  filterExpression: string | null,
+  filteression: string | null,
   groupingExpression: string | null,
   metricName: string,
   keyNames: string[]
@@ -262,7 +262,7 @@ export async function getLogMetrics(
     `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?projectName=${project}` +
       (context ? `&context=${context}` : '') +
       `&key=${JSON.stringify(sanitizedKeyNames)}` +
-      (filterExpression ? `&filterExpr=${encodeURIComponent(filterExpression)}` : '') +
+      (filteression ? `&filter=${encodeURIComponent(filteression)}` : '') +
       (groupingExpression
         ? `&groupBy=${encodeURIComponent(JSON.stringify(groupingExpression.split(',')))}`
         : ''),
@@ -292,7 +292,7 @@ export async function getLatestTimestamp(
   project: string,
   context: string | null,
   columnContext: string | null,
-  filterExpression: string | null,
+  filteression: string | null,
   sortingExpression: string | null,
   groupingExpression: string | null,
   groupSortingExpression: string | null,
@@ -312,7 +312,7 @@ export async function getLatestTimestamp(
     `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?projectName=${project}` +
       (context ? `&context=${context}` : '') +
       (columnContext ? `&columnContext=${columnContext}` : '') +
-      (filterExpression ? `&filterExpr=${encodeURIComponent(filterExpression)}` : '') +
+      (filteression ? `&filter=${encodeURIComponent(filteression)}` : '') +
       (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : '') +
       (groupingExpression
         ? groupingExpression

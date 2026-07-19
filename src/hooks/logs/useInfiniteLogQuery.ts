@@ -87,7 +87,7 @@ export function useInfiniteLogQuery({
       'logInfiniteQuery',
       projectName,
       context,
-      spec?.filterExpr ?? '',
+      spec?.filter ?? '',
       spec?.sorting ?? '',
       groupingKey,
       pageSize,

@@ -5,7 +5,7 @@
  * admin filter bridge. Maps to UnifyData.filter() -> DM.filter().
  *
  * Mapping (same as tableData.ts / plotData.ts):
- *   filter       -> filter_expr
+ *   filter       -> Orchestra boolean expression
  *   columns      -> from_fields  (joined with &)
  *   excludeColumns -> exclude_fields (joined with &)
  *   orderBy + descending -> sorting (JSON dict)

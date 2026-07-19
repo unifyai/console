@@ -91,7 +91,7 @@ describe('useInfiniteGroupSpecificLogsQuery', () => {
       projectId: 'project-1',
       context: null,
       columnContext: null,
-      filterExpression: null,
+      filteression: null,
       sortingExpression: null,
       groupingExpression: 'entries/group',
       groupSortingExpression: null,

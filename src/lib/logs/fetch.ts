@@ -46,7 +46,7 @@ export async function fetchLogs(
     projectName: spec.projectName,
     context: spec.context,
   });
-  if (spec.filterExpr) params.set('filterExpr', spec.filterExpr);
+  if (spec.filter) params.set('filter', spec.filter);
   if (spec.sorting) params.set('sorting', spec.sorting);
   if (spec.columnContext) params.set('columnContext', spec.columnContext);
 
@@ -137,7 +137,7 @@ export async function createDerivedColumn(args: {
         [tableName]: {
           projectName: args.projectName,
           context: args.context,
-          filterExpr: '',
+          filter: '',
         },
       },
     }),
@@ -186,7 +186,7 @@ export async function updateDerivedColumn(args: {
         [tableName]: {
           projectName: args.projectName,
           context: args.context,
-          filterExpr: '',
+          filter: '',
         },
       },
     }),

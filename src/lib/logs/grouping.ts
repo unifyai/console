@@ -227,7 +227,7 @@ export type ExpandLogGroupArgs = {
   groupingColumnId: string;
   groupingValue: string;
   parentId: string | null;
-  filterExpr?: string | null;
+  filter?: string | null;
   sorting?: string | null;
   fields: LogFieldsResponseProps;
   pageSize: number;
@@ -248,7 +248,7 @@ export async function fetchGroupChildren(args: ExpandLogGroupArgs): Promise<{
   );
 
   const groupingFilters = getGroupingFilters(
-    args.filterExpr ?? null,
+    args.filter ?? null,
     args.groupingColumnId,
     String(args.groupingValue),
     args.parentId,
@@ -264,7 +264,7 @@ export async function fetchGroupChildren(args: ExpandLogGroupArgs): Promise<{
     context: args.context,
   });
   if (groupingFilters.updatedFilterExpression) {
-    params.set('filterExpr', groupingFilters.updatedFilterExpression);
+    params.set('filter', groupingFilters.updatedFilterExpression);
   }
   if (args.sorting) params.set('sorting', args.sorting);
 

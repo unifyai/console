@@ -329,7 +329,7 @@ export function DataLeafTable({
       isColumnEditable={isColumnEditable}
       draftForCell={draftForValue}
       onCommitCellEdit={async (logId, columnId, draft) => onCommitEdit([logId], columnId, draft)}
-      filterExpr={spec?.filterExpr}
+      filter={spec?.filter}
       onDerivedCreated={() => {
         void refreshAll();
       }}

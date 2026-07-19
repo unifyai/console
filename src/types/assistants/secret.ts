@@ -23,7 +23,7 @@ export interface SecretActions {
     assistantId: string,
     ownerId: string,
     sorting?: string,
-    filterExpr?: string
+    filter?: string
   ) => Promise<Secret[] | ResponseProps>;
   create: (assistantId: string, ownerId: string, payload: SecretPayload) => Promise<ResponseProps>;
   update: (logId: number, ownerId: string, payload: SecretUpdatePayload) => Promise<ResponseProps>;

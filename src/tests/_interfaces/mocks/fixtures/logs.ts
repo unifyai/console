@@ -170,11 +170,11 @@ import type { LogProps } from '@/types/interfaces/logs';
  * Applies a simple filter to the mock logs based on a filter expression.
  * This is a simplified implementation for testing purposes.
  */
-export function filterMockLogs(logs: LogProps[], filterExpression: string | null): LogProps[] {
-  if (!filterExpression) return logs;
+export function filterMockLogs(logs: LogProps[], filteression: string | null): LogProps[] {
+  if (!filteression) return logs;
 
   // Simple substring match on message field
-  const lowerFilter = filterExpression.toLowerCase();
+  const lowerFilter = filteression.toLowerCase();
   return logs.filter((log: LogProps) => {
     const message = log.entries?.message?.toString().toLowerCase() || '';
     const status = log.entries?.status?.toString().toLowerCase() || '';

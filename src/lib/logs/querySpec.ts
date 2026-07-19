@@ -42,7 +42,7 @@ export function buildLogQuerySpec(args: {
   fields: LogFieldsResponseProps;
   columnContext?: string | null;
 }): LogQuerySpec {
-  const filterExpr = buildFilterExpression(
+  const filter = buildFilterExpression(
     args.view.filters || undefined,
     args.view.commonFilter || undefined,
     args.columnContext ?? undefined,
@@ -53,7 +53,7 @@ export function buildLogQuerySpec(args: {
   return {
     projectName: args.projectName,
     context: args.context,
-    filterExpr: filterExpr || null,
+    filter: filter || null,
     sorting: sortingStateToOrchestra(args.view.sorting),
     limit: args.view.limit,
     offset: args.view.offset,

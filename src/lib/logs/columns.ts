@@ -5,7 +5,7 @@
  *
  * Orchestra stores entry keys in snake_case. The typed client camelCases response
  * keys (`exchange_id` → `exchangeId`), so anything sent back as `group_by`,
- * `filter_expr`, or `sorting` must convert field names to snake_case again.
+ * `filter`, or `sorting` must convert field names to snake_case again.
  */
 
 import { camelToSnake } from '@/utils/casing';

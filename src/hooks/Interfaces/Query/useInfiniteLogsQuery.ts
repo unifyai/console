@@ -62,7 +62,7 @@ interface InfiniteLogsParams {
   projectId: string | null;
   context: string | null;
   columnContext: string | null;
-  filterExpression: string | null;
+  filteression: string | null;
   sortingExpression: string | null;
   groupingExpression: string | null;
   groupSortingExpression: string | null;
@@ -110,7 +110,7 @@ export function useInfiniteLogsQuery({
   projectId,
   context,
   columnContext,
-  filterExpression,
+  filteression,
   sortingExpression,
   groupingExpression,
   groupSortingExpression,
@@ -141,7 +141,7 @@ export function useInfiniteLogsQuery({
         projectId,
         context,
         columnContext,
-        filterExpression,
+        filteression,
         sortingExpression,
         groupingExpression,
         groupSortingExpression,
@@ -154,7 +154,7 @@ export function useInfiniteLogsQuery({
       projectId,
       context,
       columnContext,
-      filterExpression,
+      filteression,
       sortingExpression,
       groupingExpression,
       groupSortingExpression,
@@ -278,7 +278,7 @@ export function useInfiniteLogsQuery({
         projectId,
         context,
         columnContext,
-        filterExpression,
+        filteression,
         sortingExpression,
         groupingExpression,
         groupSortingExpression,
@@ -500,7 +500,7 @@ export function useInfiniteGroupSpecificLogsQuery({
   projectId,
   context,
   columnContext,
-  filterExpression,
+  filteression,
   sortingExpression,
   groupingExpression,
   groupSortingExpression,
@@ -525,7 +525,7 @@ export function useInfiniteGroupSpecificLogsQuery({
   projectId: string | null;
   context: string | null;
   columnContext: string | null;
-  filterExpression: string | null;
+  filteression: string | null;
   sortingExpression: string | null;
   groupingExpression: string | null;
   groupSortingExpression: string | null;
@@ -571,7 +571,7 @@ export function useInfiniteGroupSpecificLogsQuery({
           projectId,
           context,
           columnContext,
-          filterExpression,
+          filteression,
           sortingExpression,
           groupingExpression,
           groupSortingExpression,
@@ -590,7 +590,7 @@ export function useInfiniteGroupSpecificLogsQuery({
       projectId,
       context,
       columnContext,
-      filterExpression,
+      filteression,
       sortingExpression,
       groupingExpression,
       groupSortingExpression,
@@ -681,7 +681,7 @@ export function useInfiniteGroupSpecificLogsQuery({
         if (existingTableData?.logs && existingTableData.logs.length > 0) {
           // Build the target group filters
           const groupingFilters = getGroupingFilters(
-            filterExpression,
+            filteression,
             groupingColumnId,
             groupingValue,
             parentId || null,
@@ -744,7 +744,7 @@ export function useInfiniteGroupSpecificLogsQuery({
         projectId,
         context,
         columnContext,
-        filterExpression,
+        filteression,
         sortingExpression,
         groupingExpression,
         groupSortingExpression,

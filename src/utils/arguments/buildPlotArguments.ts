@@ -75,7 +75,7 @@ export function updatePlotArgumentsForUsedTables(
 
     // Ensure the table has an entry in plotArguments
     if (!updatedPlotArguments[tableName]) {
-      updatedPlotArguments[tableName] = { filterExpr: '' };
+      updatedPlotArguments[tableName] = { filter: '' };
     }
 
     // Update plot arguments with the table parameters - exactly as in Main.tsx

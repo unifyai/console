@@ -31,7 +31,7 @@ const ColumnMetrics = ({
   colSpan = 1,
   logs,
   entriesProperties,
-  filterExpression,
+  filteression,
   logsActions,
 }: {
   tileId?: string;
@@ -43,7 +43,7 @@ const ColumnMetrics = ({
   colSpan?: number;
   logs: LogProps[] | GroupedLogProps[];
   entriesProperties: string[];
-  filterExpression: string | null;
+  filteression: string | null;
   logsActions: LogsActions;
 }) => {
   /* Display loader when data updates */
@@ -67,7 +67,7 @@ const ColumnMetrics = ({
     tileDataState?.context,
     tileDataState?.columnContext,
     columns,
-    filterExpression,
+    filteression,
     tileDataState?.metric || 'mean',
     'ColumnMetrics' // caller identifier
   );
@@ -79,7 +79,7 @@ const ColumnMetrics = ({
     tileDataState?.context,
     tileDataState?.columnContext,
     columns,
-    filterExpression,
+    filteression,
     tileDataState?.metric || 'mean'
   );
 

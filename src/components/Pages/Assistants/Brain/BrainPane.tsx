@@ -423,7 +423,7 @@ export function BrainPane({
     Functions: functions.count,
   };
 
-  const isFiltered = !!activeState.filterExpr;
+  const isFiltered = !!activeState.filter;
   const detailTitle = `${BRAIN_CONTEXT_LABELS[activeContext]} Detail`;
   const emptyMessage = isFiltered
     ? 'No results match your search.'

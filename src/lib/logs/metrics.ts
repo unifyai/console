@@ -8,7 +8,7 @@ export async function fetchColumnMetrics(args: {
   context: string;
   columns: string[];
   metric?: string;
-  filterExpr?: string | null;
+  filter?: string | null;
   columnContext?: string | null;
   signal?: AbortSignal;
 }): Promise<Record<string, number | Record<string, unknown>>> {
@@ -17,7 +17,7 @@ export async function fetchColumnMetrics(args: {
   params.set('projectName', args.projectName);
   params.set('context', args.context);
   params.set('key', JSON.stringify(args.columns));
-  if (args.filterExpr) params.set('filterExpr', args.filterExpr);
+  if (args.filter) params.set('filter', args.filter);
   if (args.columnContext) params.set('columnContext', args.columnContext);
 
   const res = await fetch(`/api/logs/${metricName}?${params.toString()}`, {

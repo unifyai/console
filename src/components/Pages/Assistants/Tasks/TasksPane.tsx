@@ -141,7 +141,7 @@ export function TasksPane({
     });
   }, []);
 
-  const isFiltered = !!tasks.filterExpr;
+  const isFiltered = !!tasks.filter;
 
   if (error) {
     return (

@@ -215,7 +215,7 @@ Creates a new plot. Requires API key authentication.
   "project_config": {
     "project_name": "my-project",
     "context": "production",
-    "filter_expr": "status == 'success'",
+    "filter": "status == 'success'",
     "limit": 1000
   },
   "title": "My Plot Title"
@@ -428,7 +428,7 @@ response = requests.post(
         },
         "project_config": {
             "project_name": "my-project",
-            "filter_expr": "status == 'success'",
+            "filter": "status == 'success'",
             "limit": 1000
         },
         "title": "Accuracy vs Latency by Model"

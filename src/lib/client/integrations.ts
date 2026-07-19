@@ -224,7 +224,7 @@ async function builtinsLogFetch<T>(args: {
   context: string;
   limit: number;
   offset: number;
-  filterExpr?: string;
+  filter?: string;
   fromFields?: string;
   sorting?: Record<string, 'ascending' | 'descending'>;
 }): Promise<LogPayload<T>> {
@@ -233,7 +233,7 @@ async function builtinsLogFetch<T>(args: {
   params.set('context', args.context);
   params.set('limit', String(args.limit));
   params.set('offset', String(args.offset));
-  if (args.filterExpr) params.set('filterExpr', args.filterExpr);
+  if (args.filter) params.set('filter', args.filter);
   if (args.fromFields) params.set('fromFields', args.fromFields);
   if (args.sorting) params.set('sorting', JSON.stringify(args.sorting));
   const response = await fetch(`/api/logs?${params.toString()}`, {
@@ -850,7 +850,7 @@ export async function listProviderIntegrationDefinitionsPage(args: {
     context: 'Integrations/Apps',
     limit,
     offset,
-    filterExpr: catalogFilterExpr({ ...args, connections: providerConnections }),
+    filter: catalogFilterExpr({ ...args, connections: providerConnections }),
     fromFields: BUILTINS_APP_PUBLIC_FIELDS,
     sorting: { [BUILTINS_APP_DISPLAY_NAME_FIELD]: 'ascending' },
   });
@@ -909,14 +909,14 @@ export async function getProviderIntegrationCatalogCount(args: {
         assistantId: args.assistantId,
       }).catch(() => [])
     : [];
-  const filterExpr = catalogFilterExpr({ ...args, connections });
+  const filter = catalogFilterExpr({ ...args, connections });
   const params = new URLSearchParams();
   params.set('projectName', process.env.NEXT_PUBLIC_UNITY_BUILTINS_PROJECT || 'Builtins');
   params.set('context', 'Integrations/Apps');
   // Count over a field present on every catalog row; the log's own `id` is not an
   // entry field and would always yield 0.
   params.set('key', JSON.stringify([BUILTINS_APP_CANONICAL_SLUG_FIELD]));
-  if (filterExpr) params.set('filterExpr', filterExpr);
+  if (filter) params.set('filter', filter);
   const response = await fetch(`/api/logs/count?${params.toString()}`, { cache: 'no-store' });
   if (!response.ok) return null;
   const text = await response.text();
@@ -934,14 +934,14 @@ export async function getProviderIntegrationDetails(args: {
       context: 'Integrations/Apps',
       limit: 1,
       offset: 0,
-      filterExpr: `canonical_app_slug == ${quoteFilterValue(args.canonicalSlug)}`,
+      filter: `canonical_app_slug == ${quoteFilterValue(args.canonicalSlug)}`,
       fromFields: BUILTINS_APP_PUBLIC_FIELDS,
     }),
     builtinsLogFetch<UnknownRecord>({
       context: 'Integrations/Tools',
       limit: 500,
       offset: 0,
-      filterExpr: toolAppSlugFilter(args.canonicalSlug),
+      filter: toolAppSlugFilter(args.canonicalSlug),
       fromFields: BUILTINS_TOOL_PUBLIC_FIELDS,
       sorting: { name: 'ascending' },
     }),

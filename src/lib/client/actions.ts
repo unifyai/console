@@ -81,8 +81,8 @@ function managerMethodParams(
   const filters = [...buildExcludedManagerFilters()];
   if (startTime) filters.push(buildTimestampFilter(startTime));
   if (extraFilters) filters.push(...extraFilters);
-  const filterExpr = combineFilters(filters);
-  if (filterExpr) params.set('filterExpr', filterExpr);
+  const filter = combineFilters(filters);
+  if (filter) params.set('filter', filter);
   return params;
 }
 
@@ -117,8 +117,8 @@ export async function fetchToolLoopEvents(
   const filters = [`hierarchy_label.startswith('${escapeFilterValue(joinedHierarchy)}')`];
   if (startTime) filters.push(`event_timestamp >= '${escapeFilterValue(startTime)}'`);
   if (endTime) filters.push(`event_timestamp <= '${escapeFilterValue(endTime)}'`);
-  const filterExpr = combineFilters(filters);
-  if (filterExpr) params.set('filterExpr', filterExpr);
+  const filter = combineFilters(filters);
+  if (filter) params.set('filter', filter);
 
   if (limit === null) {
     return fetchAllLogs(params, TL_PAGE_SIZE);

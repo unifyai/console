@@ -124,7 +124,7 @@ export async function fetchDashboardData(token: string): Promise<FetchDashboardD
     const logsUrl = new URL(`${ORCHESTRA_URL}/v0/logs`);
     logsUrl.searchParams.set('project_name', resolution.projectName);
     logsUrl.searchParams.set('context', resolution.contextName);
-    logsUrl.searchParams.set('filter_expr', `token == '${token}'`);
+    logsUrl.searchParams.set('filter', `token == '${token}'`);
     logsUrl.searchParams.set('limit', '1');
 
     const logsRes = await fetchWithTimeout(logsUrl.toString(), {
