@@ -82,19 +82,21 @@ export function useInfiniteLogQuery({
   const fieldsReady =
     enabled && !!spec && (!!fieldsOverride || fieldsQuery.isSuccess || fieldsQuery.isFetched);
 
+  const infiniteQueryKey = [
+    'logInfiniteQuery',
+    projectName,
+    context,
+    spec?.filter ?? '',
+    spec?.sorting ?? '',
+    groupingKey,
+    pageSize,
+    columnContext ?? '',
+    view.freeze ?? '',
+    !!view.autoUpdate,
+  ] as const;
+
   const infiniteQuery = useInfiniteQuery({
-    queryKey: [
-      'logInfiniteQuery',
-      projectName,
-      context,
-      spec?.filter ?? '',
-      spec?.sorting ?? '',
-      groupingKey,
-      pageSize,
-      columnContext ?? '',
-      view.freeze ?? '',
-      !!view.autoUpdate,
-    ],
+    queryKey: infiniteQueryKey,
     queryFn: ({ pageParam, signal }) =>
       fetchLogs(
         {
@@ -112,7 +114,16 @@ export function useInfiniteLogQuery({
       return allPages.length;
     },
     enabled: fieldsReady,
-    placeholderData: (prev) => prev,
+    // Keep prior pages only within the same grouping mode. Reusing flat rows as
+    // placeholder after Group by (or grouped rows after Ungroup) makes the grid
+    // look like grouping did nothing aside from reordering columns.
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) return previousData;
+      // infiniteQueryKey: [id, project, context, filter, sorting, groupingKey, ...]
+      const prevGrouping = String(previousQuery.queryKey[5] ?? '');
+      if (prevGrouping !== groupingKey) return undefined;
+      return previousData;
+    },
     refetchInterval: view.autoUpdate ? 5_000 : false,
   });
 

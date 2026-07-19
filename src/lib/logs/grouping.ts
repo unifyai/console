@@ -41,7 +41,7 @@ export function toggleGroupingColumn(grouping: string, columnId: string): string
   return encodeGrouping(next);
 }
 
-/** Move grouped columns to the front of the order (after `#` is handled separately). */
+/** Move grouped columns to the front for display only (do not persist as columnOrder). */
 export function withGroupedColumnsFirst(columnOrder: string[], grouping: string[]): string[] {
   if (!grouping.length) return columnOrder;
   const grouped = grouping.filter((id) => columnOrder.includes(id));
