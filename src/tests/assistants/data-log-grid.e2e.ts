@@ -606,6 +606,31 @@ test('group by nests columns and expands leaf rows', async ({ authedPage: page }
     timeout: 30_000,
   });
   await expect.poll(async () => headerLabels(), { timeout: 10_000 }).toEqual(orderBefore);
+  // Ungroup must not fall through to header column-select (modal={false} menus).
+  await expect(page.locator('[data-testid^="log-grid-cell-"].bg-primary-tint-10')).toHaveCount(0);
+});
+
+test('ungroup clears grouping without selecting the column', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+  await expect(page.getByTestId('log-grid-group-expand-city').first()).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+  await expect(page.getByTestId('log-grid-group-expand-city')).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
+    timeout: 30_000,
+  });
+  await expect(page.locator('[data-testid^="log-grid-cell-"].bg-primary-tint-10')).toHaveCount(0);
 });
 
 test('group by snake_case field uses Orchestra keys not camelCase', async ({

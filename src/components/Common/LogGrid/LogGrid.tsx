@@ -298,6 +298,22 @@ export function LogGrid({
   const prevDisplayRowsRef = React.useRef<LogGridRow[]>([]);
   /** Skip one flash pass after lazy group expand (children are not live/refresh inserts). */
   const suppressNextFlashRef = React.useRef(false);
+  /**
+   * After a column ⋯ menu closes (`modal={false}`), the trailing pointerup/mousedown
+   * can land on the header and look like a column-select. Ignore briefly.
+   */
+  const suppressColumnSelectRef = React.useRef(false);
+  const suppressColumnSelectTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextColumnSelect = React.useCallback(() => {
+    suppressColumnSelectRef.current = true;
+    if (suppressColumnSelectTimeoutRef.current) {
+      clearTimeout(suppressColumnSelectTimeoutRef.current);
+    }
+    suppressColumnSelectTimeoutRef.current = setTimeout(() => {
+      suppressColumnSelectRef.current = false;
+      suppressColumnSelectTimeoutRef.current = null;
+    }, 300);
+  }, []);
   /** Last known DOM node per cell id — used when Enter starts edit without a click target. */
   const cellElByIdRef = React.useRef(new Map<string, HTMLElement>());
   const tableName = context.split('/').pop() ?? 'Table';
@@ -392,6 +408,14 @@ export function LogGrid({
   React.useEffect(() => {
     userReorderedColumnsRef.current = false;
   }, [context]);
+
+  React.useEffect(() => {
+    return () => {
+      if (suppressColumnSelectTimeoutRef.current) {
+        clearTimeout(suppressColumnSelectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const setGrouping = React.useCallback(
     (nextGrouping: string) => {
@@ -536,6 +560,7 @@ export function LogGrid({
               onFiltersChange={(filters) => onViewChangeRef.current({ filters, offset: 0 })}
               grouping={view.grouping}
               onGroupingChange={setGrouping}
+              onMenuClose={suppressNextColumnSelect}
               isDerived={isDerived}
               isLocked={!!isColumnEditable && !isColumnEditable(key)}
               onEditDerived={isDerived ? () => openDerivedEditRef.current(key) : undefined}
@@ -637,6 +662,7 @@ export function LogGrid({
     expandingId,
     expandGroup,
     setGrouping,
+    suppressNextColumnSelect,
     isGrouped,
     rowLabelMap,
     isColumnEditable,
@@ -1372,6 +1398,16 @@ export function LogGrid({
                                       onMouseDown={(e) => {
                                         if (selection?.mode !== 'cell') return;
                                         if (e.button !== 0) return;
+                                        if (suppressColumnSelectRef.current) return;
+                                        const target = e.target as HTMLElement | null;
+                                        // ⋯ menu, filter chip, drag handle — not column select.
+                                        if (
+                                          target?.closest(
+                                            'button, a, input, [role="menuitem"], [data-radix-popper-content-wrapper]'
+                                          )
+                                        ) {
+                                          return;
+                                        }
                                         e.stopPropagation();
                                         e.preventDefault();
                                         rootRef.current?.focus({ preventScroll: true });

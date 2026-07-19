@@ -44,6 +44,11 @@ type LogGridColumnHeaderProps = {
   onFiltersChange: (filters: string) => void;
   grouping: string;
   onGroupingChange: (grouping: string) => void;
+  /**
+   * Called when the column ⋯ menu closes so the parent can ignore the
+   * click-through mouseDown on the header (`modal={false}` menus).
+   */
+  onMenuClose?: () => void;
   isDerived: boolean;
   /** System-owned / non-editable column — show a lock beside the label. */
   isLocked?: boolean;
@@ -72,6 +77,7 @@ export function LogGridColumnHeader({
   onFiltersChange,
   grouping,
   onGroupingChange,
+  onMenuClose,
   isDerived,
   isLocked = false,
   onEditDerived,
@@ -97,6 +103,11 @@ export function LogGridColumnHeader({
     openFilterAfterMenuCloseRef.current = true;
     setMenuOpen(false);
     setFilterOpen(true);
+  };
+
+  const handleMenuOpenChange = (open: boolean) => {
+    setMenuOpen(open);
+    if (!open) onMenuClose?.();
   };
 
   React.useEffect(() => {
@@ -140,7 +151,7 @@ export function LogGridColumnHeader({
         />
       </div>
 
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
+      <DropdownMenu open={menuOpen} onOpenChange={handleMenuOpenChange} modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -167,8 +178,9 @@ export function LogGridColumnHeader({
             e.preventDefault();
           }}
           onCloseAutoFocus={(e) => {
-            // Keep focus from jumping back into the header while the filter popover opens.
-            if (openFilterAfterMenuCloseRef.current) e.preventDefault();
+            // Keep focus from jumping back into the header while the filter popover opens,
+            // and avoid a focus restore that can re-target the header under modal={false}.
+            e.preventDefault();
           }}
         >
           <DropdownMenuSub>
@@ -236,9 +248,14 @@ export function LogGridColumnHeader({
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid={`log-grid-group-by-${fieldKey}`}
-            onSelect={() => {
+            onSelect={(event) => {
+              // preventDefault keeps Radix from restoring focus into the header; with
+              // modal={false} that restore (or the following pointerup) hits the
+              // header mouseDown and selects the whole column instead of ungrouping.
+              event.preventDefault();
               onGroupingChange(toggleGroupingColumn(grouping, columnKey));
               setMenuOpen(false);
+              onMenuClose?.();
             }}
           >
             {isGrouped ? <Ungroup className="h-3.5 w-3.5" /> : <Group className="h-3.5 w-3.5" />}
