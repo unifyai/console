@@ -303,6 +303,7 @@ type SortableHeaderProps = {
   className?: string;
   style?: React.CSSProperties;
   reorderEnabled: boolean;
+  onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
   dragAttributes?: React.HTMLAttributes<HTMLElement>;
   dragListeners?: React.HTMLAttributes<HTMLElement>;
   setNodeRef?: (node: HTMLElement | null) => void;
@@ -318,6 +319,7 @@ export function LogGridSortableHead({
   className,
   style,
   reorderEnabled,
+  onMouseDown,
   dragAttributes,
   dragListeners,
   setNodeRef,
@@ -340,6 +342,7 @@ export function LogGridSortableHead({
         transition: isDragging ? 'width transform 0.2s ease-in-out' : undefined,
       }}
       data-reorder={reorderEnabled ? 'true' : undefined}
+      onMouseDown={onMouseDown}
     >
       <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">
         {reorderEnabled && (
@@ -351,6 +354,7 @@ export function LogGridSortableHead({
             {...dragAttributes}
             {...dragListeners}
             onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <GripVertical className="pointer-events-none h-3 w-3 shrink-0" aria-hidden="true" />
           </button>

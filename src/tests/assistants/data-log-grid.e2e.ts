@@ -381,6 +381,42 @@ test('row index selects whole rows with click, ctrl, and shift', async ({ authed
   ).toBeVisible();
 });
 
+test('column header selects whole columns with click, ctrl, and shift', async ({
+  authedPage: page,
+}) => {
+  await openPeopleTable(page);
+  await expect(logGridRows(page).first()).toBeVisible({ timeout: 30_000 });
+
+  // 5 seeded people → clicking city selects 5 cells in that column.
+  await page.getByTestId('log-grid-header-city').click();
+  await openCellViewPanel(page);
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('5 cells', {
+    timeout: 15_000,
+  });
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(1);
+  // Ada+Alan share London → 4 distinct city values across 5 rows.
+  await expect(page.getByTestId('log-cell-view-group')).toHaveCount(4);
+
+  // Shift from city → score selects both columns (10 cells).
+  await page.getByTestId('log-grid-header-score').click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('10 cells', {
+    timeout: 15_000,
+  });
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(2);
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
+
+  // Ctrl/Cmd additive: name + city → 10 cells.
+  await page.getByTestId('log-grid-header-name').click();
+  await page.getByTestId('log-grid-header-city').click({ modifiers: ['Control'] });
+  await openCellViewPanel(page);
+  await expect(page.getByTestId('log-cell-view-panel')).toContainText('10 cells', {
+    timeout: 15_000,
+  });
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(2);
+});
+
 test('shift-click selects the bounding cell region', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 

@@ -62,6 +62,8 @@ import {
   cellsInBoundingRange,
   cellsForRow,
   cellsForRowRange,
+  cellsForColumn,
+  cellsForColumnRange,
   isAllRowSelected,
   selectionPerimeterBoxShadow,
   LOG_ROW_NUMBER_COL,
@@ -145,6 +147,7 @@ function SortableHeader({
   className,
   style,
   reorderEnabled,
+  onMouseDown,
 }: {
   header: Header<LogGridRow, unknown>;
   children: React.ReactNode;
@@ -152,6 +155,7 @@ function SortableHeader({
   className?: string;
   style?: React.CSSProperties;
   reorderEnabled: boolean;
+  onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: header.column.id,
@@ -164,6 +168,7 @@ function SortableHeader({
       className={className}
       style={style}
       reorderEnabled={reorderEnabled}
+      onMouseDown={onMouseDown}
       dragAttributes={
         reorderEnabled ? (attributes as React.HTMLAttributes<HTMLElement>) : undefined
       }
@@ -741,6 +746,43 @@ export function LogGrid({
     [selection, selectableRows, visible]
   );
 
+  /** Whole-column selection via the column header (Interfaces header click). */
+  const selectColumn = React.useCallback(
+    (columnId: string, modifiers: { additive?: boolean; range?: boolean } = {}) => {
+      if (selection?.mode !== 'cell') return;
+      if (!visible.includes(columnId)) return;
+      const colCells = cellsForColumn(selectableRows, columnId);
+      if (!colCells.length) return;
+      const anchorCell = colCells[0]!;
+
+      if (modifiers.range) {
+        const anchor = selectionAnchorRef.current ?? selection.selectedCells[0] ?? anchorCell;
+        if (!selectionAnchorRef.current) selectionAnchorRef.current = anchor;
+        const startColumnId = parseCellId(anchor).columnId;
+        selection.onSelectCells(
+          cellsForColumnRange(selectableRows, visible, startColumnId, columnId)
+        );
+        return;
+      }
+
+      if (modifiers.additive) {
+        const allSelected = colCells.every((id) => selection.selectedCells.includes(id));
+        selection.onSelectCells(
+          allSelected
+            ? selection.selectedCells.filter((id) => !colCells.includes(id))
+            : [...selection.selectedCells, ...colCells]
+        );
+        selectionAnchorRef.current = anchorCell;
+        return;
+      }
+
+      const allSelected = colCells.every((id) => selection.selectedCells.includes(id));
+      selection.onSelectCells(allSelected ? [] : colCells);
+      selectionAnchorRef.current = anchorCell;
+    },
+    [selection, selectableRows, visible]
+  );
+
   const selectAllRows = React.useCallback(() => {
     if (selection?.mode !== 'cell') return;
     const all = flattenLeafRows(displayRows).flatMap((row) => cellsForRow(row.logId, visible));
@@ -1215,9 +1257,26 @@ export function LogGrid({
                                       key={header.id}
                                       header={header}
                                       reorderEnabled={reorderEnabled}
-                                      className="sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground"
+                                      className={cn(
+                                        'sticky top-0 z-20 h-8 whitespace-nowrap border-r border-border bg-card px-1 text-[11px] text-muted-foreground',
+                                        selection?.mode === 'cell' && 'cursor-pointer select-none'
+                                      )}
                                       style={{
                                         width: header.getSize(),
+                                      }}
+                                      onMouseDown={(e) => {
+                                        if (selection?.mode !== 'cell') return;
+                                        if (e.button !== 0) return;
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        rootRef.current?.focus({ preventScroll: true });
+                                        if (e.shiftKey) {
+                                          selectColumn(header.column.id, { range: true });
+                                        } else if (e.metaKey || e.ctrlKey) {
+                                          selectColumn(header.column.id, { additive: true });
+                                        } else {
+                                          selectColumn(header.column.id);
+                                        }
                                       }}
                                       resizer={
                                         header.column.getCanResize() ? (
