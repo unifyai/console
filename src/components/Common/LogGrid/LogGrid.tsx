@@ -1035,6 +1035,39 @@ export function LogGrid({
     return found;
   }, []);
 
+  const scrollCellIntoView = React.useCallback(
+    (cellId: string) => {
+      if (typeof window === 'undefined') return;
+      window.requestAnimationFrame(() => {
+        const cell = findCellElement(cellId);
+        const viewport = scrollViewportRef.current;
+        if (!cell || !viewport) return;
+
+        const cellRect = cell.getBoundingClientRect();
+        const viewportRect = viewport.getBoundingClientRect();
+        const padding = 8;
+        let top = viewport.scrollTop;
+        let left = viewport.scrollLeft;
+
+        if (cellRect.top < viewportRect.top + padding) {
+          top -= viewportRect.top + padding - cellRect.top;
+        } else if (cellRect.bottom > viewportRect.bottom - padding) {
+          top += cellRect.bottom - (viewportRect.bottom - padding);
+        }
+        if (cellRect.left < viewportRect.left + padding) {
+          left -= viewportRect.left + padding - cellRect.left;
+        } else if (cellRect.right > viewportRect.right - padding) {
+          left += cellRect.right - (viewportRect.right - padding);
+        }
+
+        if (top !== viewport.scrollTop || left !== viewport.scrollLeft) {
+          viewport.scrollTo({ top, left, behavior: 'auto' });
+        }
+      });
+    },
+    [findCellElement]
+  );
+
   const beginCellEdit = React.useCallback(
     (cellId: string, anchorEl?: HTMLElement | null) => {
       if (selection?.mode !== 'cell') return;
@@ -1161,12 +1194,14 @@ export function LogGrid({
       const next = cellsForRow(selectableRows[rowIdx].logId, visible);
       selection.onSelectCells(next);
       selectionAnchorRef.current = next[0] ?? null;
+      if (next[0]) scrollCellIntoView(next[0]);
       return;
     }
     if (rowFullySelected && key === 'ArrowRight') {
       const nextId = makeCellId(selectableRows[rowIdx].logId, visible[0]);
       selection.onSelectCells([nextId]);
       selectionAnchorRef.current = nextId;
+      scrollCellIntoView(nextId);
       return;
     }
     if (key === 'ArrowUp') rowIdx = Math.max(0, rowIdx - 1);
@@ -1176,6 +1211,7 @@ export function LogGrid({
     const nextId = makeCellId(selectableRows[rowIdx].logId, visible[colIdx]);
     selection.onSelectCells([nextId]);
     selectionAnchorRef.current = nextId;
+    scrollCellIntoView(nextId);
   };
 
   const onGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
