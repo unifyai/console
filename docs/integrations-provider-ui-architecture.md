@@ -61,9 +61,9 @@ Console reads provider-backed catalog data through the logging API against the
 `Builtins` project:
 
 - `GET /api/logs?projectName=Builtins&context=Integrations/Apps` with logging API
-  `filterExpr`, `sorting`, `limit`, and `offset` for app cards.
+  `filter`, `sorting`, `limit`, and `offset` for app cards.
 - `GET /api/logs?projectName=Builtins&context=Integrations/Tools` with a logging
-  `filterExpr` for lazy app detail tool rows.
+  `filter` for lazy app detail tool rows.
 
 Mutable connection and policy state still goes through the provider operational proxy:
 

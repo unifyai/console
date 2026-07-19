@@ -49,7 +49,7 @@ interface ProjectConfig {
   name: string;
   projectName: string;
   context?: string;
-  filterExpr?: string;
+  filter?: string;
   limit?: number;
 }
 
@@ -139,8 +139,8 @@ function generateProjectConfigs(): ProjectConfig[] {
     { name: 'with-context', projectName, context: 'production' },
 
     // With filter
-    { name: 'filter-active', projectName, filterExpr: "status == 'active'" },
-    { name: 'filter-value', projectName, filterExpr: 'value > 50' },
+    { name: 'filter-active', projectName, filter: "status == 'active'" },
+    { name: 'filter-value', projectName, filter: 'value > 50' },
 
     // With limit
     { name: 'limit-10', projectName, limit: 10 },
@@ -373,7 +373,7 @@ defineNodeMatrixTests<MatrixContext>({
         projectConfig: {
           projectName: ctx.projectConfig.projectName,
           context: ctx.projectConfig.context,
-          filterExpr: ctx.projectConfig.filterExpr,
+          filter: ctx.projectConfig.filter,
           limit: ctx.projectConfig.limit,
         },
         tableConfig: {
@@ -409,7 +409,7 @@ defineNodeMatrixTests<MatrixContext>({
         projectConfig: {
           projectName: ctx.projectConfig.projectName,
           context: ctx.projectConfig.context,
-          filterExpr: ctx.projectConfig.filterExpr,
+          filter: ctx.projectConfig.filter,
           limit: ctx.projectConfig.limit,
         },
         tableConfig: {

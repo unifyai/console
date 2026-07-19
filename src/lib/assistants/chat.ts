@@ -38,14 +38,14 @@ export async function getContactIdByEmail(
   const apiKey = await requireUserApiKey();
   try {
     const project = 'Assistants';
-    const filterExpr = `email_address == "${userEmail}"`;
+    const filter = `email_address == "${userEmail}"`;
     const context = rootContext(
       { kind: 'personal' },
       assistant.userId,
       assistant.agentId,
       'Contacts'
     );
-    const url = `${getInternalApiBaseUrl()}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
+    const url = `${getInternalApiBaseUrl()}/api/logs?projectName=${project}&context=${context}&filter=${encodeURIComponent(filter)}&limit=1`;
 
     const response = await fetch(url, {
       method: 'GET',

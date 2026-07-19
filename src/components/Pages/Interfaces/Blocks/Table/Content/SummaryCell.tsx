@@ -26,7 +26,7 @@ const SummaryCell = ({
   pending,
   draggingColumns,
   entriesProperties,
-  filterExpression,
+  filteression,
   logsLength,
   logsActions,
   enabled = false,
@@ -39,7 +39,7 @@ const SummaryCell = ({
   pending: boolean;
   draggingColumns: DraggingColumnsState;
   entriesProperties: string[];
-  filterExpression: string | null;
+  filteression: string | null;
   logsLength: number;
   logsActions: LogsActions;
   enabled?: boolean;
@@ -67,7 +67,7 @@ const SummaryCell = ({
     tileDataState?.context,
     tileDataState?.columnContext,
     columns,
-    filterExpression,
+    filteression,
     tileDataState?.metric || 'mean',
     'SummaryCell' // caller identifier
   );

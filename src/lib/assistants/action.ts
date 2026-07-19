@@ -187,9 +187,9 @@ export async function getManagerMethodEvents(
     if (extraFilters) {
       filters.push(...extraFilters);
     }
-    const filterExpr = combineFilters(filters);
-    if (filterExpr) {
-      baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+    const filter = combineFilters(filters);
+    if (filter) {
+      baseUrl += `&filter=${encodeURIComponent(filter)}`;
     }
 
     if (limit === null && offset === undefined) {
@@ -261,9 +261,9 @@ export async function getToolLoopEvents(
     if (endTime) {
       filters.push(`event_timestamp <= '${escapeFilterValue(endTime)}'`);
     }
-    const filterExpr = combineFilters(filters);
-    if (filterExpr) {
-      baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+    const filter = combineFilters(filters);
+    if (filter) {
+      baseUrl += `&filter=${encodeURIComponent(filter)}`;
     }
 
     if (limit === null) {
@@ -324,9 +324,9 @@ export async function backfillByCallingIds(
 
     const filters: string[] = [callingIdFilter, `phase == 'incoming'`];
 
-    const filterExpr = combineFilters(filters);
-    if (filterExpr) {
-      url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+    const filter = combineFilters(filters);
+    if (filter) {
+      url += `&filter=${encodeURIComponent(filter)}`;
     }
 
     // One incoming event per calling_id

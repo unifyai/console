@@ -31,7 +31,7 @@ export interface CreateTableViewRequest {
   projectConfig: {
     projectName: string;
     context?: string;
-    filterExpr?: string;
+    filter?: string;
     fromFields?: string;
     excludeFields?: string;
     limit?: number;

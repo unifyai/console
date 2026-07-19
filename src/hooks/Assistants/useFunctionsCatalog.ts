@@ -116,7 +116,7 @@ export function useFunctionsCatalog({
         roots: scopedRoots,
         limit: FUNCTIONS_PAGE_SIZE,
         offset: 0,
-        filterExpr: searchFilter,
+        filter: searchFilter,
       });
 
       const nextSkills = normalizeFunctionSkills(page.rows);
@@ -167,7 +167,7 @@ export function useFunctionsCatalog({
         roots: scopedRoots,
         limit: FUNCTIONS_PAGE_SIZE,
         offset: rowsRef.current.length,
-        filterExpr: searchFilter,
+        filter: searchFilter,
       });
 
       const merged = [...rowsRef.current, ...page.rows];

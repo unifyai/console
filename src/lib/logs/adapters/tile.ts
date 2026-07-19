@@ -35,7 +35,7 @@ export function tileDataToLogQuerySpec(
   fields: LogFieldsResponseProps
 ): LogQuerySpec {
   const view = tileDataToLogViewState(tile);
-  const filterExpr = buildFilterExpression(
+  const filter = buildFilterExpression(
     tile.filters,
     tile.commonFilter,
     tile.columnContext,
@@ -45,7 +45,7 @@ export function tileDataToLogQuerySpec(
   return {
     projectName,
     context: tile.context ?? '',
-    filterExpr: filterExpr || null,
+    filter: filter || null,
     sorting: sortingStateToOrchestra(view.sorting),
     limit: view.limit,
     offset: view.offset,

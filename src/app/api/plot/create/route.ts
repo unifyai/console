@@ -55,7 +55,7 @@ interface CreatePlotRequest {
     projectName: string;
     context?: string;
     columnContext?: string;
-    filterExpr?: string;
+    filter?: string;
     fromIds?: string;
     excludeIds?: string;
     fromFields?: string;

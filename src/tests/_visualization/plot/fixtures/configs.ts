@@ -97,7 +97,7 @@ export const plotConfigOptions = {
 
 export const projectConfigOptions = {
   limit: [100, 1000, 10000] as const,
-  filterExpr: [undefined, "status == 'success'", 'value > 0'] as const,
+  filter: [undefined, "status == 'success'", 'value > 0'] as const,
   groupBy: [undefined, ['category'], ['category', 'model']] as const,
   // Sorting format: {"fieldName": "ascending" | "descending"}
   sorting: [undefined, JSON.stringify({ timestamp: 'descending' })] as const,
@@ -185,7 +185,7 @@ export type ProjectConfig = {
   projectName: string;
   context?: string;
   limit: number;
-  filterExpr?: string;
+  filter?: string;
   groupBy?: string[];
   sorting?: string;
 };
@@ -354,13 +354,13 @@ export function generateProjectConfigs(): ProjectConfig[] {
   const configs: ProjectConfig[] = [];
 
   for (const limit of projectConfigOptions.limit) {
-    for (const filterExpr of projectConfigOptions.filterExpr) {
+    for (const filter of projectConfigOptions.filter) {
       for (const groupBy of projectConfigOptions.groupBy) {
         for (const sorting of projectConfigOptions.sorting) {
           configs.push({
             projectName: TEST_PROJECT,
             limit,
-            filterExpr,
+            filter,
             groupBy: groupBy ? [...groupBy] : undefined, // Convert readonly to mutable
             sorting,
           });
@@ -421,7 +421,7 @@ export function dataTypeConfigName(config: DataTypeConfig): string {
  */
 export function projectConfigName(config: ProjectConfig): string {
   const parts: string[] = [];
-  if (config.filterExpr) parts.push(`filter:${config.filterExpr.slice(0, 10)}`);
+  if (config.filter) parts.push(`filter:${config.filter.slice(0, 10)}`);
   if (config.groupBy && config.groupBy.length > 0) parts.push(`grp:${config.groupBy.join(',')}`);
   if (config.sorting) parts.push('sorted');
   return parts.length > 0 ? parts.join('-') : 'default';
@@ -467,7 +467,7 @@ export function generateTestContext(
 ): string {
   // Create a short, deterministic identifier for each dimension
   const plotHash = `${plotConfig.type[0]}${plotConfig.scaleX[0]}${plotConfig.scaleY[0]}${plotConfig.aggregate?.[0] ?? 'n'}${plotConfig.groupBy ? 'g' : 'u'}`;
-  const projHash = `${projectConfig.filterExpr ? 'f' : 'n'}${projectConfig.groupBy?.length ?? 0}${projectConfig.sorting ? 's' : 'n'}`;
+  const projHash = `${projectConfig.filter ? 'f' : 'n'}${projectConfig.groupBy?.length ?? 0}${projectConfig.sorting ? 's' : 'n'}`;
   const dataHash = `${dataTypes.xAxisType[0]}${dataTypes.yAxisType[0]}${dataTypes.groupByType[0]}`;
 
   return `test-${plotHash}-${projHash}-${dataHash}-${scale.name}`;

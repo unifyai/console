@@ -354,14 +354,14 @@ export function filtersToExpression(
       } else if (fn === 'clauses') {
         if (!value) return;
         const parsed = JSON.parse(value) as FilterClause[];
-        const filterExpr = compileClausesToExpression(parsed, cKey, fields);
-        if (filterExpr) {
-          expression += ` and (${filterExpr})`;
+        const filter = compileClausesToExpression(parsed, cKey, fields);
+        if (filter) {
+          expression += ` and (${filter})`;
         }
       } else {
-        const filterExpr = joinFunctionFilters(value, fn, cKey, fields);
-        if (filterExpr) {
-          expression += ` and (${filterExpr})`;
+        const filter = joinFunctionFilters(value, fn, cKey, fields);
+        if (filter) {
+          expression += ` and (${filter})`;
         }
       }
     })
@@ -530,18 +530,18 @@ export const buildFilterExpression = (
     }
   }
 
-  let filterExpression: string | null = null;
-  if (columnFiltersExpression) filterExpression = columnFiltersExpression;
+  let filteression: string | null = null;
+  if (columnFiltersExpression) filteression = columnFiltersExpression;
   if (commonFiltersExpression)
-    filterExpression = filterExpression
-      ? `${commonFiltersExpression} and ${filterExpression}`
+    filteression = filteression
+      ? `${commonFiltersExpression} and ${filteression}`
       : commonFiltersExpression;
   if (freeze)
-    filterExpression = filterExpression
-      ? filterExpression + ` and createdAt < "${freeze}"`
+    filteression = filteression
+      ? filteression + ` and createdAt < "${freeze}"`
       : `createdAt < "${freeze}"`;
 
-  return filterExpression;
+  return filteression;
 };
 
 /* 
@@ -555,7 +555,7 @@ export function buildFilterExpressionArgument(args: {
   const fields = args.availableFields ?? {};
   const params = args.getLogsParameters;
   if ('filters' in params) {
-    params['filterExpr'] =
+    params['filter'] =
       buildFilterExpression(
         params['column_filters'],
         params['commonFilter'],

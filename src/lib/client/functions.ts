@@ -70,7 +70,7 @@ export async function listFunctionsFederatedPage(args: {
   roots: readonly ContextRoot[];
   limit?: number;
   offset?: number;
-  filterExpr?: string;
+  filter?: string;
 }): Promise<FunctionsFederatedPage> {
   const limit = args.limit ?? FUNCTIONS_PAGE_SIZE;
   const offset = args.offset ?? 0;
@@ -90,7 +90,7 @@ export async function listFunctionsFederatedPage(args: {
     body: JSON.stringify({
       projectName: 'Assistants',
       contexts,
-      filter: args.filterExpr,
+      filter: args.filter,
       sorting: [{ field: 'name', direction: 'ascending' }],
       offset,
       limit,

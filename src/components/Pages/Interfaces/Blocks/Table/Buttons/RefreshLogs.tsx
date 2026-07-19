@@ -23,7 +23,7 @@ const RefreshLogs = ({
   tabId,
   projectId,
   pending,
-  filterExpression,
+  filteression,
   sortingExpression,
   groupingExpression,
   groupSortingExpression,
@@ -38,7 +38,7 @@ const RefreshLogs = ({
   tabId: string;
   projectId: string;
   pending: boolean;
-  filterExpression: string | null;
+  filteression: string | null;
   sortingExpression: string | null;
   groupingExpression: string | null;
   groupSortingExpression: string | null;
@@ -113,7 +113,7 @@ const RefreshLogs = ({
     params.set('projectName', projectId);
     if (tileDataState.context) params.set('context', tileDataState.context);
     if (tileDataState.columnContext) params.set('columnContext', tileDataState.columnContext);
-    if (filterExpression) params.set('filterExpr', filterExpression);
+    if (filteression) params.set('filter', filteression);
     if (sortingExpression) params.set('sorting', sortingExpression);
     if (groupingExpression) {
       groupingExpression.split(',').forEach((expr) => params.append('groupBy', expr.trim()));
@@ -132,7 +132,7 @@ const RefreshLogs = ({
   }, [
     projectId,
     tileDataState,
-    filterExpression,
+    filteression,
     sortingExpression,
     groupingExpression,
     groupSortingExpression,

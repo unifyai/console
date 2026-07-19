@@ -96,14 +96,14 @@ export function useAssistantSecrets(
           ? buildSortingParam(sorting.field, sorting.direction)
           : undefined;
         const trimmedQuery = searchQuery.trim();
-        const filterExprParam = trimmedQuery
+        const filterParam = trimmedQuery
           ? buildSearchFilterExpr(trimmedQuery, SEARCH_FIELDS)
           : undefined;
         const result = await secretActionsRef.current.get(
           assistantId,
           ownerId,
           sortingParam,
-          filterExprParam
+          filterParam
         );
         if (request?.isStale?.()) return;
         if ('detail' in result) throw new Error((result as ResponseProps).detail);

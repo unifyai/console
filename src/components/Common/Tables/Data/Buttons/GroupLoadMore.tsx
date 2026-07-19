@@ -12,7 +12,7 @@ export interface GroupLoadMoreProps {
   projectId: string;
   context: string | null;
   columnContext: string | null;
-  filterExpression: string | null;
+  filteression: string | null;
   sortingExpression: string | null;
   groupingExpression: string | null;
   groupSortingExpression: string | null;
@@ -81,7 +81,7 @@ export default function GroupLoadMore({
   projectId,
   context,
   columnContext,
-  filterExpression,
+  filteression,
   sortingExpression,
   groupingExpression,
   groupSortingExpression,
@@ -116,7 +116,7 @@ export default function GroupLoadMore({
     projectId,
     context,
     columnContext,
-    filterExpression,
+    filteression,
     sortingExpression,
     groupingExpression,
     groupSortingExpression,

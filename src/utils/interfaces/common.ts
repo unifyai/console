@@ -222,7 +222,7 @@ export const getColumnMetrics = async (
   context: string | null,
   columnContext: string | null,
   columns: string[],
-  filterExpression: string | null,
+  filteression: string | null,
   groupingExpression: string | null,
   metric: string | undefined,
   logsActions: LogsActions
@@ -242,7 +242,7 @@ export const getColumnMetrics = async (
     context,
     columnContext,
     columns,
-    filterExpression,
+    filteression,
     groupingExpression,
     metric,
   };
@@ -268,7 +268,7 @@ export const getColumnMetrics = async (
   params.set('projectName', project!);
   if (context) params.set('context', context);
   params.set('key', JSON.stringify(sanitizedColumns));
-  if (filterExpression) params.set('filterExpr', filterExpression);
+  if (filteression) params.set('filter', filteression);
   if (groupingExpression) params.set('groupBy', JSON.stringify(groupingExpression.split(',')));
   const fetchPromise = fetch(`/api/logs/${metricName}?${params.toString()}`, {
     method: 'GET',
@@ -296,7 +296,7 @@ export const getLogsDetails = async (
   context: string | null,
   columnContext: string | null,
   project: string | null,
-  filterExpression: string | null,
+  filteression: string | null,
   metric: string | undefined,
   sorting: string | null,
   hiddenColumns: string | undefined,
@@ -327,7 +327,7 @@ export const getLogsDetails = async (
           context,
           columnContext,
           columns,
-          filterExpression,
+          filteression,
           null,
           metric,
           logsActions
@@ -401,7 +401,7 @@ export const getGroupedMetrics = async (
   context: string | null,
   columnContext: string | null,
   columns: string[],
-  filterExpression: string | null,
+  filteression: string | null,
   groupingExpression: string | null,
   metric: string | undefined,
   fields: LogFieldsResponseProps,
@@ -422,7 +422,7 @@ export const getGroupedMetrics = async (
         context,
         columnContext,
         numericColumns,
-        filterExpression,
+        filteression,
         groupingColumnId,
         metricValue,
         logsActions

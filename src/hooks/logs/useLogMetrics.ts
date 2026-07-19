@@ -9,7 +9,7 @@ export function useLogMetrics(args: {
   context: string;
   columns: string[];
   view: LogViewState;
-  filterExpr?: string | null;
+  filter?: string | null;
   enabled?: boolean;
 }) {
   return useQuery({
@@ -19,7 +19,7 @@ export function useLogMetrics(args: {
       args.context,
       args.view.metric ?? 'mean',
       args.columns.join(','),
-      args.filterExpr ?? '',
+      args.filter ?? '',
     ],
     queryFn: ({ signal }) =>
       fetchColumnMetrics({
@@ -27,7 +27,7 @@ export function useLogMetrics(args: {
         context: args.context,
         columns: args.columns,
         metric: args.view.metric ?? 'mean',
-        filterExpr: args.filterExpr,
+        filter: args.filter,
         signal,
       }),
     enabled: (args.enabled ?? true) && args.columns.length > 0,

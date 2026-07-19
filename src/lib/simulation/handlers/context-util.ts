@@ -24,8 +24,8 @@ export function snakeToCamel(value: string): string {
 }
 
 /** Extracts the first quoted string literal from a filter expression. */
-export function firstQuotedLiteral(filterExpr: string): string | null {
-  const match = filterExpr.match(/"([^"]*)"|'([^']*)'/);
+export function firstQuotedLiteral(filter: string): string | null {
+  const match = filter.match(/"([^"]*)"|'([^']*)'/);
   if (!match) return null;
   return match[1] ?? match[2] ?? null;
 }

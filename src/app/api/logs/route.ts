@@ -19,13 +19,12 @@ export async function GET(request: NextRequest) {
 
   const client = createOrchestraClient(apiKey);
 
-  // Extract query params for the logs endpoint
-  // Support both camelCase (frontend) and snake_case (legacy) param names
+  // Extract query params for the logs endpoint.
   const projectName = searchParams.get('projectName') || searchParams.get('project') || '';
   const context = searchParams.get('context') || undefined;
   const columnContext =
     searchParams.get('columnContext') || searchParams.get('column_context') || undefined;
-  const filterExpr = searchParams.get('filterExpr') || searchParams.get('filter_expr') || undefined;
+  const filter = searchParams.get('filter') || undefined;
   const sorting = searchParams.get('sorting') || undefined;
   const groupBy = searchParams.getAll('groupBy').map(toOrchestraColumnPath);
   const groupSorting =
@@ -52,7 +51,7 @@ export async function GET(request: NextRequest) {
     project_name: projectName,
     context: context,
     column_context: columnContext,
-    filter_expr: filterExpr,
+    filter: filter,
     sorting: sorting,
     group_by: groupBy.length > 0 ? groupBy : undefined,
     group_sorting: groupSorting,

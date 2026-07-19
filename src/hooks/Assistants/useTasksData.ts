@@ -46,7 +46,7 @@ interface ContextState<T extends BrainRow = BrainRow> {
   fields: string[];
   hasMore: boolean;
   sorting: SortState | null;
-  filterExpr: string | null;
+  filter: string | null;
   searchQuery: string;
   lastLoadedAt: number | null;
 }
@@ -75,7 +75,7 @@ function emptyState<T extends BrainRow>(): ContextState<T> {
     fields: [],
     hasMore: false,
     sorting: null,
-    filterExpr: null,
+    filter: null,
     searchQuery: '',
     lastLoadedAt: null,
   };
@@ -84,7 +84,7 @@ function emptyState<T extends BrainRow>(): ContextState<T> {
 function contextStateFromData<T extends BrainRow>(
   data: BrainContextData<T>,
   sorting: SortState | null,
-  filterExpr: string | null,
+  filter: string | null,
   searchQuery: string,
   loadedAt = Date.now()
 ): ContextState<T> {
@@ -92,7 +92,7 @@ function contextStateFromData<T extends BrainRow>(
     ...data,
     hasMore: data.rows.length < data.count,
     sorting,
-    filterExpr,
+    filter,
     searchQuery,
     lastLoadedAt: loadedAt,
   };
@@ -121,7 +121,7 @@ function fetchForKey(
   stateKey: StateKey,
   sorting: SortState | null,
   offset = 0,
-  filterExpr?: string | null,
+  filter?: string | null,
   root: ContextRoot | null = null
 ) {
   const apiContext = STATE_KEY_TO_API[stateKey];
@@ -130,7 +130,7 @@ function fetchForKey(
     limit: PAGE_SIZE,
     offset,
     sorting: sortingParam,
-    filterExpr: filterExpr ?? undefined,
+    filter: filter ?? undefined,
     root,
     readAcrossRoots: root ? false : stateKey === 'tasks',
   });
@@ -237,20 +237,13 @@ export function useTasksData({
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(
-          assistant,
-          activeKey,
-          newSorting,
-          0,
-          current.filterExpr,
-          root
-        );
+        const data = await fetchForKey(assistant, activeKey, newSorting, 0, current.filter, root);
         setStates((prev) => ({
           ...prev,
           [activeKey]: contextStateFromData(
             data as any,
             newSorting,
-            current.filterExpr,
+            current.filter,
             current.searchQuery
           ),
         }));
@@ -269,20 +262,20 @@ export function useTasksData({
 
       const trimmed = query.trim();
       const currentFields = states[activeKey].fields;
-      const filterExpr = trimmed ? buildSearchFilterExpr(trimmed, currentFields) : null;
+      const filter = trimmed ? buildSearchFilterExpr(trimmed, currentFields) : null;
       const currentSorting = states[activeKey].sorting;
 
       setStates((prev) => ({
         ...prev,
-        [activeKey]: { ...prev[activeKey], rows: [], filterExpr, searchQuery: trimmed },
+        [activeKey]: { ...prev[activeKey], rows: [], filter, searchQuery: trimmed },
       }));
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(assistant, activeKey, currentSorting, 0, filterExpr, root);
+        const data = await fetchForKey(assistant, activeKey, currentSorting, 0, filter, root);
         setStates((prev) => ({
           ...prev,
-          [activeKey]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
+          [activeKey]: contextStateFromData(data as any, currentSorting, filter, trimmed),
         }));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to search');
@@ -300,7 +293,7 @@ export function useTasksData({
 
     setStates((prev) => ({
       ...prev,
-      [activeKey]: { ...prev[activeKey], rows: [], filterExpr: null, searchQuery: '' },
+      [activeKey]: { ...prev[activeKey], rows: [], filter: null, searchQuery: '' },
     }));
     setIsLoading(true);
 
@@ -332,7 +325,7 @@ export function useTasksData({
         activeKey,
         current.sorting,
         offset,
-        current.filterExpr,
+        current.filter,
         root
       );
 

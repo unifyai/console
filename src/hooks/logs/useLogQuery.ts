@@ -72,7 +72,7 @@ export function useLogQuery({
       'logQuery',
       projectName,
       context,
-      spec?.filterExpr ?? '',
+      spec?.filter ?? '',
       spec?.sorting ?? '',
       spec?.limit ?? 0,
       spec?.offset ?? 0,

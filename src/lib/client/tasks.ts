@@ -8,7 +8,7 @@ export async function fetchHasRunningTaskRun(assistant: Assistant): Promise<bool
   const data = (await fetchBrainContext(assistant, 'Tasks/Runs', {
     limit: 50,
     offset: 0,
-    filterExpr: RUNNING_TASK_RUN_FILTER_EXPR,
+    filter: RUNNING_TASK_RUN_FILTER_EXPR,
     readAcrossRoots: false,
   })) as BrainContextData<TaskRunRow>;
 

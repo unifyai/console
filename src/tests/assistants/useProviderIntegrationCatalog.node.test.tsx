@@ -174,14 +174,14 @@ describe('useProviderIntegrationCatalog', () => {
     const logsCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
     expect(logsCall).toBeDefined();
     const params = new URL(String(logsCall?.[0]), window.location.origin).searchParams;
-    const filterExpr = params.get('filterExpr') ?? '';
-    expect(filterExpr).toContain('display_name.lower().contains("github")');
-    expect(filterExpr).toContain('canonical_app_slug.lower().contains("linear")');
-    expect(filterExpr).toContain('description.lower().contains("jira")');
-    expect(filterExpr).toContain('display_name.lower().contains("hr")');
-    expect(filterExpr).toContain('canonical_app_slug.lower().contains("ops")');
-    expect(filterExpr).toContain(' or ');
-    expect(filterExpr).not.toContain('github|linear|jira|hr|ops');
+    const filter = params.get('filter') ?? '';
+    expect(filter).toContain('display_name.lower().contains("github")');
+    expect(filter).toContain('canonical_app_slug.lower().contains("linear")');
+    expect(filter).toContain('description.lower().contains("jira")');
+    expect(filter).toContain('display_name.lower().contains("hr")');
+    expect(filter).toContain('canonical_app_slug.lower().contains("ops")');
+    expect(filter).toContain(' or ');
+    expect(filter).not.toContain('github|linear|jira|hr|ops');
   });
 
   it('keeps plain provider catalog searches phrase-based', async () => {
@@ -208,9 +208,9 @@ describe('useProviderIntegrationCatalog', () => {
     const logsCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
     expect(logsCall).toBeDefined();
     const params = new URL(String(logsCall?.[0]), window.location.origin).searchParams;
-    const filterExpr = params.get('filterExpr') ?? '';
-    expect(filterExpr).toContain('display_name.lower().contains("github linear jira hr ops")');
-    expect(filterExpr).not.toContain('display_name.lower().contains("github")');
+    const filter = params.get('filter') ?? '';
+    expect(filter).toContain('display_name.lower().contains("github linear jira hr ops")');
+    expect(filter).not.toContain('display_name.lower().contains("github")');
   });
 
   it('maps available scope name fields to scope ids instead of scope-N placeholders', async () => {
@@ -360,14 +360,14 @@ describe('useProviderIntegrationCatalog', () => {
     expect(countCalls).toHaveLength(0);
 
     const listCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
-    const filterExpr = new URL(String(listCall?.[0]), window.location.origin).searchParams.get(
-      'filterExpr'
+    const filter = new URL(String(listCall?.[0]), window.location.origin).searchParams.get(
+      'filter'
     );
-    expect(filterExpr).toContain('display_name.lower().contains("gmail")');
-    expect(filterExpr).toContain('canonical_app_slug.lower().contains("gmail")');
-    expect(filterExpr).toContain('description.lower().contains("gmail")');
-    expect(filterExpr).not.toContain('category.lower()');
-    expect(filterExpr).not.toContain('source_label.lower()');
+    expect(filter).toContain('display_name.lower().contains("gmail")');
+    expect(filter).toContain('canonical_app_slug.lower().contains("gmail")');
+    expect(filter).toContain('description.lower().contains("gmail")');
+    expect(filter).not.toContain('category.lower()');
+    expect(filter).not.toContain('source_label.lower()');
   });
 
   it('pins connected apps under the All filter even when off the browse page', async () => {
@@ -383,7 +383,7 @@ describe('useProviderIntegrationCatalog', () => {
         const params = new URL(url, window.location.origin).searchParams;
         // The pinned connected/needs-attention fetch carries a status filter;
         // the unfiltered browse page does not include the connected app.
-        if (params.get('filterExpr')) {
+        if (params.get('filter')) {
           return builtinsLogsResponse([providerApp('gmail', { display_name: 'Gmail' })], 1);
         }
         return builtinsLogsResponse(
@@ -506,8 +506,8 @@ describe('useProviderIntegrationCatalog', () => {
     expect(toolsRequests.length).toBeGreaterThan(0);
     for (const url of toolsRequests) {
       const params = new URL(url, window.location.origin).searchParams;
-      expect(params.get('filterExpr')).toBe('metadata["integration"]["app_slug"] == "slack"');
-      expect(params.get('filterExpr')).not.toBe('app_slug == "slack"');
+      expect(params.get('filter')).toBe('metadata["integration"]["app_slug"] == "slack"');
+      expect(params.get('filter')).not.toBe('app_slug == "slack"');
       expect(params.get('fromFields')).toContain('metadata');
       expect(params.get('fromFields')).not.toContain('embedding');
     }
@@ -569,7 +569,7 @@ describe('listProviderIntegrationDefinitionsPage', () => {
     expect(String(fetchSpy.mock.calls[0][0])).toContain('limit=20');
     expect(String(fetchSpy.mock.calls[0][0])).toContain('offset=20');
     expect(String(fetchSpy.mock.calls[0][0])).toContain(
-      'filterExpr=source_type+%3D%3D+%22third_party%22'
+      'filter=source_type+%3D%3D+%22third_party%22'
     );
     const params = new URL(String(fetchSpy.mock.calls[0][0]), window.location.origin).searchParams;
     expect(params.get('fromFields')).toContain('canonical_app_slug');
@@ -646,8 +646,8 @@ describe('listProviderIntegrationDefinitionsPage', () => {
 
     const params = new URL(String(fetchSpy.mock.calls[0][0]), window.location.origin).searchParams;
     expect(params.get('fromFields')).toContain('labels');
-    expect(params.get('filterExpr')).toContain('category.lower() == "crm"');
-    expect(params.get('filterExpr')).toContain('labels["categories"]');
-    expect(params.get('filterExpr')).toContain('label["key"] == "crm"');
+    expect(params.get('filter')).toContain('category.lower() == "crm"');
+    expect(params.get('filter')).toContain('labels["categories"]');
+    expect(params.get('filter')).toContain('label["key"] == "crm"');
   });
 });

@@ -332,7 +332,7 @@ export function assertDataCorrectness(
   if (expectedLogs) {
     expect(data.length).toBe(expectedLogs.length);
   } else {
-    const hasFilter = projectConfig?.filterExpr != null;
+    const hasFilter = projectConfig?.filter != null;
     if (hasFilter) {
       expect(data.length).toBeGreaterThanOrEqual(0);
     } else {
@@ -477,17 +477,17 @@ export function assertDataPreprocessing(
   }
 
   if (projectConfig && PLOT_TEST_API_REAL) {
-    if (projectConfig.filterExpr) {
-      const filterExpr = projectConfig.filterExpr;
+    if (projectConfig.filter) {
+      const filter = projectConfig.filter;
 
-      if (filterExpr === "status == 'success'") {
+      if (filter === "status == 'success'") {
         for (const log of data) {
           const entries = log.entries as Record<string, unknown>;
           if (entries?.status !== undefined) {
             expect(entries.status).toBe('success');
           }
         }
-      } else if (filterExpr === 'value > 0') {
+      } else if (filter === 'value > 0') {
         for (const log of data) {
           const yValue = log['table1.y_value'] as number | null | undefined;
           if (yValue !== null && yValue !== undefined) {

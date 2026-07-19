@@ -293,7 +293,7 @@ async function fetchBarChartMetrics(
   yAxis: string,
   metric: string,
   groupBy: string | null,
-  filterExpr: string | null,
+  filter: string | null,
   timeoutMs: number
 ): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean } | null> {
   try {
@@ -307,7 +307,7 @@ async function fetchBarChartMetrics(
       : [toOrchestraField(xAxis)];
     params.set('group_by', JSON.stringify(groupByFields));
 
-    if (filterExpr) params.set('filter_expr', filterExpr);
+    if (filter) params.set('filter', filter);
 
     const metricsUrl = `${ORCHESTRA_URL}/v0/logs/metric/${metric}?${params.toString()}`;
     const response = await fetchWithTimeout(
@@ -578,7 +578,7 @@ export async function fetchPlotData(
         plotConfig.config.yAxis,
         plotConfig.config.metric || 'mean',
         plotConfig.config.groupBy || null,
-        (projectConfig.filterExpr as string) || null,
+        (projectConfig.filter as string) || null,
         timeoutMs
       );
 
@@ -611,8 +611,8 @@ export async function fetchPlotData(
       if (projectConfig.columnContext) {
         logsParams.append('column_context', projectConfig.columnContext as string);
       }
-      if (projectConfig.filterExpr) {
-        logsParams.append('filter_expr', projectConfig.filterExpr as string);
+      if (projectConfig.filter) {
+        logsParams.append('filter', projectConfig.filter as string);
       }
       if (projectConfig.limit) {
         logsParams.append('limit', String(projectConfig.limit));

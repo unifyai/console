@@ -30,7 +30,7 @@ export async function getSecrets(
   assistantId: string,
   ownerId: string,
   sorting?: string,
-  filterExpr?: string
+  filter?: string
 ): Promise<Secret[] | ResponseProps> {
   const { apiKey, orgId } = await resolveSecretSession();
   try {
@@ -46,7 +46,7 @@ export async function getSecrets(
       excludeFields: 'value',
     });
     if (sorting) params.set('sorting', sorting);
-    if (filterExpr) params.set('filterExpr', filterExpr);
+    if (filter) params.set('filter', filter);
     const url = `${getInternalApiBaseUrl()}/api/logs?${params.toString()}`;
 
     const response = await fetch(url, { method: 'GET', headers: { apiKey: effectiveKey } });
@@ -85,7 +85,7 @@ export async function getSecretValue(
     const params = new URLSearchParams({
       projectName: PROJECT,
       context: `${ownerId}/${assistantId}${CONTEXT_SUFFIX}`,
-      filterExpr: `name == "${escapedName}"`,
+      filter: `name == "${escapedName}"`,
       limit: '1',
     });
     const url = `${process.env.NEXTAUTH_URL}/api/logs?${params.toString()}`;

@@ -4,7 +4,7 @@
  * Comprehensive matrix tests covering all combinations of:
  * - Plot types: scatter, bar, histogram, line
  * - Plot configs: All valid combinations from configs.ts
- * - Project configs: Combinations of limit, filterExpr, groupBy, sorting
+ * - Project configs: Combinations of limit, filter, groupBy, sorting
  * - Data types: All combinations from dataTypeOptions
  * - Scales: small (100), medium (1000), large (10000)
  *

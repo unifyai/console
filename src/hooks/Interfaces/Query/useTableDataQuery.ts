@@ -662,7 +662,7 @@ export function useUpdateTableDataItem(tileId: string) {
  * @param context Context for the query
  * @param columnContext Column context for the query
  * @param columns Array of column names
- * @param filterExpression Filter expression
+ * @param filteression Filter expression
  * @param metric Metric to calculate
  * @param caller Debug string to identify which component called this
  */
@@ -675,7 +675,7 @@ export function useTableMetricsQuery(
   context?: string | null,
   columnContext?: string | null,
   columns?: string[],
-  filterExpression?: string | null,
+  filteression?: string | null,
   metric?: string,
   caller?: string
 ) {
@@ -691,7 +691,7 @@ export function useTableMetricsQuery(
       context,
       columnContext,
       columns,
-      filterExpression,
+      filteression,
       metric,
     ],
     queryFn: async () => {
@@ -705,7 +705,7 @@ export function useTableMetricsQuery(
         context || null,
         columnContext || null,
         columns,
-        filterExpression || null,
+        filteression || null,
         null,
         metric || 'mean',
         logsActions
@@ -805,7 +805,7 @@ export function useTableBoundariesQuery(
  * @param context Context for the query
  * @param columnContext Column context for the query
  * @param columns Array of column names
- * @param filterExpression Filter expression
+ * @param filteression Filter expression
  * @param groupingExpression Grouping expression
  * @param metric Metric to calculate
  * @param fields Field definitions for data type checking
@@ -820,7 +820,7 @@ export function useTableGroupedMetricsQuery(
   context?: string | null,
   columnContext?: string | null,
   columns?: string[],
-  filterExpression?: string | null,
+  filteression?: string | null,
   groupingExpression?: string | null,
   metric?: string,
   fields?: LogFieldsResponseProps,
@@ -847,7 +847,7 @@ export function useTableGroupedMetricsQuery(
       context,
       columnContext,
       columns,
-      filterExpression,
+      filteression,
       groupingExpression,
       metric,
     ],
@@ -869,7 +869,7 @@ export function useTableGroupedMetricsQuery(
         context || null,
         columnContext || null,
         columns,
-        filterExpression || null,
+        filteression || null,
         groupingExpression,
         metric || 'mean',
         fields,
@@ -898,7 +898,7 @@ export function useTableGroupedMetricsQuery(
  * @param context Context for the query
  * @param columnContext Column context for the query
  * @param columns Array of column names
- * @param filterExpression Filter expression
+ * @param filteression Filter expression
  * @param metric Metric to calculate
  */
 export function useInvalidateTableMetrics(
@@ -908,7 +908,7 @@ export function useInvalidateTableMetrics(
   context?: string | null,
   columnContext?: string | null,
   columns?: string[],
-  filterExpression?: string | null,
+  filteression?: string | null,
   metric?: string
 ) {
   const queryClient = useQueryClient();
@@ -925,7 +925,7 @@ export function useInvalidateTableMetrics(
           context,
           columnContext,
           columns,
-          filterExpression,
+          filteression,
           metric,
         ],
         refetchType: 'active',
@@ -939,7 +939,7 @@ export function useInvalidateTableMetrics(
     context,
     columnContext,
     columns,
-    filterExpression,
+    filteression,
     metric,
   ]);
 
@@ -986,7 +986,7 @@ export function useInvalidateTableBoundaries(
  * @param context Context for the query
  * @param columnContext Column context for the query
  * @param columns Array of column names
- * @param filterExpression Filter expression
+ * @param filteression Filter expression
  * @param groupingExpression Grouping expression
  * @param metric Metric to calculate
  */
@@ -997,7 +997,7 @@ export function useInvalidateTableGroupedMetrics(
   context?: string | null,
   columnContext?: string | null,
   columns?: string[],
-  filterExpression?: string | null,
+  filteression?: string | null,
   groupingExpression?: string | null,
   metric?: string
 ) {
@@ -1015,7 +1015,7 @@ export function useInvalidateTableGroupedMetrics(
           context,
           columnContext,
           columns,
-          filterExpression,
+          filteression,
           groupingExpression,
           metric,
         ],
@@ -1035,7 +1035,7 @@ export function useInvalidateTableGroupedMetrics(
     context,
     columnContext,
     columns,
-    filterExpression,
+    filteression,
     groupingExpression,
     metric,
   ]);

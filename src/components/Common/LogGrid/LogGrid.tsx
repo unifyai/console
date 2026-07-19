@@ -166,7 +166,7 @@ export interface LogGridProps {
   /** Refresh fields/rows after a derived column is created or updated. */
   onDerivedCreated?: (key: string) => void;
   onMutated?: () => void;
-  filterExpr?: string | null;
+  filter?: string | null;
   error?: Error | null;
   onRetry?: () => void;
   /** Flat rows currently browsable for selection inspectors. */
@@ -217,7 +217,7 @@ export function LogGrid({
   onRowActivate,
   onDerivedCreated,
   onMutated,
-  filterExpr = null,
+  filter = null,
   error = null,
   onRetry,
   onBrowseRowsChange,
@@ -320,10 +320,12 @@ export function LogGrid({
     if (!same) onViewChange({ columnOrder: order });
   }, [columns, orderKey, view.columnOrder, onViewChange]);
 
-  const visible = visibleColumnIds(
-    view.columnOrder.length ? view.columnOrder : columns,
-    view.hiddenColumns
-  );
+  // Prefer the saved order (canonical init or user drag). Grouped columns are
+  // only moved to the front for display — never written back into columnOrder —
+  // so Ungroup restores the pre-group positions automatically.
+  const baseColumnOrder = view.columnOrder.length ? view.columnOrder : columns;
+  const displayColumnOrder = withGroupedColumnsFirst(baseColumnOrder, groupingIds);
+  const visible = visibleColumnIds(displayColumnOrder, view.hiddenColumns);
 
   const onSortingChange: OnChangeFn<SortingState> = (updater) => {
     const next = typeof updater === 'function' ? updater(view.sorting) : updater;
@@ -333,19 +335,28 @@ export function LogGrid({
   const onViewChangeRef = React.useRef(onViewChange);
   onViewChangeRef.current = onViewChange;
 
+  /** True after the user drag-reorders columns; suppresses canonical order resets. */
+  const userReorderedColumnsRef = React.useRef(false);
+
+  React.useEffect(() => {
+    userReorderedColumnsRef.current = false;
+  }, [context]);
+
   const setGrouping = React.useCallback(
     (nextGrouping: string) => {
-      const nextIds = parseGrouping(nextGrouping);
-      const order = view.columnOrder.length ? view.columnOrder : columns;
+      // Keep columnOrder as the user's preferred order (canonical until they drag).
+      // Grouped columns are only moved front at render via displayColumnOrder.
+      // Resetting to `columns` when the user has not dragged also heals sessions
+      // where an older build persisted the front-pin into columnOrder.
       onViewChange({
         grouping: nextGrouping,
         offset: 0,
         autoUpdate: false,
-        columnOrder: withGroupedColumnsFirst(order, nextIds),
+        ...(userReorderedColumnsRef.current ? {} : { columnOrder: columns }),
       });
       setExpanded({});
     },
-    [columns, onViewChange, view.columnOrder]
+    [columns, onViewChange]
   );
 
   const expandGroup = React.useCallback(
@@ -361,7 +372,7 @@ export function LogGrid({
         groupingColumnId: group.groupingColumnId,
         groupingValue: String(group.groupingValue),
         parentId,
-        filterExpr,
+        filter,
         sorting: sortingStateToOrchestra(view.sorting),
         fields,
         pageSize: view.limit || 50,
@@ -370,7 +381,7 @@ export function LogGrid({
       setTreeRows((prev) => updateGridGroupSubRows(prev, group.id, result.rows, result.count));
       setExpandingId(null);
     },
-    [context, fields, filterExpr, projectName, view.grouping, view.limit, view.sorting]
+    [context, fields, filter, projectName, view.grouping, view.limit, view.sorting]
   );
 
   const sensors = useSensors(
@@ -385,6 +396,7 @@ export function LogGrid({
     const oldIndex = order.indexOf(String(active.id));
     const newIndex = order.indexOf(String(over.id));
     if (oldIndex < 0 || newIndex < 0) return;
+    userReorderedColumnsRef.current = true;
     onViewChange({ columnOrder: arrayMove(order, oldIndex, newIndex) });
   };
 

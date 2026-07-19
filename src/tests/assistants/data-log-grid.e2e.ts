@@ -490,6 +490,15 @@ test('column search works', async ({ authedPage: page }) => {
 test('group by nests columns and expands leaf rows', async ({ authedPage: page }) => {
   await openPeopleTable(page);
 
+  const headerLabels = () =>
+    page
+      .locator('[data-testid^="log-grid-label-"]')
+      .evaluateAll((els) =>
+        els.map((el) => el.getAttribute('data-testid')?.replace('log-grid-label-', '') ?? '')
+      );
+
+  const orderBefore = await headerLabels();
+
   const cityHeader = page.getByTestId('log-grid-header-city');
   await cityHeader.hover();
   await page.getByTestId('log-grid-column-menu-city').click({ force: true });
@@ -501,6 +510,9 @@ test('group by nests columns and expands leaf rows', async ({ authedPage: page }
   // Ada + Alan both London → one London group among others
   await expect(page.getByText('London').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('log-grid-group-expand-city').first()).toBeVisible();
+
+  // Grouped column is shown first while grouped (display-only pin)
+  await expect.poll(async () => (await headerLabels())[0], { timeout: 10_000 }).toBe('city');
 
   // Nested group-by: append name under city
   const nameHeader = page.getByTestId('log-grid-header-name');
@@ -517,13 +529,23 @@ test('group by nests columns and expands leaf rows', async ({ authedPage: page }
   await page.getByTestId('log-grid-group-expand-name').first().click();
   await expect(logGridRows(page).first()).toBeVisible({ timeout: 30_000 });
 
-  // Ungroup city (leaves name grouping)
+  // Ungroup city (leaves name grouping) — name stays front-pinned for display
   await cityHeader.hover();
   await page.getByTestId('log-grid-column-menu-city').click({ force: true });
   await page.getByTestId('log-grid-group-by-city').click({ force: true });
   await expect(page.getByTestId('log-grid-group-expand-name').first()).toBeVisible({
     timeout: 30_000,
   });
+  await expect.poll(async () => (await headerLabels())[0], { timeout: 10_000 }).toBe('name');
+
+  // Full ungroup restores canonical (pre-group) column order
+  await nameHeader.hover();
+  await page.getByTestId('log-grid-column-menu-name').click({ force: true });
+  await page.getByTestId('log-grid-group-by-name').click({ force: true });
+  await expect(page.getByTestId('log-grid-group-expand-name')).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect.poll(async () => headerLabels(), { timeout: 10_000 }).toEqual(orderBefore);
 });
 
 test('group by snake_case field uses Orchestra keys not camelCase', async ({

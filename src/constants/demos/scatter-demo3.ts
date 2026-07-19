@@ -55,7 +55,7 @@ const scatterDemo3 = {
     equation: '{Table:gender} + {Table:nationality}',
     referencedLogs: {
       Table: {
-        filterExpr: '',
+        filter: '',
       },
     },
   },

@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Read the actual client_id value via the shared ``getSecretValue``
-  // helper (filterExpr lookup against the assistant's Secrets context).
+  // helper (filter lookup against the assistant's Secrets context).
   // client_id is a public OAuth identifier per the spec, so embedding it
   // in the authorize URL is expected — but we still keep this read
   // server-side to avoid round-tripping it through the browser

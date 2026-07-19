@@ -419,6 +419,12 @@ export function LogColumnFilter({
         className="z-[80] w-80 space-y-2 p-3"
         onClick={(e) => e.stopPropagation()}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onFocusOutside={(e) => {
+          // Non-modal popovers dismiss on any focusin outside. Closing the column
+          // ⋯ menu restores focus to its trigger after the exit animation, which
+          // would immediately dismiss a filter opened from that menu.
+          e.preventDefault();
+        }}
       >
         <div className="text-caption font-medium text-foreground">Filter {sanitizeId(column)}</div>
         {spans.map((span, spanIndex) => {

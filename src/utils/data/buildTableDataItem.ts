@@ -189,7 +189,7 @@ export async function fetchAndBuildTableDataItem(
   }
 
   // Build filter expression
-  const filterExpression = buildFilterExpression(
+  const filteression = buildFilterExpression(
     tile.filters,
     tile.commonFilter,
     tile.columnContext,
@@ -227,7 +227,7 @@ export async function fetchAndBuildTableDataItem(
     params.set('projectName', projectId);
     if (tile.context) params.set('context', tile.context);
     if (tile.columnContext) params.set('columnContext', tile.columnContext);
-    if (filterExpression) params.set('filterExpr', filterExpression);
+    if (filteression) params.set('filter', filteression);
     if (sortingExpression) params.set('sorting', sortingExpression);
     if (groupSortingExpression) params.set('groupSorting', groupSortingExpression);
 

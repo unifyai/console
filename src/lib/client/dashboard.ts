@@ -19,7 +19,7 @@ const TILE_METADATA_FIELDS = [
 
 async function fetchContext(
   context: string,
-  options?: { fromFields?: string; filterExpr?: string }
+  options?: { fromFields?: string; filter?: string }
 ): Promise<Record<string, unknown>[]> {
   const params = new URLSearchParams({
     projectName: 'Assistants',
@@ -27,7 +27,7 @@ async function fetchContext(
     limit: String(PAGE_SIZE),
   });
   if (options?.fromFields) params.set('fromFields', options.fromFields);
-  if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
+  if (options?.filter) params.set('filter', options.filter);
 
   const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
   if (!response.ok) return [];
@@ -43,7 +43,7 @@ async function fetchContext(
 async function readAcrossDashboardRoots<T>(
   assistant: Assistant,
   table: string,
-  options?: { fromFields?: string; filterExpr?: string; root?: ContextRoot | null }
+  options?: { fromFields?: string; filter?: string; root?: ContextRoot | null }
 ): Promise<T[]> {
   const readableRoots = options?.root ? [options.root] : roots(assistant);
   const results = await Promise.all(
@@ -78,7 +78,7 @@ export async function fetchDashboardTileContent(
 
   const rows = await readAcrossDashboardRoots<TileRecord>(assistant, 'Dashboards/Tiles', {
     fromFields: 'token&html_content',
-    filterExpr: `token == '${escapeFilterValue(tileToken)}'`,
+    filter: `token == '${escapeFilterValue(tileToken)}'`,
     root,
   });
 

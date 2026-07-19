@@ -580,7 +580,7 @@ export interface LogsActions {
     project: string,
     context: string | null,
     columnContext: string | null,
-    filterExpression: string | null,
+    filteression: string | null,
     sortingExpression: string | null,
     groupingExpression: string | null,
     groupSortingExpression: string | null,
@@ -601,7 +601,7 @@ export interface LogsActions {
     project: string,
     context: string | null,
     columnContext: string | null,
-    filterExpression: string | null,
+    filteression: string | null,
     sortingExpression: string | null,
     groupingExpression: string | null,
     groupSortingExpression: string | null,
@@ -619,7 +619,7 @@ export interface LogsActions {
   getMetrics: (
     project: string,
     context: string | null,
-    filterExpression: string | null,
+    filteression: string | null,
     groupingExpression: string | null,
     metricName: string,
     keyNames: string[]

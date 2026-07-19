@@ -38,12 +38,12 @@ const TILE_METADATA_FIELDS = [
 async function fetchContext(
   apiKey: string,
   context: string,
-  options?: { extraParams?: string; fromFields?: string; filterExpr?: string }
+  options?: { extraParams?: string; fromFields?: string; filter?: string }
 ): Promise<Record<string, unknown>[]> {
   let url = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${encodeURIComponent(context)}&limit=${PAGE_SIZE}`;
   if (options?.extraParams) url += `&${options.extraParams}`;
   if (options?.fromFields) url += `&fromFields=${encodeURIComponent(options.fromFields)}`;
-  if (options?.filterExpr) url += `&filterExpr=${encodeURIComponent(options.filterExpr)}`;
+  if (options?.filter) url += `&filter=${encodeURIComponent(options.filter)}`;
 
   const res = await fetch(url, { method: 'GET', headers: { apiKey } });
   if (!res.ok) return [];
@@ -115,7 +115,7 @@ export async function getDashboardTileContent(
         rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles'),
         {
           fromFields: 'token&html_content',
-          filterExpr: `token == '${tileToken}'`,
+          filter: `token == '${tileToken}'`,
         }
       )
     );

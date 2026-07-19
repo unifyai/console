@@ -181,7 +181,7 @@ Proxies requests to Orchestra `POST /v0/logs/table`.
   "projectConfig": {
     "projectName": "my-project",
     "context": "production",
-    "filterExpr": "status == 'active'",
+    "filter": "status == 'active'",
     "limit": 1000
   }
 }
@@ -359,7 +359,7 @@ response = requests.post(
         },
         "project_config": {
             "project_name": "my-project",
-            "filter_expr": "status == 'active'"
+            "filter": "status == 'active'"
         },
         "title": "Active Items by Value"
     }

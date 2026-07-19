@@ -1340,7 +1340,7 @@ export interface paths {
      *
      *       4. **Dynamic expression sorting**:
      *          - In addition to static field-based sorting, you can use dynamic expressions for sorting.
-     *          - The same grammar supported for `filter_expr` applies to sorting expressions.
+     *          - The same grammar supported for `filter` applies to sorting expressions.
      *
      *     The response always includes:
      *       - `params`: The parameter versions used across the logs.
@@ -1556,7 +1556,7 @@ export interface paths {
      *     ```json
      *     {
      *         'project_name': 'my-project',
-     *         'filter_expr': 'cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3',
+     *         'filter': 'cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3',
      *         'limit': 10
      *     }
      *     ```
@@ -1665,7 +1665,7 @@ export interface paths {
      * Get Log Groups
      * @description Returns a dict with the different versions as keys and the values of the remaining
      *     items within a given project based on its key.
-     *     The logs can be filtered using filter_expr, from_ids, and exclude_ids parameters
+     *     The logs can be filtered using filter, from_ids, and exclude_ids parameters
      *     before grouping.
      */
     get: operations['get_log_groups_v0_logs_groups_get'];
@@ -1719,7 +1719,7 @@ export interface paths {
      *
      *     Args:
      *         pair_of_args: List of two dictionaries containing filtering criteria for logs to join.
-     *                      Each dictionary can include context, filter_expr, from_ids, etc.
+     *                      Each dictionary can include context, filter, from_ids, etc.
      *         join_expr: SQL expression for the join condition using aliases A and B
      *                   (e.g., 'A.user_id = B.user_id')
      *         mode: Type of join to perform ('inner', 'left', 'right', or 'outer')
@@ -3485,9 +3485,9 @@ export interface components {
       log_ids?: number[] | null;
       /**
        * Log Args
-       * @description Dictionary of arguments (e.g. filter_expr) to select logs by criteria.
+       * @description Dictionary of arguments (e.g. filter) to select logs by criteria.
        * @example {
-       *       'filter_expr': 'metric > 0.9'
+       *       'filter': 'metric > 0.9'
        *     }
        */
       log_args?: {
@@ -4570,7 +4570,7 @@ export interface components {
        *         2
        *       ],
        *       'log1': {
-       *         'filter_expr': 'score > 0.5'
+       *         'filter': 'score > 0.5'
        *       }
        *     }
        */
@@ -5397,7 +5397,7 @@ export interface components {
        * Filter Expr
        * @description Expression to filter logs (string or key->expr dict).
        */
-      filter_expr?:
+      filter?:
         | string
         | {
             [key: string]: string;
@@ -5869,11 +5869,11 @@ export interface components {
        * @example [
        *       {
        *         'context': 'context_a',
-       *         'filter_expr': 'user_id == 1'
+       *         'filter': 'user_id == 1'
        *       },
        *       {
        *         'context': 'context_b',
-       *         'filter_expr': 'user_id == 2'
+       *         'filter': 'user_id == 2'
        *       }
        *     ]
        */
@@ -6702,7 +6702,7 @@ export interface components {
      *     ```json
      *     {
      *         'project_name': 'my-project',
-     *         'filter_expr': 'cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3'
+     *         'filter': 'cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3'
      *     }
      *     ```
      */
@@ -6730,7 +6730,7 @@ export interface components {
        * @description Boolean string to filter entries. Supports embed_image() for image similarity queries.
        * @example len(output) > 200 and temperature == 0.5
        */
-      filter_expr?: string | null;
+      filter?: string | null;
       /**
        * Sorting
        * @description JSON-encoded dict mapping either static column names (e.g. `timestamp`) or full Python2SQL expressions (e.g. `cosine(embed('search text'), embedding_vector)`) to sort directions (`'ascending'` or `'descending'`). The first key is the primary sort field; subsequent keys break ties.
@@ -7851,7 +7851,7 @@ export interface components {
        *         2
        *       ],
        *       'log1': {
-       *         'filter_expr': 'derived_score > 0.5'
+       *         'filter': 'derived_score > 0.5'
        *       }
        *     }
        */
@@ -7877,7 +7877,7 @@ export interface components {
        * @description Optional new referenced logs to use for computation. Can be specified either as a list of log IDs or as a set of arguments for the get_logs endpoint.
        * @example {
        *       'other': {
-       *         'filter_expr': 'score > 0.5'
+       *         'filter': 'score > 0.5'
        *       },
        *       't': [
        *         1,
@@ -8558,7 +8558,7 @@ export interface components {
        * Filter Expr
        * @description Boolean expression to filter entries
        */
-      filter_expr?: string | null;
+      filter?: string | null;
       /**
        * From Ids
        * @description Log IDs to include (ampersand-separated)
@@ -8681,7 +8681,7 @@ export interface components {
        * Filter Expr
        * @description Boolean expression to filter entries
        */
-      filter_expr?: string | null;
+      filter?: string | null;
       /**
        * From Fields
        * @description Fields to include (ampersand-separated)
@@ -12211,7 +12211,7 @@ export interface operations {
          * @description Boolean string to filter entries.
          * @example len(output) > 200 and temperature == 0.5
          */
-        filter_expr?: string | null;
+        filter?: string | null;
         /**
          * @description JSON-encoded dict mapping either static column names (e.g. `timestamp`) or full Python2SQL expressions (e.g. `cosine(embed('search text'), embedding_vector)`) to sort directions (`'ascending'` or `'descending'`). The first key is the primary sort field; subsequent keys break ties.
          * @example {
@@ -12912,7 +12912,7 @@ export interface operations {
          * @description Boolean string to filter entries.
          * @example len(output) > 200 and temperature == 0.5
          */
-        filter_expr?: string | null;
+        filter?: string | null;
         /**
          * @description Dict with fields as keys and either 'ascending' or 'descending' as values. The first entry in the dict is the last field to be sorted by, which takes ultimate precedent, with other keys only remaining in order when the first key values are equal.
          * @example {
@@ -13090,7 +13090,7 @@ export interface operations {
          * @description Boolean string to filter entries before grouping.
          * @example len(output) > 200 and temperature == 0.5
          */
-        filter_expr?: string | null;
+        filter?: string | null;
         /**
          * @description The log ids which are permitted to be included in the search. Each log id listed does not need to be returned, but no logs which are not included in this list can be returned. This argument *cannot* be set if `exclude_ids` is set.
          * @example 0&1&2

@@ -22,7 +22,7 @@ export interface CoreLogFetchParams {
   projectId: string;
   context: string | null;
   columnContext: string | null;
-  filterExpression: string | null;
+  filteression: string | null;
   sortingExpression: string | null;
   groupingExpression: string | null;
   groupSortingExpression: string | null;
@@ -79,7 +79,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     projectId,
     context,
     columnContext,
-    filterExpression,
+    filteression,
     sortingExpression,
     groupingExpression,
     groupSortingExpression,
@@ -98,7 +98,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     headers,
   } = params;
 
-  let effectiveFilterExpression = filterExpression;
+  let effectiveFilterExpression = filteression;
   let effectiveGroupingExpression = groupingExpression;
   let useGroupPagination = !!groupingExpression;
   let targetGroupFilters: [string, string][] = [];
@@ -106,7 +106,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
   // Handle group-specific scenarios (expansion or group-specific infinite scroll)
   if (groupingColumnId && groupingValue && dataTypes && fields) {
     const groupingFilters = getGroupingFilters(
-      filterExpression,
+      filteression,
       groupingColumnId,
       groupingValue,
       parentId || null,
@@ -129,7 +129,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
   queryParams.set('projectName', projectId);
   if (context) queryParams.set('context', context);
   if (columnContext) queryParams.set('columnContext', columnContext);
-  if (effectiveFilterExpression) queryParams.set('filterExpr', effectiveFilterExpression);
+  if (effectiveFilterExpression) queryParams.set('filter', effectiveFilterExpression);
   if (sortingExpression) queryParams.set('sorting', sortingExpression);
   if (groupSortingExpression) queryParams.set('groupSorting', groupSortingExpression);
 
@@ -203,7 +203,7 @@ export function buildLogQueryKey(
     projectId: string | null;
     context: string | null;
     columnContext: string | null;
-    filterExpression: string | null;
+    filteression: string | null;
     sortingExpression: string | null;
     groupingExpression: string | null;
     groupSortingExpression: string | null;
@@ -224,7 +224,7 @@ export function buildLogQueryKey(
     baseParams.projectId,
     baseParams.context,
     baseParams.columnContext,
-    baseParams.filterExpression,
+    baseParams.filteression,
     baseParams.sortingExpression,
     baseParams.groupingExpression,
     baseParams.groupSortingExpression,
