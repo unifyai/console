@@ -107,6 +107,37 @@ function formatInlineDraft(value: unknown): string {
   }
 }
 
+function LogGridColumnResizer({
+  columnId,
+  isResizing,
+  resizeHandler,
+  tableHeight,
+}: {
+  columnId: string;
+  isResizing: boolean;
+  resizeHandler: (event: unknown) => void;
+  tableHeight: number;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        resizeHandler(e);
+      }}
+      onTouchStart={resizeHandler}
+      className={cn(
+        'absolute right-0 top-0 z-10 w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary',
+        isResizing && 'bg-primary'
+      )}
+      style={{ height: tableHeight > 0 ? tableHeight : '100%' }}
+      data-testid={`log-grid-resize-${sanitizeId(columnId)}`}
+    />
+  );
+}
+
 function SortableHeader({
   header,
   children,
@@ -254,6 +285,8 @@ export function LogGrid({
   const tableName = context.split('/').pop() ?? 'Table';
   const rootRef = React.useRef<HTMLDivElement>(null);
   const scrollViewportRef = React.useRef<HTMLDivElement>(null);
+  const tableRef = React.useRef<HTMLTableElement>(null);
+  const [tableHeight, setTableHeight] = React.useState(0);
   const loadMoreSentinelRef = React.useRef<HTMLDivElement>(null);
 
   const groupingIds = React.useMemo(() => parseGrouping(view.grouping), [view.grouping]);
@@ -563,6 +596,16 @@ export function LogGrid({
     getRowId: (row) => row.group?.id ?? String(row.logId),
     defaultColumn: { size: 160, minSize: 80, maxSize: 640 },
   });
+
+  React.useEffect(() => {
+    const el = tableRef.current;
+    if (!el) return;
+    const update = () => setTableHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [displayRows, visible, isLoading]);
 
   const loadedCount = displayRows.length;
 
@@ -1126,7 +1169,10 @@ export function LogGrid({
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext items={visible} strategy={horizontalListSortingStrategy}>
-                        <Table style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
+                        <Table
+                          ref={tableRef}
+                          style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}
+                        >
                           <colgroup>
                             {table.getVisibleLeafColumns().map((column) => (
                               <col key={column.id} style={{ width: column.getSize() }} />
@@ -1174,16 +1220,11 @@ export function LogGrid({
                                       }}
                                       resizer={
                                         header.column.getCanResize() ? (
-                                          <div
-                                            role="separator"
-                                            aria-orientation="vertical"
-                                            onMouseDown={header.getResizeHandler()}
-                                            onTouchStart={header.getResizeHandler()}
-                                            className={cn(
-                                              'absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary',
-                                              header.column.getIsResizing() && 'bg-primary'
-                                            )}
-                                            data-testid={`log-grid-resize-${sanitizeId(header.column.id)}`}
+                                          <LogGridColumnResizer
+                                            columnId={header.column.id}
+                                            isResizing={header.column.getIsResizing()}
+                                            resizeHandler={header.getResizeHandler()}
+                                            tableHeight={tableHeight}
                                           />
                                         ) : null
                                       }

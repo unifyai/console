@@ -328,7 +328,9 @@ export function LogGridSortableHead({
     <TableHead
       ref={setNodeRef}
       className={cn(
-        'group relative h-8 overflow-hidden whitespace-nowrap px-1 text-[11px] text-muted-foreground',
+        // Overflow stays on the inner label row so full-height column resizers
+        // can extend past the header into the body without being clipped.
+        'group relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground',
         className,
         isDragging && 'z-20 opacity-80'
       )}

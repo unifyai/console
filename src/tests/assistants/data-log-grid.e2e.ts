@@ -747,3 +747,32 @@ test('refresh mode menu supports Refresh, Freeze, and Live', async ({ authedPage
     page.getByTestId('log-grid-refresh-mode-refresh').locator('.lucide-check')
   ).toHaveCount(0);
 });
+
+test('resizes a column by dragging the boundary in the body', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const header = page.getByTestId('log-grid-header-name');
+  const resizer = page.getByTestId('log-grid-resize-name');
+  await expect(header).toBeVisible();
+  await expect(resizer).toBeVisible();
+
+  // Full-height handle spans header + body (header alone is ~32px).
+  await expect.poll(async () => (await resizer.boundingBox())?.height ?? 0).toBeGreaterThan(80);
+
+  const before = await header.boundingBox();
+  expect(before).toBeTruthy();
+  const handle = await resizer.boundingBox();
+  expect(handle).toBeTruthy();
+
+  const startX = handle!.x + handle!.width / 2;
+  // Drag from well below the header so this exercises the body edge, not the header.
+  const startY = handle!.y + Math.min(handle!.height - 8, 120);
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 80, startY, { steps: 8 });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => (await header.boundingBox())?.width ?? 0)
+    .toBeGreaterThan((before?.width ?? 0) + 40);
+});
