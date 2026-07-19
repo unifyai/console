@@ -3,6 +3,8 @@
 import * as React from 'react';
 import {
   Check,
+  Columns3,
+  FilePlus2,
   MoreHorizontal,
   PanelRight,
   Plus,
@@ -11,6 +13,7 @@ import {
   Snowflake,
   Timer,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
@@ -46,6 +49,12 @@ export type LogGridToolbarProps = {
   onRefresh?: () => void;
   /** Opens the derived-column create dialog. */
   onAddDerivedColumn?: () => void;
+  /** Add an empty data row. */
+  onAddRow?: () => void;
+  /** Add a plain (non-derived) column. */
+  onAddColumn?: () => void;
+  /** Import rows from a file into this table. */
+  onImportRows?: () => void;
   /** Whether any cells are currently selected (enables the view-pane toggle). */
   hasSelection?: boolean;
   /** Whether the cell view pane is open. */
@@ -75,6 +84,9 @@ export function LogGridToolbar({
   onDeleteRows,
   onRefresh,
   onAddDerivedColumn,
+  onAddRow,
+  onAddColumn,
+  onImportRows,
   hasSelection = false,
   viewPanelOpen = false,
   onToggleViewPanel,
@@ -208,6 +220,52 @@ export function LogGridToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {onAddRow && (
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 shrink-0 p-0"
+                onClick={onAddRow}
+                aria-label="Add row"
+                data-testid="log-grid-add-row"
+              >
+                <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Add row</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {onAddColumn && (
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 shrink-0 p-0"
+                onClick={onAddColumn}
+                aria-label="Add column"
+                data-testid="log-grid-add-column"
+              >
+                <Columns3 className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Add column</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
       {onAddDerivedColumn && (
         <TooltipProvider delayDuration={100}>
           <Tooltip>
@@ -226,6 +284,29 @@ export function LogGridToolbar({
             </TooltipTrigger>
             <TooltipContent side="bottom">
               <p>Add derived column</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {onImportRows && (
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 shrink-0 p-0"
+                onClick={onImportRows}
+                aria-label="Import rows"
+                data-testid="log-grid-import-rows"
+              >
+                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Import rows</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

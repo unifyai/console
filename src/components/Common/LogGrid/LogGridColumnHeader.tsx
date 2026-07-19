@@ -14,6 +14,7 @@ import {
   Lock,
   MoreHorizontal,
   Pencil,
+  Trash2,
   Ungroup,
 } from 'lucide-react';
 import type { Column, Header, SortDirection } from '@tanstack/react-table';
@@ -47,6 +48,10 @@ type LogGridColumnHeaderProps = {
   /** System-owned / non-editable column — show a lock beside the label. */
   isLocked?: boolean;
   onEditDerived?: () => void;
+  /** Rename a plain entry column (not derived). */
+  onRenameColumn?: () => void;
+  /** Delete a plain entry column (not derived). */
+  onDeleteColumn?: () => void;
   reorderEnabled: boolean;
   onEnableReorder: () => void;
   onDisableReorder: () => void;
@@ -70,6 +75,8 @@ export function LogGridColumnHeader({
   isDerived,
   isLocked = false,
   onEditDerived,
+  onRenameColumn,
+  onDeleteColumn,
   reorderEnabled,
   onEnableReorder,
   onDisableReorder,
@@ -288,6 +295,39 @@ export function LogGridColumnHeader({
                 <Pencil className="h-3.5 w-3.5" />
                 Edit derived column
               </DropdownMenuItem>
+            </>
+          )}
+          {!isDerived && (onRenameColumn || onDeleteColumn) && (
+            <>
+              <DropdownMenuSeparator />
+              {onRenameColumn && (
+                <DropdownMenuItem
+                  className="text-body-sm gap-2"
+                  data-testid={`log-grid-rename-column-${fieldKey}`}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    onRenameColumn();
+                    setMenuOpen(false);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Rename column
+                </DropdownMenuItem>
+              )}
+              {onDeleteColumn && (
+                <DropdownMenuItem
+                  className="text-body-sm gap-2 text-destructive focus:text-destructive"
+                  data-testid={`log-grid-delete-column-${fieldKey}`}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    onDeleteColumn();
+                    setMenuOpen(false);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete column
+                </DropdownMenuItem>
+              )}
             </>
           )}
         </DropdownMenuContent>

@@ -146,3 +146,111 @@ export function treeNeedsFolderView(root: DataTreeNode): boolean {
   }
   return false;
 }
+
+/** Current folder under a scope section's `Data/` root. */
+export interface DataCwd {
+  sectionKey: string;
+  /** Path segments under `Data/` (empty = Data root). */
+  segments: string[];
+}
+
+/** Child of a folder: either a nested folder or a selectable table leaf. */
+export interface DataFolderChild {
+  name: string;
+  kind: 'folder' | 'table';
+  /** Full Orchestra context when `kind === 'table'`. */
+  context: string | null;
+}
+
+/** Walk `segments` from the tree root; returns null if the path does not exist. */
+export function nodeAtPath(root: DataTreeNode, segments: string[]): DataTreeNode | null {
+  let cursor: DataTreeNode = root;
+  for (const segment of segments) {
+    const next = cursor.children.get(segment);
+    if (!next) return null;
+    cursor = next;
+  }
+  return cursor;
+}
+
+/** Immediate children of `cwd` under a section tree (folders + tables). */
+export function childrenAtCwd(root: DataTreeNode, segments: string[]): DataFolderChild[] {
+  const node = nodeAtPath(root, segments);
+  if (!node) return [];
+  return Array.from(node.children.values())
+    .map((child) => {
+      const isFolder = child.children.size > 0;
+      const isTable = child.context != null;
+      // Prefer folder navigation when the node has both children and a context
+      // (parent path that is also a logged context — rare). Tables without
+      // children are leaves.
+      if (isFolder) {
+        return { name: child.name, kind: 'folder' as const, context: child.context };
+      }
+      if (isTable) {
+        return { name: child.name, kind: 'table' as const, context: child.context };
+      }
+      return { name: child.name, kind: 'folder' as const, context: null };
+    })
+    .sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+/**
+ * Split a user-entered relative path into segments.
+ * Rejects empty segments, `.` / `..`, and trailing slashes with empty parts.
+ */
+export function parseRelativeTablePath(raw: string): string[] | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const segments = trimmed.split('/').map((s) => s.trim());
+  if (segments.some((s) => !s || s === '.' || s === '..')) return null;
+  return segments;
+}
+
+/**
+ * Validate a relative table path under `Data/` (from cwd + name).
+ * Rejects Meta leaf, reserved SM roots as the first Data segment, and empty names.
+ */
+export function validateDataTableSegments(segments: string[]): string | null {
+  if (segments.length === 0) return 'Enter a table name.';
+  if (isMetaContextPath(segments)) return 'Meta is reserved.';
+  if (RESERVED_ROOT_SET.has(segments[0]!)) {
+    return `"${segments[0]}" is a reserved system folder.`;
+  }
+  for (const segment of segments) {
+    if (!segment.trim()) return 'Table name cannot contain empty path segments.';
+  }
+  return null;
+}
+
+/**
+ * Full Orchestra context for a new table under a scope prefix + cwd + relative name.
+ * Example: prefix `u/a/`, cwd `Sales`, name `Leads` → `u/a/Data/Sales/Leads`.
+ */
+export function resolveDataTableContext(
+  scopePrefix: string,
+  cwdSegments: string[],
+  relativeName: string
+): { context: string; segments: string[] } | { error: string } {
+  const nameSegments = parseRelativeTablePath(relativeName);
+  if (!nameSegments) return { error: 'Enter a valid table name.' };
+  const segments = [...cwdSegments, ...nameSegments];
+  const error = validateDataTableSegments(segments);
+  if (error) return { error };
+  const prefix = scopePrefix.endsWith('/') ? scopePrefix : `${scopePrefix}/`;
+  return { context: `${prefix}Data/${segments.join('/')}`, segments };
+}
+
+/** Default table name from an upload filename (strip extension, keep path-safe chars). */
+export function tableNameFromFilename(filename: string): string {
+  const base = filename.replace(/^.*[/\\]/, '');
+  const withoutExt = base.replace(/\.[^.]+$/, '');
+  const cleaned = withoutExt
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_');
+  return cleaned || 'imported';
+}

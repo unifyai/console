@@ -17,6 +17,7 @@ import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 import {
   buildDataBrowserTree,
+  childrenAtCwd,
   collectSelectableContexts,
   contextMatchesDataBrowserMode,
   isStateManagerMode,
@@ -24,8 +25,10 @@ import {
   treeNeedsFolderView,
   type DataBrowserMode,
   type DataBrowserRoot,
+  type DataCwd,
   type DataTreeNode,
 } from '@/lib/assistants/dataBrowser';
+import { listAssistantsContexts } from '@/lib/assistants/dataContexts';
 import { useShellResource } from '@/hooks/Common/useShellResource';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
@@ -35,6 +38,9 @@ import { TeamAvatar } from '../OrgChat/TeamAvatar';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
 import { DataRowDetail } from './DataRowDetail';
+import { DataFolderBrowser } from './DataFolderBrowser';
+import { DataCreateTableDialog } from './DataCreateTableDialog';
+import { DataImportDialog } from './DataImportDialog';
 import type { DataField, DataRow } from './dataTypes';
 import type { Assistant } from '@/types/assistants/assistant';
 import { resolveManagedTeamDisplayName } from '@/utils/teams/managedTeamDisplay';
@@ -257,6 +263,18 @@ function buildDataScopeSections(
   return roots(assistant).map(toSection);
 }
 
+function cwdLocationLabel(
+  section: DataScopeSection | undefined,
+  segments: string[],
+  includeSectionLabel: boolean
+): string {
+  const parts: string[] = [];
+  if (includeSectionLabel && section) parts.push(section.label);
+  parts.push('Data');
+  parts.push(...segments);
+  return parts.join(' / ');
+}
+
 export function DataPane({
   assistant,
   ownerId,
@@ -291,6 +309,7 @@ export function DataPane({
 
   const [mode, setMode] = React.useState<DataBrowserMode>('data');
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const [cwd, setCwd] = React.useState<DataCwd | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leafMeta, setLeafMeta] = React.useState<LeafMeta | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<DataRow | null>(null);
@@ -299,13 +318,28 @@ export function DataPane({
   const [viewPanelOpen, setViewPanelOpen] = React.useState(false);
   const [refreshToken, setRefreshToken] = React.useState(0);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [appendImportOpen, setAppendImportOpen] = React.useState(false);
   const isStackedLayout = useMatchesBelow('tablet');
   const [mobileShowTree, setMobileShowTree] = React.useState(true);
+
+  // Initialize / reset cwd when sections or mode change.
+  React.useEffect(() => {
+    if (mode !== 'data') {
+      setCwd(null);
+      return;
+    }
+    if (scopeSections.length === 1) {
+      setCwd({ sectionKey: scopeSections[0]!.key, segments: [] });
+    } else {
+      setCwd(null);
+    }
+  }, [mode, scopeSections]);
 
   React.useEffect(() => {
     if (!isStackedLayout) return;
     setSidebarOpen(false);
-    // Keep the open table visible when crossing into stacked layout on resize.
     if (selected) setMobileShowTree(false);
   }, [isStackedLayout, selected]);
 
@@ -313,16 +347,6 @@ export function DataPane({
     setSelectedCells([]);
     setViewPanelOpen(false);
   }, [selected]);
-
-  const loadContextNames = React.useCallback(async (): Promise<string[]> => {
-    const res = await fetch('/api/context/Assistants', { cache: 'no-store' });
-    const raw: unknown = res.ok ? await res.json() : [];
-    return Array.isArray(raw)
-      ? raw
-          .map((c) => (typeof c === 'string' ? c : (c as { name?: string })?.name))
-          .filter((name): name is string => Boolean(name))
-      : [];
-  }, []);
 
   const {
     data: contextNames,
@@ -336,7 +360,7 @@ export function DataPane({
       assistantId,
       rootKey(root ?? { kind: 'personal' }),
     ],
-    queryFn: loadContextNames,
+    queryFn: listAssistantsContexts,
     enabled: enabled && !!ownerId && !!assistantId,
   });
 
@@ -373,19 +397,16 @@ export function DataPane({
     setExpanded(next);
   }, [sectionTrees]);
 
-  // Ownership scope change resets the open table — contexts are different roots.
   React.useEffect(() => {
     setSelected(null);
     setSelectedRow(null);
     setLeafMeta(null);
   }, [scope.activeKey]);
 
-  // Drop a selection that disappeared after a refresh / mode filter change.
   React.useEffect(() => {
     setSelected((prev) => (prev && !selectableContexts.includes(prev) ? null : prev));
   }, [selectableContexts]);
 
-  // Single-table state-manager modes open the table directly (no folder chrome).
   React.useEffect(() => {
     if (mode === 'data') return;
     if (selectableContexts.length !== 1) return;
@@ -483,6 +504,39 @@ export function DataPane({
     setRefreshToken((t) => t + 1);
   }, [selected, selectedRow]);
 
+  const cwdSection = (() => {
+    const effective =
+      cwd ??
+      (mode === 'data' && scopeSections.length === 1
+        ? { sectionKey: scopeSections[0]!.key, segments: [] as string[] }
+        : null);
+    if (!effective) return undefined;
+    return scopeSections.find((s) => s.key === effective.sectionKey);
+  })();
+  const effectiveCwd: DataCwd | null =
+    cwd ??
+    (mode === 'data' && scopeSections.length === 1
+      ? { sectionKey: scopeSections[0]!.key, segments: [] }
+      : null);
+  const cwdTree = cwdSection
+    ? sectionTrees.find(({ section }) => section.key === cwdSection.key)?.tree
+    : undefined;
+  const folderChildren =
+    mode === 'data' && effectiveCwd && cwdTree ? childrenAtCwd(cwdTree, effectiveCwd.segments) : [];
+  const locationLabel = cwdLocationLabel(
+    cwdSection,
+    effectiveCwd?.segments ?? [],
+    showScopeHeaders || scopeSections.length > 1
+  );
+
+  const onTableCreated = React.useCallback(
+    async (context: string) => {
+      await refreshTree();
+      selectLeaf(context);
+    },
+    [refreshTree, selectLeaf]
+  );
+
   const topNodeCount = sectionTrees.reduce(
     (sum, { tree: sectionTree }) => sum + sectionTree.children.size,
     0
@@ -492,7 +546,7 @@ export function DataPane({
   const selectedTableName = selectedDisplayPath
     ? (selectedDisplayPath.split('/').pop() ?? selectedDisplayPath)
     : null;
-  const emptyTreeCopy = mode === 'data' ? 'No ingested data yet.' : `No ${mode} contexts yet.`;
+  const emptyTreeCopy = `No ${mode} contexts yet.`;
   const emptySelectCopy =
     mode === 'data'
       ? 'Select a table from the directory to browse its rows.'
@@ -501,7 +555,7 @@ export function DataPane({
         : `No ${mode} table found for this assistant.`;
   const sidebarTitle = mode === 'data' ? 'Data' : mode;
 
-  const treeList = (
+  const smTreeList = (
     <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
       {topNodeCount === 0 ? (
         <p className="text-caption px-2 py-6 text-center">{emptyTreeCopy}</p>
@@ -544,6 +598,37 @@ export function DataPane({
     </div>
   );
 
+  const dataFolderList =
+    mode === 'data' ? (
+      <DataFolderBrowser
+        cwd={effectiveCwd}
+        sections={scopeSections.map((section) => ({
+          key: section.key,
+          kind: section.kind,
+          label: section.label,
+          imageUrl: scope.options.find((option) => option.key === section.key)?.imageUrl,
+          isOrgWideSharing: scope.options.find((option) => option.key === section.key)
+            ?.isOrgWideSharing,
+        }))}
+        showSectionPicker={showScopeHeaders || scopeSections.length > 1}
+        entries={folderChildren}
+        selectedContext={selected}
+        locationLabel={locationLabel}
+        onEnterSection={(sectionKey) => setCwd({ sectionKey, segments: [] })}
+        onBackToScopes={() => setCwd(null)}
+        onNavigate={(segments) => {
+          const base = effectiveCwd;
+          if (!base) return;
+          setCwd({ sectionKey: base.sectionKey, segments });
+        }}
+        onOpenTable={selectLeaf}
+        onNewTable={() => setCreateOpen(true)}
+        onUpload={() => setImportOpen(true)}
+      />
+    ) : (
+      smTreeList
+    );
+
   const leafTable = selected ? (
     <DataLeafTable
       context={selected}
@@ -559,6 +644,7 @@ export function DataPane({
       onViewPanelOpenChange={setViewPanelOpen}
       onMetaChange={setLeafMeta}
       refreshToken={refreshToken}
+      onImportRows={mode === 'data' ? () => setAppendImportOpen(true) : undefined}
     />
   ) : null;
 
@@ -621,9 +707,14 @@ export function DataPane({
     </div>
   );
 
+  // Data mode always offers the folder browser (create/upload live there).
   const showTreeSidebar =
-    showDirectory && (isStackedLayout ? mobileShowTree || !selected : sidebarOpen);
-  const showLeafPane = !isStackedLayout || !showDirectory || (selected && !mobileShowTree);
+    (mode === 'data' || showDirectory) &&
+    (isStackedLayout ? mobileShowTree || !selected : sidebarOpen);
+  const showLeafPane =
+    !isStackedLayout || !(mode === 'data' || showDirectory) || (selected && !mobileShowTree);
+
+  const canCreateInFolder = mode === 'data' && !!effectiveCwd && !!cwdSection;
 
   return (
     <div
@@ -659,7 +750,7 @@ export function DataPane({
                   isStackedLayout ? 'min-w-0 flex-1' : 'w-72 shrink-0 border-r border-border'
                 )}
               >
-                {treeList}
+                {dataFolderList}
               </div>
             )}
 
@@ -697,6 +788,41 @@ export function DataPane({
             }}
           />
 
+          {canCreateInFolder && cwdSection && effectiveCwd ? (
+            <>
+              <DataCreateTableDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                scopePrefix={cwdSection.browserRoot.prefix}
+                cwdSegments={effectiveCwd.segments}
+                locationLabel={locationLabel}
+                onCreated={(context) => void onTableCreated(context)}
+              />
+              <DataImportDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                mode="create"
+                scopePrefix={cwdSection.browserRoot.prefix}
+                cwdSegments={effectiveCwd.segments}
+                locationLabel={locationLabel}
+                onComplete={(context) => void onTableCreated(context)}
+              />
+            </>
+          ) : null}
+
+          {selected && mode === 'data' ? (
+            <DataImportDialog
+              open={appendImportOpen}
+              onOpenChange={setAppendImportOpen}
+              mode="append"
+              context={selected}
+              onComplete={() => {
+                void refreshTree();
+                setRefreshToken((t) => t + 1);
+              }}
+            />
+          ) : null}
+
           <TabFooter
             testId="data-footer"
             right={
@@ -704,7 +830,9 @@ export function DataPane({
                 <Database className="h-3 w-3" aria-hidden="true" />
                 {selected && leafMeta
                   ? `${displayPathForContext(selected)} · ${leafMeta.count} ${leafMeta.count === 1 ? 'row' : 'rows'}`
-                  : `${topNodeCount} ${topNodeCount === 1 ? 'group' : 'groups'} at this level`}
+                  : mode === 'data' && effectiveCwd
+                    ? locationLabel
+                    : `${topNodeCount} ${topNodeCount === 1 ? 'group' : 'groups'} at this level`}
               </span>
             }
           />

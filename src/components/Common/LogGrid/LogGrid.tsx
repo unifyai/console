@@ -233,6 +233,12 @@ export interface LogGridProps {
   draftForCell?: (columnId: string, value: unknown) => string;
   /** When false, hide row/cell delete affordances (default true). */
   allowDelete?: boolean;
+  /** Schema/row mutations for Data-pane spreadsheet UX. */
+  onAddRow?: () => void;
+  onAddColumn?: () => void;
+  onImportRows?: () => void;
+  onRenameColumn?: (fieldKey: string) => void;
+  onDeleteColumn?: (fieldKey: string) => void;
   className?: string;
   testId?: string;
 }
@@ -269,6 +275,11 @@ export function LogGrid({
   onCommitCellEdit,
   draftForCell,
   allowDelete = true,
+  onAddRow,
+  onAddColumn,
+  onImportRows,
+  onRenameColumn,
+  onDeleteColumn,
   className,
   testId = 'log-grid',
 }: LogGridProps) {
@@ -487,6 +498,11 @@ export function LogGrid({
   const openDerivedEditRef = React.useRef(openDerivedEdit);
   openDerivedEditRef.current = openDerivedEdit;
 
+  const onRenameColumnRef = React.useRef(onRenameColumn);
+  onRenameColumnRef.current = onRenameColumn;
+  const onDeleteColumnRef = React.useRef(onDeleteColumn);
+  onDeleteColumnRef.current = onDeleteColumn;
+
   const columnDefs = React.useMemo<ColumnDef<LogGridRow>[]>(() => {
     const indexSize = isGrouped ? 88 : 48;
     const indexColumn: ColumnDef<LogGridRow> = {
@@ -523,6 +539,16 @@ export function LogGrid({
               isDerived={isDerived}
               isLocked={!!isColumnEditable && !isColumnEditable(key)}
               onEditDerived={isDerived ? () => openDerivedEditRef.current(key) : undefined}
+              onRenameColumn={
+                !isDerived && onRenameColumnRef.current
+                  ? () => onRenameColumnRef.current?.(fieldKey)
+                  : undefined
+              }
+              onDeleteColumn={
+                !isDerived && onDeleteColumnRef.current
+                  ? () => onDeleteColumnRef.current?.(fieldKey)
+                  : undefined
+              }
               reorderEnabled={reorderEnabled}
               onEnableReorder={() => setReorderEnabled(true)}
               onDisableReorder={() => setReorderEnabled(false)}
@@ -1196,6 +1222,9 @@ export function LogGrid({
               setEditColumn(null);
               setDerivedOpen(true);
             }}
+            onAddRow={onAddRow}
+            onAddColumn={onAddColumn}
+            onImportRows={onImportRows}
             hasSelection={hasSelection}
             viewPanelOpen={viewPanelOpen}
             onToggleViewPanel={onToggleViewPanel}
@@ -1219,9 +1248,50 @@ export function LogGrid({
                   </Button>
                 )}
               </div>
-            ) : !isLoading && !hasData ? (
-              <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-8">
-                <p className="text-body-muted">No rows match the current filters.</p>
+            ) : !isLoading && !hasData && visible.length === 0 ? (
+              <div
+                className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-3 p-8"
+                data-testid="log-grid-empty"
+              >
+                <p className="text-body-muted">
+                  {totalCount === 0
+                    ? 'This table has no rows yet.'
+                    : 'No rows match the current filters.'}
+                </p>
+                {(onAddRow || onImportRows || onAddColumn) && totalCount === 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {onAddColumn && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onAddColumn}
+                        data-testid="log-grid-empty-add-column"
+                      >
+                        Add column
+                      </Button>
+                    )}
+                    {onAddRow && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onAddRow}
+                        data-testid="log-grid-empty-add-row"
+                      >
+                        Add row
+                      </Button>
+                    )}
+                    {onImportRows && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onImportRows}
+                        data-testid="log-grid-empty-import"
+                      >
+                        Import rows
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <ScrollArea
