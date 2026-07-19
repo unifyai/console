@@ -507,15 +507,16 @@ export function LogGrid({
             const busy = expandingId === group.id;
             return (
               <div
-                className="flex min-w-0 items-center gap-1"
+                className="-ml-1 flex min-w-0 items-center gap-1"
                 style={{ paddingLeft: row.depth * 12 }}
                 data-testid={`log-grid-group-cell-${group.id}`}
               >
                 <button
                   type="button"
                   className={cn(
-                    // Size to the icon so its left edge matches leaf values (a fixed
-                    // w-5 centered target insets the glyph).
+                    // Size to the icon so its left edge can align with leaf values (a fixed
+                    // w-5 centered target insets the glyph). -ml-1 above offsets Lucide's
+                    // viewBox padding so the chevron optically matches the numbers below.
                     'inline-flex shrink-0 items-center justify-center text-muted-foreground transition-transform',
                     row.getIsExpanded() && 'rotate-90'
                   )}
