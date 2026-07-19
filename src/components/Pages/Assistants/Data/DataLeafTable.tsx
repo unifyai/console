@@ -336,11 +336,13 @@ export function DataLeafTable({
   }, [fields, context, refreshAll]);
 
   const handleAddColumn = React.useCallback(
-    async (name: string) => {
+    async (name: string, dataType?: string) => {
+      if (!dataType) return;
       const result = await createLogField({
         projectName: 'Assistants',
         context,
         fieldName: name,
+        dataType,
       });
       if (!result.ok) {
         toast.error('Could not add column. Please try again.');
@@ -460,6 +462,7 @@ export function DataLeafTable({
             title="Add column"
             submitLabel="Add"
             testId="data-add-column-dialog"
+            showDataType
             onSubmit={handleAddColumn}
           />
           <DataColumnNameDialog

@@ -1,6 +1,25 @@
 import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
 import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
 
+/** Orchestra data types offered when creating a Data-sheet column. */
+export const DATA_COLUMN_TYPE_OPTIONS = [
+  { value: 'str', label: 'Text (str)' },
+  { value: 'int', label: 'Integer (int)' },
+  { value: 'float', label: 'Number (float)' },
+  { value: 'bool', label: 'Boolean (bool)' },
+  { value: 'datetime', label: 'Date & time' },
+  { value: 'date', label: 'Date' },
+  { value: 'time', label: 'Time' },
+  { value: 'list', label: 'List' },
+  { value: 'dict', label: 'Dict' },
+  { value: 'image', label: 'Image' },
+  { value: 'audio', label: 'Audio' },
+  { value: 'vector', label: 'Vector' },
+  { value: 'Any', label: 'Any (untyped)' },
+] as const;
+
+export type DataColumnType = (typeof DATA_COLUMN_TYPE_OPTIONS)[number]['value'];
+
 export interface DataField {
   dataType?: string;
   fieldType?: string;

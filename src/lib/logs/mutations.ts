@@ -106,19 +106,21 @@ export async function createLogRows(args: {
   return { ok: true, created };
 }
 
-/** Create an untyped entry field via Orchestra create_fields. */
+/** Create an entry field via Orchestra create_fields. Pass Any (or null) for untyped. */
 export async function createLogField(args: {
   projectName: string;
   context: string;
   fieldName: string;
+  dataType: string;
 }): Promise<{ ok: boolean }> {
+  const dataType = args.dataType !== 'Any' ? args.dataType : null;
   const res = await fetch('/api/logs/fields', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       projectName: args.projectName,
       context: args.context,
-      fields: { [args.fieldName]: null },
+      fields: { [args.fieldName]: dataType },
     }),
   });
   if (!res.ok) {

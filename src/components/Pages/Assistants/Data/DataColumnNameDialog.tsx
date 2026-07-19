@@ -11,6 +11,14 @@ import {
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
+import { DATA_COLUMN_TYPE_OPTIONS, type DataColumnType } from './dataTypes';
 
 export type DataColumnNameDialogProps = {
   open: boolean;
@@ -19,7 +27,9 @@ export type DataColumnNameDialogProps = {
   initialName?: string;
   submitLabel: string;
   testId: string;
-  onSubmit: (name: string) => Promise<void> | void;
+  /** When set, require a data-type selection and pass it to onSubmit. */
+  showDataType?: boolean;
+  onSubmit: (name: string, dataType?: DataColumnType) => Promise<void> | void;
 };
 
 export function DataColumnNameDialog({
@@ -29,15 +39,18 @@ export function DataColumnNameDialog({
   initialName = '',
   submitLabel,
   testId,
+  showDataType = false,
   onSubmit,
 }: DataColumnNameDialogProps) {
   const [name, setName] = React.useState(initialName);
+  const [dataType, setDataType] = React.useState<DataColumnType | ''>('');
   const [saving, setSaving] = React.useState(false);
   const openedAtRef = React.useRef(0);
 
   React.useEffect(() => {
     if (open) {
       setName(initialName);
+      setDataType('');
       openedAtRef.current = Date.now();
     }
   }, [open, initialName]);
@@ -46,12 +59,19 @@ export function DataColumnNameDialog({
     return Date.now() - openedAtRef.current < 400;
   }, []);
 
+  const canSubmit = Boolean(name.trim()) && (!showDataType || Boolean(dataType));
+
   const submit = async () => {
     const trimmed = name.trim();
-    if (!trimmed || saving) return;
+    if (!canSubmit || saving) return;
     setSaving(true);
     try {
-      await onSubmit(trimmed);
+      if (showDataType) {
+        if (!dataType) return;
+        await onSubmit(trimmed, dataType);
+      } else {
+        await onSubmit(trimmed);
+      }
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -73,18 +93,44 @@ export function DataColumnNameDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor={`${testId}-input`}>Column name</Label>
-          <Input
-            id={`${testId}-input`}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-            data-testid={`${testId}-input`}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void submit();
-            }}
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`${testId}-input`}>Column name</Label>
+            <Input
+              id={`${testId}-input`}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              data-testid={`${testId}-input`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void submit();
+              }}
+            />
+          </div>
+          {showDataType ? (
+            <div className="space-y-2">
+              <Label htmlFor={`${testId}-type`}>Data type</Label>
+              <Select
+                value={dataType || undefined}
+                onValueChange={(value) => setDataType(value as DataColumnType)}
+              >
+                <SelectTrigger id={`${testId}-type`} data-testid={`${testId}-type`}>
+                  <SelectValue placeholder="Select a type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATA_COLUMN_TYPE_OPTIONS.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      data-testid={`${testId}-type-option-${option.value}`}
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </div>
         <DialogFooter>
           <Button
@@ -98,7 +144,7 @@ export function DataColumnNameDialog({
           <Button
             type="button"
             onClick={() => void submit()}
-            disabled={saving || !name.trim()}
+            disabled={saving || !canSubmit}
             data-testid={`${testId}-submit`}
           >
             {saving ? 'Saving…' : submitLabel}

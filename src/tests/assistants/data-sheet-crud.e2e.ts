@@ -103,8 +103,19 @@ test('adds a column and a row, edits a cell, renames a column, deletes a row', a
   await page.getByTestId('log-grid-add-column').click();
   await expect(page.getByTestId('data-add-column-dialog')).toBeVisible();
   await page.getByTestId('data-add-column-dialog-input').fill('notes');
+  await page.getByTestId('data-add-column-dialog-type').click();
+  await page.getByTestId('data-add-column-dialog-type-option-str').click();
   await page.getByTestId('data-add-column-dialog-submit').click();
   await expect(page.getByTestId('log-grid-header-notes')).toBeVisible({ timeout: 20_000 });
+
+  const fieldsRes = await orchestraFetch(
+    `/v0/logs/fields?project_name=Assistants&context=${encodeURIComponent(contextPath)}`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(fieldsRes.ok).toBe(true);
+  const fields = (await fieldsRes.json()) as Record<string, { data_type?: string }>;
+  expect(fields.notes?.data_type).toBe('str');
 
   await page.getByTestId('log-grid-add-menu').click();
   await page.getByTestId('log-grid-add-row').click();
