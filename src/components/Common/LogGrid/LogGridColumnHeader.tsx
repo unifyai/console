@@ -155,6 +155,11 @@ export function LogGridColumnHeader({
           align="end"
           className="min-w-[11rem]"
           collisionPadding={16}
+          onFocusOutside={(e) => {
+            // modal={false} dismisses on any focusin outside the content. Prevent that so
+            // only pointer-down outside (and Escape) close the menu.
+            e.preventDefault();
+          }}
           onCloseAutoFocus={(e) => {
             // Keep focus from jumping back into the header while the filter popover opens.
             if (openFilterAfterMenuCloseRef.current) e.preventDefault();
@@ -224,17 +229,6 @@ export function LogGridColumnHeader({
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-body-sm gap-2"
-            data-testid={`log-grid-hide-column-${fieldKey}`}
-            onClick={() => {
-              onHideColumn();
-              setMenuOpen(false);
-            }}
-          >
-            <EyeOff className="h-3.5 w-3.5" />
-            Hide column
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-body-sm gap-2"
             data-testid={`log-grid-group-by-${fieldKey}`}
             onClick={() => {
               onGroupingChange(toggleGroupingColumn(grouping, columnKey));
@@ -243,6 +237,17 @@ export function LogGridColumnHeader({
           >
             {isGrouped ? <Ungroup className="h-3.5 w-3.5" /> : <Group className="h-3.5 w-3.5" />}
             {isGrouped ? 'Ungroup' : 'Group by'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-body-sm gap-2"
+            data-testid={`log-grid-hide-column-${fieldKey}`}
+            onClick={() => {
+              onHideColumn();
+              setMenuOpen(false);
+            }}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+            Hide column
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {reorderEnabled ? (
