@@ -377,6 +377,7 @@ type SortableHeaderProps = {
   /** Whole-column selection highlight (mirrors row-index `bg-primary`). */
   columnSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
+  onDoubleClick?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
   dragAttributes?: React.HTMLAttributes<HTMLElement>;
   dragListeners?: React.HTMLAttributes<HTMLElement>;
   setNodeRef?: (node: HTMLElement | null) => void;
@@ -394,6 +395,7 @@ export function LogGridSortableHead({
   reorderEnabled,
   columnSelected = false,
   onMouseDown,
+  onDoubleClick,
   dragAttributes,
   dragListeners,
   setNodeRef,
@@ -426,6 +428,7 @@ export function LogGridSortableHead({
       data-reorder={reorderEnabled ? 'true' : undefined}
       data-column-selected={columnSelected ? 'true' : undefined}
       onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
     >
       <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">
         {reorderEnabled && (

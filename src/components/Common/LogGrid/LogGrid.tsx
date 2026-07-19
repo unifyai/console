@@ -152,6 +152,7 @@ function SortableHeader({
   reorderEnabled,
   columnSelected,
   onMouseDown,
+  onDoubleClick,
 }: {
   header: Header<LogGridRow, unknown>;
   children: React.ReactNode;
@@ -161,6 +162,7 @@ function SortableHeader({
   reorderEnabled: boolean;
   columnSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
+  onDoubleClick?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: header.column.id,
@@ -175,6 +177,7 @@ function SortableHeader({
       reorderEnabled={reorderEnabled}
       columnSelected={columnSelected}
       onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
       dragAttributes={
         reorderEnabled ? (attributes as React.HTMLAttributes<HTMLElement>) : undefined
       }
@@ -1037,6 +1040,13 @@ export function LogGrid({
       const { columnId } = parseCellId(cellId);
       if (!columnId) return;
 
+      const meta = fields[columnId] ?? fields[sanitizeId(columnId)];
+      if (meta?.fieldType === 'derived_entry') {
+        closeInlineEditor();
+        openDerivedEditRef.current(columnId);
+        return;
+      }
+
       if (isColumnEditable && !isColumnEditable(columnId)) {
         closeInlineEditor();
         nudgeColumnLock(columnId);
@@ -1055,6 +1065,7 @@ export function LogGrid({
     },
     [
       selection,
+      fields,
       isColumnEditable,
       onCommitCellEdit,
       closeInlineEditor,
@@ -1415,6 +1426,8 @@ export function LogGrid({
                                       onMouseDown={(e) => {
                                         if (selection?.mode !== 'cell') return;
                                         if (e.button !== 0) return;
+                                        // Second click of a double-click — let onDoubleClick run.
+                                        if (e.detail > 1) return;
                                         if (suppressColumnSelectRef.current) return;
                                         const target = e.target as HTMLElement | null;
                                         // ⋯ menu, filter chip, drag handle — not column select.
@@ -1435,6 +1448,23 @@ export function LogGrid({
                                         } else {
                                           selectColumn(header.column.id);
                                         }
+                                      }}
+                                      onDoubleClick={(e) => {
+                                        const target = e.target as HTMLElement | null;
+                                        if (
+                                          target?.closest(
+                                            'button, a, input, [role="menuitem"], [data-radix-popper-content-wrapper]'
+                                          )
+                                        ) {
+                                          return;
+                                        }
+                                        const columnId = header.column.id;
+                                        const meta =
+                                          fields[columnId] ?? fields[sanitizeId(columnId)];
+                                        if (meta?.fieldType !== 'derived_entry') return;
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        openDerivedEditRef.current(columnId);
                                       }}
                                       resizer={
                                         header.column.getCanResize() ? (

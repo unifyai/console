@@ -545,6 +545,26 @@ test('creates a derived column from the toolbar and pins it on the far right', a
   const fields = (await fieldsRes.json()) as Record<string, { field_type?: string }>;
   // Orchestra stores the snake_case key the client submitted.
   expect(fields[derivedKey]?.field_type).toBe('derived_entry');
+
+  // Double-click header and cell open the equation editor (prefilled).
+  await page.getByTestId(`log-grid-header-${derivedColumnId}`).dblclick();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('log-grid-derived-dialog')).toContainText('Edit derived column');
+  await expect(page.getByTestId('log-grid-derived-expression').locator('input')).toHaveValue(
+    'score * 2'
+  );
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toHaveCount(0, { timeout: 10_000 });
+
+  const adaRow = logGridRows(page).filter({ hasText: 'Ada Lovelace' }).first();
+  await adaRow
+    .locator(`[data-testid^="log-grid-cell-"][data-testid$="_${derivedColumnId}"]`)
+    .dblclick();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('log-grid-derived-expression').locator('input')).toHaveValue(
+    'score * 2'
+  );
+  await page.getByRole('button', { name: 'Cancel' }).click();
 });
 
 test('column search works', async ({ authedPage: page }) => {
