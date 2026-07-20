@@ -1,11 +1,19 @@
 /**
- * Billing Events (SSE) E2E — SSE stream accessibility, event push endpoint.
+ * Billing Events (SSE) E2E — SSE stream accessibility and live delivery.
+ *
+ * With PUBSUB_EMULATOR_HOST set (CI / local.sh --pubsub), events are published
+ * to the emulator topic. Without it, the local /billing/events/push bus is used.
  *
  * Run: npx playwright test src/tests/billing/billing-events.e2e.ts
  */
 
 import { test as unauthTest, expect } from '@playwright/test';
 import { createTestUser, cleanupUser, getBillingAccountId, createBillingTest } from './helpers';
+import {
+  ensureBillingPubSubTopic,
+  publishBillingEventToEmulator,
+  pubsubEmulatorConfigured,
+} from '../assistants/chat-helpers';
 
 const user = createTestUser({ name: 'SSE', lastName: 'Events', credits: 5_000 });
 const billingAccountId = getBillingAccountId(user.id);
@@ -13,75 +21,31 @@ const test = createBillingTest(user);
 
 test.afterAll(() => cleanupUser(user.id));
 
-test('SSE stream endpoint returns event-stream for authenticated users', async ({
-  authedPage: page,
-}) => {
+test('SSE stream delivers billing events in real time', async ({ authedPage: page }) => {
+  const useEmulator = pubsubEmulatorConfigured();
+  if (useEmulator) {
+    await ensureBillingPubSubTopic(billingAccountId);
+  }
+
   await page.goto('/assistants');
 
-  const response = await page.evaluate(async () => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5_000);
-    try {
-      const res = await fetch('/api/billing/events/stream', {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      return { status: res.status, contentType: res.headers.get('content-type') };
-    } catch (e: any) {
-      clearTimeout(timeoutId);
-      if (e.name === 'AbortError') {
-        return { status: 200, contentType: 'text/event-stream', aborted: true };
-      }
-      return { status: 0, error: e.message };
-    }
-  });
+  const resultPromise = page.evaluate(
+    async ({ baId, emulator }) => {
+      return new Promise<{ ok: boolean; eventType?: string }>((resolve) => {
+        const es = new EventSource('/api/billing/events/stream');
+        let settled = false;
 
-  expect(response.status).toBe(200);
-  expect(response.contentType).toContain('text/event-stream');
-});
+        const finish = (payload: { ok: boolean; eventType?: string }) => {
+          if (settled) return;
+          settled = true;
+          es.close();
+          resolve(payload);
+        };
 
-test('push endpoint delivers events to the SSE stream in local dev', async ({
-  authedPage: page,
-}, testInfo) => {
-  await page.goto('/assistants');
+        const timeoutId = setTimeout(() => finish({ ok: false }), 12_000);
 
-  const result = await page.evaluate(
-    async ({ baId }) => {
-      return new Promise<{ pushStatus: number; gotEvent: boolean; eventType?: string }>(
-        (resolve) => {
-          const es = new EventSource('/api/billing/events/stream');
-          let settled = false;
-
-          const finish = (payload: {
-            pushStatus: number;
-            gotEvent: boolean;
-            eventType?: string;
-          }) => {
-            if (settled) return;
-            settled = true;
-            es.close();
-            resolve(payload);
-          };
-
-          const timeoutId = setTimeout(() => finish({ pushStatus: 0, gotEvent: false }), 12_000);
-
-          es.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              if (data.event_type === 'credits_restored') {
-                clearTimeout(timeoutId);
-                finish({ pushStatus: 200, gotEvent: true, eventType: data.event_type });
-              }
-            } catch {
-              /* ignore malformed frames */
-            }
-          };
-
-          es.onerror = () => {
-            clearTimeout(timeoutId);
-            finish({ pushStatus: 0, gotEvent: false });
-          };
-
+        es.onopen = () => {
+          if (emulator) return;
           window.setTimeout(async () => {
             const res = await fetch('/api/billing/events/push', {
               method: 'POST',
@@ -92,23 +56,45 @@ test('push endpoint delivers events to the SSE stream in local dev', async ({
                 balance: 100,
               }),
             });
-            if (res.status === 403) {
+            if (!res.ok) {
               clearTimeout(timeoutId);
-              finish({ pushStatus: 403, gotEvent: false });
+              finish({ ok: false });
             }
-          }, 750);
-        }
-      );
+          }, 250);
+        };
+
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.event_type === 'credits_restored') {
+              clearTimeout(timeoutId);
+              finish({ ok: true, eventType: data.event_type });
+            }
+          } catch {
+            /* ignore malformed frames */
+          }
+        };
+
+        es.onerror = () => {
+          clearTimeout(timeoutId);
+          finish({ ok: false });
+        };
+      });
     },
-    { baId: billingAccountId }
+    { baId: billingAccountId, emulator: useEmulator }
   );
 
-  if (result.pushStatus === 403) {
-    testInfo.skip(true, 'Local event bus unavailable (COMMS_SERVICE_ACCOUNT_CREDENTIALS set).');
+  if (useEmulator) {
+    // Wait for the browser SSE subscription to attach, then publish from Node.
+    await page.waitForTimeout(1_000);
+    await publishBillingEventToEmulator(billingAccountId, {
+      event_type: 'credits_restored',
+      balance: 100,
+    });
   }
 
-  expect(result.pushStatus).toBe(200);
-  expect(result.gotEvent).toBe(true);
+  const result = await resultPromise;
+  expect(result.ok).toBe(true);
   expect(result.eventType).toBe('credits_restored');
 });
 
@@ -133,7 +119,7 @@ unauthTest('SSE stream is unauthorized for unauthenticated requests', async ({ p
   expect(response.status).toBe(401);
 });
 
-unauthTest('push endpoint requires billing_account_id in local dev', async ({ page }, testInfo) => {
+unauthTest('push endpoint is gated to local-bus mode', async ({ page }) => {
   await page.goto('/login');
 
   const response = await page.evaluate(async () => {
@@ -148,8 +134,9 @@ unauthTest('push endpoint requires billing_account_id in local dev', async ({ pa
     return { status: res.status, data: await res.json() };
   });
 
-  if (response.status === 403) {
-    testInfo.skip(true, 'Local event bus unavailable (COMMS_SERVICE_ACCOUNT_CREDENTIALS set).');
+  if (pubsubEmulatorConfigured()) {
+    expect(response.status).toBe(403);
+    return;
   }
 
   expect(response.status).toBe(400);

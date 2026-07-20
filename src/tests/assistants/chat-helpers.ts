@@ -218,6 +218,7 @@ export function createTranscriptSeeder(defaults: { selfContactId: number; bossCo
 
 const PUBSUB_EMULATOR_HOST = process.env.PUBSUB_EMULATOR_HOST || 'localhost:8085';
 const PUBSUB_PROJECT_ID = process.env.GCP_PROJECT_ID || 'local-test-project';
+const PUBSUB_TOPIC_SUFFIX = process.env.PUBSUB_TOPIC_SUFFIX ?? '-staging';
 
 function pubsubEmulatorUrl(path: string): string {
   const base = PUBSUB_EMULATOR_HOST.startsWith('http')
@@ -226,21 +227,57 @@ function pubsubEmulatorUrl(path: string): string {
   return `${base}/v1${path}`;
 }
 
-export async function ensurePubSubTopic(assistantId: number): Promise<void> {
-  const topicName = `unity-${assistantId}-staging`;
+export function pubsubEmulatorConfigured(): boolean {
+  return !!process.env.PUBSUB_EMULATOR_HOST?.trim();
+}
+
+function assistantTopicName(assistantId: number): string {
+  return `unity-${assistantId}${PUBSUB_TOPIC_SUFFIX}`;
+}
+
+async function ensureTopic(topicName: string): Promise<void> {
   const url = pubsubEmulatorUrl(`/projects/${PUBSUB_PROJECT_ID}/topics/${topicName}`);
   const res = await fetch(url, { method: 'PUT' });
   // 200 = created, 409 = already exists — both fine.
   if (!res.ok && res.status !== 409) {
-    throw new Error(`ensurePubSubTopic(${topicName}) failed: ${res.status} ${await res.text()}`);
+    throw new Error(`ensureTopic(${topicName}) failed: ${res.status} ${await res.text()}`);
   }
+}
+
+async function publishToTopic(
+  topicName: string,
+  payload: Record<string, unknown>,
+  attributes: Record<string, string>
+): Promise<void> {
+  await ensureTopic(topicName);
+  const body = {
+    messages: [
+      {
+        data: Buffer.from(JSON.stringify(payload)).toString('base64'),
+        attributes,
+      },
+    ],
+  };
+  const url = pubsubEmulatorUrl(`/projects/${PUBSUB_PROJECT_ID}/topics/${topicName}:publish`);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`publishToTopic(${topicName}) failed: ${res.status} ${await res.text()}`);
+  }
+}
+
+export async function ensurePubSubTopic(assistantId: number): Promise<void> {
+  await ensureTopic(assistantTopicName(assistantId));
 }
 
 export async function publishUnifyMessageOutbound(
   assistantId: number,
   opts: { content: string; contactId: number; userId?: string; messageId?: number }
 ): Promise<void> {
-  const topicName = `unity-${assistantId}-staging`;
+  const topicName = assistantTopicName(assistantId);
   /* eslint-disable @typescript-eslint/naming-convention */
   const event: Record<string, unknown> = {
     kind: 'assistant_dm',
@@ -252,26 +289,88 @@ export async function publishUnifyMessageOutbound(
   if (opts.userId) event.user_id = opts.userId;
   if (opts.messageId !== undefined) event.id = opts.messageId;
   /* eslint-enable @typescript-eslint/naming-convention */
-  const payload = { thread: 'chat_message', event };
-  const body = {
-    messages: [
-      {
-        data: Buffer.from(JSON.stringify(payload)).toString('base64'),
-        attributes: { thread: 'chat_message', kind: 'assistant_dm' },
-      },
-    ],
+  await publishToTopic(
+    topicName,
+    { thread: 'chat_message', event },
+    { thread: 'chat_message', kind: 'assistant_dm' }
+  );
+}
+
+/**
+ * Convert a Console SSE-shaped ManagerMethod frame (used by /actions/push)
+ * into the flat Unity EventBus payload the emulator Actions path expects.
+ */
+export function sseManagerEventToUnityPayload(event: {
+  type: string;
+  data: { id: number; ts: string; entries: Record<string, unknown> };
+}): Record<string, unknown> {
+  const entries = event.data.entries;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  return {
+    row_id: event.data.id,
+    event_id: entries.eventId,
+    calling_id: entries.callingId,
+    event_timestamp: entries.eventTimestamp ?? event.data.ts,
+    type: event.type,
+    manager: entries.manager,
+    method: entries.method,
+    phase: entries.phase,
+    hierarchy: entries.hierarchy,
+    hierarchy_label: entries.hierarchyLabel,
+    display_label: entries.displayLabel,
+    status: entries.status,
+    question: entries.question,
+    answer: entries.answer,
+    request: entries.request,
   };
-  const url = pubsubEmulatorUrl(`/projects/${PUBSUB_PROJECT_ID}/topics/${topicName}:publish`);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  /* eslint-enable @typescript-eslint/naming-convention */
+}
+
+/**
+ * Publish a Unity EventBus-shaped action_event to the assistant topic.
+ * Matches what Console's Actions SSE route reshapes for the browser.
+ */
+export async function publishActionEventToEmulator(
+  assistantId: number,
+  event: Record<string, unknown>
+): Promise<void> {
+  await publishToTopic(
+    assistantTopicName(assistantId),
+    { thread: 'action_event', event },
+    { thread: 'action_event' }
+  );
+}
+
+/** Publish a comms_activity frame used by the call-window working pose. */
+export async function publishCommsActivityToEmulator(
+  assistantId: number,
+  event: { medium: string; direction: 'inbound' | 'outbound' }
+): Promise<void> {
+  await publishToTopic(
+    assistantTopicName(assistantId),
+    { thread: 'comms_activity', event },
+    { thread: 'comms_activity' }
+  );
+}
+
+export async function ensureBillingPubSubTopic(billingAccountId: number): Promise<void> {
+  await ensureTopic(`billing-account-${billingAccountId}${PUBSUB_TOPIC_SUFFIX}`);
+}
+
+export async function publishBillingEventToEmulator(
+  billingAccountId: number,
+  event: { event_type: string; balance: number }
+): Promise<void> {
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const payload = {
+    billing_account_id: billingAccountId,
+    event_type: event.event_type,
+    balance: event.balance,
+  };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  await publishToTopic(`billing-account-${billingAccountId}${PUBSUB_TOPIC_SUFFIX}`, payload, {
+    thread: 'billing_event',
   });
-  if (!res.ok) {
-    throw new Error(
-      `publishUnifyMessageOutbound(${topicName}) failed: ${res.status} ${await res.text()}`
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------

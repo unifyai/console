@@ -4,8 +4,8 @@
  * Accepts pre-shaped SSE events via POST and publishes them to the in-memory
  * event bus, where active SSE connections pick them up instantly.
  *
- * Only available in local development mode (no COMMS_SERVICE_ACCOUNT_CREDENTIALS).
- * In production, events flow through GCP Pub/Sub instead.
+ * Only available when neither COMMS_SERVICE_ACCOUNT_CREDENTIALS nor
+ * PUBSUB_EMULATOR_HOST is configured. Otherwise events flow through Pub/Sub.
  *
  * Request body: a single event or an array of events. Each event should be in
  * the final SSE shape: { type, data: { id, ts, entries: { ... } } }.

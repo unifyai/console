@@ -12,7 +12,8 @@
  *   filtered for `attributes.thread = "system_error"`.
  * - Subscriptions are deleted on disconnect with a 1-day expiry safety net.
  * - Server-side ACK: errors are best-effort, no client ACK needed.
- * - In local dev (no COMMS_SERVICE_ACCOUNT_CREDENTIALS), falls back to the
+ * - When neither COMMS_SERVICE_ACCOUNT_CREDENTIALS nor PUBSUB_EMULATOR_HOST
+ *   is set, falls back to the
  *   in-memory event bus so the companion push endpoint can simulate errors.
  */
 
