@@ -16,15 +16,34 @@ import {
 import {
   coerceFieldDraft,
   draftStringForField,
+  editorDescriptorForDataField,
+  friendlyLogUpdateError,
   isDataFieldEditable,
   type DataField,
   type DataRow,
 } from './dataTypes';
 import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
 import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
-import { updateLogEntries } from '@/lib/logs/mutations';
-import { sanitizeId } from '@/lib/logs/columns';
+import {
+  createEmptyLogRow,
+  createLogField,
+  deleteLogField,
+  renameLogField,
+  updateLogEntries,
+} from '@/lib/logs/mutations';
+import { reconcileColumnOrder, sanitizeId } from '@/lib/logs/columns';
 import { toast } from 'sonner';
+import { DataColumnNameDialog } from './DataColumnNameDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/UI/alert-dialog';
 
 function normalizeBoolFlag(value: unknown): boolean | undefined {
   if (typeof value === 'boolean') return value;
@@ -79,6 +98,8 @@ interface DataLeafTableProps {
   onMetaChange?: (meta: { count: number; fields: Record<string, DataField> }) => void;
   refreshToken?: number;
   onRowsChange?: (rows: DataRow[]) => void;
+  /** Open import-rows dialog (Data mode only). */
+  onImportRows?: () => void;
 }
 
 /**
@@ -97,11 +118,15 @@ export function DataLeafTable({
   onMetaChange,
   refreshToken = 0,
   onRowsChange,
+  onImportRows,
 }: DataLeafTableProps) {
   const queryClient = useQueryClient();
   const [view, setView, replaceView] = useLogViewState(context);
   const [browseRows, setBrowseRows] = React.useState<LogGridRow[]>([]);
   const [rowLabels, setRowLabels] = React.useState<Map<string, string>>(() => new Map());
+  const [addColumnOpen, setAddColumnOpen] = React.useState(false);
+  const [renameColumn, setRenameColumn] = React.useState<string | null>(null);
+  const [deleteColumn, setDeleteColumn] = React.useState<string | null>(null);
 
   const initializedRef = React.useRef<string | null>(null);
 
@@ -196,13 +221,18 @@ export function DataLeafTable({
     await refetch();
   }, [queryClient, context, refetch]);
 
+  const prevColumnsRef = React.useRef<string[]>([]);
+  React.useEffect(() => {
+    prevColumnsRef.current = [];
+  }, [context]);
+
   React.useEffect(() => {
     if (!columns.length) return;
-    const missing = columns.filter((id) => !view.columnOrder.includes(id));
-    if (missing.length === 0) return;
-    setView({
-      columnOrder: view.columnOrder.length ? [...view.columnOrder, ...missing] : columns,
-    });
+    const next = reconcileColumnOrder(view.columnOrder, columns, prevColumnsRef.current);
+    prevColumnsRef.current = columns;
+    const same =
+      next.length === view.columnOrder.length && next.every((id, i) => id === view.columnOrder[i]);
+    if (!same) setView({ columnOrder: next });
   }, [columns, view.columnOrder, setView]);
 
   const selection: SelectionModel = React.useMemo(
@@ -257,6 +287,12 @@ export function DataLeafTable({
     [resolveField]
   );
 
+  const editorForCell = React.useCallback(
+    (columnId: string, value: unknown) =>
+      editorDescriptorForDataField(resolveField(columnId).field, value),
+    [resolveField]
+  );
+
   const onCommitEdit = React.useCallback(
     async (logIds: number[], columnId: string, draft: string) => {
       if (logIds.length === 0) return true;
@@ -271,7 +307,9 @@ export function DataLeafTable({
         nextValue = coerceFieldDraft(field, draft, current);
       } catch (error) {
         console.error('Invalid cell edit draft', error);
-        toast.error('Could not save changes. Please try again.');
+        toast.error(
+          error instanceof Error ? error.message : friendlyLogUpdateError(undefined, field.dataType)
+        );
         return false;
       }
       if (JSON.stringify(nextValue) === JSON.stringify(current)) return true;
@@ -282,7 +320,7 @@ export function DataLeafTable({
         entries: { [key]: nextValue },
       });
       if (!result.ok) {
-        toast.error('Could not save changes. Please try again.');
+        toast.error(friendlyLogUpdateError(result.detail, field.dataType));
         return false;
       }
       await refreshAll();
@@ -291,58 +329,202 @@ export function DataLeafTable({
     [resolveField, panelRows, context, refreshAll]
   );
 
-  return (
-    <LogGrid
-      projectName="Assistants"
-      context={context}
-      rows={rows}
-      fields={fields}
-      columns={columns}
-      totalCount={count}
-      view={view}
-      onViewChange={setView}
-      isLoading={isLoading}
-      isFetching={isFetching}
-      hasNextPage={hasNextPage}
-      isFetchingNextPage={isFetchingNextPage}
-      onLoadMore={fetchNextPage}
-      error={error}
-      onRetry={() => void refetch()}
-      onBrowseRowsChange={setBrowseRows}
-      onRowLabelsChange={setRowLabels}
-      selection={selection}
-      hasSelection={selectedCells.length > 0}
-      viewPanelOpen={viewPanelOpen}
-      onToggleViewPanel={() => {
-        onViewPanelOpenChange(!viewPanelOpen);
-      }}
-      onOpenViewPanel={() => {
-        onViewPanelOpenChange(true);
-      }}
-      isColumnEditable={isColumnEditable}
-      draftForCell={draftForValue}
-      onCommitCellEdit={async (logId, columnId, draft) => onCommitEdit([logId], columnId, draft)}
-      filter={spec?.filter}
-      onDerivedCreated={() => {
-        void refreshAll();
-      }}
-      onMutated={() => void refreshAll()}
-      allowDelete={!isStateManagerMode(mode)}
-      testId="data-leaf-table"
-      className="min-h-0 min-w-0 flex-1"
-      viewPanel={
-        showPanel ? (
-          <LogCellViewPanel
-            cells={cellSelections}
-            onClose={() => {
-              onViewPanelOpenChange(false);
-            }}
-            isColumnEditable={isColumnEditable}
-            onCommitEdit={onCommitEdit}
-            draftForValue={draftForValue}
-          />
-        ) : null
+  const allowSchemaEdit = mode === 'data';
+
+  const handleAddRow = React.useCallback(async () => {
+    const entries: Record<string, unknown> = {};
+    for (const [name, meta] of Object.entries(fields)) {
+      if (meta.fieldType === 'entry' || !meta.fieldType) {
+        entries[name] = null;
       }
-    />
+    }
+    const result = await createEmptyLogRow({
+      projectName: 'Assistants',
+      context,
+      entries: Object.keys(entries).length ? entries : {},
+    });
+    if (!result.ok) {
+      toast.error('Could not add row. Please try again.');
+      return;
+    }
+    await refreshAll();
+  }, [fields, context, refreshAll]);
+
+  const handleAddColumn = React.useCallback(
+    async (name: string, dataType?: string) => {
+      if (!dataType) return;
+      const result = await createLogField({
+        projectName: 'Assistants',
+        context,
+        fieldName: name,
+        dataType,
+      });
+      if (!result.ok) {
+        toast.error('Could not add column. Please try again.');
+        return;
+      }
+      await refreshAll();
+    },
+    [context, refreshAll]
+  );
+
+  const handleRenameColumn = React.useCallback(
+    async (newName: string) => {
+      if (!renameColumn) return;
+      if (newName === renameColumn) return;
+      const result = await renameLogField({
+        projectName: 'Assistants',
+        context,
+        oldFieldName: renameColumn,
+        newFieldName: newName,
+      });
+      if (!result.ok) {
+        toast.error('Could not rename column. Please try again.');
+        return;
+      }
+      setView({
+        columnOrder: view.columnOrder.map((c) => (c === renameColumn ? newName : c)),
+        hiddenColumns: view.hiddenColumns.map((c) => (c === renameColumn ? newName : c)),
+      });
+      await refreshAll();
+    },
+    [renameColumn, context, refreshAll, setView, view.columnOrder, view.hiddenColumns]
+  );
+
+  const handleDeleteColumn = React.useCallback(async () => {
+    if (!deleteColumn) return;
+    const column = deleteColumn;
+    const prevOrder = view.columnOrder;
+    const prevHidden = view.hiddenColumns;
+    // Drop from the grid immediately on confirm; refresh catches up the schema.
+    setDeleteColumn(null);
+    setView({
+      columnOrder: prevOrder.filter((c) => c !== column),
+      hiddenColumns: prevHidden.filter((c) => c !== column),
+    });
+    const result = await deleteLogField({
+      projectName: 'Assistants',
+      context,
+      fieldName: column,
+    });
+    if (!result.ok) {
+      console.error('Failed to delete column', result);
+      setView({ columnOrder: prevOrder, hiddenColumns: prevHidden });
+      toast.error('Could not delete column. Please try again.');
+      return;
+    }
+    await refreshAll();
+  }, [deleteColumn, context, refreshAll, setView, view.columnOrder, view.hiddenColumns]);
+
+  return (
+    <>
+      <LogGrid
+        projectName="Assistants"
+        context={context}
+        rows={rows}
+        fields={fields}
+        columns={columns}
+        totalCount={count}
+        view={view}
+        onViewChange={setView}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={fetchNextPage}
+        error={error}
+        onRetry={() => void refetch()}
+        onBrowseRowsChange={setBrowseRows}
+        onRowLabelsChange={setRowLabels}
+        selection={selection}
+        hasSelection={selectedCells.length > 0}
+        viewPanelOpen={viewPanelOpen}
+        onToggleViewPanel={() => {
+          onViewPanelOpenChange(!viewPanelOpen);
+        }}
+        onOpenViewPanel={() => {
+          onViewPanelOpenChange(true);
+        }}
+        isColumnEditable={isColumnEditable}
+        draftForCell={draftForValue}
+        editorForCell={editorForCell}
+        onCommitCellEdit={async (logId, columnId, draft) => onCommitEdit([logId], columnId, draft)}
+        filter={spec?.filter}
+        onDerivedCreated={() => {
+          void refreshAll();
+        }}
+        onMutated={() => void refreshAll()}
+        allowDelete={!isStateManagerMode(mode)}
+        onAddRow={allowSchemaEdit ? () => void handleAddRow() : undefined}
+        onAddColumn={allowSchemaEdit ? () => setAddColumnOpen(true) : undefined}
+        onImportRows={allowSchemaEdit ? onImportRows : undefined}
+        onRenameColumn={allowSchemaEdit ? (key) => setRenameColumn(key) : undefined}
+        onDeleteColumn={allowSchemaEdit ? (key) => setDeleteColumn(key) : undefined}
+        testId="data-leaf-table"
+        className="min-h-0 min-w-0 flex-1"
+        viewPanel={
+          showPanel ? (
+            <LogCellViewPanel
+              cells={cellSelections}
+              onClose={() => {
+                onViewPanelOpenChange(false);
+              }}
+              isColumnEditable={isColumnEditable}
+              onCommitEdit={onCommitEdit}
+              draftForValue={draftForValue}
+              editorForCell={editorForCell}
+            />
+          ) : null
+        }
+      />
+      {allowSchemaEdit ? (
+        <>
+          <DataColumnNameDialog
+            open={addColumnOpen}
+            onOpenChange={setAddColumnOpen}
+            title="Add column"
+            submitLabel="Add"
+            testId="data-add-column-dialog"
+            showDataType
+            onSubmit={handleAddColumn}
+          />
+          <DataColumnNameDialog
+            open={renameColumn != null}
+            onOpenChange={(open) => {
+              if (!open) setRenameColumn(null);
+            }}
+            title="Rename column"
+            initialName={renameColumn ?? ''}
+            submitLabel="Rename"
+            testId="data-rename-column-dialog"
+            onSubmit={handleRenameColumn}
+          />
+          <AlertDialog
+            open={deleteColumn != null}
+            onOpenChange={(open) => {
+              if (!open) setDeleteColumn(null);
+            }}
+          >
+            <AlertDialogContent data-testid="data-delete-column-dialog">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete column?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes “{deleteColumn}” from every row in this table.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => void handleDeleteColumn()}
+                  data-testid="data-delete-column-confirm"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      ) : null}
+    </>
   );
 }

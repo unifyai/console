@@ -17,9 +17,12 @@
  * - Reshapes flat Pub/Sub payload into { id, ts, entries } to match frontend log shapes
  *
  * Local development mode:
- * - When COMMS_SERVICE_ACCOUNT_CREDENTIALS is absent, falls back to an
- *   in-memory event bus. Events are pushed via the companion POST endpoint
- *   at /api/assistant/[assistantId]/actions/push (already pre-shaped).
+ * - When neither COMMS_SERVICE_ACCOUNT_CREDENTIALS nor PUBSUB_EMULATOR_HOST
+ *   is configured, falls back to an in-memory event bus. Events are pushed
+ *   via the companion POST endpoint at
+ *   /api/assistant/[assistantId]/actions/push (already pre-shaped).
+ * - When PUBSUB_EMULATOR_HOST is set, uses the emulator (same path as chat
+ *   and Unity EventBus action_event publishes).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -290,7 +293,7 @@ export async function GET(
     return new NextResponse('Assistant ID is required.', { status: 400 });
   }
 
-  // ── Local development: no Pub/Sub credentials → in-memory event bus ──
+  // ── No Pub/Sub backend (creds or emulator) → in-memory event bus ──
   if (localEventBusEnabled()) {
     return createLocalStream(request, assistantId);
   }

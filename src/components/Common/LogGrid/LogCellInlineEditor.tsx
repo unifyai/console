@@ -2,8 +2,18 @@
 
 import * as React from 'react';
 import { createPortal } from 'react-dom';
+import { Input } from '@/components/UI/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
+import { Switch } from '@/components/UI/switch';
 import { Textarea } from '@/components/UI/textarea';
 import { cn } from '@/lib/utils';
+import type { LogCellEditorDescriptor } from './editorTypes';
 
 /** Matches RHS panel edit cap — grow with content up to this, then scroll. */
 const CELL_EDIT_MAX_HEIGHT_PX = 320;
@@ -13,6 +23,7 @@ export type LogCellInlineEditorProps = {
   anchorEl: HTMLElement;
   draftText: string;
   fieldLabel: string;
+  editor?: LogCellEditorDescriptor;
   onCommit: (draft: string) => Promise<boolean>;
   onCancel: () => void;
   /** Scroll container to listen on for reposition / cancel when scrolled away. */
@@ -39,6 +50,7 @@ export function LogCellInlineEditor({
   anchorEl,
   draftText,
   fieldLabel,
+  editor = { kind: 'textarea' },
   onCommit,
   onCancel,
   scrollParent,
@@ -47,7 +59,7 @@ export function LogCellInlineEditor({
   const [isSaving, setIsSaving] = React.useState(false);
   const [box, setBox] = React.useState<Box>(() => measureAnchor(anchorEl));
   const [userSized, setUserSized] = React.useState(false);
-  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const shellRef = React.useRef<HTMLDivElement>(null);
   const skipCommitRef = React.useRef(false);
   const commitInFlightRef = React.useRef(false);
@@ -127,26 +139,29 @@ export function LogCellInlineEditor({
     onCancel();
   }, [onCancel]);
 
-  const commitEdit = React.useCallback(async () => {
-    if (isSaving || commitInFlightRef.current) return;
-    if (skipCommitRef.current) {
-      skipCommitRef.current = false;
-      return;
-    }
-    const current = draftRef.current;
-    if (current === draftTextRef.current) {
-      onCancel();
-      return;
-    }
-    commitInFlightRef.current = true;
-    setIsSaving(true);
-    const ok = await onCommit(current);
-    setIsSaving(false);
-    commitInFlightRef.current = false;
-    if (ok) onCancel();
-  }, [isSaving, onCancel, onCommit]);
+  const commitEdit = React.useCallback(
+    async (nextDraft = draftRef.current) => {
+      if (isSaving || commitInFlightRef.current) return;
+      if (skipCommitRef.current) {
+        skipCommitRef.current = false;
+        return;
+      }
+      const current = nextDraft;
+      if (current === draftTextRef.current) {
+        onCancel();
+        return;
+      }
+      commitInFlightRef.current = true;
+      setIsSaving(true);
+      const ok = await onCommit(current);
+      setIsSaving(false);
+      commitInFlightRef.current = false;
+      if (ok) onCancel();
+    },
+    [isSaving, onCancel, onCommit]
+  );
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -214,18 +229,71 @@ export function LogCellInlineEditor({
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <Textarea
-        ref={inputRef}
-        value={draft}
-        rows={1}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={onKeyDown}
-        onBlur={() => void commitEdit()}
-        disabled={isSaving}
-        className="min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-2.5 py-1.5 font-mono text-[12px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-        style={{ scrollbarWidth: 'thin', height: '100%' }}
-        aria-label={`Edit ${fieldLabel}`}
-      />
+      {editor.kind === 'select' ? (
+        <Select
+          value={draft}
+          onValueChange={(next) => {
+            setDraft(next);
+            if (editor.commitOnChange) void commitEdit(next);
+          }}
+          disabled={isSaving}
+        >
+          <SelectTrigger
+            className="h-full rounded-none border-0 bg-transparent px-2.5 font-mono text-[12px] shadow-none focus:ring-0"
+            data-testid="log-grid-inline-editor-select"
+          >
+            <SelectValue placeholder="Choose a value" />
+          </SelectTrigger>
+          <SelectContent>
+            {editor.options?.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : editor.kind === 'switch' ? (
+        <div className="flex h-full items-center px-2.5">
+          <Switch
+            checked={draft.trim().toLowerCase() === 'true'}
+            onCheckedChange={(checked) => {
+              const next = String(checked);
+              setDraft(next);
+              if (editor.commitOnChange) void commitEdit(next);
+            }}
+            disabled={isSaving}
+            data-testid="log-grid-inline-editor-switch"
+            aria-label={`Edit ${fieldLabel}`}
+          />
+        </div>
+      ) : editor.kind === 'text' ? (
+        <Input
+          ref={inputRef as React.Ref<HTMLInputElement>}
+          type={editor.inputType ?? 'text'}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={onKeyDown}
+          onBlur={() => void commitEdit()}
+          disabled={isSaving}
+          className="h-full min-h-0 rounded-none border-0 bg-transparent px-2.5 py-1.5 font-mono text-[12px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          aria-label={`Edit ${fieldLabel}`}
+          data-testid="log-grid-inline-editor-input"
+        />
+      ) : (
+        <Textarea
+          ref={inputRef as React.Ref<HTMLTextAreaElement>}
+          value={draft}
+          rows={1}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={onKeyDown}
+          onBlur={() => void commitEdit()}
+          disabled={isSaving}
+          className="min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-2.5 py-1.5 font-mono text-[12px] leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          style={{ scrollbarWidth: 'thin', height: '100%' }}
+          aria-label={`Edit ${fieldLabel}`}
+          data-testid="log-grid-inline-editor-textarea"
+        />
+      )}
       <div
         role="separator"
         aria-orientation="horizontal"

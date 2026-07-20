@@ -11,7 +11,8 @@
  *   filtered for `attributes.thread = "billing_event"`.
  * - Subscriptions are deleted on disconnect with a 1-day expiry safety net.
  * - Every tab / org member gets an independent subscription (fan-out).
- * - In local dev (no COMMS_SERVICE_ACCOUNT_CREDENTIALS), falls back to the
+ * - When neither COMMS_SERVICE_ACCOUNT_CREDENTIALS nor PUBSUB_EMULATOR_HOST
+ *   is set, falls back to the
  *   in-memory event bus keyed by billing account ID.
  */
 

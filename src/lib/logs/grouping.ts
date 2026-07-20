@@ -219,6 +219,46 @@ export function updateGridGroupSubRows(
   });
 }
 
+/** Append another page of children under an already-populated group. */
+export function appendGridGroupSubRows(
+  rows: LogGridRow[],
+  targetId: string,
+  children: LogGridRow[],
+  options?: { totalChildren?: number; exhausted?: boolean }
+): LogGridRow[] {
+  return rows.map((row) => {
+    if (row.group?.id === targetId) {
+      const nextSub = [...(row.subRows ?? []), ...children];
+      return {
+        ...row,
+        group: {
+          ...row.group,
+          isPopulated: true,
+          totalChildren: options?.exhausted
+            ? nextSub.length
+            : (options?.totalChildren ?? row.group.totalChildren ?? nextSub.length),
+        },
+        subRows: nextSub,
+      };
+    }
+    if (row.subRows?.length) {
+      return {
+        ...row,
+        subRows: appendGridGroupSubRows(row.subRows, targetId, children, options),
+      };
+    }
+    return row;
+  });
+}
+
+/** True when a populated group still has unloaded children. */
+export function groupHasMoreChildren(row: LogGridRow): boolean {
+  if (!row.group?.isPopulated) return false;
+  const loaded = row.subRows?.length ?? 0;
+  const total = row.group.totalChildren ?? 0;
+  return loaded < total;
+}
+
 export type ExpandLogGroupArgs = {
   projectName: string;
   context: string;
@@ -231,6 +271,8 @@ export type ExpandLogGroupArgs = {
   sorting?: string | null;
   fields: LogFieldsResponseProps;
   pageSize: number;
+  /** Child page offset (0 on first expand). */
+  offset?: number;
 };
 
 /**
@@ -257,7 +299,7 @@ export async function fetchGroupChildren(args: ExpandLogGroupArgs): Promise<{
   );
 
   const remaining = getUpdatedGroupingExpression(orchestraGrouping, orchestraGroupingColumnId);
-  const useGroupPagination = !!remaining;
+  const offset = args.offset ?? 0;
 
   const params = new URLSearchParams({
     projectName: args.projectName,
@@ -273,11 +315,11 @@ export async function fetchGroupChildren(args: ExpandLogGroupArgs): Promise<{
       if (expr.trim()) params.append('groupBy', expr.trim());
     });
     params.set('groupLimit', String(args.pageSize));
-    params.set('groupOffset', '0');
+    params.set('groupOffset', String(offset));
     params.set('groupDepth', '0');
   } else {
     params.set('limit', String(args.pageSize));
-    params.set('offset', '0');
+    params.set('offset', String(offset));
   }
 
   const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });

@@ -4,8 +4,8 @@
  * Accepts billing events via POST and publishes them to the in-memory
  * event bus, where active billing SSE connections pick them up instantly.
  *
- * Only available in local development mode (no COMMS_SERVICE_ACCOUNT_CREDENTIALS).
- * In production, events flow through GCP Pub/Sub.
+ * Only available when neither COMMS_SERVICE_ACCOUNT_CREDENTIALS nor
+ * PUBSUB_EMULATOR_HOST is configured. Otherwise events flow through Pub/Sub.
  *
  * Usage:
  *   POST http://localhost:3000/api/billing/events/push

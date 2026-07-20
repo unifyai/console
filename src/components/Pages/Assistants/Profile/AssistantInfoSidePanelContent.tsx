@@ -46,7 +46,10 @@ import {
   useDefaultModelOptions,
   encodeDefaultModelValue,
 } from '@/hooks/Assistants/useDefaultModelOptions';
-import type { DefaultModelOption } from '@/types/assistants/assistant';
+import type { AssistantActions, DefaultModelOption } from '@/types/assistants/assistant';
+import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
+import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -163,12 +166,36 @@ export interface AssistantInfoSidePanelContentProps {
   hideHeaderActions?: boolean;
   /** Registers the header "show profile" action for surfaces that host the panel chrome separately (mobile sheet toolbar). */
   onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
+  /** Optional conversation tab hosted inside the assistant info panel. */
+  chat?: {
+    assistantActions: AssistantActions;
+    chatHistories: Record<string, ChatMessage[]>;
+    setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    callPillHistories?: Record<string, CallPill[]>;
+    setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+    requestAckHistories?: Record<string, RequestSentAck[]>;
+    userEmail: string | null | undefined;
+    userTimezone?: string | null;
+    isFirstView?: boolean;
+    preHireChat?: ChatMessage[];
+    onFirstViewCompleted?: () => void;
+    spendingGate?: import('@/types/assistants/spendingGate').SpendingGateStatus;
+    chatStreamConnectionStatus: ChatStreamConnectionStatus;
+    reconnectChatStream: () => void;
+    chatStreamActivitySignal: number;
+    isCallConnected?: boolean;
+    draftSeed?: { text: string; nonce: number } | null;
+    onAssistantAvatarStartCall?: () => void;
+    isAssistantAvatarStartCallDisabled?: boolean;
+    assistantAvatarStartCallTooltip?: string;
+    forceTypingIndicator?: boolean;
+  };
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
 const CONTACT_COPY_RESET_MS = 2000;
 
-type CoordinatorPanelTab = 'onboarding' | 'profile';
+type CoordinatorPanelTab = 'onboarding' | 'profile' | 'chat';
 
 function nudgeElement(element: HTMLElement | null) {
   if (!element) return;
@@ -259,6 +286,7 @@ export function AssistantInfoSidePanelContent({
         startCallTooltip={props.startCallTooltip}
         hideHeaderActions={props.hideHeaderActions}
         isActiveSurface={props.isActiveSurface}
+        chat={props.chat}
         onRegisterFocusProfileTab={onRegisterFocusProfileTab}
       />
     );
@@ -270,6 +298,43 @@ export function AssistantInfoSidePanelContent({
       onRegisterFocusProfileTab={onRegisterFocusProfileTab}
       {...props}
     />
+  );
+}
+
+function AssistantInfoChatTab({
+  assistant,
+  chat,
+}: {
+  assistant: Assistant;
+  chat: NonNullable<AssistantInfoSidePanelContentProps['chat']>;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <AssistantProfileChatPanel
+        assistant={assistant}
+        assistantActions={chat.assistantActions}
+        chatHistories={chat.chatHistories}
+        setChatHistories={chat.setChatHistories}
+        callPillHistories={chat.callPillHistories}
+        setCallPillHistories={chat.setCallPillHistories}
+        requestAckHistories={chat.requestAckHistories}
+        userEmail={chat.userEmail}
+        userTimezone={chat.userTimezone}
+        isFirstView={chat.isFirstView}
+        preHireChat={chat.preHireChat}
+        onFirstViewCompleted={chat.onFirstViewCompleted}
+        spendingGate={chat.spendingGate}
+        chatStreamConnectionStatus={chat.chatStreamConnectionStatus}
+        reconnectChatStream={chat.reconnectChatStream}
+        chatStreamActivitySignal={chat.chatStreamActivitySignal}
+        isCallConnected={chat.isCallConnected}
+        draftSeed={chat.draftSeed}
+        onAssistantAvatarStartCall={chat.onAssistantAvatarStartCall}
+        isAssistantAvatarStartCallDisabled={chat.isAssistantAvatarStartCallDisabled}
+        assistantAvatarStartCallTooltip={chat.assistantAvatarStartCallTooltip}
+        forceTypingIndicator={chat.forceTypingIndicator}
+      />
+    </div>
   );
 }
 
@@ -291,6 +356,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   hideHeaderActions = false,
   onRegisterFocusProfileTab,
   isActiveSurface = true,
+  chat,
 }: {
   assistant: Assistant;
   onClose: () => void;
@@ -309,6 +375,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   hideHeaderActions?: boolean;
   onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
   isActiveSurface?: boolean;
+  chat?: AssistantInfoSidePanelContentProps['chat'];
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
   const isOnboardingActive = coordinatorOnboarding?.isOnboardingActive === true;
@@ -345,12 +412,12 @@ function CoordinatorAssistantInfoSidePanelContent({
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
   }, [focusProfileFromHeader, onRegisterFocusProfileTab]);
   React.useEffect(() => {
-    if (!showOnboardingTab) {
+    if (!showOnboardingTab && activeTab === 'onboarding') {
       setActiveTab('profile');
       return;
     }
-    setActiveTab(isOnboardingActive ? 'onboarding' : 'profile');
-  }, [showOnboardingTab, isOnboardingActive]);
+    if (showOnboardingTab) setActiveTab(isOnboardingActive ? 'onboarding' : 'profile');
+  }, [activeTab, showOnboardingTab, isOnboardingActive]);
 
   const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -399,39 +466,60 @@ function CoordinatorAssistantInfoSidePanelContent({
         }
       />
 
-      {showOnboardingTab ? (
+      {showOnboardingTab || chat ? (
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as CoordinatorPanelTab)}
-          className="flex min-h-0 flex-1 flex-col gap-3"
+          className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
+            {chat && (
+              <TabsTrigger
+                value="chat"
+                data-testid="assistant-info-tab-chat"
+                className={PANEL_TAB_TRIGGER_CLASS}
+              >
+                Chat
+              </TabsTrigger>
+            )}
             <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
-            <TabsTrigger
-              value="onboarding"
-              data-testid="assistant-info-tab-onboarding"
-              className={PANEL_TAB_TRIGGER_CLASS}
-            >
-              Onboarding
-            </TabsTrigger>
+            {showOnboardingTab && (
+              <TabsTrigger
+                value="onboarding"
+                data-testid="assistant-info-tab-onboarding"
+                className={PANEL_TAB_TRIGGER_CLASS}
+              >
+                Onboarding
+              </TabsTrigger>
+            )}
           </TabsList>
           <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
-            <ProfileSectionsPanel
-              assistant={assistant}
-              onEditProfile={onEditProfile}
-              isEditProfileOpening={isEditProfileOpening}
-              onOpenContactManager={onOpenContactManager}
-              onOpenWorkspaceManager={onOpenWorkspaceManager}
-              onOpenBrainManager={onOpenBrainManager}
-              onConnectDesktop={onConnectDesktop}
-              canWrite={canWrite}
-              sectionsRef={profileSectionsRef}
-            />
+            <div className="pt-3">
+              <ProfileSectionsPanel
+                assistant={assistant}
+                onEditProfile={onEditProfile}
+                isEditProfileOpening={isEditProfileOpening}
+                onOpenContactManager={onOpenContactManager}
+                onOpenWorkspaceManager={onOpenWorkspaceManager}
+                onOpenBrainManager={onOpenBrainManager}
+                onConnectDesktop={onConnectDesktop}
+                canWrite={canWrite}
+                sectionsRef={profileSectionsRef}
+              />
+            </div>
           </TabsContent>
+          {chat && (
+            <TabsContent
+              value="chat"
+              className="-mx-4 -mb-4 mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+            >
+              <AssistantInfoChatTab assistant={assistant} chat={chat} />
+            </TabsContent>
+          )}
           {coordinatorOnboarding && (
             <TabsContent
               value="onboarding"
-              className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+              className="mt-0 flex min-h-0 flex-1 flex-col pt-3 data-[state=inactive]:hidden"
             >
               <CoordinatorOnboardingChecklist
                 onStartOnboardingStep={coordinatorOnboarding.onStartOnboardingStep}
@@ -503,6 +591,7 @@ function RegularAssistantInfoSidePanelContent({
   startCallTooltip,
   hideHeaderActions = false,
   onRegisterFocusProfileTab,
+  chat,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -528,7 +617,7 @@ function RegularAssistantInfoSidePanelContent({
   // Controlled tab state so we can auto-switch to Profile the moment
   // Onboarding completes (otherwise the user would see an empty body
   // until they manually clicked the surviving tab).
-  const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile'>(
+  const [activeTab, setActiveTab] = React.useState<'onboarding' | 'profile' | 'chat'>(
     showOnboardingTab ? 'onboarding' : 'profile'
   );
   const profileTabTriggerRef = React.useRef<HTMLButtonElement>(null);
@@ -567,86 +656,116 @@ function RegularAssistantInfoSidePanelContent({
   };
 
   const profileBody = () => (
-    <ProfileSectionsPanel
-      assistant={assistant}
-      onEditProfile={onEditProfile}
-      isEditProfileOpening={isEditProfileOpening}
-      onOpenContactManager={onOpenContactManager}
-      onOpenWorkspaceManager={onOpenWorkspaceManager}
-      onOpenBrainManager={onOpenBrainManager}
-      onConnectDesktop={onConnectDesktop}
-      onOpenComputerUseManager={onOpenComputerUseManager}
-      canWrite={canWrite}
-      sectionsRef={profileSectionsRef}
-    />
+    <ScrollArea className="min-h-0 flex-1">
+      <ProfileSectionsPanel
+        assistant={assistant}
+        onEditProfile={onEditProfile}
+        isEditProfileOpening={isEditProfileOpening}
+        onOpenContactManager={onOpenContactManager}
+        onOpenWorkspaceManager={onOpenWorkspaceManager}
+        onOpenBrainManager={onOpenBrainManager}
+        onConnectDesktop={onConnectDesktop}
+        onOpenComputerUseManager={onOpenComputerUseManager}
+        canWrite={canWrite}
+        sectionsRef={profileSectionsRef}
+      />
+    </ScrollArea>
   );
 
   return (
-    <ScrollArea className={cn('flex-1', className)}>
-      <div className="flex flex-col gap-4 px-4 py-4">
-        <IdentityHeader
-          name={displayName}
-          photoSrc={photoSrc}
-          initials={assistantInitials(assistant)}
-          supervisorName={supervisorName}
-          visibilityLabel="Everyone"
-          isIdCopied={isIdCopied}
-          onCopyId={copyId}
-          onClose={onClose}
-          onFocusProfileTab={!hideHeaderActions && canWrite ? focusProfileFromHeader : undefined}
-          hideHeaderActions={hideHeaderActions}
-          onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
-          isStartCallDisabled={isStartCallDisabled}
-          startCallTooltip={startCallTooltip}
-        />
+    <div
+      className={cn(
+        'flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4',
+        className
+      )}
+    >
+      <IdentityHeader
+        name={displayName}
+        photoSrc={photoSrc}
+        initials={assistantInitials(assistant)}
+        supervisorName={supervisorName}
+        visibilityLabel="Everyone"
+        isIdCopied={isIdCopied}
+        onCopyId={copyId}
+        onClose={onClose}
+        onFocusProfileTab={!hideHeaderActions && canWrite ? focusProfileFromHeader : undefined}
+        hideHeaderActions={hideHeaderActions}
+        onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
+        isStartCallDisabled={isStartCallDisabled}
+        startCallTooltip={startCallTooltip}
+      />
 
-        {showOnboardingTab && roadmap ? (
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as 'onboarding' | 'profile')}
-            className="flex flex-col gap-3"
-          >
-            {/* Tab strip — underlined style mirroring the right pane.
+      {showOnboardingTab || chat ? (
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as 'onboarding' | 'profile' | 'chat')}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          {/* Tab strip — underlined style mirroring the right pane.
                 The TabsList draws the baseline border so the active
                 trigger's 2px underline can sit flush on top of it
                 (same `items-end` trick the right pane uses). */}
-            <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
-              <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
+          <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
+            {chat && (
               <TabsTrigger
-                value="onboarding"
-                data-testid="assistant-info-tab-onboarding"
+                value="chat"
+                data-testid="assistant-info-tab-chat"
                 className={PANEL_TAB_TRIGGER_CLASS}
               >
-                Onboarding
-                <span
-                  className="text-label ml-1.5 rounded-full bg-primary-tint-15 px-1.5 py-0.5 text-primary"
-                  data-testid="assistant-info-tab-onboarding-counter"
-                >
-                  {onboardingState.totalSteps - onboardingState.resolvedSteps}
-                </span>
+                Chat
               </TabsTrigger>
-            </TabsList>
-            <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
-              {profileBody()}
+            )}
+            <ProfileTabTrigger triggerRef={profileTabTriggerRef} />
+            <TabsTrigger
+              value="onboarding"
+              data-testid="assistant-info-tab-onboarding"
+              className={PANEL_TAB_TRIGGER_CLASS}
+            >
+              Onboarding
+              <span
+                className="text-label ml-1.5 rounded-full bg-primary-tint-15 px-1.5 py-0.5 text-primary"
+                data-testid="assistant-info-tab-onboarding-counter"
+              >
+                {onboardingState.totalSteps - onboardingState.resolvedSteps}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent
+            value="profile"
+            forceMount
+            className="mt-0 flex min-h-0 flex-1 flex-col pt-3 data-[state=inactive]:hidden"
+          >
+            {profileBody()}
+          </TabsContent>
+          {showOnboardingTab && roadmap && (
+            <TabsContent value="onboarding" className="mt-0 flex min-h-0 flex-1 flex-col pt-3">
+              <ScrollArea className="min-h-0 flex-1">
+                <AssistantSetupRoadmap
+                  assistant={assistant}
+                  state={onboardingState}
+                  onOpenContactManager={onOpenContactManager}
+                  onStartCall={roadmap.onStartCall}
+                  onOpenUserSettings={roadmap.onOpenUserSettings}
+                  onSeedChatDraft={roadmap.onSeedChatDraft}
+                  userEmail={roadmap.userEmail}
+                  userPhoneNumber={roadmap.userPhoneNumber}
+                />
+              </ScrollArea>
             </TabsContent>
-            <TabsContent value="onboarding" className="mt-0">
-              <AssistantSetupRoadmap
-                assistant={assistant}
-                state={onboardingState}
-                onOpenContactManager={onOpenContactManager}
-                onStartCall={roadmap.onStartCall}
-                onOpenUserSettings={roadmap.onOpenUserSettings}
-                onSeedChatDraft={roadmap.onSeedChatDraft}
-                userEmail={roadmap.userEmail}
-                userPhoneNumber={roadmap.userPhoneNumber}
-              />
+          )}
+          {chat && (
+            <TabsContent
+              value="chat"
+              className="-mx-4 -mb-4 mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+            >
+              <AssistantInfoChatTab assistant={assistant} chat={chat} />
             </TabsContent>
-          </Tabs>
-        ) : (
-          profileBody()
-        )}
-      </div>
-    </ScrollArea>
+          )}
+        </Tabs>
+      ) : (
+        profileBody()
+      )}
+    </div>
   );
 }
 

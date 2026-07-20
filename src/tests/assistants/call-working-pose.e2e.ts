@@ -18,8 +18,8 @@
  *    preparing), the droid stays camera-facing and cannot turn to the laptop.
  *
  * Local mode: LiveKit creds are absent so the call hook reports connected
- * immediately; Pub/Sub creds are absent so actions flow through the in-memory
- * bus. No real media server or cloud is required.
+ * immediately. Live action/comms frames use the Pub/Sub emulator when
+ * configured, otherwise the local /actions/push bus.
  *
  * Run: npx playwright test src/tests/assistants/call-working-pose.e2e.ts
  */
@@ -37,6 +37,13 @@ import {
   ensureProjectSync,
   setUserCredits,
 } from './helpers';
+import {
+  ensurePubSubTopic,
+  publishActionEventToEmulator,
+  publishCommsActivityToEmulator,
+  pubsubEmulatorConfigured,
+  sseManagerEventToUnityPayload,
+} from './chat-helpers';
 
 const CONSOLE_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
@@ -89,6 +96,23 @@ function makeCommsEvent(medium: string, direction: 'inbound' | 'outbound') {
 }
 
 async function pushEvent(assistantId: number, event: Record<string, unknown>) {
+  if (pubsubEmulatorConfigured()) {
+    if (event.type === 'CommsActivity') {
+      const data = event.data as { medium: string; direction: 'inbound' | 'outbound' };
+      await publishCommsActivityToEmulator(assistantId, data);
+      return;
+    }
+    await publishActionEventToEmulator(
+      assistantId,
+      sseManagerEventToUnityPayload(
+        event as {
+          type: string;
+          data: { id: number; ts: string; entries: Record<string, unknown> };
+        }
+      )
+    );
+    return;
+  }
   const res = await fetch(`${CONSOLE_BASE}/api/assistant/${assistantId}/actions/push`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -98,6 +122,11 @@ async function pushEvent(assistantId: number, event: Record<string, unknown>) {
 }
 
 async function startCall(page: import('@playwright/test').Page) {
+  // Actions SSE attaches with the call surface; topic must exist first.
+  if (pubsubEmulatorConfigured()) {
+    await ensurePubSubTopic(assistant.agentId);
+  }
+
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await selectAssistantInList(page, assistant.agentId);

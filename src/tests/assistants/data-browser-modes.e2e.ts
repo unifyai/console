@@ -112,9 +112,10 @@ test('Data is default; Contacts segment opens the table and hides Meta', async (
 
   const peopleNode = page.getByTestId('data-table-node').filter({ hasText: 'People' });
   if (!(await peopleNode.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    const demoFolder = page.getByTestId('data-folder-node').filter({ hasText: /^Demo$/ });
-    await expect(demoFolder).toBeVisible({ timeout: 15_000 });
-    await demoFolder.click();
+    const expandDemo = page.getByRole('button', { name: 'Expand Demo' });
+    if (await expandDemo.isVisible().catch(() => false)) {
+      await expandDemo.click();
+    }
   }
   await expect(peopleNode).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('data-table-node').filter({ hasText: 'Contacts' })).toHaveCount(0);
@@ -134,7 +135,7 @@ test('Data is default; Contacts segment opens the table and hides Meta', async (
   await expect(page.getByTestId('log-grid-page-status')).toContainText(/of [1-9]/, {
     timeout: 30_000,
   });
-  await expect(page.getByRole('heading', { name: 'Contacts' })).toBeVisible();
+  await expect(page.getByTestId('data-footer')).toContainText('Contacts');
 
   const listRes = await orchestraFetch(
     `/v0/logs?project_name=Assistants&context=${encodeURIComponent(contactsContext)}&limit=5`,

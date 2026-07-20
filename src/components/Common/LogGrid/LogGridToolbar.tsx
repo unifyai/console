@@ -3,7 +3,9 @@
 import * as React from 'react';
 import {
   Check,
-  MoreHorizontal,
+  Columns3,
+  FilePlus2,
+  FunctionSquare,
   PanelRight,
   Plus,
   RefreshCw,
@@ -11,6 +13,7 @@ import {
   Snowflake,
   Timer,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
@@ -46,6 +49,12 @@ export type LogGridToolbarProps = {
   onRefresh?: () => void;
   /** Opens the derived-column create dialog. */
   onAddDerivedColumn?: () => void;
+  /** Add an empty data row. */
+  onAddRow?: () => void;
+  /** Add a plain (non-derived) column. */
+  onAddColumn?: () => void;
+  /** Import rows from a file into this table. */
+  onImportRows?: () => void;
   /** Whether any cells are currently selected (enables the view-pane toggle). */
   hasSelection?: boolean;
   /** Whether the cell view pane is open. */
@@ -60,7 +69,7 @@ function currentRefreshMode(view: LogViewState): LogRefreshMode {
 }
 
 /**
- * LogGrid chrome: search, columns, refresh/freeze/live, derived +, optional delete,
+ * LogGrid chrome: search, columns, refresh/freeze/live, add (+), optional delete,
  * loaded-row status, and a right-pinned cell view-pane toggle.
  */
 export function LogGridToolbar({
@@ -75,6 +84,9 @@ export function LogGridToolbar({
   onDeleteRows,
   onRefresh,
   onAddDerivedColumn,
+  onAddRow,
+  onAddColumn,
+  onImportRows,
   hasSelection = false,
   viewPanelOpen = false,
   onToggleViewPanel,
@@ -82,6 +94,7 @@ export function LogGridToolbar({
   const viewToggleEnabled = hasSelection && !!onToggleViewPanel;
   const viewToggleLabel = hasSelection ? 'Show cell view' : 'Select cells to open the view pane';
   const showViewToggle = !!onToggleViewPanel && !(viewPanelOpen && hasSelection);
+  const showAddMenu = !!(onAddRow || onAddColumn || onAddDerivedColumn);
 
   const mode = currentRefreshMode(view);
   const groupingActive = parseGrouping(view.grouping).length > 0;
@@ -208,7 +221,65 @@ export function LogGridToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {onAddDerivedColumn && (
+      {showAddMenu && (
+        <DropdownMenu modal={false}>
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 shrink-0 p-0"
+                    aria-label="Add"
+                    data-testid="log-grid-add-menu"
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Add</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <DropdownMenuContent align="start" className="min-w-[12rem]">
+            {onAddRow && (
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                onClick={onAddRow}
+                data-testid="log-grid-add-row"
+              >
+                <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Add row
+              </DropdownMenuItem>
+            )}
+            {onAddColumn && (
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                onClick={onAddColumn}
+                data-testid="log-grid-add-column"
+              >
+                <Columns3 className="h-3.5 w-3.5" aria-hidden="true" />
+                Add column
+              </DropdownMenuItem>
+            )}
+            {onAddDerivedColumn && (
+              <DropdownMenuItem
+                className="text-body-sm gap-2"
+                onClick={onAddDerivedColumn}
+                data-testid="log-grid-derived-open"
+              >
+                <FunctionSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                Add derived column
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      {onImportRows && (
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -217,44 +288,33 @@ export function LogGridToolbar({
                 variant="outline"
                 size="sm"
                 className="h-8 w-8 shrink-0 p-0"
-                onClick={onAddDerivedColumn}
-                aria-label="Add derived column"
-                data-testid="log-grid-derived-open"
+                onClick={onImportRows}
+                aria-label="Import rows"
+                data-testid="log-grid-import-rows"
               >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Add derived column</p>
+              <p>Import rows</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       )}
 
       {canDelete && (
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 w-8 shrink-0 p-0"
-              aria-label="More table controls"
-              data-testid="log-grid-more"
-            >
-              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onSelect={() => onDeleteRows()}
-              data-testid="log-grid-delete-row"
-            >
-              <Trash2 className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-              Delete selected
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0 gap-1.5 px-2.5 text-destructive hover:text-destructive"
+          onClick={onDeleteRows}
+          aria-label="Delete selected"
+          data-testid="log-grid-delete-row"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          Delete selected
+        </Button>
       )}
 
       {isFetching && (

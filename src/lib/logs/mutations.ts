@@ -2,12 +2,14 @@
  * Client mutations for LogGrid row create / update / delete via Console proxies.
  */
 
+const LOG_CREATE_CHUNK = 500;
+
 export async function updateLogEntries(args: {
   projectName: string;
   context: string;
   logIds: number[];
   entries: Record<string, unknown>;
-}): Promise<{ ok: boolean }> {
+}): Promise<{ ok: boolean; detail?: string }> {
   if (args.logIds.length === 0) return { ok: true };
   const res = await fetch('/api/logs', {
     method: 'PUT',
@@ -21,8 +23,13 @@ export async function updateLogEntries(args: {
     }),
   });
   if (!res.ok) {
-    console.error('Failed to update log entries', await res.text().catch(() => res.status));
-    return { ok: false };
+    const body: unknown = await res.json().catch(() => null);
+    const detail =
+      body && typeof body === 'object' && 'detail' in body
+        ? String((body as { detail: unknown }).detail)
+        : undefined;
+    console.error('Failed to update log entries', detail ?? res.status);
+    return { ok: false, detail };
   }
   return { ok: true };
 }
@@ -71,4 +78,104 @@ export async function createEmptyLogRow(args: {
   const rawIds = record?.logEventIds ?? record?.['log_event_ids'];
   const ids = Array.isArray(rawIds) ? (rawIds as number[]) : undefined;
   return { ok: true, logId: ids?.[0] };
+}
+
+/** Batch-create log rows (chunked). Returns false if any chunk fails. */
+export async function createLogRows(args: {
+  projectName: string;
+  context: string;
+  entries: Record<string, unknown>[];
+  onProgress?: (uploaded: number, total: number) => void;
+}): Promise<{ ok: boolean; created: number }> {
+  const { entries } = args;
+  if (entries.length === 0) return { ok: true, created: 0 };
+  let created = 0;
+  for (let i = 0; i < entries.length; i += LOG_CREATE_CHUNK) {
+    const chunk = entries.slice(i, i + LOG_CREATE_CHUNK);
+    const res = await fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: args.projectName,
+        context: args.context,
+        entries: chunk,
+      }),
+    });
+    if (!res.ok) {
+      console.error('Failed to create log rows', await res.text().catch(() => res.status));
+      return { ok: false, created };
+    }
+    created += chunk.length;
+    args.onProgress?.(created, entries.length);
+  }
+  return { ok: true, created };
+}
+
+/** Create an entry field via Orchestra create_fields. Pass Any (or null) for untyped. */
+export async function createLogField(args: {
+  projectName: string;
+  context: string;
+  fieldName: string;
+  dataType: string;
+}): Promise<{ ok: boolean }> {
+  const dataType = args.dataType !== 'Any' ? args.dataType : null;
+  const res = await fetch('/api/logs/fields', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectName: args.projectName,
+      context: args.context,
+      fields: { [args.fieldName]: dataType },
+    }),
+  });
+  if (!res.ok) {
+    console.error('Failed to create log field', await res.text().catch(() => res.status));
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
+export async function renameLogField(args: {
+  projectName: string;
+  context: string;
+  oldFieldName: string;
+  newFieldName: string;
+}): Promise<{ ok: boolean }> {
+  const res = await fetch('/api/logs/fields', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectName: args.projectName,
+      context: args.context,
+      oldFieldName: args.oldFieldName,
+      newFieldName: args.newFieldName,
+    }),
+  });
+  if (!res.ok) {
+    console.error('Failed to rename log field', await res.text().catch(() => res.status));
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
+/** Delete a column from all rows (idsAndFields with null log id). */
+export async function deleteLogField(args: {
+  projectName: string;
+  context: string;
+  fieldName: string;
+}): Promise<{ ok: boolean }> {
+  const res = await fetch('/api/logs', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectName: args.projectName,
+      context: args.context,
+      idsAndFields: [[null, args.fieldName]],
+    }),
+  });
+  if (!res.ok) {
+    console.error('Failed to delete log field', await res.text().catch(() => res.status));
+    return { ok: false };
+  }
+  return { ok: true };
 }

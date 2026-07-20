@@ -5,6 +5,7 @@ export * from './querySpec';
 export * from './fetch';
 export * from './metrics';
 export * from './mutations';
+export * from './fileImport';
 export * from './derivedColumns';
 export * from './grouping';
 export * from './rowLabels';

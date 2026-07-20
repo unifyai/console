@@ -14,6 +14,7 @@ import {
   Lock,
   MoreHorizontal,
   Pencil,
+  Trash2,
   Ungroup,
 } from 'lucide-react';
 import type { Column, Header, SortDirection } from '@tanstack/react-table';
@@ -43,10 +44,19 @@ type LogGridColumnHeaderProps = {
   onFiltersChange: (filters: string) => void;
   grouping: string;
   onGroupingChange: (grouping: string) => void;
+  /**
+   * Called when the column ⋯ menu closes so the parent can ignore the
+   * click-through mouseDown on the header (`modal={false}` menus).
+   */
+  onMenuClose?: () => void;
   isDerived: boolean;
   /** System-owned / non-editable column — show a lock beside the label. */
   isLocked?: boolean;
   onEditDerived?: () => void;
+  /** Rename a plain entry column (not derived). */
+  onRenameColumn?: () => void;
+  /** Delete a plain entry column (not derived). */
+  onDeleteColumn?: () => void;
   reorderEnabled: boolean;
   onEnableReorder: () => void;
   onDisableReorder: () => void;
@@ -67,9 +77,12 @@ export function LogGridColumnHeader({
   onFiltersChange,
   grouping,
   onGroupingChange,
+  onMenuClose,
   isDerived,
   isLocked = false,
   onEditDerived,
+  onRenameColumn,
+  onDeleteColumn,
   reorderEnabled,
   onEnableReorder,
   onDisableReorder,
@@ -79,6 +92,8 @@ export function LogGridColumnHeader({
   const [filterOpen, setFilterOpen] = React.useState(false);
   const headerRef = React.useRef<HTMLDivElement>(null);
   const openFilterAfterMenuCloseRef = React.useRef(false);
+  /** Parent Dialog/AlertDialog openers deferred until the menu has closed. */
+  const pendingDialogActionRef = React.useRef<(() => void) | null>(null);
   const sorted = column.getIsSorted() as SortDirection | false;
   const hasFilter = columnHasFilter(filters, columnKey);
   const isGrouped = parseGrouping(grouping).includes(columnKey);
@@ -90,6 +105,25 @@ export function LogGridColumnHeader({
     openFilterAfterMenuCloseRef.current = true;
     setMenuOpen(false);
     setFilterOpen(true);
+  };
+
+  const handleMenuOpenChange = (open: boolean) => {
+    setMenuOpen(open);
+    if (!open) {
+      onMenuClose?.();
+      const action = pendingDialogActionRef.current;
+      if (action) {
+        pendingDialogActionRef.current = null;
+        // Wait past the pointer-up that selected the item — otherwise that same
+        // event dismisses a Dialog opened on the next microtask.
+        window.setTimeout(action, 50);
+      }
+    }
+  };
+
+  const queueParentDialog = (open: () => void) => {
+    pendingDialogActionRef.current = open;
+    handleMenuOpenChange(false);
   };
 
   React.useEffect(() => {
@@ -133,7 +167,7 @@ export function LogGridColumnHeader({
         />
       </div>
 
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
+      <DropdownMenu open={menuOpen} onOpenChange={handleMenuOpenChange} modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -160,8 +194,9 @@ export function LogGridColumnHeader({
             e.preventDefault();
           }}
           onCloseAutoFocus={(e) => {
-            // Keep focus from jumping back into the header while the filter popover opens.
-            if (openFilterAfterMenuCloseRef.current) e.preventDefault();
+            // Keep focus from jumping back into the header while the filter popover opens,
+            // and avoid a focus restore that can re-target the header under modal={false}.
+            e.preventDefault();
           }}
         >
           <DropdownMenuSub>
@@ -229,9 +264,14 @@ export function LogGridColumnHeader({
           <DropdownMenuItem
             className="text-body-sm gap-2"
             data-testid={`log-grid-group-by-${fieldKey}`}
-            onClick={() => {
+            onSelect={(event) => {
+              // preventDefault keeps Radix from restoring focus into the header; with
+              // modal={false} that restore (or the following pointerup) hits the
+              // header mouseDown and selects the whole column instead of ungrouping.
+              event.preventDefault();
               onGroupingChange(toggleGroupingColumn(grouping, columnKey));
               setMenuOpen(false);
+              onMenuClose?.();
             }}
           >
             {isGrouped ? <Ungroup className="h-3.5 w-3.5" /> : <Group className="h-3.5 w-3.5" />}
@@ -290,6 +330,37 @@ export function LogGridColumnHeader({
               </DropdownMenuItem>
             </>
           )}
+          {!isDerived && (onRenameColumn || onDeleteColumn) && (
+            <>
+              <DropdownMenuSeparator />
+              {onRenameColumn && (
+                <DropdownMenuItem
+                  className="text-body-sm gap-2"
+                  data-testid={`log-grid-rename-column-${fieldKey}`}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    queueParentDialog(onRenameColumn);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Rename column
+                </DropdownMenuItem>
+              )}
+              {onDeleteColumn && (
+                <DropdownMenuItem
+                  className="text-body-sm gap-2 text-destructive focus:text-destructive"
+                  data-testid={`log-grid-delete-column-${fieldKey}`}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    queueParentDialog(onDeleteColumn);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete column
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -303,7 +374,10 @@ type SortableHeaderProps = {
   className?: string;
   style?: React.CSSProperties;
   reorderEnabled: boolean;
+  /** Whole-column selection highlight (mirrors row-index `bg-primary`). */
+  columnSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
+  onDoubleClick?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
   dragAttributes?: React.HTMLAttributes<HTMLElement>;
   dragListeners?: React.HTMLAttributes<HTMLElement>;
   setNodeRef?: (node: HTMLElement | null) => void;
@@ -319,7 +393,9 @@ export function LogGridSortableHead({
   className,
   style,
   reorderEnabled,
+  columnSelected = false,
   onMouseDown,
+  onDoubleClick,
   dragAttributes,
   dragListeners,
   setNodeRef,
@@ -332,17 +408,27 @@ export function LogGridSortableHead({
       className={cn(
         // Overflow stays on the inner label row so full-height column resizers
         // can extend past the header into the body without being clipped.
-        'group relative h-8 whitespace-nowrap px-1 text-[11px] text-muted-foreground',
+        'group relative h-8 whitespace-nowrap px-1 text-[11px]',
+        columnSelected
+          ? // Beat TableHead's default `bg-card` / muted text the same way
+            // whole-row selection paints the index cell (`bg-primary`).
+            'text-primary-foreground [&_*]:text-primary-foreground'
+          : 'text-muted-foreground',
         className,
         isDragging && 'z-20 opacity-80'
       )}
       style={{
         ...style,
+        // Inline primary fill so TableHead's default `bg-card` cannot win.
+        backgroundColor: columnSelected ? 'var(--primary)' : style?.backgroundColor,
+        color: columnSelected ? 'var(--primary-foreground)' : style?.color,
         transform: transformStyle,
         transition: isDragging ? 'width transform 0.2s ease-in-out' : undefined,
       }}
       data-reorder={reorderEnabled ? 'true' : undefined}
+      data-column-selected={columnSelected ? 'true' : undefined}
       onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
     >
       <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">
         {reorderEnabled && (

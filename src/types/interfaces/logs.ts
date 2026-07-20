@@ -73,10 +73,13 @@ export type LogFieldsProps = [number, string][];
 export interface LogFieldsResponseProps {
   [name: string]: {
     dataType: string;
-    fieldType: 'entry' | 'derived_entry';
+    fieldType: 'entry' | 'derived_entry' | 'param';
     artifacts: string;
-    mutable: 'true' | 'false';
+    mutable: boolean | 'true' | 'false';
     uiEditable?: boolean | 'true' | 'false';
+    enumValues?: string[] | null;
+    restrict?: boolean;
+    unique?: boolean;
     createdAt: string;
     description?: string;
   };

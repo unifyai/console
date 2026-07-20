@@ -47,17 +47,16 @@ export function LogDerivedColumnDialog({
   const [error, setError] = React.useState('');
 
   const flatColumns = React.useMemo(() => columns.map((c) => sanitizeId(c)), [columns]);
+  // Orchestra equations use a synthetic `{t:col}` alias; keep it internal — never surface in autocomplete.
   const tableAlias = 't';
 
   const formulaOptions = React.useMemo(
-    () => [
-      { name: tableAlias, type: 'Table Name', children: flatColumns },
-      ...flatColumns.map((column) => ({
+    () =>
+      flatColumns.map((column) => ({
         name: column,
         type: 'Column Name',
         children: [] as string[],
       })),
-    ],
     [flatColumns]
   );
 
@@ -71,7 +70,13 @@ export function LogDerivedColumnDialog({
     }
     if (editColumn?.key) {
       setName(editColumn.key);
-      setExpression(derivedFunctionToExpression(editColumn.equation, [tableAlias], flatColumns));
+      // Strip the internal `t.` prefix so the editor matches what users type on create.
+      setExpression(
+        derivedFunctionToExpression(editColumn.equation, [tableAlias], flatColumns).replace(
+          new RegExp(`\\b${tableAlias}\\.`, 'g'),
+          ''
+        )
+      );
     }
   }, [open, editColumn, flatColumns]);
 

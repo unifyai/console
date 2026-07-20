@@ -1,13 +1,9 @@
 /**
  * Live Actions Viewer E2E — verifies that:
- *  - The viewer shows empty state when no events exist
  *  - Historical events seeded via Orchestra appear on load
- *  - Live events pushed via the local push endpoint appear in real time
+ *  - Live events appear in real time (Pub/Sub emulator when configured,
+ *    otherwise the local /actions/push bus)
  *  - Search filters nodes and shows match count
- *  - Expand / Collapse All buttons toggle tree state
- *
- * Relies on local pubsub (in-memory event bus) which is active when
- * COMMS_SERVICE_ACCOUNT_CREDENTIALS is absent.
  *
  * Run: npx playwright test src/tests/assistants/live-actions.e2e.ts
  */
@@ -27,7 +23,14 @@ import {
   openRailSection,
 } from './helpers';
 import { railSection } from '../helpers/shell';
-import { createContactSeeder, createOpenAssistantChat } from './chat-helpers';
+import {
+  createContactSeeder,
+  createOpenAssistantChat,
+  ensurePubSubTopic,
+  publishActionEventToEmulator,
+  pubsubEmulatorConfigured,
+  sseManagerEventToUnityPayload,
+} from './chat-helpers';
 
 const CONSOLE_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
@@ -90,6 +93,10 @@ function makeManagerEvent(opts: {
 }
 
 async function pushEvent(assistantId: number | string, event: ReturnType<typeof makeManagerEvent>) {
+  if (pubsubEmulatorConfigured()) {
+    await publishActionEventToEmulator(Number(assistantId), sseManagerEventToUnityPayload(event));
+    return;
+  }
   const res = await fetch(`${CONSOLE_BASE}/api/assistant/${assistantId}/actions/push`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -221,9 +228,14 @@ test('historical events seeded in Orchestra appear on initial load @critical @ar
   await expect(eventCounts).toContainText('completed');
 });
 
-test('live events pushed via local endpoint appear in real time @critical @area(assistants.live-actions)', async ({
+test('live events appear in real time over the Actions SSE path @critical @area(assistants.live-actions)', async ({
   authedPage: page,
 }) => {
+  // Topic must exist before Actions SSE connects or the route returns 404.
+  if (pubsubEmulatorConfigured()) {
+    await ensurePubSubTopic(assistant.agentId);
+  }
+
   await selectAssistant(page);
 
   const viewer = page.getByTestId('live-actions-viewer');

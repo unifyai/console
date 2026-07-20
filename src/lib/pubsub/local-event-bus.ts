@@ -1,11 +1,14 @@
 /**
  * In-memory event bus for local development SSE streaming.
  *
- * When COMMS_SERVICE_ACCOUNT_CREDENTIALS is not configured (typical for local
- * dev), the actions SSE route falls back to this bus instead of GCP Pub/Sub.
- * The simulation script (or any HTTP client) pushes events via the companion
- * POST endpoint at /api/assistant/[assistantId]/actions/push, and all active
- * SSE connections for that assistant receive them in real time.
+ * Used only when neither cloud Pub/Sub credentials nor PUBSUB_EMULATOR_HOST
+ * are available. The simulation script (or any HTTP client) pushes events via
+ * the companion POST endpoint at /api/assistant/[assistantId]/actions/push,
+ * and all active SSE connections for that assistant receive them in real time.
+ *
+ * When PUBSUB_EMULATOR_HOST is set (self-host, local.sh --chat/--pubsub, CI),
+ * Actions/billing/system-errors SSE use the emulator — the same path Unity's
+ * EventBus publishes to — not this bus.
  *
  * Each SSE connection registers a listener via subscribe(). Events are
  * fan-out: every listener receives every event (same semantics as Pub/Sub
@@ -60,11 +63,11 @@ export function hasCredentials(): boolean {
 }
 
 /**
- * Route live-action and billing-event SSE through the in-memory bus (and allow
- * the companion push endpoints) whenever cloud comms credentials are absent
- * or fail to parse. The Pub/Sub emulator may still run for chat topics, but
- * E2E injects assistant/billing events through the local push routes.
+ * Route live-action / billing / system-error SSE through the in-memory bus
+ * (and allow companion /push endpoints) only when no Pub/Sub backend is
+ * reachable. Prefer GCP credentials or the Pub/Sub emulator whenever either
+ * is configured — that matches Unity EventBus → Console live delivery.
  */
 export function localEventBusEnabled(): boolean {
-  return !commsCredentialsConfigured();
+  return !hasCredentials();
 }

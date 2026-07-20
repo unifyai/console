@@ -3,7 +3,16 @@
 import * as React from 'react';
 import { ChevronDown, ChevronRight, Lock, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
+import { Input } from '@/components/UI/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
+import { Switch } from '@/components/UI/switch';
 import { Textarea } from '@/components/UI/textarea';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import {
@@ -19,6 +28,7 @@ import { sanitizeId } from '@/lib/logs/columns';
 import { parseCellId, type LogGridRow } from '@/lib/logs/types';
 import { compareRowLabels, compressRowLabels } from '@/lib/logs/rowLabels';
 import { cn } from '@/lib/utils';
+import type { LogCellEditorDescriptor, ResolveLogCellEditor } from './editorTypes';
 
 export type LogCellSelection = {
   cellId: string;
@@ -53,6 +63,8 @@ interface LogCellViewPanelProps {
   onCommitEdit?: (logIds: number[], columnId: string, draft: string) => Promise<boolean>;
   /** Initial draft text for the editor (typed / JSON string form of the value). */
   draftForValue?: (columnId: string, value: unknown) => string;
+  /** Resolves the appropriate editing control for each typed value. */
+  editorForCell?: ResolveLogCellEditor;
   className?: string;
 }
 
@@ -368,6 +380,7 @@ function CellBody({
   draftText,
   onCommit,
   onLockedClick,
+  editor = { kind: 'textarea' },
 }: {
   value: unknown;
   fieldName: string;
@@ -380,6 +393,7 @@ function CellBody({
   onCommit?: (draft: string) => Promise<boolean>;
   /** Locked-column feedback (jiggle the column lock icon). */
   onLockedClick?: () => void;
+  editor?: LogCellEditorDescriptor;
 }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(draftText);
@@ -440,25 +454,25 @@ function CellBody({
     setDraft(draftText);
   };
 
-  const commitEdit = async () => {
+  const commitEdit = async (nextDraft = draft) => {
     if (!onCommit || isSaving || commitInFlightRef.current) return;
     if (skipCommitRef.current) {
       skipCommitRef.current = false;
       return;
     }
-    if (draft === draftText) {
+    if (nextDraft === draftText) {
       setIsEditing(false);
       return;
     }
     commitInFlightRef.current = true;
     setIsSaving(true);
-    const ok = await onCommit(draft);
+    const ok = await onCommit(nextDraft);
     setIsSaving(false);
     commitInFlightRef.current = false;
     if (ok) setIsEditing(false);
   };
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -503,19 +517,70 @@ function CellBody({
       <div className="relative flex w-max min-w-full bg-background font-mono text-[11px] ring-1 ring-inset ring-primary">
         <RowGutter label={rowLabel} widthCh={gutterCh} />
         <div className="relative min-w-max flex-1">
-          <Textarea
-            ref={inputRef}
-            value={draft}
-            rows={1}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={onKeyDown}
-            onBlur={() => void commitEdit()}
-            disabled={isSaving}
-            className="min-h-0 resize-none border-0 bg-transparent px-1.5 py-0.5 font-mono text-[11px] leading-snug shadow-none focus-visible:ring-0"
-            style={{ scrollbarWidth: 'thin' }}
-            data-testid="log-cell-view-editor"
-            aria-label={`Edit ${fieldName}`}
-          />
+          {editor.kind === 'select' ? (
+            <Select
+              value={draft}
+              onValueChange={(next) => {
+                setDraft(next);
+                if (editor.commitOnChange) void commitEdit(next);
+              }}
+              disabled={isSaving}
+            >
+              <SelectTrigger
+                className="h-7 rounded-none border-0 bg-transparent px-1.5 font-mono text-[11px] shadow-none focus:ring-0"
+                data-testid="log-cell-view-editor-select"
+              >
+                <SelectValue placeholder="Choose a value" />
+              </SelectTrigger>
+              <SelectContent>
+                {editor.options?.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : editor.kind === 'switch' ? (
+            <div className="flex h-7 items-center px-1.5">
+              <Switch
+                checked={draft.trim().toLowerCase() === 'true'}
+                onCheckedChange={(checked) => {
+                  const next = String(checked);
+                  setDraft(next);
+                  if (editor.commitOnChange) void commitEdit(next);
+                }}
+                disabled={isSaving}
+                data-testid="log-cell-view-editor-switch"
+                aria-label={`Edit ${fieldName}`}
+              />
+            </div>
+          ) : editor.kind === 'text' ? (
+            <Input
+              type={editor.inputType ?? 'text'}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={onKeyDown}
+              onBlur={() => void commitEdit()}
+              disabled={isSaving}
+              className="h-7 rounded-none border-0 bg-transparent px-1.5 py-0.5 font-mono text-[11px] leading-snug shadow-none focus-visible:ring-0"
+              data-testid="log-cell-view-editor"
+              aria-label={`Edit ${fieldName}`}
+            />
+          ) : (
+            <Textarea
+              ref={inputRef}
+              value={draft}
+              rows={1}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={onKeyDown}
+              onBlur={() => void commitEdit()}
+              disabled={isSaving}
+              className="min-h-0 resize-none border-0 bg-transparent px-1.5 py-0.5 font-mono text-[11px] leading-snug shadow-none focus-visible:ring-0"
+              style={{ scrollbarWidth: 'thin' }}
+              data-testid="log-cell-view-editor"
+              aria-label={`Edit ${fieldName}`}
+            />
+          )}
         </div>
       </div>
     );
@@ -620,12 +685,14 @@ function ColumnGroupDisplay({
   isColumnEditable,
   onCommitEdit,
   draftForValue,
+  editorForCell,
 }: {
   group: ColumnGroup;
   gutterCh: number;
   isColumnEditable?: (columnId: string) => boolean;
   onCommitEdit?: (logIds: number[], columnId: string, draft: string) => Promise<boolean>;
   draftForValue?: (columnId: string, value: unknown) => string;
+  editorForCell?: ResolveLogCellEditor;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(true);
   const lockRef = React.useRef<HTMLSpanElement>(null);
@@ -708,6 +775,7 @@ function ColumnGroupDisplay({
                       editable={editable}
                       draftText={draftText === '—' ? '' : draftText}
                       onLockedClick={showLock ? nudgeLock : undefined}
+                      editor={editorForCell?.(group.columnId, valueGroup.value)}
                       onCommit={
                         editable
                           ? (draft) => onCommitEdit(valueGroup.logIds, group.columnId, draft)
@@ -739,6 +807,7 @@ export function LogCellViewPanel({
   isColumnEditable,
   onCommitEdit,
   draftForValue,
+  editorForCell,
   className,
 }: LogCellViewPanelProps) {
   const columns = React.useMemo(() => groupCellsByColumn(cells), [cells]);
@@ -896,6 +965,7 @@ export function LogCellViewPanel({
                 isColumnEditable={isColumnEditable}
                 onCommitEdit={onCommitEdit}
                 draftForValue={draftForValue}
+                editorForCell={editorForCell}
               />
             ))}
           </div>

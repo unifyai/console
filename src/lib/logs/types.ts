@@ -198,6 +198,17 @@ export function isAllRowSelected(
   return columnIds.every((columnId) => selected.has(makeCellId(logId, columnId)));
 }
 
+/** True when every data cell of the column (across the given rows) is in the selection. */
+export function isAllColumnSelected(
+  selectedCells: Iterable<string>,
+  columnId: string,
+  rows: Array<{ logId: number }>
+): boolean {
+  if (rows.length === 0) return false;
+  const selected = selectedCells instanceof Set ? selectedCells : new Set(selectedCells);
+  return rows.every((row) => selected.has(makeCellId(row.logId, columnId)));
+}
+
 /**
  * Inset box-shadows for the top/left/bottom outer edges of a contiguous
  * selection. The right edge is drawn via `border-r` (same 1px grid slot) so it

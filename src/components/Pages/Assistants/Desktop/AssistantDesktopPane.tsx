@@ -2,7 +2,15 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, Laptop, MousePointerClick, RefreshCw, Eye } from 'lucide-react';
+import {
+  AlertTriangle,
+  Eye,
+  Laptop,
+  Maximize2,
+  Minimize2,
+  MousePointerClick,
+  RefreshCw,
+} from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
@@ -79,6 +87,8 @@ export function AssistantDesktopPane({
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [isInteractive, setIsInteractive] = React.useState(false);
   const [isInteractiveLoading, setIsInteractiveLoading] = React.useState(false);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const desktopFrameRef = React.useRef<HTMLIFrameElement | null>(null);
 
   const assistantId = assistant.agentId;
   const ownerId = assistant.userId;
@@ -115,6 +125,17 @@ export function AssistantDesktopPane({
   const desktopActionsRef = React.useRef(desktopActions);
   desktopActionsRef.current = desktopActions;
   const sessionStartRequestedAtRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === desktopFrameRef.current);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const connect = React.useCallback(async () => {
     setStatus('loading');
@@ -345,6 +366,25 @@ export function AssistantDesktopPane({
     });
   }, [connect]);
 
+  const toggleFullscreen = React.useCallback(async () => {
+    const frame = desktopFrameRef.current;
+    if (!frame || typeof document === 'undefined' || !frame.requestFullscreen) {
+      toast.error('Fullscreen mode is not supported here.');
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === frame) {
+        await document.exitFullscreen();
+      } else {
+        await frame.requestFullscreen();
+      }
+    } catch (error: unknown) {
+      console.error('[AssistantDesktopPane] Failed to toggle fullscreen:', error);
+      toast.error('Could not change fullscreen mode.');
+    }
+  }, []);
+
   const handleRetry = React.useCallback(() => {
     wakeAttemptedRef.current = false;
     sessionStartRequestedAtRef.current = null;
@@ -392,6 +432,15 @@ export function AssistantDesktopPane({
             <Button
               variant="ghost"
               size="icon"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen desktop'}
+              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen desktop'}
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleRefresh}
               aria-label="Refresh desktop"
             >
@@ -432,6 +481,7 @@ export function AssistantDesktopPane({
           <>
             <iframe
               src={liveviewUrl}
+              ref={desktopFrameRef}
               className="h-full w-full border-0"
               title={`${displayName} Remote Desktop`}
               allow="autoplay; camera; microphone; display-capture; clipboard-write; clipboard-read; fullscreen"

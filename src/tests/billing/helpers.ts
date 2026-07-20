@@ -877,22 +877,3 @@ END
 \\$\\$;
 `);
 }
-
-export async function pushBillingEvent(
-  billingAccountId: number,
-  eventType: 'credits_exhausted' | 'credits_restored',
-  balance: number
-) {
-  const res = await fetch('http://localhost:3000/api/billing/events/push', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      billing_account_id: billingAccountId,
-      event_type: eventType,
-      balance,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to push billing event: ${res.status}`);
-  }
-}

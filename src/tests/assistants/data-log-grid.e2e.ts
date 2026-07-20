@@ -6,6 +6,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
+import { DEFAULT_LOG_PAGE_SIZE } from '@/lib/logs/types';
 import {
   createTestUser,
   cleanupUser,
@@ -83,9 +84,10 @@ async function openPeopleTable(page: Page) {
 
   const peopleNode = page.getByTestId('data-table-node').filter({ hasText: 'People' });
   if (!(await peopleNode.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    const demoFolder = page.getByTestId('data-folder-node').filter({ hasText: /^Demo$/ });
-    await expect(demoFolder).toBeVisible({ timeout: 15_000 });
-    await demoFolder.click();
+    const expandDemo = page.getByRole('button', { name: 'Expand Demo' });
+    if (await expandDemo.isVisible().catch(() => false)) {
+      await expandDemo.click();
+    }
   }
   await expect(peopleNode).toBeVisible({ timeout: 15_000 });
   await peopleNode.click();
@@ -397,6 +399,9 @@ test('column header selects whole columns with click, ctrl, and shift', async ({
 
   // 5 seeded people → clicking city selects 5 cells in that column.
   await page.getByTestId('log-grid-header-city').click();
+  await expect(
+    page.getByTestId('log-grid-header-city').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
   await openCellViewPanel(page);
   await expect(page.getByTestId('log-cell-view-panel')).toContainText(
     '5 rows · 1 column · 5 cells',
@@ -408,15 +413,24 @@ test('column header selects whole columns with click, ctrl, and shift', async ({
   // Ada+Alan share London → 4 distinct city values across 5 rows.
   await expect(page.getByTestId('log-cell-view-group')).toHaveCount(4);
 
-  // Shift from city → score selects both columns (10 cells).
+  // Shift from city → score selects the inclusive alpha range (city, name, score).
   await page.getByTestId('log-grid-header-score').click({ modifiers: ['Shift'] });
+  await expect(
+    page.getByTestId('log-grid-header-city').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
+  await expect(
+    page.getByTestId('log-grid-header-name').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
+  await expect(
+    page.getByTestId('log-grid-header-score').locator('xpath=ancestor::th[1]')
+  ).toHaveAttribute('data-column-selected', 'true');
   await expect(page.getByTestId('log-cell-view-panel')).toContainText(
-    '5 rows · 2 columns · 10 cells',
+    '5 rows · 3 columns · 15 cells',
     {
       timeout: 15_000,
     }
   );
-  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(2);
+  await expect(page.getByTestId('log-cell-view-column')).toHaveCount(3);
 
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('log-cell-view-panel')).toHaveCount(0);
@@ -498,6 +512,7 @@ test('creates a derived column from the toolbar and pins it on the far right', a
   // Console field keys are camelCased at the Orchestra boundary.
   const derivedColumnId = derivedKey.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
+  await page.getByTestId('log-grid-add-menu').click();
   await page.getByTestId('log-grid-derived-open').click();
   await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('log-grid-derived-name').fill(derivedKey);
@@ -530,6 +545,26 @@ test('creates a derived column from the toolbar and pins it on the far right', a
   const fields = (await fieldsRes.json()) as Record<string, { field_type?: string }>;
   // Orchestra stores the snake_case key the client submitted.
   expect(fields[derivedKey]?.field_type).toBe('derived_entry');
+
+  // Double-click header and cell open the equation editor (prefilled).
+  await page.getByTestId(`log-grid-header-${derivedColumnId}`).dblclick();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('log-grid-derived-dialog')).toContainText('Edit derived column');
+  await expect(page.getByTestId('log-grid-derived-expression').locator('input')).toHaveValue(
+    'score * 2'
+  );
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toHaveCount(0, { timeout: 10_000 });
+
+  const adaRow = logGridRows(page).filter({ hasText: 'Ada Lovelace' }).first();
+  await adaRow
+    .locator(`[data-testid^="log-grid-cell-"][data-testid$="_${derivedColumnId}"]`)
+    .dblclick();
+  await expect(page.getByTestId('log-grid-derived-dialog')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('log-grid-derived-expression').locator('input')).toHaveValue(
+    'score * 2'
+  );
+  await page.getByRole('button', { name: 'Cancel' }).click();
 });
 
 test('column search works', async ({ authedPage: page }) => {
@@ -605,6 +640,31 @@ test('group by nests columns and expands leaf rows', async ({ authedPage: page }
     timeout: 30_000,
   });
   await expect.poll(async () => headerLabels(), { timeout: 10_000 }).toEqual(orderBefore);
+  // Ungroup must not fall through to header column-select (modal={false} menus).
+  await expect(page.locator('[data-testid^="log-grid-cell-"].bg-primary-tint-10')).toHaveCount(0);
+});
+
+test('ungroup clears grouping without selecting the column', async ({ authedPage: page }) => {
+  await openPeopleTable(page);
+
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+  await expect(page.getByTestId('log-grid-group-expand-city').first()).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+  await expect(page.getByTestId('log-grid-group-expand-city')).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId('log-grid-page-status')).toContainText(/of \d+/, {
+    timeout: 30_000,
+  });
+  await expect(page.locator('[data-testid^="log-grid-cell-"].bg-primary-tint-10')).toHaveCount(0);
 });
 
 test('group by snake_case field uses Orchestra keys not camelCase', async ({
@@ -734,17 +794,17 @@ test('refresh mode menu supports Refresh, Freeze, and Live', async ({ authedPage
   const modeBtn = page.getByTestId('log-grid-refresh-mode');
   await expect(modeBtn).toBeVisible({ timeout: 30_000 });
 
-  // Sit between Columns and derived +
+  // Sit between Columns and Add (+)
   const columnsBtn = page.getByTestId('log-grid-columns');
-  const derivedBtn = page.getByTestId('log-grid-derived-open');
+  const addMenuBtn = page.getByTestId('log-grid-add-menu');
   const modeBox = await modeBtn.boundingBox();
   const columnsBox = await columnsBtn.boundingBox();
-  const derivedBox = await derivedBtn.boundingBox();
+  const addMenuBox = await addMenuBtn.boundingBox();
   expect(modeBox).toBeTruthy();
   expect(columnsBox).toBeTruthy();
-  expect(derivedBox).toBeTruthy();
+  expect(addMenuBox).toBeTruthy();
   expect(modeBox!.x).toBeGreaterThan(columnsBox!.x);
-  expect(modeBox!.x).toBeLessThan(derivedBox!.x);
+  expect(modeBox!.x).toBeLessThan(addMenuBox!.x);
 
   await modeBtn.click();
   // Refresh is an action, not a selectable mode — no checkmark while idle
@@ -836,4 +896,67 @@ test('resizes a column by dragging the boundary in the body', async ({ authedPag
   await expect
     .poll(async () => (await header.boundingBox())?.width ?? 0)
     .toBeGreaterThan((before?.width ?? 0) + 40);
+});
+
+test('expanded group load more fetches remaining children from Orchestra', async ({
+  authedPage: page,
+}) => {
+  // Page size is DEFAULT_LOG_PAGE_SIZE (50). Seed an oversized city into the
+  // existing People table so Group by uses the same path as other specs.
+  const bulkTotal = DEFAULT_LOG_PAGE_SIZE + 5;
+  const bulkCity = 'Bulkville';
+  const bulkRows = Array.from({ length: bulkTotal }, (_, i) => ({
+    name: `Bulk Person ${i}`,
+    city: bulkCity,
+    score: 50 + (i % 40),
+    team_id: 9,
+  }));
+  const seedRes = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: contextPath,
+        entries: bulkRows,
+      }),
+    },
+    user.apiKey
+  );
+  expect(seedRes.ok).toBe(true);
+
+  await openPeopleTable(page);
+
+  const cityHeader = page.getByTestId('log-grid-header-city');
+  await expect(cityHeader).toBeVisible({ timeout: 30_000 });
+  await cityHeader.hover();
+  await page.getByTestId('log-grid-column-menu-city').click({ force: true });
+  await page.getByTestId('log-grid-group-by-city').click({ force: true });
+
+  await expect(page.getByText(bulkCity).first()).toBeVisible({ timeout: 30_000 });
+  // Bulkville sorts first among city groups — expand it.
+  await page.getByTestId('log-grid-group-expand-city').first().click();
+
+  await expect(logGridRows(page)).toHaveCount(DEFAULT_LOG_PAGE_SIZE, { timeout: 30_000 });
+  const loadMore = page.getByTestId('log-grid-group-load-more-btn-city');
+  await expect(loadMore).toBeVisible({ timeout: 15_000 });
+  await loadMore.click();
+
+  await expect(logGridRows(page)).toHaveCount(bulkTotal, { timeout: 30_000 });
+  await expect(loadMore).toHaveCount(0);
+
+  const params = new URLSearchParams({
+    project_name: 'Assistants',
+    context: contextPath,
+    filter: `city == "${bulkCity}"`,
+    limit: '1',
+  });
+  const listRes = await orchestraFetch(
+    `/v0/logs?${params.toString()}`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(listRes.ok).toBe(true);
+  const listJson = (await listRes.json()) as { count?: number };
+  expect(listJson.count).toBe(bulkTotal);
 });

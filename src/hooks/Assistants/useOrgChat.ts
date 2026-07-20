@@ -262,7 +262,12 @@ export function useOrgChat(params: UseOrgChatParams) {
     setTeamMessages((prev) => {
       const current = prev[message.teamId] ?? [];
       const index = current.findIndex((m) => m.messageId === message.messageId);
-      if (index === -1) return prev;
+      if (index === -1) {
+        // The frame carries the full message snapshot, so insert it (with its
+        // reactions) rather than dropping the update when the base message
+        // isn't loaded in this client's view yet.
+        return { ...prev, [message.teamId]: appendTeamMessage(current, message) };
+      }
       const updated = [...current];
       updated[index] = { ...updated[index], reactions: message.reactions };
       return { ...prev, [message.teamId]: updated };
@@ -275,7 +280,12 @@ export function useOrgChat(params: UseOrgChatParams) {
     setGroupMessages((prev) => {
       const current = prev[message.groupId] ?? [];
       const index = current.findIndex((m) => m.messageId === message.messageId);
-      if (index === -1) return prev;
+      if (index === -1) {
+        // The frame carries the full message snapshot, so insert it (with its
+        // reactions) rather than dropping the update when the base message
+        // isn't loaded in this client's view yet.
+        return { ...prev, [message.groupId]: appendGroupMessage(current, message) };
+      }
       const updated = [...current];
       updated[index] = { ...updated[index], reactions: message.reactions };
       return { ...prev, [message.groupId]: updated };
@@ -293,7 +303,12 @@ export function useOrgChat(params: UseOrgChatParams) {
     setDmMessages((prev) => {
       const current = prev[otherUserId] ?? [];
       const index = current.findIndex((m) => m.id === message.id);
-      if (index === -1) return prev;
+      if (index === -1) {
+        // The frame carries the full message snapshot, so insert it (with its
+        // reactions) rather than dropping the update when the base message
+        // isn't loaded in this client's view yet.
+        return { ...prev, [otherUserId]: appendDmMessage(current, message) };
+      }
       const updated = [...current];
       updated[index] = { ...updated[index], reactions: message.reactions };
       return { ...prev, [otherUserId]: updated };
