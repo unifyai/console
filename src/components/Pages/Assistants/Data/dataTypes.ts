@@ -57,6 +57,40 @@ function isNumericField(field: DataField): boolean {
   return /^(int|integer|float|number|decimal)$/i.test(field.dataType ?? '');
 }
 
+function isListField(field: DataField, currentValue: unknown): boolean {
+  const type = field.dataType?.toLowerCase() ?? '';
+  return Array.isArray(currentValue) || /^list\b/.test(type) || type === 'vector';
+}
+
+function isDictField(field: DataField, currentValue: unknown): boolean {
+  const type = field.dataType?.toLowerCase() ?? '';
+  if (/^(dict|object|json)\b/.test(type)) return true;
+  return !!currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue);
+}
+
+/** User-facing message when a draft does not match the column dtype. */
+export function invalidFieldValueMessage(dtype: string, example?: string): string {
+  const label = dtype.trim() || 'the expected';
+  const base = `Invalid value. Please enter data in ${label} format`;
+  return example ? `${base} (e.g. ${example}).` : `${base}.`;
+}
+
+/**
+ * Map Orchestra / proxy failure text to a short validation toast.
+ * Intentional validation copy only — other failures stay generic.
+ */
+export function friendlyLogUpdateError(detail: string | undefined, fieldDataType?: string): string {
+  if (!detail) return 'Could not save changes. Please try again.';
+  const mismatch = detail.match(/strict type '([^']+)'/i);
+  if (mismatch?.[1]) {
+    return invalidFieldValueMessage(mismatch[1]);
+  }
+  if (/type (mismatch|validation)|schema failed/i.test(detail)) {
+    return invalidFieldValueMessage(fieldDataType ?? 'the expected');
+  }
+  return 'Could not save changes. Please try again.';
+}
+
 /** Editor control selection for a field's declared Orchestra type and constraints. */
 export function editorDescriptorForDataField(
   field: DataField,
@@ -97,19 +131,59 @@ export function coerceFieldDraft(field: DataField, draft: string, currentValue: 
       throw new Error('Choose one of the allowed values.');
     }
   }
+
+  const type = field.dataType?.toLowerCase() ?? '';
+
   if (isJsonValue(field, currentValue)) {
-    return JSON.parse(draft);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(draft);
+    } catch {
+      if (isListField(field, currentValue)) {
+        throw new Error(invalidFieldValueMessage('list', '[1, 2]'));
+      }
+      if (isDictField(field, currentValue)) {
+        throw new Error(invalidFieldValueMessage('dict', '{"key": "value"}'));
+      }
+      throw new Error(invalidFieldValueMessage(type || 'JSON'));
+    }
+
+    if (isListField(field, currentValue)) {
+      if (!Array.isArray(parsed)) {
+        throw new Error(invalidFieldValueMessage('list', '[1, 2]'));
+      }
+      return parsed;
+    }
+    if (isDictField(field, currentValue)) {
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error(invalidFieldValueMessage('dict', '{"key": "value"}'));
+      }
+      return parsed;
+    }
+    return parsed;
   }
+
   if (isNumericField(field)) {
-    const next = Number(draft);
-    if (!Number.isFinite(next)) throw new Error('Enter a valid number.');
+    const trimmed = draft.trim();
+    if (/^(int|integer)$/i.test(type)) {
+      if (!/^-?\d+$/.test(trimmed)) {
+        throw new Error(invalidFieldValueMessage('int'));
+      }
+      return Number.parseInt(trimmed, 10);
+    }
+    const next = Number(trimmed);
+    if (!Number.isFinite(next) || trimmed === '') {
+      throw new Error(invalidFieldValueMessage(type || 'float'));
+    }
     return next;
   }
-  if (/^(bool|boolean)$/i.test(field.dataType ?? '')) {
+
+  if (/^(bool|boolean)$/i.test(type)) {
     const lower = draft.trim().toLowerCase();
     if (lower === 'true' || lower === '1') return true;
     if (lower === 'false' || lower === '0') return false;
-    throw new Error('Enter true or false.');
+    throw new Error(invalidFieldValueMessage('bool', 'true or false'));
   }
+
   return draft;
 }

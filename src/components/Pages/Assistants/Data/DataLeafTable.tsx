@@ -17,6 +17,7 @@ import {
   coerceFieldDraft,
   draftStringForField,
   editorDescriptorForDataField,
+  friendlyLogUpdateError,
   isDataFieldEditable,
   type DataField,
   type DataRow,
@@ -306,7 +307,9 @@ export function DataLeafTable({
         nextValue = coerceFieldDraft(field, draft, current);
       } catch (error) {
         console.error('Invalid cell edit draft', error);
-        toast.error('Could not save changes. Please try again.');
+        toast.error(
+          error instanceof Error ? error.message : friendlyLogUpdateError(undefined, field.dataType)
+        );
         return false;
       }
       if (JSON.stringify(nextValue) === JSON.stringify(current)) return true;
@@ -317,7 +320,7 @@ export function DataLeafTable({
         entries: { [key]: nextValue },
       });
       if (!result.ok) {
-        toast.error('Could not save changes. Please try again.');
+        toast.error(friendlyLogUpdateError(result.detail, field.dataType));
         return false;
       }
       await refreshAll();

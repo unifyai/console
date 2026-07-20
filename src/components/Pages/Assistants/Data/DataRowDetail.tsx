@@ -37,7 +37,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
 import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
 import { sanitizeId } from '@/lib/logs/columns';
-import { isDataFieldEditable, type DataField, type DataRow } from './dataTypes';
+import { isDataFieldEditable, coerceFieldDraft, type DataField, type DataRow } from './dataTypes';
 
 const IMAGE_EXTENSIONS = new Set(['avif', 'gif', 'jpeg', 'jpg', 'png', 'webp']);
 const VIDEO_EXTENSIONS = new Set(['m4v', 'mov', 'mp4', 'ogg', 'webm']);
@@ -365,20 +365,13 @@ export function DataRowDetail({
       if (!isDataFieldEditable(fieldInfo, mode)) continue;
 
       const draft = drafts[key];
-      let nextValue: unknown = draft;
       try {
-        if (isJsonField(fieldInfo, value)) {
-          nextValue = JSON.parse(String(draft));
-        } else if (isNumericField(fieldInfo)) {
-          nextValue = Number(draft);
-          if (!Number.isFinite(nextValue)) throw new Error('Enter a valid number.');
-        }
+        const nextValue = coerceFieldDraft(fieldInfo, String(draft ?? ''), value);
+        if (JSON.stringify(nextValue) !== JSON.stringify(value)) updates[key] = nextValue;
       } catch (error) {
-        nextErrors[key] = error instanceof Error ? error.message : 'Enter valid JSON.';
-        continue;
+        nextErrors[key] =
+          error instanceof Error ? error.message : 'Invalid value. Please check the format.';
       }
-
-      if (JSON.stringify(nextValue) !== JSON.stringify(value)) updates[key] = nextValue;
     }
 
     if (Object.keys(nextErrors).length > 0) {

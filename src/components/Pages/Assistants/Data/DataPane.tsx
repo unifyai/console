@@ -58,7 +58,7 @@ import { DataFolderAddMenu } from './DataFolderAddMenu';
 import { DataTableMenu } from './DataTableMenu';
 import { DataCreateTableDialog } from './DataCreateTableDialog';
 import { DataImportDialog } from './DataImportDialog';
-import type { DataField, DataRow } from './dataTypes';
+import { friendlyLogUpdateError, type DataField, type DataRow } from './dataTypes';
 import type { Assistant } from '@/types/assistants/assistant';
 import { resolveManagedTeamDisplayName } from '@/utils/teams/managedTeamDisplay';
 
@@ -695,8 +695,13 @@ export function DataPane({
       });
 
       if (!res.ok) {
-        console.error('Failed to save data row field', await res.text().catch(() => res.status));
-        throw new Error('Unable to save this field.');
+        const body: unknown = await res.json().catch(() => null);
+        const detail =
+          body && typeof body === 'object' && 'detail' in body
+            ? String((body as { detail: unknown }).detail)
+            : undefined;
+        console.error('Failed to save data row field', detail ?? res.status);
+        throw new Error(friendlyLogUpdateError(detail));
       }
 
       const updatedRow: DataRow = {

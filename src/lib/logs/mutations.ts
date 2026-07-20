@@ -9,7 +9,7 @@ export async function updateLogEntries(args: {
   context: string;
   logIds: number[];
   entries: Record<string, unknown>;
-}): Promise<{ ok: boolean }> {
+}): Promise<{ ok: boolean; detail?: string }> {
   if (args.logIds.length === 0) return { ok: true };
   const res = await fetch('/api/logs', {
     method: 'PUT',
@@ -23,8 +23,13 @@ export async function updateLogEntries(args: {
     }),
   });
   if (!res.ok) {
-    console.error('Failed to update log entries', await res.text().catch(() => res.status));
-    return { ok: false };
+    const body: unknown = await res.json().catch(() => null);
+    const detail =
+      body && typeof body === 'object' && 'detail' in body
+        ? String((body as { detail: unknown }).detail)
+        : undefined;
+    console.error('Failed to update log entries', detail ?? res.status);
+    return { ok: false, detail };
   }
   return { ok: true };
 }
