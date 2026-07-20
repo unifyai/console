@@ -789,11 +789,11 @@ export const capabilities: CapabilityDef[] = [
     id: 'assistants.live-actions.live',
     areaId: 'assistants.live-actions',
     priority: 'P2',
-    description: 'Live action push',
+    description: 'Live action SSE delivery',
     matchers: [
       {
         files: ['src/tests/assistants/live-actions.e2e.ts'],
-        titleIncludes: 'live events pushed via local endpoint appear in real time',
+        titleIncludes: 'live events appear in real time over the Actions SSE path',
       },
     ],
   },
