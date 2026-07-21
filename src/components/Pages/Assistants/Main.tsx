@@ -4125,6 +4125,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                   : 'Start voice call'
                           }
                           isConnectingCall={humanCall.isConnecting}
+                          isCallActive={
+                            humanCall.isConnected &&
+                            humanCall.activeCall?.scope === 'dm' &&
+                            humanCall.activeCall.userIds.includes(selectedHuman.userId)
+                          }
                         />
                       </EntityInfoPanelLayout>
                     );
@@ -4206,6 +4211,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                       : undefined
                             }
                             isConnectingCall={humanCall.isConnecting}
+                            isCallActive={
+                              humanCall.isConnected &&
+                              humanCall.activeCall?.teamId === selectedTeam.teamId
+                            }
                           />
                         )}
                       </EntityInfoPanelLayout>
@@ -4282,6 +4291,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                     : undefined
                           }
                           isConnectingCall={humanCall.isConnecting}
+                          isCallActive={
+                            humanCall.isConnected &&
+                            humanCall.activeCall?.groupId === selectedGroup.groupId
+                          }
                           onRefreshRoster={() => void refreshOrgRoster()}
                           onLeftOrDeleted={() => {
                             if (canonicalCoordinatorId) {

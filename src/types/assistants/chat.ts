@@ -130,6 +130,8 @@ export interface CallPill {
   /** Unified call-utterance store key (org call session id or room name). */
   callId?: string;
   recordingUrl?: string;
+  /** Human-to-human call that was never answered — rendered as "Missed call". */
+  missed?: boolean;
 }
 
 /** Ephemeral onboarding/checklist trigger acknowledgement shown in chat. */

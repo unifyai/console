@@ -27,7 +27,8 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { ChatMention, OrgChatAttachment, OrgChatReaction } from '@/types/orgChat';
-import type { Attachment, MessageReaction } from '@/types/assistants/chat';
+import type { Attachment, CallPill, MessageReaction } from '@/types/assistants/chat';
+import { CallPillBubble } from '@/components/Chat/CallPill';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
@@ -60,10 +61,20 @@ export interface OrgChatPanelMessage {
   reactions?: OrgChatReaction[];
 }
 
+type TimelineEntry =
+  | { kind: 'message'; ts: number; message: OrgChatPanelMessage }
+  | { kind: 'pill'; ts: number; pill: CallPill };
+
 export interface OrgChatPanelProps {
   title: string;
   subtitle?: string;
   messages: OrgChatPanelMessage[];
+  /**
+   * Session-derived, duration-only call markers merged into the timeline by
+   * timestamp. Human-to-human calls carry no transcript, so these pills are
+   * static (non-interactive).
+   */
+  callPills?: CallPill[];
   isLoading: boolean;
   onSend: (
     content: string,
@@ -189,6 +200,7 @@ export function OrgChatPanel({
   title,
   subtitle,
   messages,
+  callPills,
   isLoading,
   onSend,
   mentionCandidates,
@@ -232,9 +244,28 @@ export function OrgChatPanel({
     onTranscript: insertTranscript,
   });
 
+  // Merge messages and call pills into one chronological timeline. Messages are
+  // already oldest-first; pills are slotted in by timestamp (a message with no
+  // parseable timestamp inherits the previous entry's, preserving send order).
+  const timeline = React.useMemo<TimelineEntry[]>(() => {
+    let lastTs = 0;
+    const messageEntries: TimelineEntry[] = messages.map((message) => {
+      const parsed = message.timestamp ? new Date(message.timestamp).getTime() : NaN;
+      const ts = Number.isNaN(parsed) ? lastTs : parsed;
+      lastTs = ts;
+      return { kind: 'message', ts, message };
+    });
+    const pillEntries: TimelineEntry[] = (callPills ?? []).map((pill) => ({
+      kind: 'pill',
+      ts: pill.timestamp.getTime(),
+      pill,
+    }));
+    return [...messageEntries, ...pillEntries].sort((a, b) => a.ts - b.ts);
+  }, [messages, callPills]);
+
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
-  }, [messages.length]);
+  }, [timeline.length]);
 
   React.useEffect(() => {
     if (!highlightMessageId) return;
@@ -463,14 +494,22 @@ export function OrgChatPanel({
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
-        ) : messages.length === 0 ? (
+        ) : timeline.length === 0 ? (
           <div className="text-body-muted flex h-full items-center justify-center">
             {emptyState}
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            {messages.map((message, index) => {
-              const previous = messages[index - 1];
+            {timeline.map((entry, index) => {
+              if (entry.kind === 'pill') {
+                // Human-to-human calls carry no transcript — render a static,
+                // duration-only pill (no onClick).
+                return <CallPillBubble key={entry.pill.id} pill={entry.pill} />;
+              }
+              const message = entry.message;
+              const previousEntry = timeline[index - 1];
+              const previous =
+                previousEntry && previousEntry.kind === 'message' ? previousEntry.message : null;
               const isGroupStart =
                 !previous ||
                 previous.senderName !== message.senderName ||
@@ -486,7 +525,7 @@ export function OrgChatPanel({
                       messageRefs.current[message.id] = el;
                     }}
                     className={cn(
-                      'flex justify-end',
+                      'flex flex-col items-end',
                       isGroupStart && 'mt-3',
                       highlighted && 'rounded-lg ring-2 ring-primary'
                     )}
@@ -503,6 +542,11 @@ export function OrgChatPanel({
                         </time>
                       )}
                     </div>
+                    <MessageReactionsBar
+                      reactions={toMessageReactions(message.reactions)}
+                      currentUserId={currentUserId}
+                      className="justify-end"
+                    />
                   </div>
                 );
               }

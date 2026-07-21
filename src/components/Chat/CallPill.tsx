@@ -1,4 +1,4 @@
-import { Phone } from 'lucide-react';
+import { Phone, PhoneMissed } from 'lucide-react';
 import { CallPill as CallPillType } from '@/types/assistants/chat';
 
 function formatDuration(seconds: number): string {
@@ -22,25 +22,46 @@ function formatPillTime(date: Date, timezone?: string | null): string | null {
 interface CallPillProps {
   pill: CallPillType;
   timezone?: string | null;
-  onClick: (pill: CallPillType) => void;
+  /**
+   * Opens the call transcript. Omit for human-to-human calls, which carry no
+   * transcript and render as a static, duration-only pill.
+   */
+  onClick?: (pill: CallPillType) => void;
 }
 
 export function CallPillBubble({ pill, timezone, onClick }: CallPillProps) {
   const timeStr = formatPillTime(pill.timestamp, timezone);
+  const label = pill.missed ? 'Missed call' : `Call ${formatDuration(pill.durationSeconds)}`;
+  const Icon = pill.missed ? PhoneMissed : Phone;
+
+  const content = (
+    <>
+      <Icon className="h-3 w-3" />
+      <span>{label}</span>
+      {timeStr && <time className="text-[10px] opacity-60">{timeStr}</time>}
+    </>
+  );
+
+  const baseClass =
+    'bg-muted/60 flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground';
 
   return (
     <div className="flex items-center justify-center py-1.5" data-testid="call-pill">
-      <button
-        type="button"
-        onClick={() => onClick(pill)}
-        className="bg-muted/60 flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        data-testid="call-pill-button"
-        data-call-id={pill.callId ?? ''}
-      >
-        <Phone className="h-3 w-3" />
-        <span>Call {formatDuration(pill.durationSeconds)}</span>
-        {timeStr && <time className="text-[10px] opacity-60">{timeStr}</time>}
-      </button>
+      {onClick ? (
+        <button
+          type="button"
+          onClick={() => onClick(pill)}
+          className={`${baseClass} transition-colors hover:bg-muted hover:text-foreground`}
+          data-testid="call-pill-button"
+          data-call-id={pill.callId ?? ''}
+        >
+          {content}
+        </button>
+      ) : (
+        <div className={baseClass} data-testid="call-pill-static" data-call-id={pill.callId ?? ''}>
+          {content}
+        </div>
+      )}
     </div>
   );
 }

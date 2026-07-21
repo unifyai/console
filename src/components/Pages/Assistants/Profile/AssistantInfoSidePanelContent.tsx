@@ -411,13 +411,25 @@ function CoordinatorAssistantInfoSidePanelContent({
   React.useEffect(() => {
     onRegisterFocusProfileTab?.(focusProfileFromHeader);
   }, [focusProfileFromHeader, onRegisterFocusProfileTab]);
+  // Redirect off the Onboarding tab if it disappears while selected. This
+  // must not depend on `activeTab` or force a tab on every render, or it
+  // would clobber the user's manual tab selection on the next render.
   React.useEffect(() => {
-    if (!showOnboardingTab && activeTab === 'onboarding') {
-      setActiveTab('profile');
-      return;
+    if (!showOnboardingTab) {
+      setActiveTab((current) => (current === 'onboarding' ? 'profile' : current));
     }
-    if (showOnboardingTab) setActiveTab(isOnboardingActive ? 'onboarding' : 'profile');
-  }, [activeTab, showOnboardingTab, isOnboardingActive]);
+  }, [showOnboardingTab]);
+
+  // Auto-jump to Onboarding only on an actual activation transition (paused
+  // → active), so starting onboarding surfaces the checklist without pinning
+  // the tab against later manual navigation.
+  const wasOnboardingActiveRef = React.useRef(isOnboardingActive);
+  React.useEffect(() => {
+    if (showOnboardingTab && isOnboardingActive && !wasOnboardingActiveRef.current) {
+      setActiveTab('onboarding');
+    }
+    wasOnboardingActiveRef.current = isOnboardingActive;
+  }, [showOnboardingTab, isOnboardingActive]);
 
   const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
