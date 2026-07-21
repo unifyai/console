@@ -525,7 +525,7 @@ export function OrgChatPanel({
                       messageRefs.current[message.id] = el;
                     }}
                     className={cn(
-                      'flex justify-end',
+                      'flex flex-col items-end',
                       isGroupStart && 'mt-3',
                       highlighted && 'rounded-lg ring-2 ring-primary'
                     )}
@@ -542,6 +542,11 @@ export function OrgChatPanel({
                         </time>
                       )}
                     </div>
+                    <MessageReactionsBar
+                      reactions={toMessageReactions(message.reactions)}
+                      currentUserId={currentUserId}
+                      className="justify-end"
+                    />
                   </div>
                 );
               }
