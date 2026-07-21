@@ -8,6 +8,7 @@ import { OrgChatSearchDialog } from './OrgChatSearchDialog';
 import { TeamMembersList, type TeamMemberAssistant } from './TeamMembersList';
 import { ChatMention, OrgChatAttachment, RosterHuman, RosterTeam } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { useOrgCallPills } from '@/hooks/Assistants/useOrgCallPills';
 import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 
 interface TeamWorkspaceProps {
@@ -27,6 +28,8 @@ interface TeamWorkspaceProps {
   callButtonTooltip?: string;
   isConnectingCall?: boolean;
   canJoinActiveCall?: boolean;
+  /** True while this team's call is connected — drives pill refetch. */
+  isCallActive?: boolean;
 }
 
 /**
@@ -48,6 +51,7 @@ export function TeamWorkspace({
   callButtonTooltip,
   isConnectingCall,
   canJoinActiveCall,
+  isCallActive = false,
 }: TeamWorkspaceProps) {
   const { loadTeamHistory, sendTeamMessage, teamMessages, toggleTeamReaction } = chat;
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -100,6 +104,14 @@ export function TeamWorkspace({
   const rawMessages = teamMessages[team.teamId];
   const isLoading = rawMessages === undefined;
 
+  const callPills = useOrgCallPills({
+    orgId,
+    scope: 'team',
+    scopeId: String(team.teamId),
+    isCallActive,
+    enabled: activeSectionId === 'chat',
+  });
+
   const messages = React.useMemo<OrgChatPanelMessage[]>(
     () =>
       (rawMessages ?? []).map((message) => {
@@ -147,6 +159,7 @@ export function TeamWorkspace({
             subtitle={subtitle}
             orgId={orgId}
             messages={messages}
+            callPills={callPills}
             isLoading={isLoading}
             onSend={handleSend}
             mentionCandidates={mentionCandidates}

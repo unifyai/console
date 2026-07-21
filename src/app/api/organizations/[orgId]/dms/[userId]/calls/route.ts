@@ -1,0 +1,40 @@
+import { NextRequest } from 'next/server';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../../../_utils/auth';
+import { forwardToOrchestra, resolveThreadId } from '../../../../../chat/_utils/orchestra';
+
+interface RouteParams {
+  params: Promise<{ orgId: string; userId: string }>;
+}
+
+/** Ended-call session summaries for a human DM thread (duration pills only). */
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  const { orgId, userId } = await params;
+  const organizationId = parseInt(orgId, 10);
+  if (isNaN(organizationId) || !userId) {
+    return badRequest('Invalid organization ID or user ID.');
+  }
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const thread = await resolveThreadId(apiKey, {
+    kind: 'dm',
+    organization_id: organizationId,
+    peer_user_id: userId,
+  });
+  if ('error' in thread) return thread.error;
+
+  const query = new URLSearchParams();
+  const limit = request.nextUrl.searchParams.get('limit');
+  const beforeId = request.nextUrl.searchParams.get('before_id');
+  if (limit) query.set('limit', limit);
+  if (beforeId) query.set('before_id', beforeId);
+
+  return forwardToOrchestra(request, `/chat/threads/${thread.threadId}/calls`, {
+    method: 'GET',
+    query,
+    apiKey,
+  });
+}

@@ -6,6 +6,7 @@ import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
 import { OrgChatSearchDialog } from './OrgChatSearchDialog';
 import { ChatMention, OrgChatAttachment, OrgChatSearchResult, RosterHuman } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { useOrgCallPills } from '@/hooks/Assistants/useOrgCallPills';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
@@ -19,6 +20,8 @@ interface HumanWorkspaceProps {
   isCallButtonDisabled?: boolean;
   callButtonTooltip?: string;
   isConnectingCall?: boolean;
+  /** True while a call with this teammate is connected — drives pill refetch. */
+  isCallActive?: boolean;
 }
 
 /**
@@ -34,6 +37,7 @@ export function HumanWorkspace({
   isCallButtonDisabled,
   callButtonTooltip,
   isConnectingCall,
+  isCallActive = false,
 }: HumanWorkspaceProps) {
   const { loadDmHistory, sendDmMessage, dmMessages, toggleDmReaction } = chat;
   const { voiceCalls } = useFeatures();
@@ -46,6 +50,13 @@ export function HumanWorkspace({
 
   const rawMessages = dmMessages[human.userId];
   const isLoading = rawMessages === undefined;
+
+  const callPills = useOrgCallPills({
+    orgId,
+    scope: 'dm',
+    scopeId: human.userId,
+    isCallActive,
+  });
 
   const messages = React.useMemo<OrgChatPanelMessage[]>(
     () =>
@@ -128,6 +139,7 @@ export function HumanWorkspace({
           hideHeader
           orgId={orgId}
           messages={messages}
+          callPills={callPills}
           isLoading={isLoading}
           onSend={handleSend}
           placeholder={`Message ${human.name}…`}

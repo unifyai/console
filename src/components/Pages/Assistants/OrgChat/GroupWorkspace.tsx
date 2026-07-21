@@ -21,6 +21,7 @@ import {
   RosterHuman,
 } from '@/types/orgChat';
 import type { useOrgChat } from '@/hooks/Assistants/useOrgChat';
+import { useOrgCallPills } from '@/hooks/Assistants/useOrgCallPills';
 import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { toast } from 'sonner';
 
@@ -39,6 +40,8 @@ interface GroupWorkspaceProps {
   callButtonTooltip?: string;
   isConnectingCall?: boolean;
   canJoinActiveCall?: boolean;
+  /** True while this group's call is connected — drives pill refetch. */
+  isCallActive?: boolean;
   onGroupUpdated?: (group: RosterGroup) => void;
   onLeftOrDeleted?: () => void;
   onRefreshRoster?: () => void;
@@ -63,6 +66,7 @@ export function GroupWorkspace({
   callButtonTooltip,
   isConnectingCall,
   canJoinActiveCall,
+  isCallActive = false,
   onGroupUpdated,
   onLeftOrDeleted,
   onRefreshRoster,
@@ -134,6 +138,13 @@ export function GroupWorkspace({
 
   const rawMessages = groupMessages[group.groupId];
   const isLoading = rawMessages === undefined;
+
+  const callPills = useOrgCallPills({
+    orgId,
+    scope: 'group',
+    scopeId: String(group.groupId),
+    isCallActive,
+  });
 
   const messages = React.useMemo<OrgChatPanelMessage[]>(
     () =>
@@ -271,6 +282,7 @@ export function GroupWorkspace({
           hideHeader
           orgId={orgId}
           messages={messages}
+          callPills={callPills}
           isLoading={isLoading}
           onSend={handleSend}
           mentionCandidates={mentionCandidates}

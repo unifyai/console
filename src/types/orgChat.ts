@@ -402,6 +402,42 @@ export interface OrgCallRosterMember {
 /** @deprecated Use OrgCallSession — kept for transitional imports. */
 export type HumanCallSession = OrgCallSession;
 
+/**
+ * Session-derived summary of one ended call in a human chat thread. Carries no
+ * transcript/utterance data — human calls surface only a duration pill. Mirrors
+ * Orchestra's `ThreadCallSummary` (snake_case on the wire).
+ */
+export interface OrgThreadCall {
+  callId: string;
+  scope: OrgCallScope;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationSeconds: number;
+  missed: boolean;
+  participantUserIds: string[];
+  assistantIds: number[];
+}
+
+export function parseOrgThreadCall(raw: Record<string, unknown>): OrgThreadCall {
+  const scopeRaw = String(raw.scope ?? 'dm');
+  const scope: OrgCallScope =
+    scopeRaw === 'team' || scopeRaw === 'group' || scopeRaw === 'assistant_dm' ? scopeRaw : 'dm';
+  return {
+    callId: String(raw.call_id ?? ''),
+    scope,
+    startedAt: typeof raw.started_at === 'string' ? raw.started_at : null,
+    endedAt: typeof raw.ended_at === 'string' ? raw.ended_at : null,
+    durationSeconds: Number(raw.duration_seconds ?? 0),
+    missed: raw.missed === true,
+    participantUserIds: Array.isArray(raw.participant_user_ids)
+      ? raw.participant_user_ids.map(String)
+      : [],
+    assistantIds: Array.isArray(raw.assistant_ids)
+      ? raw.assistant_ids.map(Number).filter((n) => !Number.isNaN(n))
+      : [],
+  };
+}
+
 export function parseOrgCallSession(raw: Record<string, unknown>): OrgCallSession {
   const statusRaw = String(raw.status ?? 'ringing');
   const status: OrgCallStatus =
