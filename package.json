@@ -58,8 +58,6 @@
     "@dnd-kit/core": "^6.1.0",
     "@dnd-kit/modifiers": "^7.0.0",
     "@dnd-kit/sortable": "^8.0.0",
-    "@unity/brand": "file:branding/packages/brand",
-    "@unity/iso": "file:branding/packages/iso",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fortawesome/fontawesome-svg-core": "^6.6.0",
@@ -99,6 +97,8 @@
     "@tanstack/react-virtual": "^3.13.18",
     "@types/react-window": "^1.8.8",
     "@types/three": "^0.182.0",
+    "@unity/brand": "file:branding/packages/brand",
+    "@unity/iso": "file:branding/packages/iso",
     "ai": "^6.0.41",
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.1",
@@ -184,7 +184,7 @@
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
     "@vitejs/plugin-react": "^5.1.1",
-    "@vitest/browser-playwright": "^4.1.8",
+    "@vitest/browser-playwright": "^4.1.10",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "^15.5.14",
@@ -202,7 +202,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "form-data": "^4.0.6",
