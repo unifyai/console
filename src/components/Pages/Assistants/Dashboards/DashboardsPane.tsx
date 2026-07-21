@@ -9,6 +9,10 @@ import { DashboardSummaryCard } from './DashboardSummaryCard';
 import { DashboardGrid } from './DashboardGrid';
 import { DashboardTileCard } from './DashboardTileCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
+import {
+  SmartLeadReplyReviewPanel,
+  isSmartLeadReplyReviewDashboard,
+} from './SmartLeadReplyReviewPanel';
 import { TabToolbar } from '../Common/TabToolbar';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
@@ -191,6 +195,14 @@ export function DashboardsPane({
                     defaultCollapsed={allCollapsed}
                   />
                 </DashboardSummaryCard>
+                {isSmartLeadReplyReviewDashboard(activeDashboard.title) && scope.root ? (
+                  <SmartLeadReplyReviewPanel
+                    root={scope.root}
+                    ownerId={ownerId}
+                    assistantId={assistantId}
+                    onMutated={handleRefresh}
+                  />
+                ) : null}
               </section>
             )}
 
