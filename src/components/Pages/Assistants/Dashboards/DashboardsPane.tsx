@@ -193,6 +193,7 @@ export function DashboardsPane({
                     tiles={tiles}
                     onTileRefresh={handleRefresh}
                     defaultCollapsed={allCollapsed}
+                    assistantId={assistantId}
                   />
                 </DashboardSummaryCard>
                 {isSmartLeadReplyReviewDashboard(activeDashboard.title) && scope.root ? (
@@ -223,6 +224,7 @@ export function DashboardsPane({
                   fillHeight
                   onRefresh={activeTile.hasDataBindings ? handleRefresh : undefined}
                   defaultCollapsed={allCollapsed}
+                  assistantId={assistantId}
                 />
               </section>
             )}
