@@ -14,6 +14,8 @@ interface DashboardGridProps {
   onTileRefresh?: () => void;
   /** Parent-driven collapse signal forwarded to all tile cards */
   defaultCollapsed?: boolean;
+  /** Assistant that owns these tiles (for action buttons) */
+  assistantId?: string;
 }
 
 export function DashboardGrid({
@@ -21,6 +23,7 @@ export function DashboardGrid({
   tiles,
   onTileRefresh,
   defaultCollapsed,
+  assistantId,
 }: DashboardGridProps) {
   const tileMap = useMemo(() => {
     const m = new Map<string, TileRecord>();
@@ -82,6 +85,7 @@ export function DashboardGrid({
               fillHeight={!collapsed}
               onRefresh={tile?.hasDataBindings ? onTileRefresh : undefined}
               defaultCollapsed={defaultCollapsed}
+              assistantId={assistantId}
             />
           </div>
         );
