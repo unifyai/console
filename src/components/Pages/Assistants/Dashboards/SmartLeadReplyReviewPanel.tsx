@@ -21,15 +21,10 @@ type JobRow = {
   leadEmail: string;
   status: string;
   statsId: string | null;
+  body: string;
+  route: string;
   threadSnapshot: ThreadMsg[];
   updatedAt: string;
-};
-
-type DraftRow = {
-  logId: number;
-  draftId: string;
-  jobId: string;
-  body: string;
 };
 
 const REVIEW_TITLE_RE = /smartlead reply review/i;
@@ -55,10 +50,6 @@ function jobsContext(root: ContextRoot, ownerId: string, assistantId: string): s
   return rootContext(root, ownerId, assistantId, 'Data/GTM/SmartLeadReplyJobs');
 }
 
-function draftsContext(root: ContextRoot, ownerId: string, assistantId: string): string {
-  return rootContext(root, ownerId, assistantId, 'Data/GTM/SmartLeadReplyDrafts');
-}
-
 interface SmartLeadReplyReviewPanelProps {
   root: ContextRoot;
   ownerId: string;
@@ -76,13 +67,8 @@ export function SmartLeadReplyReviewPanel({
     () => jobsContext(root, ownerId, assistantId),
     [root, ownerId, assistantId]
   );
-  const draftsCtx = useMemo(
-    () => draftsContext(root, ownerId, assistantId),
-    [root, ownerId, assistantId]
-  );
 
   const [jobs, setJobs] = useState<JobRow[]>([]);
-  const [draftsByJob, setDraftsByJob] = useState<Record<string, DraftRow>>({});
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [draftBody, setDraftBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -91,21 +77,13 @@ export function SmartLeadReplyReviewPanel({
 
   const load = useCallback(async () => {
     setError(null);
-    const [jobPage, draftPage] = await Promise.all([
-      fetchLogs({
-        projectName: 'Assistants',
-        context: jobsCtx,
-        filter: 'status == "needs_approval"',
-        limit: 200,
-        offset: 0,
-      }),
-      fetchLogs({
-        projectName: 'Assistants',
-        context: draftsCtx,
-        limit: 500,
-        offset: 0,
-      }),
-    ]);
+    const jobPage = await fetchLogs({
+      projectName: 'Assistants',
+      context: jobsCtx,
+      filter: 'status == "needs_approval"',
+      limit: 200,
+      offset: 0,
+    });
 
     const nextJobs: JobRow[] = jobPage.rows.map((row) => {
       const e = row.entries;
@@ -116,37 +94,20 @@ export function SmartLeadReplyReviewPanel({
         leadEmail: String(e.lead_email ?? ''),
         status: String(e.status ?? ''),
         statsId: e.stats_id == null ? null : String(e.stats_id),
+        body: String(e.body ?? ''),
+        route: String(e.route ?? ''),
         threadSnapshot: parseThreadSnapshot(e.thread_snapshot),
         updatedAt: String(e.updated_at ?? e.created_at ?? ''),
       };
     });
     nextJobs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-    const nextDrafts: Record<string, DraftRow> = {};
-    for (const row of draftPage.rows) {
-      const e = row.entries;
-      const jobId = String(e.job_id ?? '');
-      if (!jobId) continue;
-      // Newest draft wins (rows sorted created_at asc or desc — keep last seen if newer).
-      const candidate: DraftRow = {
-        logId: row.logId,
-        draftId: String(e.draft_id ?? ''),
-        jobId,
-        body: String(e.body ?? ''),
-      };
-      const existing = nextDrafts[jobId];
-      if (!existing || row.logId >= existing.logId) {
-        nextDrafts[jobId] = candidate;
-      }
-    }
-
     setJobs(nextJobs);
-    setDraftsByJob(nextDrafts);
     setSelectedJobId((prev) => {
       if (prev && nextJobs.some((j) => j.jobId === prev)) return prev;
       return nextJobs[0]?.jobId ?? null;
     });
-  }, [jobsCtx, draftsCtx]);
+  }, [jobsCtx]);
 
   useEffect(() => {
     void load().catch((err: unknown) => {
@@ -158,16 +119,15 @@ export function SmartLeadReplyReviewPanel({
     () => jobs.find((j) => j.jobId === selectedJobId) ?? null,
     [jobs, selectedJobId]
   );
-  const selectedDraft = selected ? draftsByJob[selected.jobId] : undefined;
 
   useEffect(() => {
-    setDraftBody(selectedDraft?.body ?? '');
+    setDraftBody(selected?.body ?? '');
     setInfo(null);
-  }, [selectedDraft?.logId, selectedDraft?.body, selected?.jobId]);
+  }, [selected?.logId, selected?.body, selected?.jobId]);
 
   const saveDraftBody = useCallback(async () => {
-    if (!selectedDraft) {
-      setError('No draft row for this job.');
+    if (!selected) {
+      setError('No job selected.');
       return false;
     }
     setBusy(true);
@@ -175,23 +135,22 @@ export function SmartLeadReplyReviewPanel({
     try {
       const res = await updateLogEntries({
         projectName: 'Assistants',
-        context: draftsCtx,
-        logIds: [selectedDraft.logId],
+        context: jobsCtx,
+        logIds: [selected.logId],
         entries: { body: draftBody },
       });
       if (!res.ok) {
         setError(res.detail || 'Failed to update draft body');
         return false;
       }
-      setDraftsByJob((prev) => ({
-        ...prev,
-        [selectedDraft.jobId]: { ...selectedDraft, body: draftBody },
-      }));
+      setJobs((prev) =>
+        prev.map((j) => (j.jobId === selected.jobId ? { ...j, body: draftBody } : j))
+      );
       return true;
     } finally {
       setBusy(false);
     }
-  }, [selectedDraft, draftBody, draftsCtx]);
+  }, [selected, draftBody, jobsCtx]);
 
   const setJobStatus = useCallback(
     async (status: 'approved' | 'rejected') => {
@@ -200,19 +159,17 @@ export function SmartLeadReplyReviewPanel({
       setError(null);
       setInfo(null);
       try {
-        if (status === 'approved') {
-          const saved = await saveDraftBody();
-          if (!saved && selectedDraft) return;
-          if (!selectedDraft) {
-            setError('Cannot approve without a draft body.');
-            return;
-          }
+        if (status === 'approved' && !draftBody.trim()) {
+          setError('Cannot approve without a draft body.');
+          return;
         }
+        const entries: Record<string, unknown> =
+          status === 'approved' ? { status, body: draftBody } : { status };
         const res = await updateLogEntries({
           projectName: 'Assistants',
           context: jobsCtx,
           logIds: [selected.logId],
-          entries: { status },
+          entries,
         });
         if (!res.ok) {
           setError(res.detail || `Failed to set status=${status}`);
@@ -229,7 +186,7 @@ export function SmartLeadReplyReviewPanel({
         setBusy(false);
       }
     },
-    [selected, selectedDraft, saveDraftBody, jobsCtx, load, onMutated]
+    [selected, draftBody, jobsCtx, load, onMutated]
   );
 
   return (
@@ -319,7 +276,7 @@ export function SmartLeadReplyReviewPanel({
                   className="text-body mt-1 min-h-32 w-full rounded-md border border-border bg-background p-2"
                   value={draftBody}
                   onChange={(e) => setDraftBody(e.target.value)}
-                  disabled={busy || !selectedDraft}
+                  disabled={busy}
                   data-testid="smartlead-reply-draft-body"
                 />
               </label>
@@ -337,7 +294,7 @@ export function SmartLeadReplyReviewPanel({
                 <button
                   type="button"
                   className="text-body rounded-md border border-border px-3 py-1.5 disabled:opacity-50"
-                  disabled={busy || !selectedDraft}
+                  disabled={busy || !selected}
                   onClick={() => void saveDraftBody().then((ok) => ok && setInfo('Draft saved.'))}
                   data-testid="smartlead-reply-save-draft"
                 >
