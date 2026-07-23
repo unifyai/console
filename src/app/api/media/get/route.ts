@@ -7,6 +7,7 @@ const storage = new Storage();
 const ALLOWED_BUCKETS = new Set([
   'assistant-call-recordings-production',
   'assistant-call-recordings-staging',
+  'unity-call-recordings',
   'assistant-media-production',
   'assistant-media-staging',
   'assistant-media-presets',
