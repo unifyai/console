@@ -402,6 +402,7 @@ function buildVisibleChecklist(
 const CHECKLIST_CONTROL_GRID_CLASS =
   '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem_1.5rem] gap-1 px-1.5';
 const COMMUNICATION_SECTION_ID = 'communication';
+const WORKSPACE_SECTION_ID = 'workspace';
 
 /** Overview pages for each onboarding section in the public docs site. */
 const ONBOARDING_SECTION_DOCS_URLS: Readonly<Record<string, string>> = {
@@ -441,16 +442,36 @@ const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   },
   { id: 'slack', title: 'Slack', stepIds: ['slack-connect', 'slack-reference', 'slack-message'] },
   {
-    id: 'ms_teams',
-    title: 'Microsoft Teams',
-    stepIds: ['ms-teams-connect', 'ms-teams-reference', 'ms-teams-message'],
-  },
-  {
     id: 'discord',
     title: 'Discord',
     stepIds: ['discord-id', 'discord-connect', 'discord-reference', 'discord-message'],
   },
 ];
+
+// Microsoft Teams is grouped under Workspace (rendered as the 2.1 subgroup) and
+// is only present when the connected workspace is Microsoft — the backend gates
+// visibility, so the subgroup simply disappears for Google workspaces.
+const WORKSPACE_SUBGROUPS: ReadonlyArray<{
+  id: string;
+  title: string;
+  stepIds: readonly string[];
+}> = [
+  {
+    id: 'ms_teams',
+    title: 'Microsoft Teams',
+    stepIds: ['ms-teams-connect', 'ms-teams-reference', 'ms-teams-message'],
+  },
+];
+
+// Sections that render their steps under collapsible subgroups. Any section not
+// listed here renders its steps as flat rows; steps in a section that are not
+// claimed by a subgroup render flat before the section's subgroups.
+const SECTION_SUBGROUPS: Readonly<
+  Record<string, ReadonlyArray<{ id: string; title: string; stepIds: readonly string[] }>>
+> = {
+  [COMMUNICATION_SECTION_ID]: COMMUNICATION_SUBGROUPS,
+  [WORKSPACE_SECTION_ID]: WORKSPACE_SUBGROUPS,
+};
 
 // Connect steps for Slack and Microsoft Teams stand for a single install that is
 // shared org-wide: one workspace/tenant connection serves every user in the org
@@ -571,17 +592,22 @@ function createComingSoonPlaceholder(section: ResolvedChecklistItem): ResolvedCh
   };
 }
 
-function communicationSubgroups(
+function sectionSubgroups(
+  sectionId: string,
   items: readonly ResolvedChecklistItem[]
 ): Array<{ id: string; title: string; items: ResolvedChecklistItem[] }> {
+  const config = SECTION_SUBGROUPS[sectionId];
+  if (!config) return [];
   const byId = new Map(items.map((item) => [item.id, item]));
-  return COMMUNICATION_SUBGROUPS.map((group) => ({
-    id: group.id,
-    title: group.title,
-    items: group.stepIds
-      .map((stepId) => byId.get(stepId))
-      .filter((item): item is ResolvedChecklistItem => !!item),
-  })).filter((group) => group.items.length > 0);
+  return config
+    .map((group) => ({
+      id: group.id,
+      title: group.title,
+      items: group.stepIds
+        .map((stepId) => byId.get(stepId))
+        .filter((item): item is ResolvedChecklistItem => !!item),
+    }))
+    .filter((group) => group.items.length > 0);
 }
 
 function containsLeafId(item: ResolvedChecklistItem, leafId: string): boolean {
@@ -1101,7 +1127,7 @@ export function CoordinatorOnboardingChecklist({
       (section) => section.id === COMMUNICATION_SECTION_ID
     );
     if (!communicationSection?.children?.length) return false;
-    return communicationSubgroups(communicationSection.children).some(
+    return sectionSubgroups(COMMUNICATION_SECTION_ID, communicationSection.children).some(
       (group) => group.id === 'email'
     );
   }, [resolved]);
@@ -1144,10 +1170,9 @@ export function CoordinatorOnboardingChecklist({
   const toggleSection = React.useCallback(
     (sectionId: string) => {
       const section = resolved.find((entry) => entry.id === sectionId);
-      const subgroupIds =
-        section?.children && sectionId === COMMUNICATION_SECTION_ID
-          ? communicationSubgroups(section.children).map((group) => group.id)
-          : [];
+      const subgroupIds = section?.children
+        ? sectionSubgroups(sectionId, section.children).map((group) => group.id)
+        : [];
 
       setOpenSectionIds((current) => {
         const opening = !current.has(sectionId);
@@ -1248,6 +1273,39 @@ export function CoordinatorOnboardingChecklist({
             const sectionItems = hasVisibleChildren
               ? section.children!
               : [createComingSoonPlaceholder(section)];
+            const renderRow = (item: ResolvedChecklistItem) => (
+              <ChecklistRow
+                key={item.id}
+                item={item}
+                isChild
+                isInSkippedSection={section.sectionSkipped === true}
+                onAction={handleChecklistRowAction}
+                isActionWired={isActionWired}
+                nextActionableId={nextActionableId}
+                allVisibleItems={visibleLeaves}
+                actionFeedback={actionFeedbackByStepId.get(item.id)}
+                blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
+                blockedFeedbackToken={blockedFeedback?.token ?? 0}
+                blockingStepHints={blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS}
+                onBlockedStepClick={triggerBlockedFeedback}
+                isOnCall={isOnCall}
+                onResetStepProgress={resetStepProgress}
+                onSkipStep={onSkipStep}
+                onUnskipStep={onUnskipStep}
+                onTestTriggerableTask={onTestTriggerableTask}
+                armedTriggerableTaskId={armedTriggerableTaskId}
+                nextScheduledTaskDueAt={nextScheduledTaskDueAt}
+                onSelectTaskChip={handleSelectTaskChip}
+              />
+            );
+            // Steps claimed by a subgroup render under it; the rest render flat
+            // above the subgroups (Communication has no flat rows; Workspace
+            // shows its demos flat then the 2.1 Microsoft Teams subgroup).
+            const subgroups = sectionSubgroups(section.id, sectionItems);
+            const groupedIds = new Set<string>(
+              subgroups.flatMap((group) => group.items.map((item) => item.id))
+            );
+            const flatItems = sectionItems.filter((item) => !groupedIds.has(item.id));
             return (
               <li key={section.id}>
                 <SectionHeader
@@ -1267,76 +1325,24 @@ export function CoordinatorOnboardingChecklist({
                         />
                       </li>
                     ) : null}
-                    {section.id === COMMUNICATION_SECTION_ID
-                      ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
-                          <CommunicationSubgroup
-                            key={group.id}
-                            id={group.id}
-                            title={`${index + 1}.${groupIndex + 1} ${group.title}`}
-                            progress={progressForItems(group.items)}
-                            isOpen={openSubgroupIds.has(group.id)}
-                            onToggle={() => toggleSubgroup(group.id)}
-                            items={group.items}
-                            onSkipStep={onSkipStep}
-                            onUnskipStep={onUnskipStep}
-                            isPhaseSkipped={section.sectionSkipped === true}
-                          >
-                            {group.items.map((item) => (
-                              <ChecklistRow
-                                key={item.id}
-                                item={item}
-                                isChild
-                                isInSkippedSection={section.sectionSkipped === true}
-                                onAction={handleChecklistRowAction}
-                                isActionWired={isActionWired}
-                                nextActionableId={nextActionableId}
-                                allVisibleItems={visibleLeaves}
-                                actionFeedback={actionFeedbackByStepId.get(item.id)}
-                                blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
-                                blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                                blockingStepHints={
-                                  blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
-                                }
-                                onBlockedStepClick={triggerBlockedFeedback}
-                                isOnCall={isOnCall}
-                                onResetStepProgress={resetStepProgress}
-                                onSkipStep={onSkipStep}
-                                onUnskipStep={onUnskipStep}
-                                onTestTriggerableTask={onTestTriggerableTask}
-                                armedTriggerableTaskId={armedTriggerableTaskId}
-                                nextScheduledTaskDueAt={nextScheduledTaskDueAt}
-                                onSelectTaskChip={handleSelectTaskChip}
-                              />
-                            ))}
-                          </CommunicationSubgroup>
-                        ))
-                      : sectionItems.map((item) => (
-                          <ChecklistRow
-                            key={item.id}
-                            item={item}
-                            isChild
-                            isInSkippedSection={section.sectionSkipped === true}
-                            onAction={handleChecklistRowAction}
-                            isActionWired={isActionWired}
-                            nextActionableId={nextActionableId}
-                            allVisibleItems={visibleLeaves}
-                            actionFeedback={actionFeedbackByStepId.get(item.id)}
-                            blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
-                            blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                            blockingStepHints={
-                              blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
-                            }
-                            onBlockedStepClick={triggerBlockedFeedback}
-                            isOnCall={isOnCall}
-                            onResetStepProgress={resetStepProgress}
-                            onSkipStep={onSkipStep}
-                            onUnskipStep={onUnskipStep}
-                            onTestTriggerableTask={onTestTriggerableTask}
-                            armedTriggerableTaskId={armedTriggerableTaskId}
-                            nextScheduledTaskDueAt={nextScheduledTaskDueAt}
-                            onSelectTaskChip={handleSelectTaskChip}
-                          />
-                        ))}
+                    {flatItems.map(renderRow)}
+                    {subgroups.map((group, groupIndex) => (
+                      <ChecklistSubgroup
+                        key={group.id}
+                        sectionId={section.id}
+                        id={group.id}
+                        title={`${index + 1}.${groupIndex + 1} ${group.title}`}
+                        progress={progressForItems(group.items)}
+                        isOpen={openSubgroupIds.has(group.id)}
+                        onToggle={() => toggleSubgroup(group.id)}
+                        items={group.items}
+                        onSkipStep={onSkipStep}
+                        onUnskipStep={onUnskipStep}
+                        isPhaseSkipped={section.sectionSkipped === true}
+                      >
+                        {group.items.map(renderRow)}
+                      </ChecklistSubgroup>
+                    ))}
                   </ul>
                 ) : null}
               </li>
@@ -1467,7 +1473,8 @@ function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHe
   );
 }
 
-function CommunicationSubgroup({
+function ChecklistSubgroup({
+  sectionId,
   id,
   title,
   progress,
@@ -1479,6 +1486,7 @@ function CommunicationSubgroup({
   isPhaseSkipped,
   children,
 }: {
+  sectionId: string;
   id: string;
   title: string;
   progress: { completed: number; total: number };
@@ -1535,7 +1543,7 @@ function CommunicationSubgroup({
 
   return (
     <li
-      data-testid={`coordinator-onboarding-communication-${id}`}
+      data-testid={`coordinator-onboarding-${sectionId}-${id}`}
       className={cn(channelSkipped && 'opacity-60')}
     >
       <div
@@ -1553,7 +1561,7 @@ function CommunicationSubgroup({
             'bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
             'group-hover/onboarding-subgroup:text-muted-foreground group-focus-visible/onboarding-subgroup:text-muted-foreground'
           )}
-          data-testid={`coordinator-onboarding-communication-${id}-toggle`}
+          data-testid={`coordinator-onboarding-${sectionId}-${id}-toggle`}
         >
           {title}
         </button>
