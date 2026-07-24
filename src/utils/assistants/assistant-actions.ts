@@ -605,6 +605,20 @@ export function hasActiveRootAction(roots: ActionNode[]): boolean {
 }
 
 /**
+ * Recursively settle a live action tree so the UI stops streaming/shimmering.
+ * Preserves existing error status; everything else becomes completed.
+ */
+export function markActionTreeStopped(node: ActionNode, endTime?: string): ActionNode {
+  const settledAt = endTime ?? new Date().toISOString();
+  return {
+    ...node,
+    status: node.status === 'error' ? 'error' : 'completed',
+    endTime: node.endTime ?? settledAt,
+    children: (node.children ?? []).map((child) => markActionTreeStopped(child, settledAt)),
+  };
+}
+
+/**
  * Gets the most recent active root action, if any.
  */
 export function getActiveRootAction(roots: ActionNode[]): ActionNode | null {

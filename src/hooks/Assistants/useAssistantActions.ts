@@ -14,6 +14,7 @@ import {
   buildActionTree,
   mergeNewEvents,
   hasActiveRootAction,
+  markActionTreeStopped,
   ACTION_LOOKBACK_MS,
   compareLogsByTime,
 } from '@/utils/assistants/assistant-actions';
@@ -30,6 +31,7 @@ import {
   subscribeToAssistantActionStream,
   type AssistantActionStreamStatus,
 } from '@/lib/client/assistant-action-stream';
+import { stopAssistantAction } from '@/lib/client/assistant-action-control';
 
 // =============================================================================
 // Types
@@ -96,6 +98,12 @@ export interface UseAssistantActionsResult {
 
   /** Clear the off-tab live activity marker. */
   clearUnreadLiveActivity: () => void;
+
+  /**
+   * Optimistically settle a root action in the UI and ask ConversationManager
+   * to stop the matching in-flight act handle.
+   */
+  stopAction: (callingId: string) => Promise<void>;
 }
 
 // =============================================================================
@@ -143,6 +151,8 @@ export function useAssistantActions(
   const prevAssistantIdRef = React.useRef(assistantId);
   const loadGenerationRef = React.useRef(0);
   const isPaneVisibleRef = React.useRef(isPaneVisible);
+  /** Roots the user stopped locally — ignore further live ToolLoop merges. */
+  const stoppedCallingIdsRef = React.useRef<Set<string>>(new Set());
 
   // SSE event batching: buffer events and flush on a short debounce
   const BATCH_FLUSH_MS = 100;
@@ -287,8 +297,27 @@ export function useAssistantActions(
       }
 
       nodeMapRef.current = result.nodeMap;
+
+      // Keep user-stopped roots settled even if late ManagerMethod frames arrive.
+      let rootsOut = result.roots;
+      if (stoppedCallingIdsRef.current.size > 0) {
+        const settledAt = new Date().toISOString();
+        let reapplied = false;
+        rootsOut = result.roots.map((root) => {
+          if (!stoppedCallingIdsRef.current.has(root.id)) return root;
+          if (root.status !== 'running' && root.status !== 'awaiting') return root;
+          reapplied = true;
+          const stopped = markActionTreeStopped(root, settledAt);
+          result.nodeMap.set(stopped.id, stopped);
+          return stopped;
+        });
+        if (reapplied) {
+          nodeMapRef.current = result.nodeMap;
+        }
+      }
+
       setNodeMap(result.nodeMap);
-      return result.roots;
+      return rootsOut;
     });
 
     setLastUpdated(new Date());
@@ -308,6 +337,18 @@ export function useAssistantActions(
       for (const log of logs) {
         const hierarchy = log.entries.hierarchy;
         if (!hierarchy || hierarchy.length === 0) continue;
+
+        // Skip live stream updates under roots the user already stopped.
+        let underStoppedRoot = false;
+        stoppedCallingIdsRef.current.forEach((stoppedId) => {
+          const stoppedNode = currentNodeMap.get(stoppedId);
+          if (!stoppedNode) return;
+          const prefix = stoppedNode.hierarchy;
+          if (hierarchy.length >= prefix.length && prefix.every((seg, i) => hierarchy[i] === seg)) {
+            underStoppedRoot = true;
+          }
+        });
+        if (underStoppedRoot) continue;
 
         let targetNode: ActionNode | undefined;
         const nodes = Array.from(currentNodeMap.values());
@@ -734,12 +775,46 @@ export function useAssistantActions(
         orphanOutgoingRef.current = new Map();
         orphanToolLoopRef.current = new Map();
         seenEventIdsRef.current = new Set();
+        stoppedCallingIdsRef.current = new Set();
         setIsInitialLoadDone(false);
         setIsLoading(true);
       }
       await initialLoad();
     },
     [initialLoad]
+  );
+
+  const stopAction = React.useCallback(
+    async (callingId: string) => {
+      if (!callingId) return;
+
+      stoppedCallingIdsRef.current.add(callingId);
+      const settledAt = new Date().toISOString();
+
+      setRoots((prevRoots) => {
+        const currentNodeMap = new Map(nodeMapRef.current);
+        const nextRoots = prevRoots.map((root) => {
+          if (root.id !== callingId) return root;
+          const stopped = markActionTreeStopped(root, settledAt);
+          currentNodeMap.set(stopped.id, stopped);
+          // Replace nested descendants in the map as well.
+          const stack = [...(stopped.children ?? [])];
+          while (stack.length > 0) {
+            const child = stack.pop()!;
+            currentNodeMap.set(child.id, child);
+            stack.push(...(child.children ?? []));
+          }
+          return stopped;
+        });
+        nodeMapRef.current = currentNodeMap;
+        setNodeMap(currentNodeMap);
+        return nextRoots;
+      });
+      setLastUpdated(new Date());
+
+      await stopAssistantAction(assistantId, callingId);
+    },
+    [assistantId]
   );
 
   // ===========================================================================
@@ -768,6 +843,7 @@ export function useAssistantActions(
       orphanOutgoingRef.current = new Map();
       orphanToolLoopRef.current = new Map();
       seenEventIdsRef.current = new Set();
+      stoppedCallingIdsRef.current = new Set();
       setError(null);
       setLastUpdated(null);
       setConnectionStatus('idle');
@@ -822,5 +898,6 @@ export function useAssistantActions(
     connectionStatus,
     hasUnreadLiveActivity,
     clearUnreadLiveActivity,
+    stopAction,
   };
 }

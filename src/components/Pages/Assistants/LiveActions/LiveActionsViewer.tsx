@@ -129,6 +129,7 @@ export function LiveActionsViewer({
     hasMore,
     connectionStatus,
     hasUnreadLiveActivity,
+    stopAction,
   } = useAssistantActions(
     hasAssistant ? assistant.userId : '',
     hasAssistant ? assistant.agentId : '',
@@ -410,6 +411,7 @@ export function LiveActionsViewer({
         expandedNodeIds={expandedNodeIds}
         onExpandedChange={handleExpandedChange}
         sectionToggleSignal={sectionToggleSignal}
+        onStopAction={hasAssistant ? (callingId) => void stopAction(callingId) : undefined}
         className="flex-1"
       />
 

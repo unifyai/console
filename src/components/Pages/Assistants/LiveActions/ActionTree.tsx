@@ -42,6 +42,8 @@ export interface ActionTreeProps {
   matchedIds?: Set<string>;
   /** Current search term for text highlighting */
   searchTerm?: string;
+  /** Stop an in-flight root action */
+  onStopAction?: (callingId: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -59,6 +61,7 @@ export function ActionTree({
   sectionToggleSignal,
   matchedIds,
   searchTerm,
+  onStopAction,
   className,
   ownerId,
 }: ActionTreeProps) {
@@ -119,6 +122,7 @@ export function ActionTree({
                   sectionToggleSignal={sectionToggleSignal}
                   matchedIds={matchedIds}
                   searchTerm={searchTerm}
+                  onStopAction={onStopAction}
                 />
               </div>
             </React.Fragment>
