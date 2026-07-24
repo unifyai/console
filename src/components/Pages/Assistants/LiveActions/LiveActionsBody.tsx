@@ -62,6 +62,8 @@ export interface LiveActionsBodyProps {
   expandedNodeIds?: Set<string>;
   /** Signal to force-expand/collapse all ToolLoop step sections */
   sectionToggleSignal?: SectionToggleSignal;
+  /** Stop an in-flight root action */
+  onStopAction?: (callingId: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -88,6 +90,7 @@ export function LiveActionsBody({
   expandedNodeIds,
   onExpandedChange,
   sectionToggleSignal,
+  onStopAction,
   className,
 }: LiveActionsBodyProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -276,6 +279,7 @@ export function LiveActionsBody({
             sectionToggleSignal={sectionToggleSignal}
             matchedIds={matchedIds}
             searchTerm={searchTerm}
+            onStopAction={onStopAction}
           />
         </div>
       </ScrollArea>

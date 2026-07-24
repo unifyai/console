@@ -462,6 +462,8 @@ export interface ActionNodeItemProps {
   matchedIds?: Set<string>;
   /** Current search term for text highlighting */
   searchTerm?: string;
+  /** Stop an in-flight root action (calling_id) */
+  onStopAction?: (callingId: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -1192,16 +1194,20 @@ const STEERING_ICON_MAP: Record<string, { Icon: LucideIcon; color: string }> = {
 function SteeringSubRow({
   entry,
   resolvedToolCallIds,
+  nodeCompleted,
 }: {
   entry: SteeringEntry;
   resolvedToolCallIds?: Set<string>;
+  nodeCompleted?: boolean;
 }) {
   const prefix = entry.toolCallName.split('_')[0].toLowerCase();
   const style = STEERING_ICON_MAP[prefix] ?? {
     Icon: Zap,
     color: 'text-[color:var(--status-warning)]',
   };
-  const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
+  const pending = resolvedToolCallIds
+    ? !nodeCompleted && !resolvedToolCallIds.has(entry.toolCallId)
+    : false;
   const time = formatEventTime(entry.log.entries.eventTimestamp || entry.log.ts);
 
   let label: string;
@@ -2004,7 +2010,9 @@ function ToolLoopMessage({
 
     for (let i = 0; i < toolEntries.length; i++) {
       const entry = toolEntries[i];
-      const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
+      const pending =
+        !nodeCompleted &&
+        (resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false);
       const steeringEntries = getSteeringForToolCall(entry.toolCallId, steeringMap);
       rows.push(
         <React.Fragment key={`tool-${i}`}>
@@ -2023,6 +2031,7 @@ function ToolLoopMessage({
               key={`steer-${i}-${si}`}
               entry={se}
               resolvedToolCallIds={resolvedToolCallIds}
+              nodeCompleted={nodeCompleted}
             />
           ))}
         </React.Fragment>
@@ -2071,7 +2080,8 @@ function ToolLoopMessage({
             <span
               className={cn(
                 'min-w-0 truncate text-muted-foreground',
-                resolvedToolCallIds &&
+                !nodeCompleted &&
+                  resolvedToolCallIds &&
                   !resolvedToolCallIds.has(codeBlocks[0].toolCallId) &&
                   'shimmer'
               )}
@@ -2981,6 +2991,7 @@ export function ActionNodeItem({
   sectionToggleSignal,
   matchedIds,
   searchTerm,
+  onStopAction,
   className,
 }: ActionNodeItemProps) {
   // Determine if we're in controlled mode
@@ -3450,6 +3461,26 @@ export function ActionNodeItem({
               <TruncatedMarkdown content={effectiveLabel} />
             </span>
             <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
+              {(node.status === 'running' || node.status === 'awaiting') && onStopAction && (
+                <button
+                  type="button"
+                  data-testid="action-stop-button"
+                  aria-label="Stop action"
+                  title="Stop action"
+                  className={cn(
+                    'inline-flex h-6 items-center gap-1 rounded-full border border-border',
+                    'bg-background px-2 text-[11px] font-semibold text-muted-foreground',
+                    'hover:border-destructive/40 hover:bg-destructive/5 transition-colors hover:text-destructive'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStopAction(node.id);
+                  }}
+                >
+                  <Square className="h-2.5 w-2.5 fill-current" aria-hidden="true" />
+                  Stop
+                </button>
+              )}
               <RootStatusPill status={node.status} />
               {node.startTime && (
                 <span className="inline-flex items-center gap-1 font-mono text-[11px] tabular-nums text-muted-foreground">

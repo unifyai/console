@@ -105,6 +105,7 @@ export interface SlackInstallUpsertBody {
   slack_team_name?: string | null;
   enterprise_id?: string | null;
   installer_user_id?: string | null;
+  initiator_user_id?: string | null;
   scopes?: string | null;
   /* eslint-enable @typescript-eslint/naming-convention */
 }
