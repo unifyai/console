@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
   let installBody;
   try {
     installBody = await exchangeSlackCode({ code, owner: payload.owner });
+    installBody.initiator_user_id = payload.initiatorUserId;
   } catch (e) {
     console.error('[slack/oauth/callback] token exchange failed:', e);
     return redirectWith(
