@@ -12,7 +12,7 @@ import type { ChatStreamConnectionStatus } from './useAssistantChatStream';
  *
  * Why this exists:
  *   The chat SSE multiplex is the primary delivery path, but connections
- *   can silently fail (Vercel function timeout, Pub/Sub gRPC stream
+ *   can silently fail (Cloud Run request timeout, Pub/Sub gRPC stream
  *   errors, tab-throttling on hidden tabs, network blips). When that
  *   happens we'd otherwise miss messages until either the user reloads
  *   the page or the SSE coincidentally reconnects. This hook periodically

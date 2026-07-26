@@ -36,7 +36,8 @@
  * ------
  * - At most `MAX_PAIRS` pairs per stream; the client shards above that in
  *   `useAssistantChatStream` so there's no global cap on workspace size.
- * - `maxDuration = 300s` (Vercel ceiling); the client reconnects on `error`.
+ * - Streams are cut off at Cloud Run's request timeout (300s by default); the
+ *   client reconnects on `error`.
  *
  * Control frames
  * --------------
@@ -70,7 +71,6 @@ import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
