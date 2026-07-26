@@ -30,7 +30,7 @@ import {
   dbExec,
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
-import { loginAndWaitForRedirect } from '../auth/helpers';
+import { loginAndWaitForRedirect, completeAccountOnboardingIfPresent } from '../auth/helpers';
 import {
   deferCoordinatorForUser,
   deferCoordinatorAfterAssistantsLoad,
@@ -89,24 +89,7 @@ async function loginAndSaveOrgState(
   );
 
   // Handle onboarding
-  if (page.url().includes('/login/onboarding')) {
-    // For org members, autoComplete might kick in. Wait for redirect.
-    await page
-      .waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 20_000,
-      })
-      .catch(async () => {
-        // If not auto-completed, try clicking personal
-        const personalBtn = page.getByTestId('workspace-personal');
-        if (await personalBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await personalBtn.click();
-          await page.getByTestId('workspace-continue').click();
-          await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-            timeout: 15_000,
-          });
-        }
-      });
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   // Switch to the org workspace
   await page.request.post('/api/session/workspace', {

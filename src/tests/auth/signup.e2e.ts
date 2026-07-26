@@ -161,7 +161,7 @@ test.describe('Signup', () => {
 });
 
 // =============================================================================
-// Onboarding — Workspace Selection
+// Onboarding — Acquisition + Workspace Selection
 // =============================================================================
 
 test.describe('Onboarding', () => {
@@ -171,6 +171,44 @@ test.describe('Onboarding', () => {
     for (const id of createdUserIds) {
       cleanupUser(id);
     }
+  });
+
+  test('requires how-did-you-hear before workspace setup @critical @area(auth.core)', async ({
+    page,
+  }) => {
+    const email = uniqueEmail('onboard-heard');
+    const password = 'OnboardP@ss1';
+
+    await page.goto('/login');
+    await registerThroughVerification(page, email, password);
+
+    if (!page.url().includes('/login/onboarding')) {
+      await page.goto('/login/onboarding', { waitUntil: 'domcontentloaded' });
+    }
+
+    await expect(page.getByTestId('heard-about-options')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('workspace-personal')).toHaveCount(0);
+
+    await page.getByTestId('heard-about-other').click();
+    await page.getByTestId('heard-about-detail').fill('Conference booth');
+    await page.getByTestId('heard-about-continue').click();
+
+    await expect(page.getByTestId('workspace-personal')).toBeVisible({ timeout: 15_000 });
+
+    const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
+    if (userId) createdUserIds.push(userId);
+
+    expect(
+      dbExec(`SELECT step_data->>'heard_about' FROM onboarding_status WHERE user_id = '${userId}'`)
+    ).toBe('other');
+    expect(
+      dbExec(
+        `SELECT step_data->>'heard_about_detail' FROM onboarding_status WHERE user_id = '${userId}'`
+      )
+    ).toBe('Conference booth');
+    expect(dbExec(`SELECT current_step FROM onboarding_status WHERE user_id = '${userId}'`)).toBe(
+      'workspace_setup'
+    );
   });
 
   test('selects personal workspace and redirects to assistants @critical @area(auth.core)', async ({
@@ -183,6 +221,14 @@ test.describe('Onboarding', () => {
     await registerThroughVerification(page, email, password);
     await ensureWorkspaceOnboardingPage(page);
 
+    const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
+    if (userId) createdUserIds.push(userId);
+
+    const heardAbout = dbExec(
+      `SELECT step_data->>'heard_about' FROM onboarding_status WHERE user_id = '${userId}'`
+    );
+    expect(heardAbout).toBe('search');
+
     await page.getByTestId('workspace-personal').click();
 
     await expect(page.getByTestId('workspace-continue')).toBeVisible();
@@ -190,9 +236,6 @@ test.describe('Onboarding', () => {
 
     await page.waitForURL(/\/assistants/, { timeout: 15000 });
     expect(new URL(page.url()).searchParams.has('openHire')).toBe(false);
-
-    const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
-    if (userId) createdUserIds.push(userId);
 
     const personalCoordinatorId = dbExec(
       `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`

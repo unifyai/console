@@ -7,7 +7,7 @@ import authOptions from './app/api/auth/[...nextauth]/pages';
 import { resolveAuthMode } from '@/lib/environment/environment';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
 
-const ENFORCE_ACCOUNT_ONBOARDING = false;
+const ENFORCE_ACCOUNT_ONBOARDING = true;
 const CONSOLE_SESSION_MARKER_COOKIE = 'unify_console_session';
 const CONSOLE_SESSION_MARKER_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 

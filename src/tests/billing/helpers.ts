@@ -45,7 +45,12 @@ export {
 };
 export type { SeededOrg } from '../helpers/seeds/types';
 
-import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import {
+  login,
+  loginAndWaitForRedirect,
+  switchToEmailTab,
+  completeAccountOnboardingIfPresent,
+} from '../auth/helpers';
 import {
   deferCoordinatorAfterAssistantsLoad,
   deferCoordinatorForUser,
@@ -191,16 +196,7 @@ export async function loginAndSaveState(
   await page.goto('/login');
   await loginAndWaitForRedirect(page, email, password, 30_000);
 
-  if (page.url().includes('/login/onboarding')) {
-    const personalBtn = page.getByTestId('workspace-personal');
-    if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await personalBtn.click();
-      await page.getByTestId('workspace-continue').click();
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    }
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await ctx.storageState({ path: stateFile });
   await ctx.close();
@@ -220,16 +216,7 @@ export async function loginAndNavigateTo(
   await page.goto('/login');
   await loginAndWaitForRedirect(page, email, password, 20_000);
 
-  if (page.url().includes('/login/onboarding')) {
-    const personalBtn = page.getByTestId('workspace-personal');
-    if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await personalBtn.click();
-      await page.getByTestId('workspace-continue').click();
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    }
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('domcontentloaded');

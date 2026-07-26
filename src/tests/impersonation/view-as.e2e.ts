@@ -19,7 +19,12 @@
 import { expect, test as base, type Page } from '@playwright/test';
 import path from 'path';
 import os from 'os';
-import { createTestUser, cleanupUser, loginAndWaitForRedirect } from '../auth/helpers';
+import {
+  createTestUser,
+  cleanupUser,
+  loginAndWaitForRedirect,
+  completeAccountOnboardingIfPresent,
+} from '../auth/helpers';
 import { createAssistant, ensureUnifyOrg, deleteOrg } from '../helpers/seeds/client';
 import { openUnitySwitcher } from '../assistants/helpers';
 import {
@@ -66,14 +71,7 @@ const test = base.extend<{ adminPage: Page }>({
       await deferCoordinatorForUser(adminUser.id, adminUser.apiKey);
       await p.goto('/login');
       await loginAndWaitForRedirect(p, adminUser.email, adminUser.password, 30_000);
-      if (p.url().includes('/login/onboarding')) {
-        const personalBtn = p.getByTestId('workspace-personal');
-        if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-          await personalBtn.click();
-          await p.getByTestId('workspace-continue').click();
-          await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
-        }
-      }
+      await completeAccountOnboardingIfPresent(p);
       await p.goto('/assistants', { waitUntil: 'domcontentloaded' });
       await expect(assistantRail(p)).toBeVisible({ timeout: 20_000 });
       await deferCoordinatorAfterAssistantsLoad(p, adminUser.id, adminUser.apiKey);

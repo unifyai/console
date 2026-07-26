@@ -15,6 +15,7 @@ import {
   loginWithPreAuthApi,
   switchToEmailTab,
   waitForLoginSurface,
+  completeAccountOnboardingIfPresent,
 } from '../auth/helpers';
 import { orchestraFetch as _orchestraFetch } from '../helpers/seeds/client';
 import {
@@ -147,20 +148,7 @@ export async function loginAndSaveState(
 
   await authenticate(page, email, password);
 
-  if (page.url().includes('/login/onboarding')) {
-    const personalBtn = page.getByTestId('workspace-personal');
-    if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await personalBtn.click();
-      await page.getByTestId('workspace-continue').click();
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    } else {
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    }
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await page.close();
   await ctx.storageState({ path: stateFile });
@@ -186,22 +174,7 @@ export async function loginAndSaveOrgState(
 
   await authenticate(page, email, password);
 
-  if (page.url().includes('/login/onboarding')) {
-    await page
-      .waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 20_000,
-      })
-      .catch(async () => {
-        const personalBtn = page.getByTestId('workspace-personal');
-        if (await personalBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await personalBtn.click();
-          await page.getByTestId('workspace-continue').click();
-          await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-            timeout: 15_000,
-          });
-        }
-      });
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await page.evaluate(async (workspaceId) => {
     await fetch('/api/session/workspace', {

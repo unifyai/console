@@ -14,6 +14,7 @@ import {
   loginAndWaitForRedirect,
   loginAndNavigateTo,
   switchToEmailTab,
+  completeAccountOnboardingIfPresent,
 } from '../auth/helpers';
 import { waitForAssistantsRail } from '../helpers/shell';
 import {
@@ -137,20 +138,7 @@ export async function loginAndSaveState(
   await page.goto('/login');
   await loginAndWaitForRedirect(page, email, password, 45_000);
 
-  if (page.url().includes('/login/onboarding')) {
-    const personalBtn = page.getByTestId('workspace-personal');
-    if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await personalBtn.click();
-      await page.getByTestId('workspace-continue').click();
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    } else {
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    }
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await ctx.storageState({ path: stateFile });
   await ctx.close();
