@@ -204,10 +204,8 @@ test('settings/admin/assistants switch without document reload and preserve assi
   await railSection(page, 'tasks').click();
   await expect(page).toHaveURL(/\/assistants/);
   await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
-  // Unified shell keeps list + desktop chrome mounted; scope to the visible rail.
-  await expect(
-    assistantRail(page).getByText('ShellNav Tester', { exact: true }).first()
-  ).toBeVisible();
+  // Icon-only rail: assistant identity lives on rail-chat-home aria-label, not visible text.
+  await expect(railSection(page, 'chat')).toHaveAttribute('aria-label', /ShellNav Tester/);
   await expectNoWorkspaceCube(page);
   await expectNoAssistantTabSkeletons(page);
   expect(await stopAdminToTasksObserver()).toEqual([]);
