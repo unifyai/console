@@ -377,7 +377,8 @@ export async function waitForAssistantListReady(page: Page, timeout = 45_000): P
 
 /**
  * Switch the active section via the rail's Workspace/Brain nav (replaces the
- * old in-pane `right-pane-tab-*` strip).
+ * old in-pane `right-pane-tab-*` strip). Chat opens from the droid face
+ * (`rail-chat-home`), not a Workspace section button.
  */
 export async function openRailSection(page: Page, sectionId: string) {
   await railSection(page, sectionId).click();
