@@ -53,6 +53,10 @@ test.afterAll(() => {
 });
 
 async function resetFloatingChatPreferences(page: Page) {
+  // localStorage is unavailable on about:blank; land on an app origin first.
+  if (!page.url().startsWith('http')) {
+    await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
+  }
   await page.evaluate(
     ({ enabledKey, promptedKey, changeEvent }) => {
       window.localStorage.removeItem(enabledKey);
