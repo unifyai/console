@@ -18,8 +18,12 @@ fi
 
 # AGENTS.md must match its sources under .agents/
 if git diff --cached --name-only | grep -qE '^(\.agents/|AGENTS\.md$)'; then
-  echo "🔍 Checking AGENTS.md is up to date..."
-  python3 .agents/global-rules/build_agents_md.py --check || exit 1
+  if [ -f .agents/global-rules/build_agents_md.py ]; then
+    echo "🔍 Checking AGENTS.md is up to date..."
+    python3 .agents/global-rules/build_agents_md.py --check || exit 1
+  else
+    echo "⏭️  Shared-rules submodule not checked out; skipping AGENTS.md check"
+  fi
 fi
 
 # Run lint-staged (prettier, eslint, fonts, colors on staged files)
