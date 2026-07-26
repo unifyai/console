@@ -135,7 +135,6 @@ interface AssistantInfoPanelLayoutProps {
   hasIncompleteOnboarding?: boolean;
   infoPanelFocusLayoutRequest?: number;
   coordinatorOnboarding?: AssistantInfoPanelCoordinatorOnboarding;
-  chat?: AssistantInfoSidePanelContentProps['chat'];
   onOpenChatSection?: () => void;
   /** False when the assistants surface is hidden behind settings/admin routes. */
   isActiveSurface?: boolean;
@@ -170,7 +169,6 @@ export function AssistantInfoPanelLayout({
   hasIncompleteOnboarding = false,
   infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
-  chat,
   onOpenChatSection,
   isActiveSurface = true,
 }: AssistantInfoPanelLayoutProps) {
@@ -484,7 +482,6 @@ export function AssistantInfoPanelLayout({
       roadmap={roadmap}
       canWrite={canWrite}
       coordinatorOnboarding={coordinatorOnboarding}
-      chat={chat}
       onStartCall={onStartCall}
       isStartCallDisabled={isCallButtonDisabled}
       startCallTooltip={callButtonTooltip}
@@ -540,7 +537,7 @@ export function AssistantInfoPanelLayout({
                 <span className="h-8 w-8 shrink-0" aria-hidden="true" />
               )}
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{infoPanelBody}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{infoPanelBody}</div>
           </SheetContent>
         </Sheet>
       ) : (

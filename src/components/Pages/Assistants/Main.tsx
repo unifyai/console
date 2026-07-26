@@ -118,6 +118,7 @@ import {
   OPEN_ASSISTANT_CHAT_EVENT,
   type OpenAssistantChatDetail,
 } from '@/lib/navigation/openAssistantChat';
+import { AssistantFloatingChatHost } from '@/components/Pages/Assistants/Chat/AssistantFloatingChatHost';
 import { AssistantSwitcherBridgeSync } from '@/components/Layout/Shell/AssistantSwitcherBridgeSync';
 import { writeStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
 import {
@@ -578,6 +579,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
+  // Match the rail's active section, not raw pane slots — a split secondary
+  // Chat tab must not suppress the floater while Tasks/Actions/etc. is selected.
+  const isFullPageAssistantChatVisible = activeSectionId === 'chat';
+
+  const [floatingChatExpanded, setFloatingChatExpanded] = React.useState(false);
+  const handleFloatingChatExpandedChange = React.useCallback((expanded: boolean) => {
+    setFloatingChatExpanded(expanded);
+  }, []);
+
   // --- Assistant Data & Actions ---
   const {
     assistants,
@@ -1929,6 +1939,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // open, the call dialog's embedded side panel.
       activeAssistantId:
         (isChatVisibleInRightPane ? profileAssistantId : null) ??
+        (floatingChatExpanded &&
+        profileAssistantId &&
+        !isHireDialogOpen &&
+        !showCoordinatorOnboardingIntro
+          ? profileAssistantId
+          : null) ??
         activeCallAssistant?.agentId ??
         null,
       getCutoff: getChatStreamCutoff,
@@ -1955,6 +1971,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
     activeAssistantId:
       (isChatVisibleInRightPane ? profileAssistantId : null) ??
+      (floatingChatExpanded &&
+      profileAssistantId &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+        ? profileAssistantId
+        : null) ??
       activeCallAssistant?.agentId ??
       null,
     enabled: isActiveSurface && reconcilerPairs.length > 0,
@@ -1983,7 +2005,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (isActiveSurface && profileAssistantId && isChatVisibleInRightPane) {
       markChatStreamRead(profileAssistantId);
     }
-  }, [isActiveSurface, profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+    if (
+      profileAssistantId &&
+      floatingChatExpanded &&
+      !isChatVisibleInRightPane &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+    ) {
+      markChatStreamRead(profileAssistantId);
+    }
+  }, [
+    isActiveSurface,
+    profileAssistantId,
+    isChatVisibleInRightPane,
+    floatingChatExpanded,
+    isHireDialogOpen,
+    showCoordinatorOnboardingIntro,
+    markChatStreamRead,
+  ]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -4344,35 +4383,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     hasIncompleteOnboarding={profileHasIncompleteOnboarding}
                     infoPanelFocusLayoutRequest={profileInfoPanelFocusLayoutRequest}
                     coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
-                    chat={{
-                      assistantActions,
-                      chatHistories: profileChatHistories,
-                      setChatHistories: setProfileChatHistories,
-                      callPillHistories,
-                      setCallPillHistories,
-                      requestAckHistories,
-                      userEmail: userMeta.email,
-                      userTimezone: userMeta.timezone,
-                      isFirstView: isFirstViewAfterHire,
-                      preHireChat: isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined,
-                      onFirstViewCompleted: handleFirstViewCompleted,
-                      spendingGate: spendingGateStatus,
-                      chatStreamConnectionStatus: profileChatStreamConnectionStatus,
-                      reconnectChatStream,
-                      chatStreamActivitySignal: profileChatActivitySignal,
-                      isCallConnected,
-                      onAssistantAvatarStartCall: () => {
-                        if (visibleProfileAssistant)
-                          handleStartCall(visibleProfileAssistant, 'audio');
-                      },
-                      isAssistantAvatarStartCallDisabled:
-                        !visibleProfileAssistant ||
-                        !!activeCallId ||
-                        isConnectingCall ||
-                        spendingGateStatus.isBlocked,
-                      assistantAvatarStartCallTooltip: 'Call',
-                      forceTypingIndicator: forceCoordinatorChatIntroTyping,
-                    }}
                     onOpenChatSection={handleOpenChatSection}
                     isActiveSurface={isActiveSurface}
                   >
@@ -4796,6 +4806,43 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
             />
           </RoomContext.Provider>
+        )}
+
+        {visibleProfileAssistant && (
+          <AssistantFloatingChatHost
+            pathname={routePathname ?? '/assistants'}
+            isBelowTablet={isBelowTablet}
+            isHireDialogOpen={isHireDialogOpen}
+            showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
+            isChatVisibleInRightPane={isFullPageAssistantChatVisible}
+            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            profileAssistant={visibleProfileAssistant}
+            assistantsBootstrapped={hasSettledAssistants}
+            assistant={visibleProfileAssistant}
+            assistantActions={assistantActions}
+            chatHistories={profileChatHistories}
+            setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
+            userEmail={userMeta.email}
+            userTimezone={userMeta.timezone}
+            spendingGate={spendingGateStatus}
+            chatStreamConnectionStatus={profileChatStreamConnectionStatus}
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={profileChatActivitySignal}
+            unreadCount={chatStreamUnreadCounts[visibleProfileAssistant.agentId] ?? 0}
+            hasActiveCall={!!activeCallAssistant && (isConnectingCall || isCallConnected)}
+            isInActiveCall={
+              !!activeCallAssistant &&
+              activeCallAssistant.agentId === visibleProfileAssistant.agentId &&
+              (isConnectingCall || isCallConnected)
+            }
+            activeCallAssistantId={activeCallAssistant?.agentId ?? null}
+            isCallConnected={isCallConnected}
+            onExpandedChange={handleFloatingChatExpandedChange}
+            redock={redock}
+          />
         )}
       </div>
     </CoordinatorOnboardingProvider>
