@@ -1,21 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantSwitcher } from '@/components/Layout/Shell/AssistantSwitcher';
 import { useAssistantSwitcherBridge } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 
-interface GlobalUnitySwitcherProps {
-  collapsed: boolean;
-}
-
 /**
  * Unity switcher for non-assistant home routes. Reads live assistant list
  * state from the hidden-but-mounted assistants runtime via the bridge.
  */
-export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
+export function GlobalUnitySwitcher() {
   const bridge = useAssistantSwitcherBridge();
   const { navigateToAssistants } = useAppShellNavigation();
 
@@ -26,21 +21,10 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
   if (!bridge?.listProps) {
     return (
       <div
-        className={cn(
-          'mb-2 flex items-center gap-3',
-          collapsed ? 'mx-auto justify-center p-1.5' : 'mx-3.5 px-3 py-2'
-        )}
+        className="mx-auto mb-2 flex items-center justify-center p-1.5"
         data-testid="rail-unity-switcher-loading"
       >
-        <Skeleton
-          className={cn('shrink-0 rounded-full', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
-        />
-        {!collapsed && (
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-        )}
+        <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
       </div>
     );
   }
@@ -51,7 +35,6 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
       activeEntityFace={bridge.activeEntityFace ?? null}
       listProps={bridge.listProps}
       nestedOverlayOpen={bridge.nestedOverlayOpen === true}
-      collapsed={collapsed}
       onOpenChat={handleOpenChat}
       chatActive={false}
     />
