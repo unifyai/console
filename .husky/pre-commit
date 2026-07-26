@@ -16,5 +16,11 @@ if git diff --cached --name-only | grep -q 'package-lock.json'; then
   }
 fi
 
+# AGENTS.md must match its sources under .agents/
+if git diff --cached --name-only | grep -qE '^(\.agents/|AGENTS\.md$)'; then
+  echo "🔍 Checking AGENTS.md is up to date..."
+  python3 .agents/global-rules/build_agents_md.py --check || exit 1
+fi
+
 # Run lint-staged (prettier, eslint, fonts, colors on staged files)
 npx lint-staged
