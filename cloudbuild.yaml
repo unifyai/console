@@ -63,6 +63,8 @@ steps:
           --cache-to type=registry,ref="$${CACHE_REF}",mode=max \
           --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY \
           --build-arg NEXT_PUBLIC_MS_TEAMS_APP_CATALOG_ID=$$MS_TEAMS_APP_CATALOG_ID \
+          --build-arg NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY=$_OPENREPLAY_PROJECT_KEY \
+          --build-arg NEXT_PUBLIC_OPENREPLAY_INGEST_POINT=$_OPENREPLAY_INGEST_POINT \
           -f Dockerfile \
           -t "$${IMAGE_URI}:$COMMIT_SHA" \
           -t "$${IMAGE_URI}:latest" \
@@ -312,6 +314,11 @@ substitutions:
   # prod trigger overrides it to MS_TEAMS_APP_CATALOG_ID. The referenced secret
   # must exist or the build fails (secretEnv is mandatory).
   _MS_TEAMS_CATALOG_SECRET: MS_TEAMS_APP_CATALOG_ID_STAGING
+  # Self-hosted OpenReplay. Empty project key → tracker no-ops. After first
+  # admin signup at openreplay.example.com, set the real project key on
+  # the Cloud Build trigger (or here).
+  _OPENREPLAY_PROJECT_KEY: ''
+  _OPENREPLAY_INGEST_POINT: 'https://openreplay.example.com/ingest'
 tags:
   - gcp-cloud-build-deploy-cloud-run
   - gcp-cloud-build-deploy-cloud-run-managed

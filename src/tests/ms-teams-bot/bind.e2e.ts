@@ -17,7 +17,7 @@ import { test as base, expect, type Page, type Browser } from '@playwright/test'
 import path from 'path';
 import os from 'os';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
-import { loginAndWaitForRedirect } from '../auth/helpers';
+import { loginAndWaitForRedirect, completeAccountOnboardingIfPresent } from '../auth/helpers';
 import {
   deferCoordinatorForUser,
   deferCoordinatorAfterAssistantsLoad,
@@ -77,18 +77,7 @@ async function loginAndSaveOrgState(
   await loginAndWaitForRedirect(page, email, password, 45_000);
   await deferCoordinatorForUser(owner.id, owner.apiKey);
 
-  if (page.url().includes('/login/onboarding')) {
-    await page
-      .waitForURL((url) => !url.pathname.includes('onboarding'), { timeout: 20_000 })
-      .catch(async () => {
-        const personalBtn = page.getByTestId('workspace-personal');
-        if (await personalBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await personalBtn.click();
-          await page.getByTestId('workspace-continue').click();
-          await page.waitForURL((url) => !url.pathname.includes('onboarding'), { timeout: 15_000 });
-        }
-      });
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await page.request.post('/api/session/workspace', {
     data: { workspaceId: String(orgId) },

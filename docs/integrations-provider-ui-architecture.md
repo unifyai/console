@@ -12,7 +12,7 @@ This is the source-of-truth Console design brief for the revamped Integrations e
 - Show permission/scopes before authorization. Users should understand what data the app grants and which actor capabilities become available.
 - Show connection state on every card: connected, pending, missing scope, expired, revoked, disconnected, error.
 - Keep Google/Microsoft BYOD and Slack workspace installs visually compatible but architecturally separate unless product intentionally unifies them.
-- Preserve static secret-backed integrations and custom secret fallback. Do not break current HubSpot/Salesforce/Webex/Employment Hero flows.
+- Preserve static secret-backed integrations and custom secret fallback. Do not break current Employment Hero / Salto KS / Valos flows.
 - Make the design beautiful enough to feel like a professional app marketplace, not a settings table.
 
 ## Cross-Repo Boundary And Catalog Ownership
@@ -182,7 +182,7 @@ Mock data must include:
 
 - At least one existing static `unity-deploy`/`INTEGRATION_PROVIDERS` integration so the static path remains visible.
 - Connected OAuth app, for example HubSpot with `connected_ready` contact/deal tools.
-- API-key app, for example Clay or Webex with masked credential metadata.
+- API-key app, for example Clay with masked credential metadata.
 - Pending OAuth app waiting for callback completion.
 - Missing-scope app where the user must grant an additional scope.
 - Expired/revoked app requiring reconnect.

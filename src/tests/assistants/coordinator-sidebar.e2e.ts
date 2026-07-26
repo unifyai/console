@@ -26,7 +26,7 @@ import {
   openEditDialogFromList,
   openUnitySwitcher,
 } from './helpers';
-import { loginAndWaitForRedirect } from '../auth/helpers';
+import { loginAndWaitForRedirect, completeAccountOnboardingIfPresent } from '../auth/helpers';
 
 async function authenticate(page: Page, email: string, password: string) {
   const tryDevQuickLogin = async (): Promise<boolean> => {
@@ -84,20 +84,7 @@ async function loginAndSaveWorkspaceState(
 
   await authenticate(page, email, password);
 
-  if (page.url().includes('/login/onboarding')) {
-    const personalButton = page.getByTestId('workspace-personal');
-    if (await personalButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await personalButton.click();
-      await page.getByTestId('workspace-continue').click();
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    } else {
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
-        timeout: 15_000,
-      });
-    }
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   if (workspaceId !== null) {
     const workspaceSwitch = await page.evaluate(async (orgId) => {

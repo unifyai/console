@@ -1,15 +1,17 @@
-import { getCurrentUser } from '@/lib/user/user';
+import { getCurrentUser, getSession } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
 import WorkspaceContent from '@/components/Pages/Onboarding/WorkspaceContent';
+import HeardAboutContent from '@/components/Pages/Onboarding/HeardAboutContent';
 import { createOrganizationAction } from '@/lib/orchestra/api/organization';
 import { updateOnboardingAction, patchSessionAndRedirect } from '@/lib/user/onboarding';
 
 /**
  * /login/onboarding — Onboarding flow for new users.
  *
- * Currently renders the workspace selection step (personal vs. organization).
- * Future onboarding steps can be added here by reading
- * `session.onboardingStep` and rendering the appropriate component.
+ * Steps (JWT `onboardingStep` / Orchestra `onboarding_status.current_step`):
+ *   1. heard_about     — How did you hear about us?
+ *   2. workspace_setup — Personal vs organization workspace
+ *   3. completed       — Redirect to /assistants
  *
  * Lives under the `/login` layout so it shares the same card-with-halo shell.
  *
@@ -22,6 +24,14 @@ export default async function OnboardingPage() {
 
   if (!user) {
     redirect('/login');
+  }
+
+  const session = await getSession();
+  const onboardingStep =
+    (session as { onboardingStep?: string } | null | undefined)?.onboardingStep ?? 'heard_about';
+
+  if (onboardingStep === 'completed') {
+    redirect('/assistants');
   }
 
   const onUpdateOnboarding = updateOnboardingAction;
@@ -57,12 +67,31 @@ export default async function OnboardingPage() {
     }
   }
 
+  if (shouldAutoComplete) {
+    return (
+      <WorkspaceContent
+        onCreateOrg={createOrganizationAction}
+        onUpdateOnboarding={onUpdateOnboarding}
+        onPatchSession={patchSessionAndRedirect}
+        autoComplete
+      />
+    );
+  }
+
+  if (onboardingStep === 'heard_about') {
+    return (
+      <HeardAboutContent
+        onUpdateOnboarding={onUpdateOnboarding}
+        onPatchSession={patchSessionAndRedirect}
+      />
+    );
+  }
+
   return (
     <WorkspaceContent
       onCreateOrg={createOrganizationAction}
       onUpdateOnboarding={onUpdateOnboarding}
       onPatchSession={patchSessionAndRedirect}
-      autoComplete={shouldAutoComplete}
     />
   );
 }

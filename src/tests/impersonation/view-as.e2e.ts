@@ -19,7 +19,12 @@
 import { expect, test as base, type Page } from '@playwright/test';
 import path from 'path';
 import os from 'os';
-import { createTestUser, cleanupUser, loginAndWaitForRedirect } from '../auth/helpers';
+import {
+  createTestUser,
+  cleanupUser,
+  loginAndWaitForRedirect,
+  completeAccountOnboardingIfPresent,
+} from '../auth/helpers';
 import { createAssistant, ensureUnifyOrg, deleteOrg } from '../helpers/seeds/client';
 import { openUnitySwitcher } from '../assistants/helpers';
 import {
@@ -27,7 +32,7 @@ import {
   deferCoordinatorForUser,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail, railAccountTrigger, railUnitySwitcher } from '../helpers/shell';
+import { assistantRail, railAccountTrigger } from '../helpers/shell';
 
 // ---------------------------------------------------------------------------
 // Seed (module scope, synchronous)
@@ -66,14 +71,7 @@ const test = base.extend<{ adminPage: Page }>({
       await deferCoordinatorForUser(adminUser.id, adminUser.apiKey);
       await p.goto('/login');
       await loginAndWaitForRedirect(p, adminUser.email, adminUser.password, 30_000);
-      if (p.url().includes('/login/onboarding')) {
-        const personalBtn = p.getByTestId('workspace-personal');
-        if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-          await personalBtn.click();
-          await p.getByTestId('workspace-continue').click();
-          await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
-        }
-      }
+      await completeAccountOnboardingIfPresent(p);
       await p.goto('/assistants', { waitUntil: 'domcontentloaded' });
       await expect(assistantRail(p)).toBeVisible({ timeout: 20_000 });
       await deferCoordinatorAfterAssistantsLoad(p, adminUser.id, adminUser.apiKey);
@@ -164,5 +162,5 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   // The target's assistant is no longer in view once we are back as the admin.
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('impersonation-banner')).toBeHidden({ timeout: 30_000 });
-  await expect(railUnitySwitcher(page)).not.toContainText('Solo');
+  await expect(page.getByTestId('rail-chat-home')).not.toHaveAttribute('aria-label', /Solo/);
 });

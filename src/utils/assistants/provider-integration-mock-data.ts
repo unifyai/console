@@ -52,8 +52,8 @@ function providerDefinition(
   };
 }
 
-const staticHubSpot = (() => {
-  const provider = getIntegrationProvider('hubspot');
+const staticEmploymentHero = (() => {
+  const provider = getIntegrationProvider('employmenthero');
   return provider ? mapStaticProviderToDefinition(provider, { kind: 'configured' }, []) : null;
 })();
 
@@ -344,7 +344,7 @@ const clayApiKeyDefinition = providerDefinition({
 });
 
 export const MOCK_PROVIDER_INTEGRATION_DEFINITIONS: IntegrationDefinition[] = [
-  ...(staticHubSpot ? [staticHubSpot] : []),
+  ...(staticEmploymentHero ? [staticEmploymentHero] : []),
   dynamicHubSpot,
   ...firstWaveDynamicDefinitions,
   clayApiKeyDefinition,

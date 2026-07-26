@@ -1,19 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Settings,
-  ChevronsUpDown,
-  Check,
-  LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Loader2,
-  UserSearch,
-  RotateCcw,
-  Moon,
-  Sun,
-} from 'lucide-react';
+import { Settings, Check, LogOut, UserSearch, RotateCcw, Moon, Sun } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -98,16 +86,10 @@ function WorkspaceAvatarBadge({
   );
 }
 
-interface RailFootProps {
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-}
-
 /**
- * The rail's foot: quick Settings/Admin nav, an account row that opens the
- * workspace switcher and sign out, and the collapse-to-dock control.
+ * The rail's foot: account menu, Settings/theme/help, and referral promo.
  */
-export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
+export function RailFoot() {
   const { navigateTo, activeHref } = useAppShellNavigation();
   const activePath = pathnameFromHref(activeHref);
   const {
@@ -117,7 +99,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     activeOrganization,
     switchWorkspace,
     isWorkspaceSwitchable,
-    isSwitchingWorkspace,
     isUnifyMember,
   } = useWorkspace();
   const { accountReset: accountResetEnabled } = useFeatures();
@@ -133,7 +114,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     activeWorkspace?.type === 'organization'
       ? (activeWorkspace.name ?? 'Organization')
       : personalDisplayName;
-  const subtitle = activeWorkspace?.type === 'organization' ? 'Organization' : 'Personal';
   const initials =
     activeWorkspace?.type === 'organization'
       ? profileInitials(displayName)
@@ -190,22 +170,15 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   const isDark = theme === 'dark';
 
   return (
-    <div
-      className={cn(
-        'mt-auto flex flex-col gap-0.5 border-t border-border pt-2',
-        collapsed ? 'px-3 pb-2.5' : 'px-2.5 pb-2.5'
-      )}
-    >
+    <div className="mt-auto flex flex-col gap-0.5 border-t border-border px-3 pb-2.5 pt-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             data-testid="rail-account-trigger"
-            title={collapsed ? displayName : undefined}
-            className={cn(
-              'flex items-center gap-3 rounded-[10px] transition-colors hover:bg-muted',
-              collapsed ? 'justify-center px-0 py-1.5' : 'px-2.5 py-1.5'
-            )}
+            title={displayName}
+            aria-label={displayName}
+            className="flex items-center justify-center rounded-[10px] px-0 py-1.5 transition-colors hover:bg-muted"
           >
             <Avatar className="h-[30px] w-[30px] shrink-0 rounded-[9px]">
               <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
@@ -216,20 +189,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
                 {initials}
               </AvatarFallback>
             </Avatar>
-            {!collapsed && (
-              <div className="min-w-0 text-left">
-                <div className="truncate text-[13px] font-semibold text-foreground">
-                  {displayName}
-                </div>
-                <div className="truncate text-[11.5px] text-muted-foreground">{subtitle}</div>
-              </div>
-            )}
-            {!collapsed &&
-              (isSwitchingWorkspace ? (
-                <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-              ) : (
-                <ChevronsUpDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              ))}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -329,7 +288,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
       <RailNavButton
         Icon={Settings}
         label="Settings"
-        collapsed={collapsed}
         active={isSettingsFamilyPath(activePath)}
         onClick={() => navigateTo('/account')}
         testId="rail-nav-settings"
@@ -337,12 +295,11 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
       <RailNavButton
         Icon={isDark ? Sun : Moon}
         label={isDark ? 'Switch to light' : 'Switch to dark'}
-        collapsed={collapsed}
         onClick={() => setTheme(isDark ? 'light' : 'dark')}
         testId="rail-theme-toggle"
       />
-      <SupportTicketDialog collapsed={collapsed} />
-      <ReferralPromoNavButton collapsed={collapsed} />
+      <SupportTicketDialog />
+      <ReferralPromoNavButton />
 
       {isUnifyMember && (
         <ImpersonateDialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog} />
@@ -351,14 +308,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
       <AccountResetDialog
         open={showAccountResetConfirm}
         onOpenChange={setShowAccountResetConfirm}
-      />
-
-      <RailNavButton
-        Icon={collapsed ? PanelLeftOpen : PanelLeftClose}
-        label={collapsed ? 'Expand sidebar' : 'Collapse'}
-        collapsed={collapsed}
-        onClick={onToggleCollapse}
-        testId="rail-collapse-toggle"
       />
     </div>
   );

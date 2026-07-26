@@ -34,9 +34,9 @@ interface ApiKeyIntegrationDialogProps {
 
 /**
  * Dialog for paste-and-go API-key auth strategies.  Supports both the
- * single-field ``api_key`` shape (e.g. HubSpot's Private App token) and
- * the multi-field ``api_key_multi`` shape (e.g. Matterport's Token ID +
- * Token Secret pair used to compose HTTP Basic credentials).
+ * single-field ``api_key`` shape and the multi-field ``api_key_multi``
+ * shape (e.g. Salto KS client + service-account credentials, or Valos
+ * OS Maps + PropertyData keys).
  *
  * All values render masked (``type="password"``) per the universal-
  * masking rule for the Integrations tab.

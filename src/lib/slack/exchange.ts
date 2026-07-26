@@ -1,8 +1,8 @@
 /**
  * Slack OAuth v2 helpers — authorize-URL builder and code exchange.
  *
- * Unlike the assistant-Integrations flow (Employment Hero, Salesforce,
- * Webex), Slack uses a **single platform app** owned by Unify, so the
+ * Unlike the assistant-Integrations flow (Employment Hero), Slack uses a
+ * **single platform app** owned by Unify, so the
  * ``client_id`` / ``client_secret`` are env vars on Console itself,
  * not values pulled from assistant secrets.
  *

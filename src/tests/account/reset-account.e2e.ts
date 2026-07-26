@@ -34,6 +34,7 @@ import {
   createOrg,
   deleteOrg,
   loginAndWaitForRedirect,
+  completeAccountOnboardingIfPresent,
 } from '../auth/helpers';
 import { createAssistant, addMember, dbExec } from '../helpers/seeds/client';
 import { railAccountTrigger } from '../helpers/shell';
@@ -86,14 +87,7 @@ const test = base.extend<{ authedPage: Page }>({
       const p = await ctx.newPage();
       await p.goto('/login');
       await loginAndWaitForRedirect(p, staffUser.email, staffUser.password, 30_000);
-      if (p.url().includes('/login/onboarding')) {
-        const personalBtn = p.getByTestId('workspace-personal');
-        if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-          await personalBtn.click();
-          await p.getByTestId('workspace-continue').click();
-          await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
-        }
-      }
+      await completeAccountOnboardingIfPresent(p);
       await ctx.storageState({ path: authFile });
       await ctx.close();
     }
@@ -181,7 +175,7 @@ test('Unify member resets their account back to fresh-signup state @critical @ar
   // Onboarding is rewound to the fresh-signup step.
   expect(
     dbExec(`SELECT current_step FROM onboarding_status WHERE user_id = '${staffUser.id}';`)
-  ).toBe('workspace_setup');
+  ).toBe('heard_about');
 
   // Chosen scope: credits and the Unify-org membership are left untouched.
   expect(

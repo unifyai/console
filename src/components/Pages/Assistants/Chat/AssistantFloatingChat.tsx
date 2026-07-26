@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Maximize2, Phone, X } from 'lucide-react';
+import { Maximize2, Minus, Phone, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
@@ -333,7 +333,7 @@ export function AssistantFloatingChat({
                         testId="floating-chat-minimize"
                         onClick={() => setCollapsedPreference(true)}
                       >
-                        <ChevronDown className="h-4 w-4" />
+                        <Minus className="h-4 w-4" />
                       </FloatingChatHeaderIconButton>
                       {onDismiss && (
                         <FloatingChatHeaderIconButton

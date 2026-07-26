@@ -331,12 +331,39 @@ export async function registerThroughVerification(
   }
 }
 
+/** Complete the acquisition survey when it is the current onboarding step. */
+export async function completeHeardAboutOnboardingIfNeeded(page: Page): Promise<void> {
+  const heardContinue = page.getByTestId('heard-about-continue');
+  if (!(await heardContinue.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    return;
+  }
+  await page.getByTestId('heard-about-search').click();
+  await heardContinue.click();
+  await expect(page.getByTestId('workspace-personal')).toBeVisible({ timeout: 15_000 });
+}
+
 /** Open workspace onboarding when middleware does not auto-redirect there. */
 export async function ensureWorkspaceOnboardingPage(page: Page): Promise<void> {
   if (!page.url().includes('/login/onboarding')) {
     await page.goto('/login/onboarding', { waitUntil: 'domcontentloaded' });
   }
+  await completeHeardAboutOnboardingIfNeeded(page);
   await expect(page.getByTestId('workspace-personal')).toBeVisible({ timeout: 15_000 });
+}
+
+/**
+ * If the browser landed on /login/onboarding, finish heard-about + personal
+ * workspace so the test can continue into the product.
+ */
+export async function completeAccountOnboardingIfPresent(page: Page): Promise<void> {
+  if (!page.url().includes('/login/onboarding')) return;
+  await completeHeardAboutOnboardingIfNeeded(page);
+  const personalBtn = page.getByTestId('workspace-personal');
+  if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await personalBtn.click();
+    await page.getByTestId('workspace-continue').click();
+    await page.waitForURL((url) => !url.pathname.includes('onboarding'), { timeout: 15_000 });
+  }
 }
 
 /** Whether the registration flow landed on the email verification step. */
@@ -452,14 +479,7 @@ export async function loginWithMfaAndNavigateTo(
     await completeMfaChallenge(page, totpSecret, genTOTP);
   }
 
-  if (page.url().includes('/login/onboarding')) {
-    const personalBtn = page.getByTestId('workspace-personal');
-    if (await personalBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await personalBtn.click();
-      await page.getByTestId('workspace-continue').click();
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), { timeout: 15000 });
-    }
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
 
@@ -556,14 +576,7 @@ export async function loginAndNavigateTo(
   await page.goto('/login');
   await loginAndWaitForRedirect(page, email, password, 20_000);
 
-  if (page.url().includes('/login/onboarding')) {
-    const personalBtn = page.getByTestId('workspace-personal');
-    if (await personalBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await personalBtn.click();
-      await page.getByTestId('workspace-continue').click();
-      await page.waitForURL((url) => !url.pathname.includes('onboarding'), { timeout: 15000 });
-    }
-  }
+  await completeAccountOnboardingIfPresent(page);
 
   await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
 

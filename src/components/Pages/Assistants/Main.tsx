@@ -10,7 +10,7 @@ import {
   type RightPaneState,
   type RightPaneTab,
 } from '@/components/Pages/Assistants/RightPaneContainer';
-import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail';
+import { AssistantRail } from './Rail/AssistantRail';
 import { SectionHost } from './Rail/SectionHost';
 import { BrainSectionsHost } from './Rail/BrainSectionsHost';
 import { AssistantInfoPanelLayout } from './Layout/AssistantInfoPanelLayout';
@@ -118,6 +118,7 @@ import {
   OPEN_ASSISTANT_CHAT_EVENT,
   type OpenAssistantChatDetail,
 } from '@/lib/navigation/openAssistantChat';
+import { AssistantFloatingChatHost } from '@/components/Pages/Assistants/Chat/AssistantFloatingChatHost';
 import { AssistantSwitcherBridgeSync } from '@/components/Layout/Shell/AssistantSwitcherBridgeSync';
 import { writeStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
 import {
@@ -127,9 +128,6 @@ import {
 import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
-import { Button } from '@/components/UI/button';
-import { Sheet, SheetContent } from '@/components/UI/sheet';
-import { Menu } from 'lucide-react';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import {
   type CoordinatorWorkspaceScope,
@@ -538,39 +536,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [activeSectionDef.kind]);
 
-  const { isBelowMobile, isBelowTablet } = useBreakpoint();
-  const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
-  const [railCollapsed, setRailCollapsed] = React.useState(false);
-  React.useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
-      if (stored !== null) {
-        setRailCollapsed(stored === '1');
-      } else if (window.matchMedia(maxWidthMediaQuery('tablet')).matches) {
-        setRailCollapsed(true);
-      }
-    } catch {
-      /* localStorage unavailable — keep expanded */
-    }
-  }, []);
-  React.useEffect(() => {
-    if (isBelowTablet) {
-      setRailCollapsed(true);
-    }
-  }, [isBelowTablet]);
-  React.useEffect(() => {
-    if (!isBelowMobile) {
-      setMobileRailOpen(false);
-    }
-  }, [isBelowMobile]);
-  const handleRailCollapsedChange = React.useCallback((collapsed: boolean) => {
-    setRailCollapsed(collapsed);
-    try {
-      window.localStorage.setItem(RAIL_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const { isBelowTablet } = useBreakpoint();
 
   // Convenience: chat is "visible" if either slot is showing it. Used by
   // the chat-stream hook below to suppress unread bumps and by the
@@ -578,6 +544,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
+  // Match the rail's active section, not raw pane slots — a split secondary
+  // Chat tab must not suppress the floater while Tasks/Actions/etc. is selected.
+  const isFullPageAssistantChatVisible = activeSectionId === 'chat';
+
+  const [floatingChatExpanded, setFloatingChatExpanded] = React.useState(false);
+  const handleFloatingChatExpandedChange = React.useCallback((expanded: boolean) => {
+    setFloatingChatExpanded(expanded);
+  }, []);
+
   // --- Assistant Data & Actions ---
   const {
     assistants,
@@ -1929,6 +1904,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // open, the call dialog's embedded side panel.
       activeAssistantId:
         (isChatVisibleInRightPane ? profileAssistantId : null) ??
+        (floatingChatExpanded &&
+        profileAssistantId &&
+        !isHireDialogOpen &&
+        !showCoordinatorOnboardingIntro
+          ? profileAssistantId
+          : null) ??
         activeCallAssistant?.agentId ??
         null,
       getCutoff: getChatStreamCutoff,
@@ -1955,6 +1936,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
     activeAssistantId:
       (isChatVisibleInRightPane ? profileAssistantId : null) ??
+      (floatingChatExpanded &&
+      profileAssistantId &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+        ? profileAssistantId
+        : null) ??
       activeCallAssistant?.agentId ??
       null,
     enabled: isActiveSurface && reconcilerPairs.length > 0,
@@ -1983,7 +1970,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (isActiveSurface && profileAssistantId && isChatVisibleInRightPane) {
       markChatStreamRead(profileAssistantId);
     }
-  }, [isActiveSurface, profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+    if (
+      profileAssistantId &&
+      floatingChatExpanded &&
+      !isChatVisibleInRightPane &&
+      !isHireDialogOpen &&
+      !showCoordinatorOnboardingIntro
+    ) {
+      markChatStreamRead(profileAssistantId);
+    }
+  }, [
+    isActiveSurface,
+    profileAssistantId,
+    isChatVisibleInRightPane,
+    floatingChatExpanded,
+    isHireDialogOpen,
+    showCoordinatorOnboardingIntro,
+    markChatStreamRead,
+  ]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -3714,7 +3718,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [openAssistantChatFromNavigation]);
 
   const goToPlatformHome = React.useCallback(() => {
-    setMobileRailOpen(false);
     setActiveBrainSectionId(null);
     setPaneState((prev) => ({
       ...prev,
@@ -4020,68 +4023,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
-            {isBelowMobile ? (
-              <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
-                <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
-                  <AssistantRail
-                    activeUnity={visibleProfileAssistant}
-                    activeEntityFace={activeEntityFace}
-                    entityKind={selectedEntityKind}
-                    isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
-                    listProps={railListProps}
-                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
-                    activeSection={railActiveSectionId}
-                    sectionActivity={railSectionActivity}
-                    onBrandClick={requestPlatformHomeNavigation}
-                    onSelectSection={(section) => {
-                      handleSelectSection(section);
-                      setMobileRailOpen(false);
-                    }}
-                    collapsed={false}
-                    onCollapsedChange={(next) => {
-                      if (next) {
-                        setMobileRailOpen(false);
-                        return;
-                      }
-                      handleRailCollapsedChange(false);
-                    }}
-                  />
-                </SheetContent>
-              </Sheet>
-            ) : (
-              <AssistantRail
-                activeUnity={visibleProfileAssistant}
-                activeEntityFace={activeEntityFace}
-                entityKind={selectedEntityKind}
-                isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
-                listProps={railListProps}
-                nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
-                activeSection={railActiveSectionId}
-                sectionActivity={railSectionActivity}
-                onBrandClick={requestPlatformHomeNavigation}
-                onSelectSection={handleSelectSection}
-                collapsed={railCollapsed}
-                onCollapsedChange={handleRailCollapsedChange}
-              />
-            )}
+            <AssistantRail
+              activeUnity={visibleProfileAssistant}
+              activeEntityFace={activeEntityFace}
+              entityKind={selectedEntityKind}
+              isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
+              listProps={railListProps}
+              nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+              activeSection={railActiveSectionId}
+              sectionActivity={railSectionActivity}
+              onBrandClick={requestPlatformHomeNavigation}
+              onSelectSection={handleSelectSection}
+            />
 
             <SectionHost
               section={railActiveSectionDef}
-              headerLeading={
-                isBelowMobile ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    aria-label="Open navigation"
-                    data-testid="rail-mobile-toggle"
-                    onClick={() => setMobileRailOpen(true)}
-                  >
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                ) : undefined
-              }
               renderView={() => {
                 if (isNonAssistantSelection) {
                   if (
@@ -4344,35 +4300,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     hasIncompleteOnboarding={profileHasIncompleteOnboarding}
                     infoPanelFocusLayoutRequest={profileInfoPanelFocusLayoutRequest}
                     coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
-                    chat={{
-                      assistantActions,
-                      chatHistories: profileChatHistories,
-                      setChatHistories: setProfileChatHistories,
-                      callPillHistories,
-                      setCallPillHistories,
-                      requestAckHistories,
-                      userEmail: userMeta.email,
-                      userTimezone: userMeta.timezone,
-                      isFirstView: isFirstViewAfterHire,
-                      preHireChat: isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined,
-                      onFirstViewCompleted: handleFirstViewCompleted,
-                      spendingGate: spendingGateStatus,
-                      chatStreamConnectionStatus: profileChatStreamConnectionStatus,
-                      reconnectChatStream,
-                      chatStreamActivitySignal: profileChatActivitySignal,
-                      isCallConnected,
-                      onAssistantAvatarStartCall: () => {
-                        if (visibleProfileAssistant)
-                          handleStartCall(visibleProfileAssistant, 'audio');
-                      },
-                      isAssistantAvatarStartCallDisabled:
-                        !visibleProfileAssistant ||
-                        !!activeCallId ||
-                        isConnectingCall ||
-                        spendingGateStatus.isBlocked,
-                      assistantAvatarStartCallTooltip: 'Call',
-                      forceTypingIndicator: forceCoordinatorChatIntroTyping,
-                    }}
                     onOpenChatSection={handleOpenChatSection}
                     isActiveSurface={isActiveSurface}
                   >
@@ -4796,6 +4723,43 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
             />
           </RoomContext.Provider>
+        )}
+
+        {visibleProfileAssistant && (
+          <AssistantFloatingChatHost
+            pathname={routePathname ?? '/assistants'}
+            isBelowTablet={isBelowTablet}
+            isHireDialogOpen={isHireDialogOpen}
+            showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
+            isChatVisibleInRightPane={isFullPageAssistantChatVisible}
+            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            profileAssistant={visibleProfileAssistant}
+            assistantsBootstrapped={hasSettledAssistants}
+            assistant={visibleProfileAssistant}
+            assistantActions={assistantActions}
+            chatHistories={profileChatHistories}
+            setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
+            requestAckHistories={requestAckHistories}
+            userEmail={userMeta.email}
+            userTimezone={userMeta.timezone}
+            spendingGate={spendingGateStatus}
+            chatStreamConnectionStatus={profileChatStreamConnectionStatus}
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={profileChatActivitySignal}
+            unreadCount={chatStreamUnreadCounts[visibleProfileAssistant.agentId] ?? 0}
+            hasActiveCall={!!activeCallAssistant && (isConnectingCall || isCallConnected)}
+            isInActiveCall={
+              !!activeCallAssistant &&
+              activeCallAssistant.agentId === visibleProfileAssistant.agentId &&
+              (isConnectingCall || isCallConnected)
+            }
+            activeCallAssistantId={activeCallAssistant?.agentId ?? null}
+            isCallConnected={isCallConnected}
+            onExpandedChange={handleFloatingChatExpandedChange}
+            redock={redock}
+          />
         )}
       </div>
     </CoordinatorOnboardingProvider>

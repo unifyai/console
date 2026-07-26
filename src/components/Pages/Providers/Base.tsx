@@ -10,6 +10,7 @@ import { getCurrentUser } from '@/lib/user/user';
 import { getServerFeatures } from '@/lib/features/server';
 import { resolveEnvironment } from '@/lib/environment/environment';
 import CallSoundPreloader from './CallSoundPreloader';
+import OpenReplayTracker from '@/components/Integrations/OpenReplayTracker';
 
 export default async function Providers({ children }: { children: React.ReactNode }) {
   // Resolve both config axes server-side where all env vars are available, then
@@ -30,6 +31,7 @@ export default async function Providers({ children }: { children: React.ReactNod
             <EnvironmentProvider config={envConfig}>
               <QueryProvider>
                 <WorkspaceProvider user={user}>
+                  <OpenReplayTracker />
                   <CallSoundPreloader />
                   <AuthErrorBoundary>{children}</AuthErrorBoundary>
                 </WorkspaceProvider>

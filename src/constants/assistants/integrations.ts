@@ -1,5 +1,4 @@
 import { KeyRound } from 'lucide-react';
-import { SiHubspot, SiSalesforce, SiWebex } from 'react-icons/si';
 import type {
   IntegrationProviderConfig,
   IntegrationProviderId,
@@ -10,6 +9,11 @@ import type {
  * order in the ``Add new`` button — keep ``custom`` at the top so users
  * always have the freeform fallback as the first option, then list
  * integrations alphabetically.
+ *
+ * Managed marketplace apps (Composio / Pipedream) are **not** registered
+ * here — they arrive via the provider catalog.  This registry is only for
+ * static ``unity-deploy`` native connectors and the freeform custom-secret
+ * fallback.
  *
  * ## Adding a new integration
  *
@@ -23,28 +27,26 @@ import type {
  *      ``src/app/oauth/<id>/callback/route.ts`` and a server-only
  *      helper module at ``src/lib/integrations/<id>.ts`` exporting
  *      ``exchange<Provider>Code`` (plus any identity probe / org
- *      enumeration the provider needs).  Mirror the trio of existing
- *      callbacks for shape.
+ *      enumeration the provider needs).  Mirror the Employment Hero
+ *      callback for shape.
  *
  * ## Picking an ``auth.kind``
  *
  *   - ``freeform`` — reserved for the ``custom`` provider's freeform
  *     key/value flow.  Do not use for new integrations.
- *   - ``api_key`` — single paste field (e.g. HubSpot Private App
- *     token).
+ *   - ``api_key`` — single paste field.
  *   - ``api_key_multi`` — N paste fields.  **This is a UX category, not
- *     a wire-protocol claim.**  Matterport (HTTP Basic over Token ID +
- *     Secret) and Salto KS (OAuth 2.0 Resource Owner Password
- *     Credentials over client + service-account credentials) both use
+ *     a wire-protocol claim.**  Salto KS (OAuth 2.0 Resource Owner
+ *     Password Credentials over client + service-account credentials)
+ *     and Valos (OS Maps + PropertyData API keys) both use
  *     ``api_key_multi`` because the Console UX is identical: paste-
  *     and-go, no browser-redirect dance.  The actual wire protocol
  *     lives in the runtime package's ``_client.py``.
  *   - ``oauth_authorization_code`` — standard browser-redirect dance
- *     (Employment Hero, Salesforce, Webex).  Set ``oauth.scope`` only
- *     if the provider requires explicit scope on the authorize URL
- *     (Webex yes, Salesforce yes with ``api refresh_token``,
- *     Employment Hero no — EH binds scope at app-registration time on
- *     the dev-portal app).
+ *     (Employment Hero).  Set ``oauth.scope`` only if the provider
+ *     requires explicit scope on the authorize URL.  Employment Hero
+ *     omits it — EH binds scope at app-registration time on the
+ *     dev-portal app.
  *
  * ## Runtime side stays independent
  *
@@ -95,99 +97,13 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     },
   },
   {
-    id: 'hubspot',
-    label: 'HubSpot',
-    shortDescription: 'Paste your HubSpot Private App access token.',
-    docsUrl: 'https://developers.hubspot.com/docs/api/private-apps',
-    iconComponent: SiHubspot,
-    auth: {
-      kind: 'api_key',
-      field: {
-        label: 'Private app token',
-        secretKey: 'HUBSPOT_PRIVATE_APP_TOKEN',
-        sensitive: true,
-        placeholder: 'pat-...',
-        helpText: 'Generate at HubSpot → Settings → Integrations → Private Apps.',
-      },
-    },
-  },
-  {
-    id: 'matterport',
-    label: 'Matterport',
-    shortDescription: 'Paste your Matterport API token pair (Token ID + secret).',
-    docsUrl: 'https://matterport.github.io/showcase-sdk/api_home.html',
-    // Not in react-icons/si — falls through to the generic Plug2 glyph
-    // in ``ProviderIcon``, matching the right-pane Integrations tab.
-    auth: {
-      kind: 'api_key_multi',
-      fields: [
-        {
-          label: 'Token ID',
-          secretKey: 'MATTERPORT_TOKEN_ID',
-          sensitive: true,
-          helpText:
-            'Generate at Matterport → Settings → Account → API Access → Add API Token. Copy the Token ID shown.',
-        },
-        {
-          label: 'Token secret',
-          secretKey: 'MATTERPORT_TOKEN_SECRET',
-          sensitive: true,
-          helpText: 'Shown once at token creation — copy it before closing the Matterport dialog.',
-        },
-      ],
-    },
-  },
-  {
-    id: 'salesforce',
-    label: 'Salesforce',
-    shortDescription:
-      'Authenticated Salesforce REST + SOQL access; sync standard objects into DataManager.',
-    docsUrl: 'https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm&type=5',
-    iconComponent: SiSalesforce,
-    setupNote:
-      'When creating the Connected App, under the security-policy checkboxes, tick "Require Secret for Web Server Flow" and "Require Secret for Refresh Token Flow" only — leave the rest (including any PKCE / proof-key requirement) unticked.',
-    auth: {
-      kind: 'oauth_authorization_code',
-      fields: [
-        {
-          label: 'Consumer Key',
-          secretKey: 'SALESFORCE_CLIENT_ID',
-          sensitive: false,
-          helpText:
-            'Consumer Key from your Connected App at Salesforce Setup → App Manager → Manage Consumer Details.',
-        },
-        {
-          label: 'Consumer Secret',
-          secretKey: 'SALESFORCE_CLIENT_SECRET',
-          sensitive: true,
-          helpText:
-            'Consumer Secret from your Connected App. Salesforce may take ~5 minutes to propagate after creation.',
-        },
-      ],
-      oauth: {
-        // Production-only.  Sandbox (test.salesforce.com) and customer
-        // My Domain login hosts are not supported in v0; both would land
-        // on the same redirect URI and produce ``invalid_client_id`` at
-        // the token-exchange step.  Per-org REST traffic uses the
-        // ``instance_url`` returned by the token response, persisted as
-        // SALESFORCE_INSTANCE_URL by the callback.
-        authorizeUrl: 'https://login.salesforce.com/services/oauth2/authorize',
-        // ``api`` covers REST + SOQL on standard + custom sObjects.
-        // ``refresh_token`` (alias ``offline_access``) is mandatory for
-        // the long-lived refresh-token grant the runtime relies on.
-        scope: 'api refresh_token',
-        managedSecretKeys: ['SALESFORCE_REFRESH_TOKEN', 'SALESFORCE_INSTANCE_URL'],
-      },
-    },
-  },
-  {
     id: 'salto_ks',
     label: 'Salto KS',
     shortDescription:
       'Paste OAuth client credentials + a Salto KS service-account login (the "Backend Server" integration type uses ROPC, which requires both).',
     docsUrl: 'https://developer.saltosystems.com/ks/connect-api/integration-types/',
     // Not in react-icons/si — falls through to the generic Plug2 glyph
-    // in ``ProviderIcon``, matching Employment Hero and Matterport.
+    // in ``ProviderIcon``, matching Employment Hero and Valos.
     setupNote:
       "Two steps: (1) email your regional Salto Business Unit to request OAuth client credentials for the \"Backend Server\" integration type (scope: user_api.full_access). (2) In your Salto KS dashboard, create a dedicated service-account user (e.g. svc-unity@yourco.com) with the KS roles the integration needs — this user's email and password are the third and fourth required fields below. Don't reuse a real person's login — passwords are held long-term in SecretManager. For non-EU regions or sandbox environments, set SALTO_KS_IDENTITY_HOST (and usually SALTO_KS_BASE_URL) via the Custom secret flow.",
     auth: {
@@ -199,8 +115,8 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
       //     password (KS password) + scope=user_api.full_access
       // No user-consent dance, no authorize URL, no callback, no
       // refresh token — runtime mints bearer tokens server-side at
-      // call time.  Same Console UX as Matterport's Token ID + Token
-      // Secret pair — ``api_key_multi`` is the right strategy.
+      // call time.  Same Console UX as Valos's multi-key paste —
+      // ``api_key_multi`` is the right strategy.
       // ``api_key_multi`` here is the *Console UX* category (paste-
       // and-go modal), not a claim about the wire-protocol auth
       // model.
@@ -245,7 +161,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     docsUrl: 'https://osdatahub.os.uk',
     // No react-icons/si mark for OS / PropertyData / Valos — falls
     // through to the generic Plug2 glyph in ``ProviderIcon``, matching
-    // Employment Hero / Matterport / Salto KS.
+    // Employment Hero / Salto KS.
     auth: {
       kind: 'api_key_multi',
       fields: [
@@ -264,67 +180,6 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
             'API key from propertydata.co.uk → Settings → API. Plan must include Land Registry endpoints (/api/freeholds, /api/title-information). 14-day free trial requires a card on file at signup; auto-renews to the selected plan unless cancelled before day 14.',
         },
       ],
-    },
-  },
-  {
-    id: 'webex',
-    label: 'Webex',
-    shortDescription: 'Connect via OAuth using a Webex Integration app.',
-    docsUrl: 'https://developer.webex.com/docs/integrations',
-    iconComponent: SiWebex,
-    auth: {
-      kind: 'oauth_authorization_code',
-      fields: [
-        {
-          label: 'Client ID',
-          secretKey: 'WEBEX_OAUTH_CLIENT_ID',
-          sensitive: false,
-          helpText: 'From your Webex Integration app at developer.webex.com → My Webex Apps.',
-        },
-        {
-          label: 'Client secret',
-          secretKey: 'WEBEX_OAUTH_CLIENT_SECRET',
-          sensitive: true,
-          helpText: 'From your Webex Integration app at developer.webex.com → My Webex Apps.',
-        },
-      ],
-      oauth: {
-        authorizeUrl: 'https://webexapis.com/v1/authorize',
-        managedSecretKeys: ['WEBEX_REFRESH_TOKEN'],
-        // Webex requires explicit scope on the authorize URL.  Three
-        // families:
-        //
-        //   - ``spark:all`` — meta-scope covering messaging, rooms,
-        //     people, memberships, attachments, teams, devices.
-        //   - ``meeting:*`` — scheduled-meeting CRUD, participants,
-        //     recordings, transcripts, in-meeting controls.  NOT covered
-        //     by ``spark:all``.
-        //   - ``spark-admin:*`` / ``meeting:admin_*`` — org-wide reads.
-        //     Excluded by default because they require the connecting
-        //     user to have an admin role; mixing admin scopes with
-        //     non-admin scopes can fail consent for regular users.  Add
-        //     to a customer's Integration app + their connect attempt
-        //     only when they explicitly need org-wide visibility.
-        //
-        // The Webex Integration app the customer registers must declare
-        // every scope we request here — narrowing here without narrowing
-        // on the dev-portal app is fine; the reverse yields
-        // ``invalid_scope`` at consent time.
-        scope: [
-          'spark:all',
-          'meeting:schedules_read',
-          'meeting:schedules_write',
-          'meeting:participants_read',
-          'meeting:participants_write',
-          'meeting:recordings_read',
-          'meeting:recordings_write',
-          'meeting:transcripts_read',
-          'meeting:controls_read',
-          'meeting:controls_write',
-          'meeting:preferences_read',
-          'meeting:preferences_write',
-        ].join(' '),
-      },
     },
   },
 ];

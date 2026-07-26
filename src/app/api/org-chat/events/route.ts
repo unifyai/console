@@ -33,7 +33,6 @@ import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 

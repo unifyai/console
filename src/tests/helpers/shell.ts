@@ -28,6 +28,9 @@ export function visibleShellTestId(page: Page, testId: string): Locator {
 
 /** Workspace/Brain section nav button on the active assistants rail. */
 export function railSection(page: Page, sectionId: string): Locator {
+  if (sectionId === 'chat') {
+    return assistantRail(page).getByTestId('rail-chat-home');
+  }
   return assistantRail(page).getByTestId(`rail-section-${sectionId}`);
 }
 

@@ -27,7 +27,7 @@ import path from 'path';
 import os from 'os';
 import { createTestUser, cleanupUser, createOrg, deleteOrg, dbExec } from '../billing/helpers';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
-import { loginAndWaitForRedirect } from '../auth/helpers';
+import { loginAndWaitForRedirect, completeAccountOnboardingIfPresent } from '../auth/helpers';
 import { deferCoordinatorForUser } from '../helpers/coordinator';
 
 // ---------------------------------------------------------------------------
@@ -73,14 +73,7 @@ const test = base.extend<{ adminPage: Page }>({
       await deferCoordinatorForUser(adminUser.id, adminUser.apiKey);
       await p.goto('/login');
       await loginAndWaitForRedirect(p, adminUser.email, adminUser.password, 30_000);
-      if (p.url().includes('/login/onboarding')) {
-        const personalBtn = p.getByTestId('workspace-personal');
-        if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-          await personalBtn.click();
-          await p.getByTestId('workspace-continue').click();
-          await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
-        }
-      }
+      await completeAccountOnboardingIfPresent(p);
       await p.goto('/admin', { waitUntil: 'domcontentloaded' });
       await expect(p).toHaveURL(/\/admin/, { timeout: 15_000 });
       await ctx.storageState({ path: authFile });

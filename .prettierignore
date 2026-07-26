@@ -47,3 +47,7 @@ public/
 .cache/
 .turbo/
 
+# Generated agent instructions and their sources
+# (AGENTS.md is compiled by .agents/global-rules/build_agents_md.py)
+AGENTS.md
+.agents/

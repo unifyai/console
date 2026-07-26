@@ -412,7 +412,8 @@ export interface AssistantUpdatePayload {
 
 /**
  * One selectable per-assistant LLM option, served by Orchestra's curated
- * multimodal catalog (GET /api/assistant/default-model-options).
+ * multimodal catalog (GET /api/assistant/default-model-options) or OpenRouter
+ * search (GET /api/assistant/default-model-options/search).
  */
 export interface DefaultModelOption {
   /** Null means system default (leave the assistant unset). */
@@ -420,11 +421,19 @@ export interface DefaultModelOption {
   reasoningEffort: string | null;
   label: string;
   /** Order-of-magnitude credits estimate for one typical actor task (display-only). */
-  approxCreditsPerTask: number;
+  approxCreditsPerTask: number | null;
   /** Order-of-magnitude credits estimate for one typical slow-brain message (display-only). */
-  approxCreditsPerMessage: number;
+  approxCreditsPerMessage: number | null;
   /** Artificial Analysis benchmark page for the model. */
-  artificialAnalysisUrl: string;
+  artificialAnalysisUrl: string | null;
+  /** True for curated recommendations; false for OpenRouter search hits. */
+  recommended?: boolean;
+  /** False when the model fails capability policy for this usage. */
+  eligible?: boolean;
+  /** Why the option is not selectable, when eligible is false. */
+  disabledReason?: string | null;
+  /** Whether reasoning_effort may be set for this model. */
+  supportsReasoning?: boolean | null;
 }
 
 // Assistant voice types
