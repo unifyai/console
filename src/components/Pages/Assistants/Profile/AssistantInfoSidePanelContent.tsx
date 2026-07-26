@@ -9,6 +9,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Mail, Phone, Copy, Check, Pencil, Lock, X, ChevronRight, Loader2 } from 'lucide-react';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
+import { Switch } from '@/components/UI/switch';
+import { useFloatingChatEnabledPreference } from '@/hooks/Assistants/useFloatingChatVisibility';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -984,6 +986,8 @@ function ProfileSectionsPanel({
   sectionsRef,
 }: ProfileSectionsPanelProps) {
   const { options: defaultModelOptions } = useDefaultModelOptions();
+  const { enabled: floatingChatEnabled, setEnabled: setFloatingChatEnabled } =
+    useFloatingChatEnabledPreference();
   const brainStatus = getBrainStatusDescription(assistant, defaultModelOptions);
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
@@ -1069,6 +1073,29 @@ function ProfileSectionsPanel({
           editAriaLabel="Connect desktop"
         />
       )}
+      <ProfileSectionTile
+        title="Preferences"
+        description={
+          <div className="flex items-center justify-between gap-3 pt-0.5">
+            <div className="min-w-0 flex-1">
+              <div className="text-caption text-foreground">Show floating chat when browsing</div>
+              <p className="text-caption mt-0.5 text-muted-foreground">
+                Appear in the corner when you leave the Chat tab
+              </p>
+            </div>
+            <Switch
+              checked={floatingChatEnabled}
+              onCheckedChange={setFloatingChatEnabled}
+              aria-label="Show floating chat when browsing"
+              data-testid="floating-chat-enabled-toggle"
+            />
+          </div>
+        }
+        descriptionClassName="mt-0.5"
+        canEdit={false}
+        editTestId="assistant-info-preferences-section"
+        editAriaLabel="Preferences"
+      />
     </section>
   );
 }

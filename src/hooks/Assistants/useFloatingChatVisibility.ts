@@ -94,6 +94,10 @@ export function useFloatingChatHiddenByFullPage(input: FloatingChatVisibilityInp
 }
 
 export const FLOATING_CHAT_COLLAPSED_STORAGE_KEY = 'console:floating-chat-collapsed';
+export const FLOATING_CHAT_ENABLED_STORAGE_KEY = 'console:floating-chat-enabled';
+export const FLOATING_CHAT_OPT_OUT_PROMPTED_STORAGE_KEY = 'console:floating-chat-opt-out-prompted';
+/** Same-tab sync when the enabled preference changes (storage events are cross-tab only). */
+export const FLOATING_CHAT_ENABLED_CHANGE_EVENT = 'console:floating-chat-enabled-change';
 
 export function readFloatingChatCollapsedPreference(): boolean {
   if (typeof window === 'undefined') return true;
@@ -113,4 +117,74 @@ export function writeFloatingChatCollapsedPreference(collapsed: boolean): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Whether the floating chat should auto-appear when leaving full-page chat. Default on. */
+export function readFloatingChatEnabledPreference(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const stored = window.localStorage.getItem(FLOATING_CHAT_ENABLED_STORAGE_KEY);
+    if (stored === null) return true;
+    return stored === '1';
+  } catch {
+    return true;
+  }
+}
+
+export function writeFloatingChatEnabledPreference(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(FLOATING_CHAT_ENABLED_STORAGE_KEY, enabled ? '1' : '0');
+    window.dispatchEvent(new Event(FLOATING_CHAT_ENABLED_CHANGE_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** True once the user has answered (or skipped via settings) the first-dismiss opt-out prompt. */
+export function readFloatingChatOptOutPrompted(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(FLOATING_CHAT_OPT_OUT_PROMPTED_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function writeFloatingChatOptOutPrompted(prompted: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(FLOATING_CHAT_OPT_OUT_PROMPTED_STORAGE_KEY, prompted ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Reactive floating-chat enabled preference (localStorage + same-tab event).
+ * Writing also marks the opt-out prompt as answered so dismiss doesn't re-ask.
+ */
+export function useFloatingChatEnabledPreference(): {
+  enabled: boolean;
+  setEnabled: (enabled: boolean) => void;
+} {
+  const [enabled, setEnabledState] = React.useState(readFloatingChatEnabledPreference);
+
+  React.useEffect(() => {
+    const sync = () => setEnabledState(readFloatingChatEnabledPreference());
+    window.addEventListener(FLOATING_CHAT_ENABLED_CHANGE_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(FLOATING_CHAT_ENABLED_CHANGE_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  const setEnabled = React.useCallback((next: boolean) => {
+    writeFloatingChatEnabledPreference(next);
+    writeFloatingChatOptOutPrompted(true);
+    setEnabledState(next);
+  }, []);
+
+  return { enabled, setEnabled };
 }
