@@ -7,6 +7,10 @@ on:
       - 'deploy/Dockerfile.selfhost'
       - 'src/**'
       - 'package.json'
+      # The image installs with npm ci, so the lockfile and the branding
+      # pointer it resolves decide what actually lands in it.
+      - 'package-lock.json'
+      - 'branding'
       - '.github/workflows/ghcr-selfhost.yml'
   workflow_dispatch:
 
