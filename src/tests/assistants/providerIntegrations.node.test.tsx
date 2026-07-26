@@ -133,10 +133,12 @@ describe('provider integrations gallery model', () => {
     const { result } = renderHook(() => useMockGalleryItems());
 
     const hubspot = result.current.find((item) => item.canonicalSlug === 'hubspot');
+    const employmenthero = result.current.find((item) => item.canonicalSlug === 'employmenthero');
 
     expect(hubspot).toBeDefined();
-    expect(hubspot?.sources.map((source) => source.source)).toEqual(
-      expect.arrayContaining(['static_package', 'overlay_curated'])
+    expect(hubspot?.sources.map((source) => source.source)).toEqual(['overlay_curated']);
+    expect(employmenthero?.sources.map((source) => source.source)).toEqual(
+      expect.arrayContaining(['static_package'])
     );
     expect(result.current.some((item) => item.canonicalSlug === 'slack')).toBe(true);
   });
@@ -161,9 +163,14 @@ describe('provider integrations gallery model', () => {
     expect(screen.getByTestId('provider-integration-card-slack')).toBeInTheDocument();
     expect(
       result.current
-        .find((item) => item.canonicalSlug === 'hubspot')
+        .find((item) => item.canonicalSlug === 'employmenthero')
         ?.sources.some((source) => source.source === 'static_package')
     ).toBe(true);
+    expect(
+      result.current
+        .find((item) => item.canonicalSlug === 'hubspot')
+        ?.sources.some((source) => source.source === 'static_package')
+    ).toBe(false);
     expect(screen.queryByText('Provider-backed')).not.toBeInTheDocument();
     expect(screen.queryByText('Overlay curated')).not.toBeInTheDocument();
   });

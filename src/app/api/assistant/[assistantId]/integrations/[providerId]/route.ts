@@ -12,8 +12,8 @@
  *     the customer-provided keys.  The card disappears entirely.
  *
  * API-key (``api_key`` and ``api_key_multi``): deletes every customer-
- * provided field in one shot.  ``api_key_multi`` providers store a token
- * pair (e.g. Matterport's Token ID + secret) so removal must drop both.
+ * provided field in one shot.  ``api_key_multi`` providers store several
+ * credentials (e.g. Salto KS / Valos) so removal must drop all of them.
  *
  * Returns:
  *   - 200 with ``{ success, removedCount, stage, note }`` on success.

@@ -852,8 +852,8 @@ export function IntegrationsPane({
     try {
       // For both Add and Edit: delete any existing same-name secret then
       // create afresh.  Avoids needing to know the logId in the hook.
-      // Iterates per field so api_key_multi (e.g. Matterport's Token ID
-      // + secret pair) and single-field api_key share one path.
+      // Iterates per field so api_key_multi (e.g. Salto KS / Valos) and
+      // single-field api_key share one path.
       for (const [secretKey, value] of Object.entries(changedFields)) {
         const existing = secrets.find((s) => s.name === secretKey);
         if (existing) {

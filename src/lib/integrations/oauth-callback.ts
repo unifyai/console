@@ -13,8 +13,8 @@
  *      the auth code for tokens.
  *   6. (optional) Hand control to a provider-specific ``postExchange``
  *      hook for any extra REST calls — best-effort identity probes
- *      (Webex, Salesforce) or further-derived secret writes
- *      (Employment Hero's active-org auto-pin).
+ *      or further-derived secret writes (Employment Hero's active-org
+ *      auto-pin).
  *   7. Delete every existing OAuth-managed secret in
  *      ``provider.auth.oauth.managedSecretKeys``, then write the new
  *      values (trimmed; empty-after-trim short-circuits as ``write_empty``).
@@ -26,8 +26,7 @@
  *   - ``exchange`` — provider-specific token endpoint call.  Returns
  *     ``{ accessToken, secretWrites }`` where ``secretWrites`` maps
  *     managed secret keys to the values returned by the token endpoint
- *     (Webex / EH return just ``{ <SLUG>_REFRESH_TOKEN: ... }``;
- *     Salesforce also includes ``SALESFORCE_INSTANCE_URL``).
+ *     (EH returns ``{ EMPLOYMENTHERO_REFRESH_TOKEN: ... }``).
  *   - ``postExchange`` (optional) — runs after a successful exchange
  *     with the full callback context.  May contribute additional
  *     ``extraWrites`` (e.g. EH's ``EMPLOYMENTHERO_ORGANISATION_ID``

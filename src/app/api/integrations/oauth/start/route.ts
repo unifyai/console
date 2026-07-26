@@ -6,8 +6,8 @@
  * ``/api/assistant/[id]/connect`` flow, which is the bespoke Google /
  * Microsoft email-linking path that ties into Gmail watches, BYOD email
  * contacts, etc.  This endpoint is the lightweight, registry-driven
- * variant for "app integrations" (Employment Hero, future Salesforce /
- * Slack, etc.).
+ * variant for "app integrations" (Employment Hero and other registry
+ * OAuth providers).
  *
  * Body shape:
  *   {
@@ -148,8 +148,8 @@ export async function POST(request: NextRequest) {
   });
   /* eslint-enable @typescript-eslint/naming-convention */
   // Append ``scope`` for providers that require it on the authorize URL.
-  // EH binds scopes at app-registration time and doesn't need this; Webex
-  // does.  See ``IntegrationAuthStrategy.oauth.scope`` for context.
+  // EH binds scopes at app-registration time and doesn't need this.
+  // See ``IntegrationAuthStrategy.oauth.scope`` for context.
   if (provider.auth.oauth.scope) {
     params.set('scope', provider.auth.oauth.scope);
   }

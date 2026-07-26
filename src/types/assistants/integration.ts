@@ -9,15 +9,7 @@ import type { ResponseProps } from '../common';
  * Integrations tab — kept as the top entry in the ``Add new`` dropdown so
  * users still have an unstructured fallback for arbitrary env vars.
  */
-export type IntegrationProviderId =
-  | 'custom'
-  | 'employmenthero'
-  | 'hubspot'
-  | 'matterport'
-  | 'salesforce'
-  | 'salto_ks'
-  | 'valos'
-  | 'webex';
+export type IntegrationProviderId = 'custom' | 'employmenthero' | 'salto_ks' | 'valos';
 
 /**
  * One field the customer fills in when adding/editing an integration.  The
@@ -50,12 +42,12 @@ export type IntegrationAuthStrategy =
   | { kind: 'freeform' }
   | { kind: 'api_key'; field: IntegrationFieldSpec }
   | {
-      /** Multi-field paste-and-go.  Used for providers that issue a token
-       *  pair instead of a single token (e.g. Matterport's Token ID +
-       *  Token Secret used to compose HTTP Basic credentials).  Same
-       *  storage shape as ``api_key`` — every field maps to a SecretManager
-       *  entry — but the dialog renders all fields together and the card
-       *  is only ``configured`` once every field is present. */
+      /** Multi-field paste-and-go.  Used for providers that issue several
+       *  credentials instead of a single token (e.g. Salto KS client +
+       *  service-account login, or Valos OS Maps + PropertyData keys).
+       *  Same storage shape as ``api_key`` — every field maps to a
+       *  SecretManager entry — but the dialog renders all fields together
+       *  and the card is only ``configured`` once every field is present. */
       kind: 'api_key_multi';
       fields: IntegrationFieldSpec[];
     }
@@ -71,9 +63,9 @@ export type IntegrationAuthStrategy =
         managedSecretKeys: string[];
         /** Optional space-separated scopes appended to the authorize URL
          *  by ``/api/integrations/oauth/start``.  Required for providers
-         *  that demand explicit scope on the authorize URL (e.g. Webex).
-         *  Omitted for providers whose scopes are bound at
-         *  app-registration time (e.g. Employment Hero). */
+         *  that demand explicit scope on the authorize URL.  Omitted for
+         *  providers whose scopes are bound at app-registration time
+         *  (e.g. Employment Hero). */
         scope?: string;
       };
     };

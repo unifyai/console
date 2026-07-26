@@ -330,7 +330,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
       <IntegrationsPane assistantId="123" ownerId="owner" secretActions={{} as never} isVisible />
     );
 
-    expect(screen.getByTestId('integration-gallery-total')).toHaveTextContent('1053');
+    expect(screen.getByTestId('integration-gallery-total')).toHaveTextContent('1049');
     fireEvent.click(screen.getByTestId('integration-gallery-third-party-filter'));
 
     await waitFor(() => {
