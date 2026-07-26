@@ -216,7 +216,9 @@
       "minimatch": "9.0.9"
     },
     "tar": "7.5.11",
-    "sharp": "0.35.3",
+    "next": {
+      "sharp": "0.35.3"
+    },
     "postcss": "$postcss",
     "js-yaml": "4.3.0",
     "protobufjs": "7.6.5",
