@@ -51,6 +51,12 @@ export function decodeDefaultModelValue(value: string): {
   if (!value || value === SYSTEM_DEFAULT_MODEL_VALUE) {
     return { model: null, reasoningEffort: null };
   }
-  const [model, reasoningEffort] = value.split('::');
-  return { model, reasoningEffort: reasoningEffort || null };
+  const sep = value.indexOf('::');
+  if (sep < 0) {
+    return { model: value, reasoningEffort: null };
+  }
+  return {
+    model: value.slice(0, sep),
+    reasoningEffort: value.slice(sep + 2) || null,
+  };
 }
