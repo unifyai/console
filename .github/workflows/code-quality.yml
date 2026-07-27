@@ -216,6 +216,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # check-colors.ts builds its hex-to-variable suggestion map from the brand
+      # token stylesheets, which live in the branding submodule. Without them the
+      # job still passes but silently loses every suggestion.
+      - name: Init branding submodule
+        env:
+          DEVBOT_GITHUB_TOKEN: ${{ secrets.DEVBOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEVBOT_GITHUB_TOKEN}" ]; then
+            echo "::error::DEVBOT_GITHUB_TOKEN secret is not configured on this repository."
+            echo "Add the DEVBOT read-only PAT (same value as Cloud Build uses) to GitHub Actions secrets."
+            exit 1
+          fi
+          AUTH="https://x-access-token:${DEVBOT_GITHUB_TOKEN}@github.com/"
+          git config --global url."${AUTH}".insteadOf "git@github.com:"
+          git config --global url."${AUTH}".insteadOf "ssh://git@github.com/"
+          git config --global url."${AUTH}".insteadOf "https://github.com/"
+          for scope in --local --global; do
+            git config "${scope}" --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+            git config "${scope}" --unset-all http.extraheader 2>/dev/null || true
+          done
+          git submodule sync --recursive branding
+          git \
+            -c http.https://github.com/.extraheader= \
+            -c http.extraheader= \
+            -c url."${AUTH}".insteadOf="git@github.com:" \
+            -c url."${AUTH}".insteadOf="ssh://git@github.com/" \
+            -c url."${AUTH}".insteadOf="https://github.com/" \
+            submodule update --init --force branding
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

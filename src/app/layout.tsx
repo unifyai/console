@@ -2,7 +2,10 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { ThemeProvider } from 'next-themes';
 
+// Order matters: primitives, then the semantic layer that overrides some of
+// them for dark mode, then console's own base styles and utilities.
 import '@unity/brand/tokens.css';
+import '@unity/brand/semantic.css';
 import '@/styles/globals.css';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import 'yet-another-react-lightbox/styles.css';
