@@ -12,6 +12,16 @@ const landingOrigins = (process.env.LANDING_AUTH_ALLOWED_ORIGINS ?? '')
 const isSelfHost = process.env.SELF_HOST === '1' || process.env.NEXT_PUBLIC_SELF_HOST === '1';
 const selfHostDesktopFrameSrc = isSelfHost ? ' http://127.0.0.1:* http://localhost:*' : '';
 
+// Origin serving the Canvas runtime host. Canvas renders assistant-authored
+// code in a cross-origin sandboxed frame, so this must be in `frame-src` or the
+// frame is blocked. Kept in step with `src/lib/canvas/origin.ts`, which resolves
+// the same value client-side, and with the host's own `frame-ancestors`.
+const canvasOrigin = (
+  process.env.CANVAS_ORIGIN ||
+  process.env.NEXT_PUBLIC_CANVAS_ORIGIN ||
+  'http://localhost:3100'
+).replace(/\/+$/, '');
+
 const serverActionAllowedOrigins = [
   'useunitys.ai',
   'www.useunitys.ai',
@@ -29,7 +39,7 @@ const serverActionAllowedOrigins = [
 ];
 
 const nextConfig = {
-  transpilePackages: ['@unity/brand', '@unity/iso'],
+  transpilePackages: ['@unity/brand', '@unity/iso', '@unity/canvas-kit'],
   images: {
     remotePatterns: [
       {
@@ -143,7 +153,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://storage.googleapis.com",
               `connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com https://challenges.cloudflare.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery${process.env.NODE_ENV === 'development' ? ' ws://localhost:* http://localhost:* webpack://*' : ''}`,
-              `frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com${selfHostDesktopFrameSrc}`,
+              `frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com ${canvasOrigin}${selfHostDesktopFrameSrc}`,
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
