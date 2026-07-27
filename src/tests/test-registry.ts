@@ -115,6 +115,18 @@ export const capabilities: CapabilityDef[] = [
     ],
   },
   {
+    id: 'auth.signup.heard-about',
+    areaId: 'auth.core',
+    priority: 'P0',
+    description: 'Required onboarding acquisition step',
+    matchers: [
+      {
+        files: ['src/tests/auth/signup.e2e.ts'],
+        titleIncludes: 'requires how-did-you-hear before workspace setup',
+      },
+    ],
+  },
+  {
     id: 'auth.session.signout',
     areaId: 'auth.core',
     priority: 'P0',
