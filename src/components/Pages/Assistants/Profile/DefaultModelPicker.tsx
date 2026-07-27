@@ -22,10 +22,7 @@ import {
   decodeDefaultModelValue,
   SYSTEM_DEFAULT_MODEL_VALUE,
 } from '@/hooks/Assistants/useDefaultModelOptions';
-import {
-  searchDefaultModelOptions,
-  type ModelCatalogUsage,
-} from '@/lib/client/defaultModels';
+import { searchDefaultModelOptions, type ModelCatalogUsage } from '@/lib/client/defaultModels';
 import type { DefaultModelOption } from '@/types/assistants/assistant';
 
 export interface DefaultModelPickerProps {
@@ -122,7 +119,11 @@ export function DefaultModelPicker({
     const merged = [...recommended, ...filteredSearchHits];
     if (!model) return merged;
     const selectedKey = encodeDefaultModelValue(model, reasoningEffort);
-    if (merged.some((option) => encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedKey)) {
+    if (
+      merged.some(
+        (option) => encodeDefaultModelValue(option.model, option.reasoningEffort) === selectedKey
+      )
+    ) {
       return merged;
     }
     return [
@@ -172,7 +173,7 @@ export function DefaultModelPicker({
             role="combobox"
             aria-expanded={open}
             disabled={disabled || isLoading}
-            className="bg-card w-full justify-between px-3"
+            className="w-full justify-between bg-card px-3"
           >
             <span className="truncate">{isLoading ? 'Loading models...' : triggerLabel}</span>
             <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
@@ -190,9 +191,7 @@ export function DefaultModelPicker({
               }}
             />
             <CommandList>
-              <CommandEmpty>
-                {isSearching ? 'Searching…' : 'No matching models.'}
-              </CommandEmpty>
+              <CommandEmpty>{isSearching ? 'Searching…' : 'No matching models.'}</CommandEmpty>
               <CommandGroup heading="Recommended">
                 {recommended.map((option) => {
                   const value = encodeDefaultModelValue(option.model, option.reasoningEffort);
