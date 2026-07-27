@@ -66,7 +66,7 @@ export type MockRow = Record<string, unknown>;
 
 /**
  * All brain/data tables for a scenario, keyed by the context table path relative
- * to the assistant/team prefix, e.g. `Contacts`, `Tasks/Runs`,
+ * to the assistant/team prefix, e.g. `Contacts`, `Tasks/Executions`,
  * `Knowledge`, `Events/ManagerMethod`, `Data/CRM/contacts`.
  */
 export type MockTables = Record<string, MockRow[]>;

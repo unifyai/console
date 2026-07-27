@@ -10,7 +10,7 @@
  *   {userId}/{assistantId}/Transcripts
  *   {userId}/{assistantId}/Knowledge
  *   {userId}/{assistantId}/Tasks
- *   {userId}/{assistantId}/Tasks/Runs
+ *   {userId}/{assistantId}/Tasks/Executions
  *   {userId}/{assistantId}/Guidance
  *   {userId}/{assistantId}/Functions  (sub-contexts: Compositional, Primitives, VirtualEnvs, Meta)
  */
@@ -178,7 +178,12 @@ export interface TaskRunRow {
   taskId: number | null;
   taskName: string | null;
   taskDescription: string | null;
-  sourceType: string | null;
+  /** Canonical execution wake reason (`scheduled`, `triggered`, etc.). */
+  wake?: string | null;
+  /** Canonical execution delivery target (`live` or `offline`). */
+  delivery?: string | null;
+  /** @deprecated Legacy Tasks/Runs wake reason. */
+  sourceType?: string | null;
   state: string | null;
   scheduledFor: string | null;
   sourceMedium: string | null;

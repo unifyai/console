@@ -7,7 +7,7 @@
  * ever written to Orchestra.
  *
  * Tables are keyed by the context path *relative* to the assistant/team prefix
- * (e.g. `Contacts`, `Tasks/Runs`, `Knowledge`). The dispatcher resolves
+ * (e.g. `Contacts`, `Tasks/Executions`, `Knowledge`). The dispatcher resolves
  * the prefix and looks up rows by this relative path.
  */
 
