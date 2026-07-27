@@ -113,6 +113,34 @@ export interface UseAssistantActionsResult {
 const __DEV__ = process.env.NODE_ENV === 'development';
 const DEFAULT_EVENT_LIMIT = 100;
 const LOAD_MORE_LOOKBACK_MS = ACTION_LOOKBACK_MS;
+const ROOT_EVENT_FILTER = 'len(hierarchy) == 1';
+// Task.run is a synthetic hierarchy boundary, so its first persisted
+// ManagerMethod child is at depth two rather than the ordinary root depth.
+const TASK_RUN_EVENT_FILTER = "hierarchy_label.startswith('Task.run(')";
+
+function isNotFoundResponse(response: ResponseProps): boolean {
+  return typeof response.detail === 'string' && response.detail.toLowerCase().includes('not found');
+}
+
+/** Merge the two durable Action Pane views without double-processing a log. */
+function mergeDurableActionLogs(
+  responses: Array<Awaited<ReturnType<typeof fetchManagerMethodEvents>>>
+): ManagerMethodLog[] {
+  const logsById = new Map<number, ManagerMethodLog>();
+
+  for (const response of responses) {
+    if ('detail' in response) {
+      if (isNotFoundResponse(response)) continue;
+      throw new Error(response.detail);
+    }
+
+    for (const log of response.logs ?? []) {
+      logsById.set(log.id, log as ManagerMethodLog);
+    }
+  }
+
+  return [...logsById.values()].sort(compareLogsByTime);
+}
 
 // =============================================================================
 // Hook Implementation
@@ -431,28 +459,21 @@ export function useAssistantActions(
     try {
       const startTime = new Date(Date.now() - lookbackMs).toISOString();
 
-      // Single targeted API call for all root-level events (incoming + outgoing
-      // + action). Includes action events so interactions (interject, stop, ask)
-      // are captured for root nodes.
-      const rootResponse = await fetchManagerMethodEvents(
-        ownerId,
-        assistantId,
-        startTime,
-        null,
-        undefined,
-        [`len(hierarchy) == 1`]
-      );
+      // Ordinary roots are persisted at hierarchy depth one. Task runs instead
+      // start with a synthetic Task.run(...) lineage segment, so fetch both
+      // durable shapes and let buildActionTree create that boundary.
+      const [rootResponse, taskRunResponse] = await Promise.all([
+        fetchManagerMethodEvents(ownerId, assistantId, startTime, null, undefined, [
+          ROOT_EVENT_FILTER,
+        ]),
+        fetchManagerMethodEvents(ownerId, assistantId, startTime, null, undefined, [
+          TASK_RUN_EVENT_FILTER,
+        ]),
+      ]);
 
       if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
 
-      let allRootLogs: ManagerMethodLog[] = [];
-      if ('detail' in rootResponse) {
-        const detail = (rootResponse as ResponseProps).detail as string;
-        const isNotFound = typeof detail === 'string' && detail.toLowerCase().includes('not found');
-        if (!isNotFound) throw new Error(detail);
-      } else {
-        allRootLogs = ('logs' in rootResponse ? rootResponse.logs : []) as ManagerMethodLog[];
-      }
+      const allRootLogs = mergeDurableActionLogs([rootResponse, taskRunResponse]);
 
       if (__DEV__)
         console.log(
@@ -630,23 +651,20 @@ export function useAssistantActions(
       const startTime = new Date(oldestTime - LOAD_MORE_LOOKBACK_MS).toISOString();
       const endTime = oldestTimestampRef.current;
 
-      // Fetch only root-level events for the extended time window.
-      // Children are lazy-loaded on expand, same as current roots.
-      const response = await fetchManagerMethodEvents(
-        ownerId,
-        assistantId,
-        startTime,
-        DEFAULT_EVENT_LIMIT,
-        undefined,
-        [`len(hierarchy) == 1`]
-      );
+      // Preserve the initial snapshot's two durable shapes while paginating:
+      // ordinary depth-one roots and all ManagerMethod rows below Task.run(...).
+      const [rootResponse, taskRunResponse] = await Promise.all([
+        fetchManagerMethodEvents(ownerId, assistantId, startTime, DEFAULT_EVENT_LIMIT, undefined, [
+          ROOT_EVENT_FILTER,
+        ]),
+        fetchManagerMethodEvents(ownerId, assistantId, startTime, DEFAULT_EVENT_LIMIT, undefined, [
+          TASK_RUN_EVENT_FILTER,
+        ]),
+      ]);
 
       if (!isMountedRef.current) return;
 
-      let allLogs: ManagerMethodLog[] = [];
-      if (!('detail' in response)) {
-        allLogs = ('logs' in response ? response.logs : []) as ManagerMethodLog[];
-      }
+      const allLogs = mergeDurableActionLogs([rootResponse, taskRunResponse]);
       const olderLogs = allLogs.filter((log) => log.ts < endTime);
 
       if (olderLogs.length === 0) {

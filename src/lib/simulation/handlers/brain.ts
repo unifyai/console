@@ -70,6 +70,24 @@ function applyFilter(rows: IdRow[], tablePath: string, filter: string | null): I
     return rows.filter((r) => (r.entries.hierarchy as unknown[])?.length === 1);
   }
 
+  // Scheduled task runs begin with a synthetic Task.run(...) hierarchy segment,
+  // so their first persisted ManagerMethod child is not a depth-one root.
+  if (tablePath.endsWith('ManagerMethod')) {
+    const prefixMatch = filter.match(/hierarchy_label\.startswith\(\s*["']([^"']+)["']\s*\)/);
+    if (prefixMatch) {
+      const prefix = prefixMatch[1];
+      return rows.filter((r) => {
+        const hierarchyLabel =
+          typeof r.entries.hierarchyLabel === 'string'
+            ? r.entries.hierarchyLabel
+            : Array.isArray(r.entries.hierarchy)
+              ? r.entries.hierarchy.join('->')
+              : '';
+        return hierarchyLabel.startsWith(prefix);
+      });
+    }
+  }
+
   // ToolLoop steps are fetched per action node via
   // `hierarchy_label.startswith('<calling-id path>')`. The hosted backend keys
   // this on the calling-id hierarchy, so we match on the unambiguous
