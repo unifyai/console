@@ -4,7 +4,7 @@ import { Assistant } from '@/types/assistants/assistant';
 import type { ExchangeRow } from '@/types/assistants/brain';
 import { fetchRowsAcrossRoots } from '@/lib/assistants/federatedRows';
 import { roots } from '@/lib/assistants/scope';
-import { recordingsByCallId, type CallRecording } from '@/utils/assistants/callRecording';
+import { callTargetsByCallId, type CallTarget } from '@/utils/assistants/callRecording';
 import { fetchMeetExchangesDirect } from './useContactIdPrefetch';
 
 interface UseCallPillsOptions {
@@ -32,14 +32,14 @@ interface UseCallPillsReturn {
 const EMPTY_CALL_PILLS: readonly CallPill[] = Object.freeze([]);
 
 /**
- * Look up the recording for one call, from the same exchange metadata the
- * transcripts pane reads.
+ * Resolve every call's exchange -- its recording and its transcript thread --
+ * from the same exchange metadata the transcripts pane reads.
  *
  * Fetched on demand rather than on mount: a chat thread usually has no open
  * transcript, and this is the only consumer. Results are memoised for the
  * lifetime of the hook so opening several pills costs one read.
  */
-async function fetchCallRecordings(assistant: Assistant): Promise<Map<string, CallRecording>> {
+async function fetchCallTargets(assistant: Assistant): Promise<Map<string, CallTarget>> {
   const exchanges = await fetchRowsAcrossRoots<ExchangeRow>({
     scopedRoots: roots(assistant),
     ownerId: assistant.userId,
@@ -48,7 +48,7 @@ async function fetchCallRecordings(assistant: Assistant): Promise<Map<string, Ca
     limit: 200,
     sortField: 'exchange_id',
   });
-  return recordingsByCallId(exchanges);
+  return callTargetsByCallId(exchanges);
 }
 
 async function fetchCallTranscriptDirect(
@@ -104,10 +104,10 @@ export function useCallPills({
 
   const callStartTimeRef = React.useRef<Date | null>(null);
   const prevIsConnectedRef = React.useRef(false);
-  // In-flight or resolved recording index, shared across pills of one assistant.
-  const recordingsRef = React.useRef<Promise<Map<string, CallRecording>> | null>(null);
+  // In-flight or resolved call-target index, shared across pills of one assistant.
+  const targetsRef = React.useRef<Promise<Map<string, CallTarget>> | null>(null);
   React.useEffect(() => {
-    recordingsRef.current = null;
+    targetsRef.current = null;
   }, [assistantId]);
 
   React.useEffect(() => {
@@ -178,20 +178,22 @@ export function useCallPills({
         }
 
         if (resolvedCallId !== undefined) {
-          const [utterances, recordings] = await Promise.all([
+          const [utterances, targets] = await Promise.all([
             fetchCallTranscriptDirect(assistant, resolvedCallId),
-            recordingsRef.current ?? (recordingsRef.current = fetchCallRecordings(assistant)),
+            targetsRef.current ?? (targetsRef.current = fetchCallTargets(assistant)),
           ]);
           setActiveTranscript(utterances);
-          const recording = recordings.get(resolvedCallId);
+          const target = targets.get(resolvedCallId);
           setActiveTranscriptPill((current) =>
             current === null
               ? current
               : {
                   ...current,
                   callId: resolvedCallId,
-                  recordingUrl: recording?.url,
-                  recordingStartedAtMs: recording?.startedAtMs ?? null,
+                  recordingUrl: target?.recording?.url,
+                  recordingStartedAtMs: target?.recording?.startedAtMs ?? null,
+                  exchangeId: target?.exchangeId ?? null,
+                  rootKey: target?.rootKey,
                 }
           );
         } else {

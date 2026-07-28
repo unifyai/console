@@ -6,7 +6,7 @@ import {
   offsetFromRecordingStart,
   parseUtteranceOffset,
   recordingStartedAtFrom,
-  recordingsByCallId,
+  callTargetsByCallId,
   recordingUrlFrom,
   toGsUri,
   type UtteranceCue,
@@ -206,7 +206,7 @@ describe('offsetFromRecordingStart', () => {
   });
 });
 
-describe('recordingsByCallId', () => {
+describe('callTargetsByCallId', () => {
   // A pill knows a call-store id, not an exchange id, so the index has to cover
   // every identifier the runtime persists next to the recording.
   const meet = {
@@ -232,49 +232,70 @@ describe('recordingsByCallId', () => {
   };
 
   it('resolves a meet by its call-session id', () => {
-    const index = recordingsByCallId([meet]);
-    expect(index.get('48dcf6b4')).toEqual({
+    const index = callTargetsByCallId([meet]);
+    expect(index.get('48dcf6b4')?.recording).toEqual({
       url: 'https://x/meet.mp3',
       startedAtMs: Date.parse('2026-07-27T12:48:26Z'),
     });
   });
 
   it('resolves a phone call by its room name', () => {
-    const index = recordingsByCallId([phone]);
-    expect(index.get('unity_2105_phone')?.url).toBe('https://x/phone.mp3');
+    const index = callTargetsByCallId([phone]);
+    expect(index.get('unity_2105_phone')?.recording?.url).toBe('https://x/phone.mp3');
   });
 
   it('indexes one recording under every identifier it carries', () => {
-    const index = recordingsByCallId([meet]);
+    const index = callTargetsByCallId([meet]);
     for (const id of ['48dcf6b4', 'unity_call_48dcf6b4']) {
-      expect(index.get(id)?.url).toBe('https://x/meet.mp3');
+      expect(index.get(id)?.recording?.url).toBe('https://x/meet.mp3');
     }
   });
 
-  it('skips exchanges with no recording, including calls that were not captured', () => {
-    const index = recordingsByCallId([
-      { metadata: { callSessionId: 'no-recording', roomName: 'unity_call_none' } },
-      { metadata: null },
-      {},
+  it('indexes an unrecorded call so its thread is still reachable', () => {
+    // The redirect to the transcripts pane must work whether or not audio was
+    // captured, so a missing recording cannot drop the exchange from the index.
+    const index = callTargetsByCallId([
+      { exchangeId: 12, rootKey: 'personal', metadata: { callSessionId: 'no-recording' } },
     ]);
-    expect(index.size).toBe(0);
+    expect(index.get('no-recording')).toEqual({
+      exchangeId: 12,
+      rootKey: 'personal',
+      recording: null,
+    });
+  });
+
+  it('ignores exchanges carrying no identifiers at all', () => {
+    expect(callTargetsByCallId([{ metadata: null }, {}]).size).toBe(0);
+  });
+
+  it('carries the exchange id and root so the pane can select the thread', () => {
+    const index = callTargetsByCallId([
+      { exchangeId: 378, rootKey: 'team-11', metadata: { callSessionId: '48dcf6b4' } },
+    ]);
+    expect(index.get('48dcf6b4')?.exchangeId).toBe(378);
+    expect(index.get('48dcf6b4')?.rootKey).toBe('team-11');
+  });
+
+  it('defaults the root to personal when a row is untagged', () => {
+    const index = callTargetsByCallId([{ exchangeId: 1, metadata: { callSessionId: 'x' } }]);
+    expect(index.get('x')?.rootKey).toBe('personal');
   });
 
   it('keeps the newest claim when a room name is reused across calls', () => {
     // Reads are newest-first, so the first exchange to claim an identifier is
     // the most recent call in that room.
-    const index = recordingsByCallId([
+    const index = callTargetsByCallId([
       { metadata: { recordingUrl: 'https://x/newest.mp3', roomName: 'unity_2105_phone' } },
       { metadata: { recordingUrl: 'https://x/older.mp3', roomName: 'unity_2105_phone' } },
     ]);
-    expect(index.get('unity_2105_phone')?.url).toBe('https://x/newest.mp3');
+    expect(index.get('unity_2105_phone')?.recording?.url).toBe('https://x/newest.mp3');
   });
 
   it('carries a null anchor for recordings that predate it', () => {
-    const index = recordingsByCallId([
+    const index = callTargetsByCallId([
       { metadata: { recordingUrl: 'https://x/old.mp3', roomName: 'unity_2105_gmeet' } },
     ]);
-    expect(index.get('unity_2105_gmeet')).toEqual({
+    expect(index.get('unity_2105_gmeet')?.recording).toEqual({
       url: 'https://x/old.mp3',
       startedAtMs: null,
     });

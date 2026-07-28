@@ -3,6 +3,7 @@ import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Send, Loader2, Paperclip, Mic, Square, Camera, File, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
@@ -258,6 +259,33 @@ export function AssistantProfileChatPanel({
     },
     [onSearchOpenChange]
   );
+
+  const { openBrainTranscript } = useAppShellNavigation();
+
+  // Jump from a call pill to the same exchange in the Transcripts pane. Left
+  // undefined when the pill has no resolved exchange -- an unrecorded call
+  // outside the pane's loaded window, say -- so the dialog hides the control
+  // instead of offering a dead end. `profile` carries the assistant through,
+  // which matters when the pill was opened from the floating chat on another
+  // surface.
+  const openInTranscriptsTarget =
+    activeTranscriptPill?.exchangeId != null && activeTranscriptPill.rootKey
+      ? { exchangeId: activeTranscriptPill.exchangeId, rootKey: activeTranscriptPill.rootKey }
+      : null;
+  const handleOpenCallInTranscripts = React.useMemo(() => {
+    if (!openInTranscriptsTarget) return undefined;
+    return () => {
+      closeTranscript();
+      openBrainTranscript(openInTranscriptsTarget, { profile: assistant?.agentId ?? null });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    openInTranscriptsTarget?.exchangeId,
+    openInTranscriptsTarget?.rootKey,
+    assistant?.agentId,
+    closeTranscript,
+    openBrainTranscript,
+  ]);
 
   const handleGoToMessage = React.useCallback(
     (result: import('@/types/assistants/chat').ChatSearchResult) => {
@@ -1181,6 +1209,7 @@ export function AssistantProfileChatPanel({
       <CallTranscriptDialog
         open={transcriptDialogOpen}
         onOpenChange={closeTranscript}
+        onOpenInTranscripts={handleOpenCallInTranscripts}
         pill={activeTranscriptPill}
         utterances={activeTranscript}
         loading={activeTranscriptLoading}

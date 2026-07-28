@@ -88,37 +88,57 @@ export interface CallRecording {
   startedAtMs: number | null;
 }
 
+/** What a call pill can reach once its exchange is resolved. */
+export interface CallTarget {
+  /** Identifies the thread in the transcripts pane, together with `rootKey`. */
+  exchangeId: number | null;
+  /** Source root the exchange was read from; exchange ids are root-local. */
+  rootKey: string;
+  /** Null for a call that was never recorded, or whose egress produced nothing. */
+  recording: CallRecording | null;
+}
+
+/** Metadata keys a call's identifier can be stored under, most specific first. */
+const CALL_IDENTIFIER_KEYS = [
+  'recording_call_session_id',
+  'call_session_id',
+  'recording_room_name',
+  'room_name',
+  'conference_name',
+] as const;
+
 /**
  * Index an assistant's exchanges by every identifier a call is known by.
  *
  * The transcripts pane joins exchanges to messages on `exchangeId`, but a call
  * pill only knows its call-store id -- a call-session id for meets, a room name
  * for the older phone/WhatsApp rows. Those are exactly the identifiers the
- * runtime persists onto the exchange alongside the recording, so indexing by all
- * of them lets either surface resolve the same recording.
+ * runtime persists onto the exchange, so indexing by all of them lets a pill
+ * resolve both its recording and its thread in the pane.
+ *
+ * Unrecorded calls are indexed too: a pill can still jump to its transcript
+ * thread when there is no audio to play.
  */
-export function recordingsByCallId(
-  exchanges: ReadonlyArray<{ metadata?: Record<string, unknown> | null }>
-): Map<string, CallRecording> {
-  const byCallId = new Map<string, CallRecording>();
+export function callTargetsByCallId(
+  exchanges: ReadonlyArray<{
+    exchangeId?: number | null;
+    rootKey?: string;
+    metadata?: Record<string, unknown> | null;
+  }>
+): Map<string, CallTarget> {
+  const byCallId = new Map<string, CallTarget>();
   for (const exchange of exchanges) {
     const url = recordingUrlFrom(exchange.metadata);
-    if (!url) continue;
-    const recording: CallRecording = {
-      url,
-      startedAtMs: recordingStartedAtFrom(exchange.metadata),
+    const target: CallTarget = {
+      exchangeId: exchange.exchangeId ?? null,
+      rootKey: exchange.rootKey ?? 'personal',
+      recording: url ? { url, startedAtMs: recordingStartedAtFrom(exchange.metadata) } : null,
     };
-    for (const key of [
-      'recording_call_session_id',
-      'call_session_id',
-      'recording_room_name',
-      'room_name',
-      'conference_name',
-    ]) {
+    for (const key of CALL_IDENTIFIER_KEYS) {
       const identifier = readMetadata(exchange.metadata, key);
       // First exchange to claim an identifier wins; reads are newest-first, so
-      // a reused room name resolves to its most recent recording.
-      if (identifier && !byCallId.has(identifier)) byCallId.set(identifier, recording);
+      // a reused room name resolves to its most recent call.
+      if (identifier && !byCallId.has(identifier)) byCallId.set(identifier, target);
     }
   }
   return byCallId;

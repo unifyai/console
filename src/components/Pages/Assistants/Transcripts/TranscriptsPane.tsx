@@ -58,6 +58,7 @@ import { ContactAvatar } from '../Common/ContactAvatar';
 import { contactIsAssistantSelf } from '@/utils/assistants/contactAvatar';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { rootKey, roots, type ContextRoot } from '@/lib/assistants/scope';
+import { usePendingTranscriptThreadTarget } from '@/lib/navigation/AppShellRouter';
 import { fetchRowsAcrossRoots } from '@/lib/assistants/federatedRows';
 
 type TranscriptViewMode = 'threads' | 'feed';
@@ -230,6 +231,8 @@ export function TranscriptsPane({
   const [openThreadId, setOpenThreadId] = React.useState<string | null>(null);
   const isStackedLayout = useMatchesBelow('shellCompact');
 
+  const { pendingTranscriptThread, clearPendingTranscriptThread } =
+    usePendingTranscriptThreadTarget();
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const scopeKey = scope.root ? rootKey(scope.root) : 'all';
   const scopeRootRef = React.useRef(scope.root);
@@ -427,11 +430,34 @@ export function TranscriptsPane({
     [threads]
   );
 
-  // Keep a valid selection as filters/search change.
+  // A pill in chat can ask for one thread to be opened here. Clear the filters
+  // that could exclude it first, otherwise the target is absent from `threads`
+  // and the selection effect below immediately replaces it.
+  const setScopeKey = scope.setActiveKey;
+  React.useEffect(() => {
+    if (!pendingTranscriptThread) return;
+    setChannel('all');
+    clearSearch();
+    // The pane may be scoped to one root while the target sits in another;
+    // `rootKey` doubles as the scope option key.
+    setScopeKey(pendingTranscriptThread.rootKey);
+  }, [pendingTranscriptThread, clearSearch, setScopeKey]);
+
+  // Keep a valid selection as filters/search change, honouring a pending
+  // request once the rows it refers to have arrived.
   React.useEffect(() => {
     if (threads.length === 0) {
       if (openThreadId !== null) setOpenThreadId(null);
       return;
+    }
+    if (pendingTranscriptThread) {
+      const requested = `${pendingTranscriptThread.rootKey}:${pendingTranscriptThread.exchangeId}`;
+      const found = threads.some((t) => t.threadId === requested);
+      if (found) setOpenThreadId(requested);
+      // Clear either way: the exchange can sit outside the loaded window, and a
+      // request left pending would keep resetting the user's filters.
+      clearPendingTranscriptThread();
+      if (found) return;
     }
     if (!threads.some((t) => t.threadId === openThreadId)) {
       if (isStackedLayout) {
@@ -440,7 +466,13 @@ export function TranscriptsPane({
         setOpenThreadId(threads[0].threadId);
       }
     }
-  }, [threads, openThreadId, isStackedLayout]);
+  }, [
+    threads,
+    openThreadId,
+    isStackedLayout,
+    pendingTranscriptThread,
+    clearPendingTranscriptThread,
+  ]);
 
   const activeThread =
     openThreadId !== null

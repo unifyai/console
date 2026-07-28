@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Phone, Play } from 'lucide-react';
+import { ExternalLink, Phone, Play } from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
 import {
   Dialog,
@@ -53,6 +53,9 @@ interface CallTranscriptDialogProps {
   utterances: CallTranscriptUtterance[];
   loading: boolean;
   assistantName?: string;
+  /** Opens this call's thread in the Transcripts pane. Omitted when the thread
+   *  could not be resolved, which hides the affordance rather than dead-ending. */
+  onOpenInTranscripts?: () => void;
 }
 
 export function CallTranscriptDialog({
@@ -62,6 +65,7 @@ export function CallTranscriptDialog({
   utterances,
   loading,
   assistantName = 'Assistant',
+  onOpenInTranscripts,
 }: CallTranscriptDialogProps) {
   const playerRef = React.useRef<TranscriptRecordingPlayerHandle | null>(null);
   const [playheadSeconds, setPlayheadSeconds] = React.useState<number | null>(null);
@@ -104,6 +108,21 @@ export function CallTranscriptDialog({
         className="flex max-h-[80vh] flex-col sm:max-w-[500px]"
         data-testid="call-transcript-dialog"
       >
+        {/* Sits immediately left of DialogContent's own close button, which is
+            absolutely positioned at right-4 top-4. */}
+        {onOpenInTranscripts && (
+          <button
+            type="button"
+            onClick={onOpenInTranscripts}
+            aria-label="Open in Transcripts"
+            title="Open in Transcripts"
+            data-testid="call-transcript-open-in-transcripts"
+            className="absolute right-11 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </button>
+        )}
+
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Phone className="h-4 w-4" />
