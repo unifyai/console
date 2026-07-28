@@ -2,7 +2,17 @@
 
 import * as React from 'react';
 import { WhatsApp } from '@mui/icons-material';
-import { Check, Copy, Mail, MessageSquare, Phone, Slack, Smartphone, Users } from 'lucide-react';
+import {
+  Check,
+  Copy,
+  Mail,
+  MessageSquare,
+  Phone,
+  Play,
+  Slack,
+  Smartphone,
+  Users,
+} from 'lucide-react';
 import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
@@ -27,8 +37,20 @@ import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
-import type { ContactRow, TranscriptRow } from '@/types/assistants/brain';
+import type { ContactRow, ExchangeRow, TranscriptRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
+import {
+  activeCueMessageId,
+  formatClock,
+  isCallExchange,
+  parseUtteranceOffset,
+  recordingUrlFrom,
+  type UtteranceCue,
+} from '@/utils/assistants/callRecording';
+import {
+  TranscriptRecordingPlayer,
+  type TranscriptRecordingPlayerHandle,
+} from './TranscriptRecordingPlayer';
 import { brandAvatarToneFromId } from '@/utils/brand/avatarPalette';
 import { ContactAvatar } from '../Common/ContactAvatar';
 import { contactIsAssistantSelf } from '@/utils/assistants/contactAvatar';
@@ -71,6 +93,14 @@ interface TranscriptsResourceData {
   /** Contacts per source root: contact ids are root-local, so sender names
    *  must resolve against the row's own root first. */
   contactsByRoot: Record<string, ContactRow[]>;
+  /** Exchange metadata keyed by `{rootKey}:{exchangeId}`. Exchange ids are
+   *  root-local, so the root has to be part of the key. */
+  exchangeMetaByKey: Record<string, Record<string, unknown>>;
+}
+
+/** Namespaced exchange key, matching `threadKeyForRow`'s scoping. */
+function exchangeKey(rootKeyValue: string, exchangeId: number | null): string | null {
+  return exchangeId === null ? null : `${rootKeyValue}:${exchangeId}`;
 }
 
 function TranscriptsWhatsAppIcon({ className }: { className?: string }) {
@@ -244,7 +274,7 @@ export function TranscriptsPane({
   assistantRef.current = assistant;
   const load = React.useCallback(async (): Promise<TranscriptsResourceData> => {
     const scopedRoots = scopeRootRef.current ? [scopeRootRef.current] : roots(assistantRef.current);
-    const [transcriptRows, contactRows] = await Promise.all([
+    const [transcriptRows, contactRows, exchangeRows] = await Promise.all([
       fetchRowsAcrossRoots<TranscriptRow>({
         scopedRoots,
         ownerId,
@@ -260,12 +290,27 @@ export function TranscriptsPane({
         table: 'Contacts',
         limit: 1000,
       }),
+      // Exchange-level extras the messages do not carry — a call's recording
+      // URL lives here, attached asynchronously once egress finishes.
+      fetchRowsAcrossRoots<ExchangeRow>({
+        scopedRoots,
+        ownerId,
+        assistantId,
+        table: 'Exchanges',
+        limit: 200,
+        sortField: 'exchange_id',
+      }),
     ]);
     const contactsByRoot: Record<string, ContactRow[]> = {};
     for (const contact of contactRows) {
       (contactsByRoot[contact.rootKey] ??= []).push(contact);
     }
-    return { transcriptRows, contactsByRoot };
+    const exchangeMetaByKey: Record<string, Record<string, unknown>> = {};
+    for (const exchange of exchangeRows) {
+      const key = exchangeKey(exchange.rootKey, exchange.exchangeId ?? null);
+      if (key && exchange.metadata) exchangeMetaByKey[key] = exchange.metadata;
+    }
+    return { transcriptRows, contactsByRoot, exchangeMetaByKey };
   }, [ownerId, assistantId]);
 
   const {
@@ -286,6 +331,10 @@ export function TranscriptsPane({
   const contactsByRoot = React.useMemo(
     () => transcriptData?.contactsByRoot ?? {},
     [transcriptData?.contactsByRoot]
+  );
+  const exchangeMetaByKey = React.useMemo(
+    () => transcriptData?.exchangeMetaByKey ?? {},
+    [transcriptData?.exchangeMetaByKey]
   );
 
   const handleRefresh = React.useCallback(async () => {
@@ -359,6 +408,15 @@ export function TranscriptsPane({
         if (m.senderId !== null) participants.add(m.senderId);
         (m.receiverIds ?? []).forEach((id) => participants.add(id));
       });
+      // Chat threads group every message under one synthetic key, so they have
+      // no single exchange to carry a recording; call threads group per
+      // exchange and do.
+      const meta = exchangeMetaByKey[exchangeKey(last.rootKey, last.exchangeId) ?? ''] ?? null;
+      const cues: UtteranceCue[] = [];
+      for (const message of messages) {
+        const offsetSeconds = parseUtteranceOffset(message.metadata);
+        if (offsetSeconds !== null) cues.push({ messageId: message.messageId, offsetSeconds });
+      }
       return {
         threadId,
         rootKey: last.rootKey,
@@ -367,6 +425,9 @@ export function TranscriptsPane({
         channel: channelForMedium(last.medium),
         subject: deriveSubject(messages),
         participantIds: Array.from(participants),
+        recordingUrl: recordingUrlFrom(meta),
+        isCall: isCallExchange(meta),
+        cues,
       };
     });
     built.sort(
@@ -385,7 +446,7 @@ export function TranscriptsPane({
         return true;
       return thread.messages.some((m) => (m.content ?? '').toLowerCase().includes(needle));
     });
-  }, [sortedAsc, searchQuery, nameFor]);
+  }, [sortedAsc, searchQuery, nameFor, exchangeMetaByKey]);
 
   const threadGroups = React.useMemo(
     () =>
@@ -419,6 +480,25 @@ export function TranscriptsPane({
       : isStackedLayout
         ? null
         : (threads[0] ?? null);
+
+  // Playback position of the active thread's recording, used to highlight the
+  // utterance currently being spoken. Reset when the reader switches threads so
+  // a stale highlight cannot carry over.
+  const playerRef = React.useRef<TranscriptRecordingPlayerHandle | null>(null);
+  const [playheadSeconds, setPlayheadSeconds] = React.useState<number | null>(null);
+  const activeThreadId = activeThread?.threadId ?? null;
+  React.useEffect(() => {
+    setPlayheadSeconds(null);
+  }, [activeThreadId]);
+
+  const activeCueId = React.useMemo(() => {
+    if (playheadSeconds === null || !activeThread?.cues.length) return null;
+    return activeCueMessageId(activeThread.cues, playheadSeconds);
+  }, [activeThread?.cues, playheadSeconds]);
+
+  const seekTo = React.useCallback((seconds: number) => {
+    playerRef.current?.seek(seconds);
+  }, []);
 
   const flatMessages = React.useMemo<FlatMessage[]>(() => {
     const rows = [...filtered].sort(
@@ -697,6 +777,21 @@ export function TranscriptsPane({
                         </div>
                       </div>
                     </div>
+                    {activeThread.recordingUrl ? (
+                      <TranscriptRecordingPlayer
+                        key={activeThread.threadId}
+                        ref={playerRef}
+                        recordingUrl={activeThread.recordingUrl}
+                        onTimeUpdate={setPlayheadSeconds}
+                      />
+                    ) : activeThread.isCall ? (
+                      <div
+                        className="text-caption mb-3 rounded-[11px] border border-border bg-card-2 px-2.5 py-1.5"
+                        data-testid="transcript-recording-none"
+                      >
+                        No recording for this call
+                      </div>
+                    ) : null}
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="mr-0.5 inline-flex items-center gap-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground">
                         <Users className="h-3 w-3" aria-hidden="true" /> Participants
@@ -732,6 +827,7 @@ export function TranscriptsPane({
                         ? assistantDisplayName(assistant)
                         : nameFor(message.senderId, message.rootKey);
                       const receivers = message.receiverIds ?? [];
+                      const offsetSeconds = parseUtteranceOffset(message.metadata);
                       return (
                         <TranscriptMessageRow
                           key={message.messageId}
@@ -750,6 +846,9 @@ export function TranscriptsPane({
                           }
                           timeLabel={formatTime(message.timestamp)}
                           body={messageBody(message.content)}
+                          offsetSeconds={activeThread.recordingUrl ? offsetSeconds : null}
+                          isPlaying={activeCueId === message.messageId}
+                          onSeek={seekTo}
                         />
                       );
                     })}
@@ -788,6 +887,9 @@ function TranscriptMessageRow({
   receiverSummary,
   timeLabel,
   body,
+  offsetSeconds,
+  isPlaying,
+  onSeek,
 }: {
   assistant: Assistant;
   contactId: number | null;
@@ -798,6 +900,10 @@ function TranscriptMessageRow({
   receiverSummary: string | null;
   timeLabel: string;
   body: string;
+  /** Offset into the call recording, when one is attached to this thread. */
+  offsetSeconds: number | null;
+  isPlaying: boolean;
+  onSeek: (seconds: number) => void;
 }) {
   const { isCopied, handleCopy } = useCopyToClipboard({
     text: body,
@@ -826,9 +932,11 @@ function TranscriptMessageRow({
           'min-w-0 rounded-[13px] border border-border px-3.5 py-2.5 transition-colors',
           out
             ? 'border-[color:color-mix(in_srgb,var(--ch)_26%,transparent)] bg-[color:color-mix(in_srgb,var(--ch)_12%,var(--card-2))]'
-            : 'bg-card-2'
+            : 'bg-card-2',
+          isPlaying && 'border-[color:var(--ch)] ring-1 ring-[color:var(--ch)]'
         )}
         style={{ '--ch': channelVar } as React.CSSProperties}
+        data-playing={isPlaying ? 'true' : undefined}
       >
         <div className="mb-1 flex flex-wrap items-baseline gap-2">
           <b className="text-[12px] font-semibold text-foreground">{senderName}</b>
@@ -836,6 +944,19 @@ function TranscriptMessageRow({
             <span className="text-[11px] text-muted-foreground">{receiverSummary}</span>
           )}
           <span className="font-mono text-[10px] text-muted-foreground">{timeLabel}</span>
+          {offsetSeconds !== null && (
+            <button
+              type="button"
+              onClick={() => onSeek(offsetSeconds)}
+              aria-label={`Play recording from ${formatClock(offsetSeconds)}`}
+              title="Play from here"
+              data-testid="transcript-seek-button"
+              className="inline-flex items-center gap-1 rounded px-1 font-mono text-[10px] text-muted-foreground transition-colors hover:text-[color:var(--ch)]"
+            >
+              <Play className="h-2.5 w-2.5" aria-hidden="true" />
+              {formatClock(offsetSeconds)}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleCopy}

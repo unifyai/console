@@ -48,6 +48,20 @@ export interface TranscriptRow {
   timestamp: string | null;
   content: string | null;
   exchangeId: number | null;
+  /** Medium-specific extras. Call utterances carry `callUtteranceTimestamp`. */
+  metadata?: Record<string, unknown> | null;
+}
+
+/** One conversation exchange. Rows live in `{root}/Exchanges`, keyed to
+ *  `TranscriptRow.exchangeId`, and carry exchange-level extras that no single
+ *  message owns — notably a call's `recordingUrl`.
+ *
+ *  Deliberately absent from `BrainContext`: the table backs enrichment for
+ *  other views rather than a browsable Brain section of its own. */
+export interface ExchangeRow {
+  exchangeId: number;
+  medium: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 /** Claim kinds in the typed Knowledge ledger. */
