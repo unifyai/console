@@ -129,7 +129,14 @@ export interface CallPill {
   durationSeconds: number;
   /** Unified call-utterance store key (org call session id or room name). */
   callId?: string;
+  /** Public GCS URL of the call recording, when one was captured. */
   recordingUrl?: string;
+  /** Epoch ms of the recording's t=0, for time-aligning utterances to audio. */
+  recordingStartedAtMs?: number | null;
+  /** Transcript exchange backing this call, for opening it in the pane.
+   *  Paired with `rootKey`, since exchange ids are root-local. */
+  exchangeId?: number | null;
+  rootKey?: string;
   /** Human-to-human call that was never answered — rendered as "Missed call". */
   missed?: boolean;
 }

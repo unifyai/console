@@ -3330,7 +3330,8 @@ export function ActionNodeItem({
   // Expanded content is only ready once children have been lazy-loaded
   // (or there's no lazy-loading mechanism). Running nodes stream children
   // via SSE so they're always ready.
-  const childrenReady = !loadChildren || node.childrenLoaded || node.status === 'running';
+  const childrenReady =
+    !loadChildren || node.childrenLoaded || node.status === 'running' || node.type === 'boundary';
   // ToolLoop-capable nodes also need their ToolLoop data before showing content.
   const toolLoopReady = !canLoadToolLoop || hasToolLoopData || !isToolLoopLoading;
   // Content is ready when polled data is fully loaded, OR we're running

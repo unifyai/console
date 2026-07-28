@@ -2,8 +2,8 @@
 /**
  * Color Compliance Checker
  *
- * Dynamically reads CSS variables from globals.css and enforces
- * the use of CSS variables instead of raw hex colors.
+ * Dynamically reads CSS variables from the brand token stylesheets and
+ * globals.css, and enforces the use of CSS variables instead of raw hex colors.
  *
  * Run: npx tsx scripts/check-colors.ts [files...]
  * Or:  npm run check:colors
@@ -17,7 +17,23 @@ import * as path from 'path';
 // Configuration
 // ============================================================================
 
-const GLOBALS_CSS_PATH = 'src/styles/globals.css';
+/**
+ * Every stylesheet that defines colour tokens, in cascade order.
+ *
+ * `tokens.css` holds the brand primitives (the literal hex values), and
+ * `semantic.css` the theme mapping built on them; both are shared via the
+ * `branding` submodule so the Canvas runtime host resolves identical values on
+ * its own origin. `globals.css` keeps console's remaining app-level styles.
+ *
+ * A missing file is skipped rather than fatal: the branding submodule is not
+ * always checked out (fresh clones, some CI lanes), and this checker must
+ * still enforce the no-raw-hex rule when it is absent.
+ */
+const COLOR_SOURCE_PATHS = [
+  'branding/packages/brand/tokens/tokens.css',
+  'branding/packages/brand/tokens/semantic.css',
+  'src/styles/globals.css',
+];
 
 // Files/directories to skip
 const SKIP_PATTERNS = [
@@ -26,7 +42,9 @@ const SKIP_PATTERNS = [
   /dist/,
   /build/,
   /\.git/,
-  /globals\.css$/, // Don't check the definition file itself
+  // Don't check the token definition files themselves — raw hex is their job.
+  /globals\.css$/,
+  /tokens\/(tokens|semantic|theme-v4)\.css$/,
   /tailwind\.config/,
   // OG image routes need raw colors for image generation (no CSS support)
   /\/api\/og\//,
@@ -79,34 +97,44 @@ interface Violation {
 }
 
 // ============================================================================
-// Parse CSS Variables from globals.css
+// Parse CSS Variables from the colour source stylesheets
 // ============================================================================
 
-function parseGlobalsCss(): Map<string, CSSVariable> {
-  const cssPath = path.join(process.cwd(), GLOBALS_CSS_PATH);
+function parseColorVariables(): Map<string, CSSVariable> {
+  const variables = new Map<string, CSSVariable>();
+  let found = 0;
 
-  if (!fs.existsSync(cssPath)) {
-    console.error(`Error: Could not find ${GLOBALS_CSS_PATH}`);
-    process.exit(1);
+  for (const relPath of COLOR_SOURCE_PATHS) {
+    const cssPath = path.join(process.cwd(), relPath);
+    if (!fs.existsSync(cssPath)) continue;
+    found += 1;
+
+    const content = fs.readFileSync(cssPath, 'utf-8');
+
+    // Match CSS variable definitions: --variable-name: #hexvalue;
+    const varRegex = /--([a-zA-Z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = varRegex.exec(content)) !== null) {
+      const name = match[1];
+      const value = match[2];
+      const normalizedValue = normalizeHex(value);
+
+      // First source in cascade order wins, so a raw hex is attributed to the
+      // primitive that defines it rather than to a theme alias of the same value.
+      if (variables.has(normalizedValue)) continue;
+
+      variables.set(normalizedValue, {
+        name: `--${name}`,
+        value,
+        normalizedValue,
+      });
+    }
   }
 
-  const content = fs.readFileSync(cssPath, 'utf-8');
-  const variables = new Map<string, CSSVariable>();
-
-  // Match CSS variable definitions: --variable-name: #hexvalue;
-  const varRegex = /--([a-zA-Z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = varRegex.exec(content)) !== null) {
-    const name = match[1];
-    const value = match[2];
-    const normalizedValue = normalizeHex(value);
-
-    variables.set(normalizedValue, {
-      name: `--${name}`,
-      value,
-      normalizedValue,
-    });
+  if (found === 0) {
+    console.error(`Error: none of the colour sources exist: ${COLOR_SOURCE_PATHS.join(', ')}`);
+    process.exit(1);
   }
 
   return variables;
@@ -190,7 +218,7 @@ function checkFile(filePath: string, cssVariables: Map<string, CSSVariable>): Vi
           message: 'Raw hex color used instead of CSS variable',
           suggestion: cssVar
             ? `Use var(${cssVar.name}) or Tailwind: text-[var(${cssVar.name})] / bg-[var(${cssVar.name})]`
-            : 'Consider adding this color to globals.css as a CSS variable',
+            : 'Consider adding this color to @unity/brand tokens as a CSS variable',
         });
       }
     });
@@ -253,8 +281,8 @@ function main(): void {
   const args = process.argv.slice(2);
 
   // Parse CSS variables first
-  console.log('\n📋 Reading CSS variables from globals.css...');
-  const cssVariables = parseGlobalsCss();
+  console.log('\n📋 Reading CSS variables from brand tokens + globals.css...');
+  const cssVariables = parseColorVariables();
   console.log(`   Found ${cssVariables.size} color variables\n`);
 
   const files = getFilesToCheck(args);
@@ -301,7 +329,7 @@ function main(): void {
   });
 
   console.log('\n');
-  console.log('📚 Available CSS color variables (from globals.css):');
+  console.log('📚 Available CSS color variables (from brand tokens + globals.css):');
   const varList = Array.from(cssVariables.values()).slice(0, 15);
   for (const v of varList) {
     console.log(`   ${v.name}: ${v.value}`);

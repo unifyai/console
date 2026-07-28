@@ -55,3 +55,39 @@ export function parseSelectedEntityKey(key: string | null): SelectedEntity | nul
   }
   return { kind: 'assistant', assistantId: key };
 }
+
+/** Minimal roster shape needed to validate human/team/group selections. */
+export type OrgEntityRosterLookup = {
+  humans: ReadonlyArray<{ userId: string }>;
+  teams: ReadonlyArray<{ teamId: number }>;
+  groups: ReadonlyArray<{ groupId: number }>;
+};
+
+/**
+ * Whether a human/team/group selection can stay active in the current workspace.
+ *
+ * - `keep` — selection is an assistant, or the org entity exists in the roster
+ * - `clear` — personal workspace, or the org entity is missing from a settled roster
+ * - `pending` — org workspace still loading its roster (do not bounce yet)
+ */
+export type OrgEntitySelectionResolution = 'keep' | 'clear' | 'pending';
+
+export function resolveOrgEntitySelection(args: {
+  entity: SelectedEntity | null;
+  organizationId: string | null;
+  roster: OrgEntityRosterLookup | null;
+}): OrgEntitySelectionResolution {
+  const { entity, organizationId, roster } = args;
+  if (!entity || entity.kind === 'assistant') return 'keep';
+  // Humans/teams/groups only exist inside an org workspace. A leftover
+  // localStorage / deep-link selection must not stick in personal.
+  if (!organizationId) return 'clear';
+  if (!roster) return 'pending';
+  const stillExists =
+    entity.kind === 'human'
+      ? roster.humans.some((human) => human.userId === entity.userId)
+      : entity.kind === 'team'
+        ? roster.teams.some((team) => team.teamId === entity.teamId)
+        : roster.groups.some((group) => group.groupId === entity.groupId);
+  return stillExists ? 'keep' : 'clear';
+}

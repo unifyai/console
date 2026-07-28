@@ -492,8 +492,8 @@ function formatTaskTimingCell(row: TaskRow): React.ReactNode {
 }
 
 function formatRunSourcePrimary(row: TaskRunRow): string {
-  const sourceType = String(row.sourceType ?? '').toLowerCase();
-  switch (sourceType) {
+  const wake = String(row.wake ?? row.sourceType ?? '').toLowerCase();
+  switch (wake) {
     case 'scheduled':
       return 'On schedule';
     case 'triggered':
@@ -503,7 +503,7 @@ function formatRunSourcePrimary(row: TaskRunRow): string {
     case 'explicit':
       return 'Started on demand';
     default:
-      return humanizeTaskLabel(row.sourceType);
+      return humanizeTaskLabel(row.wake ?? row.sourceType);
   }
 }
 
@@ -512,10 +512,10 @@ function formatRunSourceSecondary(row: TaskRunRow): string | undefined {
     ? String(row.sourceContactDisplayName)
     : null;
   const medium = isPresent(row.sourceMedium) ? humanizeTaskLabel(row.sourceMedium) : null;
-  const sourceType = String(row.sourceType ?? '').toLowerCase();
+  const wake = String(row.wake ?? row.sourceType ?? '').toLowerCase();
 
-  if (sourceType === 'triggered') return contact ?? undefined;
-  if (sourceType === 'scheduled') {
+  if (wake === 'triggered') return contact ?? undefined;
+  if (wake === 'scheduled') {
     return (
       medium ??
       (row.scheduledFor ? `Scheduled for ${formatTimestamp(row.scheduledFor)}` : undefined)
@@ -593,7 +593,7 @@ export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
       }),
     120
   ),
-  accessorCell<TaskRunRow>('sourceType', 'Why It Started', (row) => formatRunSourceCell(row), 260),
+  accessorCell<TaskRunRow>('wake', 'Why It Started', (row) => formatRunSourceCell(row), 260),
   accessorCell<TaskRunRow>('startedAt', 'Timing', (row) => formatRunTimingCell(row), 260),
 ];
 
@@ -622,6 +622,7 @@ function isTaskRunRow(row: Record<string, unknown>): boolean {
   return (
     isPresent(row.runKey) ||
     isPresent(row.runId) ||
+    isPresent(row.wake) ||
     isPresent(row.sourceType) ||
     isPresent(row.startedAt) ||
     isPresent(row.completedAt)
@@ -648,7 +649,7 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
       ['state', 'Status', isPresent(row.state) ? humanizeTaskLabel(row.state) : undefined],
     ]);
     addSection('Started by', [
-      ['sourceType', 'How it started', formatRunSourcePrimary(taskRunRow)],
+      ['wake', 'How it started', formatRunSourcePrimary(taskRunRow)],
       ['sourceContactDisplayName', 'Contact', row.sourceContactDisplayName],
       [
         'sourceMedium',

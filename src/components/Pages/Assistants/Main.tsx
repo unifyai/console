@@ -28,6 +28,7 @@ import {
   humanEntityKey,
   isNonAssistantEntityKey,
   parseSelectedEntityKey,
+  resolveOrgEntitySelection,
   teamEntityKey,
 } from '@/lib/assistants/selectedEntity';
 import { useOrgRoster } from '@/hooks/Assistants/useOrgRoster';
@@ -688,25 +689,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     return rosterGroups.find((group) => group.groupId === selectedEntity.groupId) ?? null;
   }, [rosterGroups, selectedEntity]);
 
-  // Stale human/team/group selections (removed member, deleted team/group) fall
-  // back to the coordinator once the roster has settled.
+  // Human/team/group selections are org-only. Clear them in personal workspace
+  // (including leftover localStorage / URL restores) and when the settled org
+  // roster no longer contains the entity.
   React.useEffect(() => {
-    if (!isNonAssistantSelection || !roster) return;
-    const stillExists =
-      selectedEntity?.kind === 'human'
-        ? roster.humans.some((human) => human.userId === selectedEntity.userId)
-        : selectedEntity?.kind === 'team'
-          ? roster.teams.some((team) => team.teamId === selectedEntity.teamId)
-          : selectedEntity?.kind === 'group'
-            ? roster.groups.some((group) => group.groupId === selectedEntity.groupId)
-            : true;
-    if (stillExists) return;
+    if (!isNonAssistantSelection) return;
+    const resolution = resolveOrgEntitySelection({
+      entity: selectedEntity,
+      organizationId: activeOrganizationId,
+      roster,
+    });
+    if (resolution !== 'clear') return;
     if (canonicalCoordinatorId) {
       handleShowProfile(canonicalCoordinatorId);
     } else {
       handleProfileClose();
     }
   }, [
+    activeOrganizationId,
     canonicalCoordinatorId,
     handleProfileClose,
     handleShowProfile,

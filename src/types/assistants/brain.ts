@@ -10,7 +10,7 @@
  *   {userId}/{assistantId}/Transcripts
  *   {userId}/{assistantId}/Knowledge
  *   {userId}/{assistantId}/Tasks
- *   {userId}/{assistantId}/Tasks/Runs
+ *   {userId}/{assistantId}/Tasks/Executions
  *   {userId}/{assistantId}/Guidance
  *   {userId}/{assistantId}/Functions  (sub-contexts: Compositional, Primitives, VirtualEnvs, Meta)
  */
@@ -48,6 +48,20 @@ export interface TranscriptRow {
   timestamp: string | null;
   content: string | null;
   exchangeId: number | null;
+  /** Medium-specific extras. Call utterances carry `callUtteranceTimestamp`. */
+  metadata?: Record<string, unknown> | null;
+}
+
+/** One conversation exchange. Rows live in `{root}/Exchanges`, keyed to
+ *  `TranscriptRow.exchangeId`, and carry exchange-level extras that no single
+ *  message owns — notably a call's `recordingUrl`.
+ *
+ *  Deliberately absent from `BrainContext`: the table backs enrichment for
+ *  other views rather than a browsable Brain section of its own. */
+export interface ExchangeRow {
+  exchangeId: number;
+  medium: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 /** Claim kinds in the typed Knowledge ledger. */
@@ -178,7 +192,12 @@ export interface TaskRunRow {
   taskId: number | null;
   taskName: string | null;
   taskDescription: string | null;
-  sourceType: string | null;
+  /** Canonical execution wake reason (`scheduled`, `triggered`, etc.). */
+  wake?: string | null;
+  /** Canonical execution delivery target (`live` or `offline`). */
+  delivery?: string | null;
+  /** @deprecated Legacy Tasks/Runs wake reason. */
+  sourceType?: string | null;
   state: string | null;
   scheduledFor: string | null;
   sourceMedium: string | null;

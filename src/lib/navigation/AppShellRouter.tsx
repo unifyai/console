@@ -20,6 +20,16 @@ interface AppShellNavigationContextValue {
   setPendingAssistantSectionId: (sectionId: string | null) => void;
   pendingFunctionId: number | null;
   setPendingFunctionId: (functionId: number | null) => void;
+  pendingTranscriptThread: TranscriptThreadTarget | null;
+  setPendingTranscriptThread: (target: TranscriptThreadTarget | null) => void;
+}
+
+/** One transcript thread, as the transcripts pane keys them.
+ *
+ *  Exchange ids are root-local, so the root is part of the identity. */
+export interface TranscriptThreadTarget {
+  exchangeId: number;
+  rootKey: string;
 }
 
 const AppShellNavigationContext = React.createContext<AppShellNavigationContextValue | null>(null);
@@ -36,6 +46,8 @@ export function AppShellNavigationProvider({ children }: { children: React.React
     null
   );
   const [pendingFunctionId, setPendingFunctionId] = React.useState<number | null>(null);
+  const [pendingTranscriptThread, setPendingTranscriptThread] =
+    React.useState<TranscriptThreadTarget | null>(null);
 
   React.useEffect(() => {
     if (!pendingTargetHref) return;
@@ -57,8 +69,10 @@ export function AppShellNavigationProvider({ children }: { children: React.React
       setPendingAssistantSectionId,
       pendingFunctionId,
       setPendingFunctionId,
+      pendingTranscriptThread,
+      setPendingTranscriptThread,
     }),
-    [pendingAssistantSectionId, pendingFunctionId, pendingTargetHref]
+    [pendingAssistantSectionId, pendingFunctionId, pendingTargetHref, pendingTranscriptThread]
   );
 
   return (
@@ -84,6 +98,21 @@ export function usePendingFunctionTarget(): {
   return {
     pendingFunctionId: navigationContext?.pendingFunctionId ?? null,
     clearPendingFunction,
+  };
+}
+
+export function usePendingTranscriptThreadTarget(): {
+  pendingTranscriptThread: TranscriptThreadTarget | null;
+  clearPendingTranscriptThread: () => void;
+} {
+  const navigationContext = React.useContext(AppShellNavigationContext);
+  const clearPendingTranscriptThread = React.useCallback(() => {
+    navigationContext?.setPendingTranscriptThread(null);
+  }, [navigationContext]);
+
+  return {
+    pendingTranscriptThread: navigationContext?.pendingTranscriptThread ?? null,
+    clearPendingTranscriptThread,
   };
 }
 
@@ -163,6 +192,14 @@ export function useAppShellNavigation() {
     [navigateToAssistants, navigationContext]
   );
 
+  const openBrainTranscript = React.useCallback(
+    (target: TranscriptThreadTarget, options?: { profile?: string | null }) => {
+      navigationContext?.setPendingTranscriptThread(target);
+      navigateToAssistants({ sectionId: 'transcripts', profile: options?.profile ?? null });
+    },
+    [navigateToAssistants, navigationContext]
+  );
+
   const navigateToAssistantChat = React.useCallback(
     (assistantId: string) => {
       navigationContext?.setPendingTargetHref(null);
@@ -190,6 +227,7 @@ export function useAppShellNavigation() {
     navigateToAssistants,
     navigateToAssistantChat,
     openBrainFunction,
+    openBrainTranscript,
     navigateTo,
     pushShellQuery,
   };

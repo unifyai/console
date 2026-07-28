@@ -1252,7 +1252,7 @@ const TASKS: Record<string, unknown>[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Data: Tasks/Runs (Activity)
+// Data: Tasks/Executions (Activity)
 // ---------------------------------------------------------------------------
 
 const TASK_RUNS: Record<string, unknown>[] = [
@@ -1261,7 +1261,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_name: 'Generate weekly engineering report',
     task_description:
       'Compile deployment count, incident summary, velocity metrics, and blockers into a Slack-posted report.',
-    source_type: 'scheduled',
+    wake: 'scheduled',
     state: 'completed',
     scheduled_for: ts(7, 8),
     started_at: ts(7, 8, 1),
@@ -1272,7 +1272,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_name: 'Generate weekly engineering report',
     task_description:
       'Compile deployment count, incident summary, velocity metrics, and blockers into a Slack-posted report.',
-    source_type: 'scheduled',
+    wake: 'scheduled',
     state: 'completed',
     scheduled_for: ts(0, 8),
     started_at: ts(0, 8, 1),
@@ -1283,7 +1283,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_name: 'Monitor error rates',
     task_description:
       'Continuously poll error-tracking service and alert on-call if 5xx rate exceeds threshold.',
-    source_type: 'scheduled',
+    wake: 'scheduled',
     state: 'running',
     scheduled_for: ts(0, 12),
     started_at: ts(0, 12, 1),
@@ -1293,7 +1293,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_name: 'Monitor error rates',
     task_description:
       'Continuously poll error-tracking service and alert on-call if 5xx rate exceeds threshold.',
-    source_type: 'scheduled',
+    wake: 'scheduled',
     state: 'completed',
     scheduled_for: ts(1, 12),
     started_at: ts(1, 12, 1),
@@ -1304,7 +1304,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_name: 'Migrate legacy user data',
     task_description:
       'ETL pipeline to transform and import 2.3M user records from the legacy MySQL database.',
-    source_type: 'explicit',
+    wake: 'explicit',
     state: 'failed',
     started_at: ts(3, 14),
     completed_at: ts(3, 17),
@@ -1314,7 +1314,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_name: 'Migrate legacy user data',
     task_description:
       'ETL pipeline to transform and import 2.3M user records from the legacy MySQL database.',
-    source_type: 'explicit',
+    wake: 'explicit',
     state: 'failed',
     started_at: ts(4, 14),
     completed_at: ts(4, 16),
@@ -1323,7 +1323,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_id: 16,
     task_name: 'Respond to new WhatsApp messages',
     task_description: 'Listen for incoming WhatsApp messages and draft a contextual response.',
-    source_type: 'triggered',
+    wake: 'triggered',
     source_medium: 'whatsapp',
     source_contact_display_name: 'Jordan Mitchell',
     state: 'completed',
@@ -1334,7 +1334,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_id: 16,
     task_name: 'Respond to new WhatsApp messages',
     task_description: 'Listen for incoming WhatsApp messages and draft a contextual response.',
-    source_type: 'triggered',
+    wake: 'triggered',
     source_medium: 'whatsapp',
     source_contact_display_name: 'David Kim',
     state: 'completed',
@@ -1345,7 +1345,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_id: 17,
     task_name: 'Nightly database backup',
     task_description: 'Take a pg_dump snapshot of the production database and upload to S3.',
-    source_type: 'scheduled',
+    wake: 'scheduled',
     state: 'completed',
     scheduled_for: ts(1, 2),
     started_at: ts(1, 2, 1),
@@ -1355,7 +1355,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_id: 17,
     task_name: 'Nightly database backup',
     task_description: 'Take a pg_dump snapshot of the production database and upload to S3.',
-    source_type: 'scheduled',
+    wake: 'scheduled',
     state: 'completed',
     scheduled_for: ts(0, 2),
     started_at: ts(0, 2, 1),
@@ -1366,7 +1366,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_name: 'Triage SMS support requests',
     task_description:
       'Classify and route inbound SMS support messages to the appropriate team queue.',
-    source_type: 'triggered',
+    wake: 'triggered',
     source_medium: 'sms_message',
     source_contact_display_name: 'Priya Sharma',
     state: 'completed',
@@ -1377,7 +1377,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_id: 15,
     task_name: 'Fix dashboard query performance',
     task_description: 'Optimize the slow analytics dashboard queries.',
-    source_type: 'explicit',
+    wake: 'explicit',
     state: 'completed',
     started_at: ts(1, 14),
     completed_at: ts(0, 18),
@@ -1386,7 +1386,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_id: 1,
     task_name: 'Migrate password hashing',
     task_description: 'Switch from bcrypt to argon2id for all stored password hashes.',
-    source_type: 'explicit',
+    wake: 'explicit',
     state: 'completed',
     started_at: ts(6, 10),
     completed_at: ts(5, 16),
@@ -1395,7 +1395,7 @@ const TASK_RUNS: Record<string, unknown>[] = [
     task_id: 19,
     task_name: 'Monthly cost report',
     task_description: 'Pull cloud infrastructure costs from AWS Cost Explorer.',
-    source_type: 'scheduled',
+    wake: 'scheduled',
     state: 'completed',
     scheduled_for: ts(30, 9),
     started_at: ts(30, 9, 2),
@@ -1724,7 +1724,7 @@ export async function seedBrainRich(): Promise<SeededState> {
   await Promise.all([
     seedLogs(apiKey, owner.id, agentId, 'Contacts', CONTACTS),
     seedLogs(apiKey, owner.id, agentId, 'Tasks', TASKS),
-    seedLogs(apiKey, owner.id, agentId, 'Tasks/Runs', TASK_RUNS),
+    seedLogs(apiKey, owner.id, agentId, 'Tasks/Executions', TASK_RUNS),
     seedLogs(apiKey, owner.id, agentId, 'Guidance', GUIDANCE),
     seedLogs(apiKey, owner.id, agentId, 'Knowledge', KNOWLEDGE_CLAIMS),
     seedLogs(apiKey, owner.id, agentId, 'Functions/Compositional', FUNCTIONS_COMPOSITIONAL),

@@ -1,5 +1,5 @@
 /**
- * React hook for the Tasks tab — fetches Tasks and Task Runs data
+ * React hook for the Tasks tab — fetches task definitions and execution data
  * from the logging API.
  *
  * Supports server-side sorting, filtering, incremental loading
@@ -98,7 +98,7 @@ function contextStateFromData<T extends BrainRow>(
   };
 }
 
-type ApiContext = 'Tasks' | 'Tasks/Runs';
+type ApiContext = 'Tasks' | 'Tasks/Executions';
 type StateKey = 'tasks' | 'taskRuns';
 
 const VIEW_TO_STATE_KEY: Record<TaskBrainView, StateKey> = {
@@ -108,7 +108,7 @@ const VIEW_TO_STATE_KEY: Record<TaskBrainView, StateKey> = {
 
 const STATE_KEY_TO_API: Record<StateKey, ApiContext> = {
   tasks: 'Tasks',
-  taskRuns: 'Tasks/Runs',
+  taskRuns: 'Tasks/Executions',
 };
 
 interface TaskStates {
@@ -132,7 +132,7 @@ function fetchForKey(
     sorting: sortingParam,
     filter: filter ?? undefined,
     root,
-    readAcrossRoots: root ? false : stateKey === 'tasks',
+    readAcrossRoots: !root,
   });
 }
 
@@ -175,7 +175,7 @@ export function useTasksData({
       const [td, tr, hasRunning] = await Promise.all([
         fetchForKey(assistant, 'tasks', null, 0, null, root),
         fetchForKey(assistant, 'taskRuns', null, 0, null, root),
-        fetchHasRunningTaskRun(assistant),
+        fetchHasRunningTaskRun(assistant, root),
       ]);
       const loadedAt = Date.now();
       const nextStates = {
