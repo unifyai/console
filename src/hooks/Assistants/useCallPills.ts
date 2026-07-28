@@ -1,6 +1,10 @@
 import * as React from 'react';
 import { CallPill, CallTranscriptUtterance } from '@/types/assistants/chat';
 import { Assistant } from '@/types/assistants/assistant';
+import type { ExchangeRow } from '@/types/assistants/brain';
+import { fetchRowsAcrossRoots } from '@/lib/assistants/federatedRows';
+import { roots } from '@/lib/assistants/scope';
+import { recordingsByCallId, type CallRecording } from '@/utils/assistants/callRecording';
 import { fetchMeetExchangesDirect } from './useContactIdPrefetch';
 
 interface UseCallPillsOptions {
@@ -26,6 +30,26 @@ interface UseCallPillsReturn {
 // downstream `useMemo` dependencies (e.g. the timeline memo in the chat
 // panel) and forcing pointless recomputation on every keystroke.
 const EMPTY_CALL_PILLS: readonly CallPill[] = Object.freeze([]);
+
+/**
+ * Look up the recording for one call, from the same exchange metadata the
+ * transcripts pane reads.
+ *
+ * Fetched on demand rather than on mount: a chat thread usually has no open
+ * transcript, and this is the only consumer. Results are memoised for the
+ * lifetime of the hook so opening several pills costs one read.
+ */
+async function fetchCallRecordings(assistant: Assistant): Promise<Map<string, CallRecording>> {
+  const exchanges = await fetchRowsAcrossRoots<ExchangeRow>({
+    scopedRoots: roots(assistant),
+    ownerId: assistant.userId,
+    assistantId: assistant.agentId,
+    table: 'Exchanges',
+    limit: 200,
+    sortField: 'exchange_id',
+  });
+  return recordingsByCallId(exchanges);
+}
 
 async function fetchCallTranscriptDirect(
   assistant: Assistant,
@@ -80,6 +104,11 @@ export function useCallPills({
 
   const callStartTimeRef = React.useRef<Date | null>(null);
   const prevIsConnectedRef = React.useRef(false);
+  // In-flight or resolved recording index, shared across pills of one assistant.
+  const recordingsRef = React.useRef<Promise<Map<string, CallRecording>> | null>(null);
+  React.useEffect(() => {
+    recordingsRef.current = null;
+  }, [assistantId]);
 
   React.useEffect(() => {
     const wasConnected = prevIsConnectedRef.current;
@@ -149,8 +178,22 @@ export function useCallPills({
         }
 
         if (resolvedCallId !== undefined) {
-          const utterances = await fetchCallTranscriptDirect(assistant, resolvedCallId);
+          const [utterances, recordings] = await Promise.all([
+            fetchCallTranscriptDirect(assistant, resolvedCallId),
+            recordingsRef.current ?? (recordingsRef.current = fetchCallRecordings(assistant)),
+          ]);
           setActiveTranscript(utterances);
+          const recording = recordings.get(resolvedCallId);
+          setActiveTranscriptPill((current) =>
+            current === null
+              ? current
+              : {
+                  ...current,
+                  callId: resolvedCallId,
+                  recordingUrl: recording?.url,
+                  recordingStartedAtMs: recording?.startedAtMs ?? null,
+                }
+          );
         } else {
           setActiveTranscript([]);
         }

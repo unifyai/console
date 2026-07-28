@@ -68,16 +68,60 @@ export function recordingStartedAtFrom(
  * recording anchor, leaving the caller to fall back to the stored stamp.
  */
 export function offsetFromRecordingStart(
-  messageTimestamp: string | null | undefined,
+  messageTimestamp: string | Date | null | undefined,
   recordingStartedAtMs: number | null
 ): number | null {
   if (!messageTimestamp || recordingStartedAtMs === null) return null;
-  const spokenAt = Date.parse(messageTimestamp);
+  const spokenAt =
+    messageTimestamp instanceof Date ? messageTimestamp.getTime() : Date.parse(messageTimestamp);
   if (Number.isNaN(spokenAt)) return null;
   const seconds = (spokenAt - recordingStartedAtMs) / 1000;
   // Messages logged before the compositor attached (a dial notice, say) have no
   // position in the file.
   return seconds < 0 ? null : seconds;
+}
+
+/** A call's stored recording, as the UI needs it. */
+export interface CallRecording {
+  url: string;
+  /** Epoch ms of the audio's t=0, when the exchange carries the anchor. */
+  startedAtMs: number | null;
+}
+
+/**
+ * Index an assistant's exchanges by every identifier a call is known by.
+ *
+ * The transcripts pane joins exchanges to messages on `exchangeId`, but a call
+ * pill only knows its call-store id -- a call-session id for meets, a room name
+ * for the older phone/WhatsApp rows. Those are exactly the identifiers the
+ * runtime persists onto the exchange alongside the recording, so indexing by all
+ * of them lets either surface resolve the same recording.
+ */
+export function recordingsByCallId(
+  exchanges: ReadonlyArray<{ metadata?: Record<string, unknown> | null }>
+): Map<string, CallRecording> {
+  const byCallId = new Map<string, CallRecording>();
+  for (const exchange of exchanges) {
+    const url = recordingUrlFrom(exchange.metadata);
+    if (!url) continue;
+    const recording: CallRecording = {
+      url,
+      startedAtMs: recordingStartedAtFrom(exchange.metadata),
+    };
+    for (const key of [
+      'recording_call_session_id',
+      'call_session_id',
+      'recording_room_name',
+      'room_name',
+      'conference_name',
+    ]) {
+      const identifier = readMetadata(exchange.metadata, key);
+      // First exchange to claim an identifier wins; reads are newest-first, so
+      // a reused room name resolves to its most recent recording.
+      if (identifier && !byCallId.has(identifier)) byCallId.set(identifier, recording);
+    }
+  }
+  return byCallId;
 }
 
 /** True when the exchange looks like a call, recorded or not.

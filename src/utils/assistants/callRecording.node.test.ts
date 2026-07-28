@@ -6,6 +6,7 @@ import {
   offsetFromRecordingStart,
   parseUtteranceOffset,
   recordingStartedAtFrom,
+  recordingsByCallId,
   recordingUrlFrom,
   toGsUri,
   type UtteranceCue,
@@ -202,5 +203,93 @@ describe('offsetFromRecordingStart', () => {
   it('returns null without an anchor, so callers fall back to the stored stamp', () => {
     expect(offsetFromRecordingStart('2026-07-27T12:48:28+00:00', null)).toBeNull();
     expect(offsetFromRecordingStart(null, anchor)).toBeNull();
+  });
+});
+
+describe('recordingsByCallId', () => {
+  // A pill knows a call-store id, not an exchange id, so the index has to cover
+  // every identifier the runtime persists next to the recording.
+  const meet = {
+    metadata: {
+      medium: 'unify_meet',
+      recordingUrl: 'https://x/meet.mp3',
+      recordingStartedAt: '2026-07-27T12:48:26+00:00',
+      callSessionId: '48dcf6b4',
+      recordingCallSessionId: '48dcf6b4',
+      roomName: 'unity_call_48dcf6b4',
+      recordingRoomName: 'unity_call_48dcf6b4',
+    },
+  };
+  const phone = {
+    metadata: {
+      medium: 'phone_call',
+      recordingUrl: 'https://x/phone.mp3',
+      recordingStartedAt: '2026-07-27T15:11:35+00:00',
+      roomName: 'unity_2105_phone',
+      recordingRoomName: 'unity_2105_phone',
+      providerCallSid: 'CA111',
+    },
+  };
+
+  it('resolves a meet by its call-session id', () => {
+    const index = recordingsByCallId([meet]);
+    expect(index.get('48dcf6b4')).toEqual({
+      url: 'https://x/meet.mp3',
+      startedAtMs: Date.parse('2026-07-27T12:48:26Z'),
+    });
+  });
+
+  it('resolves a phone call by its room name', () => {
+    const index = recordingsByCallId([phone]);
+    expect(index.get('unity_2105_phone')?.url).toBe('https://x/phone.mp3');
+  });
+
+  it('indexes one recording under every identifier it carries', () => {
+    const index = recordingsByCallId([meet]);
+    for (const id of ['48dcf6b4', 'unity_call_48dcf6b4']) {
+      expect(index.get(id)?.url).toBe('https://x/meet.mp3');
+    }
+  });
+
+  it('skips exchanges with no recording, including calls that were not captured', () => {
+    const index = recordingsByCallId([
+      { metadata: { callSessionId: 'no-recording', roomName: 'unity_call_none' } },
+      { metadata: null },
+      {},
+    ]);
+    expect(index.size).toBe(0);
+  });
+
+  it('keeps the newest claim when a room name is reused across calls', () => {
+    // Reads are newest-first, so the first exchange to claim an identifier is
+    // the most recent call in that room.
+    const index = recordingsByCallId([
+      { metadata: { recordingUrl: 'https://x/newest.mp3', roomName: 'unity_2105_phone' } },
+      { metadata: { recordingUrl: 'https://x/older.mp3', roomName: 'unity_2105_phone' } },
+    ]);
+    expect(index.get('unity_2105_phone')?.url).toBe('https://x/newest.mp3');
+  });
+
+  it('carries a null anchor for recordings that predate it', () => {
+    const index = recordingsByCallId([
+      { metadata: { recordingUrl: 'https://x/old.mp3', roomName: 'unity_2105_gmeet' } },
+    ]);
+    expect(index.get('unity_2105_gmeet')).toEqual({
+      url: 'https://x/old.mp3',
+      startedAtMs: null,
+    });
+  });
+});
+
+describe('offsetFromRecordingStart with Date input', () => {
+  // The call-pill dialog holds spoken_at as a Date, the pane holds an ISO string.
+  it('accepts either', () => {
+    const anchor = Date.parse('2026-07-27T12:48:26Z');
+    expect(offsetFromRecordingStart(new Date('2026-07-27T12:48:28Z'), anchor)).toBe(2);
+    expect(offsetFromRecordingStart('2026-07-27T12:48:28+00:00', anchor)).toBe(2);
+  });
+
+  it('rejects an invalid Date', () => {
+    expect(offsetFromRecordingStart(new Date('nope'), 0)).toBeNull();
   });
 });
