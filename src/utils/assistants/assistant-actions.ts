@@ -269,7 +269,11 @@ export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodE
   }
 }
 
-function applyNodeUpdateEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
+function applyNodeUpdateEvent(
+  node: ActionNode,
+  event: ParsedManagerMethodEvent,
+  roots: ActionNode[]
+): void {
   if (event.phase === 'awaiting_input') {
     applyAwaitingInputEvent(node, event);
     return;
@@ -279,6 +283,9 @@ function applyNodeUpdateEvent(node: ActionNode, event: ParsedManagerMethodEvent)
     return;
   }
   applyOutgoingEvent(node, event);
+  if (node.status === 'completed' || node.status === 'error') {
+    closeBoundaryAncestors(roots, node.hierarchy, node.endTime);
+  }
 }
 
 function applyNodeUpdateOrOrphan(
@@ -290,7 +297,7 @@ function applyNodeUpdateOrOrphan(
 ): void {
   const existingNode = nodeMap.get(event.callingId);
   if (existingNode) {
-    applyNodeUpdateEvent(existingNode, event);
+    applyNodeUpdateEvent(existingNode, event, roots);
     return;
   }
 
@@ -298,7 +305,7 @@ function applyNodeUpdateOrOrphan(
   if (boundaryNode) {
     promoteBoundaryNode(boundaryNode, event, nodeMap);
     promotedCallingIds.push(event.callingId);
-    applyNodeUpdateEvent(boundaryNode, event);
+    applyNodeUpdateEvent(boundaryNode, event, roots);
     return;
   }
 
@@ -324,6 +331,43 @@ function findBoundaryByHierarchy(nodes: ActionNode[], hierarchy: string[]): Acti
     if (found) return found;
   }
   return null;
+}
+
+function isTerminalNodeStatus(status: ActionNode['status']): boolean {
+  return status === 'completed' || status === 'error';
+}
+
+/**
+ * Closes boundary placeholder ancestors once every child under them has
+ * reached a terminal status.
+ *
+ * The `Task.run(...)` lineage segment (and any other intermediate hierarchy
+ * segment) is represented by a synthetic boundary node (createBoundaryNode)
+ * that never receives its own incoming/outgoing event pair — Unity emits
+ * events for the real manager calls nested under it, not for the boundary
+ * itself. Without this, a boundary node stays 'running' forever even after
+ * everything beneath it finishes. Walks upward one hierarchy segment at a
+ * time so a chain of nested boundaries all close together as the last live
+ * child under them finishes.
+ */
+function closeBoundaryAncestors(roots: ActionNode[], hierarchy: string[], endTime?: string): void {
+  let ancestorHierarchy = hierarchy.slice(0, -1);
+
+  while (ancestorHierarchy.length > 0) {
+    const boundary = findBoundaryByHierarchy(roots, ancestorHierarchy);
+    if (!boundary || isTerminalNodeStatus(boundary.status)) break;
+    if (
+      boundary.children.length === 0 ||
+      !boundary.children.every((child) => isTerminalNodeStatus(child.status))
+    ) {
+      break;
+    }
+
+    boundary.status = 'completed';
+    boundary.endTime = endTime;
+
+    ancestorHierarchy = ancestorHierarchy.slice(0, -1);
+  }
 }
 
 /**
@@ -542,7 +586,7 @@ export function buildActionTree(logs: ManagerMethodLog[]): ActionTreeResult {
       const orphanIndex = orphanOutgoing.findIndex((o) => o.callingId === event.callingId);
       if (orphanIndex !== -1) {
         const orphan = orphanOutgoing[orphanIndex];
-        applyNodeUpdateEvent(node, orphan);
+        applyNodeUpdateEvent(node, orphan, roots);
         orphanOutgoing.splice(orphanIndex, 1);
       }
     } else {
