@@ -43,7 +43,9 @@ import {
   activeCueMessageId,
   formatClock,
   isCallExchange,
+  offsetFromRecordingStart,
   parseUtteranceOffset,
+  recordingStartedAtFrom,
   recordingUrlFrom,
   type UtteranceCue,
 } from '@/utils/assistants/callRecording';
@@ -412,9 +414,12 @@ export function TranscriptsPane({
       // no single exchange to carry a recording; call threads group per
       // exchange and do.
       const meta = exchangeMetaByKey[exchangeKey(last.rootKey, last.exchangeId) ?? ''] ?? null;
+      const recordingStartedAt = recordingStartedAtFrom(meta);
       const cues: UtteranceCue[] = [];
       for (const message of messages) {
-        const offsetSeconds = parseUtteranceOffset(message.metadata);
+        const offsetSeconds =
+          offsetFromRecordingStart(message.timestamp, recordingStartedAt) ??
+          parseUtteranceOffset(message.metadata);
         if (offsetSeconds !== null) cues.push({ messageId: message.messageId, offsetSeconds });
       }
       return {
@@ -426,6 +431,7 @@ export function TranscriptsPane({
         subject: deriveSubject(messages),
         participantIds: Array.from(participants),
         recordingUrl: recordingUrlFrom(meta),
+        recordingStartedAt,
         isCall: isCallExchange(meta),
         cues,
       };
@@ -827,7 +833,11 @@ export function TranscriptsPane({
                         ? assistantDisplayName(assistant)
                         : nameFor(message.senderId, message.rootKey);
                       const receivers = message.receiverIds ?? [];
-                      const offsetSeconds = parseUtteranceOffset(message.metadata);
+                      const offsetSeconds =
+                        offsetFromRecordingStart(
+                          message.timestamp,
+                          activeThread.recordingStartedAt
+                        ) ?? parseUtteranceOffset(message.metadata);
                       return (
                         <TranscriptMessageRow
                           key={message.messageId}

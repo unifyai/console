@@ -3,7 +3,9 @@ import {
   activeCueMessageId,
   formatClock,
   isCallExchange,
+  offsetFromRecordingStart,
   parseUtteranceOffset,
+  recordingStartedAtFrom,
   recordingUrlFrom,
   toGsUri,
   type UtteranceCue,
@@ -146,5 +148,59 @@ describe('activeCueMessageId', () => {
 
   it('returns nothing when the thread has no cues', () => {
     expect(activeCueMessageId([], 10)).toBeNull();
+  });
+});
+
+describe('recordingStartedAtFrom', () => {
+  it('reads the anchor under either key casing', () => {
+    expect(recordingStartedAtFrom({ recordingStartedAt: '2026-07-27T12:48:26+00:00' })).toBe(
+      Date.parse('2026-07-27T12:48:26Z')
+    );
+    expect(
+      // eslint-disable-next-line @typescript-eslint/naming-convention -- mirrors stored shape
+      recordingStartedAtFrom({ recording_started_at: '2026-07-27T12:48:26+00:00' })
+    ).toBe(Date.parse('2026-07-27T12:48:26Z'));
+  });
+
+  it('returns null when absent or unparseable', () => {
+    expect(recordingStartedAtFrom({})).toBeNull();
+    expect(recordingStartedAtFrom({ recordingStartedAt: 'not a date' })).toBeNull();
+    expect(recordingStartedAtFrom(null)).toBeNull();
+  });
+});
+
+describe('offsetFromRecordingStart', () => {
+  // Real staging data: exchange 378 (Unify Meet). Egress began writing at
+  // 12:48:26; the stored MM.SS stamps read 20s ahead of the audio because they
+  // were anchored to the call-started event and read at logging time.
+  const anchor = Date.parse('2026-07-27T12:48:26Z');
+
+  it('measures against the audio, not the call event', () => {
+    expect(offsetFromRecordingStart('2026-07-27T12:48:28+00:00', anchor)).toBe(2);
+    expect(offsetFromRecordingStart('2026-07-27T12:48:57+00:00', anchor)).toBe(31);
+  });
+
+  it('is monotonic in speech order, unlike the stored stamps', () => {
+    const walls = [
+      '2026-07-27T12:48:28+00:00',
+      '2026-07-27T12:48:32+00:00',
+      '2026-07-27T12:48:38+00:00',
+      '2026-07-27T12:48:43+00:00',
+    ];
+    const offsets = walls.map((w) => offsetFromRecordingStart(w, anchor));
+    expect(offsets).toEqual([2, 6, 12, 17]);
+    // The stored stamps for these same four were 23, 22, 25, 24 — inverted.
+    const sorted = [...offsets].sort((a, b) => (a ?? 0) - (b ?? 0));
+    expect(offsets).toEqual(sorted);
+  });
+
+  it('returns null for a message logged before the compositor attached', () => {
+    // Exchange 379's "<Sending Call...>" sat 3s before its recording began.
+    expect(offsetFromRecordingStart('2026-07-27T12:48:23+00:00', anchor)).toBeNull();
+  });
+
+  it('returns null without an anchor, so callers fall back to the stored stamp', () => {
+    expect(offsetFromRecordingStart('2026-07-27T12:48:28+00:00', null)).toBeNull();
+    expect(offsetFromRecordingStart(null, anchor)).toBeNull();
   });
 });

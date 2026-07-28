@@ -48,6 +48,38 @@ export function recordingUrlFrom(
   return readMetadata(metadata, 'recording_url');
 }
 
+/** Epoch ms at which the recording's audio begins, if the exchange records it. */
+export function recordingStartedAtFrom(
+  metadata: Record<string, unknown> | null | undefined
+): number | null {
+  const raw = readMetadata(metadata, 'recording_started_at');
+  if (!raw) return null;
+  const parsed = Date.parse(raw);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+/**
+ * Seconds into the recording at which a message was spoken.
+ *
+ * Preferred over the stored `MM.SS` stamp because it is measured against the
+ * audio itself. The stored stamp is anchored to the call-started event, which
+ * fires a few seconds before the egress compositor starts writing, so it sits
+ * ahead of the audio by that much. Returns null when the exchange predates the
+ * recording anchor, leaving the caller to fall back to the stored stamp.
+ */
+export function offsetFromRecordingStart(
+  messageTimestamp: string | null | undefined,
+  recordingStartedAtMs: number | null
+): number | null {
+  if (!messageTimestamp || recordingStartedAtMs === null) return null;
+  const spokenAt = Date.parse(messageTimestamp);
+  if (Number.isNaN(spokenAt)) return null;
+  const seconds = (spokenAt - recordingStartedAtMs) / 1000;
+  // Messages logged before the compositor attached (a dial notice, say) have no
+  // position in the file.
+  return seconds < 0 ? null : seconds;
+}
+
 /** True when the exchange looks like a call, recorded or not.
  *
  * Distinguishes "no recording for this call" from "not a call", which is the
