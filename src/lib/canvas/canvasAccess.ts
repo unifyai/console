@@ -22,7 +22,7 @@ import type { NextRequest } from 'next/server';
 
 import { getApiKeyFromRequest } from '@/app/api/_utils/auth';
 import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 
@@ -197,4 +197,111 @@ export async function queryCanvasAlias(
 
   const body = (await response.json()) as { rows?: unknown[]; truncated?: boolean };
   return { ok: true, rows: body.rows ?? [], truncated: Boolean(body.truncated) };
+}
+
+/** One action as the frame is allowed to see it. */
+export interface CanvasActionDescriptor {
+  name: string;
+  label: string;
+  icon?: string | null;
+  inputSchema?: Record<string, unknown> | null;
+  requiresConfirmation: boolean;
+  destructive: boolean;
+}
+
+/**
+ * List a canvas's declared actions.
+ *
+ * Targets are stripped by Orchestra rather than here, so this cannot leak one by
+ * forgetting to.
+ */
+export async function listCanvasActions(
+  token: string
+): Promise<{ ok: true; actions: CanvasActionDescriptor[] } | { ok: false; denial: CanvasDenial }> {
+  const headers = adminHeaders();
+  if (!headers) {
+    return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
+  }
+
+  const response = await fetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/actions`, {
+    headers,
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    return { ok: false, denial: { error: 'Failed to load actions', status: response.status } };
+  }
+
+  const body = snakeToCamelObject<{ actions?: CanvasActionDescriptor[] }>(await response.json());
+  return { ok: true, actions: body.actions ?? [] };
+}
+
+/** One invocation, as the caller observes it. */
+export interface CanvasInvocation {
+  invocationId: number;
+  actionName: string;
+  status: string;
+  result?: Record<string, unknown> | null;
+  error?: string | null;
+  runKey: string;
+  deduplicated: boolean;
+}
+
+/**
+ * Run one of a canvas's declared actions.
+ *
+ * The action name and the arguments are all that is sent; the target lives on the
+ * stored action row and never reaches this process. Orchestra re-validates the
+ * arguments against the schema declared at author time, enforces the rate limit,
+ * and deduplicates — none of which this route re-implements, because a second
+ * copy of a rule is a second thing to drift.
+ */
+export async function invokeCanvasAction(
+  token: string,
+  args: {
+    actionName: string;
+    args: Record<string, unknown>;
+    runKey?: string;
+    requestedByUserId?: string;
+  }
+): Promise<{ ok: true; invocation: CanvasInvocation } | { ok: false; denial: CanvasDenial }> {
+  const headers = adminHeaders();
+  if (!headers) {
+    return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
+  }
+
+  const response = await fetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/action`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      // The envelope is converted to Orchestra's wire casing; `args` is spliced in
+      // afterwards and never transformed. Its keys are the property names the
+      // author declared in `input_schema`, so converting them would rename
+      // `dealName` to `deal_name` and fail the very validation they exist for.
+      ...camelToSnakeObject({
+        actionName: args.actionName,
+        runKey: args.runKey,
+        requestedByUserId: args.requestedByUserId,
+      }),
+      args: args.args,
+    }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    // Orchestra's reason, verbatim. "recipients: too long" is what lets the canvas
+    // tell the viewer which field to fix; a generic failure sends them to support.
+    let detail = 'Action refused';
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === 'string') detail = body.detail;
+    } catch {
+      // Non-JSON error body; the status carries what it can.
+    }
+    return { ok: false, denial: { error: detail, status: response.status } };
+  }
+
+  return {
+    ok: true,
+    invocation: snakeToCamelObject<CanvasInvocation>(await response.json()),
+  };
 }
