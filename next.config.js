@@ -22,6 +22,28 @@ const canvasOrigin = (
   'http://localhost:3100'
 ).replace(/\/+$/, '');
 
+// The global policy, as a list so a route can extend it instead of replacing it.
+//
+// A second `Content-Security-Policy` header on a more specific route *overrides*
+// this one rather than adding to it, so a route that emits a bare
+// `frame-ancestors` directive silently drops `default-src`, `script-src`,
+// `connect-src` and the rest. The `/tile/view` and `/dashboard/view` routes below
+// do exactly that, which is how a page rendering assistant-authored HTML ends up
+// with no script or connect restrictions at all. Canvas routes extend this list.
+const baseCspDirectives = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://js.stripe.com https://challenges.cloudflare.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com`,
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https://storage.googleapis.com",
+  `connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com https://challenges.cloudflare.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery${process.env.NODE_ENV === 'development' ? ' ws://localhost:* http://localhost:* webpack://*' : ''}`,
+  `frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com ${canvasOrigin}${selfHostDesktopFrameSrc}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+];
+
 const serverActionAllowedOrigins = [
   'useunitys.ai',
   'www.useunitys.ai',
@@ -143,21 +165,25 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
+          { key: 'Content-Security-Policy', value: baseCspDirectives.join('; ') },
+        ],
+      },
+      {
+        // The standalone canvas page. It carries the **whole** base policy plus
+        // `frame-ancestors 'self'`, rather than a bare `frame-ancestors` directive
+        // that would replace the policy protecting the page that frames
+        // assistant-authored code. `'self'` and not `*`: third-party embedding is a
+        // per-canvas opt-in tied to `visibility='public_link'`, not a blanket
+        // allowance for every canvas that happens to have a URL.
+        //
+        // `X-Frame-Options: SAMEORIGIN` overrides the global `DENY` for browsers
+        // that honour it; those implementing `frame-ancestors` ignore it.
+        source: '/canvas/view/:token*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           {
             key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://js.stripe.com https://challenges.cloudflare.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com`,
-              "style-src 'self' 'unsafe-inline'",
-              "font-src 'self'",
-              "img-src 'self' data: blob: https:",
-              "media-src 'self' blob: https://storage.googleapis.com",
-              `connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com https://challenges.cloudflare.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery${process.env.NODE_ENV === 'development' ? ' ws://localhost:* http://localhost:* webpack://*' : ''}`,
-              `frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com ${canvasOrigin}${selfHostDesktopFrameSrc}`,
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-            ].join('; '),
+            value: [...baseCspDirectives, "frame-ancestors 'self'"].join('; '),
           },
         ],
       },
