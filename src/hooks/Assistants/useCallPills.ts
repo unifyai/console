@@ -78,6 +78,12 @@ async function fetchCallTranscriptDirect(
           callUtteranceTimestamp:
             (metadata.call_utterance_timestamp as string | undefined) ??
             (metadata.callUtteranceTimestamp as string | undefined),
+          // The calls API is not camelised (unlike the logs proxy), so the
+          // stored key arrives as-is; the camel form is accepted in case that
+          // ever changes.
+          speechStartedAt:
+            (metadata.speech_started_at as string | undefined) ??
+            (metadata.speechStartedAt as string | undefined),
         };
       })
       .filter((u: CallTranscriptUtterance | null): u is CallTranscriptUtterance => u !== null);

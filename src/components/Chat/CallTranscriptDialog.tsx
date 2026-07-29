@@ -40,7 +40,12 @@ function utteranceOffset(
   recordingStartedAtMs: number | null
 ): number | null {
   return (
-    offsetFromRecordingStart(utterance.timestamp, recordingStartedAtMs) ??
+    offsetFromRecordingStart(
+      // The audible start when the runtime observed one; `timestamp` is the
+      // commit that follows the line and so sits past it in the audio.
+      utterance.speechStartedAt ?? utterance.timestamp,
+      recordingStartedAtMs
+    ) ??
     // eslint-disable-next-line @typescript-eslint/naming-convention -- stored key shape
     parseUtteranceOffset({ call_utterance_timestamp: utterance.callUtteranceTimestamp })
   );
