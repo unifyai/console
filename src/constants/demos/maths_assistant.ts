@@ -9,7 +9,7 @@ from random import randint, choice
 unify.activate("Maths Assistant", overwrite=True)
 
 # build agent
-client = unify.Unify("o3-mini@openai", traced=True)
+client = unify.Unify("openai/o3-mini@openrouter", traced=True)
 client.set_system_message(
     "You are a helpful maths assistant, "
     "tasked with adding and subtracting integers."
