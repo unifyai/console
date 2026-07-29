@@ -20,6 +20,7 @@ import { Loader } from '@/components/Common/Loader';
 import { canvasDataResolver } from '@/lib/client/canvasData';
 import { useCanvasActions, type CanvasActionDescriptor } from '@/lib/client/canvasActions';
 import { useCanvas, type CanvasPayload } from '@/lib/client/canvasView';
+import { useCanvasStream } from '@/lib/client/canvasStream';
 import { cn } from '@/lib/utils';
 
 /**
@@ -43,8 +44,14 @@ function forProtocol(actions: CanvasActionDescriptor[]): ProtocolActionDescripto
 export interface CanvasViewProps {
   token: string;
   /**
-   * Bumped by a surface that has heard the canvas was republished. Changing it
-   * re-reads the record, so an open frame picks up a new bundle.
+   * Assistant whose action stream carries this canvas's signals. Given it, the
+   * view follows republishes and reports action outcomes back into the frame on
+   * its own; without it the canvas renders as a snapshot.
+   */
+  assistantId?: string | null;
+  /**
+   * Bumped by a surface that already tracks revisions itself. Live updates arrive
+   * through `assistantId`, so this is for chrome that re-reads for its own reasons.
    */
   revision?: number | string;
   /** Fixed height. Omit to let the canvas size the frame to its content. */
@@ -71,6 +78,7 @@ function CanvasMessage({ children }: { children: React.ReactNode }) {
 
 export function CanvasView({
   token,
+  assistantId,
   revision = 0,
   height,
   onLoaded,
@@ -78,7 +86,9 @@ export function CanvasView({
   onError,
   className,
 }: CanvasViewProps) {
-  const { canvas, error, isLoading } = useCanvas(token, revision);
+  const live = useCanvasStream(token, assistantId);
+  // Either source can force a re-read, so the record key combines them.
+  const { canvas, error, isLoading } = useCanvas(token, `${revision}:${live.revision}`);
 
   // Actions come from the server, so `requiresConfirmation` is the stored
   // declaration rather than something the frame asserted about itself.
@@ -107,6 +117,14 @@ export function CanvasView({
     );
   }
 
+  if (live.deleted) {
+    return (
+      <div className={className}>
+        <CanvasMessage>This canvas has been deleted.</CanvasMessage>
+      </div>
+    );
+  }
+
   if (error || !canvas) {
     return (
       <div className={className}>
@@ -126,6 +144,7 @@ export function CanvasView({
         onInvokeAction={invokeAction}
         onAsk={onAsk}
         onError={onError}
+        invocationEvents={live.invocationEvents}
         height={height}
         title={canvas.title}
       />

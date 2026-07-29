@@ -41,6 +41,7 @@ import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { encodeOnboardingInvalidationSse } from '@/lib/assistants/onboarding-stream-frame';
 import { encodeVoiceEnrollmentSuggestedSse } from '@/lib/assistants/voice-enrollment-stream-frame';
+import { encodeCanvasSse } from '@/lib/assistants/canvas-stream-frame';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +99,11 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
           const invalidation = encodeOnboardingInvalidationSse(payload);
           if (invalidation) {
             controller.enqueue(encoder.encode(invalidation));
+            return;
+          }
+          const canvas = encodeCanvasSse(payload);
+          if (canvas) {
+            controller.enqueue(encoder.encode(canvas));
             return;
           }
           const event = snakeToCamelObject<Record<string, unknown>>(rawEvent);
@@ -211,6 +217,18 @@ function createPubSubStream(
           if (voiceEnrollmentSuggested) {
             try {
               controller.enqueue(encoder.encode(voiceEnrollmentSuggested));
+            } catch {
+              message.nack();
+              return;
+            }
+            message.ack();
+            return;
+          }
+
+          const canvas = encodeCanvasSse(payload);
+          if (canvas) {
+            try {
+              controller.enqueue(encoder.encode(canvas));
             } catch {
               message.nack();
               return;

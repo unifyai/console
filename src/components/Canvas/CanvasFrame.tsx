@@ -26,6 +26,17 @@ const MIN_FRAME_HEIGHT = 120;
 /** Inbound messages accepted per second before the child is considered hostile. */
 const MAX_MESSAGES_PER_SECOND = 120;
 
+/** One lifecycle update for an invocation the canvas started. */
+export interface FrameInvocationEvent {
+  invocationId: number;
+  status: string;
+  error?: string;
+  result?: unknown;
+}
+
+/** Statuses the frame protocol treats as terminal. */
+const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'cancelled']);
+
 export interface CanvasFrameProps {
   /** Compiled ES module for this canvas, already integrity-checked by the caller. */
   source: string;
@@ -42,6 +53,14 @@ export interface CanvasFrameProps {
   onAsk?: (text: string) => void;
   /** Called when the canvas reports a load or render failure. */
   onError?: (message: string, stack?: string) => void;
+  /**
+   * Append-only lifecycle updates for invocations this canvas started.
+   *
+   * The parent resolves an action's promise as soon as it is *accepted*, because
+   * the work outlives the request. Without these the canvas never learns how the
+   * run ended, and the control that started it stays in its working state.
+   */
+  invocationEvents?: FrameInvocationEvent[];
   /** Fixed height. Omit to size the frame to its content. */
   height?: number;
   className?: string;
@@ -81,6 +100,7 @@ export function CanvasFrame({
   onInvokeAction,
   onAsk,
   onError,
+  invocationEvents = [],
   height,
   className,
   title = 'Canvas',
@@ -271,6 +291,44 @@ export function CanvasFrame({
   React.useEffect(() => {
     if (ready) post({ type: 'canvas/theme', theme });
   }, [ready, theme, post]);
+
+  // Deliver invocation updates once each.
+  //
+  // A cursor rather than a "latest event" prop: several updates can land between
+  // renders, and re-posting the whole list on every render would make a canvas
+  // that counts its own results wrong. The cursor resets with the channel, so a
+  // reloaded frame is not replayed history it never asked for.
+  const deliveredRef = React.useRef(0);
+  React.useEffect(() => {
+    if (!ready) return;
+    if (invocationEvents.length < deliveredRef.current) {
+      deliveredRef.current = 0;
+    }
+    for (const event of invocationEvents.slice(deliveredRef.current)) {
+      const invocationId = String(event.invocationId);
+      if (TERMINAL_STATUSES.has(event.status)) {
+        post({
+          type: 'canvas/action/result',
+          invocationId,
+          ok: event.status === 'succeeded',
+          result: event.result,
+          error: event.error,
+        });
+      } else {
+        post({
+          type: 'canvas/action/progress',
+          invocationId,
+          // 'requested' is the protocol's 'pending'; the rest line up by name.
+          status: event.status === 'requested' ? 'pending' : 'running',
+        });
+      }
+    }
+    deliveredRef.current = invocationEvents.length;
+  }, [ready, invocationEvents, post]);
+
+  React.useEffect(() => {
+    deliveredRef.current = 0;
+  }, [source, channelId]);
 
   return (
     <iframe
