@@ -47,15 +47,12 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
 ]);
 
 const TASK_STATUS_DESCRIPTIONS = new Map<string, string>([
-  ['scheduled', 'Will start automatically at its next scheduled time.'],
+  ['scheduled', 'Is armed and will start automatically at its next occurrence.'],
   ['triggerable', 'Is armed and waiting for a matching event to happen.'],
   ['ready', 'Is armed and waiting for a matching event to happen.'],
-  ['active', 'Currently has live work underway.'],
-  ['running', 'Is actively executing right now.'],
-  ['completed', 'Finished successfully.'],
-  ['failed', 'Stopped because something went wrong during execution.'],
-  ['cancelled', 'Was stopped before it finished.'],
-  ['pending', 'Has been created and is waiting to start.'],
+  ['running', 'Has a run in flight right now.'],
+  ['completed', 'Was a one-off and has already run.'],
+  ['disarmed', 'Is paused and will not start until it is re-armed.'],
 ]);
 
 const TASK_WAITING_TONE =
@@ -72,11 +69,10 @@ const TASK_INACTIVE_TONE =
   'border-border bg-[color:var(--status-neutral-bg)] text-muted-foreground';
 
 const TASK_STATUS_TONES: Record<string, string> = {
-  pending: TASK_ATTENTION_TONE,
   scheduled: TASK_WAITING_TONE,
   triggerable: TASK_WAITING_TONE,
   ready: TASK_WAITING_TONE,
-  active: TASK_LIVE_TONE,
+  disarmed: TASK_INACTIVE_TONE,
   running: TASK_LIVE_TONE,
   completed: TASK_SUCCESS_TONE,
   failed: TASK_FAILURE_TONE,
@@ -668,7 +664,11 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
     addSection('Task', [
       ['name', 'Task', row.name],
       ['description', 'Description', row.description],
-      ['status', 'Status', isPresent(row.status) ? humanizeTaskLabel(row.status) : undefined],
+      [
+        'lifecycle',
+        'Status',
+        isPresent(row.lifecycle) ? humanizeTaskLabel(row.lifecycle) : undefined,
+      ],
       [
         'priority',
         'Priority',
@@ -720,8 +720,8 @@ export function getTaskTypeLabel(row: TaskRow): string {
   return formatTaskStartLabel(row);
 }
 
-/** Statuses that read as paused/stopped for the All/Active/Paused filter. */
-const PAUSED_TASK_STATUSES = new Set(['paused', 'cancelled', 'disabled', 'inactive', 'stopped']);
+/** Lifecycles that read as not-armed for the All/Active/Paused filter. */
+const PAUSED_TASK_STATUSES = new Set(['disarmed', 'completed']);
 
 export function isPausedTaskStatus(status: unknown): boolean {
   if (!isPresent(status)) return false;
