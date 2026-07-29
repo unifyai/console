@@ -247,6 +247,43 @@ export interface CanvasInvocation {
 }
 
 /**
+ * Read one invocation's current state.
+ *
+ * Orchestra scopes the lookup to the canvas in the path, so an invocation id from
+ * one canvas cannot be read through another and this route does not have to
+ * re-check the pairing itself.
+ */
+export async function readCanvasInvocation(
+  token: string,
+  invocationId: number
+): Promise<{ ok: true; invocation: CanvasInvocation } | { ok: false; denial: CanvasDenial }> {
+  const headers = adminHeaders();
+  if (!headers) {
+    return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
+  }
+
+  const response = await fetch(
+    `${ORCHESTRA_URL}/v0/admin/canvas/${token}/invocations/${invocationId}`,
+    { headers, cache: 'no-store' }
+  );
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      denial: {
+        error: response.status === 404 ? 'Invocation not found' : 'Failed to read invocation',
+        status: response.status,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    invocation: snakeToCamelObject<CanvasInvocation>(await response.json()),
+  };
+}
+
+/**
  * Run one of a canvas's declared actions.
  *
  * The action name and the arguments are all that is sent; the target lives on the

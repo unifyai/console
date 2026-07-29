@@ -19,6 +19,7 @@ import { CanvasFrame } from '@/components/Canvas/CanvasFrame';
 import { Loader } from '@/components/Common/Loader';
 import { canvasDataResolver } from '@/lib/client/canvasData';
 import { useCanvasActions, type CanvasActionDescriptor } from '@/lib/client/canvasActions';
+import { mergeInvocationEvents, useCanvasInvocationTracker } from '@/lib/client/canvasInvocations';
 import { useCanvas, type CanvasPayload } from '@/lib/client/canvasView';
 import { useCanvasStream } from '@/lib/client/canvasStream';
 import { cn } from '@/lib/utils';
@@ -93,7 +94,34 @@ export function CanvasView({
   // Actions come from the server, so `requiresConfirmation` is the stored
   // declaration rather than something the frame asserted about itself.
   const actions = canvas?.actions ?? [];
-  const { invokeAction, pending, confirmPending, cancelPending } = useCanvasActions(token, actions);
+  const {
+    invokeAction: dispatchAction,
+    pending,
+    confirmPending,
+    cancelPending,
+  } = useCanvasActions(token, actions);
+
+  const tracker = useCanvasInvocationTracker(token);
+
+  // Every accepted run is followed to completion. Wrapped here rather than inside
+  // the dispatch hook so the id is tracked on exactly the path the frame awaits,
+  // including a run started from the confirmation dialog.
+  const invokeAction = React.useCallback(
+    async (actionName: string, args: Record<string, unknown>) => {
+      const invocationId = await dispatchAction(actionName, args);
+      tracker.track(invocationId);
+      return invocationId;
+    },
+    [dispatchAction, tracker]
+  );
+
+  // The poller sees the runs this client started; the stream sees every run on the
+  // canvas. Both can report the same transition, and the frame delivers whatever it
+  // is handed, so they are deduplicated before they get there.
+  const invocationEvents = React.useMemo(
+    () => mergeInvocationEvents(tracker.events, live.invocationEvents),
+    [tracker.events, live.invocationEvents]
+  );
 
   // Serialised because `forProtocol` builds fresh objects each render, and
   // `CanvasFrame` keys its handshake on the contents of `actions`.
@@ -144,7 +172,7 @@ export function CanvasView({
         onInvokeAction={invokeAction}
         onAsk={onAsk}
         onError={onError}
-        invocationEvents={live.invocationEvents}
+        invocationEvents={invocationEvents}
         height={height}
         title={canvas.title}
       />
