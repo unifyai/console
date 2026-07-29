@@ -37,6 +37,7 @@ import {
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { isManagerExcluded } from '@/lib/assistants/event-filters';
+import { authorizeAssistantStream } from '@/lib/assistants/assistantStreamAccess';
 import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { encodeOnboardingInvalidationSse } from '@/lib/assistants/onboarding-stream-frame';
@@ -309,6 +310,14 @@ export async function GET(
 
   if (!assistantId) {
     return new NextResponse('Assistant ID is required.', { status: 400 });
+  }
+
+  // Before either backend. This route reads the assistant's Pub/Sub topic with the
+  // platform's own credentials, so unlike the routes that forward a viewer's key to
+  // Orchestra, nothing downstream is scoped to the caller.
+  const access = await authorizeAssistantStream(request, assistantId);
+  if (!access.ok) {
+    return access.response;
   }
 
   // ── No Pub/Sub backend (creds or emulator) → in-memory event bus ──
