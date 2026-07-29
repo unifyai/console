@@ -33,16 +33,33 @@ export const dynamic = 'force-dynamic';
 
 type Outcome = 'connected' | MsTeamsBotConnectErrorCode | null;
 
-/** Redirect back to ``returnPath`` with the outcome, dropping the parked nonce. */
+/** Base for parsing a same-origin path; never reaches the response. */
+const PATH_PARSE_BASE = 'http://console.invalid';
+
+/**
+ * Redirect to a same-origin path.
+ *
+ * The ``Location`` stays *relative* on purpose. A route handler's ``request.url``
+ * carries the origin the server is bound to rather than the one the browser
+ * used — ``0.0.0.0`` under ``next dev -H 0.0.0.0``, and the internal service
+ * origin behind Cloud Run's proxy — so resolving an absolute target against it
+ * sends the user to a host they cannot reach. Browsers resolve a relative
+ * ``Location`` against the request URL, which is always the right origin.
+ */
+function redirectToPath(path: string): NextResponse {
+  return new NextResponse(null, { status: 307, headers: { location: path } });
+}
+
+/** Return to ``returnPath`` with the outcome, dropping the parked nonce. */
 function settle(request: NextRequest, returnPath: string, outcome: Outcome): NextResponse {
-  const target = new URL(returnPath, request.url);
+  const target = new URL(returnPath, PATH_PARSE_BASE);
   if (outcome === 'connected') {
     target.searchParams.set(MS_TEAMS_BOT_CONNECTED_PARAM, '1');
   } else if (outcome) {
     target.searchParams.set(MS_TEAMS_BOT_CONNECT_ERROR_PARAM, outcome);
   }
 
-  const response = NextResponse.redirect(target);
+  const response = redirectToPath(`${target.pathname}${target.search}`);
   response.cookies.set(MS_TEAMS_BOT_BIND_COOKIE, '', {
     httpOnly: true,
     maxAge: 0,
@@ -69,12 +86,12 @@ export async function GET(request: NextRequest) {
     // The middleware normally bounces unauthenticated callers to sign-in first;
     // this covers the identity failing to resolve on this request. Keep the
     // parked nonce so the retry after sign-in still has it.
-    const loginUrl = new URL('/login', request.url);
+    const loginUrl = new URL('/login', PATH_PARSE_BASE);
     loginUrl.searchParams.set(
       'callbackUrl',
       `${MS_TEAMS_BOT_CONNECT_PATH}?nonce=${encodeURIComponent(nonce)}`
     );
-    return NextResponse.redirect(loginUrl);
+    return redirectToPath(`${loginUrl.pathname}${loginUrl.search}`);
   }
 
   const result = await bindInstallAction(resolveMsTeamsBotInstallOwner(user), nonce);

@@ -51,9 +51,17 @@ async function loadRoute() {
   return import('@/app/connect/ms-teams/route');
 }
 
-/** The `Location` of a redirect response, as a URL. */
+/**
+ * The `Location` of a redirect response, resolved as the browser would.
+ *
+ * Asserts the header is relative on the way through: an absolute `Location` here
+ * would carry whatever origin the server is bound to (`0.0.0.0` in dev, the
+ * internal service origin behind Cloud Run) instead of the one the browser used.
+ */
 function location(response: Response): URL {
-  return new URL(response.headers.get('location') ?? '');
+  const header = response.headers.get('location') ?? '';
+  expect(header.startsWith('/')).toBe(true);
+  return new URL(header, 'https://console.unify.ai');
 }
 
 /** Whether the response tells the browser to drop the parked nonce. */

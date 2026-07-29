@@ -269,8 +269,13 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   // onboarding gates, returning the user to where they were headed. The handler
   // clears the cookie on every exit, so this diverts at most once per handshake.
   if (token && shouldResumeMsTeamsBind(request)) {
-    const connectUrl = new URL(MS_TEAMS_BOT_CONNECT_PATH, request.url);
+    // Clone `nextUrl` rather than resolving against `request.url`: it keeps the
+    // origin the browser actually used, so the divert cannot bounce the user onto
+    // the server's own bind address.
+    const connectUrl = request.nextUrl.clone();
+    connectUrl.search = '';
     connectUrl.searchParams.set('return', `${pathname}${request.nextUrl.search}`);
+    connectUrl.pathname = MS_TEAMS_BOT_CONNECT_PATH;
     return NextResponse.redirect(connectUrl);
   }
 
