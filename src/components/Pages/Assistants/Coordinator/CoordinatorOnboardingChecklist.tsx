@@ -720,17 +720,6 @@ export interface CoordinatorOnboardingChecklistProps {
    * beat event to Unity. Hung off ``workspace-call``. Unset means the row
    * degrades to a static entry. */
   onWorkspaceCall?: () => void;
-  /** Deterministically fire the armed triggerable task by id — powers the
-   * inline "Test it" affordance under the ``create-triggerable-task`` row.
-   * Unset (or a null ``armedTriggerableTaskId``) hides the affordance. */
-  onTestTriggerableTask?: (taskId: number) => void;
-  /** Task id of an armed (triggerable) task the user just created, used
-   * to target the "Test it" affordance. Null until one exists. */
-  armedTriggerableTaskId?: number | null;
-  /** Absolute ISO due time of the nearest upcoming scheduled task, used
-   * to render the "Create a scheduled task" countdown. Null when none is
-   * pending. */
-  nextScheduledTaskDueAt?: string | null;
   onSkipStep?: (stepId: string) => void;
   onUnskipStep?: (stepId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
@@ -763,9 +752,6 @@ export function CoordinatorOnboardingChecklist({
   onEnableDesktopFilesys,
   onYourComputerDemo,
   onWorkspaceCall,
-  onTestTriggerableTask,
-  armedTriggerableTaskId = null,
-  nextScheduledTaskDueAt = null,
   onSkipStep,
   onUnskipStep,
   isOnCall = false,
@@ -1292,9 +1278,6 @@ export function CoordinatorOnboardingChecklist({
                 onResetStepProgress={resetStepProgress}
                 onSkipStep={onSkipStep}
                 onUnskipStep={onUnskipStep}
-                onTestTriggerableTask={onTestTriggerableTask}
-                armedTriggerableTaskId={armedTriggerableTaskId}
-                nextScheduledTaskDueAt={nextScheduledTaskDueAt}
                 onSelectTaskChip={handleSelectTaskChip}
               />
             );
@@ -1666,12 +1649,6 @@ interface ChecklistRowProps {
   onSkipStep?: (stepId: string) => void;
   onUnskipStep?: (stepId: string) => void;
   onResetStepProgress?: (stepIds: readonly string[], resetStepId?: string) => void;
-  /** Deterministic triggerable-task fire — powers the "Test it" affordance. */
-  onTestTriggerableTask?: (taskId: number) => void;
-  /** Armed triggerable task id, or null when none exists yet. */
-  armedTriggerableTaskId?: number | null;
-  /** Nearest upcoming scheduled task due time (ISO), for the countdown. */
-  nextScheduledTaskDueAt?: string | null;
   /** Dispatch a graph-owned chip event. Unset leaves chips read-only. */
   onSelectTaskChip?: (stepId: string, chipId: string) => void;
 }
@@ -1693,9 +1670,6 @@ function ChecklistRow({
   onSkipStep,
   onUnskipStep,
   onResetStepProgress,
-  onTestTriggerableTask,
-  armedTriggerableTaskId = null,
-  nextScheduledTaskDueAt = null,
   onSelectTaskChip,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
@@ -2088,17 +2062,6 @@ function ChecklistRow({
       ? !!onSelectTaskChip
       : false;
 
-  // Beat-specific affordances that sit under their row while it's the
-  // active step: a countdown once a scheduled task is set, and a
-  // deterministic "Test it" control once a triggerable task is armed.
-  const showScheduledTaskCountdown =
-    item.id === 'create-scheduled-task' && item.status === 'pending' && !!nextScheduledTaskDueAt;
-  const showTriggerableTaskTest =
-    item.id === 'create-triggerable-task' &&
-    item.status === 'pending' &&
-    !!onTestTriggerableTask &&
-    armedTriggerableTaskId != null;
-
   return (
     <li className="flex flex-col gap-2">
       {row}
@@ -2139,27 +2102,6 @@ function ChecklistRow({
           ))}
         </ul>
       ) : null}
-      {showScheduledTaskCountdown && nextScheduledTaskDueAt ? (
-        <div className="ml-6">
-          <ScheduledTaskCountdown dueAt={nextScheduledTaskDueAt} />
-        </div>
-      ) : null}
-      {showTriggerableTaskTest && armedTriggerableTaskId != null && onTestTriggerableTask ? (
-        <div className="ml-6">
-          <button
-            type="button"
-            onClick={() => onTestTriggerableTask(armedTriggerableTaskId)}
-            className={cn(
-              'text-caption rounded-control inline-flex items-center gap-1.5 px-2 py-1 font-medium',
-              'bg-primary-tint-10 text-primary hover:bg-primary-tint-20',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-            )}
-            data-testid="coordinator-onboarding-test-triggerable-task"
-          >
-            Test it
-          </button>
-        </div>
-      ) : null}
       {item.children?.length ? (
         <ul className="space-y-2">
           {item.children.map((child) => (
@@ -2180,59 +2122,12 @@ function ChecklistRow({
               onSkipStep={onSkipStep}
               onUnskipStep={onUnskipStep}
               onResetStepProgress={onResetStepProgress}
-              onTestTriggerableTask={onTestTriggerableTask}
-              armedTriggerableTaskId={armedTriggerableTaskId}
-              nextScheduledTaskDueAt={nextScheduledTaskDueAt}
               onSelectTaskChip={onSelectTaskChip}
             />
           ))}
         </ul>
       ) : null}
     </li>
-  );
-}
-
-/**
- * Live countdown to the nearest scheduled task's due time. Frames the
- * ~minute wait before the assistant reports back
- * ("reaching you in 00:47") rather than dead air. Counts down to zero and
- * then flips to a started state; the row itself lands once the scheduled
- * Task Run actually appears.
- */
-function ScheduledTaskCountdown({ dueAt }: { dueAt: string }) {
-  const targetMs = React.useMemo(() => {
-    const parsed = Date.parse(dueAt);
-    return Number.isNaN(parsed) ? null : parsed;
-  }, [dueAt]);
-  const [remainingMs, setRemainingMs] = React.useState(() =>
-    targetMs == null ? 0 : Math.max(0, targetMs - Date.now())
-  );
-
-  React.useEffect(() => {
-    if (targetMs == null) return;
-    const tick = () => setRemainingMs(Math.max(0, targetMs - Date.now()));
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [targetMs]);
-
-  if (targetMs == null) return null;
-
-  const totalSeconds = Math.ceil(remainingMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const started = totalSeconds <= 0;
-
-  return (
-    <span
-      className="text-caption inline-flex items-center gap-1.5 text-muted-foreground"
-      data-testid="coordinator-onboarding-scheduled-task-countdown"
-      data-started={started ? 'true' : undefined}
-    >
-      {started
-        ? 'Task started — reaching out now…'
-        : `Reaching you in ${minutes}:${String(seconds).padStart(2, '0')}`}
-    </span>
   );
 }
 

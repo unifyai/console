@@ -486,7 +486,6 @@ export function AssistantInfoPanelLayout({
       isStartCallDisabled={isCallButtonDisabled}
       startCallTooltip={callButtonTooltip}
       hideHeaderActions={useOverlayInfoPanel}
-      isActiveSurface={isActiveSurface}
       onRegisterFocusProfileTab={(focusProfileTab) => {
         focusProfileTabRef.current = focusProfileTab;
       }}
