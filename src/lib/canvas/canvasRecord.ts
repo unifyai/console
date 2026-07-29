@@ -17,12 +17,12 @@
 
 import { createHash } from 'node:crypto';
 
+import { canvasFetch } from '@/lib/canvas/canvasFetch';
 import { snakeToCamelObject } from '@/utils/casing';
 
 import type { CanvasDenial, CanvasResolution } from '@/lib/canvas/canvasAccess';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
-const REQUEST_TIMEOUT_MS = 30000;
 
 /**
  * Row fields the surfaces need.
@@ -87,16 +87,6 @@ interface AdminUserResponse {
   organizations?: Array<{ id: number; apiKey?: string }>;
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal, cache: 'no-store' });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 /**
  * The owner's own API key, for reading the owner's own context.
  *
@@ -107,7 +97,7 @@ async function fetchWithTimeout(url: string, options: RequestInit): Promise<Resp
  * were resolved against.
  */
 async function ownerApiKey(resolution: CanvasResolution, adminKey: string): Promise<string | null> {
-  const response = await fetchWithTimeout(
+  const response = await canvasFetch(
     `${ORCHESTRA_URL}/v0/admin/user/by-user-id?user_id=${encodeURIComponent(resolution.userId)}`,
     { headers: { Authorization: `Bearer ${adminKey}` } }
   );
@@ -214,7 +204,7 @@ async function readCanvasRows(
     url.searchParams.set('sorting', options.sorting);
   }
 
-  const response = await fetchWithTimeout(url.toString(), {
+  const response = await canvasFetch(url.toString(), {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!response.ok) {

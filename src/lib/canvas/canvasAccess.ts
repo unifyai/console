@@ -20,6 +20,8 @@
 
 import type { NextRequest } from 'next/server';
 
+import { canvasFetch } from '@/lib/canvas/canvasFetch';
+
 import { getApiKeyFromRequest } from '@/app/api/_utils/auth';
 import { getCurrentUser } from '@/lib/user/user';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
@@ -72,7 +74,7 @@ async function resolveToken(token: string): Promise<CanvasAccess> {
     return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
   }
 
-  const response = await fetch(`${ORCHESTRA_URL}/v0/admin/canvas/tokens/${token}`, {
+  const response = await canvasFetch(`${ORCHESTRA_URL}/v0/admin/canvas/tokens/${token}`, {
     headers,
     cache: 'no-store',
   });
@@ -172,7 +174,7 @@ export async function queryCanvasAlias(
     return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
   }
 
-  const response = await fetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/query`, {
+  const response = await canvasFetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/query`, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({ alias }),
@@ -223,7 +225,7 @@ export async function listCanvasActions(
     return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
   }
 
-  const response = await fetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/actions`, {
+  const response = await canvasFetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/actions`, {
     headers,
     cache: 'no-store',
   });
@@ -262,7 +264,7 @@ export async function readCanvasInvocation(
     return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
   }
 
-  const response = await fetch(
+  const response = await canvasFetch(
     `${ORCHESTRA_URL}/v0/admin/canvas/${token}/invocations/${invocationId}`,
     { headers, cache: 'no-store' }
   );
@@ -306,7 +308,7 @@ export async function invokeCanvasAction(
     return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
   }
 
-  const response = await fetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/action`, {
+  const response = await canvasFetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/action`, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({

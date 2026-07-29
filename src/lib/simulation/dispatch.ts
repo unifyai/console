@@ -35,7 +35,13 @@ export interface SimResult {
 }
 
 export interface SimHandler {
-  match: (method: string, pathname: string) => boolean;
+  /**
+   * Method and path decide most handlers. The context is passed as well for the few
+   * that share a path and differ by query: `/v0/logs` serves every context-backed
+   * table, so a handler for one of them has to be told apart by its `context`
+   * param rather than by the path alone.
+   */
+  match: (method: string, pathname: string, ctx: SimContext) => boolean;
   handle: (ctx: SimContext) => SimResult | Promise<SimResult>;
 }
 
@@ -117,7 +123,7 @@ export async function simulationFetch(
   };
 
   for (const handler of handlers) {
-    if (handler.match(method, pathname)) {
+    if (handler.match(method, pathname, ctx)) {
       return toResponse(await handler.handle(ctx));
     }
   }
