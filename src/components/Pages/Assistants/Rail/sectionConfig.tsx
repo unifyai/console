@@ -10,6 +10,7 @@ import {
   Braces,
   Compass,
   Database,
+  Frame,
   MonitorPlay,
   UsersRound,
   type LucideIcon,
@@ -107,6 +108,23 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
         'Expand a request',
         'Open a row to read the final response and the full step-by-step timeline.',
       ],
+    ],
+  },
+  {
+    id: 'canvas',
+    label: 'Canvas',
+    Icon: Frame,
+    kind: 'view',
+    tab: 'canvas',
+    appliesTo: ['assistant', 'team'],
+    desc: 'Interactive views your teammate builds for you — live data, and controls that do real work.',
+    steps: [
+      ['Ask for a view', 'Describe what you want to see and your teammate will build it.'],
+      [
+        'Use the controls',
+        'Buttons and forms on a canvas run real work; you confirm before anything happens.',
+      ],
+      ['Ask for a change', 'Say what to adjust and the canvas updates in place.'],
     ],
   },
   {

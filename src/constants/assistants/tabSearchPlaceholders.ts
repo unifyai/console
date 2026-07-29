@@ -4,6 +4,7 @@ import type { BrainContext } from '@/types/assistants/brain';
 export type TabSearchScope =
   | 'chat'
   | 'actions'
+  | 'canvas'
   | 'dashboards'
   | 'tasks'
   | 'integrations'
