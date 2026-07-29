@@ -39,6 +39,10 @@ interface AssistantCommunicationControlsProps {
   isRemoteControlInteractiveLoading?: boolean;
   isConnectionEstablished: boolean;
   isAssistantJoined?: boolean;
+  /** Whether the assistant has a desktop to show at all (managed Computer
+   *  add-on, or a self-host install). Required so a new call surface can't
+   *  silently offer a screen share the assistant can never serve. */
+  isDesktopEnabled: boolean;
   isDesktopReady?: boolean;
   callType: 'video' | 'audio' | null;
   /** Shrinks the toolbar to match the chat composer's height so the
@@ -105,13 +109,26 @@ export function AssistantCommunicationControls({
   isRemoteControlInteractiveLoading,
   isConnectionEstablished,
   isAssistantJoined = true, // Default to true for backwards compatibility
+  isDesktopEnabled,
   isDesktopReady = true, // Default to true for backwards compatibility
   callType,
   compact = false,
   chatDisabled = false,
 }: AssistantCommunicationControlsProps) {
-  // Remote control requires assistant to have joined AND desktop VM to be ready
-  const canUseRemoteControl = isConnectionEstablished && isAssistantJoined;
+  // Showing the assistant's screen requires a desktop to exist AND the
+  // assistant to have joined the call.
+  const canUseRemoteControl = isConnectionEstablished && isAssistantJoined && isDesktopEnabled;
+  // Entitlement comes first: "available after assistant joins" is misleading on
+  // an assistant that has no desktop to share at all.
+  const remoteControlLabel = !isDesktopEnabled
+    ? 'Computer not enabled for this teammate'
+    : !isConnectionEstablished || !isAssistantJoined
+      ? 'Available after assistant joins'
+      : !isDesktopReady
+        ? 'Assistant desktop is starting up…'
+        : isRemoteControlActive
+          ? 'Hide assistant screen'
+          : 'Show assistant screen';
   const iconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
   const highlightMutedMic = isConnectionEstablished && !isMicOn && isMutedSpeechDetected;
   // ``h-10`` is the same footer height the assistant-list collapse
@@ -219,15 +236,8 @@ export function AssistantCommunicationControls({
                       )}
                       onClick={onToggleRemoteControl}
                       disabled={isRemoteControlLoading || !canUseRemoteControl}
-                      aria-label={
-                        !isConnectionEstablished || !isAssistantJoined
-                          ? 'Available after assistant joins'
-                          : !isDesktopReady
-                            ? 'Assistant desktop is starting up\u2026'
-                            : isRemoteControlActive
-                              ? 'Hide assistant screen'
-                              : 'Show assistant screen'
-                      }
+                      aria-label={remoteControlLabel}
+                      data-testid="call-toggle-assistant-screen"
                     >
                       {isRemoteControlLoading ? (
                         <Loader2 className={cn(iconClass, 'animate-spin')} />
@@ -238,15 +248,7 @@ export function AssistantCommunicationControls({
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>
-                    {!isConnectionEstablished || !isAssistantJoined
-                      ? 'Available after assistant joins'
-                      : !isDesktopReady
-                        ? 'Assistant desktop is starting up\u2026'
-                        : isRemoteControlActive
-                          ? 'Hide assistant screen'
-                          : 'Show assistant screen'}
-                  </p>
+                  <p>{remoteControlLabel}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

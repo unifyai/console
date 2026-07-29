@@ -1218,6 +1218,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     waitingMessage,
     connectionError,
     retryConnection,
+    isDesktopEnabled,
     isDesktopReady,
     isRemoteControlActive,
     liveviewUrl,
@@ -4385,6 +4386,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                       toggleRemoteControlInteractive={
                                         toggleRemoteControlInteractive
                                       }
+                                      isDesktopEnabled={isDesktopEnabled}
                                       isDesktopReady={isDesktopReady}
                                       callType={callType}
                                       isSpeakerMuted={isSpeakerMuted}
@@ -4711,6 +4713,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               isRemoteControlInteractive={isRemoteControlInteractive}
               isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
               toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+              isDesktopEnabled={isDesktopEnabled}
               isDesktopReady={isDesktopReady}
               callType={callType}
               isSpeakerMuted={isSpeakerMuted}
