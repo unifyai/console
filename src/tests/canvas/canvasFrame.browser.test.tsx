@@ -155,6 +155,99 @@ describe('CanvasFrame handshake', () => {
     expect(parseInt(iframe.style.height, 10)).toBeGreaterThan(0);
   });
 
+  it('delivers each invocation update once, and only after the canvas is ready', async () => {
+    // The parent resolves an action as soon as it is *accepted*, so without these
+    // the canvas never learns how the run ended and its control stays working
+    // forever. Delivering twice is the other failure: a canvas counting its own
+    // results would double every one.
+    const { container, rerender } = render(
+      <CanvasFrame source="export default () => null" invocationEvents={[]} />
+    );
+    const child = playChild(container.querySelector('iframe')!);
+    await child.initPromise;
+
+    child.send({ type: 'canvas/ready' });
+
+    rerender(
+      <CanvasFrame
+        source="export default () => null"
+        invocationEvents={[{ invocationId: 0, status: 'succeeded' }]}
+      />
+    );
+
+    await waitFor(() =>
+      expect(child.received).toContainEqual(
+        // Auto-counted ids are 0-based, so the first run of a canvas is id "0".
+        expect.objectContaining({ type: 'canvas/action/result', invocationId: '0', ok: true })
+      )
+    );
+
+    // Re-render with the same list: nothing further may be posted.
+    rerender(
+      <CanvasFrame
+        source="export default () => null"
+        invocationEvents={[{ invocationId: 0, status: 'succeeded' }]}
+      />
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(
+      child.received.filter((message) => message.type === 'canvas/action/result')
+    ).toHaveLength(1);
+
+    // A second event appends rather than replacing, so only the new one goes out.
+    rerender(
+      <CanvasFrame
+        source="export default () => null"
+        invocationEvents={[
+          { invocationId: 0, status: 'succeeded' },
+          { invocationId: 1, status: 'failed', error: 'recipients: too long' },
+        ]}
+      />
+    );
+    await waitFor(() =>
+      expect(child.received).toContainEqual(
+        expect.objectContaining({
+          type: 'canvas/action/result',
+          invocationId: '1',
+          ok: false,
+          error: 'recipients: too long',
+        })
+      )
+    );
+    expect(
+      child.received.filter((message) => message.type === 'canvas/action/result')
+    ).toHaveLength(2);
+  });
+
+  it('reports a non-terminal invocation as progress, not a result', async () => {
+    const { container, rerender } = render(
+      <CanvasFrame source="export default () => null" invocationEvents={[]} />
+    );
+    const child = playChild(container.querySelector('iframe')!);
+    await child.initPromise;
+    child.send({ type: 'canvas/ready' });
+
+    rerender(
+      <CanvasFrame
+        source="export default () => null"
+        invocationEvents={[{ invocationId: 2, status: 'requested' }]}
+      />
+    );
+
+    await waitFor(() =>
+      expect(child.received).toContainEqual(
+        // 'requested' is the protocol's 'pending'. Sending a result here would
+        // settle a run that has not started.
+        expect.objectContaining({
+          type: 'canvas/action/progress',
+          invocationId: '2',
+          status: 'pending',
+        })
+      )
+    );
+    expect(child.received.some((message) => message.type === 'canvas/action/result')).toBe(false);
+  });
+
   it('ignores protocol messages that did not arrive on the transferred port', async () => {
     const onRequestData = vi.fn(async () => ({ rows: [], truncated: false }));
     const { container } = render(
