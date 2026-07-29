@@ -1,19 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '@/app/api/_utils/auth';
+import { authorizeCanvasRead } from '@/lib/canvas/canvasAccess';
+import { fetchCanvasSummary } from '@/lib/canvas/canvasRecord';
 import { fetchDashboardData } from '@/lib/dashboardData';
 import { fetchTileData } from '@/lib/tileData';
 import { fetchPlotData } from '@/lib/plotData';
 import { fetchTableData } from '@/lib/tableData';
 
-const VALID_TYPES = new Set(['table', 'plot', 'tile', 'dashboard']);
+const VALID_TYPES = new Set(['table', 'plot', 'tile', 'dashboard', 'canvas']);
 
 interface EmbedMeta {
   title: string | null;
   description: string | null;
 }
 
-async function resolveEmbedMeta(type: string, token: string): Promise<EmbedMeta | null> {
+async function resolveEmbedMeta(
+  request: NextRequest,
+  type: string,
+  token: string
+): Promise<EmbedMeta | null> {
   switch (type) {
+    case 'canvas': {
+      // A canvas caption goes through the canvas authorization path rather than
+      // the session check above. Holding a token is not permission to read a
+      // private canvas, and a title is exactly the sort of thing that would leak
+      // if this reused the other types' token-is-access model.
+      const access = await authorizeCanvasRead(request, token);
+      if (!access.ok) return null;
+      const summary = await fetchCanvasSummary(access.resolution, token);
+      if (!summary.ok) return null;
+      return { title: summary.summary.title, description: summary.summary.description };
+    }
     case 'dashboard': {
       const res = await fetchDashboardData(token);
       if (!res.success) return null;
@@ -54,7 +71,7 @@ export async function GET(
     return NextResponse.json({ error: 'Missing token' }, { status: 400 });
   }
 
-  const meta = await resolveEmbedMeta(type, token);
+  const meta = await resolveEmbedMeta(request, type, token);
   if (!meta) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
