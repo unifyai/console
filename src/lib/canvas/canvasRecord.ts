@@ -146,20 +146,54 @@ function aliasesFrom(bindingsJson: unknown): string[] {
     .filter((alias): alias is string => typeof alias === 'string' && alias.length > 0);
 }
 
+/**
+ * Fields describing one run.
+ *
+ * `result_json` and `progress_json` are left out: a history list shows what was
+ * asked for and how it ended, and a result payload can be arbitrarily large.
+ */
+const INVOCATION_FIELDS = [
+  'invocation_id',
+  'canvas_token',
+  'action_name',
+  'args_json',
+  'status',
+  'error',
+  'requested_by_user_id',
+  'created_at',
+  'finished_at',
+];
+
 /** One canvas row, projected to the requested fields. */
 type CanvasRow = Record<string, unknown>;
 
 /**
- * Read one canvas row as its owner.
+ * A sibling `Canvas/*` context of the one the token points at.
+ *
+ * Mirrors Orchestra's own derivation rather than assuming a layout: the token
+ * records the Views context, and Actions and Invocations hang beside it under
+ * whichever root the canvas was written to — personal or team.
+ */
+function siblingContext(viewsContext: string, table: string): string {
+  return viewsContext.replace(/Canvas\/[A-Za-z]+$/, `Canvas/${table}`);
+}
+
+/**
+ * Read rows from one of a canvas's contexts, as the canvas owner.
  *
  * `resolution` must come from `authorizeCanvasRead`: this performs no access check
  * of its own.
  */
-async function readCanvasRow(
+async function readCanvasRows(
   resolution: CanvasResolution,
-  token: string,
-  fields: string[]
-): Promise<{ ok: true; row: CanvasRow } | { ok: false; denial: CanvasDenial }> {
+  options: {
+    context: string;
+    filter: string;
+    fields: string[];
+    limit: number;
+    sorting?: string;
+  }
+): Promise<{ ok: true; rows: CanvasRow[] } | { ok: false; denial: CanvasDenial }> {
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
   if (!adminKey) {
     return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
@@ -172,10 +206,13 @@ async function readCanvasRow(
 
   const url = new URL(`${ORCHESTRA_URL}/v0/logs`);
   url.searchParams.set('project_name', resolution.projectName);
-  url.searchParams.set('context', resolution.contextName);
-  url.searchParams.set('filter', `token == '${token}'`);
-  url.searchParams.set('from_fields', fields.join(FIELD_SEPARATOR));
-  url.searchParams.set('limit', '1');
+  url.searchParams.set('context', options.context);
+  url.searchParams.set('filter', options.filter);
+  url.searchParams.set('from_fields', options.fields.join(FIELD_SEPARATOR));
+  url.searchParams.set('limit', String(options.limit));
+  if (options.sorting) {
+    url.searchParams.set('sorting', options.sorting);
+  }
 
   const response = await fetchWithTimeout(url.toString(), {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -184,19 +221,39 @@ async function readCanvasRow(
     return { ok: false, denial: { error: 'Failed to load canvas', status: response.status } };
   }
 
-  // Entry keys are camelised along with the envelope, so the row reads
-  // `bundleCode` here. `propsJson` and `bindingsJson` are still strings at this
-  // point, which is what keeps author-declared prop names intact: they are only
-  // revealed by `JSON.parse`, after the casing pass has run.
+  // Entry keys are camelised along with the envelope, so a row reads `bundleCode`
+  // here. The `*_json` columns are still strings at this point, which is what keeps
+  // author-declared prop and argument names intact: they are only revealed by
+  // `JSON.parse`, after the casing pass has run.
   const body = snakeToCamelObject<{
     logs?: Array<{ entries?: Record<string, unknown>; derivedEntries?: Record<string, unknown> }>;
   }>(await response.json());
 
-  const log = body.logs?.[0];
-  if (!log) {
+  return {
+    ok: true,
+    rows: (body.logs ?? []).map((log) => ({ ...log.entries, ...log.derivedEntries })),
+  };
+}
+
+/** Read the canvas's own row by token. */
+async function readCanvasRow(
+  resolution: CanvasResolution,
+  token: string,
+  fields: string[]
+): Promise<{ ok: true; row: CanvasRow } | { ok: false; denial: CanvasDenial }> {
+  const read = await readCanvasRows(resolution, {
+    context: resolution.contextName,
+    filter: `token == '${token}'`,
+    fields,
+    limit: 1,
+  });
+  if (!read.ok) return read;
+
+  const row = read.rows[0];
+  if (!row) {
     return { ok: false, denial: { error: 'Canvas not found', status: 404 } };
   }
-  return { ok: true, row: { ...log.entries, ...log.derivedEntries } };
+  return { ok: true, row };
 }
 
 /** Title and description for chrome that captions a canvas before rendering it. */
@@ -223,6 +280,64 @@ export async function fetchCanvasSummary(
       updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : null,
     },
   };
+}
+
+/** One past run, as the history panel shows it. */
+export interface CanvasRun {
+  invocationId: number;
+  actionName: string;
+  status: string;
+  /** The arguments actually submitted, decoded from the stored row. */
+  args: Record<string, unknown>;
+  error: string | null;
+  requestedByUserId: string | null;
+  createdAt: string | null;
+  finishedAt: string | null;
+}
+
+/**
+ * Read a canvas's run history, newest first.
+ *
+ * Read from the stored rows rather than reported by the canvas. Run metadata is
+ * exactly what an authored canvas must not be able to misstate — a control that
+ * failed nine times could otherwise be presented as having succeeded once — so this
+ * is sourced and rendered entirely outside the frame.
+ */
+export async function fetchCanvasRuns(
+  resolution: CanvasResolution,
+  token: string,
+  limit = 50
+): Promise<{ ok: true; runs: CanvasRun[] } | { ok: false; denial: CanvasDenial }> {
+  const read = await readCanvasRows(resolution, {
+    context: siblingContext(resolution.contextName, 'Invocations'),
+    filter: `canvas_token == '${token}'`,
+    fields: INVOCATION_FIELDS,
+    limit,
+  });
+  if (!read.ok) return read;
+
+  const runs = read.rows
+    .map((row): CanvasRun => {
+      const args = parseJsonColumn(row.argsJson);
+      return {
+        // Auto-counted ids are 0-based, so a coalesce to 0 here would be
+        // indistinguishable from the genuine first run of the canvas.
+        invocationId: typeof row.invocationId === 'number' ? row.invocationId : -1,
+        actionName: typeof row.actionName === 'string' ? row.actionName : '',
+        status: typeof row.status === 'string' ? row.status : 'pending',
+        args: args && typeof args === 'object' ? (args as Record<string, unknown>) : {},
+        error: typeof row.error === 'string' && row.error ? row.error : null,
+        requestedByUserId: typeof row.requestedByUserId === 'string' ? row.requestedByUserId : null,
+        createdAt: typeof row.createdAt === 'string' ? row.createdAt : null,
+        finishedAt: typeof row.finishedAt === 'string' ? row.finishedAt : null,
+      };
+    })
+    .filter((run) => run.invocationId >= 0)
+    // Newest first, by id: it is monotonic per canvas, so it orders runs even when
+    // two share a created_at second.
+    .sort((left, right) => right.invocationId - left.invocationId);
+
+  return { ok: true, runs };
 }
 
 /** Read a canvas row and verify its bundle. */

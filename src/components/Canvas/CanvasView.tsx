@@ -16,6 +16,7 @@ import type { CanvasActionDescriptor as ProtocolActionDescriptor } from '@unity/
 
 import { ActionConfirmDialog } from '@/components/Canvas/ActionConfirmDialog';
 import { CanvasFrame } from '@/components/Canvas/CanvasFrame';
+import { CanvasRunHistory } from '@/components/Canvas/CanvasRunHistory';
 import { Loader } from '@/components/Common/Loader';
 import { canvasDataResolver } from '@/lib/client/canvasData';
 import { useCanvasActions, type CanvasActionDescriptor } from '@/lib/client/canvasActions';
@@ -163,6 +164,13 @@ export function CanvasView({
 
   return (
     <div className={className}>
+      {/* Chrome, not canvas content. An authored canvas cannot draw, restyle or
+          omit this, which is the point: it reports what the stored rows say. */}
+      {actions.length > 0 ? (
+        <div className="flex justify-end px-1">
+          <CanvasRunHistory token={token} revision={invocationEvents.length} />
+        </div>
+      ) : null}
       <CanvasFrame
         source={canvas.source}
         props={canvas.props}
