@@ -1114,7 +1114,7 @@ const tasks: MockRow[] = [
     name: 'Agentic AI Vertical Sector Research',
     description:
       'Scan funding announcements, product launches, and hiring signals across target verticals; surface warm leads with a tailored intro draft.',
-    status: 'active',
+    lifecycle: 'running',
     priority: 'high',
     offline: false,
     entrypoint: 9101,
@@ -1128,7 +1128,7 @@ const tasks: MockRow[] = [
     instanceId: 0,
     name: 'Morning inbox digest',
     description: 'Summarise unread email into a single morning digest and post it to chat.',
-    status: 'scheduled',
+    lifecycle: 'scheduled',
     priority: 'normal',
     offline: false,
     entrypoint: 9101,
@@ -1143,7 +1143,7 @@ const tasks: MockRow[] = [
     name: 'Stripe payout watcher',
     description:
       'On each Stripe payout event, reconcile against expected invoices and flag discrepancies.',
-    status: 'triggerable',
+    lifecycle: 'triggerable',
     priority: 'urgent',
     offline: false,
     entrypoint: 9102,
@@ -1157,7 +1157,7 @@ const tasks: MockRow[] = [
     name: 'Weekly competitor digest',
     description:
       'Compile competitor product and pricing changes into a weekly brief. Cancelled while the source list is being revised.',
-    status: 'cancelled',
+    lifecycle: 'disarmed',
     priority: 'low',
     offline: false,
     entrypoint: 9101,

@@ -173,7 +173,14 @@ export interface TaskRow {
   taskId: number;
   name: string | null;
   description: string | null;
-  status: string | null;
+  /**
+   * Derived view of what the task is doing: disarmed, completed, running,
+   * triggerable or scheduled. Computed server-side from `enabled`, the
+   * trigger, and Tasks/Executions — definitions store authored intent only,
+   * so this is never a stored column.
+   */
+  lifecycle: string | null;
+  enabled?: boolean | null;
   triggerType: string | null;
   nextDueAt: string | null;
   createdAt: string | null;

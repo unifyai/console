@@ -111,8 +111,8 @@ export function TasksPane({
 
   const filteredTasks = useMemo(() => {
     if (filter === 'All') return tasks.rows;
-    if (filter === 'Paused') return tasks.rows.filter((t) => isPausedTaskStatus(t.status));
-    return tasks.rows.filter((t) => !isPausedTaskStatus(t.status));
+    if (filter === 'Paused') return tasks.rows.filter((t) => isPausedTaskStatus(t.lifecycle));
+    return tasks.rows.filter((t) => !isPausedTaskStatus(t.lifecycle));
   }, [tasks.rows, filter]);
 
   const totalRunsLogged = taskRuns.count;
@@ -345,7 +345,7 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
             </span>
           </div>
         </div>
-        <span className="shrink-0">{taskStatusBadge(task.status)}</span>
+        <span className="shrink-0">{taskStatusBadge(task.lifecycle)}</span>
       </button>
 
       {isOpen && (

@@ -47,6 +47,7 @@ import {
   parseUtteranceOffset,
   recordingStartedAtFrom,
   recordingUrlFrom,
+  speechStartedAtFrom,
   type UtteranceCue,
 } from '@/utils/assistants/callRecording';
 import {
@@ -383,8 +384,10 @@ export function TranscriptsPane({
       const cues: UtteranceCue[] = [];
       for (const message of messages) {
         const offsetSeconds =
-          offsetFromRecordingStart(message.timestamp, recordingStartedAt) ??
-          parseUtteranceOffset(message.metadata);
+          offsetFromRecordingStart(
+            speechStartedAtFrom(message.metadata) ?? message.timestamp,
+            recordingStartedAt
+          ) ?? parseUtteranceOffset(message.metadata);
         if (offsetSeconds !== null) cues.push({ messageId: message.messageId, offsetSeconds });
       }
       return {
@@ -829,7 +832,7 @@ export function TranscriptsPane({
                       const receivers = message.receiverIds ?? [];
                       const offsetSeconds =
                         offsetFromRecordingStart(
-                          message.timestamp,
+                          speechStartedAtFrom(message.metadata) ?? message.timestamp,
                           activeThread.recordingStartedAt
                         ) ?? parseUtteranceOffset(message.metadata);
                       return (

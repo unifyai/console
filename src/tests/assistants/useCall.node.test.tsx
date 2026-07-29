@@ -30,12 +30,14 @@ vi.mock('@/hooks/Assistants/useCallSounds', () => ({
   }),
 }));
 
+const useDesktopReadyMock = vi.fn((..._args: unknown[]) => ({
+  isDesktopReady: false,
+  eventLiveviewUrl: null,
+  eventBindingId: null,
+}));
+
 vi.mock('@/hooks/Assistants/useDesktopReady', () => ({
-  useDesktopReady: () => ({
-    isDesktopReady: false,
-    eventLiveviewUrl: null,
-    eventBindingId: null,
-  }),
+  useDesktopReady: (...args: unknown[]) => useDesktopReadyMock(...args),
 }));
 
 vi.mock('@/lib/client/assistant', () => ({
@@ -43,6 +45,7 @@ vi.mock('@/lib/client/assistant', () => ({
 }));
 
 vi.mock('@/components/Pages/Providers/EnvironmentProvider', () => ({
+  useEnvironment: () => ({ isSelfHost: false }),
   useFeatures: () => ({ voiceCalls: true }),
 }));
 
@@ -58,6 +61,7 @@ vi.mock('@/lib/assistants/humanCall', () => ({
 }));
 
 import { useCall } from '@/hooks/Assistants/useCall';
+import { fetchAssistantStatus } from '@/lib/client/assistant';
 
 type Handler = (...args: any[]) => void;
 
@@ -101,6 +105,12 @@ const assistant = {
   organizationId: null,
   name: 'T-W1N',
   isCoordinator: false,
+} as unknown as Assistant;
+
+const desktopAssistant = {
+  ...assistant,
+  desktopMode: 'ubuntu',
+  managedDesktopStatus: 'active',
 } as unknown as Assistant;
 
 const desktopActions = {
@@ -230,6 +240,40 @@ describe('useCall (unified engine)', () => {
     const dispatchCall = calls.find((c) => c.url === '/api/calls/sess-1/assistants');
     expect(dispatchCall).toBeDefined();
     expect(JSON.parse(String(dispatchCall!.init?.body)).assistantId).toBe(42);
+  });
+
+  it('an assistant without a managed Computer reports no desktop and skips its polls', async () => {
+    mockFetch();
+    const room = new FakeRoom();
+    const { result } = renderHook(() =>
+      useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+    );
+
+    await act(async () => {
+      await result.current.connect(assistant, 'audio');
+    });
+
+    expect(result.current.isDesktopEnabled).toBe(false);
+    expect(vi.mocked(fetchAssistantStatus)).not.toHaveBeenCalled();
+    // No assistant id reaches useDesktopReady, so it never polls for a liveview.
+    expect(useDesktopReadyMock).toHaveBeenCalled();
+    expect(useDesktopReadyMock.mock.calls.every((call) => call[0] === undefined)).toBe(true);
+  });
+
+  it('an assistant with an active managed Computer reports a desktop and polls for it', async () => {
+    mockFetch();
+    const room = new FakeRoom();
+    const { result } = renderHook(() =>
+      useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+    );
+
+    await act(async () => {
+      await result.current.connect(desktopAssistant, 'audio');
+    });
+
+    expect(result.current.isDesktopEnabled).toBe(true);
+    expect(vi.mocked(fetchAssistantStatus)).toHaveBeenCalledWith('42');
+    expect(useDesktopReadyMock.mock.calls.some((call) => call[0] === '42')).toBe(true);
   });
 
   it('a remote ended frame tears the call down', async () => {

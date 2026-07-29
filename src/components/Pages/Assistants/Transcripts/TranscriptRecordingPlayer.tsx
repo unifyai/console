@@ -4,6 +4,9 @@ import * as React from 'react';
 import { AudioLines, TriangleAlert } from 'lucide-react';
 import { toGsUri } from '@/utils/assistants/callRecording';
 
+/** Played just before a seek target, so the first word is never clipped. */
+const SEEK_LEAD_IN_SECONDS = 1;
+
 export interface TranscriptRecordingPlayerHandle {
   /** Move playback to `seconds` and start playing. */
   seek: (seconds: number) => void;
@@ -53,7 +56,9 @@ export const TranscriptRecordingPlayer = React.forwardRef<
       seek: (seconds: number) => {
         const audio = audioRef.current;
         if (!audio) return;
-        audio.currentTime = Math.max(0, seconds);
+        // Land slightly before the line: starting exactly on the first phoneme
+        // clips it, and a moment of lead-in is how transcript players read.
+        audio.currentTime = Math.max(0, seconds - SEEK_LEAD_IN_SECONDS);
         void audio.play().catch(() => {
           // Autoplay can be blocked until the user interacts with the page;
           // the seek still landed, so leave the position and stay quiet.

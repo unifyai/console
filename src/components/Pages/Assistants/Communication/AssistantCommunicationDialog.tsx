@@ -194,6 +194,7 @@ interface AssistantCommunicationDialogContentProps {
   isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
   isCallConnected: boolean;
+  isDesktopEnabled: boolean;
   isDesktopReady: boolean;
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
@@ -241,6 +242,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
   isCallConnected,
+  isDesktopEnabled,
   isDesktopReady,
   callType,
   isSpeakerMuted,
@@ -664,6 +666,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         onToggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isConnectionEstablished={isCallConnected}
         isAssistantJoined={!isWaitingForAssistant}
+        isDesktopEnabled={isDesktopEnabled}
         isDesktopReady={isDesktopReady}
         callType={callType}
         compact={compact}
@@ -726,6 +729,7 @@ interface AssistantCommunicationDialogProps {
   isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
   isCallConnected: boolean;
+  isDesktopEnabled: boolean;
   isDesktopReady: boolean;
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
@@ -798,6 +802,7 @@ export function AssistantCommunicationDialog({
   isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
   isCallConnected,
+  isDesktopEnabled,
   isDesktopReady,
   callType,
   isSpeakerMuted,
@@ -929,6 +934,7 @@ export function AssistantCommunicationDialog({
           isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
           toggleRemoteControlInteractive={toggleRemoteControlInteractive}
           isCallConnected={isCallConnected}
+          isDesktopEnabled={isDesktopEnabled}
           isDesktopReady={isDesktopReady}
           callType={callType}
           isSpeakerMuted={isSpeakerMuted}
@@ -1047,6 +1053,7 @@ export function AssistantCommunicationDialog({
             isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
             toggleRemoteControlInteractive={toggleRemoteControlInteractive}
             isCallConnected={isCallConnected}
+            isDesktopEnabled={isDesktopEnabled}
             isDesktopReady={isDesktopReady}
             callType={callType}
             isSpeakerMuted={isSpeakerMuted}

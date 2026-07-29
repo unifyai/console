@@ -8,6 +8,7 @@ import {
   recordingStartedAtFrom,
   callTargetsByCallId,
   recordingUrlFrom,
+  speechStartedAtFrom,
   toGsUri,
   type UtteranceCue,
 } from './callRecording';
@@ -312,5 +313,49 @@ describe('offsetFromRecordingStart with Date input', () => {
 
   it('rejects an invalid Date', () => {
     expect(offsetFromRecordingStart(new Date('nope'), 0)).toBeNull();
+  });
+});
+
+describe('speechStartedAtFrom', () => {
+  // The runtime stamps a line's audible start separately from the commit that
+  // follows it. The two surfaces receive it under different casings: the logs
+  // proxy camelises metadata, the calls API does not.
+  it('reads the camelCase key the logs proxy delivers', () => {
+    expect(speechStartedAtFrom({ speechStartedAt: '2026-07-29T10:00:05+00:00' })).toBe(
+      '2026-07-29T10:00:05+00:00'
+    );
+  });
+
+  it('reads the snake_case key the calls API delivers', () => {
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- stored shape
+    expect(speechStartedAtFrom({ speech_started_at: '2026-07-29T10:00:05+00:00' })).toBe(
+      '2026-07-29T10:00:05+00:00'
+    );
+  });
+
+  it('returns null when the runtime observed no start', () => {
+    expect(speechStartedAtFrom({})).toBeNull();
+    expect(speechStartedAtFrom(null)).toBeNull();
+    expect(speechStartedAtFrom({ speechStartedAt: '  ' })).toBeNull();
+  });
+});
+
+describe('offset preference: speech start over commit', () => {
+  const anchor = Date.parse('2026-07-29T10:00:00Z');
+
+  it('places a line where it began, not where it was committed', () => {
+    // Spoken at +5s, committed at +8s once STT finalised.
+    const speechStart = '2026-07-29T10:00:05+00:00';
+    const committed = '2026-07-29T10:00:08+00:00';
+
+    expect(offsetFromRecordingStart(speechStart, anchor)).toBe(5);
+    // What the UI would have shown before the start was carried.
+    expect(offsetFromRecordingStart(committed, anchor)).toBe(8);
+  });
+
+  it('falls back to the commit when no start was observed', () => {
+    const metadata = {};
+    const committed = '2026-07-29T10:00:08+00:00';
+    expect(offsetFromRecordingStart(speechStartedAtFrom(metadata) ?? committed, anchor)).toBe(8);
   });
 });

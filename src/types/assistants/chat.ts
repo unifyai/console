@@ -164,8 +164,12 @@ export interface CallTranscriptUtterance {
   id: string;
   role: 'assistant' | 'user';
   content: string;
+  /** When the turn was committed to the call store. */
   timestamp: Date;
   callUtteranceTimestamp?: string;
+  /** ISO instant the line became audible, when the runtime observed one.
+   *  Preferred over `timestamp` for placing the line in a recording. */
+  speechStartedAt?: string;
 }
 
 // ---------------------------------------------------------------------------

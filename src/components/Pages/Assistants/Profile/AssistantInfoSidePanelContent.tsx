@@ -40,7 +40,6 @@ import {
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
-import { useCoordinatorTaskBeats } from '@/hooks/Assistants/useCoordinatorTaskBeats';
 import { approvedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
 import { resolveCoordinatorJobTitle } from '@/constants/assistants/coordinator_profile';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
@@ -155,8 +154,6 @@ export interface AssistantInfoSidePanelContentProps {
     /** Whether the onboarding surface is actively running. */
     isOnboardingActive?: boolean;
   };
-  /** When false, suppresses background task polling for coordinator onboarding beats. */
-  isActiveSurface?: boolean;
   onStartCall?: (assistant: Assistant, type: 'audio' | 'video') => void;
   isStartCallDisabled?: boolean;
   startCallTooltip?: string;
@@ -260,7 +257,6 @@ export function AssistantInfoSidePanelContent({
         isStartCallDisabled={props.isStartCallDisabled}
         startCallTooltip={props.startCallTooltip}
         hideHeaderActions={props.hideHeaderActions}
-        isActiveSurface={props.isActiveSurface}
         onRegisterFocusProfileTab={onRegisterFocusProfileTab}
       />
     );
@@ -292,7 +288,6 @@ function CoordinatorAssistantInfoSidePanelContent({
   startCallTooltip,
   hideHeaderActions = false,
   onRegisterFocusProfileTab,
-  isActiveSurface = true,
 }: {
   assistant: Assistant;
   onClose: () => void;
@@ -310,25 +305,9 @@ function CoordinatorAssistantInfoSidePanelContent({
   startCallTooltip?: string;
   hideHeaderActions?: boolean;
   onRegisterFocusProfileTab?: (focusProfileTab: () => void) => void;
-  isActiveSurface?: boolean;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
   const isOnboardingActive = coordinatorOnboarding?.isOnboardingActive === true;
-  const taskBeats = useCoordinatorTaskBeats(assistant, {
-    enabled: showOnboardingTab,
-    isActiveSurface,
-    isOnboardingActive,
-  });
-
-  const appendRequestSentAck = coordinatorOnboarding?.appendRequestSentAck;
-
-  const handleTestTriggerableTask = React.useCallback(
-    async (taskId: number) => {
-      appendRequestSentAck?.('Test triggerable task');
-      await taskBeats.testTriggerableTask(taskId);
-    },
-    [appendRequestSentAck, taskBeats]
-  );
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
@@ -469,9 +448,6 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onEnableDesktopFilesys={coordinatorOnboarding.onEnableDesktopFilesys}
                 onYourComputerDemo={coordinatorOnboarding.onYourComputerDemo}
                 onWorkspaceCall={coordinatorOnboarding.onWorkspaceCall}
-                onTestTriggerableTask={handleTestTriggerableTask}
-                armedTriggerableTaskId={taskBeats.armedTriggerableTaskId}
-                nextScheduledTaskDueAt={taskBeats.nextScheduledTaskDueAt}
                 onSkipStep={coordinatorOnboarding.onSkipStep}
                 onUnskipStep={coordinatorOnboarding.onUnskipStep}
                 isOnCall={coordinatorOnboarding.isOnCall}

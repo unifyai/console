@@ -189,13 +189,13 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import {
-  isMsTeamsBotInstall,
-  type MsTeamsBotInstall,
-  type MsTeamsBotInstallOwner,
-} from '@/types/ms-teams-bot/install';
+import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
-import { broadcastMsTeamsBotBound } from '@/lib/ms-teams-bot/bindEvents';
+import {
+  MS_TEAMS_BOT_CONNECTED_PARAM,
+  MS_TEAMS_BOT_CONNECT_ERROR_PARAM,
+  msTeamsBotConnectErrorMessage,
+} from '@/lib/ms-teams-bot/connectLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -306,10 +306,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const onboardingFocusParam = searchParams.get('onboarding');
-  // One-click Teams connect: the bot DMs the installer a link back here
-  // carrying the pending install's handshake nonce, so binding is a single
-  // click with no code to copy. Consumed once by the effect below.
-  const msTeamsBindParam = searchParams.get('ms_teams_bind');
   const { activeWorkspace, currentUserId } = useWorkspace();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
@@ -1218,6 +1214,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     waitingMessage,
     connectionError,
     retryConnection,
+    isDesktopEnabled,
     isDesktopReady,
     isRemoteControlActive,
     liveviewUrl,
@@ -1347,67 +1344,44 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     searchParams,
   ]);
 
-  // One-click Teams connect. When the installer taps "Connect" in the bot's
-  // welcome DM, they land here with ``?ms_teams_bind=<nonce>``. Claim the
-  // pending install for the active owner, surface a toast, then strip the
-  // param so a refresh doesn't re-bind. Binding is idempotent, so a repeat is
-  // harmless. Only an owner/admin scope carries ``msTeamsBotOwner``.
-  const consumedMsTeamsBindParamRef = React.useRef<string | null>(null);
+  // Report the outcome of a one-click Teams connect. `/connect/ms-teams` has
+  // already bound the install server-side by the time this page renders, so the
+  // seeded install is current and all that is left is telling the user and
+  // clearing the notice.
+  //
+  // Read from `window.location` rather than `useSearchParams`, and clear with the
+  // History API rather than `router.replace`: the notice must settle even on a
+  // load where this surface is hidden or the router state lags the address bar.
+  const consumedMsTeamsConnectFlashRef = React.useRef(false);
   React.useEffect(() => {
-    if (!msTeamsBindParam) return;
-    if (consumedMsTeamsBindParamRef.current === msTeamsBindParam) return;
-    consumedMsTeamsBindParamRef.current = msTeamsBindParam;
+    if (consumedMsTeamsConnectFlashRef.current) return;
 
-    const stripParam = () => {
-      if (!canWriteAssistantUrl) return;
-      const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.delete('ms_teams_bind');
-      const nextQuery = nextParams.toString();
-      router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
-        scroll: false,
-      });
-    };
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get(MS_TEAMS_BOT_CONNECTED_PARAM);
+    const errorCode = params.get(MS_TEAMS_BOT_CONNECT_ERROR_PARAM);
+    if (!connected && !errorCode) return;
+    consumedMsTeamsConnectFlashRef.current = true;
 
-    const owner = userMeta.msTeamsBotOwner;
-    const bindAction = assistantActions.msTeamsBot?.bindInstall;
-    if (!owner || !bindAction) {
-      toast.error('Could not connect Microsoft Teams. Please try again from the assistant page.');
-      stripParam();
-      return;
+    if (connected) {
+      toast.success(
+        userMeta.msTeamsBotOwner?.kind === 'org'
+          ? 'Microsoft Teams connected to your organization.'
+          : 'Microsoft Teams connected to your account.'
+      );
+      void refetchCoordinatorOnboardingState();
+    } else {
+      toast.error(msTeamsBotConnectErrorMessage(errorCode));
     }
 
-    void (async () => {
-      try {
-        const result = await bindAction(owner, msTeamsBindParam);
-        if (isMsTeamsBotInstall(result)) {
-          toast.success(
-            owner.kind === 'org'
-              ? 'Microsoft Teams connected to your organization.'
-              : 'Microsoft Teams connected to your account.'
-          );
-          void refetchCoordinatorOnboardingState();
-          broadcastMsTeamsBotBound();
-        } else {
-          console.error('[ms-teams-bot] auto-bind failed:', result);
-          toast.error('Could not connect Microsoft Teams. The install code may have expired.');
-        }
-      } catch (err) {
-        console.error('[ms-teams-bot] auto-bind error:', err);
-        toast.error('Could not connect Microsoft Teams. Please try again.');
-      } finally {
-        stripParam();
-      }
-    })();
-  }, [
-    assistantActions.msTeamsBot,
-    canWriteAssistantUrl,
-    msTeamsBindParam,
-    pathname,
-    refetchCoordinatorOnboardingState,
-    router,
-    searchParams,
-    userMeta.msTeamsBotOwner,
-  ]);
+    params.delete(MS_TEAMS_BOT_CONNECTED_PARAM);
+    params.delete(MS_TEAMS_BOT_CONNECT_ERROR_PARAM);
+    const nextQuery = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      nextQuery.length > 0 ? `${window.location.pathname}?${nextQuery}` : window.location.pathname
+    );
+  }, [refetchCoordinatorOnboardingState, userMeta.msTeamsBotOwner]);
 
   React.useEffect(() => {
     const onCoordinatorOnboardingPanelRequest = (event: Event) => {
@@ -4385,6 +4359,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                       toggleRemoteControlInteractive={
                                         toggleRemoteControlInteractive
                                       }
+                                      isDesktopEnabled={isDesktopEnabled}
                                       isDesktopReady={isDesktopReady}
                                       callType={callType}
                                       isSpeakerMuted={isSpeakerMuted}
@@ -4711,6 +4686,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               isRemoteControlInteractive={isRemoteControlInteractive}
               isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
               toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+              isDesktopEnabled={isDesktopEnabled}
               isDesktopReady={isDesktopReady}
               callType={callType}
               isSpeakerMuted={isSpeakerMuted}

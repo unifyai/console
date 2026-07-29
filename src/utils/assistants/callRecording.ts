@@ -59,6 +59,20 @@ export function recordingStartedAtFrom(
 }
 
 /**
+ * ISO instant a spoken line became audible, when the runtime observed one.
+ *
+ * Preferred over a message's own timestamp, which marks the commit that follows
+ * the line: for the user that is STT finalisation, for the assistant the reply
+ * landing in the chat context. Either overshoots the line's position in the
+ * audio by roughly its own length.
+ */
+export function speechStartedAtFrom(
+  metadata: Record<string, unknown> | null | undefined
+): string | null {
+  return readMetadata(metadata, 'speech_started_at');
+}
+
+/**
  * Seconds into the recording at which a message was spoken.
  *
  * Preferred over the stored `MM.SS` stamp because it is measured against the
