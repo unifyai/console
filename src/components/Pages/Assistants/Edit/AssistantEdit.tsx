@@ -53,6 +53,10 @@ interface AssistantEditProps {
   canDelete?: boolean;
   /** Called after a successful multiplayer flip so the parent refetches. */
   onMultiplayerFlipped?: () => void;
+  /** Lowercased display names in use, steering the flip dialog's dice roll. */
+  takenDisplayNames?: readonly string[];
+  /** Lowercased first names in use (soft-avoided by the dice roll). */
+  takenFirstNames?: readonly string[];
 }
 
 export function AssistantEdit({
@@ -70,6 +74,8 @@ export function AssistantEdit({
   onDeleteAssistant,
   canDelete = false,
   onMultiplayerFlipped,
+  takenDisplayNames,
+  takenFirstNames,
 }: AssistantEditProps) {
   const [isCloseTooltipOpen, setIsCloseTooltipOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -203,6 +209,8 @@ export function AssistantEdit({
                   assistant={assistant}
                   formMethods={formMethods}
                   onFlipped={onMultiplayerFlipped}
+                  takenDisplayNames={takenDisplayNames}
+                  takenFirstNames={takenFirstNames}
                   disabled={isPrimaryActionDisabled || isDeleting}
                 />
               )}

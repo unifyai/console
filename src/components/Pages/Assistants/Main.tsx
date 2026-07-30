@@ -4480,6 +4480,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 handleCloseEditDialog();
                 refreshAssistants(false);
               }}
+              takenDisplayNames={assistants
+                .filter((a) => a.agentId !== assistantToEdit.agentId)
+                .map((a) => `${a.firstName ?? ''} ${a.surname ?? ''}`.trim().toLowerCase())
+                .filter(Boolean)}
+              takenFirstNames={assistants
+                .filter((a) => a.agentId !== assistantToEdit.agentId)
+                .map((a) => (a.firstName ?? '').trim().toLowerCase())
+                .filter(Boolean)}
             >
               {isEditFormReady ? (
                 <HireForm

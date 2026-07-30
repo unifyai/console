@@ -13,16 +13,47 @@ import {
 } from '@/components/UI/alert-dialog';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
-import { Loader2, Users } from 'lucide-react';
+import { Dices, Loader2, Users } from 'lucide-react';
 import { flipCoordinatorMultiplayer } from '@/lib/client/coordinator';
 import { COORDINATOR_DISPLAY_NAME } from '@/lib/assistants/displayName';
+import { createRandomUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
 
 interface MultiplayerFlipDialogProps {
   assistant: Assistant;
   formMethods: UseFormReturn<AssistantFormData>;
   /** Called after a successful flip so the parent can refetch and re-render. */
   onFlipped: () => void;
+  /**
+   * Lowercased display names ("first surname") already in use in this
+   * workspace, so the dice roll lands on an available identity. The server
+   * enforces uniqueness regardless; this only steers the suggestion.
+   */
+  takenDisplayNames?: readonly string[];
+  /** Lowercased first names in use — soft-avoided so Slack routing tokens
+   *  and spoken references stay unambiguous too. */
+  takenFirstNames?: readonly string[];
   disabled?: boolean;
+}
+
+function rollAvailableName(
+  takenDisplayNames: readonly string[],
+  takenFirstNames: readonly string[]
+): { firstName: string; surname: string } {
+  const displayTaken = new Set(takenDisplayNames);
+  const firstTaken = new Set(takenFirstNames);
+  let fallback: { firstName: string; surname: string } | null = null;
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const profile = createRandomUnityProfile();
+    const display = `${profile.firstName} ${profile.surname}`.toLowerCase();
+    if (displayTaken.has(display)) continue;
+    if (!firstTaken.has(profile.firstName.toLowerCase())) {
+      return { firstName: profile.firstName, surname: profile.surname };
+    }
+    fallback = fallback ?? { firstName: profile.firstName, surname: profile.surname };
+  }
+  if (fallback) return fallback;
+  const profile = createRandomUnityProfile();
+  return { firstName: profile.firstName, surname: profile.surname };
 }
 
 /**
@@ -38,6 +69,8 @@ export function MultiplayerFlipDialog({
   assistant,
   formMethods,
   onFlipped,
+  takenDisplayNames = [],
+  takenFirstNames = [],
   disabled = false,
 }: MultiplayerFlipDialogProps) {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -122,9 +155,27 @@ export function MultiplayerFlipDialog({
         </AlertDialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <label className="text-label" htmlFor="multiplayer-first-name">
-              First name
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-label" htmlFor="multiplayer-first-name">
+                First name
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                data-testid="multiplayer-roll-name"
+                onClick={() => {
+                  const rolled = rollAvailableName(takenDisplayNames, takenFirstNames);
+                  setFirstName(rolled.firstName);
+                  setSurname(rolled.surname);
+                  setError(null);
+                }}
+                disabled={isFlipping}
+              >
+                <Dices className="mr-1 h-4 w-4" />
+                Randomize
+              </Button>
+            </div>
             <Input
               id="multiplayer-first-name"
               data-testid="multiplayer-first-name"

@@ -651,11 +651,14 @@ export function useAssistantForm(
           payload
         );
         if ((updateResult as ResponseProps).detail) {
+          const detail = (updateResult as ResponseProps).detail;
           console.error(
             `[useAssistantForm] Failed to update assistant ${editingAssistant.agentId}:`,
-            (updateResult as ResponseProps).detail
+            detail
           );
-          throw new Error('Failed to update assistant.');
+          // Server 409s carry actionable reasons (name taken, reserved
+          // coordinator name) — surface them instead of a generic failure.
+          throw new Error(typeof detail === 'string' ? detail : 'Failed to update assistant.');
         }
         toast.success(`Assistant ${data.firstName} updated!`);
       } else if (computerChanged) {
