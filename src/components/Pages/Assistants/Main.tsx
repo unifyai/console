@@ -207,7 +207,7 @@ import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemE
 import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
-import { createRandomUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
+import { createAvailableUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
 import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
@@ -2369,13 +2369,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   const applyRandomUnityProfile = React.useCallback(() => {
-    const profile = createRandomUnityProfile();
+    const profile = createAvailableUnityProfile(
+      assistants
+        .map((a) => `${a.firstName ?? ''} ${a.surname ?? ''}`.trim().toLowerCase())
+        .filter(Boolean),
+      assistants.map((a) => (a.firstName ?? '').trim().toLowerCase()).filter(Boolean)
+    );
     formMethods.setValue('firstName', profile.firstName, { shouldValidate: true });
     formMethods.setValue('surname', profile.surname, { shouldValidate: true });
     formMethods.setValue('jobTitle', profile.jobTitle, { shouldValidate: true });
     formMethods.setValue('about', profile.about, { shouldValidate: true });
     formMethods.setValue('isPresetPristine', false);
-  }, [formMethods]);
+  }, [assistants, formMethods]);
 
   // Auto-select the first filtered preset for hidden defaults like voice, then
   // Replace the visible profile fields with a branded unity profile.

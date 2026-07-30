@@ -16,7 +16,7 @@ import { Input } from '@/components/UI/input';
 import { Dices, Loader2, Users } from 'lucide-react';
 import { flipCoordinatorMultiplayer } from '@/lib/client/coordinator';
 import { COORDINATOR_DISPLAY_NAME } from '@/lib/assistants/displayName';
-import { createRandomUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
+import { createAvailableUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
 
 interface MultiplayerFlipDialogProps {
   assistant: Assistant;
@@ -33,27 +33,6 @@ interface MultiplayerFlipDialogProps {
    *  and spoken references stay unambiguous too. */
   takenFirstNames?: readonly string[];
   disabled?: boolean;
-}
-
-function rollAvailableName(
-  takenDisplayNames: readonly string[],
-  takenFirstNames: readonly string[]
-): { firstName: string; surname: string } {
-  const displayTaken = new Set(takenDisplayNames);
-  const firstTaken = new Set(takenFirstNames);
-  let fallback: { firstName: string; surname: string } | null = null;
-  for (let attempt = 0; attempt < 24; attempt += 1) {
-    const profile = createRandomUnityProfile();
-    const display = `${profile.firstName} ${profile.surname}`.toLowerCase();
-    if (displayTaken.has(display)) continue;
-    if (!firstTaken.has(profile.firstName.toLowerCase())) {
-      return { firstName: profile.firstName, surname: profile.surname };
-    }
-    fallback = fallback ?? { firstName: profile.firstName, surname: profile.surname };
-  }
-  if (fallback) return fallback;
-  const profile = createRandomUnityProfile();
-  return { firstName: profile.firstName, surname: profile.surname };
 }
 
 /**
@@ -165,7 +144,7 @@ export function MultiplayerFlipDialog({
                 size="sm"
                 data-testid="multiplayer-roll-name"
                 onClick={() => {
-                  const rolled = rollAvailableName(takenDisplayNames, takenFirstNames);
+                  const rolled = createAvailableUnityProfile(takenDisplayNames, takenFirstNames);
                   setFirstName(rolled.firstName);
                   setSurname(rolled.surname);
                   setError(null);
