@@ -13,6 +13,7 @@ import {
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@/types/assistants/cartesia';
+import { COORDINATOR_DISPLAY_NAME } from '@/lib/assistants/displayName';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import {
   resolveCoordinatorAbout,
@@ -549,6 +550,18 @@ export function useAssistantForm(
       const payload: Partial<AssistantUpdatePayload> = {};
 
       if (!editingAssistant.isCoordinator || editingAssistant.isMultiplayer) {
+        // The shared single-player identity is reserved: a multiplayer twin
+        // renamed to it would be indistinguishable from private coordinators.
+        if (
+          editingAssistant.isMultiplayer &&
+          data.firstName.toLowerCase() === COORDINATOR_DISPLAY_NAME.toLowerCase()
+        ) {
+          setError('firstName', {
+            type: 'manual',
+            message: `${COORDINATOR_DISPLAY_NAME} is the reserved single-player name — pick a name of its own.`,
+          });
+          throw new Error('Reserved coordinator name.');
+        }
         if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
         if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
       }
