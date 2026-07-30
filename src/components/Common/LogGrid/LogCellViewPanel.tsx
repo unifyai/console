@@ -489,9 +489,7 @@ function CellBody({
   const boxShell = (content: React.ReactNode, extraClassName?: string) => (
     <div
       className={cn(
-        // min-w-full keeps short rows flush with the table; min-w-max grows with long values
-        // so the pane ScrollArea can show a horizontal scrollbar.
-        'group relative flex w-max min-w-full font-mono text-[11px]',
+        'group relative flex w-full min-w-0 font-mono text-[11px]',
         editable && 'cursor-text',
         extraClassName
       )}
@@ -508,15 +506,15 @@ function CellBody({
       data-editable={editable ? 'true' : 'false'}
     >
       <RowGutter label={rowLabel} widthCh={gutterCh} />
-      <div className="relative min-w-max flex-1">{content}</div>
+      <div className="relative min-w-0 flex-1">{content}</div>
     </div>
   );
 
   if (isEditing) {
     return (
-      <div className="relative flex w-max min-w-full bg-background font-mono text-[11px] ring-1 ring-inset ring-primary">
+      <div className="relative flex w-full min-w-0 bg-background font-mono text-[11px] ring-1 ring-inset ring-primary">
         <RowGutter label={rowLabel} widthCh={gutterCh} />
-        <div className="relative min-w-max flex-1">
+        <div className="relative min-w-0 flex-1">
           {editor.kind === 'select' ? (
             <Select
               value={draft}
@@ -621,15 +619,16 @@ function CellBody({
   return boxShell(
     <>
       <ValueCopyButton value={value} />
-      {/*
-        width:max-content so long lines widen the row (pane scrolls x) instead of
-        clipping inside this box; overflow-y only caps tall multi-line values.
-      */}
       <div
-        className="overflow-y-auto"
-        style={{ maxHeight: CELL_EDIT_MAX_HEIGHT_PX, width: 'max-content', minWidth: '100%' }}
+        className="w-full min-w-0 overflow-y-auto"
+        style={{ maxHeight: CELL_EDIT_MAX_HEIGHT_PX }}
       >
-        <pre className="whitespace-pre px-1.5 py-0.5 leading-snug text-foreground">{text}</pre>
+        <pre
+          className="whitespace-pre-wrap break-all px-1.5 py-0.5 leading-snug text-foreground"
+          data-testid="log-cell-view-primitive"
+        >
+          {text}
+        </pre>
       </div>
     </>
   );
@@ -656,15 +655,15 @@ function MergedComplexColumn({
     <div
       data-testid="log-cell-view-group"
       data-column={fieldName}
-      className="bg-muted/30 w-max min-w-full overflow-hidden rounded border border-border"
+      className="bg-muted/30 w-full min-w-0 overflow-hidden rounded border border-border"
     >
       <div
-        className="group relative flex w-max min-w-full font-mono text-[11px]"
+        className="group relative flex w-full min-w-0 font-mono text-[11px]"
         data-testid="log-cell-view-value"
         data-editable="false"
       >
         <RowGutter label={rowLabel} widthCh={gutterCh} />
-        <div className="relative min-w-max flex-1">
+        <div className="relative min-w-0 flex-1">
           <ValueCopyButton value={values} />
           <LogPanelExpandProvider>
             <div className="px-1.5 py-0.5">
@@ -751,7 +750,7 @@ function ColumnGroupDisplay({
             />
           ) : (
             /* One shared table shell per column — single dividers, outer rounding only. */
-            <div className="bg-muted/30 w-max min-w-full overflow-hidden rounded border border-border">
+            <div className="bg-muted/30 w-full min-w-0 overflow-hidden rounded border border-border">
               {group.values.map((valueGroup, index) => {
                 const rowLabel = compressRowLabels(valueGroup.rowLabels);
                 const groupKey = `${valueGroupKey(valueGroup.value)}:${valueGroup.logIds.join(',')}`;
@@ -955,8 +954,11 @@ export function LogCellViewPanel({
           Select cells, then open the view pane to inspect them.
         </p>
       ) : (
-        <ScrollArea className="min-h-0 min-w-0 flex-1">
-          <div className="w-max min-w-full space-y-1 p-2">
+        <ScrollArea
+          className="min-h-0 min-w-0 flex-1"
+          viewportTestId="log-cell-view-panel-viewport"
+        >
+          <div className="w-full min-w-0 space-y-1 p-2">
             {columns.map((column) => (
               <ColumnGroupDisplay
                 key={column.columnId}
