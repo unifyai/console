@@ -12,13 +12,13 @@
  * not need a build step. An authored canvas is TSX compiled by the toolchain; the
  * module that reaches the frame looks like this either way.
  *
- * `bundle_sha` is computed from these bytes at load, so the integrity check in
- * `fetchCanvasRecord` runs for real in mock mode instead of being bypassed. A
- * fixture that skipped the check would hide exactly the failure that check exists
- * to catch.
+ * The bundle's sha is pinned below rather than hashed here, so the integrity check
+ * in `fetchCanvasRecord` runs for real in mock mode instead of being bypassed. It
+ * cannot be computed at load: the simulation handlers are reachable from the client
+ * bundle through the Orchestra clients' top-level `simulationFetch` import, and
+ * `node:crypto` has no browser resolution — importing it fails the build outright.
+ * `canvasMockMode.node.test.ts` recomputes the hash and fails if the two drift.
  */
-
-import { createHash } from 'node:crypto';
 
 /** Token for the seeded canvas. Twelve URL-safe characters, like a real one. */
 export const MOCK_CANVAS_TOKEN = 'mockCanvas01';
@@ -128,10 +128,14 @@ export default function MockTracker({ canvas }) {
 }
 `;
 
-/** Content address of the bundle, so the real integrity check passes. */
-export const MOCK_CANVAS_BUNDLE_SHA = createHash('sha256')
-  .update(MOCK_CANVAS_BUNDLE, 'utf8')
-  .digest('hex');
+/**
+ * Content address of the bundle above, so the real integrity check passes.
+ *
+ * Edit the bundle and this must be updated with it — the test recomputes the hash
+ * and prints the correct value on failure.
+ */
+export const MOCK_CANVAS_BUNDLE_SHA =
+  '8f4937ea1eec44006dda8f7f7cf4070200fd23e18cf3a4f7972fe92be953e7cf';
 
 /** Rows the binding resolves to, standing in for a `primitives.tasks` filter. */
 export const MOCK_CANVAS_ROWS: Array<Record<string, unknown>> = [

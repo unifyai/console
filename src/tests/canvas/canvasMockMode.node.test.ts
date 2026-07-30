@@ -33,10 +33,13 @@ vi.mock('next-auth/jwt', () => ({
   getToken: vi.fn().mockResolvedValue(null),
 }));
 
+import { createHash } from 'node:crypto';
+
 import {
   MOCK_CANVAS_ACTION,
   MOCK_CANVAS_ALIAS,
   MOCK_CANVAS_BUNDLE,
+  MOCK_CANVAS_BUNDLE_SHA,
   MOCK_CANVAS_TOKEN,
 } from '@/lib/simulation/fixtures/canvas';
 
@@ -75,6 +78,25 @@ function post(path: string, body: unknown) {
     body: JSON.stringify(body),
   });
 }
+
+describe('the seeded bundle', () => {
+  it('matches its pinned content address', () => {
+    // The sha cannot be computed in the fixture: the simulation handlers are
+    // reachable from the client bundle through the Orchestra clients' top-level
+    // `simulationFetch` import, and `node:crypto` has no browser resolution, so
+    // importing it there fails the build. Pinning it moves the check here, where
+    // node builtins are available.
+    const actual = createHash('sha256').update(MOCK_CANVAS_BUNDLE, 'utf8').digest('hex');
+    expect(actual, `update MOCK_CANVAS_BUNDLE_SHA to '${actual}'`).toBe(MOCK_CANVAS_BUNDLE_SHA);
+  });
+
+  it('has no import that the runtime host cannot resolve', () => {
+    // The host resolves react and the kit through its import map and nothing else;
+    // `connect-src 'none'` means a third import would simply fail to load.
+    const imports = [...MOCK_CANVAS_BUNDLE.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
+    expect(new Set(imports)).toEqual(new Set(['react', '@unity/canvas-kit']));
+  });
+});
 
 describe('canvas in mock mode', () => {
   beforeEach(() => {
