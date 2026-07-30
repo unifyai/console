@@ -420,9 +420,11 @@ export function useAssistantForm(
       reset({
         ...getValues(),
 
-        // Profile
-        firstName: assistant.isCoordinator ? 'T-W1N' : assistant.firstName,
-        surname: assistant.isCoordinator ? '' : assistant.surname,
+        // Profile. Single-player coordinators are pinned to the shared
+        // T-W1N identity; multiplayer twins edit their own name like hires.
+        firstName:
+          assistant.isCoordinator && !assistant.isMultiplayer ? 'T-W1N' : assistant.firstName,
+        surname: assistant.isCoordinator && !assistant.isMultiplayer ? '' : assistant.surname,
         jobTitle: assistant.isCoordinator
           ? resolveCoordinatorJobTitle(assistant.jobTitle)
           : (assistant.jobTitle ?? null),
@@ -546,7 +548,7 @@ export function useAssistantForm(
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
       const payload: Partial<AssistantUpdatePayload> = {};
 
-      if (!editingAssistant.isCoordinator) {
+      if (!editingAssistant.isCoordinator || editingAssistant.isMultiplayer) {
         if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
         if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
       }

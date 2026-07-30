@@ -95,8 +95,7 @@ export type ChecklistAction =
   | 'my-computer-demo'
   | 'connect-your-computer'
   | 'enable-desktop-filesys'
-  | 'trigger-your-computer-demo'
-  | 'start-workspace-call';
+  | 'trigger-your-computer-demo';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -158,7 +157,6 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'workspace-mailbox': 'trigger-workspace-mailbox',
   'workspace-drive': 'trigger-workspace-drive',
   'workspace-calendar': 'trigger-workspace-calendar',
-  'workspace-call': 'start-workspace-call',
   apps: 'connect-apps',
   'integration-read': 'trigger-integration-read',
   'integration-action': 'trigger-integration-action',
@@ -192,7 +190,6 @@ const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
   'trigger-workspace-mailbox': 'Summarizing...',
   'trigger-workspace-drive': 'Summarizing...',
   'trigger-workspace-calendar': 'Summarizing...',
-  'start-workspace-call': 'Opening...',
   'trigger-integration-read': 'Reading...',
   'trigger-integration-action': 'Working...',
   'connect-apps': 'Connecting...',
@@ -715,11 +712,6 @@ export interface CoordinatorOnboardingChecklistProps {
    * Hung off ``your-computer-demo``. Unset means the row degrades to a
    * static entry. */
   onYourComputerDemo?: () => void;
-  /** Opens a new Google Meet / Microsoft Teams meeting page (per the
-   * connected workspace provider) and dispatches the workspace video-call
-   * beat event to Unity. Hung off ``workspace-call``. Unset means the row
-   * degrades to a static entry. */
-  onWorkspaceCall?: () => void;
   onSkipStep?: (stepId: string) => void;
   onUnskipStep?: (stepId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
@@ -751,7 +743,6 @@ export function CoordinatorOnboardingChecklist({
   onConnectYourComputer,
   onEnableDesktopFilesys,
   onYourComputerDemo,
-  onWorkspaceCall,
   onSkipStep,
   onUnskipStep,
   isOnCall = false,
@@ -840,7 +831,6 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'connect-your-computer') onConnectYourComputer?.();
       else if (action === 'enable-desktop-filesys') onEnableDesktopFilesys?.();
       else if (action === 'trigger-your-computer-demo') onYourComputerDemo?.();
-      else if (action === 'start-workspace-call') onWorkspaceCall?.();
     },
     [
       onStartOnboardingStep,
@@ -862,7 +852,6 @@ export function CoordinatorOnboardingChecklist({
       onConnectYourComputer,
       onEnableDesktopFilesys,
       onYourComputerDemo,
-      onWorkspaceCall,
     ]
   );
 
@@ -987,7 +976,6 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'connect-your-computer') return !!onConnectYourComputer;
       if (action === 'enable-desktop-filesys') return !!onEnableDesktopFilesys;
       if (action === 'trigger-your-computer-demo') return !!onYourComputerDemo;
-      if (action === 'start-workspace-call') return !!onWorkspaceCall;
       return false;
     },
     [
@@ -1010,7 +998,6 @@ export function CoordinatorOnboardingChecklist({
       onConnectYourComputer,
       onEnableDesktopFilesys,
       onYourComputerDemo,
-      onWorkspaceCall,
     ]
   );
 
