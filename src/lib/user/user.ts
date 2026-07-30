@@ -13,6 +13,7 @@ import { requireUserApiKey } from '@/lib/server-action-session';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
 import { getActiveSimulation } from '@/lib/simulation/scenario-server';
 import { buildMockSession, buildMockUser } from '@/lib/simulation/identity';
+import { readActiveWorkspaceId } from '@/lib/user/workspace-session';
 
 // Note: getUserByID, getUserByEmail, updateUser, deleteUser are defined here
 // but also available from '@/lib/orchestra/api/admin' for new code
@@ -219,7 +220,15 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
 
   // 3. Apply Workspace Context
   const cookieStore = await cookies();
-  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
+  // The switcher writes ``unify_workspace_id`` SameSite=Strict, so the browser
+  // withholds it on cross-site entry points (an inbound Teams / Slack deep
+  // link). The session token is Lax and carries the same selection, so fall back
+  // to it rather than reading a withheld cookie as "personal" — that mis-scoped
+  // Teams bot installs to the personal owner for anyone free to switch
+  // workspaces. A session with no claim at all stays undefined and falls through
+  // to the defaults below.
+  const cookieWorkspaceId = cookieStore.get('unify_workspace_id')?.value;
+  const workspaceId = cookieWorkspaceId ?? (await readActiveWorkspaceId());
   let contextResolved = false;
 
   // Priority 1: Header API Key
