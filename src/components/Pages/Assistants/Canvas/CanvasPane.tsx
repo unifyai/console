@@ -8,8 +8,8 @@
  * every render, so mounting a list of them would issue every canvas's queries at
  * once for views nobody is looking at.
  *
- * The title and description are chrome here, not canvas content. An assistant
- * authors the canvas; what names it in the interface stays ours.
+ * The title, description, metadata and controls are all chrome, not canvas content.
+ * An assistant authors the canvas; what identifies and frames it stays ours.
  */
 
 import * as React from 'react';
@@ -19,7 +19,6 @@ import { Loader } from '@/components/Common/Loader';
 import { useCanvases } from '@/hooks/Assistants/useCanvases';
 import type { CanvasListRecord } from '@/lib/client/canvasList';
 import type { ContextRoot } from '@/lib/assistants/scope';
-import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 
@@ -27,6 +26,7 @@ import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { TabFooter } from '../Common/TabFooter';
 import { TabToolbar } from '../Common/TabToolbar';
+import { CanvasCardHeader, CanvasViewSelector } from './CanvasPaneHeader';
 
 interface CanvasPaneProps {
   assistant: Assistant;
@@ -50,39 +50,12 @@ function matches(record: CanvasListRecord, query: string): boolean {
   );
 }
 
-function CanvasRow({
-  record,
-  isSelected,
-  onSelect,
-}: {
-  record: CanvasListRecord;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={isSelected}
-      className={cn(
-        'flex w-full flex-col items-start gap-0.5 rounded-md border p-3 text-left transition-colors',
-        isSelected ? 'border-primary bg-primary-tint-10' : 'hover:bg-muted/50 border-border bg-card'
-      )}
-    >
-      <span className="text-title truncate text-foreground">{record.title}</span>
-      {record.description ? (
-        <span className="text-caption line-clamp-2 text-muted-foreground">
-          {record.description}
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
 export function CanvasPane({ assistant, ownerId, assistantId, root = null }: CanvasPaneProps) {
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const [searchValue, setSearchValue] = React.useState('');
   const [selectedToken, setSelectedToken] = React.useState<string | null>(null);
+  // Re-reads the selected canvas's record and rows without remounting the frame.
+  const [dataRevision, setDataRevision] = React.useState(0);
 
   const { canvases, isInitialLoading, isRefreshing, refetch } = useCanvases({
     assistant,
@@ -114,6 +87,16 @@ export function CanvasPane({ assistant, ownerId, assistantId, root = null }: Can
         searchPlaceholder={tabSearchPlaceholder('canvas')}
         searchTestId="canvas-search"
         searchClearTestId="canvas-search-clear"
+        leading={
+          servable.length > 0 ? (
+            <CanvasViewSelector
+              canvases={servable}
+              selectedToken={selected?.token ?? null}
+              onSelect={setSelectedToken}
+              filterQuery={searchValue}
+            />
+          ) : undefined
+        }
         trailing={<BrainScopeDropdown scope={scope} />}
         onRefresh={() => void refetch({ blocking: true })}
         isRefreshing={isRefreshing}
@@ -134,36 +117,21 @@ export function CanvasPane({ assistant, ownerId, assistantId, root = null }: Can
           </div>
         ) : (
           <div className="flex flex-col gap-4 p-4">
-            {visible.length > 1 ? (
-              <div className="flex flex-col gap-2">
-                {visible.map((record) => (
-                  <CanvasRow
-                    key={record.token}
-                    record={record}
-                    isSelected={record.token === selected?.token}
-                    onSelect={() => setSelectedToken(record.token)}
-                  />
-                ))}
-              </div>
-            ) : null}
-
             {selected ? (
-              <div className="flex flex-col gap-2">
-                <header className="flex flex-col gap-0.5">
-                  <h2 className="text-title text-foreground">{selected.title}</h2>
-                  {selected.description ? (
-                    <p className="text-caption text-muted-foreground">{selected.description}</p>
-                  ) : null}
-                </header>
-                <div className="overflow-hidden rounded-lg border border-border bg-card">
-                  {/* Keyed on the token so switching canvases builds a new frame
-                      rather than handing a different bundle to a live channel. */}
-                  <CanvasView
-                    key={selected.token}
-                    token={selected.token}
-                    assistantId={assistantId}
-                  />
-                </div>
+              <div className="overflow-hidden rounded-lg border border-border bg-card">
+                <CanvasCardHeader
+                  record={selected}
+                  onRefresh={() => setDataRevision((current) => current + 1)}
+                  isRefreshing={isRefreshing}
+                />
+                {/* Keyed on the token so switching canvases builds a new frame
+                    rather than handing a different bundle to a live channel. */}
+                <CanvasView
+                  key={selected.token}
+                  token={selected.token}
+                  assistantId={assistantId}
+                  revision={dataRevision}
+                />
               </div>
             ) : null}
           </div>
