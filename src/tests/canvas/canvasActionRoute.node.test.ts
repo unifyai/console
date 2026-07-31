@@ -146,14 +146,17 @@ describe('canvas action route', () => {
       expect(sent.requested_by_user_id).toBe(OWNER);
     });
 
-    it('forwards only the action name, arguments and run key', async () => {
+    it('forwards only the action name and arguments', async () => {
       asOwner();
       const fetchSpy = stubOrchestra(RESOLUTION);
 
       const { request, params } = post({
         actionName: 'bulk_send',
         args: { recipients: ['a@b.com'] },
-        runKey: 'retry-key',
+        // A run key must never cross: a client able to choose it could mint a
+        // fresh one per click and defeat double-click dedup. Orchestra derives
+        // its own.
+        runKey: 'chosen-key',
         // An attempt to name a target directly.
         functionId: 42,
         taskId: 7,
@@ -162,14 +165,8 @@ describe('canvas action route', () => {
 
       const dispatch = fetchSpy.mock.calls.find(([url]) => String(url).endsWith('/action'));
       const sent = JSON.parse(String((dispatch?.[1] as RequestInit).body));
-      expect(Object.keys(sent).sort()).toEqual([
-        'action_name',
-        'args',
-        'requested_by_user_id',
-        'run_key',
-      ]);
+      expect(Object.keys(sent).sort()).toEqual(['action_name', 'args', 'requested_by_user_id']);
       expect(sent.action_name).toBe('bulk_send');
-      expect(sent.run_key).toBe('retry-key');
     });
   });
 
@@ -178,7 +175,6 @@ describe('canvas action route', () => {
       ['a malformed action name', { actionName: 'Bulk Send!', args: {} }],
       ['a missing action name', { args: {} }],
       ['array arguments', { actionName: 'bulk_send', args: [1, 2] }],
-      ['a non-string run key', { actionName: 'bulk_send', args: {}, runKey: 7 }],
     ])('rejects %s', async (_label, body) => {
       asOwner();
       stubOrchestra(RESOLUTION);

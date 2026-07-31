@@ -34,32 +34,31 @@ export async function POST(
     return NextResponse.json({ error: access.denial.error }, { status: access.denial.status });
   }
 
-  let body: { actionName?: unknown; args?: unknown; runKey?: unknown };
+  let body: { actionName?: unknown; args?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { actionName, args, runKey } = body;
+  const { actionName, args } = body;
   if (typeof actionName !== 'string' || !ACTION_NAME_PATTERN.test(actionName)) {
     return NextResponse.json({ error: 'Invalid action name' }, { status: 400 });
   }
   if (args !== undefined && (typeof args !== 'object' || args === null || Array.isArray(args))) {
     return NextResponse.json({ error: 'Arguments must be an object' }, { status: 400 });
   }
-  if (runKey !== undefined && typeof runKey !== 'string') {
-    return NextResponse.json({ error: 'Invalid run key' }, { status: 400 });
-  }
 
   // From the session, never the body. A client-supplied identity would let one
-  // viewer spend another's rate limit and mislabel the audit row.
+  // viewer spend another's rate limit and mislabel the audit row. The dedup
+  // run key is likewise never accepted from the client: Orchestra derives it,
+  // so a canvas cannot mint a fresh key per click and defeat double-click
+  // protection.
   const viewer = await getCurrentUser();
 
   const result = await invokeCanvasAction(token, {
     actionName,
     args: (args ?? {}) as Record<string, unknown>,
-    runKey,
     requestedByUserId: viewer?.id,
   });
 

@@ -299,7 +299,6 @@ export async function invokeCanvasAction(
   args: {
     actionName: string;
     args: Record<string, unknown>;
-    runKey?: string;
     requestedByUserId?: string;
   }
 ): Promise<{ ok: true; invocation: CanvasInvocation } | { ok: false; denial: CanvasDenial }> {
@@ -316,9 +315,9 @@ export async function invokeCanvasAction(
       // afterwards and never transformed. Its keys are the property names the
       // author declared in `input_schema`, so converting them would rename
       // `dealName` to `deal_name` and fail the very validation they exist for.
+      // No run key is sent: Orchestra derives the dedup key itself.
       ...camelToSnakeObject({
         actionName: args.actionName,
-        runKey: args.runKey,
         requestedByUserId: args.requestedByUserId,
       }),
       args: args.args,
