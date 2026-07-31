@@ -47,15 +47,12 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
 ]);
 
 const TASK_STATUS_DESCRIPTIONS = new Map<string, string>([
-  ['scheduled', 'Will start automatically at its next scheduled time.'],
+  ['scheduled', 'Is armed and will start automatically at its next occurrence.'],
   ['triggerable', 'Is armed and waiting for a matching event to happen.'],
   ['ready', 'Is armed and waiting for a matching event to happen.'],
-  ['active', 'Currently has live work underway.'],
-  ['running', 'Is actively executing right now.'],
-  ['completed', 'Finished successfully.'],
-  ['failed', 'Stopped because something went wrong during execution.'],
-  ['cancelled', 'Was stopped before it finished.'],
-  ['pending', 'Has been created and is waiting to start.'],
+  ['running', 'Has a run in flight right now.'],
+  ['completed', 'Was a one-off and has already run.'],
+  ['disarmed', 'Is paused and will not start until it is re-armed.'],
 ]);
 
 const TASK_WAITING_TONE =
@@ -72,11 +69,10 @@ const TASK_INACTIVE_TONE =
   'border-border bg-[color:var(--status-neutral-bg)] text-muted-foreground';
 
 const TASK_STATUS_TONES: Record<string, string> = {
-  pending: TASK_ATTENTION_TONE,
   scheduled: TASK_WAITING_TONE,
   triggerable: TASK_WAITING_TONE,
   ready: TASK_WAITING_TONE,
-  active: TASK_LIVE_TONE,
+  disarmed: TASK_INACTIVE_TONE,
   running: TASK_LIVE_TONE,
   completed: TASK_SUCCESS_TONE,
   failed: TASK_FAILURE_TONE,
@@ -668,7 +664,11 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
     addSection('Task', [
       ['name', 'Task', row.name],
       ['description', 'Description', row.description],
-      ['status', 'Status', isPresent(row.status) ? humanizeTaskLabel(row.status) : undefined],
+      [
+        'lifecycle',
+        'Status',
+        isPresent(row.lifecycle) ? humanizeTaskLabel(row.lifecycle) : undefined,
+      ],
       [
         'priority',
         'Priority',
@@ -720,8 +720,8 @@ export function getTaskTypeLabel(row: TaskRow): string {
   return formatTaskStartLabel(row);
 }
 
-/** Statuses that read as paused/stopped for the All/Active/Paused filter. */
-const PAUSED_TASK_STATUSES = new Set(['paused', 'cancelled', 'disabled', 'inactive', 'stopped']);
+/** Lifecycles that read as not-armed for the All/Active/Paused filter. */
+const PAUSED_TASK_STATUSES = new Set(['disarmed', 'completed']);
 
 export function isPausedTaskStatus(status: unknown): boolean {
   if (!isPresent(status)) return false;
@@ -806,4 +806,60 @@ export function getRunHistoryCells(row: TaskRunRow): RunHistoryCells {
     finishedLabel: isPresent(row.completedAt) ? formatTimestamp(String(row.completedAt)) : '—',
     durationLabel: formatRunDuration(row.startedAt, row.completedAt),
   };
+}
+
+/** Normalized tag list for one task: trimmed, deduped, order preserved. */
+export function readTaskTags(row: TaskRow): string[] {
+  const raw = row.tags;
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const value of raw) {
+    if (typeof value !== 'string') continue;
+    const tag = value.trim();
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+  }
+  return tags;
+}
+
+/** Every tag present across `rows`, sorted, with per-tag task counts. */
+export function collectTaskTags(rows: TaskRow[]): { tag: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    for (const tag of readTaskTags(row)) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => a.tag.localeCompare(b.tag));
+}
+
+/** Tri-state per tag, cycled neutral → include → exclude → neutral. */
+export type TagFilterState = 'include' | 'exclude';
+
+/**
+ * GitHub-label filter semantics: a task must carry *every* included tag and
+ * *none* of the excluded ones. With no included tags, untagged tasks pass;
+ * any included tag naturally hides them (they cannot carry it).
+ */
+export function filterTasksByTags(
+  rows: TaskRow[],
+  filters: ReadonlyMap<string, TagFilterState>
+): TaskRow[] {
+  if (filters.size === 0) return rows;
+  const included = [...filters.entries()].filter(([, s]) => s === 'include').map(([t]) => t);
+  const excluded = new Set(
+    [...filters.entries()].filter(([, s]) => s === 'exclude').map(([t]) => t)
+  );
+  return rows.filter((row) => {
+    const tags = new Set(readTaskTags(row));
+    if (included.some((tag) => !tags.has(tag))) return false;
+    for (const tag of tags) {
+      if (excluded.has(tag)) return false;
+    }
+    return true;
+  });
 }

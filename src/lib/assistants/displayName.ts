@@ -1,6 +1,7 @@
 import type { Assistant } from '@/types/assistants/assistant';
 
-type AssistantIdentityLike = Pick<Assistant, 'isCoordinator' | 'firstName' | 'surname'>;
+type AssistantIdentityLike = Pick<Assistant, 'isCoordinator' | 'firstName' | 'surname'> &
+  Partial<Pick<Assistant, 'isMultiplayer'>>;
 
 function normalizeNamePart(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -9,8 +10,10 @@ function normalizeNamePart(value: unknown): string {
 /**
  * Formats an assistant display name for UI surfaces.
  *
- * Coordinators always render with the public T-W1N name. Non-coordinator names
- * are whitespace-trimmed and null-safe to avoid leaking placeholder strings.
+ * Single-player coordinators always render with the shared T-W1N name.
+ * Multiplayer twins carry their own chosen name like any hired teammate.
+ * Non-coordinator names are whitespace-trimmed and null-safe to avoid
+ * leaking placeholder strings.
  */
 export const COORDINATOR_DISPLAY_NAME = 'T-W1N';
 
@@ -19,7 +22,7 @@ export function assistantDisplayName(
   fallback = 'Assistant'
 ): string {
   if (!assistant) return fallback;
-  if (assistant.isCoordinator) return COORDINATOR_DISPLAY_NAME;
+  if (assistant.isCoordinator && !assistant.isMultiplayer) return COORDINATOR_DISPLAY_NAME;
 
   const fullName = [normalizeNamePart(assistant.firstName), normalizeNamePart(assistant.surname)]
     .filter(Boolean)

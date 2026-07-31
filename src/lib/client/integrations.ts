@@ -19,6 +19,7 @@ import type {
   ProviderIntegrationConnectStartRequest,
   ProviderIntegrationConnectStartResponse,
 } from '@/types/integrations';
+import { isTriggerOnlyConnection } from '@/types/integrations';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -179,6 +180,7 @@ interface ProviderConnectionPayload {
   reconnectReason?: string | null;
   grantedScopes?: Array<ProviderScopePayload | string>;
   toolPolicy?: Record<string, IntegrationToolApprovalLevel>;
+  credentialStorage?: string | null;
 }
 
 function asArray<T>(value: unknown): T[] {
@@ -559,6 +561,7 @@ export function mapProviderConnection(
     grantedScopes: (connection.grantedScopes || []).map(normalizeScope),
     toolPolicy: connection.toolPolicy || {},
     sourceMetadata,
+    credentialStorage: connection.credentialStorage ?? null,
   };
 }
 
@@ -611,7 +614,12 @@ function statusGroupForStatus(status: string): ProviderAppStatusGroup {
 function connectionStatusBySlug(connections: IntegrationConnection[]): Map<string, string> {
   const bySlug = new Map<string, string>();
   for (const connection of connections) {
-    if (connection.status === 'disconnected' || bySlug.has(connection.canonicalSlug)) continue;
+    if (
+      connection.status === 'disconnected' ||
+      isTriggerOnlyConnection(connection) ||
+      bySlug.has(connection.canonicalSlug)
+    )
+      continue;
     bySlug.set(connection.canonicalSlug, connection.status);
   }
   return bySlug;
@@ -723,7 +731,7 @@ function connectionsBySlug(
 ): Map<string, IntegrationConnection[]> {
   const bySlug = new Map<string, IntegrationConnection[]>();
   for (const connection of connections) {
-    if (connection.status === 'disconnected') continue;
+    if (connection.status === 'disconnected' || isTriggerOnlyConnection(connection)) continue;
     bySlug.set(connection.canonicalSlug, [
       ...(bySlug.get(connection.canonicalSlug) ?? []),
       connection,

@@ -33,9 +33,12 @@ function ownerWorkspaceId(owner: SlackInstallOwner): string {
  * Redirect back into the console. When ``workspaceId`` is supplied (i.e.
  * the OAuth state was verified and we know which owner the install
  * belongs to), the ``unify_workspace_id`` cookie is restored so the user
- * lands in the same workspace they started the install from. The
- * switcher writes this cookie ``SameSite=Strict``, so it is dropped on
- * the cross-site return leg from Slack and must be re-set here.
+ * lands in the same workspace they started the install from. The switcher
+ * writes this cookie ``SameSite=Strict``, so the browser withholds it on
+ * the cross-site return leg from Slack. Server-side resolution no longer
+ * depends on that — the session token carries the active workspace (see
+ * ``lib/user/workspace-session``) — so this re-set only puts the browser's
+ * own copy back in step.
  */
 function redirectWith(
   path: string,

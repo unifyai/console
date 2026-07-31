@@ -2,6 +2,7 @@
 
 import { requireUserApiKey } from '@/lib/server-action-session';
 import { getCurrentUser } from '@/lib/user/user';
+import { writeActiveWorkspaceId } from '@/lib/user/workspace-session';
 /**
  * Organization-related Orchestra API calls
  *
@@ -229,6 +230,7 @@ export async function acceptInviteAction(
       maxAge: 60 * 60 * 24 * 30,
       sameSite: 'lax',
     });
+    await writeActiveWorkspaceId(String(responseData.organizationId));
   }
 
   return {

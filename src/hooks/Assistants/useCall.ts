@@ -12,13 +12,14 @@ import {
 import { toast } from 'sonner';
 import { getHumanCallConnectionDetails } from '@/lib/assistants/humanCall';
 import { OrgCallSession, parseOrgCallSession } from '@/types/orgChat';
-import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import type { DesktopSessionScope } from '@/lib/assistants/desktopSessionScope';
 import { clearDesktopReadyCache } from '@/lib/assistants/desktopSessionScope';
 import { fetchAssistantStatus } from '@/lib/client/assistant';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import { resolveManagedDesktopMode } from '@/utils/assistants/managed-desktop';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 import type {
   Assistant,
@@ -131,6 +132,7 @@ export function useCall(
 ) {
   const { orgId, currentUserId } = options;
   const { voiceCalls } = useFeatures();
+  const { isSelfHost } = useEnvironment();
 
   // --- Session state ---
   const [status, setStatus] = React.useState<CallStatus>('idle');
@@ -1061,11 +1063,19 @@ export function useCall(
   }, []);
 
   // --- Desktop / remote control (assistant on the call) ---
+
+  // Whether this assistant has a desktop to show at all. Hosted installs need
+  // the managed Computer add-on (``active`` / ``grace_period``); self-host
+  // serves the local desktop container from ``getLiveviewUrl``, where the
+  // managed-desktop billing state is meaningless.
+  const isDesktopEnabled =
+    isSelfHost || (!!activeCallAssistant && resolveManagedDesktopMode(activeCallAssistant) != null);
+
   const [runtimeJobName, setRuntimeJobName] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const assistantId = activeCallAssistant?.agentId;
-    if (!assistantId) {
+    if (!assistantId || !isDesktopEnabled) {
       setRuntimeJobName(null);
       return;
     }
@@ -1085,7 +1095,7 @@ export function useCall(
       cancelled = true;
       clearInterval(interval);
     };
-  }, [activeCallAssistant?.agentId]);
+  }, [activeCallAssistant?.agentId, isDesktopEnabled]);
 
   const runtimePollScope = React.useMemo<DesktopSessionScope | null>(
     () => (runtimeJobName ? { jobName: runtimeJobName } : null),
@@ -1104,7 +1114,7 @@ export function useCall(
   );
 
   const { isDesktopReady, eventLiveviewUrl, eventBindingId } = useDesktopReady(
-    activeCallAssistant?.agentId,
+    isDesktopEnabled ? activeCallAssistant?.agentId : undefined,
     boundGetLiveviewUrl,
     false,
     undefined,
@@ -1320,6 +1330,7 @@ export function useCall(
     setPlaybackHold,
     avatarMood,
     // Desktop / remote control surface
+    isDesktopEnabled,
     isDesktopReady,
     isRemoteControlActive,
     liveviewUrl,

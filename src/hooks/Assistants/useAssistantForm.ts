@@ -13,6 +13,7 @@ import {
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@/types/assistants/cartesia';
+import { COORDINATOR_DISPLAY_NAME } from '@/lib/assistants/displayName';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import {
   resolveCoordinatorAbout,
@@ -420,9 +421,11 @@ export function useAssistantForm(
       reset({
         ...getValues(),
 
-        // Profile
-        firstName: assistant.isCoordinator ? 'T-W1N' : assistant.firstName,
-        surname: assistant.isCoordinator ? '' : assistant.surname,
+        // Profile. Single-player coordinators are pinned to the shared
+        // T-W1N identity; multiplayer twins edit their own name like hires.
+        firstName:
+          assistant.isCoordinator && !assistant.isMultiplayer ? 'T-W1N' : assistant.firstName,
+        surname: assistant.isCoordinator && !assistant.isMultiplayer ? '' : assistant.surname,
         jobTitle: assistant.isCoordinator
           ? resolveCoordinatorJobTitle(assistant.jobTitle)
           : (assistant.jobTitle ?? null),
@@ -546,7 +549,19 @@ export function useAssistantForm(
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
       const payload: Partial<AssistantUpdatePayload> = {};
 
-      if (!editingAssistant.isCoordinator) {
+      if (!editingAssistant.isCoordinator || editingAssistant.isMultiplayer) {
+        // The shared single-player identity is reserved: a multiplayer twin
+        // renamed to it would be indistinguishable from private coordinators.
+        if (
+          editingAssistant.isMultiplayer &&
+          data.firstName.toLowerCase() === COORDINATOR_DISPLAY_NAME.toLowerCase()
+        ) {
+          setError('firstName', {
+            type: 'manual',
+            message: `${COORDINATOR_DISPLAY_NAME} is the reserved single-player name — pick a name of its own.`,
+          });
+          throw new Error('Reserved coordinator name.');
+        }
         if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
         if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
       }
@@ -636,11 +651,14 @@ export function useAssistantForm(
           payload
         );
         if ((updateResult as ResponseProps).detail) {
+          const detail = (updateResult as ResponseProps).detail;
           console.error(
             `[useAssistantForm] Failed to update assistant ${editingAssistant.agentId}:`,
-            (updateResult as ResponseProps).detail
+            detail
           );
-          throw new Error('Failed to update assistant.');
+          // Server 409s carry actionable reasons (name taken, reserved
+          // coordinator name) — surface them instead of a generic failure.
+          throw new Error(typeof detail === 'string' ? detail : 'Failed to update assistant.');
         }
         toast.success(`Assistant ${data.firstName} updated!`);
       } else if (computerChanged) {

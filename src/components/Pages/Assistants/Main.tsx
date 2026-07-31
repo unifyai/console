@@ -189,13 +189,13 @@ import type {
 } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import {
-  isMsTeamsBotInstall,
-  type MsTeamsBotInstall,
-  type MsTeamsBotInstallOwner,
-} from '@/types/ms-teams-bot/install';
+import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
 import { buildMsTeamsChatDeepLink, MS_TEAMS_APP_CATALOG_ID } from '@/utils/ms-teams-bot/deepLink';
-import { broadcastMsTeamsBotBound } from '@/lib/ms-teams-bot/bindEvents';
+import {
+  MS_TEAMS_BOT_CONNECTED_PARAM,
+  MS_TEAMS_BOT_CONNECT_ERROR_PARAM,
+  msTeamsBotConnectErrorMessage,
+} from '@/lib/ms-teams-bot/connectLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -207,7 +207,7 @@ import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemE
 import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
-import { createRandomUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
+import { createAvailableUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
 import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
@@ -306,10 +306,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const onboardingFocusParam = searchParams.get('onboarding');
-  // One-click Teams connect: the bot DMs the installer a link back here
-  // carrying the pending install's handshake nonce, so binding is a single
-  // click with no code to copy. Consumed once by the effect below.
-  const msTeamsBindParam = searchParams.get('ms_teams_bind');
   const { activeWorkspace, currentUserId } = useWorkspace();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
@@ -1218,6 +1214,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     waitingMessage,
     connectionError,
     retryConnection,
+    isDesktopEnabled,
     isDesktopReady,
     isRemoteControlActive,
     liveviewUrl,
@@ -1347,67 +1344,44 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     searchParams,
   ]);
 
-  // One-click Teams connect. When the installer taps "Connect" in the bot's
-  // welcome DM, they land here with ``?ms_teams_bind=<nonce>``. Claim the
-  // pending install for the active owner, surface a toast, then strip the
-  // param so a refresh doesn't re-bind. Binding is idempotent, so a repeat is
-  // harmless. Only an owner/admin scope carries ``msTeamsBotOwner``.
-  const consumedMsTeamsBindParamRef = React.useRef<string | null>(null);
+  // Report the outcome of a one-click Teams connect. `/connect/ms-teams` has
+  // already bound the install server-side by the time this page renders, so the
+  // seeded install is current and all that is left is telling the user and
+  // clearing the notice.
+  //
+  // Read from `window.location` rather than `useSearchParams`, and clear with the
+  // History API rather than `router.replace`: the notice must settle even on a
+  // load where this surface is hidden or the router state lags the address bar.
+  const consumedMsTeamsConnectFlashRef = React.useRef(false);
   React.useEffect(() => {
-    if (!msTeamsBindParam) return;
-    if (consumedMsTeamsBindParamRef.current === msTeamsBindParam) return;
-    consumedMsTeamsBindParamRef.current = msTeamsBindParam;
+    if (consumedMsTeamsConnectFlashRef.current) return;
 
-    const stripParam = () => {
-      if (!canWriteAssistantUrl) return;
-      const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.delete('ms_teams_bind');
-      const nextQuery = nextParams.toString();
-      router.replace(nextQuery.length > 0 ? `${pathname}?${nextQuery}` : pathname, {
-        scroll: false,
-      });
-    };
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get(MS_TEAMS_BOT_CONNECTED_PARAM);
+    const errorCode = params.get(MS_TEAMS_BOT_CONNECT_ERROR_PARAM);
+    if (!connected && !errorCode) return;
+    consumedMsTeamsConnectFlashRef.current = true;
 
-    const owner = userMeta.msTeamsBotOwner;
-    const bindAction = assistantActions.msTeamsBot?.bindInstall;
-    if (!owner || !bindAction) {
-      toast.error('Could not connect Microsoft Teams. Please try again from the assistant page.');
-      stripParam();
-      return;
+    if (connected) {
+      toast.success(
+        userMeta.msTeamsBotOwner?.kind === 'org'
+          ? 'Microsoft Teams connected to your organization.'
+          : 'Microsoft Teams connected to your account.'
+      );
+      void refetchCoordinatorOnboardingState();
+    } else {
+      toast.error(msTeamsBotConnectErrorMessage(errorCode));
     }
 
-    void (async () => {
-      try {
-        const result = await bindAction(owner, msTeamsBindParam);
-        if (isMsTeamsBotInstall(result)) {
-          toast.success(
-            owner.kind === 'org'
-              ? 'Microsoft Teams connected to your organization.'
-              : 'Microsoft Teams connected to your account.'
-          );
-          void refetchCoordinatorOnboardingState();
-          broadcastMsTeamsBotBound();
-        } else {
-          console.error('[ms-teams-bot] auto-bind failed:', result);
-          toast.error('Could not connect Microsoft Teams. The install code may have expired.');
-        }
-      } catch (err) {
-        console.error('[ms-teams-bot] auto-bind error:', err);
-        toast.error('Could not connect Microsoft Teams. Please try again.');
-      } finally {
-        stripParam();
-      }
-    })();
-  }, [
-    assistantActions.msTeamsBot,
-    canWriteAssistantUrl,
-    msTeamsBindParam,
-    pathname,
-    refetchCoordinatorOnboardingState,
-    router,
-    searchParams,
-    userMeta.msTeamsBotOwner,
-  ]);
+    params.delete(MS_TEAMS_BOT_CONNECTED_PARAM);
+    params.delete(MS_TEAMS_BOT_CONNECT_ERROR_PARAM);
+    const nextQuery = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      nextQuery.length > 0 ? `${window.location.pathname}?${nextQuery}` : window.location.pathname
+    );
+  }, [refetchCoordinatorOnboardingState, userMeta.msTeamsBotOwner]);
 
   React.useEffect(() => {
     const onCoordinatorOnboardingPanelRequest = (event: Event) => {
@@ -2395,13 +2369,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   const applyRandomUnityProfile = React.useCallback(() => {
-    const profile = createRandomUnityProfile();
+    const profile = createAvailableUnityProfile(
+      assistants
+        .map((a) => `${a.firstName ?? ''} ${a.surname ?? ''}`.trim().toLowerCase())
+        .filter(Boolean),
+      assistants.map((a) => (a.firstName ?? '').trim().toLowerCase()).filter(Boolean)
+    );
     formMethods.setValue('firstName', profile.firstName, { shouldValidate: true });
     formMethods.setValue('surname', profile.surname, { shouldValidate: true });
     formMethods.setValue('jobTitle', profile.jobTitle, { shouldValidate: true });
     formMethods.setValue('about', profile.about, { shouldValidate: true });
     formMethods.setValue('isPresetPristine', false);
-  }, [formMethods]);
+  }, [assistants, formMethods]);
 
   // Auto-select the first filtered preset for hidden defaults like voice, then
   // Replace the visible profile fields with a branded unity profile.
@@ -2865,60 +2844,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
-  // Dispatch the workspace video-call beat. On click we open the provider's
-  // "new meeting" page so the user can host a Google Meet / Microsoft Teams
-  // call (Twin never creates the meeting), then emit the canonical onboarding
-  // event to Unity — the user pastes the link and Twin joins. Provider follows
-  // the connected workspace (``workspaceProvider``), defaulting to Google Meet.
-  const handleCoordinatorDispatchWorkspaceCallBeat = React.useCallback(
-    (stepId: string) => {
-      if (!canonicalCoordinator) return;
-      const step = coordinatorOnboardingState?.onboarding?.steps.find(
-        (candidate) => candidate.id === stepId
-      );
-      if (!step) return;
-      const newMeetingUrl =
-        canonicalCoordinator.workspaceProvider === 'microsoft'
-          ? 'https://teams.microsoft.com/l/meeting/new'
-          : 'https://meet.google.com/new';
-      window.open(newMeetingUrl, '_blank', 'noopener,noreferrer');
-      if (!shouldDispatchStepRequest(stepId)) {
-        void refetchCoordinatorOnboardingState();
-        return;
-      }
-      const label = resolveOnboardingStepLabel(stepId);
-      if (label) appendCoordinatorRequestSentAck(label);
-      markStepEngaged(stepId);
-      markStepRequested(stepId);
-      void (async () => {
-        try {
-          const emitted = await dispatchCoordinatorOnboardingStepEvent(
-            canonicalCoordinator.agentId,
-            step
-          );
-          if (!emitted) return;
-          void refetchCoordinatorOnboardingState();
-        } catch (error) {
-          console.error(
-            '[Coordinator onboarding] Failed to dispatch workspace call beat event:',
-            error
-          );
-          toast.error('Could not start this call. Please try again.');
-        }
-      })();
-    },
-    [
-      appendCoordinatorRequestSentAck,
-      canonicalCoordinator,
-      coordinatorOnboardingState?.onboarding?.steps,
-      markStepEngaged,
-      markStepRequested,
-      refetchCoordinatorOnboardingState,
-      resolveOnboardingStepLabel,
-      shouldDispatchStepRequest,
-    ]
-  );
-
   const handleCoordinatorOpenDesktopLinker = React.useCallback(
     (stepId: string) => {
       if (!canonicalCoordinator) return;
@@ -3124,7 +3049,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onConnectYourComputer: () => handleCoordinatorOpenDesktopLinker('your-computer-link'),
       onEnableDesktopFilesys: () => handleCoordinatorOpenDesktopLinker('your-computer-filesys'),
       onYourComputerDemo: () => handleCoordinatorDispatchYourComputerBeat('your-computer-demo'),
-      onWorkspaceCall: () => handleCoordinatorDispatchWorkspaceCallBeat('workspace-call'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
@@ -3170,7 +3094,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorDispatchLearningBeat,
     handleCoordinatorDispatchMyComputerBeat,
     handleCoordinatorDispatchYourComputerBeat,
-    handleCoordinatorDispatchWorkspaceCallBeat,
     handleCoordinatorOpenDesktopLinker,
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingStepSkip,
@@ -4385,6 +4308,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                       toggleRemoteControlInteractive={
                                         toggleRemoteControlInteractive
                                       }
+                                      isDesktopEnabled={isDesktopEnabled}
                                       isDesktopReady={isDesktopReady}
                                       callType={callType}
                                       isSpeakerMuted={isSpeakerMuted}
@@ -4557,6 +4481,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onAddPaymentMethod={goToBilling}
               onDeleteAssistant={onDeleteAssistantSubmit}
               canDelete={canEndContract(assistantToEdit)}
+              onMultiplayerFlipped={() => {
+                handleCloseEditDialog();
+                refreshAssistants(false);
+              }}
+              takenDisplayNames={assistants
+                .filter((a) => a.agentId !== assistantToEdit.agentId)
+                .map((a) => `${a.firstName ?? ''} ${a.surname ?? ''}`.trim().toLowerCase())
+                .filter(Boolean)}
+              takenFirstNames={assistants
+                .filter((a) => a.agentId !== assistantToEdit.agentId)
+                .map((a) => (a.firstName ?? '').trim().toLowerCase())
+                .filter(Boolean)}
             >
               {isEditFormReady ? (
                 <HireForm
@@ -4711,6 +4647,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               isRemoteControlInteractive={isRemoteControlInteractive}
               isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
               toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+              isDesktopEnabled={isDesktopEnabled}
               isDesktopReady={isDesktopReady}
               callType={callType}
               isSpeakerMuted={isSpeakerMuted}

@@ -1,6 +1,10 @@
 import * as React from 'react';
 import { CallPill, CallTranscriptUtterance } from '@/types/assistants/chat';
 import { Assistant } from '@/types/assistants/assistant';
+import type { ExchangeRow } from '@/types/assistants/brain';
+import { fetchRowsAcrossRoots } from '@/lib/assistants/federatedRows';
+import { roots } from '@/lib/assistants/scope';
+import { callTargetsByCallId, isChatFrom, type CallTarget } from '@/utils/assistants/callRecording';
 import { fetchMeetExchangesDirect } from './useContactIdPrefetch';
 
 interface UseCallPillsOptions {
@@ -26,6 +30,26 @@ interface UseCallPillsReturn {
 // downstream `useMemo` dependencies (e.g. the timeline memo in the chat
 // panel) and forcing pointless recomputation on every keystroke.
 const EMPTY_CALL_PILLS: readonly CallPill[] = Object.freeze([]);
+
+/**
+ * Resolve every call's exchange -- its recording and its transcript thread --
+ * from the same exchange metadata the transcripts pane reads.
+ *
+ * Fetched on demand rather than on mount: a chat thread usually has no open
+ * transcript, and this is the only consumer. Results are memoised for the
+ * lifetime of the hook so opening several pills costs one read.
+ */
+async function fetchCallTargets(assistant: Assistant): Promise<Map<string, CallTarget>> {
+  const exchanges = await fetchRowsAcrossRoots<ExchangeRow>({
+    scopedRoots: roots(assistant),
+    ownerId: assistant.userId,
+    assistantId: assistant.agentId,
+    table: 'Exchanges',
+    limit: 200,
+    sortField: 'exchange_id',
+  });
+  return callTargetsByCallId(exchanges);
+}
 
 async function fetchCallTranscriptDirect(
   assistant: Assistant,
@@ -54,6 +78,13 @@ async function fetchCallTranscriptDirect(
           callUtteranceTimestamp:
             (metadata.call_utterance_timestamp as string | undefined) ??
             (metadata.callUtteranceTimestamp as string | undefined),
+          // The calls API is not camelised (unlike the logs proxy), so the
+          // stored key arrives as-is; the camel form is accepted in case that
+          // ever changes.
+          speechStartedAt:
+            (metadata.speech_started_at as string | undefined) ??
+            (metadata.speechStartedAt as string | undefined),
+          isChat: isChatFrom(metadata),
         };
       })
       .filter((u: CallTranscriptUtterance | null): u is CallTranscriptUtterance => u !== null);
@@ -80,6 +111,11 @@ export function useCallPills({
 
   const callStartTimeRef = React.useRef<Date | null>(null);
   const prevIsConnectedRef = React.useRef(false);
+  // In-flight or resolved call-target index, shared across pills of one assistant.
+  const targetsRef = React.useRef<Promise<Map<string, CallTarget>> | null>(null);
+  React.useEffect(() => {
+    targetsRef.current = null;
+  }, [assistantId]);
 
   React.useEffect(() => {
     const wasConnected = prevIsConnectedRef.current;
@@ -149,8 +185,24 @@ export function useCallPills({
         }
 
         if (resolvedCallId !== undefined) {
-          const utterances = await fetchCallTranscriptDirect(assistant, resolvedCallId);
+          const [utterances, targets] = await Promise.all([
+            fetchCallTranscriptDirect(assistant, resolvedCallId),
+            targetsRef.current ?? (targetsRef.current = fetchCallTargets(assistant)),
+          ]);
           setActiveTranscript(utterances);
+          const target = targets.get(resolvedCallId);
+          setActiveTranscriptPill((current) =>
+            current === null
+              ? current
+              : {
+                  ...current,
+                  callId: resolvedCallId,
+                  recordingUrl: target?.recording?.url,
+                  recordingStartedAtMs: target?.recording?.startedAtMs ?? null,
+                  exchangeId: target?.exchangeId ?? null,
+                  rootKey: target?.rootKey,
+                }
+          );
         } else {
           setActiveTranscript([]);
         }

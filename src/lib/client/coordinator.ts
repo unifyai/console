@@ -36,6 +36,49 @@ export async function seedCoordinatorOpener(
   }
 }
 
+export interface MultiplayerFlipInput {
+  firstName: string;
+  surname?: string | null;
+  voiceId: string;
+  voiceProvider: string;
+  profilePhoto?: string | null;
+}
+
+/**
+ * Flip a coordinator to multiplayer mode (one-way).
+ *
+ * Applies the twin's outward identity, retires shared-pool contact details,
+ * and provisions the dedicated alias email server-side. Returns the updated
+ * assistant record (camelCase) with `isMultiplayer` set.
+ */
+export async function flipCoordinatorMultiplayer(
+  coordinatorId: string | number,
+  input: MultiplayerFlipInput
+): Promise<Record<string, unknown> | ResponseProps> {
+  try {
+    const res = await fetch(`/api/assistant/${coordinatorId}/multiplayer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const contentType = res.headers.get('content-type');
+    const data = contentType?.includes('application/json') ? await res.json() : {};
+
+    if (!res.ok) {
+      return {
+        detail: data?.detail || data?.error || `Failed to enable multiplayer: ${res.statusText}`,
+        status: res.status,
+      };
+    }
+
+    return data as Record<string, unknown>;
+  } catch (error) {
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to enable multiplayer',
+    };
+  }
+}
+
 export type OnboardingSessionMedium = 'chat' | 'call';
 
 export interface OnboardingSessionStartedResult {

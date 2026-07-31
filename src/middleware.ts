@@ -5,6 +5,11 @@ import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
 import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
 import { resolveAuthMode } from '@/lib/environment/environment';
+import {
+  MS_TEAMS_BOT_BIND_COOKIE,
+  MS_TEAMS_BOT_BIND_COOKIE_MAX_AGE_SECONDS,
+  MS_TEAMS_BOT_CONNECT_PATH,
+} from '@/lib/ms-teams-bot/connectLink';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 const ENFORCE_ACCOUNT_ONBOARDING = true;
@@ -81,8 +86,59 @@ function preserveReferralCode(source: URLSearchParams, target: URL): void {
   }
 }
 
+/**
+ * Park a Microsoft Teams bind nonce so it survives the auth funnel.
+ *
+ * The bot's connect link is usually opened in a browser with no console session,
+ * so the request is about to be bounced through sign-in — and possibly MFA and
+ * account onboarding, whose redirects carry only the params they know about.
+ * The nonce rides along out-of-band instead, and `/connect/ms-teams` clears the
+ * cookie once it has claimed (or failed to claim) the install.
+ */
+function withPendingMsTeamsBind(
+  response: NextResponse,
+  request: NextRequestWithAuth,
+  nonce: string | null
+): NextResponse {
+  if (!nonce) return response;
+
+  response.cookies.set(MS_TEAMS_BOT_BIND_COOKIE, nonce, {
+    httpOnly: true,
+    maxAge: MS_TEAMS_BOT_BIND_COOKIE_MAX_AGE_SECONDS,
+    path: '/',
+    sameSite: 'lax',
+    secure: request.nextUrl.protocol === 'https:',
+  });
+  return response;
+}
+
+/**
+ * Whether this request should be diverted to the Teams connect handler to finish
+ * a parked bind.
+ *
+ * Only plain page GETs qualify: diverting a server action POST, an RSC payload
+ * fetch, or a prefetch would break the caller instead of completing the
+ * handshake. Auth routes are excluded so the divert cannot land mid-sign-in.
+ */
+function shouldResumeMsTeamsBind(request: NextRequestWithAuth): boolean {
+  if (request.method !== 'GET') return false;
+  if (!request.cookies.get(MS_TEAMS_BOT_BIND_COOKIE)?.value) return false;
+  if (request.headers.get('rsc') === '1') return false;
+  if (request.headers.get('next-router-prefetch') === '1') return false;
+  if (request.nextUrl.searchParams.has('_rsc')) return false;
+
+  const { pathname } = request.nextUrl;
+  if (pathname === MS_TEAMS_BOT_CONNECT_PATH) return false;
+  return !['/login', '/auth', '/api', '/_next'].some((prefix) => pathname.startsWith(prefix));
+}
+
 export async function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
+
+  // Captured before any gate can redirect this request away from the connect
+  // handler, and re-attached to whichever response we end up returning.
+  const pendingMsTeamsBindNonce =
+    pathname === MS_TEAMS_BOT_CONNECT_PATH ? searchParams.get('nonce') : null;
 
   // Allow public access to shareable/embed/auth helper pages (no auth required)
   if (
@@ -178,7 +234,11 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
       const mfaUrl = new URL('/login/mfa', request.url);
       preserveCreditToken(searchParams, mfaUrl);
       preserveReferralCode(searchParams, mfaUrl);
-      return NextResponse.redirect(mfaUrl);
+      return withPendingMsTeamsBind(
+        NextResponse.redirect(mfaUrl),
+        request,
+        pendingMsTeamsBindNonce
+      );
     }
   }
 
@@ -197,8 +257,26 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
       const onboardingUrl = new URL('/login/onboarding', request.url);
       preserveCreditToken(searchParams, onboardingUrl);
       preserveReferralCode(searchParams, onboardingUrl);
-      return NextResponse.redirect(onboardingUrl);
+      return withPendingMsTeamsBind(
+        NextResponse.redirect(onboardingUrl),
+        request,
+        pendingMsTeamsBindNonce
+      );
     }
+  }
+
+  // Finish a parked Teams bind now that the session is past the MFA and
+  // onboarding gates, returning the user to where they were headed. The handler
+  // clears the cookie on every exit, so this diverts at most once per handshake.
+  if (token && shouldResumeMsTeamsBind(request)) {
+    // Clone `nextUrl` rather than resolving against `request.url`: it keeps the
+    // origin the browser actually used, so the divert cannot bounce the user onto
+    // the server's own bind address.
+    const connectUrl = request.nextUrl.clone();
+    connectUrl.search = '';
+    connectUrl.searchParams.set('return', `${pathname}${request.nextUrl.search}`);
+    connectUrl.pathname = MS_TEAMS_BOT_CONNECT_PATH;
+    return NextResponse.redirect(connectUrl);
   }
 
   const response =
@@ -206,7 +284,11 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
       request,
       event
     )) as NextResponse | undefined) ?? NextResponse.next();
-  return withConsoleSessionMarker(response, request, Boolean(token));
+  return withPendingMsTeamsBind(
+    withConsoleSessionMarker(response, request, Boolean(token)),
+    request,
+    pendingMsTeamsBindNonce
+  );
 }
 
 export const config = {

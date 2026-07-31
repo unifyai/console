@@ -48,6 +48,20 @@ export interface TranscriptRow {
   timestamp: string | null;
   content: string | null;
   exchangeId: number | null;
+  /** Medium-specific extras. Call utterances carry `callUtteranceTimestamp`. */
+  metadata?: Record<string, unknown> | null;
+}
+
+/** One conversation exchange. Rows live in `{root}/Exchanges`, keyed to
+ *  `TranscriptRow.exchangeId`, and carry exchange-level extras that no single
+ *  message owns — notably a call's `recordingUrl`.
+ *
+ *  Deliberately absent from `BrainContext`: the table backs enrichment for
+ *  other views rather than a browsable Brain section of its own. */
+export interface ExchangeRow {
+  exchangeId: number;
+  medium: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 /** Claim kinds in the typed Knowledge ledger. */
@@ -159,7 +173,14 @@ export interface TaskRow {
   taskId: number;
   name: string | null;
   description: string | null;
-  status: string | null;
+  /**
+   * Derived view of what the task is doing: disarmed, completed, running,
+   * triggerable or scheduled. Computed server-side from `enabled`, the
+   * trigger, and Tasks/Executions — definitions store authored intent only,
+   * so this is never a stored column.
+   */
+  lifecycle: string | null;
+  enabled?: boolean | null;
   triggerType: string | null;
   nextDueAt: string | null;
   createdAt: string | null;
@@ -171,6 +192,8 @@ export interface TaskRow {
   requiresComputer?: boolean | null;
   entrypoint?: number | string | null;
   repeat?: TaskRepeatPatternRow[] | null;
+  /** Freeform labels for grouping/filtering; no scheduling semantics. */
+  tags?: string[] | null;
   [key: string]: unknown;
 }
 

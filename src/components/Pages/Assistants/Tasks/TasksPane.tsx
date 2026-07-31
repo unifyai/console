@@ -24,7 +24,12 @@ import {
   getRunHistoryCells,
   isPausedTaskStatus,
   TASK_LIVE_DOT_CLASS,
+  collectTaskTags,
+  filterTasksByTags,
+  readTaskTags,
+  type TagFilterState,
 } from '@/utils/assistants/tasks';
+import { TaskTagsDropdown } from './TaskTagsDropdown';
 import { BrainRowDetail } from '../Brain/BrainRowDetail';
 import { ClampedAssistantMarkdown } from '../Common/ClampedAssistantMarkdown';
 // TODO(wire-backend): restore once task creation is wired to a backend
@@ -90,6 +95,7 @@ export function TasksPane({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [filter, setFilter] = useState<TaskFilter>('All');
+  const [tagFilters, setTagFilters] = useState<Map<string, TagFilterState>>(new Map());
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<number>>(new Set());
   const [selectedRun, setSelectedRun] = useState<Record<string, unknown> | null>(null);
   // TODO(wire-backend): restore when the "New task" create flow is wired.
@@ -109,11 +115,37 @@ export function TasksPane({
     return map;
   }, [taskRuns.rows]);
 
+  const allTags = useMemo(() => collectTaskTags(tasks.rows), [tasks.rows]);
+
+  // Cycle one tag neutral → include → exclude → neutral (GitHub-labels style).
+  const cycleTagFilter = useCallback((tag: string) => {
+    setTagFilters((prev) => {
+      const next = new Map(prev);
+      const current = next.get(tag);
+      if (current === undefined) next.set(tag, 'include');
+      else if (current === 'include') next.set(tag, 'exclude');
+      else next.delete(tag);
+      return next;
+    });
+  }, []);
+
+  const includeTagFilter = useCallback((tag: string) => {
+    setTagFilters((prev) => {
+      const next = new Map(prev);
+      if (next.get(tag) === 'include') next.delete(tag);
+      else next.set(tag, 'include');
+      return next;
+    });
+  }, []);
+
+  const clearTagFilters = useCallback(() => setTagFilters(new Map()), []);
+
   const filteredTasks = useMemo(() => {
-    if (filter === 'All') return tasks.rows;
-    if (filter === 'Paused') return tasks.rows.filter((t) => isPausedTaskStatus(t.status));
-    return tasks.rows.filter((t) => !isPausedTaskStatus(t.status));
-  }, [tasks.rows, filter]);
+    let rows = tasks.rows;
+    if (filter === 'Paused') rows = rows.filter((t) => isPausedTaskStatus(t.lifecycle));
+    else if (filter === 'Active') rows = rows.filter((t) => !isPausedTaskStatus(t.lifecycle));
+    return filterTasksByTags(rows, tagFilters);
+  }, [tasks.rows, filter, tagFilters]);
 
   const totalRunsLogged = taskRuns.count;
 
@@ -186,6 +218,12 @@ export function TasksPane({
         searchClearTestId="tasks-search-clear"
         trailing={
           <>
+            <TaskTagsDropdown
+              tags={allTags}
+              filters={tagFilters}
+              onCycle={cycleTagFilter}
+              onClear={clearTagFilters}
+            />
             <BrainScopeDropdown scope={scope} />
             {hasRunningTaskRun ? (
               <span
@@ -232,7 +270,11 @@ export function TasksPane({
         ) : filteredTasks.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-body-muted">
-              {isFiltered ? 'No results match your search' : 'No tasks found'}
+              {isFiltered
+                ? 'No results match your search'
+                : tagFilters.size > 0
+                  ? 'No tasks match the active tag filters'
+                  : 'No tasks found'}
             </p>
           </div>
         ) : (
@@ -245,6 +287,8 @@ export function TasksPane({
                 isOpen={expandedTaskIds.has(task.taskId)}
                 onToggle={() => toggleTask(task.taskId)}
                 onRunClick={(run) => setSelectedRun(run as Record<string, unknown>)}
+                tagFilters={tagFilters}
+                onTagClick={includeTagFilter}
               />
             ))}
           </div>
@@ -294,10 +338,22 @@ interface TaskCardProps {
   isOpen: boolean;
   onToggle: () => void;
   onRunClick: (run: TaskRunRow) => void;
+  tagFilters: ReadonlyMap<string, TagFilterState>;
+  /** Toggle a tag as an include filter (chip click on the card). */
+  onTagClick: (tag: string) => void;
 }
 
-function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
+function TaskCard({
+  task,
+  runs,
+  isOpen,
+  onToggle,
+  onRunClick,
+  tagFilters,
+  onTagClick,
+}: TaskCardProps) {
   const fields = useMemo(() => getTaskCardFields(task), [task]);
+  const tags = useMemo(() => readTaskTags(task), [task]);
   const cadence = fields.find((f) => f.label === 'Cadence')?.value ?? '—';
   const nextRun = fields.find((f) => f.label === 'Next run')?.value ?? '—';
   const priority = fields.find((f) => f.label === 'Priority')?.value ?? '—';
@@ -337,6 +393,32 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
             <span className="text-title truncate text-foreground">
               {task.name ?? 'Untitled task'}
             </span>
+            {tags.length > 0 && (
+              <span className="flex min-w-0 shrink items-center gap-1 overflow-hidden">
+                {/* Chips are plain click targets, not focusable controls: the
+                    card head is already a <button>, and nesting focusables in
+                    it is invalid. Keyboard filtering lives in the dropdown. */}
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onTagClick(tag);
+                    }}
+                    className={cn(
+                      'shrink-0 cursor-pointer rounded-full border px-2 py-0.5 text-[10.5px] leading-4 transition-colors',
+                      tagFilters.get(tag) === 'include'
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border bg-transparent text-muted-foreground hover:bg-muted'
+                    )}
+                    title={`Filter by "${tag}"`}
+                    data-testid={`task-card-tag-${tag}`}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </span>
+            )}
           </div>
           <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
             <Clock className="h-3 w-3 shrink-0" />
@@ -345,7 +427,7 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
             </span>
           </div>
         </div>
-        <span className="shrink-0">{taskStatusBadge(task.status)}</span>
+        <span className="shrink-0">{taskStatusBadge(task.lifecycle)}</span>
       </button>
 
       {isOpen && (

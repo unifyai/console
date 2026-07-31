@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { isTriggerOnlyConnection } from '@/types/integrations';
 import type {
   IntegrationDefinition,
   IntegrationGalleryItem,
@@ -21,11 +22,24 @@ const STATUS_RANK: Record<IntegrationConnectionStatus, number> = {
   ['not_connected']: 10,
 };
 
+// Workspace trigger facades are trigger-only by design: a definition whose
+// connections are entirely facade rows must not count as connected, even
+// though the facade connection itself reports status "connected".
+function isFacadeOnlyDefinition(definition: IntegrationDefinition): boolean {
+  return (
+    definition.connections.length > 0 &&
+    definition.connections.every((connection) => isTriggerOnlyConnection(connection))
+  );
+}
+
+function effectiveStatus(definition: IntegrationDefinition): IntegrationConnectionStatus {
+  return isFacadeOnlyDefinition(definition) ? 'not_connected' : definition.status;
+}
+
 function bestStatus(definitions: IntegrationDefinition[]): IntegrationConnectionStatus {
   return (
-    definitions
-      .map((definition) => definition.status)
-      .sort((a, b) => STATUS_RANK[b] - STATUS_RANK[a])[0] ?? 'not_connected'
+    definitions.map(effectiveStatus).sort((a, b) => STATUS_RANK[b] - STATUS_RANK[a])[0] ??
+    'not_connected'
   );
 }
 
@@ -39,7 +53,9 @@ function mergeDefinitionGroup(
     definitions[0];
   const liveConnections = definitions
     .flatMap((definition) => definition.connections)
-    .filter((connection) => connection.status !== 'disconnected');
+    .filter(
+      (connection) => connection.status !== 'disconnected' && !isTriggerOnlyConnection(connection)
+    );
   // When provider-backed accounts exist, gallery chips show those accounts only.
   // Static-package credential rows are not concurrent OAuth/API accounts.
   const providerConnections = liveConnections.filter(

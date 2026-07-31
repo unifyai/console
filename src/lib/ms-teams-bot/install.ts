@@ -26,9 +26,10 @@ import 'server-only';
 import type { AxiosError } from 'axios';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { getCurrentUser } from '@/lib/user/user';
+import { getActiveOrganization } from '@/lib/user/workspace';
 import type { ResponseProps } from '@/types/common';
 import type { MsTeamsBotInstall, MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
-import type { UserOrganization } from '@/types/user';
+import type { User, UserOrganization } from '@/types/user';
 
 /**
  * Org roles allowed to bind (claim) a pending MS Teams bot install to
@@ -41,6 +42,21 @@ const ORG_MANAGER_ROLES = new Set(['Owner', 'Admin']);
 /** Whether ``org`` lets the current user bind its MS Teams bot install. */
 export function canManageOrgMsTeamsBotInstall(org: UserOrganization | undefined | null): boolean {
   return !!org && ORG_MANAGER_ROLES.has(org.roleName);
+}
+
+/**
+ * The owner scope ``user`` binds a Teams install to: their active organization
+ * when they are in an org workspace, otherwise their personal account.
+ *
+ * Shared by the assistants prefetch and the connect-link handler so both claim
+ * the install for the same owner — a split here binds the tenant to one scope
+ * while the UI reads the other.
+ */
+export function resolveMsTeamsBotInstallOwner(user: User): MsTeamsBotInstallOwner {
+  const activeOrganization = getActiveOrganization(user);
+  return activeOrganization
+    ? { kind: 'org', orgId: activeOrganization.id }
+    : { kind: 'user', userId: String(user.id) };
 }
 
 function errorResponse(error: unknown, fallback: string): ResponseProps {

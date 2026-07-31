@@ -4,8 +4,12 @@ import { getCurrentUser } from '@/lib/user/user';
 import { getActiveOrganization } from '@/lib/user/workspace';
 import { canManageOrgSlackInstall, getSlackInstallAction } from '@/lib/slack/install';
 import { isSlackInstall } from '@/types/slack/install';
-import { canManageOrgMsTeamsBotInstall, getInstallStatusAction } from '@/lib/ms-teams-bot/install';
-import { isMsTeamsBotInstall, type MsTeamsBotInstallOwner } from '@/types/ms-teams-bot/install';
+import {
+  canManageOrgMsTeamsBotInstall,
+  getInstallStatusAction,
+  resolveMsTeamsBotInstallOwner,
+} from '@/lib/ms-teams-bot/install';
+import { isMsTeamsBotInstall } from '@/types/ms-teams-bot/install';
 import type { AssistantsMainUserMeta } from '@/types/assistants/main';
 
 export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMeta | null> {
@@ -33,8 +37,7 @@ export async function loadAssistantsMainUserMeta(): Promise<AssistantsMainUserMe
   // (owner/admin) or the personal user. Unlike Slack it needs no provider
   // OAuth client — the bind only talks to Orchestra via the admin key — so
   // it is available in both org and personal workspaces.
-  const msTeamsBotOwner: MsTeamsBotInstallOwner =
-    orgId != null ? { kind: 'org', orgId } : { kind: 'user', userId: String(user.id) };
+  const msTeamsBotOwner = resolveMsTeamsBotInstallOwner(user);
   const msTeamsBotCanManage =
     orgId != null ? canManageOrgMsTeamsBotInstall(activeOrganization) : true;
   const teamsInstallResult = msTeamsBotCanManage

@@ -511,7 +511,7 @@ export function AssistantContactManager({
   };
 
   const renderEmailTab = () => {
-    if (assistant.isCoordinator) {
+    if (assistant.isCoordinator && !assistant.isMultiplayer) {
       if (!assistant.email) {
         return (
           <p className="text-body text-muted-foreground">
@@ -634,7 +634,7 @@ export function AssistantContactManager({
           <DialogHeader>
             <DialogTitle className="text-title">Update Contact</DialogTitle>
             <DialogDescription className="text-subtitle">
-              {assistant.isCoordinator
+              {assistant.isCoordinator && !assistant.isMultiplayer
                 ? 'T-W1N contacts are platform-managed: Contact details are automatically provisioned and incoming messages are routed to T-W1N using your verified sender identity — there is nothing to create or configure.'
                 : `Manage contact details for ${assistant.firstName}.`}
             </DialogDescription>
@@ -841,7 +841,7 @@ const PhoneTabContent: React.FC<{
   userPhoneNumber,
   onOpenUserSettings,
 }) => {
-  if (assistant.isCoordinator) {
+  if (assistant.isCoordinator && !assistant.isMultiplayer) {
     if (!assistant.phone) {
       return (
         <p className="text-body text-muted-foreground">
@@ -943,19 +943,19 @@ const WhatsAppTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <ContactReadyMessage>
-          {assistant.isCoordinator
+          {assistant.isCoordinator && !assistant.isMultiplayer
             ? 'T-W1N WhatsApp is configured.'
             : 'Assistant WhatsApp contact is active.'}
         </ContactReadyMessage>
         <p className="text-caption text-muted-foreground">
-          {assistant.isCoordinator
+          {assistant.isCoordinator && !assistant.isMultiplayer
             ? 'T-W1N WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
             : 'Send a message first — your assistant can only call you on WhatsApp after you start a conversation.'}
         </p>
       </div>
     );
   }
-  if (assistant.isCoordinator) {
+  if (assistant.isCoordinator && !assistant.isMultiplayer) {
     return (
       <p className="text-body text-muted-foreground">
         T-W1N WhatsApp is managed automatically and will appear here once configured.

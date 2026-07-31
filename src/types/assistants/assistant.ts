@@ -98,6 +98,12 @@ export interface Assistant {
    */
   ownerTeamId?: number | null;
   isCoordinator: boolean;
+  /**
+   * Coordinator multiplayer mode: the twin has traded its private boss-only
+   * surface for a hire-like outward identity (own name/voice/avatar and
+   * dedicated contact details). One-way; always false for non-coordinators.
+   */
+  isMultiplayer?: boolean;
   userFirstName?: string | null; // Owner's first name
   userLastName?: string | null; // Owner's last name
   userImage?: string | null; // Owner's profile image URL

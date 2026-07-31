@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { getCurrentUser } from '@/lib/user/user';
+import { activeWorkspaceIdFromToken } from '@/lib/user/workspace-session';
 import { resolveApiKeyFromCache, resolvePersonalApiKeyFromCache } from './api-key-cache';
 import {
   mockApiKey,
@@ -66,7 +67,12 @@ export async function getApiKeyFromRequest(request: NextRequest): Promise<string
   // previous slow-path calls. This avoids the Orchestra roundtrip that
   // getCurrentUser() → getUserByEmail() would otherwise require.
   if (jwtToken?.email && typeof jwtToken.email === 'string') {
-    const workspaceId = request.cookies.get('unify_workspace_id')?.value;
+    // Same fallback getCurrentUser() applies: the workspace cookie is Strict and
+    // absent on cross-site requests, so read the selection off the Lax session
+    // token instead. Without this an API route and a page render could resolve
+    // different workspaces for the same request context.
+    const workspaceId =
+      request.cookies.get('unify_workspace_id')?.value ?? activeWorkspaceIdFromToken(jwtToken);
     const headerApiKey = request.headers.get('apiKey');
     const cached = resolveApiKeyFromCache(jwtToken.email, workspaceId, headerApiKey);
     if (cached) {
