@@ -807,3 +807,59 @@ export function getRunHistoryCells(row: TaskRunRow): RunHistoryCells {
     durationLabel: formatRunDuration(row.startedAt, row.completedAt),
   };
 }
+
+/** Normalized tag list for one task: trimmed, deduped, order preserved. */
+export function readTaskTags(row: TaskRow): string[] {
+  const raw = row.tags;
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const value of raw) {
+    if (typeof value !== 'string') continue;
+    const tag = value.trim();
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+  }
+  return tags;
+}
+
+/** Every tag present across `rows`, sorted, with per-tag task counts. */
+export function collectTaskTags(rows: TaskRow[]): { tag: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    for (const tag of readTaskTags(row)) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => a.tag.localeCompare(b.tag));
+}
+
+/** Tri-state per tag, cycled neutral → include → exclude → neutral. */
+export type TagFilterState = 'include' | 'exclude';
+
+/**
+ * GitHub-label filter semantics: a task must carry *every* included tag and
+ * *none* of the excluded ones. With no included tags, untagged tasks pass;
+ * any included tag naturally hides them (they cannot carry it).
+ */
+export function filterTasksByTags(
+  rows: TaskRow[],
+  filters: ReadonlyMap<string, TagFilterState>
+): TaskRow[] {
+  if (filters.size === 0) return rows;
+  const included = [...filters.entries()].filter(([, s]) => s === 'include').map(([t]) => t);
+  const excluded = new Set(
+    [...filters.entries()].filter(([, s]) => s === 'exclude').map(([t]) => t)
+  );
+  return rows.filter((row) => {
+    const tags = new Set(readTaskTags(row));
+    if (included.some((tag) => !tags.has(tag))) return false;
+    for (const tag of tags) {
+      if (excluded.has(tag)) return false;
+    }
+    return true;
+  });
+}
