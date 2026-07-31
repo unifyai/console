@@ -108,6 +108,20 @@ async function loginAndSaveOrgState(
   return stateFile;
 }
 
+/**
+ * The team header only folds its nest; the team conversation is the "Team chat"
+ * row inside it.
+ */
+async function openTeamWorkspace(page: Page) {
+  const teamRow = page.getByTestId(`team-list-item-${teamId}`);
+  await expect(teamRow).toBeVisible({ timeout: 30_000 });
+  if ((await teamRow.getAttribute('aria-expanded')) === 'false') {
+    await teamRow.click();
+  }
+  await page.getByTestId(`team-chat-list-item-${teamId}`).click();
+  await expect(page.getByTestId('team-workspace')).toBeVisible({ timeout: 15_000 });
+}
+
 let ownerAuthFile: string | undefined;
 
 const test = base.extend<{ ownerPage: Page }>({
@@ -168,11 +182,8 @@ test('team call button starts a team call_session', async ({ ownerPage: page }) 
   test.setTimeout(90_000);
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
 
-  const teamRow = page.getByTestId(`team-list-item-${teamId}`);
-  await expect(teamRow).toBeVisible({ timeout: 30_000 });
-  await teamRow.click();
+  await openTeamWorkspace(page);
 
-  await expect(page.getByTestId('team-workspace')).toBeVisible({ timeout: 15_000 });
   const callBtn = page.getByTestId('org-chat-call-button');
   await expect(callBtn).toBeVisible();
   await callBtn.click();
@@ -196,10 +207,7 @@ test('team call can add two assistants and persists Contacts attribution keys', 
   test.setTimeout(120_000);
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
 
-  const teamRow = page.getByTestId(`team-list-item-${teamId}`);
-  await expect(teamRow).toBeVisible({ timeout: 30_000 });
-  await teamRow.click();
-  await expect(page.getByTestId('team-workspace')).toBeVisible({ timeout: 15_000 });
+  await openTeamWorkspace(page);
 
   await page.getByTestId('org-chat-call-button').click();
   await expect(page.getByTestId('org-call-meet-stage')).toBeVisible({ timeout: 20_000 });

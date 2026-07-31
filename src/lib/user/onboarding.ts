@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { decode, encode } from 'next-auth/jwt';
 import { requireUserApiKey } from '@/lib/server-action-session';
 import { getOrchestraUserClient, OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { ResponseProps } from '@/types/common';
 
 /**
  * Server action factory that returns a function to update the user's
@@ -122,15 +123,35 @@ export async function patchSessionAndRedirect(
 
 // ─── Server action factory: update onboarding in Orchestra ────────────────────
 
+/**
+ * Advance the user's onboarding progress.
+ *
+ * Returns `null` on success, or `{ detail, status }` describing why the
+ * step could not be saved. Errors are returned rather than thrown
+ * because Next.js redacts server-action exception messages in
+ * production, which would leave the UI unable to tell the user anything
+ * more useful than "something went wrong" — the failure mode that made a
+ * billing suspension look like a generic save error.
+ */
 export async function updateOnboardingAction(update: {
   currentStep: string;
   stepData?: Record<string, unknown>;
-}): Promise<void> {
+}): Promise<ResponseProps | null> {
   const apiKey = await requireUserApiKey();
   const client = await getOrchestraUserClient(apiKey);
 
-  await client.put('/user/onboarding', {
-    currentStep: update.currentStep,
-    ...(update.stepData && { stepData: update.stepData }),
-  });
+  try {
+    await client.put('/user/onboarding', {
+      currentStep: update.currentStep,
+      ...(update.stepData && { stepData: update.stepData }),
+    });
+    return null;
+  } catch (error) {
+    const response = (error as { response?: { status?: number; data?: { detail?: string } } })
+      .response;
+    return {
+      detail: response?.data?.detail || 'Failed to save. Please try again.',
+      status: response?.status ?? 500,
+    };
+  }
 }
