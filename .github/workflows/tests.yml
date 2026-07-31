@@ -96,10 +96,12 @@ jobs:
           echo "tier=push" >> "$GITHUB_OUTPUT"
           echo "Push Gate — default fallback"
 
-  push-gate:
+  # Renamed from the required context: "Push Gate" is now republished by the
+  # always-running tests-required job below. See the comment there.
+  push-gate-run:
     needs: resolve-tier
     if: needs.resolve-tier.outputs.tier == 'push'
-    name: Push Gate
+    name: Push Gate (run)
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 25
     steps:
@@ -1387,3 +1389,75 @@ jobs:
             /tmp/pubsub-ci.log
             /tmp/pubsub-emulator-apt.log
           retention-days: 7
+
+  # Single, stable required status check for staging->main releases.
+  #
+  # This job MUST run unconditionally. GitHub counts a *skipped* required check
+  # as satisfied, so while push-gate carried the required "Push Gate" context
+  # directly, any commit that resolved to a different tier published an
+  # implicit pass. A [run-tests] push to staging resolves tier=full, which
+  # skips push-gate -- and a release PR shares its head SHA with that push, so
+  # the stale pass could satisfy branch protection before the PR's own gate
+  # finished. The identical shape in orchestra let four releases merge with a
+  # genuinely failing suite, one leaving a broken test on main for thirteen
+  # hours.
+  #
+  # Running always means the context is only ever an explicit pass or fail. It
+  # asserts that whichever tier resolved for this commit actually ran and went
+  # green, so a stronger tier (full) satisfies the gate just as push does, and
+  # a commit where no tier ran cannot satisfy it at all.
+  tests-required:
+    name: Push Gate
+    if: always()
+    needs:
+      - resolve-tier
+      - push-gate-run
+      - pr-gate-assistants
+      - pr-gate-account
+      - pr-gate-billing
+      - pr-gate-auth
+      - pr-gate-shell-admin
+      - exhaustive-assistants
+      - exhaustive-account
+      - exhaustive-billing
+      - exhaustive-auth
+      - exhaustive-shell
+      - exhaustive-admin
+      - exhaustive-impersonation
+      - exhaustive-vitest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the resolved tier to have passed
+        env:
+          TIER: ${{ needs.resolve-tier.outputs.tier }}
+          PUSH_RESULT: ${{ needs.push-gate-run.result }}
+          PR_RESULTS: >-
+            ${{ needs.pr-gate-assistants.result }} ${{ needs.pr-gate-account.result }}
+            ${{ needs.pr-gate-billing.result }} ${{ needs.pr-gate-auth.result }}
+            ${{ needs.pr-gate-shell-admin.result }}
+          FULL_RESULTS: >-
+            ${{ needs.exhaustive-assistants.result }} ${{ needs.exhaustive-account.result }}
+            ${{ needs.exhaustive-billing.result }} ${{ needs.exhaustive-auth.result }}
+            ${{ needs.exhaustive-shell.result }} ${{ needs.exhaustive-admin.result }}
+            ${{ needs.exhaustive-impersonation.result }} ${{ needs.exhaustive-vitest.result }}
+        run: |
+          echo "resolved tier: ${TIER:-<none>}"
+          case "$TIER" in
+            push) results="$PUSH_RESULT" ;;
+            pr)   results="$PR_RESULTS" ;;
+            full) results="$FULL_RESULTS" ;;
+            *)
+              echo "::error::No test tier ran for this commit, so the release gate"
+              echo "::error::cannot pass. Open the staging -> main PR, which"
+              echo "::error::resolves the Push Gate tier automatically."
+              exit 1
+              ;;
+          esac
+          echo "tier job results: $results"
+          for r in $results; do
+            if [[ "$r" != "success" ]]; then
+              echo "::error::Tier '$TIER' did not pass (saw '$r')."
+              exit 1
+            fi
+          done
+          echo "Tier '$TIER' passed."
