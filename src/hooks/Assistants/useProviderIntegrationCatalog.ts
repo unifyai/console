@@ -22,6 +22,7 @@ import {
   broadcastIntegrationConnectSettled,
   subscribeIntegrationDisconnectSettled,
 } from '@/lib/assistants/coordinatorIntegrationConnect';
+import { isTriggerOnlyConnection } from '@/types/integrations';
 import type {
   IntegrationConnection,
   IntegrationDefinition,
@@ -60,7 +61,7 @@ function mergeDefinitionsWithConnections(
   providerConnections: IntegrationConnection[]
 ): IntegrationDefinition[] {
   const visibleConnections = providerConnections.filter(
-    (connection) => connection.status !== 'disconnected'
+    (connection) => connection.status !== 'disconnected' && !isTriggerOnlyConnection(connection)
   );
   const connectionsBySlug = new Map<string, typeof visibleConnections>();
   for (const connection of visibleConnections) {

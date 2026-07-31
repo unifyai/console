@@ -106,6 +106,83 @@ describe('useProviderIntegrationCatalog', () => {
     ).toBe(false);
   });
 
+  it('excludes workspace-trigger-facade connections from a facade-only app', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([providerApp('google_meet', { display_name: 'Google Meet' })]);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(
+          JSON.stringify([
+            {
+              connection_id: 'ic_ws_native_google_google_meet_2693',
+              canonical_app_slug: 'google_meet',
+              backend_id: 'native_google',
+              provider_app_id: 'google_meet',
+              status: 'connected',
+              credential_storage: 'assistant_workspace_secrets',
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+    expect(result.current.definitions[0]).toMatchObject({
+      canonicalSlug: 'google_meet',
+      status: 'not_connected',
+    });
+    expect(result.current.definitions[0].connections).toHaveLength(0);
+  });
+
+  it('keeps only the real connection when an app has both a facade and a real account', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([providerApp('google_meet', { display_name: 'Google Meet' })]);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(
+          JSON.stringify([
+            {
+              connection_id: 'ic_ws_native_google_google_meet_2693',
+              canonical_app_slug: 'google_meet',
+              backend_id: 'native_google',
+              provider_app_id: 'google_meet',
+              status: 'connected',
+              credential_storage: 'assistant_workspace_secrets',
+            },
+            {
+              connection_id: 'conn-composio-meet',
+              canonical_app_slug: 'google_meet',
+              backend_id: 'composio-dev',
+              provider_app_id: 'google_meet',
+              status: 'connected',
+              external_account_label: 'Composio Meet',
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+    expect(result.current.definitions[0].status).toBe('connected');
+    expect(result.current.definitions[0].connections).toHaveLength(1);
+    expect(result.current.definitions[0].connections[0]).toMatchObject({
+      id: 'conn-composio-meet',
+      accountLabel: 'Composio Meet',
+    });
+  });
+
   it('loads additional Builtins catalog pages with limit and offset', async () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
