@@ -165,6 +165,7 @@ import {
   type ChecklistAction,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
+import { readActionDeepLink } from '@/utils/assistants/action-deep-link';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
@@ -504,6 +505,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // `placeholder` ("coming soon") — can't be derived from `paneState`, so they
   // are tracked separately and take precedence while open.
   const [activeBrainSectionId, setActiveBrainSectionId] = React.useState<string | null>(null);
+
+  // A `?action=` deep link (Actions → "Open in new tab") would otherwise land
+  // on Chat, since pane state hydrates to Chat on a direct entry. Declared
+  // after that hydration effect so it wins the mount pass. The Actions body
+  // reads the same param and opens the named root in its focus overlay.
+  React.useEffect(() => {
+    if (!readActionDeepLink()) return;
+    setActiveBrainSectionId(null);
+    setPaneState((prev) => ({ ...prev, primary: { tab: 'actions' }, secondary: null }));
+  }, []);
+
   const activeSectionId = activeBrainSectionId ?? paneState.primary.tab;
   const activeSectionDef = SECTION_BY_ID[activeSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
   const [hasVisitedBrainSection, setHasVisitedBrainSection] = React.useState(false);

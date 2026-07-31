@@ -44,6 +44,10 @@ export interface ActionTreeProps {
   searchTerm?: string;
   /** Stop an in-flight root action */
   onStopAction?: (callingId: string) => void;
+  /** Blow a root action up into the focus overlay */
+  onFocusAction?: (callingId: string) => void;
+  /** Open a root action in a new browser tab */
+  onOpenActionInNewTab?: (callingId: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -62,6 +66,8 @@ export function ActionTree({
   matchedIds,
   searchTerm,
   onStopAction,
+  onFocusAction,
+  onOpenActionInNewTab,
   className,
   ownerId,
 }: ActionTreeProps) {
@@ -123,6 +129,8 @@ export function ActionTree({
                   matchedIds={matchedIds}
                   searchTerm={searchTerm}
                   onStopAction={onStopAction}
+                  onFocusAction={onFocusAction}
+                  onOpenActionInNewTab={onOpenActionInNewTab}
                 />
               </div>
             </React.Fragment>

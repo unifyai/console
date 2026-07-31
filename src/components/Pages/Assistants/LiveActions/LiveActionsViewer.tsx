@@ -23,6 +23,7 @@ import {
 } from './LiveActionsHeader';
 import { LiveActionsBody } from './LiveActionsBody';
 import { LiveActionsFooter } from './LiveActionsFooter';
+import { ActionFocusOverlay } from './ActionFocusOverlay';
 import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
 import { fetchToolLoopEvents } from '@/lib/client/actions';
 import {
@@ -32,6 +33,11 @@ import {
   filterActionTree,
 } from '@/utils/assistants/assistant-actions';
 import type { SectionToggleSignal } from './ActionNodeItem';
+import {
+  buildActionDeepLinkUrl,
+  readActionDeepLink,
+  type ActionDeepLink,
+} from '@/utils/assistants/action-deep-link';
 import type { ActionNode, AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant } from '@/types/assistants/assistant';
 import { USE_MOCK_DATA, MOCK_ACTION_ROOTS } from '@/utils/assistants/action-mock-data';
@@ -64,6 +70,18 @@ function readStoredTimeWindow(agentId: string | undefined): string {
   }
 }
 
+/**
+ * A pending deep link's window wins over the stored one so the action it names
+ * is inside the range that gets fetched.
+ */
+function resolveTimeWindow(agentId: string | undefined, deepLink: ActionDeepLink | null): string {
+  const requested = deepLink?.timeWindowKey;
+  if (requested && TIME_WINDOW_PRESETS.some((preset) => preset.key === requested)) {
+    return requested;
+  }
+  return readStoredTimeWindow(agentId);
+}
+
 export function LiveActionsViewer({
   assistant,
   actions,
@@ -83,8 +101,15 @@ export function LiveActionsViewer({
     open: false,
     gen: 0,
   });
+  // A `?action=` deep link opens that root in the focus overlay once it loads.
+  // Held in a ref and cleared on first use so closing the overlay doesn't
+  // immediately reopen it while the param is still on the URL.
+  const pendingDeepLinkRef = React.useRef<ActionDeepLink | null>(readActionDeepLink());
+  const [focusedActionId, setFocusedActionId] = React.useState<string | null>(null);
+  const [focusOpenedFromDeepLink, setFocusOpenedFromDeepLink] = React.useState(false);
+
   const [timeWindowKey, setTimeWindowKey] = React.useState(() =>
-    readStoredTimeWindow(assistant?.agentId)
+    resolveTimeWindow(assistant?.agentId, pendingDeepLinkRef.current)
   );
 
   // Store expand state before search for restoration
@@ -194,6 +219,13 @@ export function LiveActionsViewer({
     [displayRoots, searchTerm]
   );
 
+  // Resolved from the live tree rather than snapshotted, so the overlay keeps
+  // streaming while it is open. Goes null if the root leaves the window.
+  const focusedNode = React.useMemo(
+    () => (focusedActionId ? (displayRoots.find((r) => r.id === focusedActionId) ?? null) : null),
+    [displayRoots, focusedActionId]
+  );
+
   // ==========================================================================
   // Handlers
   // ==========================================================================
@@ -247,6 +279,9 @@ export function LiveActionsViewer({
     }
     suppressAutoExpandRef.current = true;
     setExpandedNodeIds(new Set());
+    // The focused root may not exist in the new window at all.
+    setFocusedActionId(null);
+    setFocusOpenedFromDeepLink(false);
     refresh(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeWindowKey, assistant?.agentId]);
@@ -278,6 +313,28 @@ export function LiveActionsViewer({
       return next;
     });
   }, []);
+
+  const handleFocusAction = React.useCallback((callingId: string) => {
+    setFocusedActionId(callingId);
+    setFocusOpenedFromDeepLink(false);
+  }, []);
+
+  const handleCloseFocusedAction = React.useCallback(() => {
+    setFocusedActionId(null);
+    setFocusOpenedFromDeepLink(false);
+  }, []);
+
+  const handleOpenActionInNewTab = React.useCallback(
+    (callingId: string) => {
+      if (!assistant) return;
+      window.open(
+        buildActionDeepLinkUrl(assistant.agentId, callingId, timeWindowKey),
+        '_blank',
+        'noopener,noreferrer'
+      );
+    },
+    [assistant, timeWindowKey]
+  );
 
   const totalMatches = searchTerm.trim() !== '' ? matchedIds.size : 0;
 
@@ -339,16 +396,31 @@ export function LiveActionsViewer({
     setSectionToggleSignal((prev) => ({ open: true, gen: prev.gen + 1 }));
   }, [isPaneVisible, roots]);
 
+  // Open the deep-linked root once the snapshot that should contain it lands.
+  // Runs at most once per pending link, whether or not the root turned up, so
+  // a stale `?action=` can't keep reopening the overlay.
+  React.useEffect(() => {
+    const pending = pendingDeepLinkRef.current;
+    if (!pending || !hasLoaded) return;
+    pendingDeepLinkRef.current = null;
+
+    if (!roots.some((root) => root.id === pending.callingId)) return;
+    setFocusedActionId(pending.callingId);
+    setFocusOpenedFromDeepLink(true);
+  }, [hasLoaded, roots]);
+
   // Reset search/expand UI when assistant changes; time window restores from session storage.
   React.useEffect(() => {
     setSearchTerm('');
     setExpandedNodeIds(new Set());
     setLastUpdated(null);
+    setFocusedActionId(null);
+    setFocusOpenedFromDeepLink(false);
     preSearchExpandedRef.current = null;
     prevRootIdsRef.current = new Set();
     suppressAutoExpandRef.current = true;
     pendingAutoExpandRef.current.clear();
-    setTimeWindowKey(readStoredTimeWindow(assistant?.agentId));
+    setTimeWindowKey(resolveTimeWindow(assistant?.agentId, pendingDeepLinkRef.current));
   }, [assistant?.agentId]);
 
   React.useEffect(() => {
@@ -412,8 +484,26 @@ export function LiveActionsViewer({
         onExpandedChange={handleExpandedChange}
         sectionToggleSignal={sectionToggleSignal}
         onStopAction={hasAssistant ? (callingId) => void stopAction(callingId) : undefined}
+        onFocusAction={hasAssistant ? handleFocusAction : undefined}
+        onOpenActionInNewTab={hasAssistant ? handleOpenActionInNewTab : undefined}
         className="flex-1"
       />
+
+      {focusedNode && (
+        <ActionFocusOverlay
+          node={focusedNode}
+          ownerId={assistant?.userId}
+          assistantId={assistant?.agentId}
+          getToolLoopEvents={hasAssistant ? fetchToolLoopEvents : undefined}
+          loadChildren={loadChildren}
+          searchTerm={searchTerm.trim() !== '' ? searchTerm : undefined}
+          matchedIds={searchTerm.trim() !== '' ? matchedIds : undefined}
+          onStopAction={hasAssistant ? (callingId) => void stopAction(callingId) : undefined}
+          onOpenInNewTab={hasAssistant ? () => handleOpenActionInNewTab(focusedNode.id) : undefined}
+          onClose={handleCloseFocusedAction}
+          initiallyMaximized={focusOpenedFromDeepLink}
+        />
+      )}
 
       {/* Footer - only shown when assistant is selected */}
       {hasAssistant && (
