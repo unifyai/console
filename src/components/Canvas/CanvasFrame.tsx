@@ -84,7 +84,10 @@ export interface CanvasFrameProps {
  * '*'`. Origin validation is therefore not available, and the port takes its
  * place: after the handshake, holding the port is the credential, and nothing
  * else on the page can post to it. The hello itself is guarded by an
- * `event.source` identity check plus a per-mount nonce.
+ * `event.source` identity check — only the document inside this exact iframe
+ * can produce it. (The channel id sent with init is a session label for the
+ * child, not a secret: nothing before init could have carried it to the child
+ * for verification.)
  *
  * ## What is never sent
  *
