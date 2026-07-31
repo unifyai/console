@@ -4,7 +4,7 @@ import { Assistant } from '@/types/assistants/assistant';
 import type { ExchangeRow } from '@/types/assistants/brain';
 import { fetchRowsAcrossRoots } from '@/lib/assistants/federatedRows';
 import { roots } from '@/lib/assistants/scope';
-import { callTargetsByCallId, type CallTarget } from '@/utils/assistants/callRecording';
+import { callTargetsByCallId, isChatFrom, type CallTarget } from '@/utils/assistants/callRecording';
 import { fetchMeetExchangesDirect } from './useContactIdPrefetch';
 
 interface UseCallPillsOptions {
@@ -84,6 +84,7 @@ async function fetchCallTranscriptDirect(
           speechStartedAt:
             (metadata.speech_started_at as string | undefined) ??
             (metadata.speechStartedAt as string | undefined),
+          isChat: isChatFrom(metadata),
         };
       })
       .filter((u: CallTranscriptUtterance | null): u is CallTranscriptUtterance => u !== null);

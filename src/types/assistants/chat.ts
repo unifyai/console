@@ -170,6 +170,10 @@ export interface CallTranscriptUtterance {
   /** ISO instant the line became audible, when the runtime observed one.
    *  Preferred over `timestamp` for placing the line in a recording. */
   speechStartedAt?: string;
+  /** Typed in the meeting chat rather than spoken. Such a line sits in the
+   *  call's timeline but has no audio behind it, so it is shown without a seek
+   *  control and never becomes a playback cue. */
+  isChat?: boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -43,6 +43,7 @@ import {
   activeCueMessageId,
   formatClock,
   isCallExchange,
+  isChatFrom,
   offsetFromRecordingStart,
   parseUtteranceOffset,
   recordingStartedAtFrom,
@@ -383,6 +384,10 @@ export function TranscriptsPane({
       const recordingStartedAt = recordingStartedAtFrom(meta);
       const cues: UtteranceCue[] = [];
       for (const message of messages) {
+        // A typed line has an offset but no audio, so it must not become a cue:
+        // the playhead would highlight it while the recording plays whatever was
+        // being said at that moment.
+        if (isChatFrom(message.metadata)) continue;
         const offsetSeconds =
           offsetFromRecordingStart(
             speechStartedAtFrom(message.metadata) ?? message.timestamp,
@@ -830,6 +835,7 @@ export function TranscriptsPane({
                         ? assistantDisplayName(assistant)
                         : nameFor(message.senderId, message.rootKey);
                       const receivers = message.receiverIds ?? [];
+                      const isChat = isChatFrom(message.metadata);
                       const offsetSeconds =
                         offsetFromRecordingStart(
                           speechStartedAtFrom(message.metadata) ?? message.timestamp,
@@ -853,7 +859,10 @@ export function TranscriptsPane({
                           }
                           timeLabel={formatTime(message.timestamp)}
                           body={messageBody(message.content)}
-                          offsetSeconds={activeThread.recordingUrl ? offsetSeconds : null}
+                          offsetSeconds={
+                            activeThread.recordingUrl && !isChat ? offsetSeconds : null
+                          }
+                          isChat={isChat}
                           isPlaying={activeCueId === message.messageId}
                           onSeek={seekTo}
                         />
@@ -895,6 +904,7 @@ function TranscriptMessageRow({
   timeLabel,
   body,
   offsetSeconds,
+  isChat,
   isPlaying,
   onSeek,
 }: {
@@ -909,6 +919,8 @@ function TranscriptMessageRow({
   body: string;
   /** Offset into the call recording, when one is attached to this thread. */
   offsetSeconds: number | null;
+  /** Typed in the meeting chat rather than spoken. */
+  isChat: boolean;
   isPlaying: boolean;
   onSeek: (seconds: number) => void;
 }) {
@@ -946,6 +958,13 @@ function TranscriptMessageRow({
         data-playing={isPlaying ? 'true' : undefined}
       >
         <div className="mb-1 flex flex-wrap items-baseline gap-2">
+          {isChat && (
+            <MessageSquare
+              className="h-3 w-3 shrink-0 self-center text-muted-foreground"
+              aria-label="Sent in the meeting chat"
+              data-testid="transcript-chat-icon"
+            />
+          )}
           <b className="text-[12px] font-semibold text-foreground">{senderName}</b>
           {receiverSummary && (
             <span className="text-[11px] text-muted-foreground">{receiverSummary}</span>
