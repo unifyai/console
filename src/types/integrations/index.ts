@@ -141,6 +141,23 @@ export interface IntegrationConnection {
   enabledCapabilities?: IntegrationCapabilityGroup[];
   toolPolicy?: Record<string, IntegrationToolApprovalLevel>;
   sourceMetadata?: IntegrationSourceMetadata;
+  // Orchestra's IntegrationConnectionResponse.credential_storage. Rows with the
+  // workspace-trigger-facade value present workspace OAuth credentials as a
+  // provider-event trigger backend only; they cannot execute tools and must be
+  // hidden from every Integrations-tab derivation (see isTriggerOnlyConnection).
+  credentialStorage?: string | null;
+}
+
+// Backends bind provider-event triggers to workspace OAuth credentials via a
+// facade connection row rather than a real tool-execution account. Discriminate
+// on this value, never on a backend-id list, so a future native backend that
+// does execute tools isn't hidden.
+export const WORKSPACE_TRIGGER_FACADE_CREDENTIAL_STORAGE = 'assistant_workspace_secrets';
+
+export function isTriggerOnlyConnection(
+  connection: Pick<IntegrationConnection, 'credentialStorage'>
+): boolean {
+  return connection.credentialStorage === WORKSPACE_TRIGGER_FACADE_CREDENTIAL_STORAGE;
 }
 
 export interface IntegrationDefinition {
