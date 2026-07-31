@@ -282,12 +282,75 @@ function GroupListRow({
   );
 }
 
-function TeamListRow({
+function TeamChatListRow({
   team,
   isSelected,
   unreadCount,
   isCallActive,
   onSelect,
+}: {
+  team: RosterTeam;
+  isSelected: boolean;
+  unreadCount: number;
+  isCallActive?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${team.name} team chat`}
+      data-testid={`team-chat-list-item-${team.teamId}`}
+      className={cn(
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
+        !isSelected && 'hover:bg-[var(--surface-hover)]',
+        isSelected && 'bg-accent-soft'
+      )}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onSelect();
+      }}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="relative">
+          <span
+            className="rounded-control bg-muted/40 flex h-8 w-8 flex-shrink-0 items-center justify-center border border-border text-muted-foreground"
+            aria-hidden="true"
+          >
+            <MessagesSquare className="h-4 w-4" />
+          </span>
+          {isCallActive ? (
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
+            </span>
+          ) : null}
+        </div>
+        <div className="min-w-0">
+          <span
+            className={cn(
+              'text-body text-strong truncate',
+              isSelected && 'text-accent-soft-foreground'
+            )}
+          >
+            Team chat
+          </span>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <EntityUnreadBadge count={unreadCount} testId={`team-unread-badge-${team.teamId}`} />
+      </div>
+    </div>
+  );
+}
+
+function TeamListRow({
+  team,
+  isSelected,
+  unreadCount,
+  isCallActive,
   isFoldedGroup,
   onToggleFold,
   currentUserId,
@@ -296,7 +359,6 @@ function TeamListRow({
   isSelected: boolean;
   unreadCount: number;
   isCallActive?: boolean;
-  onSelect: () => void;
   isFoldedGroup?: boolean;
   onToggleFold?: () => void;
   currentUserId?: string | null;
@@ -307,10 +369,10 @@ function TeamListRow({
     currentUserId
   );
   const FoldIcon = isFoldedGroup ? ChevronRight : ChevronDown;
-  const handleActivate = () => {
-    onSelect();
-    onToggleFold?.();
-  };
+  // The header is a pure disclosure control; the team's own conversation is a
+  // selectable row inside the nest. Selection surfaces here only while folded,
+  // where that row is hidden.
+  const showsSelection = isSelected && isFoldedGroup === true;
   return (
     <div
       role="button"
@@ -321,15 +383,18 @@ function TeamListRow({
         // Match AssistantListItem padding/gap so the team face shares the
         // same avatar column (center-aligned with T-W1N above).
         'group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-xl border p-2 transition-colors',
-        isSelected
+        // Neutral hover, matching the disclosure role: the primary-tinted hover
+        // is reserved for rows that navigate, so the container header must not
+        // signal navigability harder than the destinations nested under it.
+        showsSelection
           ? 'border-primary-tint-30 bg-accent-soft'
-          : 'bg-muted/15 border-border hover:border-primary-tint-30 hover:bg-primary-tint-5'
+          : 'bg-muted/15 border-border hover:bg-[var(--surface-hover)]'
       )}
-      onClick={handleActivate}
+      onClick={() => onToggleFold?.()}
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        handleActivate();
+        onToggleFold?.();
       }}
     >
       <TeamAvatar
@@ -343,7 +408,7 @@ function TeamListRow({
         <span
           className={cn(
             'block truncate text-xs font-medium',
-            isSelected ? 'text-accent-soft-foreground' : 'text-foreground'
+            showsSelection ? 'text-accent-soft-foreground' : 'text-foreground'
           )}
         >
           {team.name}
@@ -696,7 +761,10 @@ export function AssistantList({
       const teamHumans = filteredHumans.filter((human) => memberIds.has(human.userId));
       const hasMembers =
         (Boolean(onSelectHuman) && teamHumans.length > 0) || virtualEntries.length > 0;
-      const hasNested = hasMembers || Boolean(nestedFooter);
+      const hasNested = Boolean(onSelectTeam) || hasMembers || Boolean(nestedFooter);
+      const isTeamSelected = selectedEntityKey === teamEntityKey(team.teamId);
+      const teamUnreadCount = entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0;
+      const isTeamCallActive = orgCallActiveTeamId === team.teamId;
 
       return (
         <div
@@ -706,16 +774,28 @@ export function AssistantList({
         >
           <TeamListRow
             team={team}
-            isSelected={selectedEntityKey === teamEntityKey(team.teamId)}
-            unreadCount={entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0}
-            isCallActive={orgCallActiveTeamId === team.teamId}
-            onSelect={() => onSelectTeam?.(team.teamId)}
+            isSelected={isTeamSelected}
+            // Unread and call state roll up to the header only while the nest
+            // hides the team chat row that owns them.
+            unreadCount={isGroupFolded ? teamUnreadCount : 0}
+            isCallActive={isGroupFolded && isTeamCallActive}
             isFoldedGroup={isGroupFolded}
             onToggleFold={hasNested ? () => toggleGroupFold(groupId) : undefined}
             currentUserId={currentUserId}
           />
           {!isGroupFolded && hasNested ? (
             <>
+              {onSelectTeam ? (
+                <div className="min-w-0 pl-3 pt-1">
+                  <TeamChatListRow
+                    team={team}
+                    isSelected={isTeamSelected}
+                    unreadCount={teamUnreadCount}
+                    isCallActive={isTeamCallActive}
+                    onSelect={() => onSelectTeam(team.teamId)}
+                  />
+                </div>
+              ) : null}
               {hasMembers ? renderTeamMembers(groupId, teamHumans, virtualEntries) : null}
               {nestedFooter ? (
                 <div className="min-w-0 space-y-1 pl-3 pt-1">{nestedFooter}</div>
