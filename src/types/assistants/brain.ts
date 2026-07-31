@@ -192,6 +192,8 @@ export interface TaskRow {
   requiresComputer?: boolean | null;
   entrypoint?: number | string | null;
   repeat?: TaskRepeatPatternRow[] | null;
+  /** Freeform labels for grouping/filtering; no scheduling semantics. */
+  tags?: string[] | null;
   [key: string]: unknown;
 }
 

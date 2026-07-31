@@ -68,3 +68,29 @@ export function createRandomUnityProfile(): RandomUnityProfile {
     about: pick(abouts),
   };
 }
+
+/**
+ * Roll a profile whose name is still available in the workspace.
+ *
+ * Prefers a combination whose display name AND first name are both unused
+ * (first-name distinctness keeps Slack routing tokens and spoken references
+ * unambiguous), falls back to display-name-unique, then to a raw roll. The
+ * server enforces uniqueness regardless; this only steers the suggestion.
+ * Both inputs are lowercased names.
+ */
+export function createAvailableUnityProfile(
+  takenDisplayNames: readonly string[],
+  takenFirstNames: readonly string[]
+): RandomUnityProfile {
+  const displayTaken = new Set(takenDisplayNames);
+  const firstTaken = new Set(takenFirstNames);
+  let fallback: RandomUnityProfile | null = null;
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const profile = createRandomUnityProfile();
+    const display = `${profile.firstName} ${profile.surname}`.toLowerCase();
+    if (displayTaken.has(display)) continue;
+    if (!firstTaken.has(profile.firstName.toLowerCase())) return profile;
+    fallback = fallback ?? profile;
+  }
+  return fallback ?? createRandomUnityProfile();
+}

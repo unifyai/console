@@ -207,7 +207,7 @@ import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemE
 import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
-import { createRandomUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
+import { createAvailableUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
 import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
@@ -2369,13 +2369,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   const applyRandomUnityProfile = React.useCallback(() => {
-    const profile = createRandomUnityProfile();
+    const profile = createAvailableUnityProfile(
+      assistants
+        .map((a) => `${a.firstName ?? ''} ${a.surname ?? ''}`.trim().toLowerCase())
+        .filter(Boolean),
+      assistants.map((a) => (a.firstName ?? '').trim().toLowerCase()).filter(Boolean)
+    );
     formMethods.setValue('firstName', profile.firstName, { shouldValidate: true });
     formMethods.setValue('surname', profile.surname, { shouldValidate: true });
     formMethods.setValue('jobTitle', profile.jobTitle, { shouldValidate: true });
     formMethods.setValue('about', profile.about, { shouldValidate: true });
     formMethods.setValue('isPresetPristine', false);
-  }, [formMethods]);
+  }, [assistants, formMethods]);
 
   // Auto-select the first filtered preset for hidden defaults like voice, then
   // Replace the visible profile fields with a branded unity profile.
@@ -2839,60 +2844,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ]
   );
 
-  // Dispatch the workspace video-call beat. On click we open the provider's
-  // "new meeting" page so the user can host a Google Meet / Microsoft Teams
-  // call (Twin never creates the meeting), then emit the canonical onboarding
-  // event to Unity — the user pastes the link and Twin joins. Provider follows
-  // the connected workspace (``workspaceProvider``), defaulting to Google Meet.
-  const handleCoordinatorDispatchWorkspaceCallBeat = React.useCallback(
-    (stepId: string) => {
-      if (!canonicalCoordinator) return;
-      const step = coordinatorOnboardingState?.onboarding?.steps.find(
-        (candidate) => candidate.id === stepId
-      );
-      if (!step) return;
-      const newMeetingUrl =
-        canonicalCoordinator.workspaceProvider === 'microsoft'
-          ? 'https://teams.microsoft.com/l/meeting/new'
-          : 'https://meet.google.com/new';
-      window.open(newMeetingUrl, '_blank', 'noopener,noreferrer');
-      if (!shouldDispatchStepRequest(stepId)) {
-        void refetchCoordinatorOnboardingState();
-        return;
-      }
-      const label = resolveOnboardingStepLabel(stepId);
-      if (label) appendCoordinatorRequestSentAck(label);
-      markStepEngaged(stepId);
-      markStepRequested(stepId);
-      void (async () => {
-        try {
-          const emitted = await dispatchCoordinatorOnboardingStepEvent(
-            canonicalCoordinator.agentId,
-            step
-          );
-          if (!emitted) return;
-          void refetchCoordinatorOnboardingState();
-        } catch (error) {
-          console.error(
-            '[Coordinator onboarding] Failed to dispatch workspace call beat event:',
-            error
-          );
-          toast.error('Could not start this call. Please try again.');
-        }
-      })();
-    },
-    [
-      appendCoordinatorRequestSentAck,
-      canonicalCoordinator,
-      coordinatorOnboardingState?.onboarding?.steps,
-      markStepEngaged,
-      markStepRequested,
-      refetchCoordinatorOnboardingState,
-      resolveOnboardingStepLabel,
-      shouldDispatchStepRequest,
-    ]
-  );
-
   const handleCoordinatorOpenDesktopLinker = React.useCallback(
     (stepId: string) => {
       if (!canonicalCoordinator) return;
@@ -3098,7 +3049,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onConnectYourComputer: () => handleCoordinatorOpenDesktopLinker('your-computer-link'),
       onEnableDesktopFilesys: () => handleCoordinatorOpenDesktopLinker('your-computer-filesys'),
       onYourComputerDemo: () => handleCoordinatorDispatchYourComputerBeat('your-computer-demo'),
-      onWorkspaceCall: () => handleCoordinatorDispatchWorkspaceCallBeat('workspace-call'),
       appendRequestSentAck: appendCoordinatorRequestSentAck,
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
@@ -3144,7 +3094,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorDispatchLearningBeat,
     handleCoordinatorDispatchMyComputerBeat,
     handleCoordinatorDispatchYourComputerBeat,
-    handleCoordinatorDispatchWorkspaceCallBeat,
     handleCoordinatorOpenDesktopLinker,
     appendCoordinatorRequestSentAck,
     handleCoordinatorOnboardingStepSkip,
@@ -4532,6 +4481,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onAddPaymentMethod={goToBilling}
               onDeleteAssistant={onDeleteAssistantSubmit}
               canDelete={canEndContract(assistantToEdit)}
+              onMultiplayerFlipped={() => {
+                handleCloseEditDialog();
+                refreshAssistants(false);
+              }}
+              takenDisplayNames={assistants
+                .filter((a) => a.agentId !== assistantToEdit.agentId)
+                .map((a) => `${a.firstName ?? ''} ${a.surname ?? ''}`.trim().toLowerCase())
+                .filter(Boolean)}
+              takenFirstNames={assistants
+                .filter((a) => a.agentId !== assistantToEdit.agentId)
+                .map((a) => (a.firstName ?? '').trim().toLowerCase())
+                .filter(Boolean)}
             >
               {isEditFormReady ? (
                 <HireForm

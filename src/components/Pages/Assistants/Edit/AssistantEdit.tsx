@@ -29,6 +29,7 @@ import { Loader2, X, Trash2, AlertTriangle } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import { MultiplayerFlipDialog } from './MultiplayerFlipDialog';
 
 interface AssistantEditProps {
   isOpen: boolean;
@@ -50,6 +51,12 @@ interface AssistantEditProps {
   onDeleteAssistant?: (assistant: Assistant) => Promise<void>;
   /** Whether the user has permission to delete */
   canDelete?: boolean;
+  /** Called after a successful multiplayer flip so the parent refetches. */
+  onMultiplayerFlipped?: () => void;
+  /** Lowercased display names in use, steering the flip dialog's dice roll. */
+  takenDisplayNames?: readonly string[];
+  /** Lowercased first names in use (soft-avoided by the dice roll). */
+  takenFirstNames?: readonly string[];
 }
 
 export function AssistantEdit({
@@ -66,6 +73,9 @@ export function AssistantEdit({
   isStripePanelOpen = false,
   onDeleteAssistant,
   canDelete = false,
+  onMultiplayerFlipped,
+  takenDisplayNames,
+  takenFirstNames,
 }: AssistantEditProps) {
   const [isCloseTooltipOpen, setIsCloseTooltipOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -193,7 +203,17 @@ export function AssistantEdit({
 
         <DialogFooter className="flex flex-shrink-0 items-center border-t px-6 py-3">
           <div className="flex w-full items-center justify-between">
-            <div>
+            <div className="flex items-center gap-2">
+              {assistant.isCoordinator && !assistant.isMultiplayer && onMultiplayerFlipped && (
+                <MultiplayerFlipDialog
+                  assistant={assistant}
+                  formMethods={formMethods}
+                  onFlipped={onMultiplayerFlipped}
+                  takenDisplayNames={takenDisplayNames}
+                  takenFirstNames={takenFirstNames}
+                  disabled={isPrimaryActionDisabled || isDeleting}
+                />
+              )}
               {canDelete && onDeleteAssistant && (
                 <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
                   <AlertDialogTrigger asChild>
