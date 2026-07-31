@@ -84,6 +84,7 @@ async function fetchCallTranscriptDirect(
           speechStartedAt:
             (metadata.speech_started_at as string | undefined) ??
             (metadata.speechStartedAt as string | undefined),
+          isChat: metadata.kind === 'chat',
         };
       })
       .filter((u: CallTranscriptUtterance | null): u is CallTranscriptUtterance => u !== null);

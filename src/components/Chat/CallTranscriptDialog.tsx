@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ExternalLink, Phone, Play } from 'lucide-react';
+import { ExternalLink, MessageSquare, Phone, Play } from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
 import {
   Dialog,
@@ -94,6 +94,10 @@ export function CallTranscriptDialog({
   const cues = React.useMemo<UtteranceCue[]>(() => {
     const built: UtteranceCue[] = [];
     ordered.forEach((utterance, index) => {
+      // Chat lines sit in the timeline but were never spoken, so they must not
+      // become cues: the playhead would highlight one while the audio plays
+      // whatever was actually being said at that moment.
+      if (utterance.isChat) return;
       const offsetSeconds = utteranceOffset(utterance, recordingStartedAtMs);
       // `UtteranceCue` keys on a numeric id; call-store ids are strings, so the
       // index into `ordered` stands in for one.
@@ -175,6 +179,13 @@ export function CallTranscriptDialog({
                     )}
                   >
                     <div className="flex items-baseline gap-2">
+                      {utterance.isChat && (
+                        <MessageSquare
+                          className="h-3 w-3 shrink-0 self-center text-muted-foreground"
+                          aria-label="Sent in the meeting chat"
+                          data-testid="call-transcript-chat-icon"
+                        />
+                      )}
                       <span
                         className={cn(
                           'text-xs font-semibold',
@@ -186,7 +197,9 @@ export function CallTranscriptDialog({
                         {utterance.role === 'assistant' ? assistantName : 'You'}
                       </span>
                       {offsetSeconds !== null &&
-                        (recordingUrl ? (
+                        // A typed line has no audio to seek to, so its position
+                        // is shown but not made playable.
+                        (recordingUrl && !utterance.isChat ? (
                           <button
                             type="button"
                             onClick={() => playerRef.current?.seek(offsetSeconds)}
