@@ -73,6 +73,24 @@ export function speechStartedAtFrom(
 }
 
 /**
+ * Whether a line was typed in the meeting chat rather than spoken.
+ *
+ * Such a line sits in the call's timeline and carries an offset like any other,
+ * but there is no audio behind it: seeking to that offset plays whatever was
+ * being *said* at the time, which is not what the row shows. Both transcript
+ * renderers use this to withhold the seek control and skip the row when
+ * building playback cues.
+ *
+ * Shared rather than reimplemented per view: the two renderers read from
+ * different stores (call-utterance rows vs Transcripts rows) and drifted apart
+ * once already, one gaining chat rendering while the other kept showing typed
+ * lines as playable speech.
+ */
+export function isChatFrom(metadata: Record<string, unknown> | null | undefined): boolean {
+  return readMetadata(metadata, 'kind') === 'chat';
+}
+
+/**
  * Seconds into the recording at which a message was spoken.
  *
  * Preferred over the stored `MM.SS` stamp because it is measured against the

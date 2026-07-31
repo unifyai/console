@@ -3,6 +3,7 @@ import {
   activeCueMessageId,
   formatClock,
   isCallExchange,
+  isChatFrom,
   offsetFromRecordingStart,
   parseUtteranceOffset,
   recordingStartedAtFrom,
@@ -357,5 +358,26 @@ describe('offset preference: speech start over commit', () => {
     const metadata = {};
     const committed = '2026-07-29T10:00:08+00:00';
     expect(offsetFromRecordingStart(speechStartedAtFrom(metadata) ?? committed, anchor)).toBe(8);
+  });
+});
+
+describe('isChatFrom', () => {
+  // Both transcript renderers gate the seek control and their playback cues on
+  // this, so a false negative reintroduces a play button that seeks to audio the
+  // row was never part of.
+  it('recognises a typed line under either casing', () => {
+    expect(isChatFrom({ kind: 'chat' })).toBe(true);
+  });
+
+  it('treats a spoken line as not chat', () => {
+    expect(isChatFrom({})).toBe(false);
+    expect(isChatFrom(null)).toBe(false);
+    expect(isChatFrom(undefined)).toBe(false);
+  });
+
+  it('does not mistake another kind for chat', () => {
+    // `kind` is a general tag; only the chat value may suppress playback.
+    expect(isChatFrom({ kind: 'speech' })).toBe(false);
+    expect(isChatFrom({ kind: '' })).toBe(false);
   });
 });
