@@ -22,6 +22,10 @@ export interface UnifiedMember {
   jobTitle?: string;
   bio?: string;
   isInvite?: boolean;
+  /** Unify person embedded to run onboarding/setup, not one of this org's own people. */
+  isStaffAccess?: boolean;
+  /** When the staff grant lapses. Null on an unbounded (partner) grant. */
+  staffAccessExpiresAt?: string | null;
 }
 
 export const useOrganization = (
@@ -156,6 +160,8 @@ export const useOrganization = (
       bio: m.bio,
       status: 'active',
       isInvite: false,
+      isStaffAccess: m.isStaffAccess ?? false,
+      staffAccessExpiresAt: m.staffAccessExpiresAt ?? null,
     }));
 
     const pendingInvites: UnifiedMember[] = invites.map((i) => ({

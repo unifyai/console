@@ -50,6 +50,10 @@ export interface OrganizationMember {
   image?: string | null;
   jobTitle?: string;
   bio?: string;
+  /** Unify person embedded to run onboarding/setup, not one of this org's own people. */
+  isStaffAccess?: boolean;
+  /** When the staff grant lapses. Null/absent on an unbounded (partner) grant. */
+  staffAccessExpiresAt?: string | null;
 }
 
 export interface OrganizationPermission {

@@ -55,6 +55,30 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { formatSpendAmount } from '@/types/assistants/spending';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
+/**
+ * Explains a staff badge to the customer: who this person is, and when
+ * their access ends. An unbounded grant says so plainly rather than
+ * omitting the detail — "no end date" is the thing worth knowing.
+ */
+function staffAccessTooltip(expiresAt?: string | null): string {
+  const who = 'A Unify team member with temporary access to help set up your organisation.';
+  if (!expiresAt) {
+    return `${who} This access has no end date.`;
+  }
+  const expiry = new Date(expiresAt);
+  if (Number.isNaN(expiry.getTime())) {
+    return who;
+  }
+  const formatted = expiry.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+  return expiry.getTime() <= Date.now()
+    ? `${who} This access expired on ${formatted}.`
+    : `${who} Access ends ${formatted}.`;
+}
+
 /** Member spending information for display */
 export interface MemberSpendingInfo {
   /** Current month's cumulative spend */
@@ -347,6 +371,24 @@ const MemberRow = ({
                   <span className="ml-1 text-xs font-normal italic text-muted-foreground">
                     (Invited)
                   </span>
+                )}
+                {member.isStaffAccess && (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className="ml-2 h-5 whitespace-nowrap border-amber-500/40 bg-amber-500/10 px-1.5 py-0 text-[10px] font-normal text-amber-700 dark:text-amber-400"
+                        >
+                          <Shield className="mr-1 h-3 w-3" />
+                          Unify staff
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{staffAccessTooltip(member.staffAccessExpiresAt)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </span>
             </div>
