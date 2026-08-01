@@ -85,7 +85,9 @@ function entityInitials(label: string): string {
 
 /**
  * The rail's unity switcher: the active face opens Chat (conversation home);
- * ChevronsUpDown opens the teammate picker popover.
+ * a corner badge on that face opens the teammate picker popover. The badge
+ * shares the face's bottom-right corner with the presence dot and covers it
+ * while revealed, so only one occupies the corner at a time.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -174,7 +176,7 @@ export function AssistantSwitcher({
       aria-label={`Chat with ${unityName}`}
       title={`Chat with ${unityName}`}
       className={cn(
-        'relative mx-auto rounded-xl p-1.5 transition-colors',
+        'relative rounded-xl p-1.5 transition-colors',
         chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
       )}
     >
@@ -191,7 +193,7 @@ export function AssistantSwitcher({
 
   return (
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
-      <div className="mb-2 flex flex-col items-center gap-1">
+      <div className="group relative mx-auto mb-2 w-fit">
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>{chatHomeButton}</TooltipTrigger>
@@ -206,9 +208,9 @@ export function AssistantSwitcher({
             data-testid="rail-unity-switcher"
             title={`Switch teammate (${unityName})`}
             aria-label={`Switch teammate — ${unityName}`}
-            className="mx-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="absolute bottom-0.5 right-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 ring-1 ring-border transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 data-[state=open]:opacity-100"
           >
-            <ChevronsUpDown className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+            <ChevronsUpDown className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
           </button>
         </PopoverTrigger>
       </div>
