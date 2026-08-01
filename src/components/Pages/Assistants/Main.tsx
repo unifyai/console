@@ -545,7 +545,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [activeSectionDef.kind]);
 
-  const { isBelowTablet } = useBreakpoint();
+  const { isBelowMobile } = useBreakpoint();
 
   // Convenience: chat is "visible" if either slot is showing it. Used by
   // the chat-stream hook below to suppress unread bumps and by the
@@ -4679,7 +4679,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         {visibleProfileAssistant && (
           <AssistantFloatingChatHost
             pathname={routePathname ?? '/assistants'}
-            isBelowTablet={isBelowTablet}
+            isBelowMobile={isBelowMobile}
             isHireDialogOpen={isHireDialogOpen}
             showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
             isChatVisibleInRightPane={isFullPageAssistantChatVisible}
