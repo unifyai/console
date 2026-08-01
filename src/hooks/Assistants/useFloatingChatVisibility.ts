@@ -6,7 +6,9 @@ import type { Assistant } from '@/types/assistants/assistant';
 
 export interface FloatingChatVisibilityInput {
   pathname: string;
-  isBelowTablet: boolean;
+  /** Below `md`. The floater needs room to sit beside the content it overlays;
+   *  a half-screen window on a laptop is the narrowest viewport that qualifies. */
+  isBelowMobile: boolean;
   isHireDialogOpen: boolean;
   showCoordinatorOnboardingIntro: boolean;
   isChatVisibleInRightPane: boolean;
@@ -56,7 +58,7 @@ export function useFloatingChatDismissReset(input: {
 export function useFloatingChatVisibility(input: FloatingChatVisibilityInput): boolean {
   const {
     pathname,
-    isBelowTablet,
+    isBelowMobile,
     isHireDialogOpen,
     showCoordinatorOnboardingIntro,
     isChatVisibleInRightPane,
@@ -66,7 +68,7 @@ export function useFloatingChatVisibility(input: FloatingChatVisibilityInput): b
   } = input;
 
   return React.useMemo(() => {
-    if (isBelowTablet) return false;
+    if (isBelowMobile) return false;
     if (!assistantsBootstrapped || !profileAssistant) return false;
     if (isHireDialogOpen) return false;
     if (showCoordinatorOnboardingIntro) return false;
@@ -76,7 +78,7 @@ export function useFloatingChatVisibility(input: FloatingChatVisibilityInput): b
   }, [
     assistantsBootstrapped,
     hasActiveCallPoppedOut,
-    isBelowTablet,
+    isBelowMobile,
     isChatVisibleInRightPane,
     isHireDialogOpen,
     pathname,

@@ -41,6 +41,8 @@ import {
   ArrowRight,
   ImageIcon,
   Clock,
+  Maximize2,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -464,6 +466,10 @@ export interface ActionNodeItemProps {
   searchTerm?: string;
   /** Stop an in-flight root action (calling_id) */
   onStopAction?: (callingId: string) => void;
+  /** Blow this root action up into the focus overlay (calling_id) */
+  onFocusAction?: (callingId: string) => void;
+  /** Open this root action in a new browser tab (calling_id) */
+  onOpenActionInNewTab?: (callingId: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -2684,6 +2690,41 @@ function RootStatusPill({ status }: { status: ActionNode['status'] }) {
 }
 
 /**
+ * Window control in a root action's header row. Stops propagation so the
+ * surrounding header's expand/collapse toggle doesn't also fire.
+ */
+function RootHeaderIconButton({
+  label,
+  testId,
+  onClick,
+  children,
+}: {
+  label: string;
+  testId: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      data-testid={testId}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cn(
+        'inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground',
+        'transition-colors hover:bg-muted hover:text-foreground'
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
  * Prominent display for request/response content pulled out of the collapsed
  * step sections. Matches the faded/scrollable style of ContentArea.
  */
@@ -2992,6 +3033,8 @@ export function ActionNodeItem({
   matchedIds,
   searchTerm,
   onStopAction,
+  onFocusAction,
+  onOpenActionInNewTab,
   className,
 }: ActionNodeItemProps) {
   // Determine if we're in controlled mode
@@ -3462,6 +3505,28 @@ export function ActionNodeItem({
               <TruncatedMarkdown content={effectiveLabel} />
             </span>
             <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
+              {(onFocusAction || onOpenActionInNewTab) && (
+                <div className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                  {onFocusAction && (
+                    <RootHeaderIconButton
+                      label="Expand action"
+                      testId="action-focus-button"
+                      onClick={() => onFocusAction(node.id)}
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" />
+                    </RootHeaderIconButton>
+                  )}
+                  {onOpenActionInNewTab && (
+                    <RootHeaderIconButton
+                      label="Open action in new tab"
+                      testId="action-new-tab-button"
+                      onClick={() => onOpenActionInNewTab(node.id)}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </RootHeaderIconButton>
+                  )}
+                </div>
+              )}
               {(node.status === 'running' || node.status === 'awaiting') && onStopAction && (
                 <button
                   type="button"

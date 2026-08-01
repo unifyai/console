@@ -165,6 +165,7 @@ import {
   type ChecklistAction,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
+import { readActionDeepLink } from '@/utils/assistants/action-deep-link';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
@@ -504,6 +505,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // `placeholder` ("coming soon") — can't be derived from `paneState`, so they
   // are tracked separately and take precedence while open.
   const [activeBrainSectionId, setActiveBrainSectionId] = React.useState<string | null>(null);
+
+  // A `?action=` deep link (Actions → "Open in new tab") would otherwise land
+  // on Chat, since pane state hydrates to Chat on a direct entry. Declared
+  // after that hydration effect so it wins the mount pass. The Actions body
+  // reads the same param and opens the named root in its focus overlay.
+  React.useEffect(() => {
+    if (!readActionDeepLink()) return;
+    setActiveBrainSectionId(null);
+    setPaneState((prev) => ({ ...prev, primary: { tab: 'actions' }, secondary: null }));
+  }, []);
+
   const activeSectionId = activeBrainSectionId ?? paneState.primary.tab;
   const activeSectionDef = SECTION_BY_ID[activeSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
   const [hasVisitedBrainSection, setHasVisitedBrainSection] = React.useState(false);
@@ -533,7 +545,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [activeSectionDef.kind]);
 
-  const { isBelowTablet } = useBreakpoint();
+  const { isBelowMobile } = useBreakpoint();
 
   // Convenience: chat is "visible" if either slot is showing it. Used by
   // the chat-stream hook below to suppress unread bumps and by the
@@ -3931,6 +3943,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         activeEntityFace={activeEntityFace}
         listProps={railListProps}
         nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+        activeCallAssistantId={activeCallId}
       />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
@@ -3957,6 +3970,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               sectionActivity={railSectionActivity}
               onBrandClick={requestPlatformHomeNavigation}
               onSelectSection={handleSelectSection}
+              activeCallAssistantId={activeCallId}
             />
 
             <SectionHost
@@ -4665,11 +4679,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         {visibleProfileAssistant && (
           <AssistantFloatingChatHost
             pathname={routePathname ?? '/assistants'}
-            isBelowTablet={isBelowTablet}
+            isBelowMobile={isBelowMobile}
             isHireDialogOpen={isHireDialogOpen}
             showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
             isChatVisibleInRightPane={isFullPageAssistantChatVisible}
-            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            hasActiveCallPoppedOut={
+              !!activeCallAssistant && (!isDocked || !isAssistantsRouteActive)
+            }
             profileAssistant={visibleProfileAssistant}
             assistantsBootstrapped={hasSettledAssistants}
             assistant={visibleProfileAssistant}

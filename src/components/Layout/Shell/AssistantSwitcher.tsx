@@ -72,7 +72,18 @@ interface AssistantSwitcherProps {
   chatActive?: boolean;
   /** Unread/activity pulse on the chat-home face while another section is selected. */
   showChatActivity?: boolean;
+  /** Assistant currently on a live call; escalates that face's presence badge. */
+  activeCallAssistantId?: string | null;
 }
+
+/**
+ * The presence badge and the picker badge share the face's bottom-right
+ * corner. Presence yields whenever the picker is revealed, so the two never
+ * render on top of one another. The open popover portals focus out of the
+ * rail, so that case is driven by state rather than `group-focus-within`.
+ */
+const PRESENCE_YIELD_CLASS =
+  'transition-opacity group-hover:opacity-0 group-focus-within:opacity-0';
 
 function entityInitials(label: string): string {
   const parts = label.trim().split(/\s+/).filter(Boolean);
@@ -85,7 +96,10 @@ function entityInitials(label: string): string {
 
 /**
  * The rail's unity switcher: the active face opens Chat (conversation home);
- * ChevronsUpDown opens the teammate picker popover.
+ * a corner badge on that face opens the teammate picker popover. The picker
+ * badge and the presence badge share the face's bottom-right corner, so the
+ * presence badge fades out whenever the picker is revealed — only one of the
+ * two ever occupies the corner.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -96,6 +110,7 @@ export function AssistantSwitcher({
   onOpenChat,
   chatActive = false,
   showChatActivity = false,
+  activeCallAssistantId = null,
 }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
 
@@ -118,6 +133,8 @@ export function AssistantSwitcher({
   const activeUnityStatus = activeUnity
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;
+  const activeUnityInCall = !!activeUnity && activeCallAssistantId === activeUnity.agentId;
+  const presenceClass = cn(PRESENCE_YIELD_CLASS, switcherOpen && 'opacity-0');
 
   const face = showSkeletonFace ? (
     <Skeleton
@@ -147,6 +164,7 @@ export function AssistantSwitcher({
       {activeEntityFace.kind === 'human' ? (
         <PresenceStatusDot
           online={activeEntityFace.online === true}
+          className={presenceClass}
           testId="rail-human-online-indicator"
         />
       ) : null}
@@ -156,6 +174,8 @@ export function AssistantSwitcher({
       <UnityAvatar assistant={activeUnity} sizeClass="h-10 w-10" />
       <AssistantPresenceIndicator
         status={activeUnityStatus}
+        inCall={activeUnityInCall}
+        className={presenceClass}
         testId={`rail-status-indicator-${activeUnity.agentId}`}
       />
     </span>
@@ -174,7 +194,7 @@ export function AssistantSwitcher({
       aria-label={`Chat with ${unityName}`}
       title={`Chat with ${unityName}`}
       className={cn(
-        'relative mx-auto rounded-xl p-1.5 transition-colors',
+        'relative rounded-xl p-1.5 transition-colors',
         chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
       )}
     >
@@ -191,7 +211,7 @@ export function AssistantSwitcher({
 
   return (
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
-      <div className="mb-2 flex flex-col items-center gap-1">
+      <div className="group relative mx-auto mb-2 w-fit">
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>{chatHomeButton}</TooltipTrigger>
@@ -206,9 +226,9 @@ export function AssistantSwitcher({
             data-testid="rail-unity-switcher"
             title={`Switch teammate (${unityName})`}
             aria-label={`Switch teammate — ${unityName}`}
-            className="mx-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="absolute bottom-0.5 right-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 ring-1 ring-border transition-opacity hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
           >
-            <ChevronsUpDown className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+            <ChevronsUpDown className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
           </button>
         </PopoverTrigger>
       </div>

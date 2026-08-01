@@ -103,17 +103,28 @@ export function TasksPane({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Group runs under their owning task so each card can show its own
-  // run-history table without a second fetch.
+  // run-history table without a second fetch. Execution rows carry no
+  // description copy — the definition is the source of truth, joined here;
+  // pre-diet rows may still hold a stored copy as the fallback.
   const runsByTaskId = useMemo(() => {
+    const descriptionByTaskId = new Map<number, string | null>();
+    for (const task of tasks.rows) {
+      if (task.taskId === null || task.taskId === undefined) continue;
+      descriptionByTaskId.set(task.taskId, task.description ?? null);
+    }
     const map = new Map<number, TaskRunRow[]>();
     for (const run of taskRuns.rows) {
       if (run.taskId === null || run.taskId === undefined) continue;
+      const enriched: TaskRunRow = {
+        ...run,
+        taskDescription: descriptionByTaskId.get(run.taskId) ?? run.taskDescription ?? null,
+      };
       const existing = map.get(run.taskId);
-      if (existing) existing.push(run);
-      else map.set(run.taskId, [run]);
+      if (existing) existing.push(enriched);
+      else map.set(run.taskId, [enriched]);
     }
     return map;
-  }, [taskRuns.rows]);
+  }, [taskRuns.rows, tasks.rows]);
 
   const allTags = useMemo(() => collectTaskTags(tasks.rows), [tasks.rows]);
 

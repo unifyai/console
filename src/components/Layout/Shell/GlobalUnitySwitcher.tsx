@@ -37,6 +37,7 @@ export function GlobalUnitySwitcher() {
       nestedOverlayOpen={bridge.nestedOverlayOpen === true}
       onOpenChat={handleOpenChat}
       chatActive={false}
+      activeCallAssistantId={bridge.activeCallAssistantId ?? null}
     />
   );
 }
