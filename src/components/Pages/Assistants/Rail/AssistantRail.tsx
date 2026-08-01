@@ -25,6 +25,8 @@ interface AssistantRailProps {
   entityKind?: SelectorEntityKind;
   /** Keep the switcher open while hire / create-group overlays are up. */
   nestedOverlayOpen?: boolean;
+  /** Assistant currently on a live call; escalates that face's presence badge. */
+  activeCallAssistantId?: string | null;
 }
 
 /**
@@ -42,6 +44,7 @@ export function AssistantRail({
   onBrandClick,
   entityKind = 'assistant',
   nestedOverlayOpen = false,
+  activeCallAssistantId = null,
 }: AssistantRailProps) {
   const handleOpenChat = React.useCallback(() => {
     onSelectSection(CHAT_SECTION);
@@ -64,6 +67,7 @@ export function AssistantRail({
           onOpenChat={handleOpenChat}
           chatActive={activeSection === 'chat'}
           showChatActivity={activeSection !== 'chat' && sectionActivity?.chat === true}
+          activeCallAssistantId={activeCallAssistantId}
         />
       }
     />

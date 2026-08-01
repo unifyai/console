@@ -3943,6 +3943,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         activeEntityFace={activeEntityFace}
         listProps={railListProps}
         nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+        activeCallAssistantId={activeCallId}
       />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
@@ -3969,6 +3970,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               sectionActivity={railSectionActivity}
               onBrandClick={requestPlatformHomeNavigation}
               onSelectSection={handleSelectSection}
+              activeCallAssistantId={activeCallId}
             />
 
             <SectionHost
