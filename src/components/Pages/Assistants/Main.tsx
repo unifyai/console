@@ -4683,7 +4683,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             isHireDialogOpen={isHireDialogOpen}
             showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
             isChatVisibleInRightPane={isFullPageAssistantChatVisible}
-            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            hasActiveCallPoppedOut={
+              !!activeCallAssistant && (!isDocked || !isAssistantsRouteActive)
+            }
             profileAssistant={visibleProfileAssistant}
             assistantsBootstrapped={hasSettledAssistants}
             assistant={visibleProfileAssistant}
