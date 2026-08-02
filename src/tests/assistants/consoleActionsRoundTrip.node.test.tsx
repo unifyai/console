@@ -73,3 +73,36 @@ describe('a runtime script, replayed', () => {
     expect(cardClick).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The model named a control and never mentioned its pane — which is the normal
+ * way someone talks. Before the hop this waited three seconds and gave up.
+ */
+describe('a script that names a control without its pane', () => {
+  const SCRIPT = {
+    type: 'console_script',
+    scriptId: 'g3',
+    spokenText: "Let me pull up Dana's record for you.",
+    steps: [{ target: 'leaf:contact:42', afterChars: 36 }],
+  };
+
+  it('opens the pane, then the record, from one step', async () => {
+    const script = parseConsoleScript(SCRIPT)!;
+    const moves: string[] = [];
+    const nav: TargetNavigator = {
+      navigateTo: (h) => moves.push(`route ${h}`),
+      navigateToAssistants: (o) => {
+        moves.push(`section ${o?.sectionId}`);
+        // The pane renders its rows once opened.
+        const card = document.createElement('button');
+        card.setAttribute('data-testid', 'contact-card-42');
+        document.body.appendChild(card);
+      },
+    };
+
+    const outcome = await executeTarget(script.steps[0].target, nav, {});
+
+    expect(moves).toEqual(['section contacts']);
+    expect(outcome).toBe('clicked');
+  });
+});

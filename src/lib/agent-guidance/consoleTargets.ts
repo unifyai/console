@@ -13,7 +13,11 @@ import {
   isKnownTarget,
 } from '@/lib/agent-guidance/actionCatalogue';
 import { accountTabHref, parseAccountTab } from '@/lib/navigation/settingsAccountTab';
-import { LEAF_TARGET_PREFIX, resolveLeafTestId } from '@/lib/agent-guidance/leafTargets';
+import {
+  LEAF_TARGET_PREFIX,
+  leafSection,
+  resolveLeafTestId,
+} from '@/lib/agent-guidance/leafTargets';
 import { clickLeafTarget, type LeafClickOutcome } from '@/lib/agent-guidance/leafClick';
 
 /** The slice of `useAppShellNavigation` a target needs. */
@@ -45,24 +49,47 @@ export function targetTestId(target: string): string | null {
   return null;
 }
 
+/** Whether a control is on screen right now. */
+function isPresent(testId: string): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.querySelector(`[data-testid="${testId}"]`) !== null;
+}
+
 /**
  * Perform a move of any kind.
  *
  * Navigation resolves from the registry and cannot miss. A leaf control has to
  * be found in the live DOM first, so it is awaited and reports what actually
  * happened — a control that has moved says so rather than passing silently.
+ *
+ * A control that lives in a pane the user is not on is reached by going there
+ * first. The question asked is not "which pane are we on" but "is the control
+ * here", which needs no view state to answer and is right by construction: if
+ * the assistant already navigated in an earlier step, the control is present
+ * and nothing further happens. Naming a control is therefore enough — the model
+ * does not have to remember to open its pane, and cannot get the order wrong.
  */
 export async function executeTarget(
   target: string,
   nav: TargetNavigator,
   options: { highlight?: (testId: string) => void } = {}
 ): Promise<'done' | 'unknown' | LeafClickOutcome> {
-  if (target.startsWith(LEAF_TARGET_PREFIX)) {
-    const testId = resolveLeafTestId(target);
-    if (!testId) return 'unknown';
-    return clickLeafTarget(testId, { highlight: options.highlight });
+  if (!target.startsWith(LEAF_TARGET_PREFIX)) {
+    return executeConsoleTarget(target, nav) ? 'done' : 'unknown';
   }
-  return executeConsoleTarget(target, nav) ? 'done' : 'unknown';
+
+  const testId = resolveLeafTestId(target);
+  if (!testId) return 'unknown';
+
+  const section = leafSection(target);
+  if (section && !isPresent(testId)) {
+    // Show the hop as its own press: the pane really did change, and hiding
+    // that would leave the user with a click they did not see coming.
+    options.highlight?.(`rail-section-${section}`);
+    nav.navigateToAssistants({ sectionId: section });
+  }
+
+  return clickLeafTarget(testId, { highlight: options.highlight });
 }
 
 /**
