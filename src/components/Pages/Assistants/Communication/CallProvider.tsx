@@ -157,6 +157,7 @@ export function CallProvider({
   useConsoleActionScript({
     room,
     nav: consoleNav,
+    assistantId: call.activeCallAssistant?.agentId ?? null,
     revealConsole,
     highlight: flashElement,
     enabled: Boolean(activeCallId),
