@@ -54,7 +54,7 @@ export function SettingsView({
         className={active !== 'security' ? 'hidden' : undefined}
         aria-hidden={active !== 'security'}
       >
-        <SecurityTab user={user} apiKey={user.apiKey} />
+        <SecurityTab user={user} />
       </div>
     </div>
   );

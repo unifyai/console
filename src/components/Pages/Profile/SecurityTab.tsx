@@ -38,10 +38,22 @@ interface EmailCredentials {
   passwordChangedAt?: string;
 }
 
-const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
+interface ProgrammaticKey {
+  id: number;
+  name: string;
+  key: string;
+}
+
+interface ApiKeysResponse {
+  personalKeys?: ProgrammaticKey[];
+}
+
+const SecurityTab = ({ user }: { user: User }) => {
   const router = useRouter();
   const [credentials, setCredentials] = useState<EmailCredentials | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [programmaticKey, setProgrammaticKey] = useState<string | null>(null);
+  const [keyLoading, setKeyLoading] = useState(true);
 
   // MFA status (for card label)
   const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
@@ -54,6 +66,28 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
   const [showMfaModal, setShowMfaModal] = useState(false);
+
+  // The signed-in session's key is the Console's own credential and is
+  // never displayed. Programmatic keys are fetched separately so the user
+  // sees only what they are meant to hold.
+  useEffect(() => {
+    const fetchProgrammaticKey = async () => {
+      try {
+        const res = await fetch('/api/user/api-keys');
+        if (res.ok) {
+          const data = (await res.json()) as ApiKeysResponse;
+          setProgrammaticKey(data.personalKeys?.[0]?.key ?? null);
+        } else {
+          setProgrammaticKey(null);
+        }
+      } catch {
+        setProgrammaticKey(null);
+      } finally {
+        setKeyLoading(false);
+      }
+    };
+    fetchProgrammaticKey();
+  }, []);
 
   const fetchMfaStatus = useCallback(async () => {
     try {
@@ -167,7 +201,15 @@ const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
             Your personal API key for programmatic access to the Unify platform.
           </p>
         </div>
-        <ApiKeyField apiKey={apiKey} />
+        {keyLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : programmaticKey ? (
+          <ApiKeyField apiKey={programmaticKey} />
+        ) : (
+          <p className="text-caption text-muted-foreground">
+            No API key is available for this account.
+          </p>
+        )}
       </div>
 
       {/* Password Card */}
