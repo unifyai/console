@@ -13,6 +13,8 @@ import {
   isKnownTarget,
 } from '@/lib/agent-guidance/actionCatalogue';
 import { accountTabHref, parseAccountTab } from '@/lib/navigation/settingsAccountTab';
+import { LEAF_TARGET_PREFIX, resolveLeafTestId } from '@/lib/agent-guidance/leafTargets';
+import { clickLeafTarget, type LeafClickOutcome } from '@/lib/agent-guidance/leafClick';
 
 /** The slice of `useAppShellNavigation` a target needs. */
 export interface TargetNavigator {
@@ -30,6 +32,26 @@ export function targetTestId(target: string): string | null {
     return `rail-section-${target.slice(SECTION_TARGET_PREFIX.length)}`;
   }
   return null;
+}
+
+/**
+ * Perform a move of any kind.
+ *
+ * Navigation resolves from the registry and cannot miss. A leaf control has to
+ * be found in the live DOM first, so it is awaited and reports what actually
+ * happened — a control that has moved says so rather than passing silently.
+ */
+export async function executeTarget(
+  target: string,
+  nav: TargetNavigator,
+  options: { highlight?: (testId: string) => void } = {}
+): Promise<'done' | 'unknown' | LeafClickOutcome> {
+  if (target.startsWith(LEAF_TARGET_PREFIX)) {
+    const testId = resolveLeafTestId(target);
+    if (!testId) return 'unknown';
+    return clickLeafTarget(testId, { highlight: options.highlight });
+  }
+  return executeConsoleTarget(target, nav) ? 'done' : 'unknown';
 }
 
 /**

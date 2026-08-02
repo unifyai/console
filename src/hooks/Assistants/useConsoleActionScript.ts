@@ -10,7 +10,7 @@ import {
   parseConsoleScript,
 } from '@/lib/agent-guidance/consoleActionScript';
 import {
-  executeConsoleTarget,
+  executeTarget,
   targetTestId,
   type TargetNavigator,
 } from '@/lib/agent-guidance/consoleTargets';
@@ -70,11 +70,17 @@ export function useConsoleActionScript({
       revealedRef.current = true;
       revealRef.current?.();
     }
-    const testId = targetTestId(target);
-    if (testId) highlightRef.current?.(testId);
-    if (!executeConsoleTarget(target, navRef.current)) {
-      console.warn(`[consoleActions] Unknown navigation target: ${target}`);
-    }
+    const navTestId = targetTestId(target);
+    if (navTestId) highlightRef.current?.(navTestId);
+    void executeTarget(target, navRef.current, {
+      highlight: (testId) => highlightRef.current?.(testId),
+    }).then((outcome) => {
+      // A control that has moved is worth saying out loud rather than passing
+      // as a click that never happened.
+      if (outcome !== 'done' && outcome !== 'clicked') {
+        console.warn(`[consoleActions] ${target} did not resolve: ${outcome}`);
+      }
+    });
   }, []);
 
   const advance = React.useCallback(

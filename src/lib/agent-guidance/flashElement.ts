@@ -19,7 +19,7 @@ export function flashElement(testId: string): void {
   // twice in one script.
   void element.offsetWidth;
   element.classList.add(FLASH_CLASS);
-  element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
 
   window.setTimeout(() => element.classList.remove(FLASH_CLASS), FLASH_MS);
 }

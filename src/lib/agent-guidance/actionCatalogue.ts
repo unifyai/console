@@ -16,6 +16,7 @@ import { ALL_SECTIONS } from '@/components/Pages/Assistants/Rail/sectionConfig';
 import { SHELL_SECTIONS } from '@/components/Layout/Shell/shellSections';
 import { SETTINGS_ACCOUNT_TABS } from '@/lib/navigation/settingsAccountTab';
 import { UNIFIED_SHELL_ROUTE_DEFINITIONS } from '@/lib/navigation/shellRoutes';
+import { renderLeafTargets, resolveLeafTestId } from '@/lib/agent-guidance/leafTargets';
 import type { ConsoleActionTarget } from '@/types/agentActions';
 
 export const SECTION_TARGET_PREFIX = 'section:';
@@ -75,6 +76,11 @@ export function isKnownTarget(id: string): boolean {
   return buildActionCatalogue().some((target) => target.id === id);
 }
 
+/** Whether an id names any move this console will make, including a click. */
+export function isOfferedTarget(id: string): boolean {
+  return isKnownTarget(id) || resolveLeafTestId(id) !== null;
+}
+
 /**
  * The catalogue as prompt lines. Kept terse: this rides in every prompt built
  * while the user is on the console, and the prose guidance already explains
@@ -86,5 +92,10 @@ export function renderActionCatalogue(): string {
     'Places I can take my boss (console navigation targets)',
     '------------------------------------------------------',
     ...lines,
+    '',
+    'Controls I can press for them. Anything that submits, confirms, pays,',
+    'disconnects or deletes is deliberately absent -- I open the thing and let',
+    'them decide.',
+    ...renderLeafTargets(),
   ].join('\n');
 }
