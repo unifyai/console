@@ -99,3 +99,76 @@ describe('running a script under the navigation permission', () => {
     expect(subscribeMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The stream reaches every open tab. Only one should act, or a tab the user was
+ * reading jumps somewhere else behind their back — and the teammate hears the
+ * same outcome once per tab.
+ */
+describe('when several tabs receive the same script', () => {
+  it('acts in the tab holding the claim', async () => {
+    const { claimActiveConsoleTab } = await import('@/hooks/Assistants/useActiveTabClaim');
+    claimActiveConsoleTab();
+
+    const { nav, sections } = navSpy();
+    renderHook(() => useConsoleScriptStream({ assistantId: '123', nav }));
+
+    emitScript(['section:integrations']);
+
+    await waitFor(() => expect(sections).toEqual(['integrations']));
+  });
+
+  it('stands down in a tab that does not hold it', async () => {
+    const { ACTIVE_TAB_STORAGE_KEY } = await import('@/hooks/Assistants/useActiveTabClaim');
+    window.localStorage.setItem(
+      ACTIVE_TAB_STORAGE_KEY,
+      JSON.stringify({ tabId: 'a-different-tab', at: Date.now() })
+    );
+
+    const { nav, sections } = navSpy();
+    renderHook(() => useConsoleScriptStream({ assistantId: '123', nav }));
+
+    emitScript(['section:integrations', 'section:tasks']);
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(sections).toEqual([]);
+  });
+
+  it('reports nothing from a tab that stood down', async () => {
+    // Otherwise the teammate is told the same outcome once per open tab.
+    const { ACTIVE_TAB_STORAGE_KEY } = await import('@/hooks/Assistants/useActiveTabClaim');
+    const { reportConsoleScriptResult } = await import('@/lib/client/console-script-result');
+    const send = vi.spyOn({ reportConsoleScriptResult }, 'reportConsoleScriptResult');
+    window.localStorage.setItem(
+      ACTIVE_TAB_STORAGE_KEY,
+      JSON.stringify({ tabId: 'a-different-tab', at: Date.now() })
+    );
+
+    const { nav } = navSpy();
+    renderHook(() => useConsoleScriptStream({ assistantId: '123', nav }));
+    emitScript(['section:integrations']);
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('finishes a sequence it started even if the user switches away', async () => {
+    // The sequence was addressed to this tab; abandoning half of it partway
+    // leaves the user with a move described and not made.
+    const { claimActiveConsoleTab, ACTIVE_TAB_STORAGE_KEY } =
+      await import('@/hooks/Assistants/useActiveTabClaim');
+    claimActiveConsoleTab();
+
+    const { nav, sections } = navSpy();
+    renderHook(() => useConsoleScriptStream({ assistantId: '123', nav }));
+    emitScript(['section:integrations', 'section:tasks']);
+
+    await waitFor(() => expect(sections).toEqual(['integrations']));
+    window.localStorage.setItem(
+      ACTIVE_TAB_STORAGE_KEY,
+      JSON.stringify({ tabId: 'a-different-tab', at: Date.now() })
+    );
+
+    await waitFor(() => expect(sections).toEqual(['integrations', 'tasks']), { timeout: 3000 });
+  });
+});

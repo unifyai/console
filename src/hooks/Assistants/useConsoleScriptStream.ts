@@ -9,6 +9,7 @@ import {
 } from '@/lib/agent-guidance/consoleTargets';
 import { readAgentNavigationEnabled } from '@/hooks/Assistants/useAgentNavigationPermission';
 import { useConsoleScriptReporter } from '@/hooks/Assistants/useConsoleScriptReporter';
+import { isActiveConsoleTab } from '@/hooks/Assistants/useActiveTabClaim';
 
 /**
  * Gap between moves when there is no speech to sit inside.
@@ -113,6 +114,13 @@ export function useConsoleScriptStream({
           return;
         }
         if (targets.length === 0) return;
+        // The stream reaches every open tab, so exactly one acts on it. Decided
+        // once, here, rather than per step: a sequence belongs to the tab the
+        // user was in when it arrived, and half a sequence in each of two tabs
+        // is worse than all of it in one. A tab that stands down is silent --
+        // reporting from all of them would tell the teammate the same outcome
+        // several times over.
+        if (!isActiveConsoleTab()) return;
         running = running.then(() => run(scriptId, targets));
       },
     });

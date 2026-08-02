@@ -42,6 +42,13 @@ interface UseConsoleActionScriptOptions {
  * Interruption needs no special handling: a barge-in stops the transcript, the
  * remaining positions are never reached, and their moves never fire. Cutting in
  * on "and then your billing page" should not open billing.
+ *
+ * Note this path deliberately does *not* consult the active-tab claim, unlike
+ * the event-stream one. A script here arrives over the call's own room, which
+ * only the tab holding the call has joined, so it is already addressed to
+ * exactly one tab — and the right one, since that is where the conversation is.
+ * Applying the claim on top could only break it: glance at a second tab and the
+ * call's tab would stop obeying the call it is in.
  */
 export function useConsoleActionScript({
   room,

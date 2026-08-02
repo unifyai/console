@@ -207,6 +207,7 @@ import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
 import { useConsoleScriptStream } from '@/hooks/Assistants/useConsoleScriptStream';
+import { useActiveTabClaim } from '@/hooks/Assistants/useActiveTabClaim';
 import { flashElement } from '@/lib/agent-guidance/flashElement';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
@@ -400,6 +401,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () => ({ navigateTo, navigateToAssistants }),
     [navigateTo, navigateToAssistants]
   );
+  // Marks this tab as the one to drive while the user is in it, so a script
+  // that fans out to every open tab only runs in the one they are watching.
+  useActiveTabClaim();
   useConsoleScriptStream({
     assistantId: presenceAssistantId,
     nav: consoleNav,
