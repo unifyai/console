@@ -1,4 +1,4 @@
-import type { SettingsAccountId } from '@/components/Layout/Shell/SettingsShell';
+import type { SettingsAccountId } from './settingsAccountTab';
 
 export type UnifiedShellSurface =
   | 'assistants'

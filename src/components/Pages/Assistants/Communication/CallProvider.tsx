@@ -15,6 +15,8 @@ import {
 import { AssistantLiveKitAudioRenderer } from './AssistantLiveKitAudioRenderer';
 import { VoiceEnrollmentFallbackDialog } from './VoiceEnrollmentFallbackDialog';
 import { useAppShellNavigation, useShellActivePath } from '@/lib/navigation/AppShellRouter';
+import { useConsoleActionScript } from '@/hooks/Assistants/useConsoleActionScript';
+import { flashElement } from '@/lib/agent-guidance/flashElement';
 import { isAssistantsPath } from '@/lib/navigation/appShellRoutes';
 import { useVoiceEnrollmentFallbackPrompt } from '@/hooks/Assistants/useVoiceEnrollmentFallbackPrompt';
 import {
@@ -141,6 +143,24 @@ export function CallProvider({
   React.useEffect(() => {
     if (activeCallId) setViewMode('expanded');
   }, [activeCallId]);
+
+  // --- Assistant-driven navigation ---
+  // The call window covers most of the console when expanded, so a move made
+  // behind it would be narrated and never seen. Shrinking first is part of the
+  // move, not a nicety.
+  const consoleNav = useAppShellNavigation();
+  const revealConsole = React.useCallback(() => {
+    minimize();
+    if (isDocked) popOut();
+  }, [minimize, isDocked, popOut]);
+
+  useConsoleActionScript({
+    room,
+    nav: consoleNav,
+    revealConsole,
+    highlight: flashElement,
+    enabled: Boolean(activeCallId),
+  });
 
   // --- Org call signaling stream (dm/team/group scopes) ---
   useOrgCallEvents(orgId, {
