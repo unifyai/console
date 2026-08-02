@@ -206,6 +206,8 @@ import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
+import { useConsoleScriptStream } from '@/hooks/Assistants/useConsoleScriptStream';
+import { flashElement } from '@/lib/agent-guidance/flashElement';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createAvailableUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
@@ -389,7 +391,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const selectedEntityKind: SelectorEntityKind = selectedEntity?.kind ?? 'assistant';
   const isNonAssistantSelection = selectedEntityKind !== 'assistant';
-  useAssistantPresenceWake(isNonAssistantSelection ? null : profileAssistantId);
+  const presenceAssistantId = isNonAssistantSelection ? null : profileAssistantId;
+  useAssistantPresenceWake(presenceAssistantId);
+  // Console moves arriving outside a Meet, scoped to the same teammate that
+  // receives the presence heartbeat: that is the one told the console is open,
+  // so it is the only one that can be driving it.
+  const consoleNav = React.useMemo(
+    () => ({ navigateTo, navigateToAssistants }),
+    [navigateTo, navigateToAssistants]
+  );
+  useConsoleScriptStream({
+    assistantId: presenceAssistantId,
+    nav: consoleNav,
+    highlight: flashElement,
+  });
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
