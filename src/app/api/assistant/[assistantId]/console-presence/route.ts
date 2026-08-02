@@ -50,6 +50,9 @@ export async function POST(
 
   const guidance = buildConsoleGuidance();
   const carriesText = FULL_PAYLOAD_REASONS.has(reason);
+  // Withholding the catalogue takes the tool away from the runtime entirely,
+  // so a teammate told not to navigate cannot narrate a move it will not make.
+  const allowNavigation = body?.allowNavigation !== false;
 
   const result = await dispatchUnitySystemEvent({
     assistantId: parsedAssistantId,
@@ -65,7 +68,7 @@ export async function POST(
       consoleGuidanceFull: carriesText ? guidance.full : '',
       // Travels with the prose for the same reason: the runtime may only offer
       // to take the user somewhere while they are here to watch it happen.
-      consoleActionCatalogue: carriesText ? renderActionCatalogue() : '',
+      consoleActionCatalogue: carriesText && allowNavigation ? renderActionCatalogue() : '',
     },
   });
 
