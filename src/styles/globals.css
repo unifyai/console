@@ -777,6 +777,29 @@
     border-radius: var(--radius-control);
   }
 
+  /* Ring on a control the assistant just navigated to, so an assistant-driven
+     move reads as a move rather than the page changing on its own. */
+  @keyframes agent-move-flash {
+    0% {
+      box-shadow: 0 0 0 0 var(--ring);
+    }
+    40% {
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+  .agent-move-flash {
+    animation: agent-move-flash 0.9s ease-out;
+    border-radius: var(--radius);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .agent-move-flash {
+      animation: none;
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+  }
   @keyframes accordion-down {
     from {
       height: 0;

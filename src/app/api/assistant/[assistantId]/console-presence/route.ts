@@ -7,6 +7,7 @@ import {
 } from '../../../_utils/auth';
 import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 import { buildConsoleGuidance } from '@/lib/agent-guidance/consoleGuidance';
+import { renderActionCatalogue } from '@/lib/agent-guidance/actionCatalogue';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,9 @@ export async function POST(
       consoleGuidanceVersion: guidance.version,
       consoleGuidanceBrief: carriesText ? guidance.brief : '',
       consoleGuidanceFull: carriesText ? guidance.full : '',
+      // Travels with the prose for the same reason: the runtime may only offer
+      // to take the user somewhere while they are here to watch it happen.
+      consoleActionCatalogue: carriesText ? renderActionCatalogue() : '',
     },
   });
 
