@@ -50,6 +50,8 @@ describe('requestAssistantPresenceWake', () => {
       reason: 'selection',
       pageVisibility: 'visible',
       occurredAt: '2026-06-15T21:00:00.000Z',
+      // Sent every beat so opting out withdraws the tool on the next one.
+      allowNavigation: true,
     });
   });
 

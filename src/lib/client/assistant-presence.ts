@@ -13,6 +13,8 @@ interface AssistantPresenceWakeArgs {
   reason: AssistantPresenceWakeReason;
   pageVisibility?: DocumentVisibilityState;
   occurredAt?: string;
+  /** Whether this teammate may navigate the console for the user right now. */
+  allowNavigation?: boolean;
 }
 
 export async function requestAssistantPresenceWake({
@@ -21,6 +23,7 @@ export async function requestAssistantPresenceWake({
   reason,
   pageVisibility,
   occurredAt = new Date().toISOString(),
+  allowNavigation = true,
 }: AssistantPresenceWakeArgs): Promise<void> {
   try {
     // Posts presence facts only. The route attaches the console's orientation
@@ -30,7 +33,7 @@ export async function requestAssistantPresenceWake({
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source, reason, pageVisibility, occurredAt }),
+        body: JSON.stringify({ source, reason, pageVisibility, occurredAt, allowNavigation }),
       }
     );
 

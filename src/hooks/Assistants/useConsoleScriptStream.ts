@@ -7,6 +7,7 @@ import {
   targetTestId,
   type TargetNavigator,
 } from '@/lib/agent-guidance/consoleTargets';
+import { readAgentNavigationEnabled } from '@/hooks/Assistants/useAgentNavigationPermission';
 
 /**
  * Gap between moves when there is no speech to sit inside.
@@ -62,6 +63,10 @@ export function useConsoleScriptStream({
           await new Promise((resolve) => setTimeout(resolve, UNSYNCED_STEP_GAP_MS));
           if (cancelled) return;
         }
+        // Read here rather than at the top of the iteration: the gap above is
+        // most of the sequence's life, and someone unticking during it means to
+        // stop the move that gap was leading to.
+        if (!readAgentNavigationEnabled()) return;
         const navTestId = targetTestId(target);
         if (navTestId) highlightRef.current?.(navTestId);
         const outcome = await executeTarget(target, navRef.current, {

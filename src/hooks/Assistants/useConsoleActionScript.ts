@@ -14,6 +14,7 @@ import {
   targetTestId,
   type TargetNavigator,
 } from '@/lib/agent-guidance/consoleTargets';
+import { readAgentNavigationEnabled } from '@/hooks/Assistants/useAgentNavigationPermission';
 import type { ConsoleActionScript } from '@/types/agentActions';
 
 interface UseConsoleActionScriptOptions {
@@ -66,6 +67,9 @@ export function useConsoleActionScript({
   }, []);
 
   const runStep = React.useCallback((target: string) => {
+    // Checked as each move comes due, so unticking mid-utterance stops the
+    // moves not yet reached even though the script already arrived.
+    if (!readAgentNavigationEnabled()) return;
     if (!revealedRef.current) {
       revealedRef.current = true;
       revealRef.current?.();
