@@ -31,6 +31,17 @@ export function targetTestId(target: string): string | null {
   if (target.startsWith(SECTION_TARGET_PREFIX)) {
     return `rail-section-${target.slice(SECTION_TARGET_PREFIX.length)}`;
   }
+  if (target.startsWith(ACCOUNT_TAB_TARGET_PREFIX)) {
+    return `settings-nav-${target.slice(ACCOUNT_TAB_TARGET_PREFIX.length)}`;
+  }
+  if (target.startsWith(ROUTE_TARGET_PREFIX)) {
+    const path = target.slice(ROUTE_TARGET_PREFIX.length);
+    // `/account` is reached from the rail foot; the rest are sub-rail entries
+    // that only render once the settings shell is up, which is why the press is
+    // shown when the control appears rather than when the move is issued.
+    if (path === '/account') return 'rail-nav-settings';
+    return `settings-link-${path.replace(/^\//, '')}`;
+  }
   return null;
 }
 

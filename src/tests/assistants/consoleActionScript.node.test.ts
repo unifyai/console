@@ -59,9 +59,8 @@ describe('console action catalogue', () => {
     ]);
   });
 
-  it('points a section highlight at the rail button that renders it', () => {
+  it('points a section press at the rail button that renders it', () => {
     expect(targetTestId('section:integrations')).toBe('rail-section-integrations');
-    expect(targetTestId('route:/billing')).toBeNull();
   });
 
   it('agrees with isKnownTarget', () => {

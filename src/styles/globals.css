@@ -777,27 +777,52 @@
     border-radius: var(--radius-control);
   }
 
-  /* Ring on a control the assistant just navigated to, so an assistant-driven
-     move reads as a move rather than the page changing on its own. */
-  @keyframes agent-move-flash {
+  /* A control the assistant just pressed.
+     The dip reads as the press and the ring as the acknowledgement, in that
+     order — a ring on its own says "look here", which is not the same as
+     saying the assistant did something. The user has to be able to tell their
+     teammate clicked from the page merely changing. */
+  @keyframes agent-press {
     0% {
+      transform: scale(1);
       box-shadow: 0 0 0 0 var(--ring);
     }
-    40% {
-      box-shadow: 0 0 0 3px var(--ring);
+    18% {
+      transform: scale(0.94);
+      box-shadow: 0 0 0 2px var(--ring);
+    }
+    38% {
+      transform: scale(1.02);
+      box-shadow: 0 0 0 4px var(--ring);
+    }
+    55% {
+      transform: scale(1);
     }
     100% {
-      box-shadow: 0 0 0 0 transparent;
+      transform: scale(1);
+      box-shadow: 0 0 0 8px transparent;
     }
   }
-  .agent-move-flash {
-    animation: agent-move-flash 0.9s ease-out;
+  .agent-press {
+    animation: agent-press 0.75s cubic-bezier(0.34, 1.4, 0.64, 1);
     border-radius: var(--radius);
+    /* Lift above neighbours so the ring is not clipped by an adjacent row. */
+    position: relative;
+    z-index: 1;
   }
   @media (prefers-reduced-motion: reduce) {
-    .agent-move-flash {
-      animation: none;
-      box-shadow: 0 0 0 3px var(--ring);
+    /* Still say something happened — just hold a ring instead of moving. */
+    .agent-press {
+      animation: agent-press-static 0.75s steps(1, end);
+    }
+    @keyframes agent-press-static {
+      0%,
+      99% {
+        box-shadow: 0 0 0 3px var(--ring);
+      }
+      100% {
+        box-shadow: none;
+      }
     }
   }
   @keyframes accordion-down {
