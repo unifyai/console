@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { LEGACY_ACCOUNT_TAB_REDIRECTS } from '@/components/Layout/Shell/SettingsShell';
+import { LEGACY_ACCOUNT_TAB_REDIRECTS } from '@/lib/navigation/settingsAccountTab';
 import { useSettingsNavigation } from '@/components/Layout/Shell/SettingsNavigationContext';
 import { accountTabHref } from '@/lib/navigation/settingsAccountTab';
 import type { User } from '@/types/user';

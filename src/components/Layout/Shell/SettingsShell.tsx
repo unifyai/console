@@ -29,28 +29,29 @@ import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { HomeShellRailToggle } from './HomeShell';
 import { useSettingsNavigation } from './SettingsNavigationContext';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
-import { accountTabHref, parseAccountTab } from '@/lib/navigation/settingsAccountTab';
+import {
+  SETTINGS_ACCOUNT_TABS,
+  accountTabHref,
+  parseAccountTab,
+  type SettingsAccountId,
+} from '@/lib/navigation/settingsAccountTab';
 
 /**
  * Account sub-rail entries. Each maps to an in-page panel on `/account`, driven
  * by the `?tab=` query param so the panel selection is shareable and the shell
- * can highlight the active item from any settings-family route.
+ * can highlight the active item from any settings-family route. Ids and labels
+ * come from the navigation lib; only the icons are client-side.
  */
-export const SETTINGS_ACCOUNT_ITEMS = [
-  { id: 'profile', label: 'Profile', Icon: UserIcon },
-  { id: 'contact-info', label: 'Contact info', Icon: Contact },
-  { id: 'security', label: 'Security', Icon: ShieldCheck },
-] as const;
-
-export type SettingsAccountId = (typeof SETTINGS_ACCOUNT_ITEMS)[number]['id'];
-
-export const SETTINGS_ACCOUNT_IDS = SETTINGS_ACCOUNT_ITEMS.map((i) => i.id) as readonly string[];
-
-/** Legacy account tabs merged into profile/security — redirect on load. */
-export const LEGACY_ACCOUNT_TAB_REDIRECTS: Readonly<Record<string, SettingsAccountId>> = {
-  preferences: 'profile',
-  advanced: 'security',
+const ACCOUNT_TAB_ICONS: Record<SettingsAccountId, LucideIcon> = {
+  profile: UserIcon,
+  'contact-info': Contact,
+  security: ShieldCheck,
 };
+
+const SETTINGS_ACCOUNT_ITEMS = SETTINGS_ACCOUNT_TABS.map((tab) => ({
+  ...tab,
+  Icon: ACCOUNT_TAB_ICONS[tab.id],
+}));
 
 interface WorkspaceLink {
   id: string;
