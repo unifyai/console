@@ -5,7 +5,7 @@ import { AppRail, RAIL_COLLAPSED_STORAGE_KEY } from '@/components/Layout/Shell/A
 import { AssistantSwitcher } from '@/components/Layout/Shell/AssistantSwitcher';
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
-import { CHAT_SECTION, type SectionDef, type SelectorEntityKind } from './sectionConfig';
+import type { SectionDef, SelectorEntityKind } from './sectionConfig';
 import type { ActiveEntityFace } from '@/components/Layout/Shell/AssistantSwitcher';
 
 interface AssistantRailProps {
@@ -50,10 +50,6 @@ export function AssistantRail({
   nestedOverlayOpen = false,
   activeCallAssistantId = null,
 }: AssistantRailProps) {
-  const handleOpenChat = React.useCallback(() => {
-    onSelectSection(CHAT_SECTION);
-  }, [onSelectSection]);
-
   return (
     <AppRail
       activeSection={activeSection}
@@ -71,9 +67,6 @@ export function AssistantRail({
           listProps={listProps}
           nestedOverlayOpen={nestedOverlayOpen}
           collapsed={collapsed}
-          onOpenChat={handleOpenChat}
-          chatActive={activeSection === 'chat'}
-          showChatActivity={activeSection !== 'chat' && sectionActivity?.chat === true}
           activeCallAssistantId={activeCallAssistantId}
         />
       }

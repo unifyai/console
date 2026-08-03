@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantSwitcher } from '@/components/Layout/Shell/AssistantSwitcher';
 import { useAssistantSwitcherBridge } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
-import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 
 interface GlobalUnitySwitcherProps {
   collapsed: boolean;
@@ -17,11 +16,6 @@ interface GlobalUnitySwitcherProps {
  */
 export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
   const bridge = useAssistantSwitcherBridge();
-  const { navigateToAssistants } = useAppShellNavigation();
-
-  const handleOpenChat = React.useCallback(() => {
-    navigateToAssistants({ sectionId: 'chat' });
-  }, [navigateToAssistants]);
 
   if (!bridge?.listProps) {
     return (
@@ -52,8 +46,6 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
       listProps={bridge.listProps}
       nestedOverlayOpen={bridge.nestedOverlayOpen === true}
       collapsed={collapsed}
-      onOpenChat={handleOpenChat}
-      chatActive={false}
       activeCallAssistantId={bridge.activeCallAssistantId ?? null}
     />
   );
