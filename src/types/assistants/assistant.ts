@@ -677,7 +677,8 @@ export interface AssistantActions {
     buildLiveviewUrl: (
       rawUrl: string,
       ownerId: string,
-      organizationId: number | null
+      organizationId: number | null,
+      password?: string | null
     ) => Promise<{ liveviewUrl: string }>;
     checkLiveviewHealth: (liveviewUrl: string) => Promise<boolean>;
     wakeAssistantSession: (assistantId: string) => Promise<ResponseProps>;

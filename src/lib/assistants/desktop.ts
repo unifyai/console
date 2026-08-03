@@ -15,6 +15,7 @@ import {
   type DesktopSessionScope,
   findScopedStartupLiveviewLog,
   liveviewHealthProbeUrl,
+  readLogEntryField,
 } from '@/lib/assistants/desktopSessionScope';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
@@ -148,9 +149,17 @@ export async function getLiveviewUrl(
     const liveviewUrlValue = scopedLog?.entries?.liveviewUrl || scopedLog?.entries?.liveview_url;
 
     if (scopedLog && scopedLog.entries && typeof liveviewUrlValue === 'string') {
-      const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+      const publishedPassword = readLogEntryField(
+        scopedLog.entries,
+        'liveview_password',
+        'liveviewPassword'
+      );
+      const password =
+        typeof publishedPassword === 'string' && publishedPassword.trim()
+          ? publishedPassword
+          : await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
       const urlObj = new URL(liveviewUrlValue);
-      urlObj.searchParams.set('password', ownerKey);
+      urlObj.searchParams.set('password', password);
       return { liveviewUrl: urlObj.toString() };
     }
 
@@ -177,11 +186,15 @@ export async function getLiveviewUrl(
 export async function buildLiveviewUrl(
   rawUrl: string,
   ownerId: string,
-  organizationId: number | null
+  organizationId: number | null,
+  password?: string | null
 ): Promise<{ liveviewUrl: string }> {
-  const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+  const resolvedPassword =
+    password && password.trim()
+      ? password
+      : await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
   const urlObj = new URL(rawUrl);
-  urlObj.searchParams.set('password', ownerKey);
+  urlObj.searchParams.set('password', resolvedPassword);
   return { liveviewUrl: urlObj.toString() };
 }
 export async function checkLiveviewHealth(liveviewUrl: string): Promise<boolean> {
