@@ -374,11 +374,6 @@ export function DataPane({
     [assistant, ownerId, assistantId, scope.root, orgName]
   );
   const showScopeHeaders = scope.showFilter && scope.root == null && scopeSections.length > 1;
-  const dataRoots = React.useMemo(
-    () => scopeSections.map((section) => section.browserRoot),
-    [scopeSections]
-  );
-
   const displayPathForContext = React.useCallback(
     (full: string): string => {
       const section = scopeSections.find((s) => full.startsWith(s.browserRoot.prefix));

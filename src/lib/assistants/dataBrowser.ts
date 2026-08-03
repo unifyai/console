@@ -74,15 +74,6 @@ export function buildDataBrowserTree(
   return root;
 }
 
-/** True when `fullContext` is an ingested Data table the browser can show. */
-export function isBrowsableDataContext(fullContext: string, dataRoots: DataBrowserRoot[]): boolean {
-  const match = dataRoots.find((r) => fullContext.startsWith(r.prefix));
-  if (!match) return false;
-  const segments = fullContext.slice(match.prefix.length).split('/').filter(Boolean);
-  if (segments.length === 0 || isMetaContextPath(segments)) return false;
-  return segments[0] === 'Data' && segments.length >= 2 && !RESERVED_ROOT_SET.has(segments[1]);
-}
-
 /** Collect every selectable context path under a tree node. */
 export function collectSelectableContexts(node: DataTreeNode): string[] {
   const out: string[] = [];
