@@ -22,6 +22,7 @@ import {
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
 import { assistantRail } from '../helpers/shell';
+import { openUnitySwitcher } from './helpers';
 
 const owner = createTestUser({ name: 'OrgCall', lastName: 'Owner', credits: 50_000 });
 const member = createTestUser({ name: 'OrgCall', lastName: 'Member', credits: 50_000 });
@@ -142,6 +143,9 @@ const test = base.extend<{ ownerPage: Page }>({
     const page = await ctx.newPage();
     await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
     await dismissCoordinatorOnboardingIfOpen(page);
+    // The roster list lives inside the rail switcher popover, so every test
+    // here needs it open before it can reach a human, team, or team chat row.
+    await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
     // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture `use`, not React
     await use(page);
     await ctx.close();
