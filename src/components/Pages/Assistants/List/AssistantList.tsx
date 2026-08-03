@@ -1204,6 +1204,38 @@ export function AssistantList({
                 disabled={isLoading || !!error}
               />
             </div>
+            {/* Flat lists (the common personal-workspace case: one solo group,
+                no teams/humans/groups to section off) have no roster row to
+                nest Onboard under, so it sits beside the search bar instead of
+                inside the scrollable list below -- otherwise it read as
+                detached, single-item chrome under a one-row list. Grouped/org
+                rosters keep their own Onboard entry nested where it belongs
+                (inside the managed-team or Colleagues section). */}
+            {shouldRenderFlatList
+              ? renderOnboardButton(
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={onOpenHireDialog}
+                          disabled={isHireButtonDisabled}
+                          aria-disabled={isHireButtonDisabled}
+                          aria-label="Onboard new teammate"
+                          data-testid="assistant-onboard-button"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Onboard new teammate</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
+              : null}
             {isOrgWorkspace ? (
               <div
                 className="flex shrink-0 flex-col gap-1"
@@ -1272,10 +1304,9 @@ export function AssistantList({
             </div>
           ) : filteredAssistants.length > 0 || hasNonAssistantRows ? (
             shouldRenderFlatList ? (
-              <>
-                {renderFlatAssistants()}
-                {!isFolded ? onboardListButton : null}
-              </>
+              // Onboard for the flat-list case now lives in the header, next
+              // to search -- see the comment there.
+              renderFlatAssistants()
             ) : (
               groupedAssistantList
             )
