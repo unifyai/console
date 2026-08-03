@@ -32,9 +32,10 @@ describe('Data inline editor descriptors', () => {
     );
   });
 
-  it('keeps immutable, derived, and state-managed locked fields non-editable', () => {
-    expect(isDataFieldEditable({ mutable: false }, 'data')).toBe(false);
-    expect(isDataFieldEditable({ fieldType: 'derived_entry' }, 'data')).toBe(false);
-    expect(isDataFieldEditable({ uiEditable: false }, 'Contacts')).toBe(false);
+  it('keeps immutable, derived, and opted-out fields non-editable', () => {
+    expect(isDataFieldEditable({ mutable: false })).toBe(false);
+    expect(isDataFieldEditable({ fieldType: 'derived_entry' })).toBe(false);
+    expect(isDataFieldEditable({ uiEditable: false })).toBe(false);
+    expect(isDataFieldEditable({})).toBe(true);
   });
 });

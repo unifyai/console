@@ -34,8 +34,6 @@ import {
   AlertDialogTitle,
 } from '@/components/UI/alert-dialog';
 import { Pencil, Trash2 } from 'lucide-react';
-import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
-import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
 import { sanitizeId } from '@/lib/logs/columns';
 import { isDataFieldEditable, coerceFieldDraft, type DataField, type DataRow } from './dataTypes';
 
@@ -47,7 +45,6 @@ interface DataRowDetailProps {
   title: string;
   description?: string;
   fields: Record<string, DataField>;
-  mode: DataBrowserMode;
   /** When set, open directly in edit mode for this field only. */
   initialEditField?: string | null;
   onSave: (updates: Record<string, unknown>) => Promise<void>;
@@ -153,7 +150,6 @@ function draftValueForField(field: DataField, value: unknown): string {
 function FieldEditor({
   field,
   fieldInfo,
-  mode,
   value,
   draft,
   onChange,
@@ -161,13 +157,12 @@ function FieldEditor({
 }: {
   field: string;
   fieldInfo: DataField;
-  mode: DataBrowserMode;
   value: unknown;
   draft: string | boolean;
   onChange: (value: string | boolean) => void;
   error?: string;
 }) {
-  const isImmutable = !isDataFieldEditable(fieldInfo, mode);
+  const isImmutable = !isDataFieldEditable(fieldInfo);
   const isJson = isJsonField(fieldInfo, value);
   const isBoolean = /^(bool|boolean)$/i.test(fieldInfo.dataType ?? '');
   const isRestrictedEnum = fieldInfo.restrict === true && (fieldInfo.enumValues?.length ?? 0) > 0;
@@ -233,7 +228,6 @@ export function DataRowDetail({
   title,
   description,
   fields: fieldMetadata,
-  mode,
   initialEditField = null,
   onSave,
   onDelete,
@@ -250,10 +244,7 @@ export function DataRowDetail({
     () => Object.entries(displayRow?.entries ?? {}).filter(([key]) => !key.startsWith('_')),
     [displayRow]
   );
-  const allowDelete = !isStateManagerMode(mode);
-  const hasEditableFields = fields.some(([key]) =>
-    isDataFieldEditable(fieldMetadata[key] ?? {}, mode)
-  );
+  const hasEditableFields = fields.some(([key]) => isDataFieldEditable(fieldMetadata[key] ?? {}));
   /** `null` = not editing; `'all'` = full row; otherwise only listed field keys. */
   const [editingFields, setEditingFields] = React.useState<'all' | string[] | null>(null);
   const [drafts, setDrafts] = React.useState<Record<string, string | boolean>>({});
@@ -283,14 +274,14 @@ export function DataRowDetail({
   const startEditingRow = () => {
     const keys = fields
       .map(([key]) => key)
-      .filter((key) => isDataFieldEditable(fieldMetadata[key] ?? {}, mode));
+      .filter((key) => isDataFieldEditable(fieldMetadata[key] ?? {}));
     setDrafts(buildDraftsForKeys(keys));
     setErrors({});
     setEditingFields('all');
   };
 
   const startEditingField = (fieldKey: string) => {
-    if (!isDataFieldEditable(fieldMetadata[fieldKey] ?? {}, mode)) return;
+    if (!isDataFieldEditable(fieldMetadata[fieldKey] ?? {})) return;
     setDrafts(buildDraftsForKeys([fieldKey]));
     setErrors({});
     setEditingFields([fieldKey]);
@@ -325,7 +316,7 @@ export function DataRowDetail({
     appliedInitialEditRef.current = token;
 
     const key = resolveEntryKey(initialEditField);
-    if (!key || !isDataFieldEditable(fieldMetadata[key] ?? {}, mode)) {
+    if (!key || !isDataFieldEditable(fieldMetadata[key] ?? {})) {
       setEditingFields(null);
       return;
     }
@@ -341,7 +332,7 @@ export function DataRowDetail({
     );
     setErrors({});
     setEditingFields([key]);
-  }, [row, initialEditField, fieldMetadata, mode, resolveEntryKey]);
+  }, [row, initialEditField, fieldMetadata, resolveEntryKey]);
 
   const discardChanges = () => {
     setErrors({});
@@ -362,7 +353,7 @@ export function DataRowDetail({
     for (const key of keysToSave) {
       const value = displayRow?.entries[key];
       const fieldInfo = fieldMetadata[key] ?? {};
-      if (!isDataFieldEditable(fieldInfo, mode)) continue;
+      if (!isDataFieldEditable(fieldInfo)) continue;
 
       const draft = drafts[key];
       try {
@@ -435,19 +426,17 @@ export function DataRowDetail({
             </div>
             {!isEditing && (
               <div className="flex shrink-0 gap-2">
-                {allowDelete && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="hover:bg-destructive/10 text-destructive hover:text-destructive"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    aria-label="Delete row"
-                    data-testid="data-row-detail-delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete row
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hover:bg-destructive/10 text-destructive hover:text-destructive"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  aria-label="Delete row"
+                  data-testid="data-row-detail-delete"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete row
+                </Button>
                 {hasEditableFields && (
                   <Button
                     variant="outline"
@@ -482,7 +471,7 @@ export function DataRowDetail({
                             className="h-5 w-5 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/field:opacity-100"
                           />
                         )}
-                        {isDataFieldEditable(fieldMetadata[key] ?? {}, mode) && (
+                        {isDataFieldEditable(fieldMetadata[key] ?? {}) && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -502,7 +491,6 @@ export function DataRowDetail({
                       <FieldEditor
                         field={key}
                         fieldInfo={fieldMetadata[key] ?? {}}
-                        mode={mode}
                         value={value}
                         draft={drafts[key] ?? draftValueForField(fieldMetadata[key] ?? {}, value)}
                         onChange={(next) => setDrafts((current) => ({ ...current, [key]: next }))}
@@ -536,32 +524,30 @@ export function DataRowDetail({
           </SheetFooter>
         )}
       </SheetContent>
-      {allowDelete && (
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete this row?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This permanently deletes the row from {title}. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {deleteError && <p className="text-caption text-destructive">{deleteError}</p>}
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(event) => {
-                  event.preventDefault();
-                  void deleteRow();
-                }}
-                className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting…' : 'Delete row'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this row?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the row from {title}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && <p className="text-caption text-destructive">{deleteError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void deleteRow();
+              }}
+              className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting…' : 'Delete row'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }

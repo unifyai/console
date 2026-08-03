@@ -22,8 +22,6 @@ import {
   type DataField,
   type DataRow,
 } from './dataTypes';
-import type { DataBrowserMode } from '@/lib/assistants/dataBrowser';
-import { isStateManagerMode } from '@/lib/assistants/dataBrowser';
 import {
   createEmptyLogRow,
   createLogField,
@@ -87,7 +85,6 @@ function toDataRow(row: LogGridRow): DataRow {
 
 interface DataLeafTableProps {
   context: string;
-  mode: DataBrowserMode;
   selectedRowId: string | null;
   onRowSelect: (row: DataRow | null, options?: { editField?: string }) => void;
   /** Lifted so layout remounts (stacked ↔ desktop) keep the current cell selection. */
@@ -98,7 +95,7 @@ interface DataLeafTableProps {
   onMetaChange?: (meta: { count: number; fields: Record<string, DataField> }) => void;
   refreshToken?: number;
   onRowsChange?: (rows: DataRow[]) => void;
-  /** Open import-rows dialog (Data mode only). */
+  /** Open the import-rows dialog. */
   onImportRows?: () => void;
 }
 
@@ -108,7 +105,6 @@ interface DataLeafTableProps {
  */
 export function DataLeafTable({
   context,
-  mode,
   selectedRowId: _selectedRowId,
   onRowSelect: _onRowSelect,
   selectedCells,
@@ -278,8 +274,8 @@ export function DataLeafTable({
   );
 
   const isColumnEditable = React.useCallback(
-    (columnId: string) => isDataFieldEditable(resolveField(columnId).field, mode),
-    [resolveField, mode]
+    (columnId: string) => isDataFieldEditable(resolveField(columnId).field),
+    [resolveField]
   );
 
   const draftForValue = React.useCallback(
@@ -328,8 +324,6 @@ export function DataLeafTable({
     },
     [resolveField, panelRows, context, refreshAll]
   );
-
-  const allowSchemaEdit = mode === 'data';
 
   const handleAddRow = React.useCallback(async () => {
     const entries: Record<string, unknown> = {};
@@ -454,12 +448,12 @@ export function DataLeafTable({
           void refreshAll();
         }}
         onMutated={() => void refreshAll()}
-        allowDelete={!isStateManagerMode(mode)}
-        onAddRow={allowSchemaEdit ? () => void handleAddRow() : undefined}
-        onAddColumn={allowSchemaEdit ? () => setAddColumnOpen(true) : undefined}
-        onImportRows={allowSchemaEdit ? onImportRows : undefined}
-        onRenameColumn={allowSchemaEdit ? (key) => setRenameColumn(key) : undefined}
-        onDeleteColumn={allowSchemaEdit ? (key) => setDeleteColumn(key) : undefined}
+        allowDelete
+        onAddRow={() => void handleAddRow()}
+        onAddColumn={() => setAddColumnOpen(true)}
+        onImportRows={onImportRows}
+        onRenameColumn={(key) => setRenameColumn(key)}
+        onDeleteColumn={(key) => setDeleteColumn(key)}
         testId="data-leaf-table"
         className="min-h-0 min-w-0 flex-1"
         viewPanel={
@@ -477,54 +471,50 @@ export function DataLeafTable({
           ) : null
         }
       />
-      {allowSchemaEdit ? (
-        <>
-          <DataColumnNameDialog
-            open={addColumnOpen}
-            onOpenChange={setAddColumnOpen}
-            title="Add column"
-            submitLabel="Add"
-            testId="data-add-column-dialog"
-            showDataType
-            onSubmit={handleAddColumn}
-          />
-          <DataColumnNameDialog
-            open={renameColumn != null}
-            onOpenChange={(open) => {
-              if (!open) setRenameColumn(null);
-            }}
-            title="Rename column"
-            initialName={renameColumn ?? ''}
-            submitLabel="Rename"
-            testId="data-rename-column-dialog"
-            onSubmit={handleRenameColumn}
-          />
-          <AlertDialog
-            open={deleteColumn != null}
-            onOpenChange={(open) => {
-              if (!open) setDeleteColumn(null);
-            }}
-          >
-            <AlertDialogContent data-testid="data-delete-column-dialog">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete column?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This removes “{deleteColumn}” from every row in this table.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => void handleDeleteColumn()}
-                  data-testid="data-delete-column-confirm"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      ) : null}
+      <DataColumnNameDialog
+        open={addColumnOpen}
+        onOpenChange={setAddColumnOpen}
+        title="Add column"
+        submitLabel="Add"
+        testId="data-add-column-dialog"
+        showDataType
+        onSubmit={handleAddColumn}
+      />
+      <DataColumnNameDialog
+        open={renameColumn != null}
+        onOpenChange={(open) => {
+          if (!open) setRenameColumn(null);
+        }}
+        title="Rename column"
+        initialName={renameColumn ?? ''}
+        submitLabel="Rename"
+        testId="data-rename-column-dialog"
+        onSubmit={handleRenameColumn}
+      />
+      <AlertDialog
+        open={deleteColumn != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteColumn(null);
+        }}
+      >
+        <AlertDialogContent data-testid="data-delete-column-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete column?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes “{deleteColumn}” from every row in this table.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDeleteColumn()}
+              data-testid="data-delete-column-confirm"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

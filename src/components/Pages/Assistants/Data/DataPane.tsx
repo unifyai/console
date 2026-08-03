@@ -30,12 +30,8 @@ import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 import {
   buildDataBrowserTree,
   collectSelectableContexts,
-  contextMatchesDataBrowserMode,
-  isStateManagerMode,
   resolveDataTableContext,
-  STATE_MANAGER_ROOTS,
   treeNeedsFolderView,
-  type DataBrowserMode,
   type DataBrowserRoot,
   type DataCwd,
   type DataTreeNode,
@@ -49,7 +45,6 @@ import { useShellResource } from '@/hooks/Common/useShellResource';
 import { useBrainScopeFilter } from '../Common/BrainScopeFilter';
 import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabFooter } from '../Common/TabFooter';
-import { TabSegment } from '../Common/TabSegmentGroup';
 import { TeamAvatar } from '../OrgChat/TeamAvatar';
 import { useMatchesBelow } from '@/hooks/Common/useMobile';
 import { DataLeafTable } from './DataLeafTable';
@@ -322,37 +317,6 @@ function ScopeSectionHeader({
   );
 }
 
-function ModeSegments({
-  mode,
-  onChange,
-}: {
-  mode: DataBrowserMode;
-  onChange: (mode: DataBrowserMode) => void;
-}) {
-  return (
-    <div
-      className="flex min-w-0 flex-nowrap items-center gap-0.5 overflow-x-auto"
-      data-testid="data-browser-mode"
-    >
-      <TabSegment
-        label="Data"
-        active={mode === 'data'}
-        onClick={() => onChange('data')}
-        testId="data-mode-data"
-      />
-      {STATE_MANAGER_ROOTS.map((root) => (
-        <TabSegment
-          key={root}
-          label={root}
-          active={mode === root}
-          onClick={() => onChange(root)}
-          testId={`data-mode-${root}`}
-        />
-      ))}
-    </div>
-  );
-}
-
 function buildDataScopeSections(
   assistant: Assistant,
   ownerId: string,
@@ -425,7 +389,6 @@ export function DataPane({
     [scopeSections, showScopeHeaders]
   );
 
-  const [mode, setMode] = React.useState<DataBrowserMode>('data');
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [createTarget, setCreateTarget] = React.useState<DataCwd | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
@@ -448,14 +411,6 @@ export function DataPane({
   const [deleteSaving, setDeleteSaving] = React.useState(false);
   const isStackedLayout = useMatchesBelow('tablet');
   const [mobileShowTree, setMobileShowTree] = React.useState(true);
-
-  React.useEffect(() => {
-    if (mode !== 'data') {
-      setCreateTarget(null);
-      setRenamingTarget(null);
-      setDeleteTarget(null);
-    }
-  }, [mode]);
 
   React.useEffect(() => {
     if (!isStackedLayout) return;
@@ -493,9 +448,9 @@ export function DataPane({
     () =>
       scopeSections.map((section) => ({
         section,
-        tree: buildDataBrowserTree(contextNames ?? [], [section.browserRoot], mode),
+        tree: buildDataBrowserTree(contextNames ?? [], [section.browserRoot]),
       })),
-    [scopeSections, contextNames, mode]
+    [scopeSections, contextNames]
   );
 
   const selectableContexts = React.useMemo(
@@ -503,7 +458,6 @@ export function DataPane({
     [sectionTrees]
   );
   const showDirectory =
-    mode === 'data' ||
     selectableContexts.length > 1 ||
     sectionTrees.some(({ tree: sectionTree }) => treeNeedsFolderView(sectionTree));
 
@@ -526,29 +480,6 @@ export function DataPane({
   React.useEffect(() => {
     setSelected((prev) => (prev && !selectableContexts.includes(prev) ? null : prev));
   }, [selectableContexts]);
-
-  React.useEffect(() => {
-    if (mode === 'data') return;
-    if (selectableContexts.length !== 1) return;
-    const only = selectableContexts[0];
-    setSelected(only);
-    setSelectedRow(null);
-    setLeafMeta(null);
-    if (isStackedLayout) setMobileShowTree(false);
-  }, [mode, selectableContexts, isStackedLayout]);
-
-  const changeMode = React.useCallback(
-    (next: DataBrowserMode) => {
-      setMode(next);
-      setSelected((prev) =>
-        prev && contextMatchesDataBrowserMode(prev, dataRoots, next) ? prev : null
-      );
-      setSelectedRow(null);
-      setLeafMeta(null);
-      if (isStackedLayout) setMobileShowTree(true);
-    },
-    [dataRoots, isStackedLayout]
-  );
 
   const selectLeaf = React.useCallback(
     (context: string) => {
@@ -753,14 +684,7 @@ export function DataPane({
   const selectedTableName = selectedDisplayPath
     ? (selectedDisplayPath.split('/').pop() ?? selectedDisplayPath)
     : null;
-  const emptyTreeCopy = `No ${mode} contexts yet.`;
-  const emptySelectCopy =
-    mode === 'data'
-      ? 'Select a table from the directory to browse its rows.'
-      : showDirectory
-        ? `Select a ${mode} table from the directory to browse its rows.`
-        : `No ${mode} table found for this assistant.`;
-  const sidebarTitle = mode === 'data' ? 'Data' : mode;
+  const emptySelectCopy = 'Select a table from the directory to browse its rows.';
 
   const createTargetSection = createTarget
     ? scopeSections.find((s) => s.key === createTarget.sectionKey)
@@ -773,7 +697,7 @@ export function DataPane({
 
   const treeList = (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden" data-testid="data-folder-browser">
-      {mode === 'data' && !showScopeHeaders && scopeSections[0] ? (
+      {!showScopeHeaders && scopeSections[0] ? (
         <div
           className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-2 py-1.5"
           data-testid="data-tree-root-chrome"
@@ -787,9 +711,7 @@ export function DataPane({
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-        {topNodeCount === 0 && mode !== 'data' ? (
-          <p className="text-caption px-2 py-6 text-center">{emptyTreeCopy}</p>
-        ) : topNodeCount === 0 && mode === 'data' ? (
+        {topNodeCount === 0 ? (
           <div className="px-2 py-6 text-center" data-testid="data-folder-empty">
             <p className="text-caption text-muted-foreground">No tables yet.</p>
             <p className="text-caption mt-1 text-muted-foreground">
@@ -801,11 +723,9 @@ export function DataPane({
             const nodes = Array.from(sectionTree.children.values()).sort((a, b) =>
               a.name.localeCompare(b.name)
             );
-            if (nodes.length === 0 && !showScopeHeaders && mode !== 'data') return null;
-            const sectionAdd =
-              mode === 'data' && showScopeHeaders
-                ? addActionsForFolder({ sectionKey: section.key, segments: [] })
-                : null;
+            const sectionAdd = showScopeHeaders
+              ? addActionsForFolder({ sectionKey: section.key, segments: [] })
+              : null;
             return (
               <div key={section.key} className={showScopeHeaders ? 'mb-2' : undefined}>
                 {showScopeHeaders ? (
@@ -832,14 +752,14 @@ export function DataPane({
                       toggle={toggle}
                       selected={selected}
                       onSelect={selectLeaf}
-                      onAddInFolder={mode === 'data' ? addActionsForFolder : undefined}
+                      onAddInFolder={addActionsForFolder}
                       renamingContext={renamingTarget?.context ?? null}
                       renameDraft={renameDraft}
                       onRenameDraftChange={setRenameDraft}
-                      onStartRename={mode === 'data' ? startRenameTable : undefined}
+                      onStartRename={startRenameTable}
                       onCommitRename={() => void commitRenameTable()}
                       onCancelRename={cancelRenameTable}
-                      onRequestDelete={mode === 'data' ? setDeleteTarget : undefined}
+                      onRequestDelete={setDeleteTarget}
                     />
                   ))
                 )}
@@ -854,7 +774,6 @@ export function DataPane({
   const leafTable = selected ? (
     <DataLeafTable
       context={selected}
-      mode={mode}
       selectedRowId={selectedRow ? String(selectedRow.logId) : null}
       onRowSelect={(row, options) => {
         setSelectedRow(row);
@@ -866,13 +785,12 @@ export function DataPane({
       onViewPanelOpenChange={setViewPanelOpen}
       onMetaChange={setLeafMeta}
       refreshToken={refreshToken}
-      onImportRows={mode === 'data' ? () => setAppendImportOpen(true) : undefined}
+      onImportRows={() => setAppendImportOpen(true)}
     />
   ) : null;
 
-  const modeToolbar = (
+  const scopeToolbar = (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-      <ModeSegments mode={mode} onChange={changeMode} />
       <div className="ml-auto flex shrink-0 items-center gap-0.5">
         <BrainScopeDropdown scope={scope} ariaLabel="Data ownership scope" />
         <button
@@ -920,47 +838,30 @@ export function DataPane({
           data-testid="data-mobile-back"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          {sidebarTitle}
+          Data
         </button>
       ) : (
         directoryToggle
       )}
-      {modeToolbar}
+      {scopeToolbar}
     </div>
   );
 
-  const showTreeSidebar =
-    (mode === 'data' || showDirectory) &&
-    (isStackedLayout ? mobileShowTree || !selected : sidebarOpen);
-  const showLeafPane =
-    !isStackedLayout || !(mode === 'data' || showDirectory) || (selected && !mobileShowTree);
+  const showTreeSidebar = isStackedLayout ? mobileShowTree || !selected : sidebarOpen;
+  const showLeafPane = !isStackedLayout || (selected && !mobileShowTree);
 
-  const canCreateInFolder = mode === 'data' && !!createTarget && !!createTargetSection;
+  const canCreateInFolder = !!createTarget && !!createTargetSection;
 
   return (
     <div
       className="flex h-full w-full flex-col overflow-hidden bg-background"
       data-testid="data-pane"
-      data-mode={mode}
       data-scope={scope.activeKey}
     >
       {isLoadingTree ? (
         <TabSplitSkeleton className="min-h-0 flex-1" listRows={8} />
       ) : (
         <>
-          {isStateManagerMode(mode) && (
-            <div
-              className="bg-muted/40 shrink-0 border-b border-border px-4 py-2.5"
-              data-testid="data-state-banner"
-              role="status"
-            >
-              <p className="text-caption text-muted-foreground">
-                These are live assistant state tables. Edits can change behaviour — prefer the
-                dedicated Storage tabs for everyday browsing.
-              </p>
-            </div>
-          )}
-
           {topToolbar}
 
           <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -999,7 +900,6 @@ export function DataPane({
             title={selectedTableName ?? selectedDisplayPath ?? 'Data row'}
             description={selectedDisplayPath ?? undefined}
             fields={leafMeta?.fields ?? {}}
-            mode={mode}
             initialEditField={editField}
             onSave={saveField}
             onDelete={deleteSelectedRow}
@@ -1031,7 +931,7 @@ export function DataPane({
             </>
           ) : null}
 
-          {selected && mode === 'data' ? (
+          {selected ? (
             <DataImportDialog
               open={appendImportOpen}
               onOpenChange={setAppendImportOpen}

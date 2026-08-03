@@ -57,7 +57,6 @@ export function AppRail({
       key={s.id}
       Icon={s.Icon}
       label={s.label}
-      badge={s.badge}
       collapsed={collapsed}
       active={activeSection === s.id}
       showActivityDot={activeSection !== s.id && sectionActivity?.[s.id] === true}

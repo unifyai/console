@@ -1,29 +1,12 @@
 /**
- * Assistants Data browser modes and context-tree helpers.
+ * Assistants Data browser context-tree helpers.
  *
- * Data — ingested `…/Data/…` contexts (default).
- * Per–state-manager modes — one root at a time (Contacts, Tasks, …).
+ * The Data pane browses ingested `…/Data/…` contexts — the external data a
+ * user connects or uploads. State-manager roots (Contacts, Tasks, …) belong to
+ * their own dedicated panes and are deliberately excluded here.
  */
 
-/**
- * State-manager roots offered as Data-pane segments.
- * Omits Dashboards / Secrets / Events — those are not Storage SM surfaces.
- */
-export const STATE_MANAGER_ROOTS = [
-  'Contacts',
-  'Transcripts',
-  'Knowledge',
-  'Functions',
-  'Guidance',
-  'Tasks',
-] as const;
-
-export type StateManagerRoot = (typeof STATE_MANAGER_ROOTS)[number];
-
-/** Browser mode: ingested Data tables, or one state-manager root. */
-export type DataBrowserMode = 'data' | StateManagerRoot;
-
-/** Roots owned by dedicated Storage panes — excluded from Data mode. */
+/** Roots owned by dedicated Storage panes — never part of the Data tree. */
 export const RESERVED_CONTEXT_ROOTS = [
   'Contacts',
   'Transcripts',
@@ -37,15 +20,10 @@ export const RESERVED_CONTEXT_ROOTS = [
 ] as const;
 
 const RESERVED_ROOT_SET = new Set<string>(RESERVED_CONTEXT_ROOTS);
-const STATE_ROOT_SET = new Set<string>(STATE_MANAGER_ROOTS);
 
 /** Bookkeeping tables (`Contacts/Meta`, `Data/Meta`, …) — never shown in the Data browser. */
 export function isMetaContextPath(relativeSegments: string[]): boolean {
   return relativeSegments.length > 0 && relativeSegments[relativeSegments.length - 1] === 'Meta';
-}
-
-export function isStateManagerMode(mode: DataBrowserMode): mode is StateManagerRoot {
-  return mode !== 'data' && STATE_ROOT_SET.has(mode);
 }
 
 export interface DataBrowserRoot {
@@ -64,14 +42,10 @@ function newNode(name: string): DataTreeNode {
   return { name, context: null, children: new Map() };
 }
 
-/**
- * Build a directory tree for the Data browser from Orchestra context names.
- * `mode` is either ingested `Data/…` or a single state-manager root.
- */
+/** Build a directory tree of ingested `Data/…` tables from Orchestra context names. */
 export function buildDataBrowserTree(
   contextNames: string[],
-  dataRoots: DataBrowserRoot[],
-  mode: DataBrowserMode
+  dataRoots: DataBrowserRoot[]
 ): DataTreeNode {
   const root = newNode('root');
   for (const fullName of contextNames) {
@@ -83,19 +57,11 @@ export function buildDataBrowserTree(
     // Hide */Meta bookkeeping contexts (Contacts/Meta, Data/Meta, …).
     if (isMetaContextPath(segments)) continue;
 
-    if (mode === 'data') {
-      // Only ingest contexts under `Data/` — not sibling roots.
-      if (segments[0] !== 'Data' || segments.length < 2) continue;
-      segments = segments.slice(1);
-      if (segments.length === 0 || RESERVED_ROOT_SET.has(segments[0])) continue;
-      if (isMetaContextPath(segments)) continue;
-    } else {
-      if (segments[0] !== mode) continue;
-      // Already scoped by the segment control — drop the redundant root folder.
-      segments = segments.slice(1);
-      if (segments.length === 0) segments = [mode];
-      if (isMetaContextPath(segments)) continue;
-    }
+    // Only ingested contexts under `Data/` — not sibling state-manager roots.
+    if (segments[0] !== 'Data' || segments.length < 2) continue;
+    segments = segments.slice(1);
+    if (segments.length === 0 || RESERVED_ROOT_SET.has(segments[0])) continue;
+    if (isMetaContextPath(segments)) continue;
 
     if (match.group) segments = [match.group, ...segments];
     let cursor = root;
@@ -108,20 +74,13 @@ export function buildDataBrowserTree(
   return root;
 }
 
-/** True when `fullContext` belongs in the given browser mode. */
-export function contextMatchesDataBrowserMode(
-  fullContext: string,
-  dataRoots: DataBrowserRoot[],
-  mode: DataBrowserMode
-): boolean {
+/** True when `fullContext` is an ingested Data table the browser can show. */
+export function isBrowsableDataContext(fullContext: string, dataRoots: DataBrowserRoot[]): boolean {
   const match = dataRoots.find((r) => fullContext.startsWith(r.prefix));
   if (!match) return false;
   const segments = fullContext.slice(match.prefix.length).split('/').filter(Boolean);
   if (segments.length === 0 || isMetaContextPath(segments)) return false;
-  if (mode === 'data') {
-    return segments[0] === 'Data' && segments.length >= 2 && !RESERVED_ROOT_SET.has(segments[1]);
-  }
-  return segments[0] === mode;
+  return segments[0] === 'Data' && segments.length >= 2 && !RESERVED_ROOT_SET.has(segments[1]);
 }
 
 /** Collect every selectable context path under a tree node. */
@@ -136,7 +95,7 @@ export function collectSelectableContexts(node: DataTreeNode): string[] {
 
 /**
  * Whether the directory sidebar is useful: more than one table, or any nested
- * folder structure (e.g. Functions with Compositional / Primitives).
+ * folder structure (e.g. a Sales folder nesting Leads / Accounts).
  */
 export function treeNeedsFolderView(root: DataTreeNode): boolean {
   const leaves = collectSelectableContexts(root);

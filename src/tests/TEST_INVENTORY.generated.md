@@ -123,7 +123,6 @@
 | `src/tests/assistants/data-bridge.e2e.ts`                 | auto-exec tile injects bridge and executes on_data with resolved bindings                                 | no    | no        | P2        |
 | `src/tests/assistants/data-bridge.e2e.ts`                 | static tile renders without auto-exec bindings                                                            | no    | no        | P2        |
 | `src/tests/assistants/data-bridge.e2e.ts`                 | auto-exec tile handles binding failure gracefully                                                         | no    | no        | P2        |
-| `src/tests/assistants/data-browser-modes.e2e.ts`          | Data is default; Contacts segment opens the table and hides Meta                                          | no    | no        | P2        |
 | `src/tests/assistants/data-browser-scope.e2e.ts`          | All shows branded sections; Personal and Team scopes flatten the tree                                     | no    | no        | P2        |
 | `src/tests/assistants/data-create-table.e2e.ts`           | creates a new empty table under Data root and opens it                                                    | no    | no        | P2        |
 | `src/tests/assistants/data-create-table.e2e.ts`           | creates a table inside an existing folder via that folder + menu                                          | no    | no        | P2        |
@@ -152,8 +151,6 @@
 | `src/tests/assistants/data-sheet-crud.e2e.ts`             | adds a column and a row, edits a cell, renames a column, deletes a row                                    | no    | no        | P2        |
 | `src/tests/assistants/data-table-rename-delete.e2e.ts`    | renames a table in place from the tree … menu                                                             | no    | no        | P2        |
 | `src/tests/assistants/data-table-rename-delete.e2e.ts`    | deletes a table after confirmation from the tree … menu                                                   | no    | no        | P2        |
-| `src/tests/assistants/data-ui-editable.e2e.ts`            | Contacts SM mode: allowlisted fields editable, contact_id read-only, no delete                            | no    | no        | P2        |
-| `src/tests/assistants/data-ui-editable.e2e.ts`            | Transcripts SM mode: fully read-only and no delete                                                        | no    | no        | P2        |
 | `src/tests/assistants/delete.e2e.ts`                      | deleting an assistant removes it from the list and the database                                           | no    | yes       | P2        |
 | `src/tests/assistants/delete.e2e.ts`                      | cancelling the delete confirmation keeps the assistant                                                    | no    | yes       | P2        |
 | `src/tests/assistants/desktop-filesys.e2e.ts`             | toggling filesystem access drives consent flag and per-link SFTP key                                      | no    | yes       | P2        |

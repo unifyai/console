@@ -54,8 +54,6 @@ export interface SectionDef {
    * assistant-only (the historical default).
    */
   appliesTo?: ReadonlyArray<SelectorEntityKind>;
-  /** Optional rail/header chip. */
-  badge?: string;
 }
 
 export function sectionAppliesTo(section: SectionDef, kind: SelectorEntityKind): boolean {
@@ -264,17 +262,11 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',
-    desc: 'Browse ingested Data tables and state-manager contexts in a shared table browser. Prefer the dedicated Storage tabs for everyday browsing; edits here can change assistant behaviour.',
+    desc: 'Browse the external data connected to this assistant — tables you create here and files you upload or ingest.',
     steps: [
-      ['Stay on Tables', 'Browse ingested Data/ tables — the default, everyday mode.'],
-      [
-        'Switch to State',
-        'Open Contacts, Tasks, Knowledge, and other state-manager contexts when you need raw row edits.',
-      ],
-      [
-        'Edit carefully',
-        'LogGrid mutations write straight to Orchestra; use dedicated tabs when you only need to read.',
-      ],
+      ['Pick a table', 'Select a table from the directory to browse its rows.'],
+      ['Add data', 'Use + to create a table or upload a file into the current folder.'],
+      ['Edit in place', 'Double-click a cell to edit it, or open a row for the full record.'],
     ],
   },
 ];

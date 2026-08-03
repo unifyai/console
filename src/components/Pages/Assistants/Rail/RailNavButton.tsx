@@ -20,8 +20,6 @@ interface RailNavButtonProps {
   onClick?: () => void;
   testId?: string;
   showActivityDot?: boolean;
-  /** Optional chip shown next to the label. */
-  badge?: string;
 }
 
 /**
@@ -38,7 +36,6 @@ export function RailNavButton({
   onClick,
   testId,
   showActivityDot = false,
-  badge,
 }: RailNavButtonProps) {
   const button = (
     <button
@@ -46,7 +43,7 @@ export function RailNavButton({
       onClick={onClick}
       disabled={disabled}
       aria-current={active ? 'page' : undefined}
-      aria-label={collapsed ? (badge ? `${label} (${badge})` : label) : undefined}
+      aria-label={collapsed ? label : undefined}
       data-testid={testId}
       className={cn(
         // `overflow-hidden` + nowrap labels keep rows a fixed height while the
@@ -68,14 +65,6 @@ export function RailNavButton({
       </span>
       {!collapsed && (
         <span className="truncate whitespace-nowrap text-[13px] font-normal">{label}</span>
-      )}
-      {!collapsed && badge && (
-        <span
-          className="shrink-0 rounded-md border border-border px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-[0.06em] text-muted-foreground"
-          data-testid={testId ? `${testId}-badge` : undefined}
-        >
-          {badge}
-        </span>
       )}
       {showActivityDot && (
         <span
@@ -100,7 +89,7 @@ export function RailNavButton({
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="right">
-          <p>{badge ? `${label} · ${badge}` : label}</p>
+          <p>{label}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
