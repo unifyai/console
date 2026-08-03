@@ -28,6 +28,7 @@ import {
 } from '@/lib/pubsub/ephemeral-subscription';
 import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
+import { authorizeAssistantStream } from '@/lib/assistants/assistantStreamAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -199,6 +200,14 @@ export async function GET(
 
   if (!assistantId) {
     return new NextResponse('Assistant ID is required.', { status: 400 });
+  }
+
+  // Before either backend. Health signals name the assistant and carry its failure
+  // detail, and this route reads its Pub/Sub topic with the platform's own
+  // credentials, so the caller's right to it has to be established here.
+  const access = await authorizeAssistantStream(request, assistantId);
+  if (!access.ok) {
+    return access.response;
   }
 
   // In development, always use the local event bus so the push endpoint

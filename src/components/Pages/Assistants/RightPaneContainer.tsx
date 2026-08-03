@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { Tabs, TabsContent } from '@/components/UI/tabs';
 import { LiveActionsViewer } from './LiveActions';
+import { CanvasPane } from './Canvas/CanvasPane';
 import { DashboardsPane } from './Dashboards';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
@@ -32,7 +33,14 @@ const TAB_CONTENT_CLASS = 'min-h-0 flex-1 overflow-hidden data-[state=inactive]:
  * stay typed end-to-end. The active tab is owned by the rail; this
  * container renders the matching body.
  */
-export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'integrations' | 'actions' | 'desktop';
+export type RightPaneTab =
+  | 'chat'
+  | 'tasks'
+  | 'canvas'
+  | 'dashboards'
+  | 'integrations'
+  | 'actions'
+  | 'desktop';
 
 export type RightPaneIntegrationsState = Partial<
   Pick<IntegrationGalleryFilters, 'query' | 'category' | 'semanticCategory'>
@@ -250,6 +258,14 @@ export function RightPaneContainer({
           assistantId={assistant.agentId}
           isVisible={activeTab === 'tasks'}
           isActiveSurface={isActiveSurface}
+        />
+      </TabsContent>
+
+      <TabsContent value="canvas" className={TAB_CONTENT_CLASS} forceMount>
+        <CanvasPane
+          assistant={assistant}
+          ownerId={assistant.userId}
+          assistantId={assistant.agentId}
         />
       </TabsContent>
 

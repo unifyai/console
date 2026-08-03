@@ -99,6 +99,7 @@
     "@types/react-window": "^1.8.8",
     "@types/three": "^0.182.0",
     "@unity/brand": "file:branding/packages/brand",
+    "@unity/canvas-kit": "file:branding/packages/canvas-kit",
     "@unity/iso": "file:branding/packages/iso",
     "ai": "^6.0.41",
     "axios": "^1.7.7",
