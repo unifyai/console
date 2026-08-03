@@ -196,7 +196,7 @@ export function AssistantSwitcher({
           'flex items-center transition-colors',
           collapsed
             ? 'mx-auto w-fit rounded-xl p-1.5 hover:bg-muted'
-            : 'hover:bg-muted/70 mx-3.5 gap-2 rounded-xl border border-border bg-card px-2 py-1.5 text-left'
+            : 'hover:bg-muted/70 w-full gap-2 rounded-xl border border-border bg-card px-2 py-1.5 text-left'
         )}
       >
         {face}
@@ -229,7 +229,10 @@ export function AssistantSwitcher({
 
   return (
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
-      <div className="mb-2">
+      {/* The horizontal inset lives here rather than as margins on the button
+          so the trigger can be w-full and span the rail like the account
+          switcher below it; margins left it hugging its content. */}
+      <div className={cn('mb-2', !collapsed && 'px-3.5')}>
         {collapsed ? (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
