@@ -60,22 +60,24 @@ export function sectionAppliesTo(section: SectionDef, kind: SelectorEntityKind):
   return (section.appliesTo ?? ['assistant']).includes(kind);
 }
 
-export const CHAT_SECTION: SectionDef = {
-  id: 'chat',
-  label: 'Chat',
-  Icon: MessageSquare,
-  kind: 'view',
-  tab: 'chat',
-  appliesTo: ['assistant', 'human', 'team', 'group'],
-  desc: 'Talk to your teammate — messages, voice notes, files, and screen share in one thread.',
-  steps: [
-    ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],
-    ['Attach files', 'Drop documents, images, or screenshots into the composer for extra context.'],
-    ['Share your screen', 'Start screen share so your teammate can follow along live.'],
-  ],
-};
-
 export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
+  {
+    id: 'chat',
+    label: 'Chat',
+    Icon: MessageSquare,
+    kind: 'view',
+    tab: 'chat',
+    appliesTo: ['assistant', 'human', 'team', 'group'],
+    desc: 'Talk to your teammate — messages, voice notes, files, and screen share in one thread.',
+    steps: [
+      ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],
+      [
+        'Attach files',
+        'Drop documents, images, or screenshots into the composer for extra context.',
+      ],
+      ['Share your screen', 'Start screen share so your teammate can follow along live.'],
+    ],
+  },
   {
     id: 'members',
     label: 'Members',
@@ -271,11 +273,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   },
 ];
 
-export const ALL_SECTIONS: ReadonlyArray<SectionDef> = [
-  CHAT_SECTION,
-  ...WORKSPACE_SECTIONS,
-  ...BRAIN_SECTIONS,
-];
+export const ALL_SECTIONS: ReadonlyArray<SectionDef> = [...WORKSPACE_SECTIONS, ...BRAIN_SECTIONS];
 
 export const SECTION_BY_ID: Record<string, SectionDef> = Object.fromEntries(
   ALL_SECTIONS.map((s) => [s.id, s])
