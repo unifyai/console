@@ -46,6 +46,7 @@ interface ProgrammaticKey {
 
 interface ApiKeysResponse {
   personalKeys?: ProgrammaticKey[];
+  apiAccessAllowed?: boolean;
 }
 
 const SecurityTab = ({ user }: { user: User }) => {
@@ -54,6 +55,7 @@ const SecurityTab = ({ user }: { user: User }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [programmaticKey, setProgrammaticKey] = useState<string | null>(null);
   const [keyLoading, setKeyLoading] = useState(true);
+  const [apiAccessAllowed, setApiAccessAllowed] = useState(true);
 
   // MFA status (for card label)
   const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
@@ -77,6 +79,7 @@ const SecurityTab = ({ user }: { user: User }) => {
         if (res.ok) {
           const data = (await res.json()) as ApiKeysResponse;
           setProgrammaticKey(data.personalKeys?.[0]?.key ?? null);
+          setApiAccessAllowed(data.apiAccessAllowed ?? true);
         } else {
           setProgrammaticKey(null);
         }
@@ -204,7 +207,28 @@ const SecurityTab = ({ user }: { user: User }) => {
         {keyLoading ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         ) : programmaticKey ? (
-          <ApiKeyField apiKey={programmaticKey} />
+          <>
+            <ApiKeyField apiKey={programmaticKey} />
+            {!apiAccessAllowed && (
+              // The key exists and is valid, but every call it makes is
+              // refused until the account has paid. Saying so here is the
+              // whole point: otherwise the first sign is a 402 from a
+              // script, with nothing to connect it to.
+              <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="text-caption">
+                  This key won&apos;t work yet. Free credits can only be spent inside the console,
+                  so API calls will be declined until you add a payment method.
+                </p>
+                <Button
+                  variant="link"
+                  className="text-caption h-auto p-0"
+                  onClick={() => router.push('/billing')}
+                >
+                  Go to billing
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <p className="text-caption text-muted-foreground">
             No API key is available for this account.
