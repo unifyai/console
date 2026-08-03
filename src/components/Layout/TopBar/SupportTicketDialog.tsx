@@ -49,7 +49,7 @@ function CapturingIcon({ className, strokeWidth }: { className?: string; strokeW
   return <Loader2 className={cn(className, 'animate-spin')} strokeWidth={strokeWidth} />;
 }
 
-export default function SupportTicketDialog() {
+export default function SupportTicketDialog({ collapsed = false }: { collapsed?: boolean }) {
   const {
     isOpen,
     isCapturing,
@@ -88,6 +88,7 @@ export default function SupportTicketDialog() {
       <RailNavButton
         Icon={isCapturing ? CapturingIcon : HelpSquareIcon}
         label="Report an issue"
+        collapsed={collapsed}
         disabled={isCapturing}
         onClick={openDialog}
         testId="support-ticket-trigger"

@@ -48,6 +48,6 @@ test('the assistants rail renders with brand and unity switcher @push @critical 
 
   const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 15_000 });
-  await expect(rail.getByTestId('platform-home-button')).toBeVisible();
+  await expect(rail.getByText('Unify', { exact: true })).toBeVisible();
   await expect(railUnitySwitcher(page)).toBeVisible();
 });

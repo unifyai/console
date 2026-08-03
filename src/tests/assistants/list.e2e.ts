@@ -147,11 +147,11 @@ test('deep link ?profile=agentId opens the correct assistant', async ({ authedPa
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
 
-  const chatHome = page.getByTestId('rail-chat-home');
-  await expect(chatHome).toHaveAttribute('aria-label', new RegExp(dbAssistant.firstName), {
+  const chatHome = railSection(page, 'chat');
+  await expect(chatHome).toContainText(dbAssistant.firstName, {
     timeout: 10_000,
   });
-  await expect(chatHome).toHaveAttribute('aria-label', new RegExp(dbAssistant.surname), {
+  await expect(chatHome).toContainText(dbAssistant.surname, {
     timeout: 5_000,
   });
 });

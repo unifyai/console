@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Gift } from 'lucide-react';
+import { Gift, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/UI/tooltip';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
@@ -79,26 +79,53 @@ export function ReferralPromoButton({ iconButtonClassName }: { iconButtonClassNa
 }
 
 /** Sidebar nav row for the billing referral program. */
-export function ReferralPromoNavButton({ onNavigate }: { onNavigate?: () => void }) {
+export function ReferralPromoNavButton({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
   const canShow = useReferralPromoAccess();
-  const { visible } = useReferralPromoVisible();
+  const { visible, dismiss } = useReferralPromoVisible();
 
   if (!canShow || !visible) return null;
 
   return (
-    <div className="flex justify-center">
+    <div
+      className={
+        collapsed
+          ? 'flex justify-center'
+          : 'flex items-center gap-1 rounded-[10px] px-1 transition-colors hover:bg-muted'
+      }
+    >
       <Link
         href="/billing"
         target="_blank"
         rel="noopener noreferrer"
         onClick={onNavigate}
         data-testid="referral-promo-nav"
-        title={PROMO_LABEL}
-        aria-label={PROMO_LABEL}
-        className="flex h-9 w-9 items-center justify-center rounded-[10px] text-foreground transition-colors hover:bg-muted"
+        title={collapsed ? PROMO_LABEL : undefined}
+        className={
+          collapsed
+            ? 'flex h-9 w-9 items-center justify-center rounded-[10px] text-foreground transition-colors hover:bg-muted'
+            : 'flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-1.5 py-2 text-[13px] font-medium text-foreground transition-colors hover:text-foreground'
+        }
       >
         <Gift className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+        {!collapsed && <span className="truncate">Refer &amp; earn</span>}
       </Link>
+      {!collapsed && (
+        <button
+          type="button"
+          aria-label="Dismiss referral promo"
+          data-testid="referral-promo-nav-dismiss"
+          onClick={dismiss}
+          className="mr-1 rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
