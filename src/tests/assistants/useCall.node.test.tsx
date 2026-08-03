@@ -34,6 +34,7 @@ const useDesktopReadyMock = vi.fn((..._args: unknown[]) => ({
   isDesktopReady: false,
   eventLiveviewUrl: null,
   eventBindingId: null,
+  eventLiveviewPassword: null,
 }));
 
 vi.mock('@/hooks/Assistants/useDesktopReady', () => ({

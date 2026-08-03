@@ -105,7 +105,7 @@ export function AssistantDesktopPane({
   const wakeAttemptedRef = React.useRef(false);
   const [startupAttempt, setStartupAttempt] = React.useState(0);
 
-  const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
+  const { isDesktopReady, eventLiveviewUrl, eventLiveviewPassword } = useDesktopReady(
     assistantId,
     boundGetLiveviewUrl,
     false,
@@ -144,7 +144,12 @@ export function AssistantDesktopPane({
       const actions = desktopActionsRef.current;
       let resolvedUrl: string | undefined;
       if (eventLiveviewUrl) {
-        const built = await actions.buildLiveviewUrl(eventLiveviewUrl, ownerId, organizationId);
+        const built = await actions.buildLiveviewUrl(
+          eventLiveviewUrl,
+          ownerId,
+          organizationId,
+          eventLiveviewPassword
+        );
         resolvedUrl = built.liveviewUrl;
       } else {
         const result = await actions
@@ -197,7 +202,7 @@ export function AssistantDesktopPane({
       setErrorMessage(message);
       setLiveviewUrl(null);
     }
-  }, [assistantId, ownerId, organizationId, eventLiveviewUrl]);
+  }, [assistantId, ownerId, organizationId, eventLiveviewUrl, eventLiveviewPassword]);
 
   const beginStartup = React.useCallback(() => {
     wakeAttemptedRef.current = true;

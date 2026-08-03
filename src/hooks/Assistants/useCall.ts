@@ -1113,15 +1113,16 @@ export function useCall(
     [assistantActions.desktop, activeCallAssistant?.userId, activeCallAssistant?.organizationId]
   );
 
-  const { isDesktopReady, eventLiveviewUrl, eventBindingId } = useDesktopReady(
-    isDesktopEnabled ? activeCallAssistant?.agentId : undefined,
-    boundGetLiveviewUrl,
-    false,
-    undefined,
-    0,
-    activeCall?.callId ?? null,
-    runtimePollScope
-  );
+  const { isDesktopReady, eventLiveviewUrl, eventBindingId, eventLiveviewPassword } =
+    useDesktopReady(
+      isDesktopEnabled ? activeCallAssistant?.agentId : undefined,
+      boundGetLiveviewUrl,
+      false,
+      undefined,
+      0,
+      activeCall?.callId ?? null,
+      runtimePollScope
+    );
 
   const scopedLiveviewLookup = React.useCallback((): DesktopSessionScope | null => {
     if (eventBindingId) {
@@ -1138,14 +1139,15 @@ export function useCall(
     const built = await assistantActions.desktop.buildLiveviewUrl(
       eventLiveviewUrl,
       activeCallAssistant.userId,
-      activeCallAssistant.organizationId ?? null
+      activeCallAssistant.organizationId ?? null,
+      eventLiveviewPassword
     );
     const healthy = await assistantActions.desktop.checkLiveviewHealth(built.liveviewUrl);
     if (!healthy) {
       throw new Error('Desktop liveview path is not reachable yet.');
     }
     setLiveviewUrl(built.liveviewUrl);
-  }, [activeCallAssistant, assistantActions.desktop, eventLiveviewUrl]);
+  }, [activeCallAssistant, assistantActions.desktop, eventLiveviewUrl, eventLiveviewPassword]);
 
   React.useEffect(() => {
     if (!isRemoteControlActive || !isDesktopReady || !eventLiveviewUrl) return;
@@ -1188,7 +1190,8 @@ export function useCall(
         const built = await assistantActions.desktop.buildLiveviewUrl(
           eventLiveviewUrl,
           activeCallAssistant.userId,
-          activeCallAssistant.organizationId ?? null
+          activeCallAssistant.organizationId ?? null,
+          eventLiveviewPassword
         );
         resolvedUrl = built.liveviewUrl;
       } else if (isDesktopReady) {
@@ -1237,6 +1240,7 @@ export function useCall(
     assistantActions.desktop,
     activeCallAssistant,
     eventLiveviewUrl,
+    eventLiveviewPassword,
     isDesktopReady,
     scopedLiveviewLookup,
   ]);
