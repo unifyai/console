@@ -52,8 +52,8 @@ const team = createTeamForAssistant(assistant, {
   name: `Data Scope Team ${Date.now()}`,
 });
 
-const personalTranscripts = `${user.id}/${assistant.agentId}/Transcripts`;
-const teamTranscripts = `Teams/${team.teamId}/Transcripts`;
+const personalLeads = `${user.id}/${assistant.agentId}/Data/Leads`;
+const teamLeads = `Teams/${team.teamId}/Data/Leads`;
 
 test.beforeAll(async () => {
   await seedChatInfrastructure({
@@ -64,8 +64,8 @@ test.beforeAll(async () => {
   });
 
   for (const [context, content] of [
-    [personalTranscripts, 'Personal transcript row'],
-    [teamTranscripts, 'Team transcript row'],
+    [personalLeads, 'Personal lead row'],
+    [teamLeads, 'Team lead row'],
   ] as const) {
     const res = await orchestraFetch(
       '/v0/logs',
@@ -90,21 +90,19 @@ test.afterAll(async () => {
   await cleanupUser(user.id);
 });
 
-async function openDataTranscripts(page: import('@playwright/test').Page) {
+async function openDataPane(page: import('@playwright/test').Page) {
   await switchWorkspace(page, org.id);
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await selectAssistantInList(page, assistant.agentId);
   await openRailSection(page, 'data');
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId('data-mode-Transcripts').click();
-  await expect(page.getByTestId('data-pane')).toHaveAttribute('data-mode', 'Transcripts');
 }
 
 test('All shows branded sections; Personal and Team scopes flatten the tree', async ({
   authedPage: page,
 }) => {
-  await openDataTranscripts(page);
+  await openDataPane(page);
 
   await expect(page.getByTestId('brain-scope-dropdown')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-scope', 'all');
@@ -116,30 +114,33 @@ test('All shows branded sections; Personal and Team scopes flatten the tree', as
   // Ownership is a section header — not a filesystem folder named after the team.
   await expect(page.getByTestId('data-folder-node').filter({ hasText: team.name })).toHaveCount(0);
 
-  const transcriptsNodes = page.getByTestId('data-table-node').filter({ hasText: /^Transcripts$/ });
-  await expect(transcriptsNodes).toHaveCount(2);
+  const leadsNodes = page.getByTestId('data-table-node').filter({ hasText: /^Leads$/ });
+  await expect(leadsNodes).toHaveCount(2);
 
   await page.getByTestId('brain-scope-dropdown').click();
   await page.getByTestId('brain-scope-personal').click();
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-scope', 'personal');
   await expect(page.getByTestId('data-scope-section-personal')).toHaveCount(0);
   await expect(page.getByTestId(`data-scope-section-team-${team.teamId}`)).toHaveCount(0);
-  await expect(
-    page.getByTestId('data-table-node').filter({ hasText: /^Transcripts$/ })
-  ).toHaveCount(0);
-  // Single-table personal Transcripts opens directly (no directory chrome).
+  await expect(page.getByTestId('data-table-node').filter({ hasText: /^Leads$/ })).toHaveCount(1);
+  await page
+    .getByTestId('data-table-node')
+    .filter({ hasText: /^Leads$/ })
+    .click();
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('heading', { name: 'Transcripts' })).toBeVisible();
 
   await page.getByTestId('brain-scope-dropdown').click();
   await page.getByTestId(`brain-scope-team-${team.teamId}`).click();
   await expect(page.getByTestId('data-pane')).toHaveAttribute('data-scope', `team-${team.teamId}`);
   await expect(page.getByTestId('data-scope-section-personal')).toHaveCount(0);
+  await page
+    .getByTestId('data-table-node')
+    .filter({ hasText: /^Leads$/ })
+    .click();
   await expect(page.getByTestId('data-leaf-table')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('heading', { name: 'Transcripts' })).toBeVisible();
 
   const listRes = await orchestraFetch(
-    `/v0/logs?project_name=Assistants&context=${encodeURIComponent(teamTranscripts)}&limit=5`,
+    `/v0/logs?project_name=Assistants&context=${encodeURIComponent(teamLeads)}&limit=5`,
     { method: 'GET' },
     org.ownerOrgApiKey
   );

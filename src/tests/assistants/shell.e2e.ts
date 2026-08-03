@@ -1,6 +1,7 @@
 /**
- * Rail shell E2E — verifies the /assistants icon-only rail: unity switcher
- * popover, Workspace/Brain section navigation, and account menu.
+ * Rail shell E2E — verifies the /assistants rail shell: the unity switcher
+ * popover, Workspace/Brain section navigation, the account menu, and
+ * collapse-to-dock persistence.
  *
  * Run: npx playwright test src/tests/assistants/shell.e2e.ts
  */
@@ -51,9 +52,8 @@ test('the rail renders with the brand and unity switcher', async ({ authedPage: 
 
   const rail = assistantRail(page);
   await expect(rail).toBeVisible({ timeout: 15_000 });
-  await expect(rail.getByTestId('platform-home-button')).toBeVisible();
+  await expect(rail.getByText('Unify', { exact: true })).toBeVisible();
   await expect(railUnitySwitcher(page)).toBeVisible();
-  await expect(railSection(page, 'chat')).toBeVisible();
 });
 
 test('the unity switcher opens and selecting a unity drives the section host @push @critical @area(assistants.core)', async ({
@@ -71,7 +71,7 @@ test('the unity switcher opens and selecting a unity drives the section host @pu
   await expect(row).toContainText('Switchy');
   await row.click();
 
-  await expect(railSection(page, 'chat')).toHaveAttribute('aria-label', /Switchy/);
+  await expect(railSection(page, 'chat')).toContainText('Switchy');
   await closeUnitySwitcher(page);
   // Default section is Chat.
   await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
@@ -85,7 +85,7 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page, shellOpts);
   await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
-  await expect(railSection(page, 'chat')).toHaveAttribute('aria-label', /Navvy/);
+  await expect(railSection(page, 'chat')).toContainText('Navvy');
   await closeUnitySwitcher(page);
 
   await openRailSection(page, 'tasks');
@@ -96,17 +96,26 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 5_000 });
 });
 
-test('mobile viewport keeps the icon rail visible', async ({ authedPage: page }) => {
+test('mobile viewport exposes rail navigation via the menu toggle', async ({
+  authedPage: page,
+}) => {
   await page.setViewportSize({ width: 375, height: 812 });
 
   deleteAllAssistantsForUser(user.id);
   createAssistant({ userId: user.id, firstName: 'Mobile', surname: 'Shell' });
 
-  await navigateToAssistants(page, shellOpts);
+  await navigateToAssistants(page, { ...shellOpts, skipRailCheck: true });
   await closeHireDialogIfOpen(page);
 
+  // A hidden duplicate shell surface can mount its own toggle; assert and
+  // click the visible instance only.
+  const mobileToggle = page.locator('[data-testid="rail-mobile-toggle"]:visible').first();
+  await expect(mobileToggle).toBeVisible({ timeout: 15_000 });
+  await expect(assistantRail(page)).toHaveCount(0);
+
+  await mobileToggle.click();
   const rail = assistantRail(page);
-  await expect(rail).toBeVisible({ timeout: 15_000 });
+  await expect(rail).toBeVisible({ timeout: 5_000 });
   await expect(railSection(page, 'chat')).toBeVisible();
   await expect(page.getByTestId('chat-search-trigger')).toBeVisible();
 });

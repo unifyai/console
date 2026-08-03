@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { AppRail } from '@/components/Layout/Shell/AppRail';
+import { AppRail, RAIL_COLLAPSED_STORAGE_KEY } from '@/components/Layout/Shell/AppRail';
 import { AssistantSwitcher } from '@/components/Layout/Shell/AssistantSwitcher';
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
@@ -20,6 +20,8 @@ interface AssistantRailProps {
   activeSection: string;
   sectionActivity?: Partial<Record<string, boolean>>;
   onSelectSection: (section: SectionDef) => void;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
   onBrandClick?: () => void;
   /** Selected entity kind — filters which rail sections are shown. */
   entityKind?: SelectorEntityKind;
@@ -41,6 +43,8 @@ export function AssistantRail({
   activeSection,
   sectionActivity,
   onSelectSection,
+  collapsed,
+  onCollapsedChange,
   onBrandClick,
   entityKind = 'assistant',
   nestedOverlayOpen = false,
@@ -55,6 +59,8 @@ export function AssistantRail({
       activeSection={activeSection}
       sectionActivity={sectionActivity}
       onSelectSection={onSelectSection}
+      collapsed={collapsed}
+      onCollapsedChange={onCollapsedChange}
       onBrandClick={onBrandClick}
       entityKind={entityKind}
       switcher={
@@ -64,6 +70,7 @@ export function AssistantRail({
           isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
           listProps={listProps}
           nestedOverlayOpen={nestedOverlayOpen}
+          collapsed={collapsed}
           onOpenChat={handleOpenChat}
           chatActive={activeSection === 'chat'}
           showChatActivity={activeSection !== 'chat' && sectionActivity?.chat === true}
@@ -73,3 +80,5 @@ export function AssistantRail({
     />
   );
 }
+
+export { RAIL_COLLAPSED_STORAGE_KEY };
