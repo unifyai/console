@@ -24,6 +24,7 @@ import TeamListPanel from './TeamListPanel';
 import RoleListPanel from './RoleListPanel';
 import { MfaSettingsActions } from './SecuritySettingsPanel';
 import { fetchMemberSpend, updateMemberSpendingLimit } from '@/lib/client/spending';
+import { organizationTabs } from '@/lib/navigation/organizationTabs';
 
 // `MemberSpendingDialog` is only rendered when a row's three-dot menu
 // triggers it, so there's no point shipping it (or its formatting/
@@ -531,33 +532,14 @@ const OrganizationWorkspaceView = ({
               Organization
             </div>
             <div className="flex flex-col gap-0.5">
-              {canUpdateOrg && (
+              {organizationTabs(canUpdateOrg).map(({ id, label }) => (
                 <button
+                  key={id}
                   type="button"
-                  onClick={() => setActiveTab('organization')}
+                  onClick={() => setActiveTab(id)}
                   className={cn(
                     'rounded-lg px-3 py-2 text-left text-[13px] transition-colors',
-                    activeTab === 'organization'
-                      ? 'bg-accent-soft text-accent-soft-foreground'
-                      : 'text-foreground hover:bg-muted'
-                  )}
-                >
-                  Profile
-                </button>
-              )}
-              {[
-                ['members', 'Members'],
-                ['teams', 'Teams'],
-                ['roles', 'Roles'],
-                ...(canUpdateOrg ? [['security', 'Security'] as const] : []),
-              ].map(([tab, label]) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    'rounded-lg px-3 py-2 text-left text-[13px] transition-colors',
-                    activeTab === tab
+                    activeTab === id
                       ? 'bg-accent-soft text-accent-soft-foreground'
                       : 'text-foreground hover:bg-muted'
                   )}

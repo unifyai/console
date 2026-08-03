@@ -13,6 +13,8 @@ export type AssistantSwitcherBridgeValue = {
   listProps: React.ComponentProps<typeof AssistantList> | null;
   /** Keep the switcher open while hire / create-group overlays are up. */
   nestedOverlayOpen?: boolean;
+  /** Assistant currently on a live call; escalates that face's presence badge. */
+  activeCallAssistantId?: string | null;
 };
 
 const AssistantSwitcherBridgeContext = React.createContext<{

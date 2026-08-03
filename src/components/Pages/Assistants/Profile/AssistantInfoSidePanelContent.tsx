@@ -11,6 +11,7 @@ import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import { Switch } from '@/components/UI/switch';
 import { useFloatingChatEnabledPreference } from '@/hooks/Assistants/useFloatingChatVisibility';
+import { useAgentNavigationPermission } from '@/hooks/Assistants/useAgentNavigationPermission';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -169,6 +170,15 @@ function nudgeElement(element: HTMLElement | null) {
   element.classList.remove('animate-nudge');
   void element.offsetWidth;
   element.classList.add('animate-nudge');
+}
+
+/** One row of the Preferences tile. The tile grows by adding to this list. */
+interface PreferenceToggle {
+  id: string;
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
 }
 
 function shimmerProfileSectionTiles(section: HTMLElement | null) {
@@ -958,6 +968,24 @@ function ProfileSectionsPanel({
   const { options: defaultModelOptions } = useDefaultModelOptions();
   const { enabled: floatingChatEnabled, setEnabled: setFloatingChatEnabled } =
     useFloatingChatEnabledPreference();
+  const { enabled: agentNavigationEnabled, setEnabled: setAgentNavigationEnabled } =
+    useAgentNavigationPermission();
+  const preferences: PreferenceToggle[] = [
+    {
+      id: 'floating-chat-enabled',
+      label: 'Show floating chat when browsing',
+      hint: 'Appear in the corner when you leave the Chat tab',
+      checked: floatingChatEnabled,
+      onChange: setFloatingChatEnabled,
+    },
+    {
+      id: 'agent-navigation-enabled',
+      label: 'Let this teammate navigate for you',
+      hint: 'Open pages and records while explaining them. Never sends, saves or deletes anything.',
+      checked: agentNavigationEnabled,
+      onChange: setAgentNavigationEnabled,
+    },
+  ];
   const brainStatus = getBrainStatusDescription(assistant, defaultModelOptions);
   const workspaceStatus = getWorkspaceStatusDescription(assistant);
   const showDesktopSection = !!onConnectDesktop || !!assistant.userDesktopUrl?.trim();
@@ -1046,19 +1074,21 @@ function ProfileSectionsPanel({
       <ProfileSectionTile
         title="Preferences"
         description={
-          <div className="flex items-center justify-between gap-3 pt-0.5">
-            <div className="min-w-0 flex-1">
-              <div className="text-caption text-foreground">Show floating chat when browsing</div>
-              <p className="text-caption mt-0.5 text-muted-foreground">
-                Appear in the corner when you leave the Chat tab
-              </p>
-            </div>
-            <Switch
-              checked={floatingChatEnabled}
-              onCheckedChange={setFloatingChatEnabled}
-              aria-label="Show floating chat when browsing"
-              data-testid="floating-chat-enabled-toggle"
-            />
+          <div className="flex flex-col gap-3 pt-0.5">
+            {preferences.map((preference) => (
+              <div key={preference.id} className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-caption text-foreground">{preference.label}</div>
+                  <p className="text-caption mt-0.5 text-muted-foreground">{preference.hint}</p>
+                </div>
+                <Switch
+                  checked={preference.checked}
+                  onCheckedChange={preference.onChange}
+                  aria-label={preference.label}
+                  data-testid={`${preference.id}-toggle`}
+                />
+              </div>
+            ))}
           </div>
         }
         descriptionClassName="mt-0.5"

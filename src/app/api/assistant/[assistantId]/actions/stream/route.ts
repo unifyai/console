@@ -43,6 +43,7 @@ import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { encodeOnboardingInvalidationSse } from '@/lib/assistants/onboarding-stream-frame';
 import { encodeVoiceEnrollmentSuggestedSse } from '@/lib/assistants/voice-enrollment-stream-frame';
 import { encodeCanvasSse } from '@/lib/assistants/canvas-stream-frame';
+import { encodeConsoleScriptSse } from '@/lib/assistants/console-script-stream-frame';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +93,11 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
         if (lifecycle.closed) return;
         try {
           const payload = (rawEvent ?? {}) as Record<string, unknown>;
+          const consoleScript = encodeConsoleScriptSse(payload);
+          if (consoleScript) {
+            controller.enqueue(encoder.encode(consoleScript));
+            return;
+          }
           const voiceEnrollmentSuggested = encodeVoiceEnrollmentSuggestedSse(payload);
           if (voiceEnrollmentSuggested) {
             controller.enqueue(encoder.encode(voiceEnrollmentSuggested));
@@ -206,6 +212,18 @@ function createPubSubStream(
           if (onboardingInvalidation) {
             try {
               controller.enqueue(encoder.encode(onboardingInvalidation));
+            } catch {
+              message.nack();
+              return;
+            }
+            message.ack();
+            return;
+          }
+
+          const consoleScript = encodeConsoleScriptSse(payload);
+          if (consoleScript) {
+            try {
+              controller.enqueue(encoder.encode(consoleScript));
             } catch {
               message.nack();
               return;

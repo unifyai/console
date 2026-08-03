@@ -165,6 +165,7 @@ import {
   type ChecklistAction,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
+import { readActionDeepLink } from '@/utils/assistants/action-deep-link';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
@@ -205,6 +206,9 @@ import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
+import { useConsoleScriptStream } from '@/hooks/Assistants/useConsoleScriptStream';
+import { useActiveTabClaim } from '@/hooks/Assistants/useActiveTabClaim';
+import { flashElement } from '@/lib/agent-guidance/flashElement';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createAvailableUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
@@ -388,7 +392,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const selectedEntityKind: SelectorEntityKind = selectedEntity?.kind ?? 'assistant';
   const isNonAssistantSelection = selectedEntityKind !== 'assistant';
-  useAssistantPresenceWake(isNonAssistantSelection ? null : profileAssistantId);
+  const presenceAssistantId = isNonAssistantSelection ? null : profileAssistantId;
+  useAssistantPresenceWake(presenceAssistantId);
+  // Console moves arriving outside a Meet, scoped to the same teammate that
+  // receives the presence heartbeat: that is the one told the console is open,
+  // so it is the only one that can be driving it.
+  const consoleNav = React.useMemo(
+    () => ({ navigateTo, navigateToAssistants }),
+    [navigateTo, navigateToAssistants]
+  );
+  // Marks this tab as the one to drive while the user is in it, so a script
+  // that fans out to every open tab only runs in the one they are watching.
+  useActiveTabClaim();
+  useConsoleScriptStream({
+    assistantId: presenceAssistantId,
+    nav: consoleNav,
+    highlight: flashElement,
+  });
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
@@ -504,6 +524,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // `placeholder` ("coming soon") — can't be derived from `paneState`, so they
   // are tracked separately and take precedence while open.
   const [activeBrainSectionId, setActiveBrainSectionId] = React.useState<string | null>(null);
+
+  // A `?action=` deep link (Actions → "Open in new tab") would otherwise land
+  // on Chat, since pane state hydrates to Chat on a direct entry. Declared
+  // after that hydration effect so it wins the mount pass. The Actions body
+  // reads the same param and opens the named root in its focus overlay.
+  React.useEffect(() => {
+    if (!readActionDeepLink()) return;
+    setActiveBrainSectionId(null);
+    setPaneState((prev) => ({ ...prev, primary: { tab: 'actions' }, secondary: null }));
+  }, []);
+
   const activeSectionId = activeBrainSectionId ?? paneState.primary.tab;
   const activeSectionDef = SECTION_BY_ID[activeSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
   const [hasVisitedBrainSection, setHasVisitedBrainSection] = React.useState(false);
@@ -533,7 +564,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [activeSectionDef.kind]);
 
-  const { isBelowTablet } = useBreakpoint();
+  const { isBelowMobile } = useBreakpoint();
 
   // Convenience: chat is "visible" if either slot is showing it. Used by
   // the chat-stream hook below to suppress unread bumps and by the
@@ -3931,6 +3962,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         activeEntityFace={activeEntityFace}
         listProps={railListProps}
         nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+        activeCallAssistantId={activeCallId}
       />
       <div className="flex h-full flex-col overflow-hidden">
         <AssistantsBanners
@@ -3957,6 +3989,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               sectionActivity={railSectionActivity}
               onBrandClick={requestPlatformHomeNavigation}
               onSelectSection={handleSelectSection}
+              activeCallAssistantId={activeCallId}
             />
 
             <SectionHost
@@ -4665,11 +4698,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         {visibleProfileAssistant && (
           <AssistantFloatingChatHost
             pathname={routePathname ?? '/assistants'}
-            isBelowTablet={isBelowTablet}
+            isBelowMobile={isBelowMobile}
             isHireDialogOpen={isHireDialogOpen}
             showCoordinatorOnboardingIntro={showCoordinatorOnboardingIntro}
             isChatVisibleInRightPane={isFullPageAssistantChatVisible}
-            hasActiveCallPoppedOut={!!activeCallAssistant && !isDocked}
+            hasActiveCallPoppedOut={
+              !!activeCallAssistant && (!isDocked || !isAssistantsRouteActive)
+            }
             profileAssistant={visibleProfileAssistant}
             assistantsBootstrapped={hasSettledAssistants}
             assistant={visibleProfileAssistant}

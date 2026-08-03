@@ -64,6 +64,10 @@ export interface LiveActionsBodyProps {
   sectionToggleSignal?: SectionToggleSignal;
   /** Stop an in-flight root action */
   onStopAction?: (callingId: string) => void;
+  /** Blow a root action up into the focus overlay */
+  onFocusAction?: (callingId: string) => void;
+  /** Open a root action in a new browser tab */
+  onOpenActionInNewTab?: (callingId: string) => void;
   /** Additional class names */
   className?: string;
 }
@@ -91,6 +95,8 @@ export function LiveActionsBody({
   onExpandedChange,
   sectionToggleSignal,
   onStopAction,
+  onFocusAction,
+  onOpenActionInNewTab,
   className,
 }: LiveActionsBodyProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -280,6 +286,8 @@ export function LiveActionsBody({
             matchedIds={matchedIds}
             searchTerm={searchTerm}
             onStopAction={onStopAction}
+            onFocusAction={onFocusAction}
+            onOpenActionInNewTab={onOpenActionInNewTab}
           />
         </div>
       </ScrollArea>

@@ -25,7 +25,7 @@ describe('requestAssistantPresenceWake', () => {
     vi.unstubAllGlobals();
   });
 
-  it('posts the presence system event through the assistant route', async () => {
+  it('posts presence facts to the console-presence route', async () => {
     const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 202 }));
     vi.stubGlobal('fetch', fetchSpy);
 
@@ -38,24 +38,39 @@ describe('requestAssistantPresenceWake', () => {
     });
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/assistant/123/system-event',
+      '/api/assistant/123/console-presence',
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
     );
     const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
-    const body = JSON.parse(String(init.body));
-    expect(body).toEqual({
-      eventType: 'assistant_presence_observed',
-      message: 'User presence observed in Console.',
-      extraEventFields: {
-        source: 'assistant_profile',
-        reason: 'selection',
-        pageVisibility: 'visible',
-        occurredAt: '2026-06-15T21:00:00.000Z',
-      },
+    expect(JSON.parse(String(init.body))).toEqual({
+      source: 'assistant_profile',
+      reason: 'selection',
+      pageVisibility: 'visible',
+      occurredAt: '2026-06-15T21:00:00.000Z',
+      // Sent every beat so opting out withdraws the tool on the next one.
+      allowNavigation: true,
     });
+  });
+
+  it('never ships orientation text from the browser', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 202 }));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await requestAssistantPresenceWake({
+      assistantId: '123',
+      source: 'assistant_profile',
+      reason: 'keepwarm',
+    });
+
+    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    const raw = String(init.body);
+    // The route attaches the orientation text server-side. A body carrying it
+    // would mean prompt content the browser could alter before it is dispatched.
+    expect(Object.keys(JSON.parse(raw)).some((key) => /guidance/i.test(key))).toBe(false);
+    expect(raw.length).toBeLessThan(500);
   });
 });
 

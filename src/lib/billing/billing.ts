@@ -554,3 +554,63 @@ export async function switchPlan(
     return errorResponse(error, 'Failed to switch plan');
   }
 }
+
+// =============================================================================
+// Card-gated trial onboarding
+// =============================================================================
+
+/**
+ * Wraps `POST /v0/billing/trial-checkout`. Creates the Stripe-hosted
+ * Checkout Session that collects a card + billing address and
+ * auto-enrolls the account on the trial tier subscription (first charge
+ * at trial end unless cancelled). The caller redirects to `checkoutUrl`.
+ */
+export async function startTrialCheckout(): Promise<
+  { checkoutUrl: string } | BillingErrorResponse
+> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/billing/trial-checkout', {});
+    return { checkoutUrl: response.data.checkoutUrl };
+  } catch (error) {
+    return errorResponse(error, 'Failed to start trial checkout');
+  }
+}
+
+/**
+ * Wraps `GET /v0/billing/access-gate`. Whether the workspace may use
+ * metered platform features; `reason === 'card_required'` means the
+ * card-gated trial checkout must be completed first.
+ */
+export async function getAccessGate(): Promise<
+  | {
+      allowed: boolean;
+      reason: string | null;
+      trialEndAt: string | null;
+      subscriptionActive: boolean;
+      apiAccessAllowed: boolean;
+    }
+  | BillingErrorResponse
+> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/access-gate');
+    const data = response.data;
+    return {
+      allowed: !!data.allowed,
+      reason: data.reason ?? null,
+      // Orchestra serialises this response in snake_case (no alias
+      // generator on AccessGateResponse), so the camelCase reads these
+      // two used before silently resolved to undefined.
+      trialEndAt: data.trial_end_at ?? null,
+      subscriptionActive: !!data.subscription_active,
+      // Defaults true so an older Orchestra build, which omits the
+      // field, never makes the Console claim the API is locked.
+      apiAccessAllowed: data.api_access_allowed ?? true,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch access gate');
+  }
+}

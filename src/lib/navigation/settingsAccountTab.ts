@@ -1,8 +1,27 @@
-import {
-  LEGACY_ACCOUNT_TAB_REDIRECTS,
-  SETTINGS_ACCOUNT_IDS,
-  type SettingsAccountId,
-} from '@/components/Layout/Shell/SettingsShell';
+/**
+ * Account sub-rail vocabulary and `?tab=` URL handling.
+ *
+ * The tab ids and labels live here rather than beside the rail component so
+ * server code (route handlers, prompt/guidance builders) can read them without
+ * pulling in a client module.
+ */
+
+/** Account sub-rail entries, in rail order. Icons are attached by the rail. */
+export const SETTINGS_ACCOUNT_TABS = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'contact-info', label: 'Contact info' },
+  { id: 'security', label: 'Security' },
+] as const;
+
+export type SettingsAccountId = (typeof SETTINGS_ACCOUNT_TABS)[number]['id'];
+
+export const SETTINGS_ACCOUNT_IDS = SETTINGS_ACCOUNT_TABS.map((t) => t.id) as readonly string[];
+
+/** Legacy account tabs merged into profile/security — redirect on load. */
+export const LEGACY_ACCOUNT_TAB_REDIRECTS: Readonly<Record<string, SettingsAccountId>> = {
+  preferences: 'profile',
+  advanced: 'security',
+};
 
 export function parseAccountTab(tabParam: string | null | undefined): SettingsAccountId {
   if (!tabParam) return 'profile';

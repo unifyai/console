@@ -6,6 +6,7 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Textarea } from '@/components/UI/textarea';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
+import { ResponseProps } from '@/types/common';
 
 export const HEARD_ABOUT_CHANNELS = [
   {
@@ -60,10 +61,11 @@ const DETAIL_CHANNELS: ReadonlySet<HeardAboutChannel> = new Set([
 ]);
 
 interface HeardAboutContentProps {
+  /** Resolves to `null` on success, or a `{ detail }` failure reason. */
   onUpdateOnboarding: (update: {
     currentStep: string;
     stepData?: Record<string, unknown>;
-  }) => Promise<void>;
+  }) => Promise<ResponseProps | null>;
   /** Server action that patches the JWT cookie and redirects. */
   onPatchSession: (
     patch: { onboardingStep?: string; mfaPending?: boolean },
@@ -101,8 +103,9 @@ const HeardAboutContent = ({ onUpdateOnboarding, onPatchSession }: HeardAboutCon
     setError(undefined);
     setIsLoading(true);
 
+    let failure: ResponseProps | null;
     try {
-      await onUpdateOnboarding({
+      failure = await onUpdateOnboarding({
         currentStep: 'workspace_setup',
         stepData: {
           heardAbout: channel,
@@ -110,7 +113,11 @@ const HeardAboutContent = ({ onUpdateOnboarding, onPatchSession }: HeardAboutCon
         },
       });
     } catch {
-      setError('Failed to save. Please try again.');
+      failure = { detail: 'Failed to save. Please try again.' };
+    }
+
+    if (failure) {
+      setError(failure.detail);
       setIsLoading(false);
       return;
     }

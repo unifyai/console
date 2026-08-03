@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
-import type { SettingsAccountId } from './SettingsShell';
+import type { SettingsAccountId } from '@/lib/navigation/settingsAccountTab';
 import {
   readAccountTabFromLocation,
   writeAccountTabToHistory,

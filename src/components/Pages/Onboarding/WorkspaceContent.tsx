@@ -16,10 +16,11 @@ interface WorkspaceContentProps {
     name: string,
     dataSharingMode?: DataSharingMode
   ) => Promise<Organization | ResponseProps>;
+  /** Resolves to `null` on success, or a `{ detail }` failure reason. */
   onUpdateOnboarding: (update: {
     currentStep: string;
     stepData?: Record<string, unknown>;
-  }) => Promise<void>;
+  }) => Promise<ResponseProps | null>;
   /** Server action that patches the JWT cookie and redirects. */
   onPatchSession: (
     patch: { onboardingStep?: string; mfaPending?: boolean },
@@ -98,15 +99,18 @@ const WorkspaceContent = ({
   const completeAndRedirect = useCallback(
     async (stepData: Record<string, unknown>) => {
       try {
-        await Promise.all([
+        const [failure] = await Promise.all([
           onUpdateOnboarding({ currentStep: 'completed', stepData }),
           persistBrowserTimezone(),
         ]);
-      } catch {
-        // Best-effort: the server-side idempotency check handles the gap.
-        console.warn(
-          '[onboarding] Failed to persist step completion — will auto-complete on next visit'
-        );
+        if (failure) {
+          // Best-effort: the server-side idempotency check handles the gap.
+          // Log the real reason — a silent generic warning here is what
+          // hid a billing suspension behind an apparent save failure.
+          console.warn('[onboarding] Failed to persist step completion:', failure.detail);
+        }
+      } catch (error) {
+        console.warn('[onboarding] Failed to persist step completion:', error);
       }
 
       // Collect current URL params (e.g. credit tokens) to forward.

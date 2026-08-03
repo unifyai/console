@@ -4,6 +4,7 @@ import {
   type AssistantPresenceWakeReason,
   type AssistantPresenceWakeSource,
 } from '@/lib/client/assistant-presence';
+import { readAgentNavigationEnabled } from '@/hooks/Assistants/useAgentNavigationPermission';
 
 export const ASSISTANT_PRESENCE_ACTIVITY_THROTTLE_MS = 60_000;
 export const ASSISTANT_PRESENCE_KEEP_WARM_INTERVAL_MS = 5 * 60_000;
@@ -68,6 +69,9 @@ export function useAssistantPresenceWake(
         reason,
         pageVisibility: pageVisibility(),
         occurredAt: new Date(currentTime).toISOString(),
+        // Read per beat rather than captured: unticking the preference should
+        // withdraw the tool on the next heartbeat, not on the next page load.
+        allowNavigation: readAgentNavigationEnabled(),
       }).catch((error) => {
         console.error('[useAssistantPresenceWake] Failed to request assistant wake:', error);
       });

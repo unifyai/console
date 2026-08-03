@@ -200,6 +200,8 @@ export interface TaskRow {
 export interface TaskRunRow {
   taskId: number | null;
   taskName: string | null;
+  /** Joined client-side from the owning definition; execution rows stopped
+   *  carrying the copy. Pre-diet rows may still hold a stored value. */
   taskDescription: string | null;
   /** Canonical execution wake reason (`scheduled`, `triggered`, etc.). */
   wake?: string | null;

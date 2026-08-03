@@ -13,6 +13,8 @@ interface AssistantPresenceWakeArgs {
   reason: AssistantPresenceWakeReason;
   pageVisibility?: DocumentVisibilityState;
   occurredAt?: string;
+  /** Whether this teammate may navigate the console for the user right now. */
+  allowNavigation?: boolean;
 }
 
 export async function requestAssistantPresenceWake({
@@ -21,22 +23,19 @@ export async function requestAssistantPresenceWake({
   reason,
   pageVisibility,
   occurredAt = new Date().toISOString(),
+  allowNavigation = true,
 }: AssistantPresenceWakeArgs): Promise<void> {
   try {
-    const response = await fetch(`/api/assistant/${encodeURIComponent(assistantId)}/system-event`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventType: 'assistant_presence_observed',
-        message: 'User presence observed in Console.',
-        extraEventFields: {
-          source,
-          reason,
-          pageVisibility,
-          occurredAt,
-        },
-      }),
-    });
+    // Posts presence facts only. The route attaches the console's orientation
+    // text server-side, so prompt content never travels through the browser.
+    const response = await fetch(
+      `/api/assistant/${encodeURIComponent(assistantId)}/console-presence`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, reason, pageVisibility, occurredAt, allowNavigation }),
+      }
+    );
 
     if (!response.ok) {
       console.warn(`Assistant presence wake failed (${response.status})`);

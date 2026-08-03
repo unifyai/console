@@ -32,6 +32,7 @@ import {
   SECTION_BY_ID,
 } from '@/components/Pages/Assistants/Rail/sectionConfig';
 import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
+import { TrialGateOverlay } from './TrialGateOverlay';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -197,6 +198,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <HomeShell hideGlobalRail={showAssistants}>
+      <TrialGateOverlay />
       {canRenderAssistants ? (
         <div
           className={cn('h-full min-h-0 w-full overflow-hidden', !showAssistants && 'hidden')}

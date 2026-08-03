@@ -8,8 +8,16 @@ import { Button } from '@/components/UI/button';
 import { useCall } from '@/hooks/Assistants/useCall';
 import { useOrgCallEvents } from '@/hooks/Assistants/useOrgCallEvents';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
-import { useIsCoordinatorIntroAudioPlaying } from './AssistantCommunicationDialog';
+import {
+  AssistantCommunicationDialog,
+  useIsCoordinatorIntroAudioPlaying,
+} from './AssistantCommunicationDialog';
+import { AssistantLiveKitAudioRenderer } from './AssistantLiveKitAudioRenderer';
 import { VoiceEnrollmentFallbackDialog } from './VoiceEnrollmentFallbackDialog';
+import { useAppShellNavigation, useShellActivePath } from '@/lib/navigation/AppShellRouter';
+import { useConsoleActionScript } from '@/hooks/Assistants/useConsoleActionScript';
+import { flashElement } from '@/lib/agent-guidance/flashElement';
+import { isAssistantsPath } from '@/lib/navigation/appShellRoutes';
 import { useVoiceEnrollmentFallbackPrompt } from '@/hooks/Assistants/useVoiceEnrollmentFallbackPrompt';
 import {
   OrgCallSession,
@@ -81,7 +89,8 @@ export function useCallContext(): CallContextValue {
  * (home) layout: every call — human DM, team, group, or 1:1 assistant — runs
  * through one engine and survives client-side navigation. Multi-party call
  * chrome (ring card, Meet stage, minimized widget, rejoin banner) renders
- * here app-wide; assistant_dm chrome docks into the /assistants page.
+ * here app-wide. assistant_dm chrome docks into the /assistants page while
+ * that route is active, and falls back to the floating window here off it.
  */
 export function CallProvider({
   callActions,
@@ -114,6 +123,18 @@ export function CallProvider({
     }
   }, [isConnecting, isConnected, connectionError, isDocked]);
 
+  // --- Cross-page assistant call surface ---
+  // The /assistants page owns the docked and popped-out surfaces, but it can
+  // only render them while that route is active. Off /assistants the call
+  // window lives here instead, so a 1:1 call stays visible (and audible)
+  // wherever the user navigates.
+  const shellActivePath = useShellActivePath();
+  const { navigateToAssistants } = useAppShellNavigation();
+  const handleFloatingRedock = React.useCallback(() => {
+    redock();
+    navigateToAssistants();
+  }, [redock, navigateToAssistants]);
+
   // --- Multi-party stage presentation ---
   const [viewMode, setViewMode] = React.useState<CallViewMode>('expanded');
   const expand = React.useCallback(() => setViewMode('expanded'), []);
@@ -122,6 +143,25 @@ export function CallProvider({
   React.useEffect(() => {
     if (activeCallId) setViewMode('expanded');
   }, [activeCallId]);
+
+  // --- Assistant-driven navigation ---
+  // The call window covers most of the console when expanded, so a move made
+  // behind it would be narrated and never seen. Shrinking first is part of the
+  // move, not a nicety.
+  const consoleNav = useAppShellNavigation();
+  const revealConsole = React.useCallback(() => {
+    minimize();
+    if (isDocked) popOut();
+  }, [minimize, isDocked, popOut]);
+
+  useConsoleActionScript({
+    room,
+    nav: consoleNav,
+    assistantId: call.activeCallAssistant?.agentId ?? null,
+    revealConsole,
+    highlight: flashElement,
+    enabled: Boolean(activeCallId),
+  });
 
   // --- Org call signaling stream (dm/team/group scopes) ---
   useOrgCallEvents(orgId, {
@@ -302,9 +342,11 @@ export function CallProvider({
   );
 
   // Multi-party chrome renders app-wide from the provider. Assistant 1:1
-  // chrome (docked dialog, floating window) renders from the /assistants
-  // page against the same engine, so it is suppressed here.
+  // chrome docks into the /assistants page against the same engine, so it is
+  // suppressed here while that route is active.
   const incomingCall = call.incomingCall;
+  const hasActiveAssistantCall = !!activeCallAssistant && callLifecycleActive;
+  const showFloatingAssistantCall = hasActiveAssistantCall && !isAssistantsPath(shellActivePath);
   const showOrgIncoming = incomingCall && incomingCall.scope !== 'assistant_dm';
   const activeOrgCall =
     call.isConnected && call.activeCall && call.activeCall.scope !== 'assistant_dm'
@@ -327,6 +369,54 @@ export function CallProvider({
         onOpenChange={voiceEnrollmentFallback.onOpenChange}
         onEnrolled={voiceEnrollmentFallback.onEnrolled}
       />
+      {hasActiveAssistantCall && activeCallAssistant && (
+        <RoomContext.Provider value={room}>
+          {/* Single, persistent audio sink for the call. Living here (rather
+           *  than inside whichever dialog instance is mounted) keeps audio
+           *  continuous as the visible surface swaps during navigation. */}
+          {!isCoordinatorIntroAudioPlaying && <AssistantLiveKitAudioRenderer />}
+          {showFloatingAssistantCall && (
+            <AssistantCommunicationDialog
+              isOpen
+              defaultFloating
+              chatDisabled
+              onClose={call.disconnect}
+              onRedock={handleFloatingRedock}
+              assistant={activeCallAssistant}
+              assistantActions={callActions}
+              room={room}
+              chatHistories={{}}
+              setChatHistories={() => {}}
+              isConnecting={call.isConnecting}
+              userEmail={userMeta.email}
+              userImage={userMeta.image}
+              isWaitingForAssistant={call.isWaitingForAssistant}
+              isAssistantPreparing={call.isAssistantPreparing}
+              activeOpeningConfig={call.activeOpeningConfig}
+              waitingMessage={call.waitingMessage}
+              isCallConnected={call.isConnected}
+              connectionError={call.connectionError}
+              onRetry={call.retryConnection}
+              isRemoteControlActive={call.isRemoteControlActive}
+              liveviewUrl={call.liveviewUrl}
+              isRemoteControlLoading={call.isRemoteControlLoading}
+              toggleRemoteControl={call.toggleRemoteControl}
+              isRemoteControlInteractive={call.isRemoteControlInteractive}
+              isRemoteControlInteractiveLoading={call.isRemoteControlInteractiveLoading}
+              toggleRemoteControlInteractive={call.toggleRemoteControlInteractive}
+              isDesktopEnabled={call.isDesktopEnabled}
+              isDesktopReady={call.isDesktopReady}
+              callType={call.callType}
+              isSpeakerMuted={call.isSpeakerMuted}
+              onToggleSpeaker={call.toggleSpeakerMute}
+              avatarMood={call.avatarMood}
+              chatStreamConnectionStatus="connected"
+              reconnectChatStream={() => {}}
+              chatStreamActivitySignal={0}
+            />
+          )}
+        </RoomContext.Provider>
+      )}
       {showOrgIncoming && (
         <IncomingHumanCallCard
           callerName={incomingName}
