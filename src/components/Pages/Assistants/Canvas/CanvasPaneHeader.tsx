@@ -137,12 +137,26 @@ function boundContexts(record: CanvasListRecord): string[] {
 }
 
 /**
+ * A stored context path carries its tenant and assistant routing prefix, which
+ * identifies nothing to a reader looking at their own canvas. The trailing
+ * segments are the table; the full path stays in the tooltip for auditing.
+ */
+function shortContextName(context: string): string {
+  const parts = context.split('/');
+  return parts.length > 3 ? parts.slice(-3).join('/') : context;
+}
+
+/** Chips beyond this fold into a single "+N more" with the rest in its tooltip. */
+const MAX_VISIBLE_CONTEXTS = 4;
+
+/**
  * What is known about the selected canvas, from its stored row.
  *
  * Worth showing rather than hiding: which data a canvas can read is the single most
  * useful thing to know about one you did not write, and it is recorded precisely so
  * it can be audited. `visibility` appears only when it is not the private default,
- * so the common case stays quiet.
+ * so the common case stays quiet. The contexts render as bounded chips rather than
+ * flowing text — a canvas over a dozen tables was drowning its own title in paths.
  */
 function CanvasMetadata({ record }: { record: CanvasListRecord }) {
   const contexts = boundContexts(record);
@@ -153,13 +167,48 @@ function CanvasMetadata({ record }: { record: CanvasListRecord }) {
   if (record.visibility && record.visibility !== 'private') facts.push(record.visibility);
   if (record.kitVersion) facts.push(`kit ${record.kitVersion}`);
 
+  const visible = contexts.slice(0, MAX_VISIBLE_CONTEXTS);
+  const overflow = contexts.slice(MAX_VISIBLE_CONTEXTS);
+
   return (
-    <div className="text-caption flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
-      {facts.map((fact) => (
-        <span key={fact}>{fact}</span>
-      ))}
+    <div className="text-caption flex flex-col gap-1 text-muted-foreground">
+      {facts.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          {facts.map((fact, index) => (
+            <React.Fragment key={fact}>
+              {index > 0 ? (
+                <span aria-hidden className="opacity-40">
+                  ·
+                </span>
+              ) : null}
+              <span>{fact}</span>
+            </React.Fragment>
+          ))}
+        </div>
+      ) : null}
       {contexts.length > 0 ? (
-        <span title="Data this canvas is allowed to read">Reads {contexts.join(', ')}</span>
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="shrink-0" title="Data this canvas is allowed to read">
+            Reads
+          </span>
+          {visible.map((context) => (
+            <span
+              key={context}
+              title={context}
+              className="max-w-[16rem] truncate rounded border border-border bg-muted px-1.5 py-px font-mono text-[10px] leading-4"
+            >
+              {shortContextName(context)}
+            </span>
+          ))}
+          {overflow.length > 0 ? (
+            <span
+              title={overflow.join('\n')}
+              className="rounded border border-border px-1.5 py-px text-[10px] leading-4"
+            >
+              +{overflow.length} more
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
