@@ -65,6 +65,7 @@ steps:
           --build-arg NEXT_PUBLIC_MS_TEAMS_APP_CATALOG_ID=$$MS_TEAMS_APP_CATALOG_ID \
           --build-arg NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY=$_OPENREPLAY_PROJECT_KEY \
           --build-arg NEXT_PUBLIC_OPENREPLAY_INGEST_POINT=$_OPENREPLAY_INGEST_POINT \
+          --build-arg NEXT_PUBLIC_CANVAS_ORIGIN=$_CANVAS_ORIGIN \
           -f Dockerfile \
           -t "$${IMAGE_URI}:$COMMIT_SHA" \
           -t "$${IMAGE_URI}:latest" \
@@ -318,6 +319,11 @@ substitutions:
   # admin signup at openreplay.example.com, set the real project key on
   # the Cloud Build trigger (or here).
   _OPENREPLAY_PROJECT_KEY: ''
+  # Origin serving the Canvas runtime host (see src/lib/canvas/origin.ts).
+  # Inlined into the client bundle and the global CSP frame-src at build
+  # time, so it has to be a build-arg, not runtime env. Staging defaults
+  # here; the prod trigger overrides it to https://canvas.unify.ai.
+  _CANVAS_ORIGIN: 'https://internal.example.com'
   _OPENREPLAY_INGEST_POINT: 'https://openreplay.example.com/ingest'
 tags:
   - gcp-cloud-build-deploy-cloud-run
