@@ -589,6 +589,7 @@ export async function getAccessGate(): Promise<
       reason: string | null;
       trialEndAt: string | null;
       subscriptionActive: boolean;
+      apiAccessAllowed: boolean;
     }
   | BillingErrorResponse
 > {
@@ -600,8 +601,14 @@ export async function getAccessGate(): Promise<
     return {
       allowed: !!data.allowed,
       reason: data.reason ?? null,
-      trialEndAt: data.trialEndAt ?? null,
-      subscriptionActive: !!data.subscriptionActive,
+      // Orchestra serialises this response in snake_case (no alias
+      // generator on AccessGateResponse), so the camelCase reads these
+      // two used before silently resolved to undefined.
+      trialEndAt: data.trial_end_at ?? null,
+      subscriptionActive: !!data.subscription_active,
+      // Defaults true so an older Orchestra build, which omits the
+      // field, never makes the Console claim the API is locked.
+      apiAccessAllowed: data.api_access_allowed ?? true,
     };
   } catch (error) {
     return errorResponse(error, 'Failed to fetch access gate');
