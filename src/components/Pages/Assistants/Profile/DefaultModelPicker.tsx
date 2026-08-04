@@ -25,6 +25,9 @@ import {
 import { searchDefaultModelOptions, type ModelCatalogUsage } from '@/lib/client/defaultModels';
 import type { DefaultModelOption } from '@/types/assistants/assistant';
 
+/** Orchestra caps the catalog page at 200; selectable models sort ahead of the rest. */
+const CATALOG_PAGE_SIZE = 200;
+
 export interface DefaultModelPickerProps {
   model: string | null;
   reasoningEffort: string | null;
@@ -44,6 +47,31 @@ export interface DefaultModelPickerProps {
 function formatCredits(credits: number | null | undefined, suffix: string): string {
   if (credits == null) return 'Credits vary';
   return `~${new Intl.NumberFormat('en-US').format(credits)} credits / ${suffix}`;
+}
+
+/** Per-million-token rates, for catalog models with no per-task benchmark anchor. */
+export function formatTokenRates(option: DefaultModelOption): string | null {
+  const input = option.inputCostPerToken;
+  const output = option.outputCostPerToken;
+  if (input == null || output == null) return null;
+  const perMillion = (rate: number) => `$${(rate * 1_000_000).toFixed(2)}`;
+  return `${perMillion(input)} in / ${perMillion(output)} out per M tokens`;
+}
+
+/**
+ * Cost line for an option: the credit estimate when one exists for the unit on
+ * display, otherwise the model's raw token rates. Catalog models are priced per
+ * token but have no task-level benchmark anchor to convert into task credits.
+ */
+export function formatCostLine(
+  option: DefaultModelOption,
+  creditUnit: 'task' | 'message',
+  creditSuffix: string
+): string {
+  const credits =
+    creditUnit === 'message' ? option.approxCreditsPerMessage : option.approxCreditsPerTask;
+  if (credits != null) return formatCredits(credits, creditSuffix);
+  return formatTokenRates(option) ?? 'Credits vary';
 }
 
 /**
@@ -70,28 +98,25 @@ export function DefaultModelPicker({
   const selectedValue = encodeDefaultModelValue(model, reasoningEffort);
   const creditSuffix = creditUnit === 'message' ? 'typical message' : 'typical task';
 
+  // An empty query lists the whole catalog newest-first, so opening the picker
+  // browses every available model without having to guess a name first. Typing
+  // is debounced; the initial listing is not.
   React.useEffect(() => {
     if (!open) return;
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setSearchHits([]);
-      setIsSearching(false);
-      return;
-    }
     let cancelled = false;
     setIsSearching(true);
-    const handle = window.setTimeout(() => {
-      void (async () => {
-        const result = await searchDefaultModelOptions(trimmed, usage);
-        if (cancelled) return;
-        if (Array.isArray(result)) {
-          setSearchHits(result);
-        } else {
-          setSearchHits([]);
-        }
-        setIsSearching(false);
-      })();
-    }, 250);
+    const handle = window.setTimeout(
+      () => {
+        void (async () => {
+          const result = await searchDefaultModelOptions(trimmed, usage, CATALOG_PAGE_SIZE);
+          if (cancelled) return;
+          setSearchHits(Array.isArray(result) ? result : []);
+          setIsSearching(false);
+        })();
+      },
+      trimmed ? 250 : 0
+    );
     return () => {
       cancelled = true;
       window.clearTimeout(handle);
@@ -195,10 +220,6 @@ export function DefaultModelPicker({
               <CommandGroup heading="Recommended">
                 {recommended.map((option) => {
                   const value = encodeDefaultModelValue(option.model, option.reasoningEffort);
-                  const credits =
-                    creditUnit === 'message'
-                      ? option.approxCreditsPerMessage
-                      : option.approxCreditsPerTask;
                   return (
                     <CommandItem
                       key={value}
@@ -213,7 +234,7 @@ export function DefaultModelPicker({
                       <div className="flex min-w-0 flex-1 flex-col items-start">
                         <span className="truncate">{option.label}</span>
                         <span className="text-caption text-muted-foreground">
-                          {formatCredits(credits, creditSuffix)}
+                          {formatCostLine(option, creditUnit, creditSuffix)}
                         </span>
                       </div>
                       <Check
@@ -227,7 +248,9 @@ export function DefaultModelPicker({
                 })}
               </CommandGroup>
               {filteredSearchHits.length > 0 && (
-                <CommandGroup heading="OpenRouter">
+                <CommandGroup
+                  heading={query.trim() ? 'Search results' : 'All models (newest first)'}
+                >
                   {filteredSearchHits.map((option) => {
                     const value = encodeDefaultModelValue(option.model, option.reasoningEffort);
                     const eligible = option.eligible !== false;
@@ -248,7 +271,7 @@ export function DefaultModelPicker({
                           <span className="truncate">{option.label}</span>
                           <span className="text-caption text-muted-foreground">
                             {eligible
-                              ? formatCredits(null, creditSuffix)
+                              ? formatCostLine(option, creditUnit, creditSuffix)
                               : option.disabledReason || 'Unavailable'}
                           </span>
                         </div>

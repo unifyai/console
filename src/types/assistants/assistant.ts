@@ -440,6 +440,12 @@ export interface DefaultModelOption {
   disabledReason?: string | null;
   /** Whether reasoning_effort may be set for this model. */
   supportsReasoning?: boolean | null;
+  /** Provider input price per token; set for catalog options with no task anchor. */
+  inputCostPerToken?: number | null;
+  /** Provider output price per token. */
+  outputCostPerToken?: number | null;
+  /** Maximum context window in tokens, when the catalog reports it. */
+  contextLength?: number | null;
 }
 
 // Assistant voice types
