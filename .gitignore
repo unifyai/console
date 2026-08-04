@@ -27,6 +27,7 @@ src/tests/**/generated/
 
 # misc
 .DS_Store
+.claude/
 *.pem
 
 # debug
