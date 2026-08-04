@@ -134,22 +134,28 @@ describe('canvas in mock mode', () => {
   });
 
   it('resolves the declared binding', async () => {
-    const response = await QUERY.POST(post('/query', { alias: MOCK_CANVAS_ALIAS }), {
+    const response = await QUERY.POST(post('/query', { aliases: [MOCK_CANVAS_ALIAS] }), {
       params: params(),
     });
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.rows.length).toBeGreaterThan(0);
-    expect(body.rows[0]).toHaveProperty('owner');
+    const result = body.results[MOCK_CANVAS_ALIAS];
+    expect(result.rows.length).toBeGreaterThan(0);
+    expect(result.rows[0]).toHaveProperty('owner');
   });
 
   it('refuses an alias the canvas never declared', async () => {
     // The whole security property of the read plane, and it has to hold on
     // fixtures too or mock mode would teach the wrong lesson.
-    const response = await QUERY.POST(post('/query', { alias: 'secrets' }), { params: params() });
+    const response = await QUERY.POST(post('/query', { aliases: ['secrets'] }), {
+      params: params(),
+    });
+    const body = await response.json();
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(body.results.secrets.error).toContain('declares no binding');
+    expect(body.results.secrets.rows).toEqual([]);
   });
 
   it('records a run that the history then reports', async () => {

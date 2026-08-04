@@ -54,20 +54,25 @@ const tokenResolution: SimHandler = {
 };
 
 /**
- * `POST /v0/admin/canvas/{token}/query` — run a stored binding.
+ * `POST /v0/admin/canvas/{token}/queries` — run stored bindings as a batch.
  *
- * Only a declared alias resolves. An undeclared one is a 404 naming it, matching
- * the real plane, so the frame's refusal path is what mock mode shows too.
+ * Only a declared alias resolves; an undeclared one carries a per-alias error
+ * naming it, matching the real plane, so the frame's refusal path is what mock
+ * mode shows too.
  */
-const bindingQuery: SimHandler = {
+const bindingQueries: SimHandler = {
   match: (method, pathname) =>
-    method === 'POST' && /^\/v0\/admin\/canvas\/[^/]+\/query$/.test(pathname),
+    method === 'POST' && /^\/v0\/admin\/canvas\/[^/]+\/queries$/.test(pathname),
   handle: (ctx: SimContext): SimResult => {
-    const alias = (ctx.body as { alias?: string } | undefined)?.alias;
-    if (alias !== MOCK_CANVAS_ALIAS) {
-      return { status: 404, json: { detail: `Canvas declares no binding named '${alias}'` } };
+    const aliases = (ctx.body as { aliases?: string[] } | undefined)?.aliases ?? [];
+    const results: Record<string, unknown> = {};
+    for (const alias of aliases) {
+      results[alias] =
+        alias === MOCK_CANVAS_ALIAS
+          ? { rows: MOCK_CANVAS_ROWS, truncated: false, error: null }
+          : { rows: [], truncated: false, error: `Canvas declares no binding named '${alias}'` };
     }
-    return { json: { alias, rows: MOCK_CANVAS_ROWS, truncated: false } };
+    return { json: { results } };
   },
 };
 
@@ -196,7 +201,7 @@ const ownerKey: SimHandler = {
 
 export const canvasHandlers: SimHandler[] = [
   tokenResolution,
-  bindingQuery,
+  bindingQueries,
   actionDescriptors,
   invokeAction,
   invocationStatus,

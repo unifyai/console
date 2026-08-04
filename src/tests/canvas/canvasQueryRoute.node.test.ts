@@ -40,7 +40,7 @@ const OWNER_RESOLUTION = {
   status: 'published',
 };
 
-function post(body: unknown = { alias: 'tasks' }, token = TOKEN) {
+function post(body: unknown = { aliases: ['tasks'] }, token = TOKEN) {
   return {
     request: new NextRequest(`http://localhost/api/canvas/${token}/query`, {
       method: 'POST',
@@ -51,10 +51,12 @@ function post(body: unknown = { alias: 'tasks' }, token = TOKEN) {
   };
 }
 
-/** Stub Orchestra: token resolution first, then the query. */
+/** Stub Orchestra: token resolution first, then the batch query. */
 function stubOrchestra(
   resolution: Record<string, unknown> | null,
-  query: { body: unknown; status?: number } = { body: { rows: [{ a: 1 }], truncated: false } }
+  query: { body: unknown; status?: number } = {
+    body: { results: { tasks: { rows: [{ a: 1 }], truncated: false, error: null } } },
+  }
 ) {
   return vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
     const url = String(input);
@@ -63,7 +65,7 @@ function stubOrchestra(
         ? new Response(JSON.stringify(resolution), { status: 200 })
         : new Response(JSON.stringify({ detail: 'Token not found' }), { status: 404 });
     }
-    if (url.includes('/query')) {
+    if (url.includes('/queries')) {
       return new Response(JSON.stringify(query.body), { status: query.status ?? 200 });
     }
     throw new Error(`unexpected fetch: ${url}`);
@@ -102,7 +104,7 @@ describe('canvas query route', () => {
 
       expect(response.status).toBe(403);
       // Exactly one call: the resolution. The query must not have been made.
-      const queried = fetchSpy.mock.calls.filter(([url]) => String(url).includes('/query'));
+      const queried = fetchSpy.mock.calls.filter(([url]) => String(url).includes('/queries'));
       expect(queried).toHaveLength(0);
     });
   });
@@ -118,9 +120,7 @@ describe('canvas query route', () => {
 
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toMatchObject({
-        alias: 'tasks',
-        rows: [{ a: 1 }],
-        truncated: false,
+        results: { tasks: { rows: [{ a: 1 }], truncated: false } },
       });
     });
 
@@ -172,24 +172,24 @@ describe('canvas query route', () => {
   });
 
   describe('what the caller may say', () => {
-    it('sends only the alias to Orchestra', async () => {
+    it('sends only the aliases to Orchestra', async () => {
       getApiKeyFromRequest.mockResolvedValue('viewer-key');
       getCurrentUser.mockResolvedValue({ id: OWNER, organizations: [] });
       const fetchSpy = stubOrchestra(OWNER_RESOLUTION);
 
-      // Everything beyond `alias` is an attempt to redirect the query.
+      // Everything beyond `aliases` is an attempt to redirect the query.
       const { request, params } = post({
-        alias: 'tasks',
+        aliases: ['tasks'],
         context: 'Secrets',
         filter: null,
         limit: 1000,
       });
       await POST(request, { params });
 
-      const queryCall = fetchSpy.mock.calls.find(([url]) => String(url).includes('/query'));
+      const queryCall = fetchSpy.mock.calls.find(([url]) => String(url).includes('/queries'));
       expect(queryCall).toBeDefined();
       const sent = JSON.parse(String((queryCall?.[1] as RequestInit).body));
-      expect(sent).toEqual({ alias: 'tasks' });
+      expect(sent).toEqual({ aliases: ['tasks'] });
     });
 
     it('rejects an alias that is not an identifier', async () => {
@@ -197,7 +197,21 @@ describe('canvas query route', () => {
       getCurrentUser.mockResolvedValue({ id: OWNER, organizations: [] });
       stubOrchestra(OWNER_RESOLUTION);
 
-      const { request, params } = post({ alias: 'tasks; drop' });
+      const { request, params } = post({ aliases: ['tasks; drop'] });
+
+      expect((await POST(request, { params })).status).toBe(400);
+    });
+
+    it.each([
+      ['a bare string', 'tasks'],
+      ['an empty list', []],
+      ['too many aliases', Array.from({ length: 33 }, (_, i) => `alias_${i}`)],
+    ])('rejects %s', async (_label, aliases) => {
+      getApiKeyFromRequest.mockResolvedValue('viewer-key');
+      getCurrentUser.mockResolvedValue({ id: OWNER, organizations: [] });
+      stubOrchestra(OWNER_RESOLUTION);
+
+      const { request, params } = post({ aliases });
 
       expect((await POST(request, { params })).status).toBe(400);
     });
@@ -206,7 +220,7 @@ describe('canvas query route', () => {
       getApiKeyFromRequest.mockResolvedValue('viewer-key');
       const fetchSpy = stubOrchestra(OWNER_RESOLUTION);
 
-      const { request, params } = post({ alias: 'tasks' }, 'not/a/token');
+      const { request, params } = post({ aliases: ['tasks'] }, 'not/a/token');
       const response = await POST(request, { params });
 
       expect(response.status).toBe(400);
@@ -215,22 +229,51 @@ describe('canvas query route', () => {
   });
 
   describe('error passthrough', () => {
-    it("keeps Orchestra's reason for an undeclared alias", async () => {
+    it("keeps an undeclared alias's reason on its own entry", async () => {
       // "Canvas declares no binding named 'x'" is what tells an author their
-      // binding name and their TSX disagree; a generic 500 would not.
+      // binding name and their TSX disagree — and it must not blank the panels
+      // whose bindings are fine.
       getApiKeyFromRequest.mockResolvedValue('viewer-key');
       getCurrentUser.mockResolvedValue({ id: OWNER, organizations: [] });
       stubOrchestra(OWNER_RESOLUTION, {
-        body: { detail: "Canvas declares no binding named 'ghost'" },
-        status: 404,
+        body: {
+          results: {
+            tasks: { rows: [{ a: 1 }], truncated: false, error: null },
+            ghost: {
+              rows: [],
+              truncated: false,
+              error: "Canvas declares no binding named 'ghost'",
+            },
+          },
+        },
       });
 
-      const { request, params } = post({ alias: 'ghost' });
+      const { request, params } = post({ aliases: ['tasks', 'ghost'] });
       const response = await POST(request, { params });
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(200);
       await expect(response.json()).resolves.toMatchObject({
-        error: "Canvas declares no binding named 'ghost'",
+        results: {
+          tasks: { rows: [{ a: 1 }] },
+          ghost: { error: "Canvas declares no binding named 'ghost'" },
+        },
+      });
+    });
+
+    it("keeps Orchestra's reason for a whole-request failure", async () => {
+      getApiKeyFromRequest.mockResolvedValue('viewer-key');
+      getCurrentUser.mockResolvedValue({ id: OWNER, organizations: [] });
+      stubOrchestra(OWNER_RESOLUTION, {
+        body: { detail: 'Canvas is not published' },
+        status: 403,
+      });
+
+      const { request, params } = post();
+      const response = await POST(request, { params });
+
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({
+        error: 'Canvas is not published',
       });
     });
 

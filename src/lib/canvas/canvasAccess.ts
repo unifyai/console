@@ -163,28 +163,36 @@ export async function authorizeCanvasRead(
  * the binding stored there, so neither this route nor the frame can name a
  * context, a filter or a row limit.
  */
-export async function queryCanvasAlias(
+/** One alias's outcome inside a batch query. */
+export interface CanvasAliasResult {
+  rows: unknown[];
+  truncated: boolean;
+  error?: string;
+}
+
+export async function queryCanvasAliases(
   token: string,
-  alias: string
+  aliases: string[]
 ): Promise<
-  { ok: true; rows: unknown[]; truncated: boolean } | { ok: false; denial: CanvasDenial }
+  { ok: true; results: Record<string, CanvasAliasResult> } | { ok: false; denial: CanvasDenial }
 > {
   const headers = adminHeaders();
   if (!headers) {
     return { ok: false, denial: { error: 'Server configuration error', status: 500 } };
   }
 
-  const response = await canvasFetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/query`, {
+  const response = await canvasFetch(`${ORCHESTRA_URL}/v0/admin/canvas/${token}/queries`, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ alias }),
+    body: JSON.stringify({ aliases }),
     cache: 'no-store',
   });
 
   if (!response.ok) {
-    // Orchestra's own reason is more useful than a generic one: an undeclared
-    // alias is a 404 naming the alias, which is what tells an author their
-    // binding name and their TSX disagree.
+    // Whole-request failures are properties of the canvas (unknown token,
+    // unpublished record); per-alias failures arrive inside a 200 on their own
+    // entries, each naming its reason — an undeclared alias names the alias,
+    // which is what tells an author their binding name and their TSX disagree.
     let detail = 'Failed to load data';
     try {
       const body = await response.json();
@@ -197,8 +205,18 @@ export async function queryCanvasAlias(
     return { ok: false, denial: { error: detail, status: response.status } };
   }
 
-  const body = (await response.json()) as { rows?: unknown[]; truncated?: boolean };
-  return { ok: true, rows: body.rows ?? [], truncated: Boolean(body.truncated) };
+  const body = (await response.json()) as {
+    results?: Record<string, { rows?: unknown[]; truncated?: boolean; error?: string | null }>;
+  };
+  const results: Record<string, CanvasAliasResult> = {};
+  for (const [alias, result] of Object.entries(body.results ?? {})) {
+    results[alias] = {
+      rows: result.rows ?? [],
+      truncated: Boolean(result.truncated),
+      ...(typeof result.error === 'string' && result.error ? { error: result.error } : {}),
+    };
+  }
+  return { ok: true, results };
 }
 
 /** One action as the frame is allowed to see it. */
