@@ -139,8 +139,6 @@ interface CreateTemplateOpts {
   currency?: string;
   commitPeriod?: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | null;
   commitSchedule?: 'AMORTISED' | 'UPFRONT' | null;
-  basePricingFactor?: number;
-  overagePricingFactor?: number;
   collectionMethod?: 'AUTO_CARD' | 'SEND_INVOICE_NET_30';
   prorationPolicy?: 'PRORATE' | 'SKIP_FIRST' | 'FULL_FIRST';
   creditsRolloverPolicy?: 'ROLL_OVER' | 'FORFEIT_AT_PERIOD_END' | null;
@@ -183,7 +181,6 @@ INSERT INTO billing_plan_template (
   name, display_name, description,
   billing_mode,
   commit_amount, currency, commit_period, commit_schedule,
-  base_pricing_factor, overage_pricing_factor,
   collection_method,
   proration_policy, credits_rollover_policy,
   fx_policy, fx_locked_rate,
@@ -198,8 +195,6 @@ INSERT INTO billing_plan_template (
   ${sqlString(currency)},
   ${opts.commitPeriod ? sqlString(opts.commitPeriod) : 'NULL'},
   ${opts.commitSchedule ? sqlString(opts.commitSchedule) : 'NULL'},
-  ${sqlNumber(opts.basePricingFactor ?? 1.0)},
-  ${sqlNumber(opts.overagePricingFactor ?? 1.0)},
   ${sqlString(opts.collectionMethod ?? 'AUTO_CARD')},
   ${sqlString(opts.prorationPolicy ?? 'PRORATE')},
   ${rolloverPolicy ? sqlString(rolloverPolicy) : 'NULL'},
@@ -345,13 +340,13 @@ function addMeteredRecharge(opts: {
   /** USD → contract-currency rate (1.0 for USD templates). */
   fxRate: number;
   commitAmount: number;
-  /** Raw usage in USD (ledger-level), pre-FX, pre-pricing-factor. */
+  /** Raw usage in USD (ledger-level), pre-FX. */
   rawUsageUsd: number;
   /** Recharge status. Defaults to PAID for back-compat. */
   status?: 'PAID' | 'INVOICE_CREATED' | 'FAILED' | 'DISPUTED' | 'PENDING_INVOICE';
 }): void {
   const rawUsageLocal = +(opts.rawUsageUsd * opts.fxRate).toFixed(2);
-  const contractUsageLocal = rawUsageLocal; // pricing_factor = 1 in seed
+  const contractUsageLocal = rawUsageLocal;
   const invoicedLocal = Math.max(opts.commitAmount, contractUsageLocal);
   const overageLocal = Math.max(0, contractUsageLocal - opts.commitAmount);
   const periodEndIso = new Date(
@@ -367,8 +362,6 @@ function addMeteredRecharge(opts: {
     grants_usd: '0',
     raw_usage_local: rawUsageLocal.toString(),
     grants_local: '0',
-    base_pricing_factor: '1',
-    overage_pricing_factor: '1',
     contract_usage_local: contractUsageLocal.toString(),
     payg_charge_local: '0',
     commit_charge_local: opts.commitAmount.toString(),
@@ -684,15 +677,12 @@ export async function seedManagedBilling(): Promise<SeededState> {
   const vantageScaleId = createTemplate({
     name: 'clientgamma-scale-2026',
     displayName: 'ClientGamma Scale',
-    description:
-      'Top rung of the public ClientGamma ladder. $10,000 monthly commit ' +
-      'with a 0.85× base discount on contract usage.',
+    description: 'Top rung of the public ClientGamma ladder. $10,000 monthly commit.',
     billingMode: 'METERED',
     commitAmount: 10000,
     currency: 'USD',
     commitPeriod: 'MONTHLY',
     commitSchedule: 'AMORTISED',
-    basePricingFactor: 0.85,
     collectionMethod: 'SEND_INVOICE_NET_30',
     isCustom: false,
     isActive: true,

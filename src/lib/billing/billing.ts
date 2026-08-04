@@ -502,9 +502,6 @@ export async function getAvailablePlans(): Promise<AvailablePlansResponse | Bill
       currency: it.currency ?? 'USD',
       commitPeriod: it.commitPeriod ?? null,
       commitSchedule: it.commitSchedule ?? null,
-      basePricingFactor: typeof it.basePricingFactor === 'number' ? it.basePricingFactor : 1,
-      overagePricingFactor:
-        typeof it.overagePricingFactor === 'number' ? it.overagePricingFactor : 1,
       position: typeof it.position === 'number' ? it.position : null,
       isCurrent: !!it.isCurrent,
       classification: it.classification ?? 'sidegrade',

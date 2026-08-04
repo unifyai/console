@@ -231,10 +231,6 @@ export interface AdminBillingPlanTemplate {
   currency: string;
   commitPeriod?: string | null; // 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
   commitSchedule?: string | null;
-  /** Multiplier on raw USD usage WITHIN commit (and for all PAYG usage). 1.00 = list price. */
-  basePricingFactor: number;
-  /** Multiplier on raw USD usage ABOVE commit (COMMITMENT plans only). 1.00 = list price. */
-  overagePricingFactor: number;
   collectionMethod: string;
   prorationPolicy: string;
   /** COMMITMENT+CREDITS only. NULL elsewhere (enforced by check constraint). */
@@ -262,10 +258,6 @@ export interface AdminBillingPlanTemplateCreate {
   currency?: string;
   commitPeriod?: string | null;
   commitSchedule?: string | null;
-  /** Defaults to 1.0 server-side. */
-  basePricingFactor?: number;
-  /** Defaults to 1.0 server-side; only meaningful for COMMITMENT plans. */
-  overagePricingFactor?: number;
   collectionMethod?: string;
   prorationPolicy?: string;
   creditsRolloverPolicy?: string | null;

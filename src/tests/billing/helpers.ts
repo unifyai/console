@@ -684,10 +684,6 @@ export interface MeteredPlanOptions {
   templateName?: string;
   commitAmount?: number; // USD; if set, creates a COMMITMENT plan
   commitPeriod?: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
-  /** Multiplier on raw USD usage WITHIN commit (and on all PAYG usage). */
-  basePricingFactor?: number;
-  /** Multiplier on raw USD usage ABOVE commit; defaults to basePricingFactor. */
-  overagePricingFactor?: number;
 }
 
 /**
@@ -714,8 +710,6 @@ export function setMeteredPlan(
   const isCommitment = opts.commitAmount != null;
   const commitAmountSql = isCommitment ? String(opts.commitAmount) : 'NULL';
   const commitPeriodSql = isCommitment ? `'${opts.commitPeriod ?? 'MONTHLY'}'` : 'NULL';
-  const baseFactor = opts.basePricingFactor ?? 1.0;
-  const overageFactor = opts.overagePricingFactor ?? baseFactor;
 
   // Single block: create template (or reuse), end any active assignment,
   // insert a fresh active assignment, sync billing_account.plan_assignment_id.
@@ -741,12 +735,12 @@ BEGIN
 
   INSERT INTO billing_plan_template (
     name, billing_mode, commit_amount, commit_period,
-    collection_method, base_pricing_factor, overage_pricing_factor,
+    collection_method,
     is_custom, is_active, currency
   )
   VALUES (
     '${templateName}', 'METERED', ${commitAmountSql}, ${commitPeriodSql},
-    'SEND_INVOICE_NET_30', ${baseFactor}, ${overageFactor},
+    'SEND_INVOICE_NET_30',
     true, true, 'USD'
   )
   ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name

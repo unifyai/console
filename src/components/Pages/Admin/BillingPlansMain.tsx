@@ -175,9 +175,6 @@ const COLUMN_HINTS: Record<string, string> = {
   Mode: 'CREDITS = prepaid wallet. METERED = invoice at month-end.',
   Commitment: 'Periodic minimum + cadence + schedule. Empty = PAYG.',
   FX: 'Conversion policy for non-USD. USD = none.',
-  Base: 'Multiplier on every usage unit (commit + PAYG + overage).',
-  Overage:
-    'Extra multiplier stacked on base, only above commit. Effective above-commit rate = base × overage.',
   Collection: 'Auto card vs NET-30 invoice (wire / customer balance).',
   Status: 'Catalog/Custom placement + Active/Deprecated state.',
   Groups: 'Plan groups this template belongs to.',
@@ -241,8 +238,6 @@ const DEFAULT_FORM: FormState = {
   currency: 'USD',
   commitPeriod: 'MONTHLY',
   commitSchedule: 'AMORTISED',
-  basePricingFactor: 1.0,
-  overagePricingFactor: 1.0,
   collectionMethod: 'SEND_INVOICE_NET_30',
   prorationPolicy: 'PRORATE',
   creditsRolloverPolicy: null,
@@ -441,8 +436,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
    * minus the ones an operator must always tweak (``name``, the
    * ``Supersedes`` link, and a "(copy)" suffix on the display name).
    * The intent is "duplicate this row to make a sibling tier" —
-   * usually the operator only wants to change the commit amount or
-   * the pricing factor.
+   * usually the operator only wants to change the commit amount.
    *
    * We deliberately don't set ``supersedesTemplateId`` to the source:
    * a sibling tier is not a successor, and pre-filling that field
@@ -462,8 +456,6 @@ export default function BillingPlansAdminMain({ actions }: Props) {
       currency: source.currency,
       commitPeriod: source.commitPeriod ?? null,
       commitSchedule: source.commitSchedule ?? null,
-      basePricingFactor: source.basePricingFactor,
-      overagePricingFactor: source.overagePricingFactor,
       collectionMethod: source.collectionMethod,
       prorationPolicy: source.prorationPolicy,
       creditsRolloverPolicy: source.creditsRolloverPolicy ?? null,
@@ -678,8 +670,6 @@ export default function BillingPlansAdminMain({ actions }: Props) {
                         'Mode',
                         'Commitment',
                         'FX',
-                        'Base ×',
-                        'Overage ×',
                         'Collection',
                         'Status',
                         'Groups',
@@ -689,13 +679,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
                       <TableHead
                         key={label}
                         className={
-                          label === 'Name'
-                            ? 'w-[260px]'
-                            : label === 'Base ×' || label === 'Overage ×'
-                              ? 'w-20'
-                              : label === 'FX'
-                                ? 'w-24'
-                                : undefined
+                          label === 'Name' ? 'w-[260px]' : label === 'FX' ? 'w-24' : undefined
                         }
                       >
                         <span className="inline-flex items-center gap-1.5">
@@ -788,33 +772,6 @@ export default function BillingPlansAdminMain({ actions }: Props) {
                               {t.fxPolicy === 'LOCKED_RATE'
                                 ? `@ ${t.fxLockedRate ?? '—'}`
                                 : t.fxPolicy}
-                            </span>
-                          )}
-                        </TableCell>
-                        {/*
-                         * Pricing is rendered as two separate cells so the
-                         * column reads like a price list (Base / Overage)
-                         * instead of a packed expression. Overage shows
-                         * "—" for PAYG (no notion of "above commit") and
-                         * a muted "1.00×" for COMMITMENT plans with no
-                         * uplift, so operators can still see at a glance
-                         * that the policy was set explicitly rather than
-                         * defaulted.
-                         */}
-                        <TableCell className="text-sm tabular-nums">
-                          {t.basePricingFactor.toFixed(2)}×
-                        </TableCell>
-                        <TableCell className="text-sm tabular-nums">
-                          {!isCommitment ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            <span
-                              className={
-                                t.overagePricingFactor === 1 ? 'text-muted-foreground' : undefined
-                              }
-                              title="Effective above-commit rate = base × overage"
-                            >
-                              {t.overagePricingFactor.toFixed(2)}×
                             </span>
                           )}
                         </TableCell>
@@ -1327,38 +1284,6 @@ function CreateTemplateDialog({
               </Select>
             </Field>
           )}
-        </Section>
-
-        {/* ── Pricing ─────────────────────────────────────────────── */}
-        <Section
-          title="Pricing"
-          subtitle="Above-commit rate = base × overage. Both default to 1.00× (list price)."
-        >
-          <Field
-            label="Base pricing factor (×)"
-            hint="Applies to ALL usage. 0.80× = 20% off, 1.10× = 10% markup."
-          >
-            <Input
-              type="number"
-              step="0.01"
-              min={0.01}
-              value={form.basePricingFactor ?? 1.0}
-              onChange={(e) => updateForm('basePricingFactor', Number(e.target.value))}
-            />
-          </Field>
-          <Field
-            label="Overage uplift (× over base)"
-            hint="Extra multiplier above commit only. 1.00× = no overage penalty."
-          >
-            <Input
-              type="number"
-              step="0.01"
-              min={0.01}
-              disabled={!isCommitment}
-              value={form.overagePricingFactor ?? 1.0}
-              onChange={(e) => updateForm('overagePricingFactor', Number(e.target.value))}
-            />
-          </Field>
         </Section>
 
         {/* ── Catalog ─────────────────────────────────────────────── */}

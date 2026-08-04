@@ -136,8 +136,6 @@ export interface AvailablePlanItem {
   currency: string;
   commitPeriod: string | null;
   commitSchedule: string | null;
-  basePricingFactor: number;
-  overagePricingFactor: number;
   /** NULL = unordered alternative; integer = ladder rung (lower = smaller). */
   position: number | null;
   isCurrent: boolean;

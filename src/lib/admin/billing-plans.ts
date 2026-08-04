@@ -130,8 +130,6 @@ export async function createBillingTemplateAction(
     currency: body.currency ?? 'USD',
     commit_period: body.commitPeriod ?? null,
     commit_schedule: body.commitSchedule ?? null,
-    base_pricing_factor: body.basePricingFactor ?? 1.0,
-    overage_pricing_factor: body.overagePricingFactor ?? 1.0,
     collection_method: body.collectionMethod ?? 'AUTO_CARD',
     proration_policy: body.prorationPolicy ?? 'PRORATE',
     credits_rollover_policy: body.creditsRolloverPolicy ?? null,

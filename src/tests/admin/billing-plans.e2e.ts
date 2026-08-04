@@ -215,11 +215,11 @@ test('organizations page sets the new template on the target org', async ({ admi
   dbExec(
     `INSERT INTO billing_plan_template (
       name, display_name, billing_mode, commit_amount, currency,
-      collection_method, base_pricing_factor, overage_pricing_factor,
+      collection_method,
       is_custom, is_active
     ) VALUES (
       '${templateName}', '${templateName}', 'CREDITS', NULL, 'USD',
-      'AUTO_CARD', 1.0, 1.0, true, true
+      'AUTO_CARD', true, true
     ) ON CONFLICT (name) DO NOTHING`
   );
 
