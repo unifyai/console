@@ -98,6 +98,11 @@ const SKIP_PATTERNS = [
   /\.git/,
   /globals\.css$/, // Don't check the definition file itself
   /tailwind\.config/,
+  // Canvas code embedded as strings: canvases are styled by the canvas host's
+  // own stylesheet (semantic tokens + the vocabulary corpus's utilities), not
+  // by console's typography system -- console's standard classes do not exist
+  // there, so "fixing" these to text-body-muted would silently unstyle them.
+  /simulation\/fixtures\/canvas\.ts$/,
 ];
 
 // ============================================================================
