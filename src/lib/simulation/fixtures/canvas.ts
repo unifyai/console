@@ -37,29 +37,11 @@ export const MOCK_CANVAS_ACTION = 'send_reminders';
  * outside the frame, and the result reported back into the canvas afterwards.
  */
 export const MOCK_CANVAS_BUNDLE = `import React from 'react';
-import {
-  ActionButton,
-  ActionResult,
-  Canvas,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Heading,
-  Row,
-  Stack,
-  Table,
-  Text,
-} from '@unity/canvas-kit';
+import { ActionButton, ActionResult, Canvas } from '@unity/canvas-kit';
 
 const h = React.createElement;
 
-const COLUMNS = [
-  { key: 'title', header: 'Task' },
-  { key: 'owner', header: 'Owner' },
-  { key: 'due', header: 'Due' },
-  { key: 'status', header: 'Status', align: 'right' },
-];
+const card = 'rounded-xl border bg-card p-6 text-card-foreground shadow';
 
 export default function MockTracker({ canvas }) {
   const rows = canvas.data['${MOCK_CANVAS_ALIAS}'];
@@ -75,43 +57,65 @@ export default function MockTracker({ canvas }) {
     Canvas,
     null,
     h(
-      Stack,
-      { gap: 'lg' },
+      'div',
+      { className: 'flex flex-col gap-4' },
       h(
-        Row,
-        { justify: 'between', align: 'end' },
+        'div',
+        { className: 'flex items-end justify-between' },
         h(
-          Stack,
-          { gap: 'xs' },
-          h(Heading, { level: 2 }, 'Open tasks'),
+          'div',
+          null,
+          h('h2', { className: 'text-2xl font-semibold' }, 'Open tasks'),
           h(
-            Text,
-            { tone: 'muted' },
+            'p',
+            { className: 'text-sm text-muted-foreground' },
             rows === undefined
               ? 'Loading…'
               : pending.length + ' open across ' + owners.length + ' owners',
           ),
         ),
-        h(Text, { tone: 'muted' }, 'Synced ' + String(canvas.props.syncedAt ?? 'just now')),
-      ),
-      h(
-        Card,
-        null,
-        h(CardHeader, null, h(CardTitle, null, 'Everything still outstanding')),
         h(
-          CardContent,
-          null,
-          h(Table, {
-            columns: COLUMNS,
-            rows: pending,
-            rowKey: (row, index) => String(row.title ?? index),
-            emptyMessage: rows === undefined ? 'Loading tasks…' : 'Nothing outstanding.',
-          }),
+          'p',
+          { className: 'text-sm text-muted-foreground' },
+          'Synced ' + String(canvas.props.syncedAt ?? 'just now'),
         ),
       ),
       h(
-        Stack,
-        { gap: 'sm' },
+        'div',
+        { className: card },
+        h('p', { className: 'mb-2 font-semibold' }, 'Everything still outstanding'),
+        h(
+          'table',
+          { className: 'w-full text-sm' },
+          h(
+            'tbody',
+            null,
+            pending.length === 0
+              ? h(
+                  'tr',
+                  null,
+                  h(
+                    'td',
+                    { className: 'p-2 text-muted-foreground' },
+                    rows === undefined ? 'Loading tasks…' : 'Nothing outstanding.',
+                  ),
+                )
+              : pending.map((row, index) =>
+                  h(
+                    'tr',
+                    { key: String(row.title ?? index), className: 'border-b' },
+                    h('td', { className: 'p-2' }, row.title),
+                    h('td', { className: 'p-2' }, row.owner),
+                    h('td', { className: 'p-2' }, row.due),
+                    h('td', { className: 'p-2 text-right' }, row.status),
+                  ),
+                ),
+          ),
+        ),
+      ),
+      h(
+        'div',
+        { className: 'flex flex-col gap-2' },
         h(ActionButton, {
           canvas,
           action: '${MOCK_CANVAS_ACTION}',
@@ -135,7 +139,7 @@ export default function MockTracker({ canvas }) {
  * and prints the correct value on failure.
  */
 export const MOCK_CANVAS_BUNDLE_SHA =
-  '8f4937ea1eec44006dda8f7f7cf4070200fd23e18cf3a4f7972fe92be953e7cf';
+  '842fa0db5db9896a6ec208b672de2df321866a73049ed83f315a64dbbbe6609e';
 
 /** Rows the binding resolves to, standing in for a `primitives.tasks` filter. */
 export const MOCK_CANVAS_ROWS: Array<Record<string, unknown>> = [
