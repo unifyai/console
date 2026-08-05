@@ -27,6 +27,7 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { ChatMention, OrgChatAttachment, OrgChatReaction } from '@/types/orgChat';
+import { resolveMentionsInText } from '@/utils/assistants/chat-mentions';
 import type { Attachment, CallPill, MessageReaction } from '@/types/assistants/chat';
 import { CallPillBubble } from '@/components/Chat/CallPill';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
@@ -221,7 +222,6 @@ export function OrgChatPanel({
   const { transcription: transcriptionEnabled, voiceCalls } = useFeatures();
   const [input, setInput] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
-  const [recordedMentions, setRecordedMentions] = React.useState<ChatMention[]>([]);
   const [mentionQuery, setMentionQuery] = React.useState<{ at: number; query: string } | null>(
     null
   );
@@ -292,11 +292,6 @@ export function OrgChatPanel({
     const caret = textareaRef.current?.selectionStart ?? input.length;
     const nextValue = `${input.slice(0, mentionQuery.at)}@${name} ${input.slice(caret)}`;
     setInput(nextValue);
-    setRecordedMentions((prev) =>
-      prev.some((m) => m.kind === candidate.kind && m.id === candidate.id)
-        ? prev
-        : [...prev, candidate]
-    );
     setMentionQuery(null);
     textareaRef.current?.focus();
   };
@@ -338,10 +333,11 @@ export function OrgChatPanel({
     const uploadable = pendingAttachments.filter((a) => !isOversized(a.sizeBytes));
     if ((!content && uploadable.length === 0) || isSending) return;
 
-    const mentions = recordedMentions.filter((m) => content.includes(`@${m.name ?? m.id}`));
+    // Read from the submitted text, not from what the picker happened to
+    // record: a hand-typed "@Ada" addresses Ada just as much as a picked one.
+    const mentions = resolveMentionsInText(content, mentionCandidates);
     setIsSending(true);
     setInput('');
-    setRecordedMentions([]);
     setMentionQuery(null);
     setAttachError(null);
 
