@@ -1,6 +1,7 @@
 import {
   MessageSquare,
   Activity,
+  Boxes,
   LayoutDashboard,
   ListTodo,
   Plug2,
@@ -148,10 +149,10 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     kind: 'view',
     tab: 'tasks',
     appliesTo: ['assistant', 'team'],
-    desc: 'Scheduled, recurring, triggered, and continuous workflows — definition and run history together.',
+    desc: 'Scheduled, recurring, triggered, and continuous tasks — definition and run history together.',
     steps: [
       ['Filter the list', 'Switch between All, Active, and Paused to narrow what you see.'],
-      ['Search tasks', 'Find a workflow by name or description.'],
+      ['Search tasks', 'Find a task by name or description.'],
       ['Expand a task', 'Open a card to read its definition and past run history in one place.'],
     ],
   },
@@ -169,6 +170,25 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
       ],
       ['Open the desktop', 'The live view connects automatically once the teammate has a session.'],
       ['Take control', 'Switch from view-only to interactive to drive the desktop yourself.'],
+    ],
+  },
+  {
+    id: 'workflows',
+    label: 'Workflows',
+    Icon: Boxes,
+    kind: 'view',
+    tab: 'workflows',
+    desc: 'Off-the-shelf jobs your teammate already knows how to do — install one and it sets itself up.',
+    steps: [
+      [
+        "Check what's installed",
+        'The Installed tab shows whether each workflow is working and what runs next.',
+      ],
+      ['Browse the shelf', 'Filter by category to see what else your teammate could take on.'],
+      [
+        'Install and inspect',
+        'Open a card to see what a workflow needs and exactly what it sets up.',
+      ],
     ],
   },
   {
