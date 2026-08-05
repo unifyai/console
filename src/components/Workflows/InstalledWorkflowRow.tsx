@@ -1,0 +1,182 @@
+'use client';
+
+import { AlertTriangle, Pause, Play, Plug, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/UI/button';
+import { cn } from '@/lib/utils';
+import { WorkflowTileIcon } from './WorkflowTileIcon';
+import {
+  WorkflowDestinationBadge,
+  WorkflowStatusBadge,
+  WorkflowUpdateBadge,
+} from './WorkflowStatusBadge';
+import { WorkflowAppIcon } from './WorkflowAppIcon';
+import { hasUpdate, unmetRequirements, type WorkflowGalleryItem } from '@/types/workflows';
+
+/**
+ * The returning-user surface. Deliberately a full-width row, not a card:
+ * a user has 2–5 of these and comes back to ask "is it working, what runs next,
+ * what needs me?" — which needs runtime detail and one inline action, not a pitch.
+ *
+ * Sort the list attention-first: failed → pending_requirements → provisioning → active.
+ */
+export function InstalledWorkflowRow({
+  item,
+  onOpen,
+  onConnect,
+  onToggleSetup,
+  onRetry,
+}: {
+  item: WorkflowGalleryItem;
+  onOpen: (item: WorkflowGalleryItem) => void;
+  onConnect: (canonicalSlug: string) => void;
+  onToggleSetup: (slug: string) => void;
+  onRetry: (slug: string) => void;
+}) {
+  const { workflow, installation } = item;
+  if (!installation) return null;
+  const missing = unmetRequirements(workflow);
+  const held = installation.status === 'pending_requirements';
+  const failed = installation.status === 'failed';
+  const nextTask = installation.tasks[0];
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(item)}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter') return;
+        onOpen(item);
+      }}
+      className={cn(
+        'grid w-full grid-cols-[auto_1fr_auto] items-center gap-3.5 rounded-xl border bg-card-2 p-4 text-left transition',
+        'hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        held &&
+          'border-[color-mix(in_srgb,var(--status-warning)_32%,var(--border))] bg-[color:var(--status-warning-bg)]',
+        failed &&
+          'border-[color-mix(in_srgb,var(--status-danger)_28%,var(--border))] bg-[color:var(--status-danger-bg)]'
+      )}
+      data-testid={`installed-workflow-${workflow.slug}`}
+    >
+      <WorkflowTileIcon iconId={workflow.iconId} category={workflow.category} />
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+            {workflow.name}
+          </span>
+          <WorkflowStatusBadge state={installation.status} />
+          {installation.destination.kind === 'team' && (
+            <WorkflowDestinationBadge
+              teamName={installation.destination.teamName}
+              memberCount={installation.destination.memberCount}
+            />
+          )}
+          {hasUpdate(item) && <WorkflowUpdateBadge version={workflow.version} />}
+        </div>
+
+        {installation.status === 'provisioning' && installation.setup ? (
+          <>
+            <p className="text-caption mt-1">
+              {installation.setup.label} —{' '}
+              <span className="font-medium text-foreground">{installation.setup.detail}</span>
+            </p>
+            <div className="mt-2 flex items-center gap-2.5">
+              <span className="h-1.5 w-full max-w-[340px] overflow-hidden rounded-full bg-muted">
+                <span
+                  className="block h-full rounded-full bg-[color:var(--status-info)] transition-[width] duration-500"
+                  style={{ width: `${installation.setup.percent}%` }}
+                />
+              </span>
+              <span className="text-caption whitespace-nowrap font-mono">
+                {installation.setup.percent}% · {installation.setup.etaLabel}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className="text-caption mt-1 leading-relaxed">
+            {held && (
+              <>
+                <Plug className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" />
+                Jobs planted and held until{' '}
+                <span className="font-medium text-foreground">
+                  {missing.map((requirement) => requirement.displayName).join(' & ')}
+                </span>{' '}
+                {missing.length > 1 ? 'are' : 'is'} connected
+              </>
+            )}
+            {failed && (
+              <>
+                <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" />
+                {installation.failures?.length} of the items it plants failed — the rest is running
+              </>
+            )}
+            {installation.status === 'active' && nextTask && (
+              <>
+                <span className="font-medium text-foreground">{nextTask.name}</span>
+                <span className="mx-2 text-muted-foreground">·</span>
+                next {nextTask.nextRunLabel}
+                <span className="mx-2 text-muted-foreground">·</span>
+                {nextTask.lastRunLabel}
+              </>
+            )}
+          </p>
+        )}
+      </div>
+
+      <div
+        className="flex shrink-0 items-center gap-2"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {held && missing[0] && (
+          <Button
+            type="button"
+            size="sm"
+            className="h-7 gap-1 px-2.5 text-xs"
+            onClick={() => onConnect(missing[0].canonicalSlug)}
+          >
+            <WorkflowAppIcon requirement={missing[0]} size="xs" />
+            Connect {missing[0].displayName}
+          </Button>
+        )}
+        {installation.status === 'provisioning' && installation.setup && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 px-2.5 text-xs"
+            onClick={() => onToggleSetup(workflow.slug)}
+          >
+            {installation.setup.paused ? (
+              <Play className="h-3.5 w-3.5" />
+            ) : (
+              <Pause className="h-3.5 w-3.5" />
+            )}
+            {installation.setup.paused ? 'Resume' : 'Pause'}
+          </Button>
+        )}
+        {failed && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 px-2.5 text-xs"
+            onClick={() => onRetry(workflow.slug)}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 px-2.5 text-xs"
+          onClick={() => onOpen(item)}
+        >
+          Manage
+        </Button>
+      </div>
+    </div>
+  );
+}
