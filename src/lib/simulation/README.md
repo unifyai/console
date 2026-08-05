@@ -27,16 +27,17 @@ links back to `/mock` to switch.
 
 After entering a scenario, exercise the refactored assistant shell:
 
-| Area               | What to check                                                                                       |
-| ------------------ | --------------------------------------------------------------------------------------------------- |
-| **Workspace rail** | Chat, Actions, Dashboards, Tasks, Integrations                                                      |
-| **Brain rail**     | Contacts, Transcripts, Knowledge (typed claims + provenance), Functions (link debt), Guidance, Data |
-| **Settings**       | Account, Billing, Usage (billing + ledger mocked)                                                   |
-| **Chat**           | History from fixtures; sample table/plot embed messages                                             |
-| **Actions**        | ManagerMethod + ToolLoop tree from fixtures                                                         |
-| **Dashboards**     | Layout + HTML tiles                                                                                 |
-| **Tasks**          | Task cards, run history, optional running-task rail dot                                             |
-| **Integrations**   | Connected apps + paginated catalog browse                                                           |
+| Area               | What to check                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| **Workspace rail** | Chat, Actions, Dashboards, Tasks, Workflows, Integrations                                                                |
+| **Brain rail**     | Contacts, Transcripts, Knowledge (typed claims + provenance), Functions (link debt), Guidance, Data                      |
+| **Settings**       | Account, Billing, Usage (billing + ledger mocked)                                                                        |
+| **Chat**           | History from fixtures; sample table/plot embed messages                                                                  |
+| **Actions**        | ManagerMethod + ToolLoop tree from fixtures                                                                              |
+| **Dashboards**     | Layout + HTML tiles                                                                                                      |
+| **Tasks**          | Task cards, run history, optional running-task rail dot                                                                  |
+| **Workflows**      | Curated shelf with every install state; install/connect/uninstall transitions (client-side, via `workflow-mock-data.ts`) |
+| **Integrations**   | Connected apps + paginated catalog browse                                                                                |
 
 The flag is read through `process.env.NEXT_PUBLIC_MOCK_SIM`, so it inlines at
 build time. When it is off (the default, and in every prod/CI build) **none of
