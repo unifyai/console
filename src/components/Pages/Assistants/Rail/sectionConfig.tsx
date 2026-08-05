@@ -10,6 +10,7 @@ import {
   Braces,
   Compass,
   Database,
+  Frame,
   MonitorPlay,
   UsersRound,
   type LucideIcon,
@@ -53,30 +54,30 @@ export interface SectionDef {
    * assistant-only (the historical default).
    */
   appliesTo?: ReadonlyArray<SelectorEntityKind>;
-  /** Optional rail/header chip. */
-  badge?: string;
 }
 
 export function sectionAppliesTo(section: SectionDef, kind: SelectorEntityKind): boolean {
   return (section.appliesTo ?? ['assistant']).includes(kind);
 }
 
-export const CHAT_SECTION: SectionDef = {
-  id: 'chat',
-  label: 'Chat',
-  Icon: MessageSquare,
-  kind: 'view',
-  tab: 'chat',
-  appliesTo: ['assistant', 'human', 'team', 'group'],
-  desc: 'Talk to your teammate — messages, voice notes, files, and screen share in one thread.',
-  steps: [
-    ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],
-    ['Attach files', 'Drop documents, images, or screenshots into the composer for extra context.'],
-    ['Share your screen', 'Start screen share so your teammate can follow along live.'],
-  ],
-};
-
 export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
+  {
+    id: 'chat',
+    label: 'Chat',
+    Icon: MessageSquare,
+    kind: 'view',
+    tab: 'chat',
+    appliesTo: ['assistant', 'human', 'team', 'group'],
+    desc: 'Talk to your teammate — messages, voice notes, files, and screen share in one thread.',
+    steps: [
+      ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],
+      [
+        'Attach files',
+        'Drop documents, images, or screenshots into the composer for extra context.',
+      ],
+      ['Share your screen', 'Start screen share so your teammate can follow along live.'],
+    ],
+  },
   {
     id: 'members',
     label: 'Members',
@@ -107,6 +108,23 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
         'Expand a request',
         'Open a row to read the final response and the full step-by-step timeline.',
       ],
+    ],
+  },
+  {
+    id: 'canvas',
+    label: 'Canvas',
+    Icon: Frame,
+    kind: 'view',
+    tab: 'canvas',
+    appliesTo: ['assistant', 'team'],
+    desc: 'Interactive views your teammate builds for you — live data, and controls that do real work.',
+    steps: [
+      ['Ask for a view', 'Describe what you want to see and your teammate will build it.'],
+      [
+        'Use the controls',
+        'Buttons and forms on a canvas run real work; you confirm before anything happens.',
+      ],
+      ['Ask for a change', 'Say what to adjust and the canvas updates in place.'],
     ],
   },
   {
@@ -246,26 +264,16 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',
-    desc: 'Browse ingested Data tables and state-manager contexts in a shared table browser. Prefer the dedicated Storage tabs for everyday browsing; edits here can change assistant behaviour.',
+    desc: 'Browse the external data connected to this assistant — tables you create here and files you upload or ingest.',
     steps: [
-      ['Stay on Tables', 'Browse ingested Data/ tables — the default, everyday mode.'],
-      [
-        'Switch to State',
-        'Open Contacts, Tasks, Knowledge, and other state-manager contexts when you need raw row edits.',
-      ],
-      [
-        'Edit carefully',
-        'LogGrid mutations write straight to Orchestra; use dedicated tabs when you only need to read.',
-      ],
+      ['Pick a table', 'Select a table from the directory to browse its rows.'],
+      ['Add data', 'Use + to create a table or upload a file into the current folder.'],
+      ['Edit in place', 'Double-click a cell to edit it, or open a row for the full record.'],
     ],
   },
 ];
 
-export const ALL_SECTIONS: ReadonlyArray<SectionDef> = [
-  CHAT_SECTION,
-  ...WORKSPACE_SECTIONS,
-  ...BRAIN_SECTIONS,
-];
+export const ALL_SECTIONS: ReadonlyArray<SectionDef> = [...WORKSPACE_SECTIONS, ...BRAIN_SECTIONS];
 
 export const SECTION_BY_ID: Record<string, SectionDef> = Object.fromEntries(
   ALL_SECTIONS.map((s) => [s.id, s])

@@ -37,10 +37,12 @@ import {
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { isManagerExcluded } from '@/lib/assistants/event-filters';
+import { authorizeAssistantStream } from '@/lib/assistants/assistantStreamAccess';
 import { localEventBusEnabled, subscribe } from '@/lib/pubsub/local-event-bus';
 import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { encodeOnboardingInvalidationSse } from '@/lib/assistants/onboarding-stream-frame';
 import { encodeVoiceEnrollmentSuggestedSse } from '@/lib/assistants/voice-enrollment-stream-frame';
+import { encodeCanvasSse } from '@/lib/assistants/canvas-stream-frame';
 import { encodeConsoleScriptSse } from '@/lib/assistants/console-script-stream-frame';
 
 export const dynamic = 'force-dynamic';
@@ -104,6 +106,11 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
           const invalidation = encodeOnboardingInvalidationSse(payload);
           if (invalidation) {
             controller.enqueue(encoder.encode(invalidation));
+            return;
+          }
+          const canvas = encodeCanvasSse(payload);
+          if (canvas) {
+            controller.enqueue(encoder.encode(canvas));
             return;
           }
           const event = snakeToCamelObject<Record<string, unknown>>(rawEvent);
@@ -237,6 +244,18 @@ function createPubSubStream(
             return;
           }
 
+          const canvas = encodeCanvasSse(payload);
+          if (canvas) {
+            try {
+              controller.enqueue(encoder.encode(canvas));
+            } catch {
+              message.nack();
+              return;
+            }
+            message.ack();
+            return;
+          }
+
           const eventPayload = payload.event || payload;
           const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
           const shaped = reshapeActionEventToLogEntry(camelEvent);
@@ -309,6 +328,14 @@ export async function GET(
 
   if (!assistantId) {
     return new NextResponse('Assistant ID is required.', { status: 400 });
+  }
+
+  // Before either backend. This route reads the assistant's Pub/Sub topic with the
+  // platform's own credentials, so unlike the routes that forward a viewer's key to
+  // Orchestra, nothing downstream is scoped to the caller.
+  const access = await authorizeAssistantStream(request, assistantId);
+  if (!access.ok) {
+    return access.response;
   }
 
   // ── No Pub/Sub backend (creds or emulator) → in-memory event bus ──

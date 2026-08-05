@@ -15,6 +15,7 @@ import {
   type DesktopSessionScope,
   findScopedStartupLiveviewLog,
   liveviewHealthProbeUrl,
+  readLogEntryField,
 } from '@/lib/assistants/desktopSessionScope';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
@@ -148,9 +149,17 @@ export async function getLiveviewUrl(
     const liveviewUrlValue = scopedLog?.entries?.liveviewUrl || scopedLog?.entries?.liveview_url;
 
     if (scopedLog && scopedLog.entries && typeof liveviewUrlValue === 'string') {
-      const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+      const publishedPassword = readLogEntryField(
+        scopedLog.entries,
+        'liveview_password',
+        'liveviewPassword'
+      );
+      const password =
+        typeof publishedPassword === 'string' && publishedPassword.trim()
+          ? publishedPassword
+          : await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
       const urlObj = new URL(liveviewUrlValue);
-      urlObj.searchParams.set('password', ownerKey);
+      urlObj.searchParams.set('password', password);
       return { liveviewUrl: urlObj.toString() };
     }
 
@@ -177,11 +186,15 @@ export async function getLiveviewUrl(
 export async function buildLiveviewUrl(
   rawUrl: string,
   ownerId: string,
-  organizationId: number | null
+  organizationId: number | null,
+  password?: string | null
 ): Promise<{ liveviewUrl: string }> {
-  const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+  const resolvedPassword =
+    password && password.trim()
+      ? password
+      : await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
   const urlObj = new URL(rawUrl);
-  urlObj.searchParams.set('password', ownerKey);
+  urlObj.searchParams.set('password', resolvedPassword);
   return { liveviewUrl: urlObj.toString() };
 }
 export async function checkLiveviewHealth(liveviewUrl: string): Promise<boolean> {
@@ -276,6 +289,48 @@ async function dispatchFilesysAccessEvent(assistantId: string, enabled: boolean)
   }
 }
 
+/**
+ * Best-effort: ask adapters to publish a full assistant-update refresh so a
+ * running session absorbs Orchestra's current `user_desktops` map (os,
+ * filesys_sync, SFTP tunnel coordinates) for this link without waiting for
+ * the assistant to restart. Mirrors `wakeAssistantSession`'s adapters
+ * webhook call. The Orchestra desktop mutation above is authoritative, so a
+ * dispatch failure here is logged and swallowed, matching
+ * `dispatchFilesysAccessEvent`'s posture.
+ */
+async function dispatchAssistantUpdateRefresh(assistantId: string): Promise<void> {
+  try {
+    const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
+    if (!adminKey) return;
+    const parsedId = Number.parseInt(assistantId, 10);
+    if (!Number.isFinite(parsedId)) return;
+
+    if (!process.env.LOCAL_ADAPTERS_URL && !process.env.UNITY_ADAPTERS_URL && isSelfHost()) {
+      return;
+    }
+
+    const updateUrl = `${getAdaptersBaseUrl({
+      localAdaptersUrl: process.env.LOCAL_ADAPTERS_URL,
+    })}/assistant/update`;
+    const params = new URLSearchParams();
+    params.set('assistant_id', String(parsedId));
+    const response = await fetch(updateUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminKey}` },
+      body: params,
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => 'Failed to refresh assistant session.');
+      console.warn(`[desktop] assistant-update refresh failed (${response.status}): ${detail}`);
+    }
+  } catch (e: unknown) {
+    console.warn(
+      '[desktop] assistant-update refresh dispatch failed (continuing):',
+      e instanceof Error ? e.message : e
+    );
+  }
+}
+
 export async function sendSystemEvent(
   assistantId: string,
   eventType: SystemEventType,
@@ -358,6 +413,7 @@ export async function linkDesktop(
       return (data as ResponseProps) || { detail: 'Failed to link desktop' };
     }
     await dispatchFilesysAccessEvent(assistantId, filesysSync);
+    await dispatchAssistantUpdateRefresh(assistantId);
     return { info: 'Desktop linked successfully' };
   } catch (e: unknown) {
     console.error('[linkDesktop] Error:', e instanceof Error ? e.message : e);
@@ -385,6 +441,7 @@ export async function unlinkDesktop(assistantId: string): Promise<ResponseProps>
       return (data as ResponseProps) || { detail: 'Failed to unlink desktop' };
     }
     await dispatchFilesysAccessEvent(assistantId, false);
+    await dispatchAssistantUpdateRefresh(assistantId);
     return { info: 'Desktop unlinked' };
   } catch (e: unknown) {
     console.error('[unlinkDesktop] Error:', e instanceof Error ? e.message : e);
@@ -502,6 +559,7 @@ export async function deleteUserDesktop(
     // access stops immediately rather than on the next session load.
     for (const aid of linkedAssistantIds) {
       await dispatchFilesysAccessEvent(String(aid), false);
+      await dispatchAssistantUpdateRefresh(String(aid));
     }
     return { info: 'Desktop deleted' };
   } catch (e: unknown) {

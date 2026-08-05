@@ -543,10 +543,14 @@ export function useCall(
       setError(message);
       if (room.state !== 'disconnected') {
         await room.disconnect().catch(() => {});
-      } else {
-        setActiveCall(null);
-        setStatus('ended');
       }
+      // Reset unconditionally rather than leaving it to the Disconnected event.
+      // A room that never reached 'connected' can resolve disconnect() without
+      // emitting one, and the engine would sit in 'ringing' indefinitely — which
+      // disables the call button on every room surface with no way back short of
+      // a page reload. Redundant when the event does fire, and idempotent.
+      setActiveCall(null);
+      setStatus('ended');
       return false;
     },
     [room]
@@ -561,7 +565,17 @@ export function useCall(
       setError(null);
       let created: OrgCallSession | null = null;
       try {
-        const data = await callApi('/api/calls', scope);
+        // Bounded like the assistant path's dispatch: a create request that
+        // never settles would otherwise leave the engine 'ringing' forever, and
+        // every room call button reads that state to disable itself.
+        const dispatchTimeout =
+          (typeof window !== 'undefined' && (window as any)._TEST_CALL_DISPATCH_TIMEOUT) ||
+          CALL_DISPATCH_TIMEOUT;
+        const data = await promiseWithTimeout(
+          callApi('/api/calls', scope),
+          dispatchTimeout,
+          failureMessage
+        );
         created = parseOrgCallSession(data);
         setActiveCall(created);
         const connected = await connectToRoom(created);
@@ -1113,15 +1127,16 @@ export function useCall(
     [assistantActions.desktop, activeCallAssistant?.userId, activeCallAssistant?.organizationId]
   );
 
-  const { isDesktopReady, eventLiveviewUrl, eventBindingId } = useDesktopReady(
-    isDesktopEnabled ? activeCallAssistant?.agentId : undefined,
-    boundGetLiveviewUrl,
-    false,
-    undefined,
-    0,
-    activeCall?.callId ?? null,
-    runtimePollScope
-  );
+  const { isDesktopReady, eventLiveviewUrl, eventBindingId, eventLiveviewPassword } =
+    useDesktopReady(
+      isDesktopEnabled ? activeCallAssistant?.agentId : undefined,
+      boundGetLiveviewUrl,
+      false,
+      undefined,
+      0,
+      activeCall?.callId ?? null,
+      runtimePollScope
+    );
 
   const scopedLiveviewLookup = React.useCallback((): DesktopSessionScope | null => {
     if (eventBindingId) {
@@ -1138,14 +1153,15 @@ export function useCall(
     const built = await assistantActions.desktop.buildLiveviewUrl(
       eventLiveviewUrl,
       activeCallAssistant.userId,
-      activeCallAssistant.organizationId ?? null
+      activeCallAssistant.organizationId ?? null,
+      eventLiveviewPassword
     );
     const healthy = await assistantActions.desktop.checkLiveviewHealth(built.liveviewUrl);
     if (!healthy) {
       throw new Error('Desktop liveview path is not reachable yet.');
     }
     setLiveviewUrl(built.liveviewUrl);
-  }, [activeCallAssistant, assistantActions.desktop, eventLiveviewUrl]);
+  }, [activeCallAssistant, assistantActions.desktop, eventLiveviewUrl, eventLiveviewPassword]);
 
   React.useEffect(() => {
     if (!isRemoteControlActive || !isDesktopReady || !eventLiveviewUrl) return;
@@ -1188,7 +1204,8 @@ export function useCall(
         const built = await assistantActions.desktop.buildLiveviewUrl(
           eventLiveviewUrl,
           activeCallAssistant.userId,
-          activeCallAssistant.organizationId ?? null
+          activeCallAssistant.organizationId ?? null,
+          eventLiveviewPassword
         );
         resolvedUrl = built.liveviewUrl;
       } else if (isDesktopReady) {
@@ -1237,6 +1254,7 @@ export function useCall(
     assistantActions.desktop,
     activeCallAssistant,
     eventLiveviewUrl,
+    eventLiveviewPassword,
     isDesktopReady,
     scopedLiveviewLookup,
   ]);

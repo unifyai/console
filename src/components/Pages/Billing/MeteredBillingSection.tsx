@@ -50,10 +50,6 @@ export interface MeteredBillingSectionProps {
  * whether they're "below commit" (commit charges anyway) or "in
  * overage" (commit + the excess will invoice). PAYG plans have no
  * floor so the bar runs against the month's contract usage instead.
- *
- * Internal pricing knobs (`base_pricing_factor`, `overage_pricing_factor`) are intentionally
- * hidden — those are admin-only contract details and would just be
- * noise to the customer.
  */
 export const MeteredBillingSection = ({
   plan,

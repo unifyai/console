@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { camelToSnakeObject } from '@/utils/casing';
 import { badRequest } from '../_utils/auth';
 import { forwardToOrchestra } from '../chat/_utils/orchestra';
 
@@ -25,6 +26,11 @@ export async function POST(request: NextRequest) {
   if (!body || typeof body.kind !== 'string') {
     return badRequest('kind is required');
   }
+  // The opening config is the one nested object on this payload, and the
+  // runtime reads its fields by snake_case name. Renaming only the outer key
+  // leaves the inner ones camelCase, which the runtime cannot see: a recorded
+  // opening arrives with no asset and the voice agent rejects it.
+  const openingConfig = body.openingConfig ?? body.opening_config ?? undefined;
   return forwardToOrchestra(request, '/calls', {
     method: 'POST',
     body: {
@@ -40,7 +46,9 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
       assistant_id: body.assistantId ?? body.assistant_id ?? undefined,
       // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
-      opening_config: body.openingConfig ?? body.opening_config ?? undefined,
+      opening_config: openingConfig
+        ? camelToSnakeObject<Record<string, unknown>>(openingConfig)
+        : undefined,
     },
   });
 }

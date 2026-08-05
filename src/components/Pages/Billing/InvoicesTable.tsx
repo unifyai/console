@@ -394,9 +394,6 @@ interface MeteredBreakdown {
  * autorecharge rows — those have no per-invoice breakdown to display.
  * (Manual top-ups / promo credits never reach this component because
  * the backend filters them out — they don't produce a Stripe invoice.)
- *
- * Internal pricing knobs (``base_pricing_factor``, ``overage_pricing_factor``) are intentionally
- * dropped here — they're not customer-facing.
  */
 function extractMeteredBreakdown(inv: InvoiceListItem): MeteredBreakdown | null {
   const detail = inv.detail;

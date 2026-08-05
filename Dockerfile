@@ -53,6 +53,12 @@ ENV NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY=${NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY}
 ARG NEXT_PUBLIC_OPENREPLAY_INGEST_POINT
 ENV NEXT_PUBLIC_OPENREPLAY_INGEST_POINT=${NEXT_PUBLIC_OPENREPLAY_INGEST_POINT}
 
+# Origin serving the Canvas runtime host. Inlined into the client bundle and
+# the global CSP frame-src at build time; empty falls back to localhost:3100
+# for local development (see src/lib/canvas/origin.ts).
+ARG NEXT_PUBLIC_CANVAS_ORIGIN
+ENV NEXT_PUBLIC_CANVAS_ORIGIN=${NEXT_PUBLIC_CANVAS_ORIGIN}
+
 RUN npm run check:styles:all
 RUN --mount=type=cache,id=console-next,target=/app/.next/cache npx next build
 
@@ -68,6 +74,11 @@ ENV NODE_ENV=production
 
 ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
+
+# Server-side reads (canvas access checks, oEmbed) resolve the same origin the
+# client bundle was built against, so the runner needs the value too.
+ARG NEXT_PUBLIC_CANVAS_ORIGIN
+ENV NEXT_PUBLIC_CANVAS_ORIGIN=${NEXT_PUBLIC_CANVAS_ORIGIN}
 
 RUN apk add --no-cache python3
 

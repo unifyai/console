@@ -19,6 +19,15 @@ import { RoomContext, useMediaDeviceSelect, useTracks } from '@livekit/component
 import { Button } from '@/components/UI/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { cn } from '@/lib/utils';
+import {
+  presenterLabel,
+  presentingCaption,
+  resolveFocusedSid,
+  sortSharesByStart,
+  trackShareStarts,
+  type ShareEntry,
+  type ShareStartTimes,
+} from '@/utils/assistants/screen-shares';
 import { OrgCallSession } from '@/types/orgChat';
 import {
   AssistantTile,
@@ -138,37 +147,124 @@ export function MeetGrid({
 }
 
 /**
- * Presenter focus: renders the most recent screen-share track large, Meet
- * style. Must be mounted inside a RoomContext.
+ * One attached video element.
+ *
+ * Attaching in a ref callback runs on every render and never detaches, which
+ * was survivable only while the focused track could never change: switching
+ * presenters would otherwise leave the previous element attached and playing.
  */
-function ScreenShareFocus({ onActiveChange }: { onActiveChange: (active: boolean) => void }) {
+function AttachedVideo({
+  track,
+  muted,
+  className,
+}: {
+  track: Track;
+  muted: boolean;
+  className: string;
+}) {
+  const ref = React.useRef<HTMLVideoElement>(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    track.attach(el);
+    return () => {
+      track.detach(el);
+    };
+  }, [track]);
+  return <video ref={ref} className={className} muted={muted} playsInline autoPlay />;
+}
+
+/**
+ * Presenter focus: one screen share large, Meet style, plus a picker when there
+ * is more than one. Must be mounted inside a RoomContext.
+ */
+function ScreenShareFocus({
+  onActiveChange,
+  onCountChange,
+}: {
+  onActiveChange: (active: boolean) => void;
+  onCountChange: (count: number) => void;
+}) {
   const tracks = useTracks([Track.Source.ScreenShare], { onlySubscribed: false });
-  const focus = tracks.filter((t) => t.publication?.track).at(-1);
-  const active = !!focus;
+  const live = tracks.filter((t) => t.publication?.track);
+
+  const shares: ShareEntry[] = live.map((t) => ({
+    sid: t.publication!.trackSid,
+    presenterName: t.participant.name ?? '',
+    isLocal: t.participant.isLocal,
+  }));
+
+  // First-seen times, so "newest" means newest rather than last-in-the-array.
+  const [startedAt, setStartedAt] = React.useState<ShareStartTimes>({});
+  const sids = shares
+    .map((s) => s.sid)
+    .sort()
+    .join(',');
+  React.useEffect(() => {
+    setStartedAt((known) => trackShareStarts(shares, known, Date.now()));
+    // Keyed on the set of shares, not the array identity, which changes every
+    // render and would restamp every share as new.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sids]);
+
+  const [requestedSid, setRequestedSid] = React.useState<string | null>(null);
+  const focusedSid = resolveFocusedSid(shares, requestedSid, startedAt);
+  const focused = live.find((t) => t.publication!.trackSid === focusedSid);
+  const focusedShare = shares.find((s) => s.sid === focusedSid);
+
+  const active = live.length > 0;
   React.useEffect(() => {
     onActiveChange(active);
   }, [active, onActiveChange]);
-  if (!focus?.publication?.track) return null;
-  const track = focus.publication.track;
-  const presenterName = focus.participant.isLocal
-    ? 'You are presenting'
-    : `${focus.participant.name || 'Teammate'} is presenting`;
+  React.useEffect(() => {
+    onCountChange(live.length);
+  }, [live.length, onCountChange]);
+
+  if (!focused?.publication?.track || !focusedShare) return null;
+
+  const ordered = sortSharesByStart(shares, startedAt);
+
   return (
-    <div
-      className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border bg-black"
-      data-testid="org-call-focus"
-    >
-      <video
-        ref={(el) => {
-          if (el) track.attach(el);
-        }}
-        className="h-full w-full object-contain"
-        muted={focus.participant.isLocal}
-        playsInline
-        autoPlay
-      />
-      <div className="from-background/80 absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-3 py-2">
-        <p className="text-caption text-foreground">{presenterName}</p>
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {ordered.length > 1 && (
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="tablist"
+          aria-label="Shared screens"
+          data-testid="org-call-presenter-strip"
+        >
+          {ordered.map((share) => (
+            <button
+              key={share.sid}
+              type="button"
+              role="tab"
+              aria-selected={share.sid === focusedSid}
+              className={cn(
+                'text-caption rounded-full border px-3 py-1',
+                share.sid === focusedSid
+                  ? 'bg-muted font-medium text-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              )}
+              onClick={() => setRequestedSid(share.sid)}
+              data-testid="org-call-presenter-option"
+            >
+              {presenterLabel(share)}
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border bg-black"
+        data-testid="org-call-focus"
+      >
+        <AttachedVideo
+          track={focused.publication.track}
+          muted={focusedShare.isLocal}
+          className="h-full w-full object-contain"
+        />
+        <div className="from-background/80 absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-3 py-2">
+          <p className="text-caption text-foreground">{presentingCaption(focusedShare)}</p>
+        </div>
       </div>
     </div>
   );
@@ -273,6 +369,7 @@ export function OrgCallMeetStage({
 }: OrgCallMeetStageProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [focusActive, setFocusActive] = React.useState(false);
+  const [presentingCount, setPresentingCount] = React.useState(0);
   const title = orgCallTitle(call, humansById, currentUserId);
   const joinedCount = call.participants.filter((p) => p.status === 'joined').length;
 
@@ -291,6 +388,9 @@ export function OrgCallMeetStage({
             {call.assistantIds.length > 0
               ? ` · ${call.assistantIds.length} assistant${call.assistantIds.length > 1 ? 's' : ''}`
               : ''}
+            {/* The picker only appears for two or more, so this is the one
+                place that says anybody is presenting at all. */}
+            {presentingCount > 0 ? ` · ${presentingCount} presenting` : ''}
           </p>
         </div>
         <Button
@@ -305,7 +405,9 @@ export function OrgCallMeetStage({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {room && <ScreenShareFocus onActiveChange={setFocusActive} />}
+        {room && (
+          <ScreenShareFocus onActiveChange={setFocusActive} onCountChange={setPresentingCount} />
+        )}
         <MeetGrid
           call={call}
           room={room}

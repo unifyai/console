@@ -61,29 +61,15 @@ interface AssistantSwitcherProps {
   isInitialAssistantIdentityLoading?: boolean;
   /** Full prop bag forwarded to the embedded `AssistantList` (the switcher). */
   listProps: React.ComponentProps<typeof AssistantList>;
+  collapsed: boolean;
   /**
    * When true, the popover stays open through focus/pointer moves into a nested
    * overlay (hire / create-group). Closing that overlay returns to the switcher.
    */
   nestedOverlayOpen?: boolean;
-  /** Open the Chat section for the current selection (droid / face = conversation home). */
-  onOpenChat?: () => void;
-  /** Whether Chat is the active rail section. */
-  chatActive?: boolean;
-  /** Unread/activity pulse on the chat-home face while another section is selected. */
-  showChatActivity?: boolean;
   /** Assistant currently on a live call; escalates that face's presence badge. */
   activeCallAssistantId?: string | null;
 }
-
-/**
- * The presence badge and the picker badge share the face's bottom-right
- * corner. Presence yields whenever the picker is revealed, so the two never
- * render on top of one another. The open popover portals focus out of the
- * rail, so that case is driven by state rather than `group-focus-within`.
- */
-const PRESENCE_YIELD_CLASS =
-  'transition-opacity group-hover:opacity-0 group-focus-within:opacity-0';
 
 function entityInitials(label: string): string {
   const parts = label.trim().split(/\s+/).filter(Boolean);
@@ -95,21 +81,18 @@ function entityInitials(label: string): string {
 }
 
 /**
- * The rail's unity switcher: the active face opens Chat (conversation home);
- * a corner badge on that face opens the teammate picker popover. The picker
- * badge and the presence badge share the face's bottom-right corner, so the
- * presence badge fades out whenever the picker is revealed — only one of the
- * two ever occupies the corner.
+ * The rail's unity switcher: the whole card is the teammate picker. Expanded it
+ * shows the active face, name, and role beside a chevron; collapsed to a dock
+ * it is the face alone with a tooltip. Chat is a rail section of its own, so
+ * the face is not a shortcut to it.
  */
 export function AssistantSwitcher({
   activeUnity,
   activeEntityFace = null,
   isInitialAssistantIdentityLoading = false,
   listProps,
+  collapsed,
   nestedOverlayOpen = false,
-  onOpenChat,
-  chatActive = false,
-  showChatActivity = false,
   activeCallAssistantId = null,
 }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
@@ -130,16 +113,27 @@ export function AssistantSwitcher({
     : activeUnity
       ? assistantDisplayName(activeUnity)
       : 'Select a teammate';
+  const unitySub = activeEntityFace
+    ? (activeEntityFace.sublabel ??
+      (activeEntityFace.kind === 'team'
+        ? 'Team'
+        : activeEntityFace.kind === 'group'
+          ? 'Group'
+          : 'Team member'))
+    : activeUnity
+      ? activeUnity.isCoordinator
+        ? null
+        : activeUnity.jobTitle?.trim() || 'Digital twin'
+      : 'No teammate selected';
   const activeUnityStatus = activeUnity
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;
   const activeUnityInCall = !!activeUnity && activeCallAssistantId === activeUnity.agentId;
-  const presenceClass = cn(PRESENCE_YIELD_CLASS, switcherOpen && 'opacity-0');
 
   const face = showSkeletonFace ? (
     <Skeleton
       data-testid="rail-unity-switcher-skeleton"
-      className="rounded-control h-10 w-10 shrink-0"
+      className={cn('rounded-control shrink-0', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
     />
   ) : activeEntityFace ? (
     <span className="relative shrink-0">
@@ -148,13 +142,18 @@ export function AssistantSwitcher({
           name={activeEntityFace.label}
           imageUrl={activeEntityFace.imageUrl}
           isOrgWideSharing={activeEntityFace.isOrgWideSharing}
-          className="h-10 w-10"
+          className={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
           iconClassName="h-5 w-5"
         />
       ) : activeEntityFace.kind === 'group' ? (
-        <GroupFaceStack members={activeEntityFace.groupFaces ?? []} sizeClassName="h-10 w-10" />
+        <GroupFaceStack
+          members={activeEntityFace.groupFaces ?? []}
+          sizeClassName={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
+        />
       ) : (
-        <Avatar className="rounded-control h-10 w-10 shrink-0">
+        <Avatar
+          className={cn('rounded-control shrink-0', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
+        >
           <AvatarImage src={activeEntityFace.imageUrl ?? undefined} alt={activeEntityFace.label} />
           <AvatarFallback className="rounded-control">
             {entityInitials(activeEntityFace.label)}
@@ -164,18 +163,19 @@ export function AssistantSwitcher({
       {activeEntityFace.kind === 'human' ? (
         <PresenceStatusDot
           online={activeEntityFace.online === true}
-          className={presenceClass}
           testId="rail-human-online-indicator"
         />
       ) : null}
     </span>
   ) : activeUnity ? (
     <span className="relative shrink-0">
-      <UnityAvatar assistant={activeUnity} sizeClass="h-10 w-10" />
+      <UnityAvatar
+        assistant={activeUnity}
+        sizeClass={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
+      />
       <AssistantPresenceIndicator
         status={activeUnityStatus}
         inCall={activeUnityInCall}
-        className={presenceClass}
         testId={`rail-status-indicator-${activeUnity.agentId}`}
       />
     </span>
@@ -185,52 +185,66 @@ export function AssistantSwitcher({
     </span>
   );
 
-  const chatHomeButton = (
-    <button
-      type="button"
-      data-testid="rail-chat-home"
-      onClick={onOpenChat}
-      aria-current={chatActive ? 'page' : undefined}
-      aria-label={`Chat with ${unityName}`}
-      title={`Chat with ${unityName}`}
-      className={cn(
-        'relative rounded-xl p-1.5 transition-colors',
-        chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
-      )}
-    >
-      {face}
-      {showChatActivity && (
-        <span
-          className="animate-rail-activity-dot absolute right-1 top-1 h-2 w-2 shrink-0 rounded-full bg-primary ring-1 ring-primary-tint-30"
-          aria-hidden="true"
-          data-testid="rail-chat-home-activity-dot"
-        />
-      )}
-    </button>
+  const switcherButton = (
+    <PopoverTrigger asChild>
+      <button
+        type="button"
+        data-testid="rail-unity-switcher"
+        title={collapsed ? `Switch teammate (${unityName})` : undefined}
+        aria-label={`Switch teammate — ${unityName}`}
+        className={cn(
+          'flex items-center transition-colors',
+          collapsed
+            ? 'mx-auto w-fit rounded-xl p-1.5 hover:bg-muted'
+            : 'hover:bg-muted/70 w-full gap-2 rounded-xl border border-border bg-card px-2 py-1.5 text-left'
+        )}
+      >
+        {face}
+        {!collapsed &&
+          (showSkeletonFace ? (
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
+              {unitySub ? (
+                <div className="truncate text-[11.5px] capitalize text-muted-foreground">
+                  {unitySub}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        {!collapsed && (
+          <ChevronsUpDown
+            className="h-4 w-4 shrink-0 text-muted-foreground"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
+        )}
+      </button>
+    </PopoverTrigger>
   );
 
   return (
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
-      <div className="group relative mx-auto mb-2 w-fit">
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>{chatHomeButton}</TooltipTrigger>
-            <TooltipContent side="right">
-              <p>Chat · {unityName}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            data-testid="rail-unity-switcher"
-            title={`Switch teammate (${unityName})`}
-            aria-label={`Switch teammate — ${unityName}`}
-            className="absolute bottom-0.5 right-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 ring-1 ring-border transition-opacity hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
-          >
-            <ChevronsUpDown className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
-          </button>
-        </PopoverTrigger>
+      {/* The horizontal inset lives here rather than as margins on the button
+          so the trigger can be w-full and span the rail like the account
+          switcher below it; margins left it hugging its content. */}
+      <div className={cn('mb-2', !collapsed && 'px-3.5')}>
+        {collapsed ? (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>{switcherButton}</TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Switch teammate · {unityName}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          switcherButton
+        )}
       </div>
       <PopoverContent
         align="start"

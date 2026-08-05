@@ -10,7 +10,7 @@ import {
   type RightPaneState,
   type RightPaneTab,
 } from '@/components/Pages/Assistants/RightPaneContainer';
-import { AssistantRail } from './Rail/AssistantRail';
+import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail';
 import { SectionHost } from './Rail/SectionHost';
 import { BrainSectionsHost } from './Rail/BrainSectionsHost';
 import { AssistantInfoPanelLayout } from './Layout/AssistantInfoPanelLayout';
@@ -129,6 +129,9 @@ import {
 import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
+import { Button } from '@/components/UI/button';
+import { Sheet, SheetContent } from '@/components/UI/sheet';
+import { Menu } from 'lucide-react';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import {
   type CoordinatorWorkspaceScope,
@@ -166,6 +169,7 @@ import {
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { readActionDeepLink } from '@/utils/assistants/action-deep-link';
+import { resolveCallGate } from '@/utils/assistants/call-gate';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
@@ -564,7 +568,31 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [activeSectionDef.kind]);
 
-  const { isBelowMobile } = useBreakpoint();
+  const { isBelowMobile, isBelowTablet } = useBreakpoint();
+  const [mobileRailOpen, setMobileRailOpen] = React.useState(false);
+  const [railCollapsed, setRailCollapsed] = React.useState(false);
+  React.useEffect(() => {
+    const stored = window.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY);
+    if (stored !== null) {
+      setRailCollapsed(stored === '1');
+    } else if (window.matchMedia(maxWidthMediaQuery('tablet')).matches) {
+      setRailCollapsed(true);
+    }
+  }, []);
+  React.useEffect(() => {
+    if (isBelowTablet) {
+      setRailCollapsed(true);
+    }
+  }, [isBelowTablet]);
+  React.useEffect(() => {
+    if (!isBelowMobile) {
+      setMobileRailOpen(false);
+    }
+  }, [isBelowMobile]);
+  const handleRailCollapsedChange = React.useCallback((collapsed: boolean) => {
+    setRailCollapsed(collapsed);
+    window.localStorage.setItem(RAIL_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
+  }, []);
 
   // Convenience: chat is "visible" if either slot is showing it. Used by
   // the chat-stream hook below to suppress unread bumps and by the
@@ -1262,6 +1290,26 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // Human/team/group calls run on the same unified engine.
   const humanCall = callContext;
+
+  // One engine, so one answer about its availability. Every call surface reads
+  // these; the wording per surface comes from ``resolveCallGate``.
+  const callGateInputs = React.useMemo(
+    () => ({
+      voiceCallsEnabled: humanCall.voiceCallsEnabled,
+      hasActiveAssistantCall: !!activeCallAssistant,
+      isConnecting: humanCall.isConnecting,
+      isConnected: humanCall.isConnected,
+      activeCall: humanCall.activeCall,
+    }),
+    [
+      activeCallAssistant,
+      humanCall.activeCall,
+      humanCall.isConnected,
+      humanCall.isConnecting,
+      humanCall.voiceCallsEnabled,
+    ]
+  );
+  const dmCallGate = resolveCallGate({ kind: 'human' }, callGateInputs);
 
   const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
   React.useEffect(() => {
@@ -3672,6 +3720,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [openAssistantChatFromNavigation]);
 
   const goToPlatformHome = React.useCallback(() => {
+    setMobileRailOpen(false);
     setActiveBrainSectionId(null);
     setPaneState((prev) => ({
       ...prev,
@@ -3978,22 +4027,70 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
-            <AssistantRail
-              activeUnity={visibleProfileAssistant}
-              activeEntityFace={activeEntityFace}
-              entityKind={selectedEntityKind}
-              isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
-              listProps={railListProps}
-              nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
-              activeSection={railActiveSectionId}
-              sectionActivity={railSectionActivity}
-              onBrandClick={requestPlatformHomeNavigation}
-              onSelectSection={handleSelectSection}
-              activeCallAssistantId={activeCallId}
-            />
+            {isBelowMobile ? (
+              <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
+                <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+                  <AssistantRail
+                    activeUnity={visibleProfileAssistant}
+                    activeEntityFace={activeEntityFace}
+                    entityKind={selectedEntityKind}
+                    isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
+                    listProps={railListProps}
+                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+                    activeSection={railActiveSectionId}
+                    sectionActivity={railSectionActivity}
+                    onBrandClick={requestPlatformHomeNavigation}
+                    onSelectSection={(section) => {
+                      handleSelectSection(section);
+                      setMobileRailOpen(false);
+                    }}
+                    activeCallAssistantId={activeCallId}
+                    collapsed={false}
+                    onCollapsedChange={(next) => {
+                      if (next) {
+                        setMobileRailOpen(false);
+                        return;
+                      }
+                      handleRailCollapsedChange(false);
+                    }}
+                  />
+                </SheetContent>
+              </Sheet>
+            ) : (
+              <AssistantRail
+                activeUnity={visibleProfileAssistant}
+                activeEntityFace={activeEntityFace}
+                entityKind={selectedEntityKind}
+                isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
+                listProps={railListProps}
+                nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+                activeSection={railActiveSectionId}
+                sectionActivity={railSectionActivity}
+                onBrandClick={requestPlatformHomeNavigation}
+                onSelectSection={handleSelectSection}
+                activeCallAssistantId={activeCallId}
+                collapsed={railCollapsed}
+                onCollapsedChange={handleRailCollapsedChange}
+              />
+            )}
 
             <SectionHost
               section={railActiveSectionDef}
+              headerLeading={
+                isBelowMobile ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    aria-label="Open navigation"
+                    data-testid="rail-mobile-toggle"
+                    onClick={() => setMobileRailOpen(true)}
+                  >
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                ) : undefined
+              }
               renderView={() => {
                 if (isNonAssistantSelection) {
                   if (
@@ -4021,21 +4118,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           chat={orgChat}
                           currentUserId={currentUserId}
                           onStartCall={() => void humanCall.startCall(selectedHuman.userId)}
-                          isCallButtonDisabled={
-                            !humanCall.voiceCallsEnabled ||
-                            !!activeCallAssistant ||
-                            humanCall.isConnecting ||
-                            humanCall.isConnected
-                          }
-                          callButtonTooltip={
-                            activeCallAssistant
-                              ? 'End the assistant call before calling a teammate'
-                              : !humanCall.voiceCallsEnabled
-                                ? 'Voice calls are not configured'
-                                : humanCall.isConnected
-                                  ? 'Already in a call'
-                                  : 'Start voice call'
-                          }
+                          isCallButtonDisabled={dmCallGate.disabled}
+                          callButtonTooltip={dmCallGate.tooltip}
                           isConnectingCall={humanCall.isConnecting}
                           isCallActive={
                             humanCall.isConnected &&
@@ -4104,23 +4188,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                 !humanCall.isConnected)
                             }
                             isCallButtonDisabled={
-                              !humanCall.voiceCallsEnabled ||
-                              !!activeCallAssistant ||
-                              humanCall.isConnecting ||
-                              (humanCall.isConnected &&
-                                humanCall.activeCall?.teamId !== selectedTeam.teamId)
+                              resolveCallGate(
+                                { kind: 'team', teamId: selectedTeam.teamId },
+                                callGateInputs
+                              ).disabled
                             }
                             callButtonTooltip={
-                              activeCallAssistant
-                                ? 'End the assistant call before starting a team call'
-                                : !humanCall.voiceCallsEnabled
-                                  ? 'Voice calls are not configured'
-                                  : humanCall.isConnected &&
-                                      humanCall.activeCall?.teamId === selectedTeam.teamId
-                                    ? 'Already in this call'
-                                    : humanCall.isConnected
-                                      ? 'Already in a call'
-                                      : undefined
+                              resolveCallGate(
+                                { kind: 'team', teamId: selectedTeam.teamId },
+                                callGateInputs
+                              ).tooltip
                             }
                             isConnectingCall={humanCall.isConnecting}
                             isCallActive={
@@ -4184,23 +4261,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                               !humanCall.isConnected)
                           }
                           isCallButtonDisabled={
-                            !humanCall.voiceCallsEnabled ||
-                            !!activeCallAssistant ||
-                            humanCall.isConnecting ||
-                            (humanCall.isConnected &&
-                              humanCall.activeCall?.groupId !== selectedGroup.groupId)
+                            resolveCallGate(
+                              { kind: 'group', groupId: selectedGroup.groupId },
+                              callGateInputs
+                            ).disabled
                           }
                           callButtonTooltip={
-                            activeCallAssistant
-                              ? 'End the assistant call before starting a group call'
-                              : !humanCall.voiceCallsEnabled
-                                ? 'Voice calls are not configured'
-                                : humanCall.isConnected &&
-                                    humanCall.activeCall?.groupId === selectedGroup.groupId
-                                  ? 'Already in this call'
-                                  : humanCall.isConnected
-                                    ? 'Already in a call'
-                                    : undefined
+                            resolveCallGate(
+                              { kind: 'group', groupId: selectedGroup.groupId },
+                              callGateInputs
+                            ).tooltip
                           }
                           isConnectingCall={humanCall.isConnecting}
                           isCallActive={

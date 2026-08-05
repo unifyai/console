@@ -1,0 +1,153 @@
+/**
+ * Client-side binding fetcher for a canvas.
+ *
+ * `CanvasFrame` calls this from its `onRequestData` hook. It exists as its own
+ * module rather than inline in each mount because all three canvas surfaces —
+ * chat embed, assistants tab, standalone page — need identical behaviour, and a
+ * per-surface copy is how one of them ends up without the deduplication or
+ * without the batching.
+ *
+ * Requests are coalesced per canvas: the host asks for every declared alias on
+ * mount, each arriving as its own message event, so the first request holds a
+ * short window open and everything asked for within it travels as one batch —
+ * one request pair per canvas view instead of one per panel.
+ */
+
+/** Rows for one binding alias, in the shape the frame protocol expects. */
+export interface CanvasRows {
+  rows: unknown[];
+  truncated: boolean;
+}
+
+interface Waiter {
+  resolve: (rows: CanvasRows) => void;
+  reject: (error: Error) => void;
+}
+
+/** One alias's outcome inside the batch response. */
+interface AliasResult {
+  rows?: unknown[];
+  truncated?: boolean;
+  error?: string | null;
+}
+
+/**
+ * How long the first request for a canvas holds its batch open.
+ *
+ * Frame data requests arrive as separate message events — separate macrotasks —
+ * so a microtask flush would batch nothing. A few milliseconds of assembly is
+ * invisible next to the query round trip it saves per panel.
+ */
+const BATCH_WINDOW_MS = 10;
+
+/**
+ * In-flight requests per canvas, keyed by alias.
+ *
+ * The host requests every declared alias on mount, and React can mount a frame
+ * twice in development. Sharing the promise means a remount reuses the first
+ * request instead of issuing a duplicate query for data it already asked for.
+ */
+const inFlight = new Map<string, Promise<CanvasRows>>();
+
+/** Batches still assembling, keyed by token. */
+const assembling = new Map<string, Map<string, Waiter>>();
+
+function key(token: string, alias: string): string {
+  return `${token} ${alias}`;
+}
+
+/**
+ * Send one assembled batch and settle every waiter it carries.
+ *
+ * Failures settle at the narrowest scope that applies: a per-alias error from
+ * the server rejects that alias's promise with the readable reason, while a
+ * whole-request failure rejects every waiter — one broken binding must not
+ * blank the panels whose bindings are fine, and the server reports it that way.
+ */
+async function flush(token: string, waiters: Map<string, Waiter>): Promise<void> {
+  let results: Record<string, AliasResult>;
+  try {
+    const response = await fetch(`/api/canvas/${encodeURIComponent(token)}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aliases: [...waiters.keys()] }),
+    });
+
+    if (!response.ok) {
+      let message = 'Failed to load canvas data';
+      try {
+        const body = await response.json();
+        if (typeof body?.error === 'string') {
+          message = body.error;
+        }
+      } catch {
+        // Non-JSON error; the generic message stands.
+      }
+      throw new Error(message);
+    }
+
+    const body = (await response.json()) as { results?: Record<string, AliasResult> };
+    results = body.results ?? {};
+  } catch (error) {
+    const reason = error instanceof Error ? error : new Error(String(error));
+    for (const waiter of waiters.values()) {
+      waiter.reject(reason);
+    }
+    return;
+  }
+
+  for (const [alias, waiter] of waiters) {
+    const result = results[alias];
+    if (!result) {
+      waiter.reject(new Error(`Failed to load '${alias}'`));
+    } else if (typeof result.error === 'string' && result.error) {
+      // The frame surfaces this inside the canvas, and "Canvas declares no
+      // binding named 'tasks'" is what tells an author their binding name and
+      // their TSX disagree.
+      waiter.reject(new Error(result.error));
+    } else {
+      waiter.resolve({ rows: result.rows ?? [], truncated: Boolean(result.truncated) });
+    }
+  }
+}
+
+/**
+ * Fetch the rows for one binding alias.
+ *
+ * Only aliases are sent. The server holds the queries, so there is nothing here
+ * that could widen what a canvas reads — see `lib/canvas/canvasAccess.ts`.
+ */
+export function fetchCanvasRows(token: string, alias: string): Promise<CanvasRows> {
+  const cacheKey = key(token, alias);
+  const existing = inFlight.get(cacheKey);
+  if (existing) {
+    return existing;
+  }
+
+  const request = new Promise<CanvasRows>((resolve, reject) => {
+    let waiters = assembling.get(token);
+    if (!waiters) {
+      waiters = new Map();
+      assembling.set(token, waiters);
+      const batch = waiters;
+      setTimeout(() => {
+        assembling.delete(token);
+        void flush(token, batch);
+      }, BATCH_WINDOW_MS);
+    }
+    waiters.set(alias, { resolve, reject });
+  });
+
+  inFlight.set(cacheKey, request);
+  // Cleared on settle rather than cached: bindings re-run on every view, and that
+  // is what makes a canvas live. Holding results here would quietly turn a live
+  // tracker into a snapshot for the lifetime of the tab.
+  request.finally(() => inFlight.delete(cacheKey)).catch(() => {});
+
+  return request;
+}
+
+/** Bind a fetcher to one canvas, for passing straight to `CanvasFrame`. */
+export function canvasDataResolver(token: string): (alias: string) => Promise<CanvasRows> {
+  return (alias: string) => fetchCanvasRows(token, alias);
+}

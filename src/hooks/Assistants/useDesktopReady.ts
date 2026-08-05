@@ -14,14 +14,24 @@ export interface DesktopReadyState {
   eventLiveviewUrl: string | null;
   /** Binding id from the current session's desktop-ready event, when known. */
   eventBindingId: string | null;
+  /** Per-binding desktop secret from the event, when the producer publishes one. */
+  eventLiveviewPassword: string | null;
 }
 
 type DesktopReadyPayload = Record<string, unknown>;
 
+function extractLiveviewUrlPassword(url: string): string | null {
+  try {
+    return new URL(url).searchParams.get('password');
+  } catch {
+    return null;
+  }
+}
+
 function readStoredDesktopReady(
   assistantId: string | undefined,
   sessionScope: string | undefined
-): { url: string | null; bindingId: string | null } | null {
+): { url: string | null; bindingId: string | null; password: string | null } | null {
   if (!assistantId || !sessionScope) return null;
   try {
     const raw = sessionStorage.getItem(desktopReadyStorageKey(assistantId, sessionScope));
@@ -30,6 +40,7 @@ function readStoredDesktopReady(
     return {
       url: readDesktopReadyEventField(data, 'liveview_url', 'liveviewUrl'),
       bindingId: readDesktopReadyEventField(data, 'binding_id', 'bindingId'),
+      password: readDesktopReadyEventField(data, 'liveview_password', 'liveviewPassword'),
     };
   } catch {
     return null;
@@ -39,16 +50,17 @@ function readStoredDesktopReady(
 function applyDesktopReadyPayload(
   data: DesktopReadyPayload,
   expectedBindingId: string | null | undefined
-): { ready: boolean; url: string | null; bindingId: string | null } {
+): { ready: boolean; url: string | null; bindingId: string | null; password: string | null } {
   const bindingId = readDesktopReadyEventField(data, 'binding_id', 'bindingId');
   if (expectedBindingId && bindingId && bindingId !== expectedBindingId) {
-    return { ready: false, url: null, bindingId: null };
+    return { ready: false, url: null, bindingId: null, password: null };
   }
   const url = readDesktopReadyEventField(data, 'liveview_url', 'liveviewUrl');
+  const password = readDesktopReadyEventField(data, 'liveview_password', 'liveviewPassword');
   if (!url) {
-    return { ready: false, url: null, bindingId };
+    return { ready: false, url: null, bindingId, password };
   }
-  return { ready: true, url, bindingId };
+  return { ready: true, url, bindingId, password };
 }
 
 /**
@@ -91,6 +103,9 @@ export function useDesktopReady(
   const [eventBindingId, setEventBindingId] = React.useState<string | null>(
     () => storedInitial?.bindingId ?? null
   );
+  const [eventLiveviewPassword, setEventLiveviewPassword] = React.useState<string | null>(
+    () => storedInitial?.password ?? null
+  );
 
   // Reset when assistant changes, session scope changes, or the caller retries.
   React.useEffect(() => {
@@ -98,6 +113,7 @@ export function useDesktopReady(
     setIsDesktopReady(initialValue || !!stored?.url);
     setEventLiveviewUrl(stored?.url ?? null);
     setEventBindingId(stored?.bindingId ?? null);
+    setEventLiveviewPassword(stored?.password ?? null);
   }, [assistantId, initialValue, resetSignal, sessionScope]);
 
   React.useEffect(() => {
@@ -110,6 +126,7 @@ export function useDesktopReady(
       setIsDesktopReady(true);
       setEventLiveviewUrl(applied.url);
       setEventBindingId(applied.bindingId);
+      setEventLiveviewPassword(applied.password);
       try {
         sessionStorage.setItem(
           desktopReadyStorageKey(assistantId, sessionScope),
@@ -148,6 +165,14 @@ export function useDesktopReady(
           setIsDesktopReady(true);
           const url = result.liveviewUrl;
           setEventLiveviewUrl((current) => current ?? url);
+          // getLiveviewUrl already resolves the correct password (published
+          // secret or owner-key fallback) into `url`'s query string. Carry it
+          // over so a later buildLiveviewUrl() call reuses it instead of
+          // re-resolving the owner key and clobbering a published secret.
+          const password = extractLiveviewUrlPassword(url);
+          if (password) {
+            setEventLiveviewPassword((current) => current ?? password);
+          }
         }
       } catch {
         // not ready yet
@@ -170,5 +195,5 @@ export function useDesktopReady(
     pollScope,
   ]);
 
-  return { isDesktopReady, eventLiveviewUrl, eventBindingId };
+  return { isDesktopReady, eventLiveviewUrl, eventBindingId, eventLiveviewPassword };
 }

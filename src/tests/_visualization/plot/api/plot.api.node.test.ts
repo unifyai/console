@@ -204,7 +204,7 @@ describe('Plot API - Axis Customization', () => {
       projectConfig: { projectName: TEST_PROJECT },
       plotConfig: {
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         xLabel: 'Day of Month',
       },
     });
@@ -223,7 +223,7 @@ describe('Plot API - Axis Customization', () => {
       projectConfig: { projectName: TEST_PROJECT },
       plotConfig: {
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         yLabel: 'Billed Cost ($)',
       },
     });
@@ -240,7 +240,7 @@ describe('Plot API - Axis Customization', () => {
       projectConfig: { projectName: TEST_PROJECT },
       plotConfig: {
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         showXLabel: false,
       },
     });
@@ -257,7 +257,7 @@ describe('Plot API - Axis Customization', () => {
       projectConfig: { projectName: TEST_PROJECT },
       plotConfig: {
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         showYLabel: false,
       },
     });
@@ -274,7 +274,7 @@ describe('Plot API - Axis Customization', () => {
       projectConfig: { projectName: TEST_PROJECT },
       plotConfig: {
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         yTickFormat: '$',
       },
     });
@@ -291,7 +291,7 @@ describe('Plot API - Axis Customization', () => {
       projectConfig: { projectName: TEST_PROJECT },
       plotConfig: {
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         groupBy: 'model',
         groupByLabel: 'Model Type',
       },
@@ -309,7 +309,7 @@ describe('Plot API - Axis Customization', () => {
       projectConfig: { projectName: TEST_PROJECT },
       plotConfig: {
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         aggregateLabel: 'Total Cost',
       },
     });
@@ -327,7 +327,7 @@ describe('Plot API - Axis Customization', () => {
       plotConfig: {
         type: 'bar',
         xAxis: 'time_day',
-        yAxis: 'billed_cost',
+        yAxis: 'provider_cost',
         groupBy: 'model',
         // All customization options
         xLabel: 'Day',

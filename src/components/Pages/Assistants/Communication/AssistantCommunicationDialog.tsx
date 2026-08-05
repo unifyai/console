@@ -28,6 +28,10 @@ import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistant
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophoneActivity';
+import {
+  useMeetSurfaceReporting,
+  type SendSystemEvent,
+} from '@/hooks/Assistants/useMeetSurfaceReporting';
 import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
 import { useFloatingShellGeometry } from '@/components/Common/FloatingShell/useFloatingShellGeometry';
 
@@ -277,39 +281,17 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   const desktopActionsRef = React.useRef(assistantActions.desktop);
   desktopActionsRef.current = assistantActions.desktop;
 
-  // Fire system events when user screen share state changes.
-  const prevScreenShareEnabledRef = React.useRef(screenShareToggle.enabled);
-  React.useEffect(() => {
-    const wasOn = prevScreenShareEnabledRef.current;
-    const isOn = screenShareToggle.enabled;
-    prevScreenShareEnabledRef.current = isOn;
-    if (wasOn === isOn || !assistant) return;
-
-    desktopActionsRef.current
-      .sendSystemEvent(
-        assistant.agentId,
-        isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
-        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
-      )
-      .catch(console.error);
-  }, [screenShareToggle.enabled, assistant]);
-
-  // Fire system events when user webcam state changes.
-  const prevCamEnabledRef = React.useRef(camToggle.enabled);
-  React.useEffect(() => {
-    const wasOn = prevCamEnabledRef.current;
-    const isOn = camToggle.enabled;
-    prevCamEnabledRef.current = isOn;
-    if (wasOn === isOn || !assistant) return;
-
-    desktopActionsRef.current
-      .sendSystemEvent(
-        assistant.agentId,
-        isOn ? 'user_webcam_started' : 'user_webcam_stopped',
-        isOn ? 'User enabled their webcam' : 'User disabled their webcam'
-      )
-      .catch(console.error);
-  }, [camToggle.enabled, assistant]);
+  const sendSystemEvent = React.useCallback<SendSystemEvent>(
+    (assistantId, eventType, message) =>
+      desktopActionsRef.current.sendSystemEvent(assistantId, eventType, message),
+    []
+  );
+  useMeetSurfaceReporting({
+    agentId: assistant?.agentId,
+    sendSystemEvent,
+    screenShare: screenShareToggle.enabled,
+    camera: camToggle.enabled,
+  });
 
   const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
   const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);

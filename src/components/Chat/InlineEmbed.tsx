@@ -14,11 +14,13 @@ import {
   BarChart3,
   LayoutDashboard,
   Code2,
+  Frame,
   Maximize2,
   X,
   Loader2,
 } from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
+import { CanvasView } from '@/components/Canvas/CanvasView';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 
@@ -26,9 +28,9 @@ import { Button } from '@/components/UI/button';
 // Types
 // =============================================================================
 
-type EmbedType = 'table' | 'plot' | 'tile' | 'dashboard';
+type EmbedType = 'table' | 'plot' | 'tile' | 'dashboard' | 'canvas';
 
-const EMBED_TYPES: readonly EmbedType[] = ['table', 'plot', 'tile', 'dashboard'];
+const EMBED_TYPES: readonly EmbedType[] = ['table', 'plot', 'tile', 'dashboard', 'canvas'];
 
 interface EmbedProps {
   url: string;
@@ -58,8 +60,10 @@ const TABLE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/table\/view\/([a-zA-Z0-9_%.-]+
 const PLOT_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/plot\/view\/([a-zA-Z0-9_%.-]+)/;
 const TILE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/tile\/view\/([a-zA-Z0-9_%.-]+)/;
 const DASHBOARD_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/dashboard\/view\/([a-zA-Z0-9_%.-]+)/;
+const CANVAS_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/canvas\/view\/([a-zA-Z0-9_%.-]+)/;
 
 const EMBED_PATTERNS: { type: EmbedType; pattern: RegExp }[] = [
+  { type: 'canvas', pattern: CANVAS_URL_PATTERN },
   { type: 'dashboard', pattern: DASHBOARD_URL_PATTERN },
   { type: 'tile', pattern: TILE_URL_PATTERN },
   { type: 'table', pattern: TABLE_URL_PATTERN },
@@ -118,6 +122,7 @@ const EMBED_META: Record<EmbedType, { icon: typeof Table2; label: string }> = {
   plot: { icon: BarChart3, label: 'Interactive Chart' },
   tile: { icon: Code2, label: 'Interactive Tile' },
   dashboard: { icon: LayoutDashboard, label: 'Interactive Dashboard' },
+  canvas: { icon: Frame, label: 'Interactive Canvas' },
 };
 
 function useEmbedMeta(embed: ParsedEmbed): {
@@ -242,6 +247,12 @@ export function InlineEmbedExpanded({
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
+  // A canvas is mounted directly rather than by framing its own page. Nesting
+  // would put the confirmation dialog inside an iframe, where it would be
+  // confined to the embed's box, and would load the runtime host two frames deep
+  // for no gain — `CanvasView` already renders the isolated cross-origin frame.
+  const isCanvas = embed.type === 'canvas';
+
   // Always use a local path so the iframe loads from the same origin,
   // avoiding cross-origin framing blocks when the chat message contains
   // a full URL pointing to a different environment (e.g. staging).
@@ -299,31 +310,40 @@ export function InlineEmbedExpanded({
         </div>
       </div>
 
-      {/* Iframe Content */}
-      <div style={{ height }} className="relative overflow-hidden">
-        {isLoading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
-            <div className="flex flex-col items-center gap-2">
-              <Loader size={24} />
-              <span className="text-caption text-muted-foreground">Loading {embed.type}...</span>
+      {/* Content */}
+      {isCanvas ? (
+        // Sized to content up to a ceiling, then scrolled. A fixed height would
+        // leave unpainted space below a short canvas, which is the same mismatch
+        // that made every dark-theme review screenshot look broken.
+        <div style={{ maxHeight: height }} className="overflow-y-auto">
+          <CanvasView token={embed.token} />
+        </div>
+      ) : (
+        <div style={{ height }} className="relative overflow-hidden">
+          {isLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
+              <div className="flex flex-col items-center gap-2">
+                <Loader size={24} />
+                <span className="text-caption text-muted-foreground">Loading {embed.type}...</span>
+              </div>
             </div>
-          </div>
-        )}
-        <iframe
-          src={iframeSrc}
-          className="border-0"
-          style={{
-            width: scaledWidth,
-            height: scaledHeight,
-            transform: iframeScale < 1 ? `scale(${iframeScale})` : undefined,
-            transformOrigin: 'top left',
-            pointerEvents: 'auto',
-          }}
-          title={label}
-          sandbox="allow-scripts allow-same-origin allow-popups"
-          onLoad={handleIframeLoad}
-        />
-      </div>
+          )}
+          <iframe
+            src={iframeSrc}
+            className="border-0"
+            style={{
+              width: scaledWidth,
+              height: scaledHeight,
+              transform: iframeScale < 1 ? `scale(${iframeScale})` : undefined,
+              transformOrigin: 'top left',
+              pointerEvents: 'auto',
+            }}
+            title={label}
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            onLoad={handleIframeLoad}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -349,7 +369,8 @@ export function InlineEmbed({
   className,
 }: InlineEmbedProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const resolvedHeight = expandedHeight ?? (embed.type === 'dashboard' ? 600 : 420);
+  const resolvedHeight =
+    expandedHeight ?? (embed.type === 'dashboard' || embed.type === 'canvas' ? 600 : 420);
 
   if (isExpanded) {
     return (

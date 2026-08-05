@@ -34,6 +34,7 @@ const useDesktopReadyMock = vi.fn((..._args: unknown[]) => ({
   isDesktopReady: false,
   eventLiveviewUrl: null,
   eventBindingId: null,
+  eventLiveviewPassword: null,
 }));
 
 vi.mock('@/hooks/Assistants/useDesktopReady', () => ({
@@ -293,5 +294,76 @@ describe('useCall (unified engine)', () => {
 
     expect(result.current.isConnected).toBe(false);
     expect(result.current.activeCall).toBeNull();
+  });
+
+  describe('a failed room-call start must not latch the engine', () => {
+    /**
+     * ``isConnecting`` gates the call button on every room surface, so an engine
+     * stuck in 'ringing' disables team and group calling with a page reload as
+     * the only way back. Two paths could latch it: a create request that never
+     * settles (this path had no timeout, unlike the assistant one), and a
+     * ``failCall`` that left the reset to a Disconnected event the room never
+     * emitted because it had not reached 'connected'.
+     */
+
+    it('a rejected create request returns the engine to idle', async () => {
+      const fetchMock = vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({ detail: 'boom' }),
+      })) as unknown as typeof fetch;
+      vi.stubGlobal('fetch', fetchMock);
+      const room = new FakeRoom();
+      const { result } = renderHook(() =>
+        useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+      );
+
+      await act(async () => {
+        await result.current.startTeamCall(56);
+      });
+
+      expect(result.current.isConnecting).toBe(false);
+      expect(result.current.activeCall).toBeNull();
+    });
+
+    it('a create request that never settles times out rather than hanging', async () => {
+      (window as any)._TEST_CALL_DISPATCH_TIMEOUT = 40;
+      const fetchMock = vi.fn(() => new Promise(() => {})) as unknown as typeof fetch;
+      vi.stubGlobal('fetch', fetchMock);
+      const room = new FakeRoom();
+      const { result } = renderHook(() =>
+        useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+      );
+
+      await act(async () => {
+        await result.current.startGroupCall(9);
+      });
+
+      expect(result.current.isConnecting).toBe(false);
+      delete (window as any)._TEST_CALL_DISPATCH_TIMEOUT;
+    });
+
+    it('resets even when the room never emits Disconnected', async () => {
+      const fetchMock = vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({ detail: 'boom' }),
+      })) as unknown as typeof fetch;
+      vi.stubGlobal('fetch', fetchMock);
+      // A room mid-connect: disconnect() resolves silently, no event follows.
+      const room = new FakeRoom();
+      room.state = 'connecting';
+      room.disconnect = vi.fn(async () => {});
+      const { result } = renderHook(() =>
+        useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+      );
+
+      await act(async () => {
+        await result.current.startTeamCall(56);
+      });
+
+      expect(result.current.isConnecting).toBe(false);
+      expect(result.current.activeCall).toBeNull();
+    });
   });
 });
