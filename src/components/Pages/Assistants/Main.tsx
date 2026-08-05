@@ -169,6 +169,7 @@ import {
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { readActionDeepLink } from '@/utils/assistants/action-deep-link';
+import { resolveCallGate } from '@/utils/assistants/call-gate';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
@@ -1289,6 +1290,26 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // Human/team/group calls run on the same unified engine.
   const humanCall = callContext;
+
+  // One engine, so one answer about its availability. Every call surface reads
+  // these; the wording per surface comes from ``resolveCallGate``.
+  const callGateInputs = React.useMemo(
+    () => ({
+      voiceCallsEnabled: humanCall.voiceCallsEnabled,
+      hasActiveAssistantCall: !!activeCallAssistant,
+      isConnecting: humanCall.isConnecting,
+      isConnected: humanCall.isConnected,
+      activeCall: humanCall.activeCall,
+    }),
+    [
+      activeCallAssistant,
+      humanCall.activeCall,
+      humanCall.isConnected,
+      humanCall.isConnecting,
+      humanCall.voiceCallsEnabled,
+    ]
+  );
+  const dmCallGate = resolveCallGate({ kind: 'human' }, callGateInputs);
 
   const wasAssistantsSurfaceActiveRef = React.useRef(isActiveSurface);
   React.useEffect(() => {
@@ -4097,21 +4118,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                           chat={orgChat}
                           currentUserId={currentUserId}
                           onStartCall={() => void humanCall.startCall(selectedHuman.userId)}
-                          isCallButtonDisabled={
-                            !humanCall.voiceCallsEnabled ||
-                            !!activeCallAssistant ||
-                            humanCall.isConnecting ||
-                            humanCall.isConnected
-                          }
-                          callButtonTooltip={
-                            activeCallAssistant
-                              ? 'End the assistant call before calling a teammate'
-                              : !humanCall.voiceCallsEnabled
-                                ? 'Voice calls are not configured'
-                                : humanCall.isConnected
-                                  ? 'Already in a call'
-                                  : 'Start voice call'
-                          }
+                          isCallButtonDisabled={dmCallGate.disabled}
+                          callButtonTooltip={dmCallGate.tooltip}
                           isConnectingCall={humanCall.isConnecting}
                           isCallActive={
                             humanCall.isConnected &&
@@ -4180,23 +4188,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                                 !humanCall.isConnected)
                             }
                             isCallButtonDisabled={
-                              !humanCall.voiceCallsEnabled ||
-                              !!activeCallAssistant ||
-                              humanCall.isConnecting ||
-                              (humanCall.isConnected &&
-                                humanCall.activeCall?.teamId !== selectedTeam.teamId)
+                              resolveCallGate(
+                                { kind: 'team', teamId: selectedTeam.teamId },
+                                callGateInputs
+                              ).disabled
                             }
                             callButtonTooltip={
-                              activeCallAssistant
-                                ? 'End the assistant call before starting a team call'
-                                : !humanCall.voiceCallsEnabled
-                                  ? 'Voice calls are not configured'
-                                  : humanCall.isConnected &&
-                                      humanCall.activeCall?.teamId === selectedTeam.teamId
-                                    ? 'Already in this call'
-                                    : humanCall.isConnected
-                                      ? 'Already in a call'
-                                      : undefined
+                              resolveCallGate(
+                                { kind: 'team', teamId: selectedTeam.teamId },
+                                callGateInputs
+                              ).tooltip
                             }
                             isConnectingCall={humanCall.isConnecting}
                             isCallActive={
@@ -4260,23 +4261,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                               !humanCall.isConnected)
                           }
                           isCallButtonDisabled={
-                            !humanCall.voiceCallsEnabled ||
-                            !!activeCallAssistant ||
-                            humanCall.isConnecting ||
-                            (humanCall.isConnected &&
-                              humanCall.activeCall?.groupId !== selectedGroup.groupId)
+                            resolveCallGate(
+                              { kind: 'group', groupId: selectedGroup.groupId },
+                              callGateInputs
+                            ).disabled
                           }
                           callButtonTooltip={
-                            activeCallAssistant
-                              ? 'End the assistant call before starting a group call'
-                              : !humanCall.voiceCallsEnabled
-                                ? 'Voice calls are not configured'
-                                : humanCall.isConnected &&
-                                    humanCall.activeCall?.groupId === selectedGroup.groupId
-                                  ? 'Already in this call'
-                                  : humanCall.isConnected
-                                    ? 'Already in a call'
-                                    : undefined
+                            resolveCallGate(
+                              { kind: 'group', groupId: selectedGroup.groupId },
+                              callGateInputs
+                            ).tooltip
                           }
                           isConnectingCall={humanCall.isConnecting}
                           isCallActive={

@@ -543,10 +543,14 @@ export function useCall(
       setError(message);
       if (room.state !== 'disconnected') {
         await room.disconnect().catch(() => {});
-      } else {
-        setActiveCall(null);
-        setStatus('ended');
       }
+      // Reset unconditionally rather than leaving it to the Disconnected event.
+      // A room that never reached 'connected' can resolve disconnect() without
+      // emitting one, and the engine would sit in 'ringing' indefinitely — which
+      // disables the call button on every room surface with no way back short of
+      // a page reload. Redundant when the event does fire, and idempotent.
+      setActiveCall(null);
+      setStatus('ended');
       return false;
     },
     [room]
@@ -561,7 +565,17 @@ export function useCall(
       setError(null);
       let created: OrgCallSession | null = null;
       try {
-        const data = await callApi('/api/calls', scope);
+        // Bounded like the assistant path's dispatch: a create request that
+        // never settles would otherwise leave the engine 'ringing' forever, and
+        // every room call button reads that state to disable itself.
+        const dispatchTimeout =
+          (typeof window !== 'undefined' && (window as any)._TEST_CALL_DISPATCH_TIMEOUT) ||
+          CALL_DISPATCH_TIMEOUT;
+        const data = await promiseWithTimeout(
+          callApi('/api/calls', scope),
+          dispatchTimeout,
+          failureMessage
+        );
         created = parseOrgCallSession(data);
         setActiveCall(created);
         const connected = await connectToRoom(created);
