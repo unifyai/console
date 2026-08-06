@@ -53,7 +53,9 @@ const alpha: WorkflowGalleryItem = {
   workflow: workflow({
     slug: 'alpha',
     name: 'Alpha',
-    requirements: [{ canonicalSlug: 'gmail', displayName: 'Gmail', connected: true }],
+    requirements: [
+      { canonicalSlug: 'gmail', displayName: 'Gmail', via: 'connection', connected: true },
+    ],
     sets: {
       procedures: [{ name: 'Alpha procedure' }],
       tasks: [{ name: 'Alpha task', schedule: 'Every day at 9:00am' }],
@@ -66,7 +68,9 @@ const bravo: WorkflowGalleryItem = {
   workflow: workflow({
     slug: 'bravo',
     name: 'Bravo',
-    requirements: [{ canonicalSlug: 'notion', displayName: 'Notion', connected: false }],
+    requirements: [
+      { canonicalSlug: 'notion', displayName: 'Notion', via: 'connection', connected: false },
+    ],
     sets: { tasks: [{ name: 'Bravo task', schedule: 'Every Friday at 4:30pm' }] },
   }),
 };
@@ -76,11 +80,13 @@ const charlie: WorkflowGalleryItem = {
   workflow: workflow({
     slug: 'charlie',
     name: 'Charlie',
-    requirements: [{ canonicalSlug: 'gmail', displayName: 'Gmail', connected: true }],
+    requirements: [
+      { canonicalSlug: 'gmail', displayName: 'Gmail', via: 'connection', connected: true },
+    ],
     sets: {
       tasks: [
         { name: 'Charlie recurring', schedule: 'Every Monday at 7:00am' },
-        { name: 'Backfill history', schedule: 'Once, at install' },
+        { name: 'Backfill history', schedule: 'Once, at install', runsOnce: true },
       ],
     },
   }),
@@ -91,7 +97,9 @@ const echo: WorkflowGalleryItem = {
   workflow: workflow({
     slug: 'echo',
     name: 'Echo',
-    requirements: [{ canonicalSlug: 'notion', displayName: 'Notion', connected: false }],
+    requirements: [
+      { canonicalSlug: 'notion', displayName: 'Notion', via: 'connection', connected: false },
+    ],
     sets: { tasks: [{ name: 'Echo task', schedule: 'Every day at 8:00am' }] },
   }),
   installation: installation({

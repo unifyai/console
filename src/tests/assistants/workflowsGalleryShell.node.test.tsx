@@ -39,7 +39,9 @@ const heldItem: WorkflowGalleryItem = {
     slug: 'held-flow',
     name: 'Held flow',
     category: 'growth',
-    requirements: [{ canonicalSlug: 'notion', displayName: 'Notion', connected: false }],
+    requirements: [
+      { canonicalSlug: 'notion', displayName: 'Notion', via: 'connection', connected: false },
+    ],
   }),
   installation: installation({ slug: 'held-flow', status: 'pending_requirements' }),
 };
@@ -56,7 +58,9 @@ const availableItem: WorkflowGalleryItem = {
     slug: 'shelf-flow',
     name: 'Shelf flow',
     category: 'ops',
-    requirements: [{ canonicalSlug: 'slack', displayName: 'Slack', connected: true }],
+    requirements: [
+      { canonicalSlug: 'slack', displayName: 'Slack', via: 'connection', connected: true },
+    ],
   }),
 };
 
