@@ -7,6 +7,7 @@ import { Badge } from '@/components/UI/badge';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/UI/sheet';
 import { cn } from '@/lib/utils';
+import { AssistantMarkdown } from '@/components/Pages/Assistants/Common/AssistantMarkdown';
 import { WorkflowTileIcon } from './WorkflowTileIcon';
 import { WorkflowDetailSkeleton } from './WorkflowCardSkeleton';
 import { WorkflowRequirementList } from './WorkflowRequirementList';
@@ -75,6 +76,7 @@ export function WorkflowDetailSheet({
   onRetry,
   onUpdate,
   onNavigate,
+  onPreview,
   onSupplySecret,
   onWatchInActions,
 }: {
@@ -105,6 +107,8 @@ export function WorkflowDetailSheet({
   onUpdate: (slug: string) => void;
   /** Opens the rail section where a planted surface lives. */
   onNavigate?: (kind: WorkflowSurfaceKind) => void;
+  /** Previews one manifest item in place, in a sheet above this one. */
+  onPreview?: (kind: WorkflowSurfaceKind, name: string) => void;
   /** Opens wherever secrets are entered, for the secret-gated routes. */
   onSupplySecret?: (requirement: WorkflowRequirement) => void;
   onWatchInActions?: () => void;
@@ -236,7 +240,7 @@ export function WorkflowDetailSheet({
           className="min-h-0 flex-1"
           viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
         >
-          <div className="flex flex-col gap-4 p-4 sm:p-5">
+          <div className="flex flex-col gap-5 p-4 sm:p-5">
             {isLoading ? (
               <WorkflowDetailSkeleton />
             ) : isInstalling ? (
@@ -252,6 +256,12 @@ export function WorkflowDetailSheet({
             ) : (
               <>
                 {banner()}
+
+                {workflow.about && (
+                  <Section title="About">
+                    <AssistantMarkdown>{workflow.about}</AssistantMarkdown>
+                  </Section>
+                )}
 
                 <Section
                   title="What it needs"
@@ -281,12 +291,13 @@ export function WorkflowDetailSheet({
 
                 <Section
                   title={installMode ? 'What it will set up' : 'What it set up'}
-                  hint="every item lives in its own tab — open it there"
+                  hint="tap any item to read it"
                 >
                   <WorkflowManifestGroups
                     workflow={workflow}
                     installation={installation}
                     onNavigate={onNavigate}
+                    onPreview={onPreview}
                   />
                 </Section>
 

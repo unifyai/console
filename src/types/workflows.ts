@@ -56,7 +56,14 @@ export type WorkflowRequirementRoute =
   /** BYOD OAuth (Google Workspace, Microsoft 365) — satisfied by a named secret. */
   | 'secret'
   /** Nothing to check (built-in capabilities like web browsing); reads as met. */
-  | 'undeclared';
+  | 'undeclared'
+  /**
+   * The slug could not be matched to a gallery app — the integrations
+   * catalogue has not loaded, or the bundle names a slug outside the
+   * gallery's id space. Unknown is not met and not unmet: it renders as
+   * "couldn't verify", never as a green check, and never holds jobs.
+   */
+  | 'unresolved';
 
 export interface WorkflowRequirement {
   /**
@@ -121,6 +128,12 @@ export interface Workflow {
   category: WorkflowCategory;
   /** One line, house voice. */
   description: string;
+  /**
+   * Long-form markdown for someone deciding whether to install: what the
+   * workflow does, when it runs, what arrives, how its settings shape it.
+   * The description is the card; this is the page.
+   */
+  about: string;
   version: string;
   /** Key into WORKFLOW_TILE_ICONS. */
   iconId: string;
@@ -179,6 +192,22 @@ export interface WorkflowInstallation {
   planted?: WorkflowManifest;
 }
 
+/**
+ * One artifact a workflow would plant, published beside the catalogue so
+ * the drawer can preview it before anything is installed. The body is the
+ * artifact's readable substance: a procedure's or claim's text, a task's
+ * brief, a function's docstring.
+ */
+export interface WorkflowArtifact {
+  contentKey: string;
+  slug: string;
+  kind: WorkflowSurfaceKind;
+  name: string;
+  body: string;
+  schedule?: string;
+  meta: Record<string, unknown>;
+}
+
 export interface WorkflowGalleryItem {
   workflow: Workflow;
   installation?: WorkflowInstallation;
@@ -190,11 +219,14 @@ export function workflowCardState(item: WorkflowGalleryItem): WorkflowCardState 
 
 /**
  * Requirements still standing between the workflow and its jobs firing.
- * `undeclared` has nothing to check, so it never counts as unmet.
+ * `undeclared` has nothing to check and `unresolved` could not be checked;
+ * neither counts as unmet — the assistant derives the real held state, and
+ * holding a job on a check the client could not even run helps nobody.
  */
 export function unmetRequirements(workflow: Workflow): WorkflowRequirement[] {
   return workflow.requirements.filter(
-    (requirement) => requirement.via !== 'undeclared' && !requirement.connected
+    (requirement) =>
+      requirement.via !== 'undeclared' && requirement.via !== 'unresolved' && !requirement.connected
   );
 }
 

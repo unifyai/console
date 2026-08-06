@@ -57,10 +57,13 @@ export function resolveRequirement(
 ): WorkflowRequirement {
   const definition = context.definitionsBySlug.get(requirement.slug);
 
-  // Nothing resolvable. That is either a built-in capability with nothing to
-  // check, or a bundle naming a slug outside the gallery's id space — which
-  // would render a chip with no logo and no working action. Treat as met so
-  // the shelf never dead-ends, and shout in dev so the bundle gets fixed.
+  // Nothing resolvable: the integrations catalogue has not answered for this
+  // slug (not loaded yet, or the bundle names a slug outside the gallery's id
+  // space). Unknown is not met — reporting a green check for an app nobody
+  // verified is how a real app once rendered as "Built in". It is not unmet
+  // either: the assistant derives the real held state, and the client must
+  // not hold jobs on a check it could not run. Shout in dev so a genuinely
+  // wrong slug gets fixed in the bundle.
   if (!definition) {
     if (process.env.NODE_ENV !== 'production') {
       console.error(
@@ -73,8 +76,8 @@ export function resolveRequirement(
     return {
       canonicalSlug: requirement.slug,
       displayName: requirement.name,
-      via: 'undeclared',
-      connected: true,
+      via: 'unresolved',
+      connected: false,
     };
   }
 

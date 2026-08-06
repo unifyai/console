@@ -133,16 +133,18 @@ describe('resolveRequirement', () => {
     expect(resolved).toMatchObject({ via: 'connection', connected: true });
   });
 
-  it('treats an unresolvable slug as met, and shouts about it in dev', () => {
+  it('reports an unresolvable slug as unverified, and shouts about it in dev', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const resolved = resolveRequirement(
       { slug: 'google_workspace', name: 'Google Workspace' },
       context([])
     );
 
-    // Never a blank chip that dead-ends: it reads as met…
-    expect(resolved).toMatchObject({ via: 'undeclared', connected: true });
-    // …but the bundle bug is loud rather than silent.
+    // Unknown is not met: a fabricated green check once rendered a real
+    // app as "Built in". It is not unmet either — never hold jobs on a
+    // check the client could not run.
+    expect(resolved).toMatchObject({ via: 'unresolved', connected: false });
+    // And the bundle bug is loud rather than silent.
     expect(error).toHaveBeenCalledTimes(1);
     expect(String(error.mock.calls[0][0])).toContain('google_workspace');
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Cpu, FolderTree, KeyRound } from 'lucide-react';
+import { Check, Cpu, FolderTree, HelpCircle, KeyRound } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { WorkflowAppIcon } from './WorkflowAppIcon';
 import { WORKFLOW_CAPABILITY_COPY } from './workflowCategories';
@@ -20,7 +20,8 @@ import {
  * wrong one is worse than offering none. A provider-backed app opens the
  * gallery's connect handshake; an app gated on secrets names the secrets it
  * is waiting for and routes to where secrets are entered; `undeclared` has
- * nothing to check and renders as met.
+ * nothing to check and renders as met; `unresolved` could not be checked and
+ * says so plainly — never a fabricated green check.
  */
 export function WorkflowRequirementList({
   workflow,
@@ -39,7 +40,8 @@ export function WorkflowRequirementList({
       {workflow.requirements.map((requirement) => {
         const needsConnection = requirementNeedsConnection(requirement);
         const needsSecret = requirementNeedsSecret(requirement);
-        const met = !needsConnection && !needsSecret;
+        const unresolved = requirement.via === 'unresolved';
+        const met = !needsConnection && !needsSecret && !unresolved;
 
         return (
           <div
@@ -55,7 +57,15 @@ export function WorkflowRequirementList({
               </p>
             </div>
 
-            {met ? (
+            {unresolved ? (
+              <span
+                className="text-label flex shrink-0 items-center gap-1.5 text-muted-foreground"
+                data-testid={`workflow-requirement-unresolved-${requirement.canonicalSlug}`}
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                Unverified
+              </span>
+            ) : met ? (
               <span
                 className="text-label text-semibold flex shrink-0 items-center gap-1.5 text-[color:var(--status-success)]"
                 data-testid={`workflow-requirement-met-${requirement.canonicalSlug}`}
@@ -124,6 +134,9 @@ function requirementStatusCopy(
     const secrets = requirement.missingSecrets ?? [];
     if (secrets.length === 0) return 'Needs a credential before this workflow can act';
     return `Needs ${secrets.join(', ')} before this workflow can act`;
+  }
+  if (requirement.via === 'unresolved') {
+    return "Couldn't check this app — see the Integrations gallery";
   }
   if (requirement.via === 'undeclared') return 'Always available — nothing to connect';
   return requirement.accountLabel ?? 'Connected';

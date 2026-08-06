@@ -14,7 +14,14 @@ import {
   SiStripe,
 } from 'react-icons/si';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
-import type { Workflow, WorkflowGalleryItem, WorkflowInstallation } from '@/types/workflows';
+import type {
+  Workflow,
+  WorkflowArtifact,
+  WorkflowGalleryItem,
+  WorkflowInstallation,
+  WorkflowManifestItem,
+  WorkflowSurfaceKind,
+} from '@/types/workflows';
 
 /**
  * Mock catalog for the Workflows surface — the twelve curated workflows in
@@ -59,6 +66,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'comms',
     description:
       'Your calendar, the unread that actually matters, and anything starting to slip — before stand-up.',
+    about:
+      'Every weekday at 08:30 your assistant assembles one chat message with the three things worth knowing before stand-up: the rest of today\u2019s calendar with context, the unread email that actually needs you, and any commitment starting to slip.\n\n**Needs you** is triaged, not dumped \u2014 an email earns its line only when it asks you a direct question, comes from someone you meet today, blocks someone else\u2019s work, touches your stated focus, or carries a deadline inside two working days.',
     version: '1.2.0',
     iconId: 'briefing',
     requirements: [
@@ -127,6 +136,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'comms',
     description:
       'Archives the noise, flags what needs a reply, files the rest into Notion. Monday starts clean.',
+    about:
+      'Every Friday afternoon the assistant sweeps the week\u2019s inbox: replies you owe, threads worth filing, and everything safe to archive. It follows your triage rules to the letter \u2014 never-archive senders are never touched, and project threads are filed into Notion where the rest of their history lives.\n\nYou get one summary message when it finishes: what was answered, what was filed, and what it deliberately left for you.',
     version: '1.0.4',
     iconId: 'comet',
     requirements: [
@@ -189,6 +200,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'comms',
     description:
       'Writes the recap, opens action-item tickets, and emails a clean summary to everyone who was there.',
+    about:
+      'Within half an hour of a meeting ending, a recap lands: decisions, owners and deadlines, in a structure your team already recognises. Action items become tickets on their own, and every recap is copied to whoever you choose.\n\nRecaps lean on your team\u2019s vocabulary and project codenames, so \u2018the Q3 doc\u2019 resolves to the right artifact.',
     version: '1.3.0',
     iconId: 'signal',
     requirements: [
@@ -259,6 +272,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'growth',
     description:
       'ICP-matched lists, enriched and deduped, pushed into your CRM — a fresh batch every week.',
+    about:
+      'Every Monday morning a fresh batch of prospects arrives \u2014 scored against your ICP rubric, deduped against every segment you have already worked, and pushed to your CRM. A sourcing-funnel canvas keeps the pipeline picture live between batches.\n\nInstalling also runs a one-off backfill of your existing CRM contacts, so scoring starts from what you already know rather than an empty table.',
     version: '2.0.1',
     iconId: 'radar',
     requirements: [
@@ -329,6 +344,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'growth',
     description:
       'Handles first-touch replies, scores intent, logs to the CRM, and pings you the moment a lead is warm.',
+    about:
+      'Every reply to your outbound is scored for intent within fifteen minutes and logged to the CRM. High-intent replies raise an alert immediately; first-touch responses use only the voice and the pricing answers you have approved, never improvisation.',
     version: '1.1.2',
     iconId: 'beam',
     requirements: [
@@ -389,6 +406,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'growth',
     description:
       'Tracks rival pricing and feature changes, then writes up what shifted and what it means for you.',
+    about:
+      'Twice a week the assistant sweeps your rivals\u2019 pages, diffs each one against its last snapshot, and writes a change note only when something meaningful moved \u2014 pricing, positioning, a new product. Cosmetic churn never reaches you.',
     version: '1.0.0',
     iconId: 'scope',
     requirements: [
@@ -441,6 +460,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'ops',
     description:
       'Reads invoices as PDFs, matches line items against the contract, and queues only the anomalies.',
+    about:
+      'Invoices landing in your folder are parsed and matched line by line against Stripe payouts. Matches inside your tolerance reconcile silently; anything outside it escalates to a human with the discrepancy spelled out, never quietly written off.',
     version: '1.4.0',
     iconId: 'scales',
     requirements: [
@@ -510,6 +531,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'ops',
     description:
       'Assembles the monthly update — revenue, burn, pipeline, KPIs — in your house style by the 5th.',
+    about:
+      'By the 5th of every month the pack is assembled in your house style: revenue and burn from Stripe, pipeline from HubSpot, and the KPIs you track \u2014 each figure sourced, each chart consistent with last month\u2019s.\n\nYou review and send; the assistant never mails the board directly.',
     version: '1.1.0',
     iconId: 'report',
     requirements: [
@@ -569,6 +592,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'ops',
     description:
       'Pulls receipts from your inbox, extracts vendor, date and total, and logs every line to your sheet.',
+    about:
+      'Receipts are pulled from your inbox as they arrive; vendor, date and total are extracted and logged to your sheet, one line per receipt, duplicates skipped. Month-end stops being an archaeology dig.',
     version: '1.0.2',
     iconId: 'funnel',
     requirements: [
@@ -629,6 +654,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'build',
     description:
       'Picks up a scoped ticket, writes the fix on a branch, runs tests, and opens a PR for review.',
+    about:
+      'Give it a scoped ticket and it writes the fix on a branch, runs the tests, and opens a PR for review with the reasoning in the description. Nothing merges without a human approval \u2014 the assistant\u2019s job ends at the review line.',
     version: '0.9.3',
     iconId: 'rocket',
     requirements: [
@@ -683,6 +710,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'build',
     description:
       "Queries logs, summarises the root cause, names suspected owners, and follows up until it's closed.",
+    about:
+      'When an incident opens, the assistant queries the logs, summarises the likely root cause, names the suspected owners, and keeps following up in the channel until the incident is closed \u2014 not until people stop replying.',
     version: '1.2.1',
     iconId: 'pulsar',
     requirements: [
@@ -747,6 +776,8 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     category: 'build',
     description:
       'When changes merge to main, it works out what shipped, writes it plainly, and posts to Notion.',
+    about:
+      'When changes merge to main, the assistant works out what actually shipped \u2014 not the commit messages, the user-visible change \u2014 writes it plainly, and posts it to your Notion changelog the same day.',
     version: '1.0.1',
     iconId: 'notes',
     requirements: [
@@ -918,3 +949,68 @@ export const MOCK_WORKFLOW_GALLERY_ITEMS: WorkflowGalleryItem[] = MOCK_WORKFLOWS
     ),
   })
 );
+
+/**
+ * Hand-authored bodies for the flagship's artifacts, keyed
+ * `slug/kind/name`. Everything else gets a readable generated body so
+ * every manifest row previews something in mock mode.
+ */
+const MOCK_ARTIFACT_BODIES: Record<string, string> = {
+  'daily-briefing/procedures/Briefing tone and length': [
+    'Assemble the briefing in three sections, in this order, and keep the whole thing scannable in under a minute.',
+    '1. **Today** — the calendar for the rest of the working day: each meeting with its time, who it is with, and the one thing worth knowing walking in. Flag conflicts and back-to-backs.',
+    '2. **Needs you** — unread email that actually matters. Each item is one line: sender, ask, and why now. Never paste whole emails.',
+    '3. **Slipping** — commitments drifting past their point of no return.',
+    'Deliver as one chat message. Empty sections are stated in one line (“Nothing slipping today”), never padded.',
+  ].join('\n\n'),
+  'daily-briefing/procedures/What counts as “slipping”': [
+    'A commitment is slipping once any of these holds:',
+    '- a thread has waited **2+ working days** for your reply;',
+    '- a deadline is inside **48 hours** with no visible progress;',
+    '- a promise recorded in email or a meeting has had no activity since it was made.',
+    'Weekends and out-of-office windows never count as waiting time.',
+  ].join('\n\n'),
+  'daily-briefing/knowledge/Your working hours': [
+    'The briefing treats 09:00–18:00, Monday to Friday, as working time.',
+    'It anchors the “working days” arithmetic everywhere: what counts as waiting, when the scan window opens, and which deadlines are inside two working days.',
+  ].join('\n\n'),
+  'daily-briefing/tasks/Daily briefing': [
+    'Compose and deliver the morning briefing: today’s calendar with context, the unread email that matters, and anything slipping.',
+    'Reads the installation settings before assembling — a non-empty **focus** names projects, people or deadlines that must always be checked, even on quiet days.',
+  ].join('\n\n'),
+};
+
+const MOCK_ARTIFACT_DEFAULTS: Record<string, (name: string) => string> = {
+  procedures: (name) =>
+    `The step-by-step the assistant follows for **${name.toLowerCase()}** — when it applies, the order of operations, and what done looks like.\n\nPlanted into Guidance at install; edit it there and the assistant follows your version.`,
+  functions: (name) =>
+    `\`${name}\` — a stored function the workflow's jobs call.\n\nPlanted into Functions at install with its full implementation and docstring.`,
+  knowledge: (name) =>
+    `A claim the assistant treats as true while doing this job: **${name.toLowerCase()}**.\n\nPlanted into Knowledge at install, with its provenance.`,
+  tasks: (name) =>
+    `The recurring job **${name.toLowerCase()}** — planted disarmed and armed once every required app is connected.`,
+  canvases: (name) =>
+    `**${name}** — a live view bound to the workflow's stored table, refreshed server-side on every read.`,
+  tables: (name) =>
+    `\`${name}\` — the stored table this workflow reads and writes. Declared at install; rows arrive from the jobs, never from the bundle.`,
+};
+
+/** Published-artifact previews for one mock workflow, derived from its manifest. */
+export function mockWorkflowArtifacts(slug: string): WorkflowArtifact[] {
+  const workflow = MOCK_WORKFLOWS.find((candidate) => candidate.slug === slug);
+  if (!workflow) return [];
+  return (Object.entries(workflow.sets) as [WorkflowSurfaceKind, WorkflowManifestItem[]][]).flatMap(
+    ([kind, items]) =>
+      (items ?? []).map((item) => ({
+        contentKey: `${slug}/${kind}/${item.name}`,
+        slug,
+        kind,
+        name: item.name,
+        body:
+          MOCK_ARTIFACT_BODIES[`${slug}/${kind}/${item.name}`] ??
+          MOCK_ARTIFACT_DEFAULTS[kind](item.name),
+        schedule: item.schedule,
+        meta: {},
+      }))
+  );
+}

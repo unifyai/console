@@ -9,6 +9,7 @@ function workflow(requirements: WorkflowRequirement[]): Workflow {
     name: 'Alpha',
     category: 'ops',
     description: 'Test workflow.',
+    about: '',
     version: '1.0.0',
     iconId: 'briefing',
     requirements,
@@ -115,5 +116,24 @@ describe('WorkflowRequirementList', () => {
     expect(screen.getByTestId('workflow-requirement-met-web')).toHaveTextContent('Built in');
     expect(screen.queryByTestId('workflow-requirement-connect-web')).not.toBeInTheDocument();
     expect(screen.queryByTestId('workflow-requirement-secret-web')).not.toBeInTheDocument();
+  });
+
+  it('renders an unresolved requirement as unverified — never a green check', () => {
+    renderList([
+      {
+        canonicalSlug: 'gmail',
+        displayName: 'Gmail',
+        via: 'unresolved',
+        connected: false,
+      },
+    ]);
+
+    expect(screen.getByTestId('workflow-requirement-unresolved-gmail')).toHaveTextContent(
+      'Unverified'
+    );
+    expect(screen.getByText("Couldn't check this app — see the Integrations gallery")).toBeTruthy();
+    expect(screen.queryByTestId('workflow-requirement-met-gmail')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('workflow-requirement-connect-gmail')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('workflow-requirement-secret-gmail')).not.toBeInTheDocument();
   });
 });

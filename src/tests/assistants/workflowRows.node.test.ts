@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   catalogRowRequirements,
   catalogRowToWorkflow,
+  contentRowToArtifact,
   installationRowToInstallation,
   parseJsonField,
   taskRowToRuntime,
@@ -79,6 +80,14 @@ describe('catalogRowToWorkflow', () => {
     ]);
   });
 
+  it('carries the long-form about alongside the one-line description', () => {
+    const workflow = catalogRowToWorkflow(
+      catalogRow({ about: 'Every weekday at 08:30…\n\nOne message before stand-up.' })
+    );
+    expect(workflow!.about).toContain('Every weekday');
+    expect(catalogRowToWorkflow(catalogRow())!.about).toBe('');
+  });
+
   it('keeps an unknown category on the shelf rather than dropping the workflow', () => {
     expect(catalogRowToWorkflow(catalogRow({ category: 'something-new' }))?.category).toBe('ops');
   });
@@ -93,6 +102,48 @@ describe('catalogRowToWorkflow', () => {
     expect(
       catalogRowRequirements(catalogRow({ requirements: '[{"slug":"notion","name":"Notion"}]' }))
     ).toEqual([{ slug: 'notion', name: 'Notion' }]);
+  });
+});
+
+describe('contentRowToArtifact', () => {
+  const contentRow = (overrides: Record<string, unknown> = {}) => ({
+    contentKey: 'daily-briefing/guidance/db/compose',
+    slug: 'daily-briefing',
+    surface: 'guidance',
+    key: 'db/compose',
+    name: 'How to compose the daily briefing',
+    body: 'Assemble the briefing in three sections…',
+    schedule: '',
+    meta: '{"kind":"definition"}',
+    ...overrides,
+  });
+
+  it('maps a published artifact row, unify surface to Console kind', () => {
+    expect(contentRowToArtifact(contentRow())).toEqual({
+      contentKey: 'daily-briefing/guidance/db/compose',
+      slug: 'daily-briefing',
+      kind: 'procedures',
+      name: 'How to compose the daily briefing',
+      body: 'Assemble the briefing in three sections…',
+      schedule: undefined,
+      meta: { kind: 'definition' },
+    });
+  });
+
+  it('keeps the unify-phrased schedule on task artifacts', () => {
+    const artifact = contentRowToArtifact(
+      contentRow({
+        contentKey: 'daily-briefing/tasks/db/morning',
+        surface: 'tasks',
+        schedule: 'Every weekday at 08:30',
+      })
+    );
+    expect(artifact).toMatchObject({ kind: 'tasks', schedule: 'Every weekday at 08:30' });
+  });
+
+  it('drops rows missing identity or naming an unknown surface', () => {
+    expect(contentRowToArtifact(contentRow({ contentKey: null }))).toBeNull();
+    expect(contentRowToArtifact(contentRow({ surface: 'dashboards' }))).toBeNull();
   });
 });
 

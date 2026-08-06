@@ -15,6 +15,7 @@ import {
   catalogRowToWorkflow,
   installationRowToInstallation,
   taskRowToRuntime,
+  type CatalogRequirement,
 } from '@/utils/workflows/workflowRows';
 import { resolveRequirements } from '@/utils/workflows/requirementResolution';
 import type { RequirementResolutionContext } from '@/utils/workflows/requirementResolution';
@@ -33,19 +34,28 @@ const PROVISIONING_STEP_MS = 620;
 const INSTALLATIONS_CONTEXT = 'Workflows';
 const CATALOG_PAGE_SIZE = 200;
 
+interface WorkflowGalleryLoad {
+  items: WorkflowGalleryItem[];
+  /** Published requirements per slug, connection-agnostic, for re-resolution. */
+  rawRequirements: Map<string, CatalogRequirement[]>;
+}
+
 /**
  * Read the published catalogue and this assistant's installations, then join
  * them by slug. The absence of an installation row *is* the available state.
+ *
+ * Requirements are deliberately NOT resolved here: connection state arrives
+ * from the integrations layer on its own schedule, so the raw requirements
+ * are returned for the hook to resolve reactively — a load that froze them
+ * against a not-yet-loaded integrations catalogue once rendered every app
+ * as "Built in".
  *
  * An environment whose Builtins project has not been seeded yet has no
  * catalogue rows, and a never-booted assistant has no installation rows;
  * both reads answer empty rather than throwing, so either lands on the
  * empty state, not an error.
  */
-async function loadWorkflowGallery(
-  assistant: Assistant,
-  requirementContext?: RequirementResolutionContext
-): Promise<WorkflowGalleryItem[]> {
+async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGalleryLoad> {
   // The catalogue is platform data in the public-read Builtins project —
   // one shelf for everyone, seeded by admin processes — while installations
   // are this assistant's own rows. Two stores, one join key.
@@ -74,20 +84,11 @@ async function loadWorkflowGallery(
     })
   );
 
-  return catalogRows.flatMap((row) => {
+  const rawRequirements = new Map<string, CatalogRequirement[]>();
+  const items = catalogRows.flatMap((row) => {
     const workflow = catalogRowToWorkflow(row);
     if (!workflow) return [];
-
-    // Requirements are published connection-agnostic; the route is resolved
-    // against the integrations layer Console already loads.
-    workflow.requirements = requirementContext
-      ? resolveRequirements(catalogRowRequirements(row), requirementContext)
-      : catalogRowRequirements(row).map((requirement) => ({
-          canonicalSlug: requirement.slug,
-          displayName: requirement.name,
-          via: 'undeclared' as const,
-          connected: true,
-        }));
+    rawRequirements.set(workflow.slug, catalogRowRequirements(row));
 
     const installationRow = installationRows.get(workflow.slug);
     if (!installationRow) return [{ workflow }];
@@ -96,17 +97,10 @@ async function loadWorkflowGallery(
       installationRow,
       runtimeBySlug.get(workflow.slug) ?? []
     );
-    if (!installation) return [{ workflow }];
-
-    // `needs_connection` is never stored — derive it, and let `partial`
-    // outrank it because something genuinely failed to plant.
-    if (installation.status === 'active' && unmetRequirements(workflow).length > 0) {
-      installation.status = 'pending_requirements';
-      installation.tasks = installation.tasks.map((task) => ({ ...task, enabled: false }));
-    }
-
-    return [{ workflow, installation }];
+    return installation ? [{ workflow, installation }] : [{ workflow }];
   });
+
+  return { items, rawRequirements };
 }
 
 export interface WorkflowProvisioningState {
@@ -152,18 +146,19 @@ interface UseWorkflowCatalogOptions {
 export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCatalogOptions = {}) {
   const { enabled = true, assistant = null, requirementContext } = options;
 
-  const [items, setItems] = React.useState<WorkflowGalleryItem[]>([]);
+  const [baseItems, setBaseItems] = React.useState<WorkflowGalleryItem[]>([]);
+  const [rawRequirements, setRawRequirements] = React.useState<Map<string, CatalogRequirement[]>>(
+    new Map()
+  );
   const [isMock, setIsMock] = React.useState(false);
   const [hasLoaded, setHasLoaded] = React.useState(false);
   const [provisioning, setProvisioning] = React.useState<WorkflowProvisioningState | null>(null);
 
-  const requirementContextRef = React.useRef(requirementContext);
-  requirementContextRef.current = requirementContext;
-
   React.useEffect(() => {
     if (!enabled || hasLoaded) return;
     if (shouldUseMockWorkflows()) {
-      setItems(MOCK_WORKFLOW_GALLERY_ITEMS);
+      setBaseItems(MOCK_WORKFLOW_GALLERY_ITEMS);
+      setRawRequirements(new Map());
       setIsMock(true);
       setHasLoaded(true);
       return;
@@ -172,9 +167,10 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
 
     let cancelled = false;
     void (async () => {
-      const next = await loadWorkflowGallery(assistant, requirementContextRef.current);
+      const next = await loadWorkflowGallery(assistant);
       if (cancelled) return;
-      setItems(next);
+      setBaseItems(next.items);
+      setRawRequirements(next.rawRequirements);
       setIsMock(false);
       setHasLoaded(true);
     })();
@@ -183,20 +179,56 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     };
   }, [enabled, hasLoaded, assistantId, assistant]);
 
+  /**
+   * Requirements resolve reactively: the integrations catalogue and the
+   * secret keyset arrive on their own schedule, and each arrival re-resolves
+   * every requirement. Until the context exists a requirement is
+   * `unresolved` — visibly unverified, never a fabricated green check.
+   * Derived install status follows the same rhythm, because
+   * `pending_requirements` is never stored and `partial` outranks it.
+   */
+  const items = React.useMemo<WorkflowGalleryItem[]>(() => {
+    if (isMock) return baseItems;
+    return baseItems.map((item) => {
+      const raw = rawRequirements.get(item.workflow.slug) ?? [];
+      const requirements = requirementContext
+        ? resolveRequirements(raw, requirementContext)
+        : raw.map((requirement) => ({
+            canonicalSlug: requirement.slug,
+            displayName: requirement.name,
+            via: 'unresolved' as const,
+            connected: false,
+          }));
+      const workflow = { ...item.workflow, requirements };
+      if (!item.installation) return { workflow };
+      if (item.installation.status === 'active' && unmetRequirements(workflow).length > 0) {
+        return {
+          workflow,
+          installation: {
+            ...item.installation,
+            status: 'pending_requirements' as const,
+            tasks: item.installation.tasks.map((task) => ({ ...task, enabled: false })),
+          },
+        };
+      }
+      return { workflow, installation: item.installation };
+    });
+  }, [baseItems, rawRequirements, requirementContext, isMock]);
+
   const refresh = React.useCallback(() => {
     setHasLoaded(false);
   }, []);
 
   const patch = React.useCallback(
     (slug: string, next: (item: WorkflowGalleryItem) => WorkflowGalleryItem) =>
-      setItems((list) => list.map((item) => (item.workflow.slug === slug ? next(item) : item))),
+      setBaseItems((list) => list.map((item) => (item.workflow.slug === slug ? next(item) : item))),
     []
   );
 
   /* --- connect loop ------------------------------------------------------- */
   const connect = React.useCallback(
     (canonicalSlug: string) => {
-      // Derive the toast from the pre-update state — the setItems updater runs
+      // Derive the toast from the pre-update state — the state updater runs
       // later in React's cycle, so writes made inside it are not visible here.
       const connectedName =
         items
@@ -213,7 +245,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
           )
       );
 
-      setItems((list) =>
+      setBaseItems((list) =>
         list.map((item) => {
           const requirements = item.workflow.requirements.map((requirement) =>
             requirement.canonicalSlug === canonicalSlug
