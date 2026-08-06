@@ -63,8 +63,9 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     iconId: 'briefing',
     requirements: [
       {
-        canonicalSlug: 'gcal',
+        canonicalSlug: 'google_calendar',
         displayName: 'Google Calendar',
+        via: 'secret',
         iconComponent: SiGooglecalendar,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -72,6 +73,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'gmail',
         displayName: 'Gmail',
+        via: 'connection',
         iconComponent: SiGmail,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -79,6 +81,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'slack',
         displayName: 'Slack',
+        via: 'connection',
         iconComponent: SiSlack,
         connected: true,
         accountLabel: 'unify.slack.com',
@@ -130,6 +133,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'gmail',
         displayName: 'Gmail',
+        via: 'connection',
         iconComponent: SiGmail,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -137,6 +141,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'notion',
         displayName: 'Notion',
+        via: 'connection',
         iconComponent: SiNotion,
         connected: false,
       },
@@ -188,8 +193,9 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     iconId: 'signal',
     requirements: [
       {
-        canonicalSlug: 'meet',
+        canonicalSlug: 'google_meet',
         displayName: 'Google Meet',
+        via: 'secret',
         iconComponent: SiGooglemeet,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -197,6 +203,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'linear',
         displayName: 'Linear',
+        via: 'connection',
         iconComponent: SiLinear,
         connected: true,
         accountLabel: 'unify',
@@ -204,6 +211,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'gmail',
         displayName: 'Gmail',
+        via: 'connection',
         iconComponent: SiGmail,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -257,12 +265,14 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'linkedin',
         displayName: 'LinkedIn',
+        via: 'connection',
         iconComponent: SiLinkedin,
         connected: false,
       },
       {
         canonicalSlug: 'hubspot',
         displayName: 'HubSpot',
+        via: 'connection',
         iconComponent: SiHubspot,
         connected: false,
       },
@@ -309,7 +319,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       tables: [{ name: 'sourced_leads' }],
       tasks: [
         { name: 'Weekly lead batch', schedule: 'Every Monday at 7:00am, your timezone' },
-        { name: 'Backfill existing CRM contacts', schedule: 'Once, at install' },
+        { name: 'Backfill existing CRM contacts', schedule: 'Once, at install', runsOnce: true },
       ],
     },
   },
@@ -325,6 +335,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'gmail',
         displayName: 'Gmail',
+        via: 'connection',
         iconComponent: SiGmail,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -332,12 +343,14 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'hubspot',
         displayName: 'HubSpot',
+        via: 'connection',
         iconComponent: SiHubspot,
         connected: false,
       },
       {
         canonicalSlug: 'slack',
         displayName: 'Slack',
+        via: 'connection',
         iconComponent: SiSlack,
         connected: true,
         accountLabel: 'unify.slack.com',
@@ -382,13 +395,15 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'web',
         displayName: 'Web browsing',
+        via: 'undeclared',
         iconUrl: null,
+        iconComponent: Globe,
         connected: true,
-        builtin: true,
       },
       {
         canonicalSlug: 'notion',
         displayName: 'Notion',
+        via: 'connection',
         iconComponent: SiNotion,
         connected: false,
       },
@@ -432,13 +447,15 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'gmail',
         displayName: 'Gmail',
+        via: 'connection',
         iconComponent: SiGmail,
         connected: true,
         accountLabel: 'haris@unify.ai',
       },
       {
-        canonicalSlug: 'gdrive',
+        canonicalSlug: 'google_drive',
         displayName: 'Google Drive',
+        via: 'secret',
         iconComponent: SiGoogledrive,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -446,9 +463,17 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'stripe',
         displayName: 'Stripe',
+        via: 'connection',
         iconComponent: SiStripe,
         connected: true,
         accountLabel: 'acct_1Qk…',
+      },
+      {
+        canonicalSlug: 'employmenthero',
+        displayName: 'Employment Hero',
+        via: 'native_package',
+        connected: false,
+        missingSecrets: ['EMPLOYMENT_HERO_CLIENT_ID', 'EMPLOYMENT_HERO_CLIENT_SECRET'],
       },
     ],
     capabilities: ['filesystem'],
@@ -491,6 +516,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'stripe',
         displayName: 'Stripe',
+        via: 'connection',
         iconComponent: SiStripe,
         connected: true,
         accountLabel: 'acct_1Qk…',
@@ -498,15 +524,17 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'hubspot',
         displayName: 'HubSpot',
+        via: 'connection',
         iconComponent: SiHubspot,
         connected: false,
       },
       {
-        canonicalSlug: 'gdrive',
+        canonicalSlug: 'google_drive',
         displayName: 'Google Drive',
+        via: 'secret',
         iconComponent: SiGoogledrive,
-        connected: true,
-        accountLabel: 'haris@unify.ai',
+        connected: false,
+        missingSecrets: ['GOOGLE_REFRESH_TOKEN'],
       },
     ],
     capabilities: [],
@@ -547,13 +575,15 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'gmail',
         displayName: 'Gmail',
+        via: 'connection',
         iconComponent: SiGmail,
         connected: true,
         accountLabel: 'haris@unify.ai',
       },
       {
-        canonicalSlug: 'sheets',
+        canonicalSlug: 'google_sheets',
         displayName: 'Google Sheets',
+        via: 'secret',
         iconComponent: SiGooglesheets,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -585,7 +615,11 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       tables: [{ name: 'expenses_2026' }],
       tasks: [
         { name: 'Collect new receipts', schedule: 'Every day at 7:00pm, your timezone' },
-        { name: 'Backfill receipts from mail history', schedule: 'Once, at install' },
+        {
+          name: 'Backfill receipts from mail history',
+          schedule: 'Once, at install',
+          runsOnce: true,
+        },
       ],
     },
   },
@@ -601,6 +635,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'github',
         displayName: 'GitHub',
+        via: 'connection',
         iconComponent: SiGithub,
         connected: true,
         accountLabel: 'unifyai',
@@ -608,6 +643,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'linear',
         displayName: 'Linear',
+        via: 'connection',
         iconComponent: SiLinear,
         connected: true,
         accountLabel: 'unify',
@@ -653,6 +689,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'github',
         displayName: 'GitHub',
+        via: 'connection',
         iconComponent: SiGithub,
         connected: true,
         accountLabel: 'unifyai',
@@ -660,6 +697,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'slack',
         displayName: 'Slack',
+        via: 'connection',
         iconComponent: SiSlack,
         connected: true,
         accountLabel: 'unify.slack.com',
@@ -667,6 +705,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'linear',
         displayName: 'Linear',
+        via: 'connection',
         iconComponent: SiLinear,
         connected: true,
         accountLabel: 'unify',
@@ -714,6 +753,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'github',
         displayName: 'GitHub',
+        via: 'connection',
         iconComponent: SiGithub,
         connected: true,
         accountLabel: 'unifyai',
@@ -721,6 +761,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'notion',
         displayName: 'Notion',
+        via: 'connection',
         iconComponent: SiNotion,
         connected: false,
       },
