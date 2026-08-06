@@ -140,6 +140,25 @@ describe('MeetGrid with a live room', () => {
     expect(screen.getAllByTestId('org-call-human-tile')).toHaveLength(2);
   });
 
+  it('stops ringing once the peer is in the room, even if the session is stale', () => {
+    // The regression: the peer answered, the `call_answered` frame never
+    // reached this client, and the session snapshot still said "invited" — so
+    // a teammate who was present and talking showed as ringing for the rest of
+    // the call, with nothing to correct it.
+    const room = new FakeRoom([new FakeParticipant('user-peer-x1y2', 'Peer Person')]);
+    renderGrid(
+      room,
+      makeCall({
+        participants: [
+          { userId: 'me', role: 'host', status: 'joined' },
+          { userId: 'peer', role: 'member', status: 'invited' },
+        ],
+      })
+    );
+
+    expect(screen.queryByText(/ringing…/)).toBeNull();
+  });
+
   it('marks invited (still ringing) participants without mounting live hooks', () => {
     const room = new FakeRoom([]);
     renderGrid(
