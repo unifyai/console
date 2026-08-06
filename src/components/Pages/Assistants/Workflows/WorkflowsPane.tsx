@@ -5,6 +5,7 @@ import { TabFooter } from '../Common/TabFooter';
 import { WorkflowsGalleryShell } from '@/components/Workflows/WorkflowsGalleryShell';
 import { WorkflowDetailSheet } from '@/components/Workflows/WorkflowDetailSheet';
 import { UninstallWorkflowDialog } from '@/components/Workflows/UninstallWorkflowDialog';
+import { WorkflowConnectAppSheet } from './WorkflowConnectAppSheet';
 import { WORKFLOW_SURFACES } from '@/components/Workflows/workflowCategories';
 import { useWorkflowCatalog } from '@/hooks/Workflows/useWorkflowCatalog';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
@@ -41,6 +42,7 @@ export function WorkflowsPane({
 
   const [openSlug, setOpenSlug] = React.useState<string | null>(null);
   const [uninstallSlug, setUninstallSlug] = React.useState<string | null>(null);
+  const [connectSlug, setConnectSlug] = React.useState<string | null>(null);
 
   const bySlug = (slug: string | null) =>
     catalog.items.find((item) => item.workflow.slug === slug) ?? null;
@@ -56,6 +58,25 @@ export function WorkflowsPane({
   const installedCount = catalog.items.filter((item) => item.installation).length;
   const isProvisioningOpen = catalog.provisioning?.slug === openSlug && openSlug !== null;
 
+  const connectRequirement = React.useMemo(
+    () =>
+      catalog.items
+        .flatMap((item) => item.workflow.requirements)
+        .find((requirement) => requirement.canonicalSlug === connectSlug) ?? null,
+    [catalog.items, connectSlug]
+  );
+
+  // Every connect entry point — card, installed row, requirement checklist,
+  // held banner — opens the provider drawer in place; the workflow sheet
+  // underneath stays exactly where it was.
+  const handleConnected = React.useCallback(
+    (canonicalSlug: string) => {
+      catalog.connect(canonicalSlug);
+      setConnectSlug(null);
+    },
+    [catalog]
+  );
+
   return (
     <div className="flex h-full flex-col" data-testid="workflows-pane">
       <div className="min-h-0 flex-1">
@@ -65,7 +86,7 @@ export function WorkflowsPane({
           onRefresh={catalog.refresh}
           onOpen={(item) => setOpenSlug(item.workflow.slug)}
           onInstall={(item) => setOpenSlug(item.workflow.slug)}
-          onConnect={catalog.connect}
+          onConnect={setConnectSlug}
           onToggleSetup={catalog.toggleSetup}
           onRetry={catalog.retry}
           renderDetailSheet={() => (
@@ -73,11 +94,12 @@ export function WorkflowsPane({
               <WorkflowDetailSheet
                 item={openItem}
                 open={!!openItem}
+                isLoading={catalog.isLoading}
                 team={team}
                 isInstalling={isProvisioningOpen}
                 provisioningStep={isProvisioningOpen ? catalog.provisioning?.step : 0}
                 onOpenChange={(next) => !next && setOpenSlug(null)}
-                onConnect={catalog.connect}
+                onConnect={(canonicalSlug) => setConnectSlug(canonicalSlug)}
                 onInstall={(values, destination) =>
                   openSlug && catalog.install(openSlug, values, destination)
                 }
@@ -100,6 +122,14 @@ export function WorkflowsPane({
                   setUninstallSlug(null);
                   setOpenSlug(null);
                 }}
+              />
+              <WorkflowConnectAppSheet
+                assistantId={assistantId}
+                canonicalSlug={connectSlug}
+                displayName={connectRequirement?.displayName ?? null}
+                open={!!connectSlug}
+                onOpenChange={(next) => !next && setConnectSlug(null)}
+                onConnected={handleConnected}
               />
             </>
           )}
