@@ -13,7 +13,7 @@ import type { BrainRow, TaskRow } from '@/types/assistants/brain';
  * boundary: JSON fields may arrive decoded or as strings, and unify names the
  * library a surface writes into while Console names the content kind it holds.
  */
-function catalogRow(overrides: Record<string, unknown> = {}): BrainRow {
+function catalogRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     slug: 'daily-briefing',
     name: 'Daily briefing',
@@ -25,7 +25,7 @@ function catalogRow(overrides: Record<string, unknown> = {}): BrainRow {
     capabilities: ['computer'],
     sets: { guidance: [{ name: 'Briefing tone' }] },
     ...overrides,
-  } as unknown as BrainRow;
+  };
 }
 
 describe('parseJsonField', () => {

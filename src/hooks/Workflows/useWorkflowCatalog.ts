@@ -9,6 +9,7 @@ import {
 import { WORKFLOW_SURFACE_ORDER } from '@/components/Workflows/workflowCategories';
 import type { WorkflowParamValues } from '@/components/Workflows/WorkflowParamsForm';
 import { fetchBrainContext } from '@/lib/client/brain';
+import { fetchWorkflowsCatalog } from '@/lib/client/workflows';
 import {
   catalogRowRequirements,
   catalogRowToWorkflow,
@@ -29,7 +30,6 @@ import {
 /** Milliseconds between optimistic provisioning steps while an install plants. */
 const PROVISIONING_STEP_MS = 620;
 
-const CATALOG_CONTEXT = 'Workflows/Catalog';
 const INSTALLATIONS_CONTEXT = 'Workflows';
 const CATALOG_PAGE_SIZE = 200;
 
@@ -37,17 +37,20 @@ const CATALOG_PAGE_SIZE = 200;
  * Read the published catalogue and this assistant's installations, then join
  * them by slug. The absence of an installation row *is* the available state.
  *
- * A never-booted assistant has no catalogue rows yet — the publish happens on
- * its first boot — and `fetchBrainContext` answers a missing context with an
- * empty page rather than throwing, so that lands on the empty state, not an
- * error.
+ * An environment whose Builtins project has not been seeded yet has no
+ * catalogue rows, and a never-booted assistant has no installation rows;
+ * both reads answer empty rather than throwing, so either lands on the
+ * empty state, not an error.
  */
 async function loadWorkflowGallery(
   assistant: Assistant,
   requirementContext?: RequirementResolutionContext
 ): Promise<WorkflowGalleryItem[]> {
-  const [catalog, installations] = await Promise.all([
-    fetchBrainContext<BrainRow>(assistant, CATALOG_CONTEXT, { limit: CATALOG_PAGE_SIZE }),
+  // The catalogue is platform data in the public-read Builtins project —
+  // one shelf for everyone, seeded by admin processes — while installations
+  // are this assistant's own rows. Two stores, one join key.
+  const [catalogRows, installations] = await Promise.all([
+    fetchWorkflowsCatalog(),
     fetchBrainContext<BrainRow>(assistant, INSTALLATIONS_CONTEXT, { limit: CATALOG_PAGE_SIZE }),
   ]);
 
@@ -71,7 +74,7 @@ async function loadWorkflowGallery(
     })
   );
 
-  return catalog.rows.flatMap((row) => {
+  return catalogRows.flatMap((row) => {
     const workflow = catalogRowToWorkflow(row);
     if (!workflow) return [];
 
