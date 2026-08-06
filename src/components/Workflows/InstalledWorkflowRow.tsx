@@ -49,7 +49,10 @@ export function InstalledWorkflowRow({
         onOpen(item);
       }}
       className={cn(
-        'grid w-full grid-cols-[auto_1fr_auto] items-center gap-3.5 rounded-xl border bg-card-2 p-4 text-left transition',
+        // Below the tablet breakpoint the action cluster drops to its own line
+        // rather than squeezing the name and runtime detail.
+        'grid w-full grid-cols-[auto_1fr] items-center gap-3 rounded-xl border bg-card-2 p-3.5 text-left transition',
+        'lg:grid-cols-[auto_1fr_auto] lg:gap-3.5 lg:p-4',
         'hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         held &&
           'border-[color-mix(in_srgb,var(--status-warning)_32%,var(--border))] bg-[color:var(--status-warning-bg)]',
@@ -125,7 +128,7 @@ export function InstalledWorkflowRow({
       </div>
 
       <div
-        className="flex shrink-0 items-center gap-2"
+        className="col-span-2 flex shrink-0 flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end"
         onClick={(event) => event.stopPropagation()}
       >
         {held && missing[0] && (

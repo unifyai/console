@@ -10,7 +10,7 @@ import { TabSegment, TabSegmentGroup } from '@/components/Pages/Assistants/Commo
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { useTabSearchCommit } from '@/hooks/Assistants/useTabSearchCommit';
 import { WorkflowCard } from './WorkflowCard';
-import { WorkflowGallerySkeleton } from './WorkflowCardSkeleton';
+import { WorkflowGallerySkeleton, WorkflowInstalledSkeleton } from './WorkflowCardSkeleton';
 import { InstalledWorkflowRow } from './InstalledWorkflowRow';
 import { WORKFLOW_CATEGORIES } from './workflowCategories';
 import type {
@@ -110,7 +110,7 @@ export function WorkflowsGalleryShell({
   const isInitialLoading = Boolean(isLoading && items.length === 0);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-testid="workflow-gallery">
+    <div className="flex h-full min-h-0 flex-1 flex-col" data-testid="workflow-gallery">
       <TabToolbar
         testId="workflow-gallery-toolbar"
         leading={
@@ -178,10 +178,20 @@ export function WorkflowsGalleryShell({
         refreshTestId="workflow-gallery-refresh"
       />
 
-      <ScrollArea className="min-h-0 flex-1">
+      {/* Radix wraps viewport children in a display:table div, which makes a
+          grid shrink-to-fit instead of filling the pane — [&>div]:!block is the
+          house fix (see DocLibraryPane, TranscriptsPane, AppRail). */}
+      <ScrollArea
+        className="min-h-0 flex-1"
+        viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
+      >
         <div className="px-3 py-3">
           {isInitialLoading ? (
-            <WorkflowGallerySkeleton />
+            tab === 'installed' ? (
+              <WorkflowInstalledSkeleton />
+            ) : (
+              <WorkflowGallerySkeleton />
+            )
           ) : tab === 'installed' ? (
             installed.length === 0 ? (
               <EmptyCard
@@ -268,6 +278,14 @@ export function WorkflowsGalleryShell({
   );
 }
 
+/** Same thresholds as IntegrationGalleryVirtualGrid's columnsForWidth. */
+function columnsForWidth(width: number): number {
+  if (width >= 1536) return 4;
+  if (width >= 1280) return 3;
+  if (width >= 768) return 2;
+  return 1;
+}
+
 function WorkflowGrid({
   items,
   onOpen,
@@ -279,8 +297,32 @@ function WorkflowGrid({
   onInstall: (item: WorkflowGalleryItem) => void;
   onConnect: (canonicalSlug: string) => void;
 }) {
+  // Columns track the pane's own width, not the viewport's — the side panel
+  // and rail change how much room the grid actually has, so Tailwind's
+  // viewport breakpoints would size it against the wrong box.
+  const parentRef = React.useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = React.useState(1);
+
+  React.useEffect(() => {
+    const element = parentRef.current;
+    if (!element) return;
+    const updateColumns = () => setColumns(columnsForWidth(element.clientWidth || 0));
+    updateColumns();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateColumns);
+      return () => window.removeEventListener('resize', updateColumns);
+    }
+    const observer = new ResizeObserver(updateColumns);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div
+      ref={parentRef}
+      className="grid w-full gap-3"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
       {items.map((item) => (
         <WorkflowCard
           key={item.workflow.slug}

@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/UI/sheet';
 import { cn } from '@/lib/utils';
 import { WorkflowTileIcon } from './WorkflowTileIcon';
+import { WorkflowDetailSkeleton } from './WorkflowCardSkeleton';
 import { WorkflowRequirementList } from './WorkflowRequirementList';
 import { WorkflowManifestGroups } from './WorkflowManifestGroups';
 import {
@@ -58,6 +59,7 @@ import {
 export function WorkflowDetailSheet({
   item,
   open,
+  isLoading,
   isInstalling,
   provisioningStep,
   team,
@@ -75,6 +77,8 @@ export function WorkflowDetailSheet({
 }: {
   item: WorkflowGalleryItem | null;
   open: boolean;
+  /** True while the workflow's own detail is still resolving. */
+  isLoading?: boolean;
   /** True while the optimistic provisioning list is running. */
   isInstalling?: boolean;
   /** Index into the surface list being planted, for the progress list. */
@@ -172,7 +176,7 @@ export function WorkflowDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-[640px]"
+        className="flex !w-[min(640px,calc(100vw-2rem))] !max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:!max-w-[calc(100vw-2rem)]"
         style={categoryStyle(workflow.category)}
         data-testid={`workflow-sheet-${workflow.slug}`}
       >
@@ -217,9 +221,14 @@ export function WorkflowDetailSheet({
           </div>
         </header>
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="flex flex-col gap-4 p-5">
-            {isInstalling ? (
+        <ScrollArea
+          className="min-h-0 flex-1"
+          viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
+        >
+          <div className="flex flex-col gap-4 p-4 sm:p-5">
+            {isLoading ? (
+              <WorkflowDetailSkeleton />
+            ) : isInstalling ? (
               <ProvisioningProgress
                 kinds={plantedKinds}
                 step={provisioningStep ?? 0}
@@ -291,8 +300,8 @@ export function WorkflowDetailSheet({
           </div>
         </ScrollArea>
 
-        {!isInstalling && (
-          <footer className="flex items-center gap-2 border-t p-3.5">
+        {!isInstalling && !isLoading && (
+          <footer className="flex flex-wrap items-center gap-2 border-t p-3.5">
             {installMode ? (
               <>
                 <span className="text-caption flex-1">

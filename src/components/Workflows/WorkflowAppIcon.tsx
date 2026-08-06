@@ -44,7 +44,9 @@ export function WorkflowAppIcon({
           className={cn('object-contain', glyph)}
         />
       ) : requirement.iconComponent ? (
-        <requirement.iconComponent className={cn('shrink-0 text-muted-foreground', glyph)} />
+        // Brand marks carry their own colour through currentColor — inherit the
+        // foreground rather than muting them, matching ProviderIcon.
+        <requirement.iconComponent className={cn('shrink-0 text-foreground', glyph)} />
       ) : (
         <span className="font-display text-[11px] font-bold text-muted-foreground">
           {requirement.displayName.charAt(0)}
