@@ -165,6 +165,48 @@ describe('useWorkflowCatalog — live reads', () => {
     expect(result.current.items[0].installation?.status).toBe('partial');
   });
 
+  it('re-resolves requirements when the integrations context arrives late', async () => {
+    respondWith({ catalog: [CATALOG_ROW] });
+    const rendered = renderHook(
+      (props: { requirementContext?: RequirementResolutionContext }) =>
+        useWorkflowCatalog('123', { assistant, ...props }),
+      { initialProps: {} as { requirementContext?: RequirementResolutionContext } }
+    );
+    await waitFor(() => expect(rendered.result.current.hasLoaded).toBe(true));
+
+    // Until the integrations catalogue answers, the requirement is honestly
+    // unverified — freezing it here once rendered every app as "Built in".
+    expect(rendered.result.current.items[0].workflow.requirements[0]).toMatchObject({
+      canonicalSlug: 'notion',
+      via: 'unresolved',
+      connected: false,
+    });
+
+    rendered.rerender({
+      requirementContext: {
+        definitionsBySlug: new Map([
+          [
+            'notion',
+            {
+              canonicalSlug: 'notion',
+              displayName: 'Notion',
+              status: 'connected',
+              source: 'provider_backed',
+              connections: [{ id: 'c1', status: 'connected' }],
+              iconUrl: null,
+            },
+          ],
+        ]) as unknown as Map<string, IntegrationDefinition>,
+        secretNames: new Set<string>(),
+      },
+    });
+
+    expect(rendered.result.current.items[0].workflow.requirements[0]).toMatchObject({
+      via: 'connection',
+      connected: true,
+    });
+  });
+
   it('reports mutations as non-persisting outside mock mode', async () => {
     respondWith({ catalog: [CATALOG_ROW] });
     const { result } = await renderLive();
