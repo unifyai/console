@@ -74,6 +74,7 @@ Sampling rates and shards: [`scripts/ci-playwright-manifest.json`](../../scripts
 | `account.support`         | Support tickets            | `account/support-ticket`                           | Dialog lifecycle + submission               |
 | `account.reset`           | Account reset              | `account/reset-account`                            | Reset flow when mode active                 |
 | `assistants.integrations` | Provider + workspace cards | `provider-integrations`, `workspace-provider-card` | Profile deep-link; provider card visibility |
+| `assistants.workflows`    | Curated workflows shelf    | `workflows`                                        | Shelf install/uninstall journey             |
 
 ## P3 areas (may leave E2E)
 

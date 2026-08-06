@@ -7,6 +7,9 @@ branding/
 # Local design spec reference (gitignored)
 .design/
 
+# Design handoff bundles (untracked reference material)
+.workflows/
+
 # Build outputs
 .next/
 out/
@@ -16,6 +19,14 @@ build/
 # Generated files
 *.min.js
 *.min.css
+
+# Service-account credential downloads (also gitignored — never reformat a key)
+*_sa_credentials.json
+*-sa-credentials.json
+/saas-*.json
+
+# Generated bundle-size snapshots
+scripts/bundle-snapshots/
 
 # Package files
 package-lock.json

@@ -155,7 +155,7 @@ describe('useFunctionsCatalog', () => {
       useFunctionsCatalog({ assistant: a, kind: 'Learned', root: { kind: 'personal' } })
     );
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(50));
+    await waitFor(() => expect(result.current.functions).toHaveLength(50));
     expect(result.current.total).toBe(93);
     expect(result.current.hasMore).toBe(true);
     const body = requestBody(fetchSpy.mock.calls[0]);
@@ -179,7 +179,7 @@ describe('useFunctionsCatalog', () => {
       useFunctionsCatalog({ assistant: a, kind: 'Primitives', root: { kind: 'personal' } })
     );
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(50));
+    await waitFor(() => expect(result.current.functions).toHaveLength(50));
     expect(result.current.total).toBe(51);
     expect(result.current.hasMore).toBe(true);
 
@@ -187,7 +187,7 @@ describe('useFunctionsCatalog', () => {
       await result.current.loadMore();
     });
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(51));
+    await waitFor(() => expect(result.current.functions).toHaveLength(51));
     expect(result.current.hasMore).toBe(false);
     const offsets = fetchSpy.mock.calls.map((call) => requestBody(call).offset);
     expect(offsets).toEqual([0, 50]);
@@ -203,7 +203,7 @@ describe('useFunctionsCatalog', () => {
 
     const { result } = renderHook(() => useFunctionsCatalog({ assistant: a, kind: 'All' }));
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(2));
+    await waitFor(() => expect(result.current.functions).toHaveLength(2));
     expect(result.current.total).toBe(2);
     const body = requestBody(fetchSpy.mock.calls[0]);
     const contexts = body.contexts as Array<{ context: string }>;
@@ -245,12 +245,12 @@ describe('useFunctionsCatalog', () => {
       { initialProps: { kind: 'Learned' as FunctionKindFilter } }
     );
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(2));
+    await waitFor(() => expect(result.current.functions).toHaveLength(2));
     expect(result.current.total).toBe(2);
 
     rerender({ kind: 'All' });
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(5));
+    await waitFor(() => expect(result.current.functions).toHaveLength(5));
     expect(result.current.total).toBe(5);
     expect(fetchSpy.mock.calls.length).toBeGreaterThan(1);
   });
@@ -295,7 +295,7 @@ describe('useFunctionsCatalog', () => {
       })
     );
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(50));
+    await waitFor(() => expect(result.current.functions).toHaveLength(50));
     expect(result.current.total).toBe(63);
     expect(result.current.hasMore).toBe(true);
 
@@ -303,7 +303,7 @@ describe('useFunctionsCatalog', () => {
       await result.current.loadMore();
     });
 
-    await waitFor(() => expect(result.current.skills).toHaveLength(63));
+    await waitFor(() => expect(result.current.functions).toHaveLength(63));
     expect(result.current.total).toBe(63);
     expect(result.current.hasMore).toBe(false);
   });

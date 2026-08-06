@@ -30,7 +30,7 @@ import { FunctionSignatureDocs } from './FunctionSignatureDocs';
 import { FunctionsVirtualGrid } from './FunctionsVirtualGrid';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { FUNCTIONS_GRID_CLASS } from '@/utils/assistants/functionsGrid';
-import { type FunctionSkill, type FunctionKindFilter } from '@/utils/assistants/functions';
+import { type FunctionEntry, type FunctionKindFilter } from '@/utils/assistants/functions';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface FunctionsPaneProps {
@@ -70,11 +70,11 @@ function DetailField({ label, children }: { label: string; children: React.React
   );
 }
 
-function FunctionBadges({ skill }: { skill: FunctionSkill }) {
+function FunctionBadges({ fn }: { fn: FunctionEntry }) {
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="function-badges">
-      <KindBadge isPrimitive={skill.isPrimitive} />
-      {skill.verify && (
+      <KindBadge isPrimitive={fn.isPrimitive} />
+      {fn.verify && (
         <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--status-success-bg)] px-2 py-0.5 text-[10.5px] font-semibold text-[color:var(--status-success)]">
           <Check className="h-3 w-3" /> verified
         </span>
@@ -83,27 +83,23 @@ function FunctionBadges({ skill }: { skill: FunctionSkill }) {
   );
 }
 
-function FunctionAbout({ skill }: { skill: FunctionSkill }) {
+function FunctionAbout({ fn }: { fn: FunctionEntry }) {
   return (
     <div className="space-y-4 pr-4" data-testid="function-detail-body">
-      {skill.staleReasons.length > 0 && (
+      {fn.staleReasons.length > 0 && (
         <StaleReasonChips
-          reasons={skill.staleReasons}
+          reasons={fn.staleReasons}
           banner
           chipTestIdPrefix="function-stale-reason"
         />
       )}
 
-      <FunctionSignatureDocs
-        argspec={skill.argspec}
-        docstring={skill.docstring}
-        language={skill.language}
-      />
+      <FunctionSignatureDocs argspec={fn.argspec} docstring={fn.docstring} language={fn.language} />
 
-      {skill.dependsOn.length > 0 && (
+      {fn.dependsOn.length > 0 && (
         <DetailField label="Depends on">
           <div className="flex flex-wrap gap-1.5">
-            {skill.dependsOn.map((dep) => (
+            {fn.dependsOn.map((dep) => (
               <span
                 key={dep}
                 className="bg-muted/40 text-code-sm rounded-md border px-2 py-0.5 text-muted-foreground"
@@ -115,10 +111,10 @@ function FunctionAbout({ skill }: { skill: FunctionSkill }) {
         </DetailField>
       )}
 
-      {skill.guidanceIds.length > 0 && (
+      {fn.guidanceIds.length > 0 && (
         <DetailField label="Linked guidance">
           <div className="flex flex-wrap gap-1.5">
-            {skill.guidanceIds.map((guidanceId) => (
+            {fn.guidanceIds.map((guidanceId) => (
               <span
                 key={guidanceId}
                 className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-soft-foreground"
@@ -132,17 +128,17 @@ function FunctionAbout({ skill }: { skill: FunctionSkill }) {
         </DetailField>
       )}
 
-      {skill.precondition && (
+      {fn.precondition && (
         <DetailField label="Precondition">
           <AssistantMarkdown>
-            {fencedCode(JSON.stringify(skill.precondition, null, 2), 'json')}
+            {fencedCode(JSON.stringify(fn.precondition, null, 2), 'json')}
           </AssistantMarkdown>
         </DetailField>
       )}
 
       <DetailField label="Implementation">
-        {skill.implementation ? (
-          <AssistantMarkdown>{fencedCode(skill.implementation, skill.language)}</AssistantMarkdown>
+        {fn.implementation ? (
+          <AssistantMarkdown>{fencedCode(fn.implementation, fn.language)}</AssistantMarkdown>
         ) : (
           <p className="text-caption">
             This is a primitive — its implementation lives in the platform&apos;s state-manager
@@ -154,9 +150,9 @@ function FunctionAbout({ skill }: { skill: FunctionSkill }) {
   );
 }
 
-function CopySignatureButton({ skill }: { skill: FunctionSkill }) {
+function CopySignatureButton({ fn }: { fn: FunctionEntry }) {
   const { isCopied, handleCopy } = useCopyToClipboard({
-    text: skill.implementation || skill.argspec,
+    text: fn.implementation || fn.argspec,
     copyMessage: 'Copied',
     showSuccessNotification: false,
   });
@@ -178,7 +174,7 @@ export function FunctionsPane({
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [kind, setKind] = useState<FunctionKindFilter>('All');
-  const [selected, setSelected] = useState<FunctionSkill | null>(null);
+  const [selected, setSelected] = useState<FunctionEntry | null>(null);
   const {
     draft: searchDraft,
     setDraft: setSearchDraft,
@@ -187,14 +183,23 @@ export function FunctionsPane({
     clear: clearSearch,
   } = useTabSearchCommit();
 
-  const { skills, total, hasLoaded, isLoading, isLoadingMore, hasMore, error, loadMore, refetch } =
-    useFunctionsCatalog({
-      assistant,
-      kind,
-      query: searchQuery,
-      root: scope.root,
-      enabled: isActiveSurface,
-    });
+  const {
+    functions,
+    total,
+    hasLoaded,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    error,
+    loadMore,
+    refetch,
+  } = useFunctionsCatalog({
+    assistant,
+    kind,
+    query: searchQuery,
+    root: scope.root,
+    enabled: isActiveSurface,
+  });
 
   const { pendingFunctionId, clearPendingFunction } = usePendingFunctionTarget();
 
@@ -205,12 +210,12 @@ export function FunctionsPane({
 
   React.useEffect(() => {
     if (!pendingFunctionId || !hasLoaded || kind !== 'All') return;
-    const skill = skills.find((item) => item.functionId === pendingFunctionId);
-    if (skill) {
-      setSelected(skill);
+    const fn = functions.find((item) => item.functionId === pendingFunctionId);
+    if (fn) {
+      setSelected(fn);
     }
     clearPendingFunction();
-  }, [clearPendingFunction, hasLoaded, kind, pendingFunctionId, skills]);
+  }, [clearPendingFunction, hasLoaded, kind, pendingFunctionId, functions]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -270,14 +275,14 @@ export function FunctionsPane({
               <SkeletonCard key={i} lines={2} />
             ))}
           </div>
-        ) : skills.length === 0 ? (
+        ) : functions.length === 0 ? (
           <div className="text-body-muted flex h-full items-center justify-center">
             No functions found.
           </div>
         ) : (
           <FunctionsVirtualGrid
             key={kind}
-            skills={skills}
+            functions={functions}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             onEndReached={loadMore}
@@ -288,7 +293,7 @@ export function FunctionsPane({
 
       <TabFooter
         testId="functions-footer"
-        count={skills.length}
+        count={functions.length}
         total={total}
         singular="function"
         plural="functions"
@@ -312,14 +317,14 @@ export function FunctionsPane({
                 {selected?.isPrimitive ? 'Primitive' : 'Learned'} · {selected?.language}
               </SheetDescription>
             </div>
-            {selected && <FunctionBadges skill={selected} />}
+            {selected && <FunctionBadges fn={selected} />}
           </SheetHeader>
           <ScrollArea className="mt-4 min-h-0 flex-1">
-            {selected && <FunctionAbout skill={selected} />}
+            {selected && <FunctionAbout fn={selected} />}
           </ScrollArea>
           {selected && (
             <SheetFooter className="mt-0 shrink-0 flex-row justify-end gap-2 border-t pt-3">
-              <CopySignatureButton skill={selected} />
+              <CopySignatureButton fn={selected} />
             </SheetFooter>
           )}
         </SheetContent>

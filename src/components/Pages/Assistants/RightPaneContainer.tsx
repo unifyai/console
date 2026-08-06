@@ -7,6 +7,7 @@ import { CanvasPane } from './Canvas/CanvasPane';
 import { DashboardsPane } from './Dashboards';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
+import { WorkflowsPane } from './Workflows';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
 import { AssistantDesktopPane } from './Desktop/AssistantDesktopPane';
 import type {
@@ -38,6 +39,7 @@ export type RightPaneTab =
   | 'tasks'
   | 'canvas'
   | 'dashboards'
+  | 'workflows'
   | 'integrations'
   | 'actions'
   | 'desktop';
@@ -284,6 +286,18 @@ export function RightPaneContainer({
             <p className="text-body-muted">Select an assistant to view dashboards.</p>
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="workflows" className={TAB_CONTENT_CLASS} forceMount>
+        <WorkflowsPane
+          assistant={assistant}
+          ownerId={assistant.userId}
+          assistantId={assistant.agentId}
+          secretActions={assistantActions.secret}
+          canWrite={canWrite}
+          isVisible={activeTab === 'workflows'}
+          isActiveSurface={isActiveSurface}
+        />
       </TabsContent>
 
       <TabsContent value="integrations" className={TAB_CONTENT_CLASS} forceMount>
