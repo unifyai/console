@@ -8,6 +8,17 @@ import {
 } from '@/utils/assistants/workflow-mock-data';
 import { WORKFLOW_SURFACE_ORDER } from '@/components/Workflows/workflowCategories';
 import type { WorkflowParamValues } from '@/components/Workflows/WorkflowParamsForm';
+import { fetchBrainContext } from '@/lib/client/brain';
+import {
+  catalogRowRequirements,
+  catalogRowToWorkflow,
+  installationRowToInstallation,
+  taskRowToRuntime,
+} from '@/utils/workflows/workflowRows';
+import { resolveRequirements } from '@/utils/workflows/requirementResolution';
+import type { RequirementResolutionContext } from '@/utils/workflows/requirementResolution';
+import type { Assistant } from '@/types/assistants/assistant';
+import type { BrainRow, TaskRow } from '@/types/assistants/brain';
 import {
   provisioningTask,
   unmetRequirements,
@@ -17,6 +28,83 @@ import {
 
 /** Milliseconds between optimistic provisioning steps while an install plants. */
 const PROVISIONING_STEP_MS = 620;
+
+const CATALOG_CONTEXT = 'Workflows/Catalog';
+const INSTALLATIONS_CONTEXT = 'Workflows';
+const CATALOG_PAGE_SIZE = 200;
+
+/**
+ * Read the published catalogue and this assistant's installations, then join
+ * them by slug. The absence of an installation row *is* the available state.
+ *
+ * A never-booted assistant has no catalogue rows yet — the publish happens on
+ * its first boot — and `fetchBrainContext` answers a missing context with an
+ * empty page rather than throwing, so that lands on the empty state, not an
+ * error.
+ */
+async function loadWorkflowGallery(
+  assistant: Assistant,
+  requirementContext?: RequirementResolutionContext
+): Promise<WorkflowGalleryItem[]> {
+  const [catalog, installations] = await Promise.all([
+    fetchBrainContext<BrainRow>(assistant, CATALOG_CONTEXT, { limit: CATALOG_PAGE_SIZE }),
+    fetchBrainContext<BrainRow>(assistant, INSTALLATIONS_CONTEXT, { limit: CATALOG_PAGE_SIZE }),
+  ]);
+
+  const installationRows = new Map(
+    installations.rows.flatMap((row) => {
+      const slug = (row as Record<string, unknown>).slug;
+      return typeof slug === 'string' ? [[slug, row] as const] : [];
+    })
+  );
+
+  // A workflow has no runtime of its own: each installed slug's tasks are
+  // ordinary Tasks rows, filtered server-side by the slug that manages them.
+  const runtimeBySlug = new Map<string, ReturnType<typeof taskRowToRuntime>[]>();
+  await Promise.all(
+    [...installationRows.keys()].map(async (slug) => {
+      const tasks = await fetchBrainContext<TaskRow>(assistant, 'Tasks', {
+        filter: `managed_by == ${JSON.stringify(slug)}`,
+        limit: CATALOG_PAGE_SIZE,
+      });
+      runtimeBySlug.set(slug, tasks.rows.map(taskRowToRuntime));
+    })
+  );
+
+  return catalog.rows.flatMap((row) => {
+    const workflow = catalogRowToWorkflow(row);
+    if (!workflow) return [];
+
+    // Requirements are published connection-agnostic; the route is resolved
+    // against the integrations layer Console already loads.
+    workflow.requirements = requirementContext
+      ? resolveRequirements(catalogRowRequirements(row), requirementContext)
+      : catalogRowRequirements(row).map((requirement) => ({
+          canonicalSlug: requirement.slug,
+          displayName: requirement.name,
+          via: 'undeclared' as const,
+          connected: true,
+        }));
+
+    const installationRow = installationRows.get(workflow.slug);
+    if (!installationRow) return [{ workflow }];
+
+    const installation = installationRowToInstallation(
+      installationRow,
+      runtimeBySlug.get(workflow.slug) ?? []
+    );
+    if (!installation) return [{ workflow }];
+
+    // `needs_connection` is never stored — derive it, and let `partial`
+    // outrank it because something genuinely failed to plant.
+    if (installation.status === 'active' && unmetRequirements(workflow).length > 0) {
+      installation.status = 'pending_requirements';
+      installation.tasks = installation.tasks.map((task) => ({ ...task, enabled: false }));
+    }
+
+    return [{ workflow, installation }];
+  });
+}
 
 export interface WorkflowProvisioningState {
   slug: string;
@@ -28,6 +116,10 @@ export interface WorkflowProvisioningState {
 interface UseWorkflowCatalogOptions {
   /** Gate fetching to the pane being visible, like the integrations catalog. */
   enabled?: boolean;
+  /** Required for the live reads; absent only in mock-only callers. */
+  assistant?: Assistant | null;
+  /** Resolves each requirement's route. Omitted until integrations load. */
+  requirementContext?: RequirementResolutionContext;
 }
 
 /**
@@ -55,12 +147,15 @@ interface UseWorkflowCatalogOptions {
  *           the workflow owns.
  */
 export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCatalogOptions = {}) {
-  const { enabled = true } = options;
+  const { enabled = true, assistant = null, requirementContext } = options;
 
   const [items, setItems] = React.useState<WorkflowGalleryItem[]>([]);
   const [isMock, setIsMock] = React.useState(false);
   const [hasLoaded, setHasLoaded] = React.useState(false);
   const [provisioning, setProvisioning] = React.useState<WorkflowProvisioningState | null>(null);
+
+  const requirementContextRef = React.useRef(requirementContext);
+  requirementContextRef.current = requirementContext;
 
   React.useEffect(() => {
     if (!enabled || hasLoaded) return;
@@ -70,12 +165,20 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       setHasLoaded(true);
       return;
     }
-    // Live path: the WorkflowManager catalog feed is not exposed yet, so the
-    // shelf resolves empty rather than erroring against a missing endpoint.
-    setItems([]);
-    setIsMock(false);
-    setHasLoaded(true);
-  }, [enabled, hasLoaded, assistantId]);
+    if (!assistant) return;
+
+    let cancelled = false;
+    void (async () => {
+      const next = await loadWorkflowGallery(assistant, requirementContextRef.current);
+      if (cancelled) return;
+      setItems(next);
+      setIsMock(false);
+      setHasLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, hasLoaded, assistantId, assistant]);
 
   const refresh = React.useCallback(() => {
     setHasLoaded(false);
@@ -298,6 +401,14 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     isMock,
     hasLoaded,
     isLoading: enabled && !hasLoaded,
+    /**
+     * Mutations are local-only: planting content needs unify's surface
+     * registry and reconcile engine, which is the assistant's work, and the
+     * record-and-wake path does not exist yet. The shelf must not claim an
+     * install happened when nothing was persisted, so surfaces gate their
+     * actions on this rather than pretending.
+     */
+    canMutate: isMock,
     provisioning,
     refresh,
     connect,

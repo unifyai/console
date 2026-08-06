@@ -41,6 +41,7 @@ export function WorkflowsGalleryShell({
   items,
   isLoading,
   isRefreshing,
+  canMutate = true,
   onRefresh,
   renderDetailSheet,
   onOpen,
@@ -52,6 +53,8 @@ export function WorkflowsGalleryShell({
   items: WorkflowGalleryItem[];
   isLoading?: boolean;
   isRefreshing?: boolean;
+  /** False when steering a setup or retrying would only change local state. */
+  canMutate?: boolean;
   onRefresh?: () => void;
   /** The parent owns the sheet + uninstall dialog; the shell just renders them. */
   renderDetailSheet?: () => React.ReactNode;
@@ -215,6 +218,7 @@ export function WorkflowsGalleryShell({
                   <InstalledWorkflowRow
                     key={item.workflow.slug}
                     item={item}
+                    canMutate={canMutate}
                     onOpen={onOpen}
                     onConnect={onConnect}
                     onToggleSetup={onToggleSetup}

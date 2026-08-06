@@ -290,8 +290,10 @@ export function RightPaneContainer({
 
       <TabsContent value="workflows" className={TAB_CONTENT_CLASS} forceMount>
         <WorkflowsPane
+          assistant={assistant}
           ownerId={assistant.userId}
           assistantId={assistant.agentId}
+          secretActions={assistantActions.secret}
           canWrite={canWrite}
           isVisible={activeTab === 'workflows'}
           isActiveSurface={isActiveSurface}

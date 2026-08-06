@@ -9,12 +9,18 @@ import { UninstallWorkflowDialog } from '@/components/Workflows/UninstallWorkflo
 import { WorkflowConnectAppSheet } from './WorkflowConnectAppSheet';
 import { WORKFLOW_SURFACES } from '@/components/Workflows/workflowCategories';
 import { useWorkflowCatalog } from '@/hooks/Workflows/useWorkflowCatalog';
+import { useProviderIntegrationCatalog } from '@/hooks/Assistants/useProviderIntegrationCatalog';
+import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
+import type { Assistant } from '@/types/assistants/assistant';
+import type { SecretActions } from '@/types/assistants/secret';
 import type { WorkflowSurfaceKind } from '@/types/workflows';
 
 interface WorkflowsPaneProps {
+  assistant?: Assistant | null;
   ownerId: string;
   assistantId: string;
+  secretActions?: SecretActions;
   isVisible?: boolean;
   isActiveSurface?: boolean;
   canWrite?: boolean;
@@ -31,14 +37,39 @@ interface WorkflowsPaneProps {
  * owns only overlay state (which sheet or dialog is open) and navigation.
  */
 export function WorkflowsPane({
+  assistant = null,
+  ownerId,
   assistantId,
+  secretActions,
   isVisible = true,
   isActiveSurface = true,
   team,
 }: WorkflowsPaneProps) {
   const { navigateToAssistants } = useAppShellNavigation();
+  const dataEnabled = isVisible && isActiveSurface;
+
+  // Requirement routes resolve against the integrations layer this app
+  // already loads — connections and definitions by canonical slug, plus the
+  // secrets a native or BYOD-OAuth app is gated on. Never a second copy.
+  const integrations = useProviderIntegrationCatalog(assistantId, { enabled: dataEnabled });
+  const secrets = useAssistantSecrets(assistantId, ownerId, secretActions as SecretActions, {
+    enabled: dataEnabled && !!secretActions,
+  });
+
+  const requirementContext = React.useMemo(
+    () => ({
+      definitionsBySlug: new Map(
+        integrations.definitions.map((definition) => [definition.canonicalSlug, definition])
+      ),
+      secretNames: new Set(secrets.secrets.map((secret) => secret.name)),
+    }),
+    [integrations.definitions, secrets.secrets]
+  );
+
   const catalog = useWorkflowCatalog(assistantId, {
-    enabled: isVisible && isActiveSurface,
+    enabled: dataEnabled,
+    assistant,
+    requirementContext,
   });
 
   const [openSlug, setOpenSlug] = React.useState<string | null>(null);
@@ -84,6 +115,7 @@ export function WorkflowsPane({
         <WorkflowsGalleryShell
           items={catalog.items}
           isLoading={catalog.isLoading}
+          canMutate={catalog.canMutate}
           onRefresh={catalog.refresh}
           onOpen={(item) => setOpenSlug(item.workflow.slug)}
           onInstall={(item) => setOpenSlug(item.workflow.slug)}
@@ -96,6 +128,7 @@ export function WorkflowsPane({
                 item={openItem}
                 open={!!openItem}
                 isLoading={catalog.isLoading}
+                canMutate={catalog.canMutate}
                 team={team}
                 isInstalling={isProvisioningOpen}
                 provisioningStep={isProvisioningOpen ? catalog.provisioning?.step : 0}

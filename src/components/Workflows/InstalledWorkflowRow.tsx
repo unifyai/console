@@ -26,12 +26,14 @@ import {
  */
 export function InstalledWorkflowRow({
   item,
+  canMutate = true,
   onOpen,
   onConnect,
   onToggleSetup,
   onRetry,
 }: {
   item: WorkflowGalleryItem;
+  canMutate?: boolean;
   onOpen: (item: WorkflowGalleryItem) => void;
   onConnect: (canonicalSlug: string) => void;
   onToggleSetup: (slug: string) => void;
@@ -115,7 +117,7 @@ export function InstalledWorkflowRow({
                 {missing.length > 1 ? 'are' : 'is'} connected
               </>
             )}
-            {failed && (
+            {canMutate && failed && (
               <>
                 <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" />
                 {installation.failures?.length} of the items it plants failed — the rest is running
@@ -149,7 +151,7 @@ export function InstalledWorkflowRow({
             Connect {connectable.displayName}
           </Button>
         )}
-        {installation.status === 'provisioning' && installation.setup && (
+        {canMutate && installation.status === 'provisioning' && installation.setup && (
           <Button
             type="button"
             size="sm"
@@ -165,7 +167,7 @@ export function InstalledWorkflowRow({
             {installation.setup.paused ? 'Resume' : 'Pause'}
           </Button>
         )}
-        {failed && (
+        {canMutate && failed && (
           <Button
             type="button"
             size="sm"

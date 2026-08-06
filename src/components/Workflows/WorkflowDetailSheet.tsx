@@ -61,6 +61,7 @@ export function WorkflowDetailSheet({
   item,
   open,
   isLoading,
+  canMutate = true,
   isInstalling,
   provisioningStep,
   team,
@@ -81,6 +82,12 @@ export function WorkflowDetailSheet({
   open: boolean;
   /** True while the workflow's own detail is still resolving. */
   isLoading?: boolean;
+  /**
+   * False when a mutation would only change local state. Planting content is
+   * the assistant's work and the record-and-wake path is not built, so the
+   * sheet says so rather than pretending an install persisted.
+   */
+  canMutate?: boolean;
   /** True while the optimistic provisioning list is running. */
   isInstalling?: boolean;
   /** Index into the surface list being planted, for the progress list. */
@@ -313,9 +320,11 @@ export function WorkflowDetailSheet({
             {installMode ? (
               <>
                 <span className="text-caption flex-1">
-                  {missingParams.length
-                    ? `Fill ${missingParams.map((param) => param.label.toLowerCase()).join(', ')} to install`
-                    : `${recurringCount} job${recurringCount === 1 ? '' : 's'} will be created`}
+                  {!canMutate
+                    ? 'Installing from Console is coming — ask your teammate in chat to install this.'
+                    : missingParams.length
+                      ? `Fill ${missingParams.map((param) => param.label.toLowerCase()).join(', ')} to install`
+                      : `${recurringCount} job${recurringCount === 1 ? '' : 's'} will be created`}
                 </span>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
@@ -323,7 +332,7 @@ export function WorkflowDetailSheet({
                 <Button
                   type="button"
                   className="gap-1.5"
-                  disabled={missingParams.length > 0}
+                  disabled={missingParams.length > 0 || !canMutate}
                   onClick={() =>
                     onInstall(
                       values,
@@ -349,6 +358,7 @@ export function WorkflowDetailSheet({
                   type="button"
                   variant="warningOutline"
                   className="gap-1.5"
+                  disabled={!canMutate}
                   onClick={() => onUninstall(item)}
                   data-testid={`workflow-uninstall-${workflow.slug}`}
                 >
@@ -356,10 +366,13 @@ export function WorkflowDetailSheet({
                   Uninstall
                 </Button>
                 <span className="flex-1" />
-                {dirty && <span className="text-caption">Unsaved settings</span>}
+                {!canMutate && (
+                  <span className="text-caption">Changes from Console are coming soon</span>
+                )}
+                {canMutate && dirty && <span className="text-caption">Unsaved settings</span>}
                 <Button
                   type="button"
-                  disabled={!dirty}
+                  disabled={!dirty || !canMutate}
                   onClick={() => {
                     onSaveParams(workflow.slug, values);
                     setDirty(false);
