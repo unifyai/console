@@ -40,6 +40,7 @@ import {
   workflowCardState,
   type WorkflowDestination,
   type WorkflowGalleryItem,
+  type WorkflowRequirement,
   type WorkflowSurfaceKind,
 } from '@/types/workflows';
 
@@ -73,6 +74,7 @@ export function WorkflowDetailSheet({
   onRetry,
   onUpdate,
   onNavigate,
+  onSupplySecret,
   onWatchInActions,
 }: {
   item: WorkflowGalleryItem | null;
@@ -96,6 +98,8 @@ export function WorkflowDetailSheet({
   onUpdate: (slug: string) => void;
   /** Opens the rail section where a planted surface lives. */
   onNavigate?: (kind: WorkflowSurfaceKind) => void;
+  /** Opens wherever secrets are entered, for the secret-gated routes. */
+  onSupplySecret?: (requirement: WorkflowRequirement) => void;
   onWatchInActions?: () => void;
 }) {
   const workflow = item?.workflow;
@@ -250,7 +254,11 @@ export function WorkflowDetailSheet({
                       : ''
                   }`}
                 >
-                  <WorkflowRequirementList workflow={workflow} onConnect={onConnect} />
+                  <WorkflowRequirementList
+                    workflow={workflow}
+                    onConnect={onConnect}
+                    onSupplySecret={onSupplySecret}
+                  />
                 </Section>
 
                 <Section

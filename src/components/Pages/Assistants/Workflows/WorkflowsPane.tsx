@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { toast } from 'sonner';
 import { TabFooter } from '../Common/TabFooter';
 import { WorkflowsGalleryShell } from '@/components/Workflows/WorkflowsGalleryShell';
 import { WorkflowDetailSheet } from '@/components/Workflows/WorkflowDetailSheet';
@@ -110,6 +111,15 @@ export function WorkflowsPane({
                 onRetry={catalog.retry}
                 onUpdate={catalog.update}
                 onNavigate={openSection}
+                onSupplySecret={(requirement) => {
+                  // Secrets are entered on the Integrations surface, so this is
+                  // the one requirement route that genuinely lives elsewhere.
+                  toast.message(
+                    `${requirement.displayName} needs ${(requirement.missingSecrets ?? []).join(', ') || 'a credential'}.`,
+                    { description: 'Add it under Integrations, then come back to arm the jobs.' }
+                  );
+                  navigateToAssistants({ sectionId: 'integrations' });
+                }}
                 onWatchInActions={() => navigateToAssistants({ sectionId: 'actions' })}
               />
               <UninstallWorkflowDialog

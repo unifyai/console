@@ -4,7 +4,12 @@ import { AlertTriangle, ArrowUp, Loader2, Pause, Play, Plug, Square } from 'luci
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { Button } from '@/components/UI/button';
 import { WorkflowAppIcon } from './WorkflowAppIcon';
-import type { Workflow, WorkflowInstallation, WorkflowRequirement } from '@/types/workflows';
+import {
+  requirementNeedsConnection,
+  type Workflow,
+  type WorkflowInstallation,
+  type WorkflowRequirement,
+} from '@/types/workflows';
 
 /**
  * The state language of the surface. Adapted from IntegrationConnectLoopBanners.
@@ -42,7 +47,7 @@ export function WorkflowUnmetRequirementsBanner({
           {missing.length > 1 ? 'are' : 'is'} connected. Nothing will fire in the meantime.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {missing.map((requirement) => (
+          {missing.filter(requirementNeedsConnection).map((requirement) => (
             <Button
               key={requirement.canonicalSlug}
               type="button"
@@ -85,7 +90,7 @@ export function WorkflowHeldBanner({
           until the connection lands.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {missing.map((requirement) => (
+          {missing.filter(requirementNeedsConnection).map((requirement) => (
             <Button
               key={requirement.canonicalSlug}
               type="button"

@@ -57,10 +57,22 @@ export function WorkflowConnectAppSheet({
 
   const resolving = open && !catalog.hasLoaded;
 
-  // The provider catalog has settled and does not carry this app — arm the
-  // workflow anyway rather than stranding the user on an empty drawer.
+  // The provider catalog has settled and does not carry this app. That is a
+  // bundle bug — a requirement slug outside the gallery's id space renders a
+  // chip with no logo and no working action (the shipped bundle once said
+  // `google_workspace`, a valid OAuth alias upstream but invisible here). It
+  // must be loud in development rather than degrading quietly, so say so and
+  // then arm the workflow rather than stranding the user on an empty drawer.
   React.useEffect(() => {
     if (!open || !canonicalSlug || resolving || item) return;
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        `[workflows] Requirement slug "${canonicalSlug}" does not resolve to an ` +
+          `integrations gallery app. Requirement slugs must be provider app ` +
+          `slugs from the same id space as IntegrationDefinition.canonicalSlug ` +
+          `— fix the bundle manifest rather than the UI.`
+      );
+    }
     onConnected(canonicalSlug);
     onOpenChange(false);
   }, [open, canonicalSlug, resolving, item, onConnected, onOpenChange]);

@@ -10,7 +10,12 @@ import {
   WorkflowUpdateBadge,
 } from './WorkflowStatusBadge';
 import { WorkflowAppIcon } from './WorkflowAppIcon';
-import { hasUpdate, unmetRequirements, type WorkflowGalleryItem } from '@/types/workflows';
+import {
+  hasUpdate,
+  requirementNeedsConnection,
+  unmetRequirements,
+  type WorkflowGalleryItem,
+} from '@/types/workflows';
 
 /**
  * The returning-user surface. Deliberately a full-width row, not a card:
@@ -38,6 +43,8 @@ export function InstalledWorkflowRow({
   const held = installation.status === 'pending_requirements';
   const failed = installation.status === 'failed';
   const nextTask = installation.tasks[0];
+  // Only a provider-backed route is fixed by connecting inline.
+  const connectable = missing.find(requirementNeedsConnection);
 
   return (
     <div
@@ -131,15 +138,15 @@ export function InstalledWorkflowRow({
         className="col-span-2 flex shrink-0 flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end"
         onClick={(event) => event.stopPropagation()}
       >
-        {held && missing[0] && (
+        {held && connectable && (
           <Button
             type="button"
             size="sm"
             className="h-7 gap-1 px-2.5 text-xs"
-            onClick={() => onConnect(missing[0].canonicalSlug)}
+            onClick={() => onConnect(connectable.canonicalSlug)}
           >
-            <WorkflowAppIcon requirement={missing[0]} size="xs" />
-            Connect {missing[0].displayName}
+            <WorkflowAppIcon requirement={connectable} size="xs" />
+            Connect {connectable.displayName}
           </Button>
         )}
         {installation.status === 'provisioning' && installation.setup && (

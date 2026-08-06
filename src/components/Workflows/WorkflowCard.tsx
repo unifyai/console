@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Clock3, Loader2 } from 'lucide-react';
+import { AlertTriangle, Clock3, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Card, CardContent } from '@/components/UI/card';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import { WorkflowDestinationBadge, WorkflowStatusBadge } from './WorkflowStatusB
 import { WORKFLOW_CATEGORY_LABEL, categoryStyle } from './workflowCategories';
 import {
   recurringTasks,
+  requirementNeedsConnection,
   unmetRequirements,
   workflowCardState,
   type WorkflowGalleryItem,
@@ -106,6 +107,28 @@ export function WorkflowCard({
       );
     }
     if (installation.status === 'pending_requirements' && missing[0]) {
+      // Only a provider-backed route is fixed by connecting. A secret-gated
+      // app needs a credential, so the card hands off to the sheet rather
+      // than offering an OAuth click that would do nothing.
+      const connectable = missing.find(requirementNeedsConnection);
+      if (!connectable) {
+        return (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 px-2.5 text-xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen(item);
+            }}
+            data-testid={`workflow-card-secret-${workflow.slug}`}
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Add secrets
+          </Button>
+        );
+      }
       return (
         <Button
           type="button"
@@ -113,11 +136,11 @@ export function WorkflowCard({
           className="hover:bg-[color:var(--status-warning)]/90 h-7 bg-[color:var(--status-warning)] px-2.5 text-xs text-primary-foreground"
           onClick={(event) => {
             event.stopPropagation();
-            onConnect(missing[0].canonicalSlug);
+            onConnect(connectable.canonicalSlug);
           }}
           data-testid={`workflow-card-connect-${workflow.slug}`}
         >
-          Connect {missing[0].displayName}
+          Connect {connectable.displayName}
         </Button>
       );
     }
