@@ -28,6 +28,7 @@ import {
   type ShareEntry,
   type ShareStartTimes,
 } from '@/utils/assistants/screen-shares';
+import { isParticipantInCall, presentUserIds } from '@/utils/assistants/call-participants';
 import { OrgCallSession } from '@/types/orgChat';
 import {
   AssistantTile,
@@ -82,11 +83,23 @@ export function MeetGrid({
   compact?: boolean;
   className?: string;
 }) {
-  void roomEpoch;
   const remoteParticipants = call.participants.filter(
     (p) => p.userId !== currentUserId && p.status !== 'declined' && p.status !== 'left'
   );
   const assistantCount = call.assistantIds.length;
+
+  // Keyed on the epoch, which the call engine bumps on every participant
+  // connect and disconnect — the room's membership is not React state, so
+  // without it a peer arriving would not re-render anything.
+  const present = React.useMemo(
+    () =>
+      presentUserIds(
+        room,
+        remoteParticipants.map((p) => p.userId)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [room, roomEpoch, call.participants]
+  );
 
   return (
     <div
@@ -106,7 +119,7 @@ export function MeetGrid({
         const human = humansById[p.userId];
         const name = human?.name || 'Teammate';
         const image = human?.image ?? null;
-        if (p.status !== 'joined') {
+        if (!isParticipantInCall(p, present)) {
           return (
             <HumanTile
               key={p.userId}
@@ -371,7 +384,18 @@ export function OrgCallMeetStage({
   const [focusActive, setFocusActive] = React.useState(false);
   const [presentingCount, setPresentingCount] = React.useState(0);
   const title = orgCallTitle(call, humansById, currentUserId);
-  const joinedCount = call.participants.filter((p) => p.status === 'joined').length;
+  // Counted the same way the tiles are decided, or the header would contradict
+  // the grid it sits above — "1 joined" over two present faces.
+  const presentInRoom = React.useMemo(
+    () =>
+      presentUserIds(
+        room,
+        call.participants.map((p) => p.userId)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [room, roomEpoch, call.participants]
+  );
+  const joinedCount = call.participants.filter((p) => isParticipantInCall(p, presentInRoom)).length;
 
   const content = (
     <div
