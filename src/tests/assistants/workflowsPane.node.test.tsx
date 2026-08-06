@@ -18,6 +18,7 @@ const mockData = vi.hoisted(() => ({
 }));
 vi.mock('@/utils/assistants/workflow-mock-data', () => ({
   shouldUseMockWorkflows: mockData.shouldUseMockWorkflows,
+  mockWorkflowArtifacts: () => [],
   get MOCK_WORKFLOW_GALLERY_ITEMS() {
     return mockData.items;
   },
@@ -124,6 +125,7 @@ const installedItem: WorkflowGalleryItem = {
     name: 'Alpha',
     category: 'ops',
     description: 'Test workflow.',
+    about: '',
     version: '1.0.0',
     iconId: 'briefing',
     requirements: [],

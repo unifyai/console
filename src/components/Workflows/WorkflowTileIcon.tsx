@@ -127,7 +127,10 @@ export function WorkflowTileIcon({
   size?: keyof typeof PLATE_SIZE;
   className?: string;
 }) {
-  const glyph = WORKFLOW_TILE_ICONS[iconId];
+  // An icon id this build does not know must still draw a tile — the
+  // catalogue evolves ahead of the icon set, and an empty plate reads as
+  // a rendering bug rather than a new workflow.
+  const glyph = WORKFLOW_TILE_ICONS[iconId] ?? WORKFLOW_TILE_ICONS.briefing;
   const dimensions = PLATE_SIZE[size];
   return (
     <span

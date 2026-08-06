@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, CheckCircle2, Loader2, Plug, Plus } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, Plug } from 'lucide-react';
 import { Badge } from '@/components/UI/badge';
 import { cn } from '@/lib/utils';
 import type { WorkflowCardState } from '@/types/workflows';
@@ -37,7 +37,9 @@ function StateIcon({ state }: { state: WorkflowCardState }) {
   if (state === 'provisioning' || state === 'uninstalling')
     return <Loader2 className="h-3 w-3 animate-spin" />;
   if (state === 'partial') return <AlertTriangle className="h-3 w-3" />;
-  return <Plus className="h-3 w-3" />;
+  // Available is the absence of state — a bare word, not a glyph. A "+"
+  // here read as a click-to-add control, which the chip is not.
+  return null;
 }
 
 export function workflowStateLabel(state: WorkflowCardState): string {

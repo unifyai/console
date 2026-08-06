@@ -49,12 +49,19 @@ export function WorkflowManifestGroups({
   installation,
   defaultOpen = ['tasks'],
   onNavigate,
+  onPreview,
 }: {
   workflow: Workflow;
   installation?: WorkflowInstallation;
   defaultOpen?: WorkflowSurfaceKind[];
-  /** Opens the rail section where this surface lives. Rows are inert without it. */
+  /** Opens the rail section where this surface lives. */
   onNavigate?: (kind: WorkflowSurfaceKind) => void;
+  /**
+   * Previews one item in place (a nested sheet above the drawer). When
+   * given, it is the row's click; navigation lives inside the preview.
+   * Rows are inert with neither handler.
+   */
+  onPreview?: (kind: WorkflowSurfaceKind, name: string) => void;
 }) {
   const groups = WORKFLOW_SURFACE_ORDER.filter((kind) => (workflow.sets[kind]?.length ?? 0) > 0);
 
@@ -149,9 +156,9 @@ export function WorkflowManifestGroups({
                       )}
                     </span>
 
-                    {onNavigate && (
+                    {(onPreview || onNavigate) && (
                       <span className="text-label text-strong flex shrink-0 items-center gap-1 text-accent-soft-foreground opacity-0 transition group-hover/item:opacity-100 group-focus-visible/item:opacity-100">
-                        {installation ? `Open in ${surface.livesIn}` : surface.livesIn}
+                        {onPreview ? 'Preview' : `Open in ${surface.livesIn}`}
                         <ChevronRight className="h-3 w-3" />
                       </span>
                     )}
@@ -163,7 +170,13 @@ export function WorkflowManifestGroups({
                   runtime && !runtime.enabled && 'opacity-70'
                 );
 
-                return onNavigate ? (
+                const onRowClick = onPreview
+                  ? () => onPreview(kind, item.name)
+                  : onNavigate
+                    ? () => onNavigate(kind)
+                    : undefined;
+
+                return onRowClick ? (
                   <button
                     key={item.name}
                     type="button"
@@ -171,7 +184,7 @@ export function WorkflowManifestGroups({
                       rowClass,
                       'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
                     )}
-                    onClick={() => onNavigate(kind)}
+                    onClick={onRowClick}
                     data-testid={`workflow-manifest-open-${kind}`}
                   >
                     {body}
