@@ -187,7 +187,7 @@ export function catalogRowRequirements(row: BrainRow): CatalogRequirement[] {
  */
 function toStoredStatus(value: unknown): WorkflowInstallStatus {
   const raw = asString(value)?.toLowerCase();
-  if (raw === 'partial' || raw === 'failed') return 'failed';
+  if (raw === 'partial' || raw === 'failed') return 'partial';
   if (raw === 'provisioning') return 'provisioning';
   if (raw === 'uninstalling') return 'uninstalling';
   return 'active';

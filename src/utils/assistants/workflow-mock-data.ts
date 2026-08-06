@@ -879,7 +879,7 @@ export const MOCK_WORKFLOW_INSTALLATIONS: WorkflowInstallation[] = [
   },
   {
     slug: 'invoice-reconcile',
-    status: 'failed',
+    status: 'partial',
     installedVersion: '1.4.0',
     destination: { kind: 'personal' },
     params: { folder: 'Finance / Contracts', tolerance: 2 },

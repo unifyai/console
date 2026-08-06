@@ -187,7 +187,7 @@ export function WorkflowPartialBanner({
   return (
     <Alert
       className="border-[color:var(--status-danger)]/40 bg-[color:var(--status-danger-bg)]"
-      data-testid="workflow-failed"
+      data-testid="workflow-partial"
     >
       <AlertTriangle className="h-4 w-4 text-destructive" />
       <AlertTitle>{failures.length} items didn&rsquo;t land</AlertTitle>

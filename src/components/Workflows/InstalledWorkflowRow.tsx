@@ -22,7 +22,7 @@ import {
  * a user has 2–5 of these and comes back to ask "is it working, what runs next,
  * what needs me?" — which needs runtime detail and one inline action, not a pitch.
  *
- * Sort the list attention-first: failed → pending_requirements → provisioning → active.
+ * Sort the list attention-first: partial → pending_requirements → provisioning → active.
  */
 export function InstalledWorkflowRow({
   item,
@@ -43,7 +43,7 @@ export function InstalledWorkflowRow({
   if (!installation) return null;
   const missing = unmetRequirements(workflow);
   const held = installation.status === 'pending_requirements';
-  const failed = installation.status === 'failed';
+  const partial = installation.status === 'partial';
   const nextTask = installation.tasks[0];
   // Only a provider-backed route is fixed by connecting inline.
   const connectable = missing.find(requirementNeedsConnection);
@@ -65,7 +65,7 @@ export function InstalledWorkflowRow({
         'hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         held &&
           'border-[color-mix(in_srgb,var(--status-warning)_32%,var(--border))] bg-[color:var(--status-warning-bg)]',
-        failed &&
+        partial &&
           'border-[color-mix(in_srgb,var(--status-danger)_28%,var(--border))] bg-[color:var(--status-danger-bg)]'
       )}
       data-testid={`installed-workflow-${workflow.slug}`}
@@ -117,7 +117,7 @@ export function InstalledWorkflowRow({
                 {missing.length > 1 ? 'are' : 'is'} connected
               </>
             )}
-            {canMutate && failed && (
+            {canMutate && partial && (
               <>
                 <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" />
                 {installation.failures?.length} of the items it plants failed — the rest is running
@@ -167,7 +167,7 @@ export function InstalledWorkflowRow({
             {installation.setup.paused ? 'Resume' : 'Pause'}
           </Button>
         )}
-        {canMutate && failed && (
+        {canMutate && partial && (
           <Button
             type="button"
             size="sm"

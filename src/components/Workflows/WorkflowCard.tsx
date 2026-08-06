@@ -70,7 +70,7 @@ export function WorkflowCard({
         </span>
       );
     }
-    if (installation.status === 'failed') {
+    if (installation.status === 'partial') {
       const count = installation.failures?.length ?? 0;
       return (
         <span className="text-caption flex items-center gap-1.5">

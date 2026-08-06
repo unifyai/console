@@ -23,14 +23,17 @@ export type WorkflowSurfaceKind =
 
 /**
  * Installed-only lifecycle, in the WorkflowManager's own vocabulary.
- * `available` is the absence of an installation. `failed` means the install
+ * `available` is the absence of an installation. `partial` means the install
  * landed unevenly — some surfaces failed and will be retried; the rest runs.
+ *
+ * `active` and `partial` are the only values the WorkflowManager stores; the
+ * rest are derived client-side.
  */
 export type WorkflowInstallStatus =
   | 'pending_requirements'
   | 'provisioning'
   | 'active'
-  | 'failed'
+  | 'partial'
   | 'uninstalling';
 export type WorkflowCardState = WorkflowInstallStatus | 'available';
 
@@ -169,7 +172,7 @@ export interface WorkflowInstallation {
   installedAtLabel: string;
   /** Present only while status === 'provisioning'. */
   setup?: WorkflowSetupProgress;
-  /** Present only while status === 'failed'. */
+  /** Present only while status === 'partial'. */
   failures?: WorkflowFailure[];
   tasks: WorkflowTaskRuntime[];
   /** Planted objects with their real hrefs, merged over Workflow.sets for display. */

@@ -172,7 +172,7 @@ export function WorkflowDetailSheet({
         />
       );
     }
-    if (installation.status === 'failed') {
+    if (installation.status === 'partial') {
       return <WorkflowPartialBanner installation={installation} onRetry={onRetry} />;
     }
     if (hasUpdate(item)) {

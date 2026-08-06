@@ -27,10 +27,10 @@ import type {
  * default landing segment because a user returns to it far more often than
  * they browse; it falls back to Browse only when nothing is installed.
  *
- * Attention order in Installed: failed → pending_requirements → provisioning → active.
+ * Attention order in Installed: partial → pending_requirements → provisioning → active.
  */
 const ATTENTION_ORDER: WorkflowInstallStatus[] = [
-  'failed',
+  'partial',
   'pending_requirements',
   'provisioning',
   'active',
@@ -108,7 +108,8 @@ export function WorkflowsGalleryShell({
   const filteredInstalled = installed.filter(matches);
   const attentionCount = installed.filter(
     (item) =>
-      item.installation?.status === 'pending_requirements' || item.installation?.status === 'failed'
+      item.installation?.status === 'pending_requirements' ||
+      item.installation?.status === 'partial'
   ).length;
   const isInitialLoading = Boolean(isLoading && items.length === 0);
 

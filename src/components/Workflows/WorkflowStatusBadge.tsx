@@ -10,14 +10,14 @@ import type { WorkflowCardState } from '@/types/workflows';
  *
  * Note the deliberate tone choice: `pending_requirements` is WARNING, never ERROR.
  * Installing before connecting is the correct, safe outcome — the jobs are planted
- * and disarmed. Only `failed` (something actually failed to land) is red.
+ * and disarmed. Only `partial` (something actually failed to land) is red.
  */
 const STATE_LABEL: Record<WorkflowCardState, string> = {
   available: 'Available',
   ['pending_requirements']: 'Needs connection',
   ['provisioning']: 'Setting up',
   active: 'Active',
-  failed: 'Partial',
+  partial: 'Partial',
   uninstalling: 'Removing',
 };
 
@@ -27,7 +27,7 @@ const STATE_TONE: Record<WorkflowCardState, string> = {
     'text-[color:var(--status-warning)] bg-[color:var(--status-warning-bg)]',
   ['provisioning']: 'text-[color:var(--status-info)] bg-[color:var(--status-info-bg)]',
   active: 'text-[color:var(--status-success)] bg-[color:var(--status-success-bg)]',
-  failed: 'text-destructive bg-[color:var(--status-danger-bg)]',
+  partial: 'text-destructive bg-[color:var(--status-danger-bg)]',
   uninstalling: 'text-muted-foreground bg-muted/40',
 };
 
@@ -36,7 +36,7 @@ function StateIcon({ state }: { state: WorkflowCardState }) {
   if (state === 'pending_requirements') return <Plug className="h-3 w-3" />;
   if (state === 'provisioning' || state === 'uninstalling')
     return <Loader2 className="h-3 w-3 animate-spin" />;
-  if (state === 'failed') return <AlertTriangle className="h-3 w-3" />;
+  if (state === 'partial') return <AlertTriangle className="h-3 w-3" />;
   return <Plus className="h-3 w-3" />;
 }
 
