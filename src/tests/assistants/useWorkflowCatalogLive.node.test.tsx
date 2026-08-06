@@ -16,6 +16,13 @@ vi.mock('@/utils/assistants/workflow-mock-data', () => ({
 const brain = vi.hoisted(() => ({ fetchBrainContext: vi.fn() }));
 vi.mock('@/lib/client/brain', () => ({ fetchBrainContext: brain.fetchBrainContext }));
 
+// The catalogue is platform data in the Builtins project, read through its
+// own client rather than the per-assistant brain fetch.
+const workflowsClient = vi.hoisted(() => ({ fetchWorkflowsCatalog: vi.fn() }));
+vi.mock('@/lib/client/workflows', () => ({
+  fetchWorkflowsCatalog: workflowsClient.fetchWorkflowsCatalog,
+}));
+
 const assistant = { agentId: 123, userId: 'user-1' } as unknown as Assistant;
 
 function page(rows: Record<string, unknown>[]) {
@@ -28,8 +35,8 @@ function respondWith({
   installations = [] as Record<string, unknown>[],
   tasks = [] as Record<string, unknown>[],
 }) {
+  workflowsClient.fetchWorkflowsCatalog.mockResolvedValue(catalog);
   brain.fetchBrainContext.mockImplementation(async (_a: unknown, context: string) => {
-    if (context === 'Workflows/Catalog') return page(catalog);
     if (context === 'Workflows') return page(installations);
     if (context === 'Tasks') return page(tasks);
     return page([]);
@@ -172,5 +179,6 @@ describe('useWorkflowCatalog — live reads', () => {
     expect(result.current.isMock).toBe(true);
     expect(result.current.canMutate).toBe(true);
     expect(brain.fetchBrainContext).not.toHaveBeenCalled();
+    expect(workflowsClient.fetchWorkflowsCatalog).not.toHaveBeenCalled();
   });
 });

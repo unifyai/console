@@ -1,8 +1,10 @@
 /**
  * Orchestra rows → the Workflows view model.
  *
- * The catalogue is published as rows on `Workflows/Catalog` and installations
- * on `Workflows`, so the shelf can be drawn without waking an assistant — a
+ * The catalogue is platform data: rows on `Workflows/Catalog` in the
+ * public-read Builtins project, one shelf for every assistant — exactly like
+ * the integrations app catalogue. Installations are per-assistant rows on
+ * `Workflows`. Either way the shelf draws without waking an assistant — a
  * hosted assistant is an on-demand job that is usually asleep when someone
  * opens Console.
  */
@@ -137,7 +139,7 @@ function toParamsSchema(value: unknown): WorkflowParam[] {
   });
 }
 
-export function catalogRowToWorkflow(row: BrainRow): Workflow | null {
+export function catalogRowToWorkflow(row: Record<string, unknown>): Workflow | null {
   const record = row as Record<string, unknown>;
   const slug = asString(record.slug);
   if (!slug) return null;
@@ -166,7 +168,7 @@ export function catalogRowToWorkflow(row: BrainRow): Workflow | null {
 }
 
 /** Requirements as published — connection state is resolved separately. */
-export function catalogRowRequirements(row: BrainRow): CatalogRequirement[] {
+export function catalogRowRequirements(row: Record<string, unknown>): CatalogRequirement[] {
   const raw = parseJsonField<unknown[]>((row as Record<string, unknown>).requirements, []);
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((entry) => {
