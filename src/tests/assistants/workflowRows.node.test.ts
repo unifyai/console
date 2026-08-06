@@ -115,12 +115,12 @@ describe('installationRowToInstallation', () => {
     });
   });
 
-  it('maps the stored partial status onto the failed card state', () => {
+  it('keeps the stored partial status as the card state', () => {
     const installation = installationRowToInstallation({
       slug: 'invoice-reconcile',
       status: 'partial',
     } as unknown as BrainRow);
-    expect(installation?.status).toBe('failed');
+    expect(installation?.status).toBe('partial');
   });
 
   it('treats a non-personal destination as a team install', () => {

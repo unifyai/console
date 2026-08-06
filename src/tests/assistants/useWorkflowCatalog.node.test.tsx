@@ -161,7 +161,7 @@ const golf: WorkflowGalleryItem = {
   }),
   installation: installation({
     slug: 'golf',
-    status: 'failed',
+    status: 'partial',
     failures: [{ kind: 'functions', name: 'golf_fn', reason: 'build failed' }],
   }),
 };

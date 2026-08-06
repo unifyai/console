@@ -45,11 +45,11 @@ const heldItem: WorkflowGalleryItem = {
   }),
   installation: installation({ slug: 'held-flow', status: 'pending_requirements' }),
 };
-const failedItem: WorkflowGalleryItem = {
-  workflow: workflow({ slug: 'failed-flow', name: 'Failed flow', category: 'build' }),
+const partialItem: WorkflowGalleryItem = {
+  workflow: workflow({ slug: 'partial-flow', name: 'Partial flow', category: 'build' }),
   installation: installation({
-    slug: 'failed-flow',
-    status: 'failed',
+    slug: 'partial-flow',
+    status: 'partial',
     failures: [{ kind: 'functions', name: 'fn', reason: 'build failed' }],
   }),
 };
@@ -86,20 +86,20 @@ describe('WorkflowsGalleryShell', () => {
     expect(screen.getByTestId('workflow-card-shelf-flow')).toBeVisible();
   });
 
-  it('sorts installed rows attention-first: failed, then held, then active', () => {
-    renderShell([activeItem, heldItem, failedItem]);
+  it('sorts installed rows attention-first: partial, then held, then active', () => {
+    renderShell([activeItem, heldItem, partialItem]);
     const rows = screen
       .getAllByTestId(/^installed-workflow-/)
       .map((row) => row.getAttribute('data-testid'));
     expect(rows).toEqual([
-      'installed-workflow-failed-flow',
+      'installed-workflow-partial-flow',
       'installed-workflow-held-flow',
       'installed-workflow-active-flow',
     ]);
   });
 
-  it('counts only held and failed installs as needing attention', () => {
-    renderShell([activeItem, heldItem, failedItem]);
+  it('counts only held and partial installs as needing attention', () => {
+    renderShell([activeItem, heldItem, partialItem]);
     expect(screen.getByTestId('workflow-attention-count')).toHaveTextContent('2 need attention');
   });
 

@@ -155,7 +155,7 @@ describe('useWorkflowCatalog — live reads', () => {
       secretNames: new Set<string>(),
     });
 
-    expect(result.current.items[0].installation?.status).toBe('failed');
+    expect(result.current.items[0].installation?.status).toBe('partial');
   });
 
   it('reports mutations as non-persisting outside mock mode', async () => {

@@ -58,7 +58,7 @@ test('workflows rail section opens the shelf and installs a curated workflow @cr
 }) => {
   await openWorkflowsSection(page);
 
-  // Installed is the landing segment, sorted attention-first: the failed
+  // Installed is the landing segment, sorted attention-first: the partial
   // install outranks the held one, which outranks everything active.
   const firstRow = page.locator('[data-testid^="installed-workflow-"]').first();
   await expect(firstRow).toHaveAttribute('data-testid', 'installed-workflow-invoice-reconcile');
