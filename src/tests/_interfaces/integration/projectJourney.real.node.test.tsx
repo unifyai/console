@@ -1,5 +1,5 @@
 /**
- * Real API tests for complete project workflow.
+ * Real API tests for complete project journey.
  *
  * These tests verify the full CRUD lifecycle across multiple resources:
  * Project -> Interface -> Tab -> Tile
@@ -34,7 +34,7 @@ const createWrapper = () => {
   return { Wrapper, client };
 };
 
-describe('@real Complete Project Workflow (Real API)', () => {
+describe('@real Complete Project Journey (Real API)', () => {
   const createdResources: {
     projectName?: string;
     interfaceId?: string;
@@ -75,13 +75,13 @@ describe('@real Complete Project Workflow (Real API)', () => {
     realTestOptionsExtended,
     async () => {
       // Step 1: Create Project
-      const projectName = uniqueName('workflow-test');
+      const projectName = uniqueName('journey-test');
       const projectResult = await projectsApi.create(projectName);
       expect(projectResult.info).toContain('created');
       createdResources.projectName = projectName;
 
       // Step 2: Create Interface in project
-      const interfaceName = uniqueName('workflow-interface');
+      const interfaceName = uniqueName('journey-interface');
       const interfaceResult = await interfacesApi.create(projectName, interfaceName);
       expect(interfaceResult).toBeDefined();
       expect(interfaceResult.id).toBeDefined();
@@ -89,7 +89,7 @@ describe('@real Complete Project Workflow (Real API)', () => {
       createdResources.interfaceId = interfaceResult.id;
 
       // Step 3: Create Tab in interface
-      const tabName = uniqueName('workflow-tab');
+      const tabName = uniqueName('journey-tab');
       const tabResult = await tabsApi.create(interfaceResult.id, tabName, {
         order: 0,
         context: null,
@@ -100,7 +100,7 @@ describe('@real Complete Project Workflow (Real API)', () => {
       createdResources.tabId = tabResult.id;
 
       // Step 4: Create Tile in tab
-      const tileName = uniqueName('workflow-tile');
+      const tileName = uniqueName('journey-tile');
       const tileResult = await tilesApi.create(
         tabResult.id,
         tileName,
@@ -128,11 +128,11 @@ describe('@real Complete Project Workflow (Real API)', () => {
     }
   );
 
-  it('@real updates resources in the workflow chain', realTestOptionsExtended, async () => {
+  it('@real updates resources in the resource chain', realTestOptionsExtended, async () => {
     // Requires resources from previous test
     if (!createdResources.projectName || !createdResources.interfaceId) {
       // Create fresh resources if not available
-      const projectName = uniqueName('workflow-update');
+      const projectName = uniqueName('journey-update');
       await projectsApi.create(projectName);
       createdResources.projectName = projectName;
 
@@ -179,9 +179,9 @@ describe('@real Complete Project Workflow (Real API)', () => {
     }
   });
 
-  it('@real deletes resources in the workflow chain', realTestOptionsExtended, async () => {
+  it('@real deletes resources in the resource chain', realTestOptionsExtended, async () => {
     // Create fresh resources for deletion test
-    const projectName = uniqueName('workflow-delete');
+    const projectName = uniqueName('journey-delete');
     await projectsApi.create(projectName);
 
     const interfaceResult = await interfacesApi.create(projectName, uniqueName('delete-interface'));
