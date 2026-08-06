@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/UI/badge';
 import { Checkbox } from '@/components/UI/checkbox';
 import { Label } from '@/components/UI/label';
+import { ScrollArea } from '@/components/UI/scroll-area';
 import { WORKFLOW_SURFACES, WORKFLOW_SURFACE_ORDER } from './workflowCategories';
 import type { WorkflowGalleryItem } from '@/types/workflows';
 
@@ -59,65 +60,72 @@ export function UninstallWorkflowDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="border-destructive/30 rounded-xl border bg-[color:var(--status-danger-bg)] p-3.5">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-destructive">
-            These stop firing
-          </p>
-          <ul className="mt-2 flex flex-col gap-2">
-            {installation.tasks.map((task) => {
-              const schedule = workflow.sets.tasks?.find(
-                (entry) => entry.name === task.name
-              )?.schedule;
-              return (
-                <li key={task.taskId} className="text-sm">
-                  {task.name}
-                  <span className="text-caption block">
-                    {schedule} · {task.enabled ? 'currently armed' : 'currently held'}
+        <ScrollArea
+          className="max-h-[52vh]"
+          viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
+        >
+          <div className="flex flex-col gap-4 pr-1">
+            <div className="border-destructive/30 rounded-xl border bg-[color:var(--status-danger-bg)] p-3.5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-destructive">
+                These stop firing
+              </p>
+              <ul className="mt-2 flex flex-col gap-2">
+                {installation.tasks.map((task) => {
+                  const schedule = workflow.sets.tasks?.find(
+                    (entry) => entry.name === task.name
+                  )?.schedule;
+                  return (
+                    <li key={task.taskId} className="text-sm">
+                      {task.name}
+                      <span className="text-caption block">
+                        {schedule} · {task.enabled ? 'currently armed' : 'currently held'}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-caption">Also removed:</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {removed.map((kind) => (
+                  <Badge
+                    key={kind}
+                    variant="outline"
+                    className="rounded-lg font-normal text-muted-foreground"
+                  >
+                    {workflow.sets[kind]?.length} {WORKFLOW_SURFACES[kind].label.toLowerCase()}
+                  </Badge>
+                ))}
+              </div>
+              {(workflow.sets.functions?.length ?? 0) > 0 && (
+                <p className="text-caption mt-2">
+                  Functions another installed workflow still uses are kept until the last workflow
+                  using them is removed.
+                </p>
+              )}
+            </div>
+
+            {tables.length > 0 && (
+              <div className="flex items-start gap-2.5 rounded-xl border bg-card-2 p-3">
+                <Checkbox
+                  id="workflow-keep-data"
+                  checked={keepData}
+                  onCheckedChange={(checked) => setKeepData(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="workflow-keep-data" className="font-normal leading-snug">
+                  Keep the data it collected
+                  <span className="text-caption mt-0.5 block">
+                    {tables.map((table) => table.name).join(', ')} stays in Data. Uncheck to delete
+                    the rows too — that can&rsquo;t be undone.
                   </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        <div>
-          <p className="text-caption">Also removed:</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {removed.map((kind) => (
-              <Badge
-                key={kind}
-                variant="outline"
-                className="rounded-lg font-normal text-muted-foreground"
-              >
-                {workflow.sets[kind]?.length} {WORKFLOW_SURFACES[kind].label.toLowerCase()}
-              </Badge>
-            ))}
+                </Label>
+              </div>
+            )}
           </div>
-          {(workflow.sets.functions?.length ?? 0) > 0 && (
-            <p className="text-caption mt-2">
-              Functions another installed workflow still uses are kept until the last workflow using
-              them is removed.
-            </p>
-          )}
-        </div>
-
-        {tables.length > 0 && (
-          <div className="flex items-start gap-2.5 rounded-xl border bg-card-2 p-3">
-            <Checkbox
-              id="workflow-keep-data"
-              checked={keepData}
-              onCheckedChange={(checked) => setKeepData(checked === true)}
-              className="mt-0.5"
-            />
-            <Label htmlFor="workflow-keep-data" className="font-normal leading-snug">
-              Keep the data it collected
-              <span className="text-caption mt-0.5 block">
-                {tables.map((table) => table.name).join(', ')} stays in Data. Uncheck to delete the
-                rows too — that can&rsquo;t be undone.
-              </span>
-            </Label>
-          </div>
-        )}
+        </ScrollArea>
 
         <AlertDialogFooter>
           <AlertDialogCancel>Keep it installed</AlertDialogCancel>
