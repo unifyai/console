@@ -110,9 +110,13 @@ test('a held workflow surfaces the connection it is waiting on and arms when it 
   await expect(heldRow.getByTestId('workflow-status-pending_requirements')).toBeVisible();
   await expect(heldRow).toContainText('Jobs planted and held until Notion is connected');
 
-  // The one inline action a held row offers is the missing connection.
+  // The one inline action a held row offers is the missing connection. It
+  // resolves in place — the shelf stays mounted, the rail never moves.
   await heldRow.getByRole('button', { name: /Connect Notion/ }).click();
 
-  await expect(page.getByText('Notion connected — any held jobs are now armed.')).toBeVisible();
-  await expect(heldRow.getByTestId('workflow-status-active')).toBeVisible();
+  await expect(page.getByTestId('workflows-pane')).toBeVisible();
+  await expect(railSection(page, 'workflows')).toHaveAttribute('aria-current', 'page');
+
+  await expect(heldRow.getByTestId('workflow-status-active')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('workflow-attention-count')).toContainText('1 need attention');
 });

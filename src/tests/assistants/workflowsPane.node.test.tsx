@@ -30,14 +30,19 @@ vi.mock('@/components/Workflows/WorkflowsGalleryShell', () => ({
   WorkflowsGalleryShell: ({
     items,
     onOpen,
+    onConnect,
     renderDetailSheet,
   }: {
     items: WorkflowGalleryItem[];
     onOpen: (item: WorkflowGalleryItem) => void;
+    onConnect: (canonicalSlug: string) => void;
     renderDetailSheet?: () => React.ReactNode;
   }) => (
     <div data-testid="workflow-gallery-stub">
       <span data-testid="workflow-gallery-count">{items.length}</span>
+      <button data-testid="request-connect-notion" onClick={() => onConnect('notion')}>
+        Connect Notion
+      </button>
       {items.map((item) => (
         <button
           key={item.workflow.slug}
@@ -73,6 +78,26 @@ vi.mock('@/components/Workflows/WorkflowDetailSheet', () => ({
         <button data-testid="sheet-watch-actions" onClick={() => onWatchInActions?.()} />
         <button data-testid="sheet-uninstall" onClick={() => onUninstall(item)} />
       </div>
+    ) : null,
+}));
+
+vi.mock('./../../components/Pages/Assistants/Workflows/WorkflowConnectAppSheet', () => ({
+  WorkflowConnectAppSheet: ({
+    canonicalSlug,
+    open,
+    onConnected,
+  }: {
+    canonicalSlug: string | null;
+    open: boolean;
+    onConnected: (slug: string) => void;
+  }) =>
+    open && canonicalSlug ? (
+      <button
+        data-testid={`connect-sheet-${canonicalSlug}`}
+        onClick={() => onConnected(canonicalSlug)}
+      >
+        Connect
+      </button>
     ) : null,
 }));
 
@@ -162,6 +187,21 @@ describe('WorkflowsPane', () => {
     );
     expect(screen.queryByTestId('sheet-alpha')).not.toBeInTheDocument();
     expect(screen.queryByTestId('confirm-uninstall')).not.toBeInTheDocument();
+  });
+
+  it('connects a required app in place rather than navigating to Integrations', async () => {
+    await renderPane();
+    fireEvent.click(screen.getByTestId('request-connect-notion'));
+
+    // The provider drawer opens over the shelf; nothing navigates away.
+    expect(screen.getByTestId('connect-sheet-notion')).toBeInTheDocument();
+    expect(navigateToAssistants).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('connect-sheet-notion'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('connect-sheet-notion')).not.toBeInTheDocument()
+    );
+    expect(navigateToAssistants).not.toHaveBeenCalled();
   });
 
   it('does not fetch the catalog while hidden', async () => {
