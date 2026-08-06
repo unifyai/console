@@ -14,6 +14,7 @@ import { humanizeTaskLabel } from '@/utils/assistants/tasks';
 import type { BrainRow, TaskRow } from '@/types/assistants/brain';
 import type {
   Workflow,
+  WorkflowArtifact,
   WorkflowCapability,
   WorkflowCategory,
   WorkflowInstallStatus,
@@ -154,6 +155,7 @@ export function catalogRowToWorkflow(row: Record<string, unknown>): Workflow | n
     // rather than dropping a curated workflow the user could install.
     category: category && CATEGORIES.has(category) ? category : 'ops',
     description: asString(record.description) ?? '',
+    about: asString(record.about) ?? '',
     version: asString(record.version) ?? '0.0.0',
     iconId: asString(record.iconId) ?? 'briefing',
     requirements: [],
@@ -164,6 +166,30 @@ export function catalogRowToWorkflow(row: Record<string, unknown>): Workflow | n
       ),
     paramsSchema: toParamsSchema(record.paramsSchema),
     sets: toManifest(record.sets),
+  };
+}
+
+/**
+ * One published `Workflows/Content` row → a previewable artifact. Rows
+ * carry the unify surface name; the view model speaks in content kinds,
+ * same split as the manifest.
+ */
+export function contentRowToArtifact(row: Record<string, unknown>): WorkflowArtifact | null {
+  const record = row as Record<string, unknown>;
+  const contentKey = asString(record.contentKey);
+  const slug = asString(record.slug);
+  const surface = asString(record.surface);
+  const kind = surface ? UNIFY_SURFACE_TO_KIND[surface.toLowerCase()] : undefined;
+  if (!contentKey || !slug || !kind) return null;
+
+  return {
+    contentKey,
+    slug,
+    kind,
+    name: asString(record.name) ?? contentKey,
+    body: asString(record.body) ?? '',
+    schedule: asString(record.schedule) ?? undefined,
+    meta: parseJsonField<Record<string, unknown>>(record.meta, {}),
   };
 }
 

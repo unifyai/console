@@ -20,6 +20,7 @@ function workflow(overrides: Partial<Workflow> = {}): Workflow {
     name: 'Alpha',
     category: 'ops',
     description: 'Test workflow.',
+    about: '',
     version: '1.2.0',
     iconId: 'briefing',
     requirements: [],

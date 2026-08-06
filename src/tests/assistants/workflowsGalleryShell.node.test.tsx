@@ -7,6 +7,7 @@ function workflow(overrides: Partial<Workflow> & Pick<Workflow, 'slug' | 'name'>
   return {
     category: 'ops',
     description: 'Test workflow.',
+    about: '',
     version: '1.0.0',
     iconId: 'briefing',
     requirements: [],
