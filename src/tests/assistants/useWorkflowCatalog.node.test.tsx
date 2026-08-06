@@ -195,11 +195,19 @@ describe('useWorkflowCatalog', () => {
     expect(result.current.items).toHaveLength(6);
   });
 
-  it('resolves an empty catalog on the live path', async () => {
+  it('stays loading on the live path until an assistant is available to read', async () => {
+    // Reading the catalogue needs an assistant to scope the contexts to.
+    // Reporting "loaded" without one would flash an empty shelf at a user
+    // whose workflows are about to appear. Live reads are covered in
+    // useWorkflowCatalogLive.node.test.tsx.
     mockData.shouldUseMockWorkflows.mockReturnValue(false);
-    const { result } = await renderCatalog();
+    const { result } = renderHook(() => useWorkflowCatalog('assistant-1'));
+    await act(async () => {});
+
     expect(result.current.isMock).toBe(false);
     expect(result.current.items).toHaveLength(0);
+    expect(result.current.hasLoaded).toBe(false);
+    expect(result.current.isLoading).toBe(true);
   });
 
   it('does not load while disabled, then loads once enabled', async () => {
