@@ -1561,6 +1561,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     React.useState<Assistant | null>(null);
   const [workspaceManagerInitialProvider, setWorkspaceManagerInitialProvider] =
     React.useState<OAuthProvider | null>(null);
+  // Bumped whenever the workspace manager closes. Surfaces whose state is
+  // derived from the connection — the Workflows shelf reads it as a secret —
+  // re-read on the change instead of showing a connected Workspace as unmet.
+  const [workspaceSettledSignal, setWorkspaceSettledSignal] = React.useState(0);
   const [hireWorkspaceProvider, setHireWorkspaceProvider] = React.useState<OAuthProvider | null>(
     null
   );
@@ -2538,6 +2542,25 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setWorkspaceManagerAssistant(assistant);
   }, []);
 
+  /**
+   * Connecting a Workspace, from wherever the user starts.
+   *
+   * Every surface that offers it — the onboarding checklist, the Workflows
+   * shelf's `workspace` requirement — goes through here rather than calling
+   * the opener bare, because opening the manager is only half the act: the
+   * checklist step has to engage too, and it is the coordinator's checklist,
+   * so it engages only when the coordinator is the assistant being connected.
+   */
+  const handleConnectWorkspace = React.useCallback(
+    (assistant: Assistant) => {
+      if (canonicalCoordinator && assistant.agentId === canonicalCoordinator.agentId) {
+        markStepEngaged('workspace');
+      }
+      handleOpenWorkspaceManager(assistant);
+    },
+    [canonicalCoordinator, markStepEngaged, handleOpenWorkspaceManager]
+  );
+
   const handleOpenBrainManager = React.useCallback((assistant: Assistant) => {
     setBrainManagerAssistant(assistant);
   }, []);
@@ -3107,10 +3130,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           : undefined,
       onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
       onConnectWorkspace: workspaceConnectAvailable
-        ? () => {
-            markStepEngaged('workspace');
-            handleOpenWorkspaceManager(canonicalCoordinator);
-          }
+        ? () => handleConnectWorkspace(canonicalCoordinator)
         : undefined,
       onConnectApps: () => {
         beginAppsConnectFlow();
@@ -3139,7 +3159,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         !!activeCallAssistant && activeCallAssistant.agentId === canonicalCoordinator.agentId,
       isOnboardingActive: isCoordinatorOnboardingActive,
     };
-    // ``handleOpenWorkspaceManager`` is stable (useCallback) but omitted from
+    // ``handleConnectWorkspace`` is stable (useCallback) but omitted from
     // deps — this surface rarely re-reacts to handler identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -4369,6 +4389,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                               ? (assistant) => setComputerUseManagerAssistant(assistant)
                               : undefined
                           }
+                          onConnectWorkspace={profileCanWrite ? handleConnectWorkspace : undefined}
+                          workspaceSettledSignal={workspaceSettledSignal}
                           renderDockedCall={
                             activeCallAssistant &&
                             visibleProfileAssistant &&
@@ -4679,6 +4701,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onClose={() => {
                 setWorkspaceManagerAssistant(null);
                 setWorkspaceManagerInitialProvider(null);
+                setWorkspaceSettledSignal((signal) => signal + 1);
               }}
               assistant={workspaceManagerAssistant}
               assistantActions={assistantActions}

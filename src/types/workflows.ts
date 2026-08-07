@@ -241,19 +241,42 @@ export function requirementNeedsConnection(requirement: WorkflowRequirement): bo
   return requirement.via === 'connection' && !requirement.connected;
 }
 
+/**
+ * Unmet and fixed by connecting the user's own Workspace.
+ *
+ * Its own route because its own view: Workspace is connected in the manager
+ * the profile pane and the onboarding checklist open, not in the integrations
+ * gallery and not by pasting a refresh token. Rendering "Add secrets" here
+ * named the secret the connection happens to write and routed nowhere.
+ */
+export function requirementNeedsWorkspace(requirement: WorkflowRequirement): boolean {
+  return requirement.via === 'workspace' && !requirement.connected;
+}
+
 /** Unmet and fixed by supplying a secret — never by an OAuth click. */
 export function requirementNeedsSecret(requirement: WorkflowRequirement): boolean {
   return (
-    (requirement.via === 'native_package' ||
-      requirement.via === 'secret' ||
-      requirement.via === 'workspace') &&
-    !requirement.connected
+    (requirement.via === 'native_package' || requirement.via === 'secret') && !requirement.connected
   );
+}
+
+/**
+ * Unmet and fixable without leaving the shelf — the gallery's connect drawer
+ * or the workspace manager, both opened in place. Surfaces with room for one
+ * action (a card, a row, a banner) offer this one.
+ */
+export function requirementIsConnectable(requirement: WorkflowRequirement): boolean {
+  return requirementNeedsConnection(requirement) || requirementNeedsWorkspace(requirement);
 }
 
 /** Requirements the user can resolve by connecting an app in the gallery. */
 export function connectableRequirements(workflow: Workflow): WorkflowRequirement[] {
   return workflow.requirements.filter(requirementNeedsConnection);
+}
+
+/** Requirements waiting on the user's Workspace connection. */
+export function workspaceRequirements(workflow: Workflow): WorkflowRequirement[] {
+  return workflow.requirements.filter(requirementNeedsWorkspace);
 }
 
 /** Requirements waiting on secrets, with the secret names to name in copy. */

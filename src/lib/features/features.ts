@@ -205,10 +205,14 @@ export function resolveFeatures(
     // Workspace BYOD connect: Orchestra owns the OAuth client IDs, so its
     // authority signal is the source of truth. The local env read is only a
     // fallback for when Orchestra hasn't been consulted (e.g. login pages,
-    // which never show workspace UI anyway).
-    workspaceGoogle: authority.workspaceGoogle ?? has(env, 'GOOGLE_OAUTH_CLIENT_ID'),
+    // which never show workspace UI anyway). Mock simulation has no Orchestra
+    // and no client IDs, and a workflow's `workspace` requirement routes to
+    // this manager — with the flags off it would open on nothing to connect.
+    workspaceGoogle: mockSim || (authority.workspaceGoogle ?? has(env, 'GOOGLE_OAUTH_CLIENT_ID')),
     workspaceMicrosoft:
-      authority.workspaceMicrosoft ?? has(env, 'MS365_BYOD_CLIENT_ID', 'MICROSOFT_BYOD_CLIENT_ID'),
+      mockSim ||
+      (authority.workspaceMicrosoft ??
+        has(env, 'MS365_BYOD_CLIENT_ID', 'MICROSOFT_BYOD_CLIENT_ID')),
     // Channel credentials live in the comms layer (not Console), so there is no
     // local env to read. When the authority hasn't been consulted (e.g. login
     // pages, which never render contact UI) default to enabled so we don't

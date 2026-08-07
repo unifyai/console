@@ -11,6 +11,7 @@ import type { WorkflowParamValues } from '@/components/Workflows/WorkflowParamsF
 import { fetchBrainContext } from '@/lib/client/brain';
 import { camelToSnakeObject } from '@/utils/casing';
 import {
+  fetchWorkflowRequests,
   fetchWorkflowsCatalog,
   submitWorkflowRequest,
   type WorkflowRequestAction,
@@ -37,8 +38,94 @@ import {
 /** Milliseconds between optimistic provisioning steps while an install plants. */
 const PROVISIONING_STEP_MS = 620;
 
+/** How often the recorded request rows are re-read while one is in flight. */
+const REQUEST_POLL_MS = 2500;
+
 const INSTALLATIONS_CONTEXT = 'Workflows';
 const CATALOG_PAGE_SIZE = 200;
+
+/**
+ * What the assistant has actually done with a recorded change, as opposed to
+ * what the shelf hoped it would.
+ *
+ * The row is the mechanism: Console persists the intent and asks Orchestra to
+ * wake the assistant, which does the planting. Rendering that wait as a local
+ * animation made a claimed-and-failing request look exactly like a successful
+ * one, so these states come from the `Workflows/Requests` row itself.
+ *
+ * `queued` is the one state the row cannot report, because it is about the
+ * wake rather than the work: the row is written but no assistant was woken —
+ * an environment with no `ORCHESTRA_ADMIN_KEY`, or an Orchestra that could not
+ * be reached. It is not a failure; the boot sweep drains the same queue.
+ */
+export type WorkflowRequestStatus = 'queued' | 'pending' | 'running' | 'succeeded' | 'failed';
+
+export interface WorkflowRequestState {
+  requestId: string;
+  slug: string;
+  action: WorkflowRequestAction;
+  status: WorkflowRequestStatus;
+  /** False when the row is durable but no assistant was woken for it. */
+  dispatched: boolean;
+  /** Human-readable reason, present only on `failed`. */
+  error?: string;
+}
+
+function isSettled(request: WorkflowRequestState): boolean {
+  return request.status === 'succeeded' || request.status === 'failed';
+}
+
+const ROW_STATUSES: WorkflowRequestStatus[] = ['pending', 'running', 'succeeded', 'failed'];
+
+/**
+ * The row's `status`, narrowed to what the surfaces know how to render.
+ *
+ * A value this client has never heard of reads as still in flight rather
+ * than as an unhandled case: showing nothing for an unknown status is the
+ * one outcome worse than showing "still working on it".
+ */
+function rowStatus(raw: unknown): WorkflowRequestStatus {
+  const value = String(raw ?? '');
+  return ROW_STATUSES.includes(value as WorkflowRequestStatus)
+    ? (value as WorkflowRequestStatus)
+    : 'pending';
+}
+
+/** The one sentence a surface shows for a request in this state. */
+export function workflowRequestCopy(request: WorkflowRequestState): string {
+  switch (request.status) {
+    case 'queued':
+      return 'Queued — your teammate will apply this the next time they wake up.';
+    case 'pending':
+      return 'Waking your teammate to apply this…';
+    case 'running':
+      return 'Your teammate is applying this now…';
+    case 'failed':
+      return request.error || "Your teammate couldn't apply this.";
+    case 'succeeded':
+      return 'Applied.';
+  }
+}
+
+/**
+ * Read a request row's failure into one sentence.
+ *
+ * The stored shape is a JSON object keyed by surface for a per-surface
+ * failure, or `{"error": reason}` for a whole-request one — the same shape the
+ * installation's `partial` status reports.
+ */
+function requestErrorText(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || !raw.trim() || raw.trim() === '{}') return undefined;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const entries = Object.entries(parsed);
+    if (entries.length === 0) return undefined;
+    if (entries.length === 1 && entries[0][0] === 'error') return String(entries[0][1]);
+    return entries.map(([surface, reason]) => `${surface}: ${String(reason)}`).join('; ');
+  } catch {
+    return raw.slice(0, 200);
+  }
+}
 
 interface WorkflowGalleryLoad {
   items: WorkflowGalleryItem[];
@@ -175,6 +262,10 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   const [isMock, setIsMock] = React.useState(false);
   const [hasLoaded, setHasLoaded] = React.useState(false);
   const [provisioning, setProvisioning] = React.useState<WorkflowProvisioningState | null>(null);
+  // Recorded changes this session is watching, keyed by slug — one in flight
+  // per workflow, because a second change to the same workflow supersedes the
+  // first rather than queueing behind it.
+  const [requests, setRequests] = React.useState<Record<string, WorkflowRequestState>>({});
 
   React.useEffect(() => {
     if (!enabled || hasLoaded) return;
@@ -305,7 +396,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       if (isMock || !assistant) return true;
       const destination = options.destination ?? { kind: 'personal' };
       try {
-        const { dispatched } = await submitWorkflowRequest(assistant, {
+        const { requestId, dispatched } = await submitWorkflowRequest(assistant, {
           slug,
           action,
           params: options.params ?? {},
@@ -314,6 +405,18 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
               ? { kind: 'team', teamId: Number(destination.teamId) }
               : { kind: 'personal' },
         });
+        // Watch the row from here. Its own `status` is what the surfaces
+        // render; `dispatched` only says whether anyone was woken for it.
+        setRequests((current) => ({
+          ...current,
+          [slug]: {
+            requestId,
+            slug,
+            action,
+            status: dispatched ? 'pending' : 'queued',
+            dispatched,
+          },
+        }));
         if (!dispatched) {
           toast.message('Queued for your teammate.', {
             description: 'It will be applied the next time they wake up.',
@@ -327,6 +430,74 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       }
     },
     [assistant, isMock]
+  );
+
+  /* --- recorded request state --------------------------------------------- */
+  const hasRequestInFlight = React.useMemo(
+    () => Object.values(requests).some((request) => !isSettled(request)),
+    [requests]
+  );
+
+  // Poll only while something is in flight, and key the effect on that one
+  // boolean so a status write does not tear down and rebuild the interval.
+  React.useEffect(() => {
+    if (!hasRequestInFlight || isMock || !assistant) return;
+    let cancelled = false;
+    const read = async () => {
+      const rows = await fetchWorkflowRequests(assistant).catch((error) => {
+        console.error('Failed to read the workflow requests', error);
+        return [] as Record<string, unknown>[];
+      });
+      if (cancelled || rows.length === 0) return;
+      const byId = new Map(rows.map((row) => [String(row.requestId ?? ''), row] as const));
+      setRequests((current) => {
+        let changed = false;
+        const next = { ...current };
+        for (const [slug, request] of Object.entries(current)) {
+          const row = byId.get(request.requestId);
+          if (!row) continue;
+          const status = rowStatus(row.status);
+          // `queued` is Console's own knowledge about the wake, and the row
+          // says nothing about it — so a still-pending row keeps it.
+          const resolved = status === 'pending' && !request.dispatched ? 'queued' : status;
+          const error = requestErrorText(row.error);
+          if (resolved === request.status && error === request.error) continue;
+          next[slug] = { ...request, status: resolved, error };
+          changed = true;
+        }
+        return changed ? next : current;
+      });
+    };
+    const timer = setInterval(() => void read(), REQUEST_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [hasRequestInFlight, isMock, assistant]);
+
+  // A settled change makes the optimistic copy obsolete either way: re-read,
+  // so what is on screen is the assistant's own installation rows. On failure
+  // that is what un-does an install the shelf drew but nobody performed.
+  const appliedRef = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    const settled = Object.values(requests).filter(
+      (request) => isSettled(request) && !appliedRef.current.has(request.requestId)
+    );
+    if (settled.length === 0) return;
+    for (const request of settled) appliedRef.current.add(request.requestId);
+    setHasLoaded(false);
+  }, [requests]);
+
+  /** Stops showing a settled request — the card returns to its own state. */
+  const dismissRequest = React.useCallback(
+    (slug: string) =>
+      setRequests((current) => {
+        if (!current[slug]) return current;
+        const next = { ...current };
+        delete next[slug];
+        return next;
+      }),
+    []
   );
 
   /* --- connect loop ------------------------------------------------------- */
@@ -410,6 +581,14 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     );
     if (provisioning.step >= surfaces.length) {
       const { workflow } = item;
+      // With a backend, the assistant's own row is the truth about what
+      // landed, and the tracked request is what says when. Stop the local
+      // list here rather than fabricating an installation that a failing
+      // request would then contradict.
+      if (!isMock) {
+        setProvisioning(null);
+        return;
+      }
       const held = unmetRequirements(workflow).length > 0;
       const oneShot = provisioningTask(workflow);
       patch(workflow.slug, (current) => ({
@@ -455,7 +634,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       PROVISIONING_STEP_MS
     );
     return () => clearTimeout(timer);
-  }, [provisioning, items, patch]);
+  }, [provisioning, items, patch, isMock]);
 
   /* --- provisioning / failed / update -------------------------------------- */
   const toggleSetup = React.useCallback(
@@ -567,6 +746,12 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
      */
     canMutate: isMock || !!assistant,
     provisioning,
+    /**
+     * The recorded changes this session is watching, keyed by slug. What the
+     * assistant is actually doing with each one, not what the shelf hoped.
+     */
+    requests,
+    dismissRequest,
     refresh,
     connect,
     install,

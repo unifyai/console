@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkflowsPane } from '@/components/Pages/Assistants/Workflows/WorkflowsPane';
+import type { Assistant } from '@/types/assistants/assistant';
 import type { WorkflowGalleryItem } from '@/types/workflows';
 
 vi.mock('sonner', () => ({
@@ -32,17 +33,26 @@ vi.mock('@/components/Workflows/WorkflowsGalleryShell', () => ({
     items,
     onOpen,
     onConnect,
+    onConnectWorkspace,
     renderDetailSheet,
   }: {
     items: WorkflowGalleryItem[];
     onOpen: (item: WorkflowGalleryItem) => void;
     onConnect: (canonicalSlug: string) => void;
+    onConnectWorkspace?: () => void;
     renderDetailSheet?: () => React.ReactNode;
   }) => (
     <div data-testid="workflow-gallery-stub">
       <span data-testid="workflow-gallery-count">{items.length}</span>
       <button data-testid="request-connect-notion" onClick={() => onConnect('notion')}>
         Connect Notion
+      </button>
+      <button
+        data-testid="request-connect-workspace"
+        disabled={!onConnectWorkspace}
+        onClick={() => onConnectWorkspace?.()}
+      >
+        Connect Workspace
       </button>
       {items.map((item) => (
         <button
@@ -204,6 +214,35 @@ describe('WorkflowsPane', () => {
       expect(screen.queryByTestId('connect-sheet-notion')).not.toBeInTheDocument()
     );
     expect(navigateToAssistants).not.toHaveBeenCalled();
+  });
+
+  it('opens the workspace manager for a workspace requirement, not the provider drawer', async () => {
+    // Connecting a Workspace has to be the same act as connecting one from
+    // the profile or onboarding panes: the page's own manager, not a
+    // Workflows-local imitation and not the integrations gallery.
+    const onConnectWorkspace = vi.fn();
+    const assistant = { agentId: 'assistant-1', userId: 'owner-1' } as Assistant;
+    render(
+      <WorkflowsPane
+        ownerId="owner-1"
+        assistantId="assistant-1"
+        assistant={assistant}
+        onConnectWorkspace={onConnectWorkspace}
+      />
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('workflow-gallery-count')).toHaveTextContent('2')
+    );
+
+    fireEvent.click(screen.getByTestId('request-connect-workspace'));
+    expect(onConnectWorkspace).toHaveBeenCalledWith(assistant);
+    expect(navigateToAssistants).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('connect-sheet-google_workspace')).not.toBeInTheDocument();
+  });
+
+  it('offers no workspace affordance when the page supplies no opener', async () => {
+    await renderPane();
+    expect(screen.getByTestId('request-connect-workspace')).toBeDisabled();
   });
 
   it('does not fetch the catalog while hidden', async () => {

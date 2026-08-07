@@ -9,8 +9,13 @@ import { WorkflowTileIcon } from './WorkflowTileIcon';
 import { WorkflowDestinationBadge, WorkflowStatusBadge } from './WorkflowStatusBadge';
 import { WORKFLOW_CATEGORY_LABEL, categoryStyle } from './workflowCategories';
 import {
+  workflowRequestCopy,
+  type WorkflowRequestState,
+} from '@/hooks/Workflows/useWorkflowCatalog';
+import {
   recurringTasks,
-  requirementNeedsConnection,
+  requirementIsConnectable,
+  requirementNeedsWorkspace,
   unmetRequirements,
   workflowCardState,
   type WorkflowGalleryItem,
@@ -31,18 +36,33 @@ export function WorkflowCard({
   onOpen,
   onInstall,
   onConnect,
+  onConnectWorkspace,
+  request,
 }: {
   item: WorkflowGalleryItem;
   busy?: boolean;
+  /** A recorded change the assistant is carrying out for this workflow. */
+  request?: WorkflowRequestState;
   onOpen: (item: WorkflowGalleryItem) => void;
   onInstall: (item: WorkflowGalleryItem) => void;
   onConnect: (canonicalSlug: string) => void;
+  onConnectWorkspace?: () => void;
 }) {
   const { workflow, installation } = item;
   const state = workflowCardState(item);
   const missing = unmetRequirements(workflow);
 
   const note = () => {
+    if (request && request.status !== 'succeeded') {
+      return (
+        <span
+          className={cn('text-caption truncate', request.status === 'failed' && 'text-destructive')}
+          data-testid={`workflow-card-request-${workflow.slug}`}
+        >
+          {workflowRequestCopy(request)}
+        </span>
+      );
+    }
     if (!installation) {
       const count = recurringTasks(workflow).length;
       return (
@@ -107,10 +127,11 @@ export function WorkflowCard({
       );
     }
     if (installation.status === 'pending_requirements' && missing[0]) {
-      // Only a provider-backed route is fixed by connecting. A secret-gated
-      // app needs a credential, so the card hands off to the sheet rather
-      // than offering an OAuth click that would do nothing.
-      const connectable = missing.find(requirementNeedsConnection);
+      // Only a route with a connect view of its own is fixed here — the
+      // gallery drawer for an app, the workspace manager for a Workspace. A
+      // secret-gated app needs a credential, so the card hands off to the
+      // sheet rather than offering a click that would do nothing.
+      const connectable = missing.find(requirementIsConnectable);
       if (!connectable) {
         return (
           <Button
@@ -136,7 +157,8 @@ export function WorkflowCard({
           className="hover:bg-[color:var(--status-warning)]/90 h-7 bg-[color:var(--status-warning)] px-2.5 text-xs text-primary-foreground"
           onClick={(event) => {
             event.stopPropagation();
-            onConnect(connectable.canonicalSlug);
+            if (requirementNeedsWorkspace(connectable)) onConnectWorkspace?.();
+            else onConnect(connectable.canonicalSlug);
           }}
           data-testid={`workflow-card-connect-${workflow.slug}`}
         >

@@ -1,11 +1,16 @@
 'use client';
 
-import { AlertTriangle, ArrowUp, Loader2, Pause, Play, Plug, Square } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Clock, Loader2, Pause, Play, Plug, Square } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { Button } from '@/components/UI/button';
 import { WorkflowAppIcon } from './WorkflowAppIcon';
 import {
-  requirementNeedsConnection,
+  workflowRequestCopy,
+  type WorkflowRequestState,
+} from '@/hooks/Workflows/useWorkflowCatalog';
+import {
+  requirementIsConnectable,
+  requirementNeedsWorkspace,
   type Workflow,
   type WorkflowInstallation,
   type WorkflowRequirement,
@@ -20,12 +25,101 @@ import {
  * word "failed"; always says explicitly that nothing will fire in the meantime.
  */
 
+/**
+ * What the assistant is doing with a recorded change — the honest version of
+ * the wait.
+ *
+ * Console persists the intent and the assistant plants the content, so this
+ * is the only place that knows whether the change actually landed. The shelf
+ * used to animate locally and settle green regardless, which made a
+ * claimed-and-failing install look exactly like a successful one.
+ */
+export function WorkflowRequestBanner({
+  request,
+  onRetry,
+  onDismiss,
+}: {
+  request: WorkflowRequestState;
+  onRetry?: (slug: string) => void;
+  onDismiss?: (slug: string) => void;
+}) {
+  if (request.status === 'succeeded') return null;
+  const failed = request.status === 'failed';
+  const queued = request.status === 'queued';
+  return (
+    <Alert
+      className={
+        failed
+          ? 'border-[color:var(--status-danger)]/40 bg-[color:var(--status-danger-bg)]'
+          : 'border-[color:var(--status-info)]/40 bg-[color:var(--status-info-bg)]'
+      }
+      data-testid={`workflow-request-${request.status}`}
+    >
+      {failed ? (
+        <AlertTriangle className="h-4 w-4 text-destructive" />
+      ) : queued ? (
+        <Clock className="h-4 w-4 text-[color:var(--status-info)]" />
+      ) : (
+        <Loader2 className="h-4 w-4 animate-spin text-[color:var(--status-info)]" />
+      )}
+      <AlertTitle>
+        {failed
+          ? `Couldn't ${requestVerb(request.action)}`
+          : queued
+            ? 'Queued'
+            : `${requestVerbPresent(request.action)}…`}
+      </AlertTitle>
+      <AlertDescription>
+        <p>{workflowRequestCopy(request)}</p>
+        {(failed || queued) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {failed && onRetry && (
+              <Button type="button" size="sm" onClick={() => onRetry(request.slug)}>
+                Try again
+              </Button>
+            )}
+            {onDismiss && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => onDismiss(request.slug)}
+              >
+                Dismiss
+              </Button>
+            )}
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+// Switches rather than lookup maps: the action names are unify's wire values,
+// and `save_params` is not a legal object-literal key under this repo's naming
+// rule. Crossing the casing boundary for two words of copy would be worse.
+function requestVerb(action: WorkflowRequestState['action']): string {
+  if (action === 'uninstall') return 'uninstall this';
+  if (action === 'update') return 'update this';
+  if (action === 'save_params') return 'save your settings';
+  return 'install this';
+}
+
+function requestVerbPresent(action: WorkflowRequestState['action']): string {
+  if (action === 'uninstall') return 'Uninstalling';
+  if (action === 'update') return 'Updating';
+  if (action === 'save_params') return 'Saving your settings';
+  return 'Installing';
+}
+
 export function WorkflowUnmetRequirementsBanner({
   missing,
   onConnect,
+  onConnectWorkspace,
 }: {
   missing: WorkflowRequirement[];
   onConnect: (canonicalSlug: string) => void;
+  onConnectWorkspace?: () => void;
 }) {
   if (missing.length === 0) return null;
   const names = missing.map((requirement) => requirement.displayName);
@@ -47,14 +141,18 @@ export function WorkflowUnmetRequirementsBanner({
           {missing.length > 1 ? 'are' : 'is'} connected. Nothing will fire in the meantime.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {missing.filter(requirementNeedsConnection).map((requirement) => (
+          {missing.filter(requirementIsConnectable).map((requirement) => (
             <Button
               key={requirement.canonicalSlug}
               type="button"
               size="sm"
               variant="outline"
               className="gap-1.5"
-              onClick={() => onConnect(requirement.canonicalSlug)}
+              onClick={() =>
+                requirementNeedsWorkspace(requirement)
+                  ? onConnectWorkspace?.()
+                  : onConnect(requirement.canonicalSlug)
+              }
             >
               <WorkflowAppIcon requirement={requirement} size="xs" />
               Connect {requirement.displayName}
@@ -70,10 +168,12 @@ export function WorkflowHeldBanner({
   installation,
   missing,
   onConnect,
+  onConnectWorkspace,
 }: {
   installation: WorkflowInstallation;
   missing: WorkflowRequirement[];
   onConnect: (canonicalSlug: string) => void;
+  onConnectWorkspace?: () => void;
 }) {
   const names = missing.map((requirement) => requirement.displayName);
   return (
@@ -90,13 +190,17 @@ export function WorkflowHeldBanner({
           until the connection lands.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {missing.filter(requirementNeedsConnection).map((requirement) => (
+          {missing.filter(requirementIsConnectable).map((requirement) => (
             <Button
               key={requirement.canonicalSlug}
               type="button"
               size="sm"
               className="gap-1.5"
-              onClick={() => onConnect(requirement.canonicalSlug)}
+              onClick={() =>
+                requirementNeedsWorkspace(requirement)
+                  ? onConnectWorkspace?.()
+                  : onConnect(requirement.canonicalSlug)
+              }
             >
               <WorkflowAppIcon requirement={requirement} size="xs" />
               Connect {requirement.displayName}
