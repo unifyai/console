@@ -123,6 +123,7 @@ describe('useWorkflowCatalog — live reads', () => {
           {
             canonicalSlug: 'notion',
             displayName: 'Notion',
+            authModes: ['oauth'],
             status: 'not_connected',
             source: 'provider_backed',
             connections: [],
@@ -152,6 +153,7 @@ describe('useWorkflowCatalog — live reads', () => {
           {
             canonicalSlug: 'notion',
             displayName: 'Notion',
+            authModes: ['oauth'],
             status: 'not_connected',
             source: 'provider_backed',
             connections: [],
@@ -190,6 +192,7 @@ describe('useWorkflowCatalog — live reads', () => {
             {
               canonicalSlug: 'notion',
               displayName: 'Notion',
+              authModes: ['oauth'],
               status: 'connected',
               source: 'provider_backed',
               connections: [{ id: 'c1', status: 'connected' }],
@@ -219,6 +222,7 @@ describe('useWorkflowCatalog — live reads', () => {
           {
             canonicalSlug: 'notion',
             displayName: 'Notion',
+            authModes: ['oauth'],
             status: 'connected',
             source: 'provider_backed',
             connections: [{ id: 'c1', status: 'connected' }],

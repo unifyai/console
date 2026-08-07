@@ -84,7 +84,9 @@ describe('resolveRequirement', () => {
     expect(resolved.connected).toBe(false);
   });
 
-  it('gates a native package on its own declared secrets', () => {
+  it('gates a native package with no connect flow on its own secrets', () => {
+    // No provider auth modes, so the gallery cannot connect it and the
+    // package's declared secrets really are the only signal.
     const resolved = resolveRequirement(
       { slug: 'employmenthero', name: 'Employment Hero' },
       context([
@@ -92,6 +94,7 @@ describe('resolveRequirement', () => {
           canonicalSlug: 'employmenthero',
           displayName: 'Employment Hero',
           source: 'static_package',
+          authModes: [],
         }),
       ])
     );
@@ -100,19 +103,56 @@ describe('resolveRequirement', () => {
     expect(resolved.missingSecrets?.length).toBeGreaterThan(0);
   });
 
-  it('gates a BYOD OAuth workspace app on its refresh-token secret', () => {
+  it('sends a gallery app to Connect, not to a pasted secret', () => {
+    // Gmail is provider-backed with OAuth, so "not connected" means press
+    // Connect. It used to route to a refresh-token secret purely because the
+    // BYOD map matched on the name, which asked the user to paste a token for
+    // an app the gallery can connect in two clicks.
     const gmail = definition({ canonicalSlug: 'gmail', displayName: 'Gmail' });
 
-    const missing = resolveRequirement({ slug: 'gmail', name: 'Gmail' }, context([gmail]));
-    expect(missing).toMatchObject({ via: 'secret', connected: false });
+    const resolved = resolveRequirement({ slug: 'gmail', name: 'Gmail' }, context([gmail]));
+    expect(resolved).toMatchObject({ via: 'connection', connected: false });
+    expect(resolved.missingSecrets).toBeUndefined();
+  });
+
+  it('gives Workspace its own route, separate from integrations', () => {
+    // Workspace is not in the gallery and not a package: it is connected in the
+    // onboarding and profile flows, so its route is neither a gallery connect
+    // nor an integration secret.
+    const workspace = definition({
+      canonicalSlug: 'google_workspace',
+      displayName: 'Google Workspace',
+      source: 'workspace_integration',
+      authModes: [],
+    });
+
+    const missing = resolveRequirement(
+      { slug: 'google_workspace', name: 'Google Workspace' },
+      context([workspace])
+    );
+    expect(missing).toMatchObject({ via: 'workspace', connected: false });
     expect(missing.missingSecrets).toEqual(['GOOGLE_REFRESH_TOKEN']);
 
     const present = resolveRequirement(
-      { slug: 'gmail', name: 'Gmail' },
-      context([gmail], ['GOOGLE_REFRESH_TOKEN'])
+      { slug: 'google_workspace', name: 'Google Workspace' },
+      context([workspace], ['GOOGLE_REFRESH_TOKEN'])
     );
-    expect(present).toMatchObject({ via: 'secret', connected: true });
-    expect(present.missingSecrets).toBeUndefined();
+    expect(present).toMatchObject({ via: 'workspace', connected: true });
+  });
+
+  it('sends a native package with a connect flow to Connect, not to secrets', () => {
+    // A package we author is provider-backed too, and may be OAuth or API-key.
+    // Only a package with no connect flow at all is genuinely secret-gated.
+    const connectable = definition({
+      canonicalSlug: 'hubspot',
+      displayName: 'HubSpot',
+      source: 'static_package',
+      authModes: ['oauth'],
+    });
+
+    expect(
+      resolveRequirement({ slug: 'hubspot', name: 'HubSpot' }, context([connectable]))
+    ).toMatchObject({ via: 'connection', connected: false });
   });
 
   it('lets a live connection outrank a missing secret — one route is enough', () => {

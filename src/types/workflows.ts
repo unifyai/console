@@ -55,6 +55,12 @@ export type WorkflowRequirementRoute =
   | 'native_package'
   /** BYOD OAuth (Google Workspace, Microsoft 365) — satisfied by a named secret. */
   | 'secret'
+  /**
+   * The user's Workspace — not an integration at all. Not in the gallery, not
+   * a package, and connected in the onboarding and profile flows, so its
+   * affordance belongs to those rather than to the integrations gallery.
+   */
+  | 'workspace'
   /** Nothing to check (built-in capabilities like web browsing); reads as met. */
   | 'undeclared'
   /**
@@ -238,7 +244,10 @@ export function requirementNeedsConnection(requirement: WorkflowRequirement): bo
 /** Unmet and fixed by supplying a secret — never by an OAuth click. */
 export function requirementNeedsSecret(requirement: WorkflowRequirement): boolean {
   return (
-    (requirement.via === 'native_package' || requirement.via === 'secret') && !requirement.connected
+    (requirement.via === 'native_package' ||
+      requirement.via === 'secret' ||
+      requirement.via === 'workspace') &&
+    !requirement.connected
   );
 }
 
