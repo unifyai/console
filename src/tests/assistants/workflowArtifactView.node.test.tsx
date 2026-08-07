@@ -129,15 +129,42 @@ describe('WorkflowArtifactView', () => {
   });
 
   it('says plainly when nothing is published, for a kind with no native view', () => {
-    // A canvas needs a published token and a table needs live rows, so neither
-    // has a native view a preview could mirror — those keep the prose body.
+    // A table needs live rows, so there is no native view a preview could
+    // mirror — it keeps the prose body.
     renderInDrawer(
       <WorkflowArtifactView
-        artifact={{ ...artifact, kind: 'canvases', schedule: undefined, body: '' }}
+        artifact={{ ...artifact, kind: 'tables', schedule: undefined, body: '' }}
         onBack={() => {}}
         onNavigate={() => {}}
       />
     );
     expect(screen.getByText(/Nothing published for this item yet/)).toBeInTheDocument();
+  });
+
+  it('describes a canvas rather than showing its source', () => {
+    // The one artifact whose substance is not what a reader wants: raw TSX is
+    // noise for someone deciding whether to install, and the shelf never
+    // publishes view.tsx at all.
+    renderInDrawer(
+      <WorkflowArtifactView
+        artifact={{
+          ...artifact,
+          kind: 'canvases',
+          name: 'Sourcing funnel',
+          schedule: undefined,
+          body: 'A live funnel of every prospect this workflow sourced.',
+          meta: { binds_to: ['sourced_leads'], actions: ['export_csv'] },
+        }}
+        onBack={() => {}}
+        onNavigate={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('workflow-artifact-canvas')).toBeInTheDocument();
+    expect(screen.getByText(/live funnel of every prospect/)).toBeInTheDocument();
+    expect(screen.getByText('sourced_leads')).toBeInTheDocument();
+    expect(screen.getByText('export_csv')).toBeInTheDocument();
+    // Never a signature block or implementation — that is a function's view.
+    expect(screen.queryByTestId('function-detail-body')).not.toBeInTheDocument();
   });
 });

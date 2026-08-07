@@ -9,6 +9,7 @@ import {
 import { WORKFLOW_SURFACE_ORDER } from '@/components/Workflows/workflowCategories';
 import type { WorkflowParamValues } from '@/components/Workflows/WorkflowParamsForm';
 import { fetchBrainContext } from '@/lib/client/brain';
+import { camelToSnakeObject } from '@/utils/casing';
 import {
   fetchWorkflowsCatalog,
   submitWorkflowRequest,
@@ -156,9 +157,8 @@ interface UseWorkflowCatalogOptions {
  *           tasks arm — and a toast says so.
  * SETUP     pause/resume toggles; stop keeps partial results, goes active.
  * FAILED    retry replants the failed items and clears the failures.
- * UNINSTALL removes the installation. `keepData` is not sent: its semantics
- *           are undecided, and a field the assistant drops would read as
- *           supported.
+ * UNINSTALL removes the installation; `keepData` keeps the stored tables the
+ *           workflow filled and prunes the rest.
  */
 export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCatalogOptions = {}) {
   const {
@@ -541,11 +541,13 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   );
 
   const uninstall = React.useCallback(
-    (slug: string, _options: { keepData: boolean }) => {
-      // keepData is not yet part of the request contract (its semantics are
-      // still undecided), so it is deliberately not sent rather than sent and
-      // ignored — a field the assistant drops would read as supported.
-      void request(slug, 'uninstall');
+    (slug: string, options: { keepData: boolean }) => {
+      // keepData keeps the stored tables the workflow filled and prunes
+      // everything else — the work it produced outliving the setup that made
+      // it. Carried in params because it is an argument to this one action.
+      void request(slug, 'uninstall', {
+        params: camelToSnakeObject({ keepData: options.keepData }),
+      });
       patch(slug, (item) => ({ workflow: item.workflow }));
     },
     [patch, request]
