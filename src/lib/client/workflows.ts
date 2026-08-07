@@ -13,10 +13,16 @@
  * contexts and is read through `fetchBrainContext`.
  */
 
-import { snakeToCamelObject } from '@/utils/casing';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import { rootContext } from '@/lib/assistants/scope';
+import type { Assistant } from '@/types/assistants/assistant';
 
 const WORKFLOWS_CATALOG_CONTEXT = 'Workflows/Catalog';
 const WORKFLOWS_CONTENT_CONTEXT = 'Workflows/Content';
+const WORKFLOWS_REQUESTS_CONTEXT = 'Workflows/Requests';
+
+/** Mutations a reading surface may ask the assistant to carry out. */
+export type WorkflowRequestAction = 'install' | 'uninstall' | 'update' | 'save_params';
 
 interface LogPayload<T> {
   logs?: Array<{ entries?: T }>;
@@ -70,4 +76,125 @@ export async function fetchWorkflowsCatalog(): Promise<Record<string, unknown>[]
 /** One workflow's published artifacts, filtered server-side by slug. */
 export async function fetchWorkflowContent(slug: string): Promise<Record<string, unknown>[]> {
   return fetchBuiltinsWorkflowRows(WORKFLOWS_CONTENT_CONTEXT, `slug == ${JSON.stringify(slug)}`);
+}
+
+/**
+ * Ask the assistant to change a workflow's install state.
+ *
+ * Console cannot do this itself: planting content fans out over unify's
+ * custom-sync engine, which only the assistant has. So the intent is written as
+ * a durable `Workflows/Requests` row and the assistant carries it out — on the
+ * wake this dispatch triggers, or on its next boot if the wake never lands.
+ *
+ * The order matters and is the same one Orchestra uses for canvas invocations:
+ * persist, then dispatch. Dispatching first could wake an assistant for work no
+ * row records. A dispatch that fails is therefore not an error — the change is
+ * already durable — so this reports it as `dispatched: false` rather than
+ * throwing, and the caller can say "queued" instead of "failed".
+ *
+ * `requestId` is minted here so a retried submit converges on one row instead of
+ * queueing the same install twice.
+ */
+export async function submitWorkflowRequest(
+  assistant: Assistant,
+  {
+    slug,
+    action,
+    params = {},
+    destination = { kind: 'personal' } as const,
+  }: {
+    slug: string;
+    action: WorkflowRequestAction;
+    params?: Record<string, string | number | boolean>;
+    destination?: { kind: 'personal' } | { kind: 'team'; teamId: number };
+  }
+): Promise<{ requestId: string; dispatched: boolean }> {
+  const requestId =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  const destinationValue = destination.kind === 'team' ? `team:${destination.teamId}` : 'personal';
+
+  const context = rootContext(
+    destination,
+    assistant.userId,
+    String(assistant.agentId),
+    WORKFLOWS_REQUESTS_CONTEXT
+  );
+
+  const write = await fetch('/api/logs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      project: 'Assistants',
+      context,
+      // Converted to Orchestra's wire casing rather than written in it: the
+      // row fields are snake_case (unify's WorkflowRequest model), and the
+      // same conversion is what canvasAccess does at this boundary.
+      entries: camelToSnakeObject({
+        requestId,
+        slug,
+        action,
+        params: JSON.stringify(params),
+        destination: destinationValue,
+        status: 'pending',
+      }),
+    }),
+  });
+
+  if (!write.ok) {
+    const detail = await write.text().catch(() => '');
+    throw new Error(`could not record the request (${write.status}): ${detail.slice(0, 200)}`);
+  }
+
+  // Best-effort from here: the row is what makes the change happen.
+  try {
+    const dispatch = await fetch('/api/workflows/requests/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assistantId: assistant.agentId,
+        requestId,
+        slug,
+        action,
+        destination: destinationValue,
+      }),
+    });
+    if (!dispatch.ok) return { requestId, dispatched: false };
+    const body = (await dispatch.json()) as { dispatched?: boolean };
+    return { requestId, dispatched: body.dispatched === true };
+  } catch {
+    return { requestId, dispatched: false };
+  }
+}
+
+/** This assistant's recorded requests, newest first, for rendering their state. */
+export async function fetchWorkflowRequests(
+  assistant: Assistant,
+  { limit = 50 }: { limit?: number } = {}
+): Promise<Record<string, unknown>[]> {
+  const params = new URLSearchParams();
+  params.set('projectName', 'Assistants');
+  params.set(
+    'context',
+    rootContext(
+      { kind: 'personal' },
+      assistant.userId,
+      String(assistant.agentId),
+      WORKFLOWS_REQUESTS_CONTEXT
+    )
+  );
+  params.set('limit', String(limit));
+  const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+  try {
+    const data = await readJson<LogPayload<Record<string, unknown>>>(response);
+    return (data.logs ?? []).flatMap((log) =>
+      log.entries ? [snakeToCamelObject<Record<string, unknown>>(log.entries)] : []
+    );
+  } catch {
+    // A never-booted assistant has no such context yet; that is an empty list,
+    // not an error.
+    return [];
+  }
 }

@@ -9,7 +9,12 @@ import {
 import { WORKFLOW_SURFACE_ORDER } from '@/components/Workflows/workflowCategories';
 import type { WorkflowParamValues } from '@/components/Workflows/WorkflowParamsForm';
 import { fetchBrainContext } from '@/lib/client/brain';
-import { fetchWorkflowsCatalog } from '@/lib/client/workflows';
+import { camelToSnakeObject } from '@/utils/casing';
+import {
+  fetchWorkflowsCatalog,
+  submitWorkflowRequest,
+  type WorkflowRequestAction,
+} from '@/lib/client/workflows';
 import {
   catalogRowRequirements,
   catalogRowToWorkflow,
@@ -18,6 +23,7 @@ import {
   type CatalogRequirement,
 } from '@/utils/workflows/workflowRows';
 import { resolveRequirements } from '@/utils/workflows/requirementResolution';
+import { useRequirementDefinitions } from '@/hooks/Workflows/useRequirementDefinitions';
 import type { RequirementResolutionContext } from '@/utils/workflows/requirementResolution';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { BrainRow, TaskRow } from '@/types/assistants/brain';
@@ -117,6 +123,16 @@ interface UseWorkflowCatalogOptions {
   assistant?: Assistant | null;
   /** Resolves each requirement's route. Omitted until integrations load. */
   requirementContext?: RequirementResolutionContext;
+  /**
+   * Fetch definitions for requirement slugs the supplied context lacks.
+   *
+   * The integrations browse catalogue carries one alphabetical page plus the
+   * pinned connected apps, so a required-but-unconnected app can sort far past
+   * it — Gmail, in a ~1k-app catalogue. Resolving against that partial map
+   * alone reports a real app as unverifiable, so the gaps are fetched by slug.
+   * Off in mock mode and until the integrations catalogue has answered.
+   */
+  resolveMissingDefinitions?: boolean;
 }
 
 /**
@@ -125,11 +141,12 @@ interface UseWorkflowCatalogOptions {
  * seam for the live catalog behind it, and every mutation exposed as a
  * typed transition.
  *
- * The live WorkflowManager catalog feed is not exposed yet, so the live
- * path resolves an empty catalog; mock mode (NEXT_PUBLIC_MOCK_SIM,
- * ?mockWorkflows=1, or the localStorage flag) serves the curated mock
- * catalog. The transitions below are the design contract and must survive
- * the swap to real mutations:
+ * Reads join the published catalogue to this assistant's installations; mock
+ * mode (NEXT_PUBLIC_MOCK_SIM, ?mockWorkflows=1, or the localStorage flag)
+ * serves the curated mock catalog with no backend at all. Mutations record a
+ * `Workflows/Requests` row and wake the assistant, which does the planting —
+ * Console cannot, because that needs unify's reconcile engine. The optimistic
+ * transitions below run while that happens, so the wait shows what is landing:
  *
  * INSTALL   plant each surface optimistically (~620ms per surface), then
  *           settle into pending_requirements (any app unconnected — jobs
@@ -140,11 +157,16 @@ interface UseWorkflowCatalogOptions {
  *           tasks arm — and a toast says so.
  * SETUP     pause/resume toggles; stop keeps partial results, goes active.
  * FAILED    retry replants the failed items and clears the failures.
- * UNINSTALL removes the installation; keepData is recorded for the table
- *           the workflow owns.
+ * UNINSTALL removes the installation; `keepData` keeps the stored tables the
+ *           workflow filled and prunes the rest.
  */
 export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCatalogOptions = {}) {
-  const { enabled = true, assistant = null, requirementContext } = options;
+  const {
+    enabled = true,
+    assistant = null,
+    requirementContext,
+    resolveMissingDefinitions = false,
+  } = options;
 
   const [baseItems, setBaseItems] = React.useState<WorkflowGalleryItem[]>([]);
   const [rawRequirements, setRawRequirements] = React.useState<Map<string, CatalogRequirement[]>>(
@@ -180,6 +202,44 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   }, [enabled, hasLoaded, assistantId, assistant]);
 
   /**
+   * Every requirement slug the shelf names, taken from the published rows so it
+   * does not depend on resolution having happened — otherwise collecting the
+   * slugs and resolving them would each be waiting on the other.
+   */
+  const requirementSlugs = React.useMemo(() => {
+    const slugs = new Set<string>();
+    for (const requirements of rawRequirements.values()) {
+      for (const requirement of requirements) slugs.add(requirement.slug);
+    }
+    return [...slugs].sort();
+  }, [rawRequirements]);
+
+  const knownSlugs = React.useMemo(
+    () => new Set(requirementContext ? requirementContext.definitionsBySlug.keys() : []),
+    [requirementContext]
+  );
+
+  const extraDefinitions = useRequirementDefinitions({
+    assistantId,
+    slugs: requirementSlugs,
+    knownSlugs,
+    enabled: resolveMissingDefinitions && !isMock,
+  });
+
+  /** The supplied context with per-slug gaps filled. Base definitions win: they
+   * carry the connection state merged in by the integrations catalogue. */
+  const mergedContext = React.useMemo<RequirementResolutionContext | undefined>(() => {
+    if (!requirementContext) return undefined;
+    const filled = Object.entries(extraDefinitions).filter(([, value]) => !!value);
+    if (filled.length === 0) return requirementContext;
+    const definitionsBySlug = new Map(filled.map(([slug, value]) => [slug, value!] as const));
+    for (const [slug, value] of requirementContext.definitionsBySlug) {
+      definitionsBySlug.set(slug, value);
+    }
+    return { ...requirementContext, definitionsBySlug };
+  }, [requirementContext, extraDefinitions]);
+
+  /**
    * Requirements resolve reactively: the integrations catalogue and the
    * secret keyset arrive on their own schedule, and each arrival re-resolves
    * every requirement. Until the context exists a requirement is
@@ -191,8 +251,8 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     if (isMock) return baseItems;
     return baseItems.map((item) => {
       const raw = rawRequirements.get(item.workflow.slug) ?? [];
-      const requirements = requirementContext
-        ? resolveRequirements(raw, requirementContext)
+      const requirements = mergedContext
+        ? resolveRequirements(raw, mergedContext)
         : raw.map((requirement) => ({
             canonicalSlug: requirement.slug,
             displayName: requirement.name,
@@ -213,7 +273,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       }
       return { workflow, installation: item.installation };
     });
-  }, [baseItems, rawRequirements, requirementContext, isMock]);
+  }, [baseItems, rawRequirements, mergedContext, isMock]);
 
   const refresh = React.useCallback(() => {
     setHasLoaded(false);
@@ -223,6 +283,50 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     (slug: string, next: (item: WorkflowGalleryItem) => WorkflowGalleryItem) =>
       setBaseItems((list) => list.map((item) => (item.workflow.slug === slug ? next(item) : item))),
     []
+  );
+
+  /**
+   * Record an install-state change for the assistant to carry out.
+   *
+   * Mock mode stays entirely local — it exists to review the UI with no
+   * backend. Otherwise the row is written and the assistant woken; a wake that
+   * could not be delivered is reported as queued rather than failed, because
+   * the row is durable and the boot sweep drains the same queue.
+   */
+  const request = React.useCallback(
+    async (
+      slug: string,
+      action: WorkflowRequestAction,
+      options: {
+        params?: WorkflowParamValues;
+        destination?: WorkflowDestination;
+      } = {}
+    ): Promise<boolean> => {
+      if (isMock || !assistant) return true;
+      const destination = options.destination ?? { kind: 'personal' };
+      try {
+        const { dispatched } = await submitWorkflowRequest(assistant, {
+          slug,
+          action,
+          params: options.params ?? {},
+          destination:
+            destination.kind === 'team'
+              ? { kind: 'team', teamId: Number(destination.teamId) }
+              : { kind: 'personal' },
+        });
+        if (!dispatched) {
+          toast.message('Queued for your teammate.', {
+            description: 'It will be applied the next time they wake up.',
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error('Failed to record the workflow request', error);
+        toast.error('Could not record that change. Please try again.');
+        return false;
+      }
+    },
+    [assistant, isMock]
   );
 
   /* --- connect loop ------------------------------------------------------- */
@@ -286,9 +390,12 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   /* --- install ------------------------------------------------------------ */
   const install = React.useCallback(
     (slug: string, values: WorkflowParamValues, destination: WorkflowDestination) => {
+      // The optimistic surface-by-surface list runs while the assistant does
+      // the real work, so the wait shows what is landing rather than a spinner.
       setProvisioning({ slug, step: 0, values, destination });
+      void request(slug, 'install', { params: values, destination });
     },
-    []
+    [request]
   );
 
   React.useEffect(() => {
@@ -390,7 +497,10 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   );
 
   const retry = React.useCallback(
-    (slug: string) =>
+    (slug: string) => {
+      // A repeat install IS the retry path in unify: it reconciles to the
+      // current bundle and re-runs whatever failed to land.
+      void request(slug, 'install');
       patch(slug, (item) =>
         item.installation
           ? {
@@ -398,12 +508,14 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
               installation: { ...item.installation, status: 'active', failures: undefined },
             }
           : item
-      ),
-    [patch]
+      );
+    },
+    [patch, request]
   );
 
   const update = React.useCallback(
-    (slug: string) =>
+    (slug: string) => {
+      void request(slug, 'update');
       patch(slug, (item) =>
         item.installation
           ? {
@@ -411,24 +523,34 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
               installation: { ...item.installation, installedVersion: item.workflow.version },
             }
           : item
-      ),
-    [patch]
+      );
+    },
+    [patch, request]
   );
 
   const saveParams = React.useCallback(
-    (slug: string, values: WorkflowParamValues) =>
+    (slug: string, values: WorkflowParamValues) => {
+      void request(slug, 'save_params', { params: values });
       patch(slug, (item) =>
         item.installation
           ? { ...item, installation: { ...item.installation, params: values } }
           : item
-      ),
-    [patch]
+      );
+    },
+    [patch, request]
   );
 
   const uninstall = React.useCallback(
-    (slug: string, _options: { keepData: boolean }) =>
-      patch(slug, (item) => ({ workflow: item.workflow })),
-    [patch]
+    (slug: string, options: { keepData: boolean }) => {
+      // keepData keeps the stored tables the workflow filled and prunes
+      // everything else — the work it produced outliving the setup that made
+      // it. Carried in params because it is an argument to this one action.
+      void request(slug, 'uninstall', {
+        params: camelToSnakeObject({ keepData: options.keepData }),
+      });
+      patch(slug, (item) => ({ workflow: item.workflow }));
+    },
+    [patch, request]
   );
 
   return {
@@ -443,7 +565,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
      * install happened when nothing was persisted, so surfaces gate their
      * actions on this rather than pretending.
      */
-    canMutate: isMock,
+    canMutate: isMock || !!assistant,
     provisioning,
     refresh,
     connect,

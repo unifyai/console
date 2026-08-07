@@ -207,10 +207,46 @@ describe('useWorkflowCatalog — live reads', () => {
     });
   });
 
-  it('reports mutations as non-persisting outside mock mode', async () => {
+  it('resolves against the supplied context rather than reporting unverified', async () => {
+    // Regression: the pane once built a requirement context and then passed
+    // `undefined` to break a render cycle, so resolution never ran at all and
+    // every app — Gmail included — rendered as unverifiable forever.
+    respondWith({ catalog: [CATALOG_ROW] });
+    const { result } = await renderLive({
+      definitionsBySlug: new Map([
+        [
+          'notion',
+          {
+            canonicalSlug: 'notion',
+            displayName: 'Notion',
+            status: 'connected',
+            source: 'provider_backed',
+            connections: [{ id: 'c1', status: 'connected' }],
+            iconUrl: 'https://cdn.example/notion.png',
+          },
+        ],
+      ]) as unknown as Map<string, IntegrationDefinition>,
+      secretNames: new Set<string>(),
+    });
+
+    const requirement = result.current.items[0].workflow.requirements[0];
+    expect(requirement.via).not.toBe('unresolved');
+    expect(requirement).toMatchObject({ via: 'connection', connected: true });
+    expect(requirement.iconUrl).toBe('https://cdn.example/notion.png');
+  });
+
+  it('allows mutations once there is an assistant to record them against', async () => {
+    // Mutations persist by recording a Workflows/Requests row for the
+    // assistant to carry out, so an assistant is the whole precondition.
     respondWith({ catalog: [CATALOG_ROW] });
     const { result } = await renderLive();
-    expect(result.current.canMutate).toBe(false);
+    expect(result.current.canMutate).toBe(true);
+  });
+
+  it('refuses mutations with no assistant to record them against', async () => {
+    respondWith({ catalog: [CATALOG_ROW] });
+    const rendered = renderHook(() => useWorkflowCatalog('123', { assistant: null }));
+    expect(rendered.result.current.canMutate).toBe(false);
   });
 
   it('still short-circuits to the mock catalogue when mock mode is on', async () => {

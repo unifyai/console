@@ -11,27 +11,13 @@ import {
   readAutoFillGridColumnCount,
 } from '@/utils/assistants/functionsGrid';
 import { shortSignature, type FunctionEntry } from '@/utils/assistants/functions';
+import { KindBadge } from './FunctionDetail';
 
 const CARD_ROW_GAP_PX = 16;
 const GRID_EDGE_PADDING_PX = 16;
 const ESTIMATED_CARD_HEIGHT_PX = 168;
 const LOAD_MORE_ROW_THRESHOLD = 3;
 const COLUMN_PROBE_SLOTS = 32;
-
-function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
-  return (
-    <span
-      className={cn(
-        'shrink-0 rounded-full px-[7px] py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.04em]',
-        isPrimitive
-          ? 'bg-[color-mix(in_srgb,var(--role-purple)_14%,transparent)] text-[color:var(--role-purple)]'
-          : 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
-      )}
-    >
-      {isPrimitive ? 'primitive' : 'learned'}
-    </span>
-  );
-}
 
 function FunctionCard({
   fn,
