@@ -60,10 +60,80 @@ describe('WorkflowArtifactView', () => {
     expect(onNavigate).toHaveBeenCalledWith('tasks');
   });
 
-  it('says plainly when nothing is published for an item', () => {
+  it('renders a function as its own page does, from the published meta', () => {
+    // The point of the preview: the same signature block, badges and copy
+    // affordance the Functions tab shows — not a retelling of them.
     renderInDrawer(
       <WorkflowArtifactView
-        artifact={{ ...artifact, body: '' }}
+        artifact={{
+          ...artifact,
+          kind: 'functions',
+          name: 'briefing_window',
+          body: 'The exact time window a morning briefing should scan.',
+          schedule: undefined,
+          meta: {
+            language: 'python',
+            argspec: "(now_iso: 'str | None' = None) -> 'dict'",
+            verify: true,
+            implementation: 'def briefing_window():\n    return {}',
+          },
+        }}
+        onBack={() => {}}
+        onNavigate={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('function-detail-body')).toBeInTheDocument();
+    expect(screen.getByTestId('function-badges')).toBeInTheDocument();
+    expect(screen.getByText('Signature')).toBeInTheDocument();
+    expect(screen.getByTestId('function-copy')).toBeInTheDocument();
+  });
+
+  it('renders a task with the same field grid and run history the tab shows', () => {
+    renderInDrawer(
+      <WorkflowArtifactView
+        artifact={{
+          ...artifact,
+          kind: 'tasks',
+          meta: { repeat: [{ frequency: 'daily' }], priority: 'normal', tags: ['x'] },
+        }}
+        onBack={() => {}}
+        onNavigate={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('workflow-artifact-task')).toBeInTheDocument();
+    expect(screen.getByTestId('task-fields')).toBeInTheDocument();
+    // Pre-install there is genuinely nothing to inspect, and the native empty
+    // state says so rather than the preview inventing one.
+    expect(screen.getByText('No runs recorded yet.')).toBeInTheDocument();
+  });
+
+  it('shows a claim with its kind and topics', () => {
+    renderInDrawer(
+      <WorkflowArtifactView
+        artifact={{
+          ...artifact,
+          kind: 'knowledge',
+          schedule: undefined,
+          meta: { kind: 'definition', topics: ['commitments'] },
+        }}
+        onBack={() => {}}
+        onNavigate={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('workflow-artifact-claim')).toBeInTheDocument();
+    expect(screen.getByText('definition')).toBeInTheDocument();
+    expect(screen.getByText('commitments')).toBeInTheDocument();
+  });
+
+  it('says plainly when nothing is published, for a kind with no native view', () => {
+    // A canvas needs a published token and a table needs live rows, so neither
+    // has a native view a preview could mirror — those keep the prose body.
+    renderInDrawer(
+      <WorkflowArtifactView
+        artifact={{ ...artifact, kind: 'canvases', schedule: undefined, body: '' }}
         onBack={() => {}}
         onNavigate={() => {}}
       />

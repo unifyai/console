@@ -14,6 +14,7 @@ import {
   SiStripe,
 } from 'react-icons/si';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
+import { camelToSnakeObject } from '@/utils/casing';
 import type {
   Workflow,
   WorkflowArtifact,
@@ -995,6 +996,36 @@ const MOCK_ARTIFACT_DEFAULTS: Record<string, (name: string) => string> = {
     `\`${name}\` — the stored table this workflow reads and writes. Declared at install; rows arrive from the jobs, never from the bundle.`,
 };
 
+/**
+ * The per-kind extras unify publishes on a content row, so mock mode exercises
+ * the same native views the live shelf feeds — a function's signature block, a
+ * task's field grid — rather than only the markdown body.
+ */
+const MOCK_ARTIFACT_META: Partial<
+  Record<WorkflowSurfaceKind, (item: WorkflowManifestItem) => Record<string, unknown>>
+> = {
+  // Converted rather than hand-written: these mirror the snake_case row
+  // fields unify publishes, and writing that casing out by hand is what the
+  // naming rule is there to stop.
+  functions: (item) =>
+    camelToSnakeObject({
+      language: 'python',
+      argspec: `(now_iso: 'str | None' = None) -> 'dict'`,
+      verify: true,
+      isPrimitive: false,
+      implementation: `def ${item.name}(now_iso=None):\n    return {'calendar_start': now_iso}`,
+    }),
+  tasks: (item) =>
+    camelToSnakeObject({
+      repeat: item.runsOnce ? [] : [{ frequency: 'weekly', timeOfDay: '09:00:00' }],
+      priority: 'normal',
+      tags: ['mock'],
+    }),
+  knowledge: () =>
+    camelToSnakeObject({ kind: 'definition', status: 'active', topics: ['mock', 'briefing'] }),
+  procedures: () => camelToSnakeObject({ functionNames: ['build_daily_briefing'] }),
+};
+
 /** Published-artifact previews for one mock workflow, derived from its manifest. */
 export function mockWorkflowArtifacts(slug: string): WorkflowArtifact[] {
   const workflow = MOCK_WORKFLOWS.find((candidate) => candidate.slug === slug);
@@ -1010,7 +1041,7 @@ export function mockWorkflowArtifacts(slug: string): WorkflowArtifact[] {
           MOCK_ARTIFACT_BODIES[`${slug}/${kind}/${item.name}`] ??
           MOCK_ARTIFACT_DEFAULTS[kind](item.name),
         schedule: item.schedule,
-        meta: {},
+        meta: MOCK_ARTIFACT_META[kind]?.(item) ?? {},
       }))
   );
 }
