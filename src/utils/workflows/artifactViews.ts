@@ -103,3 +103,22 @@ export function artifactClaimMeta(artifact: WorkflowArtifact): {
 export function artifactProcedureFunctions(artifact: WorkflowArtifact): string[] {
   return asStringArray(artifact.meta?.function_names ?? artifact.meta?.functionNames);
 }
+
+/**
+ * What a bundled canvas reads and what it can do.
+ *
+ * Deliberately no source: a canvas's `view.tsx` is never published to the shelf,
+ * because raw TypeScript is noise for someone deciding whether to install and
+ * the code is an implementation detail rather than the answer. Unlike a
+ * function, where the implementation *is* what a reader came for.
+ */
+export function artifactCanvasMeta(artifact: WorkflowArtifact): {
+  bindsTo: string[];
+  actions: string[];
+} {
+  const meta = artifact.meta ?? {};
+  return {
+    bindsTo: asStringArray(meta.binds_to ?? meta.bindsTo),
+    actions: asStringArray(meta.actions),
+  };
+}

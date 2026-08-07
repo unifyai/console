@@ -18,6 +18,7 @@ import { getTaskCardFields } from '@/utils/assistants/tasks';
 import {
   artifactAsFunctionEntry,
   artifactAsTaskRow,
+  artifactCanvasMeta,
   artifactClaimMeta,
   artifactProcedureFunctions,
 } from '@/utils/workflows/artifactViews';
@@ -209,6 +210,54 @@ function ArtifactBody({ artifact }: { artifact: WorkflowArtifact }) {
                   className="bg-muted/40 text-code-sm rounded-md border px-2 py-0.5 text-muted-foreground"
                 >
                   {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (artifact.kind === 'canvases') {
+    const { bindsTo, actions } = artifactCanvasMeta(artifact);
+    return (
+      <div className="space-y-4" data-testid="workflow-artifact-canvas">
+        {/* A description, never the source. A canvas is the one artifact whose
+            substance is not what a reader wants: raw TSX is noise for someone
+            deciding whether to install, and the shelf deliberately does not
+            publish view.tsx at all. What matters is what the view shows, what
+            it reads, and what it can do. */}
+        {artifact.body ? (
+          <AssistantMarkdown>{artifact.body}</AssistantMarkdown>
+        ) : (
+          <p className="text-body-muted">No description published for this view yet.</p>
+        )}
+        {bindsTo.length > 0 && (
+          <div className="space-y-1">
+            <DetailLabel>Reads from</DetailLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {bindsTo.map((table) => (
+                <span
+                  key={table}
+                  className="bg-muted/40 text-code-sm rounded-md border px-2 py-0.5 text-muted-foreground"
+                >
+                  {table}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {actions.length > 0 && (
+          <div className="space-y-1">
+            <DetailLabel>Can do</DetailLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {actions.map((action) => (
+                <span
+                  key={action}
+                  className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-soft-foreground"
+                >
+                  {action}
                 </span>
               ))}
             </div>
