@@ -174,6 +174,7 @@ export function WorkflowsPane({
                 onUpdate={catalog.update}
                 onNavigate={openSection}
                 onPreview={(kind, name) => setPreview({ kind, name })}
+                requirementsResolving={!integrations.hasLoaded}
                 preview={preview ? previewArtifact : null}
                 previewLoading={artifacts.isLoading}
                 onPreviewBack={() => setPreview(null)}

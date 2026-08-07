@@ -26,11 +26,14 @@ import {
 export function WorkflowRequirementList({
   workflow,
   connectingSlug,
+  isResolving,
   onConnect,
   onSupplySecret,
 }: {
   workflow: Workflow;
   connectingSlug?: string | null;
+  /** True while the integrations catalogue has not answered yet. */
+  isResolving?: boolean;
   onConnect: (canonicalSlug: string) => void;
   /** Opens wherever secrets are entered for this assistant. */
   onSupplySecret?: (requirement: WorkflowRequirement) => void;
@@ -49,15 +52,25 @@ export function WorkflowRequirementList({
             className="flex items-center gap-3 p-3"
             data-testid={`workflow-requirement-${requirement.canonicalSlug}`}
           >
-            <WorkflowAppIcon requirement={requirement} size="md" />
+            {isResolving ? (
+              <span className="bg-muted/50 h-[34px] w-[34px] shrink-0 animate-pulse rounded-[10px]" />
+            ) : (
+              <WorkflowAppIcon requirement={requirement} size="md" />
+            )}
             <div className="min-w-0 flex-1">
               <p className="text-title text-sm">{requirement.displayName}</p>
-              <p className="text-caption">
-                {requirementStatusCopy(requirement, needsConnection, needsSecret)}
-              </p>
+              {isResolving ? (
+                <span className="bg-muted/50 mt-1 block h-3 w-48 animate-pulse rounded" />
+              ) : (
+                <p className="text-caption">
+                  {requirementStatusCopy(requirement, needsConnection, needsSecret)}
+                </p>
+              )}
             </div>
 
-            {unresolved ? (
+            {isResolving ? (
+              <span className="bg-muted/50 h-5 w-20 shrink-0 animate-pulse rounded-full" />
+            ) : unresolved ? (
               <span
                 className="text-label flex shrink-0 items-center gap-1.5 text-muted-foreground"
                 data-testid={`workflow-requirement-unresolved-${requirement.canonicalSlug}`}

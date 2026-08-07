@@ -79,6 +79,7 @@ export function WorkflowDetailSheet({
   onUpdate,
   onNavigate,
   onPreview,
+  requirementsResolving,
   preview = null,
   previewLoading,
   onPreviewBack,
@@ -112,6 +113,8 @@ export function WorkflowDetailSheet({
   onUpdate: (slug: string) => void;
   /** Opens the rail section where a planted surface lives. */
   onNavigate?: (kind: WorkflowSurfaceKind) => void;
+  /** True until the integrations catalogue has answered for requirements. */
+  requirementsResolving?: boolean;
   /** Previews one manifest item by swapping this drawer to it. */
   onPreview?: (kind: WorkflowSurfaceKind, name: string) => void;
   /** The artifact being previewed; when set, the drawer shows it instead. */
