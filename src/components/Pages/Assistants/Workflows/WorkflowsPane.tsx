@@ -5,13 +5,11 @@ import { toast } from 'sonner';
 import { TabFooter } from '../Common/TabFooter';
 import { WorkflowsGalleryShell } from '@/components/Workflows/WorkflowsGalleryShell';
 import { WorkflowDetailSheet } from '@/components/Workflows/WorkflowDetailSheet';
-import { WorkflowArtifactSheet } from '@/components/Workflows/WorkflowArtifactSheet';
 import { UninstallWorkflowDialog } from '@/components/Workflows/UninstallWorkflowDialog';
 import { WorkflowConnectAppSheet } from './WorkflowConnectAppSheet';
 import { WORKFLOW_SURFACES } from '@/components/Workflows/workflowCategories';
 import { useWorkflowCatalog } from '@/hooks/Workflows/useWorkflowCatalog';
 import { useWorkflowArtifacts } from '@/hooks/Workflows/useWorkflowArtifacts';
-import { useRequirementDefinitions } from '@/hooks/Workflows/useRequirementDefinitions';
 import { useProviderIntegrationCatalog } from '@/hooks/Assistants/useProviderIntegrationCatalog';
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
@@ -60,52 +58,30 @@ export function WorkflowsPane({
     enabled: dataEnabled && !!secretActions,
   });
 
-  const knownSlugs = React.useMemo(
-    () => new Set(integrations.definitions.map((definition) => definition.canonicalSlug)),
-    [integrations.definitions]
+  // One context, built from what this app already loads. Resolution itself —
+  // including fetching definitions for requirement slugs the browse page does
+  // not happen to carry — belongs to the catalogue hook, which is the only
+  // place that knows which slugs the shelf actually requires.
+  const requirementContext = React.useMemo(
+    () => ({
+      definitionsBySlug: new Map(
+        integrations.definitions.map(
+          (definition) => [definition.canonicalSlug, definition] as const
+        )
+      ),
+      secretNames: new Set(secrets.secrets.map((secret) => secret.name)),
+    }),
+    [integrations.definitions, secrets.secrets]
   );
 
   const catalog = useWorkflowCatalog(assistantId, {
     enabled: dataEnabled,
     assistant,
-    requirementContext: undefined,
+    requirementContext,
+    // Lets the hook fill gaps in the context by slug, for a required app that
+    // sorts past the browse page.
+    resolveMissingDefinitions: dataEnabled && integrations.hasLoaded && !integrations.isMock,
   });
-
-  // The browse catalogue carries one alphabetical page plus the pinned
-  // connected apps; a required-but-unconnected app can sort far past it.
-  // Fetch those few definitions by slug so every requirement resolves.
-  const requirementSlugs = React.useMemo(() => {
-    const slugs = new Set<string>();
-    for (const item of catalog.items) {
-      for (const requirement of item.workflow.requirements) {
-        slugs.add(requirement.canonicalSlug);
-      }
-    }
-    return [...slugs].sort();
-  }, [catalog.items]);
-
-  const extraDefinitions = useRequirementDefinitions({
-    assistantId,
-    slugs: requirementSlugs,
-    knownSlugs,
-    enabled: dataEnabled && integrations.hasLoaded && !integrations.isMock,
-  });
-
-  const requirementContext = React.useMemo(
-    () => ({
-      // Base definitions win: they carry the merged connection state.
-      definitionsBySlug: new Map([
-        ...Object.entries(extraDefinitions).flatMap(([slug, definition]) =>
-          definition ? [[slug, definition] as const] : []
-        ),
-        ...integrations.definitions.map(
-          (definition) => [definition.canonicalSlug, definition] as const
-        ),
-      ]),
-      secretNames: new Set(secrets.secrets.map((secret) => secret.name)),
-    }),
-    [integrations.definitions, extraDefinitions, secrets.secrets]
-  );
 
   const [openSlug, setOpenSlug] = React.useState<string | null>(null);
   const [uninstallSlug, setUninstallSlug] = React.useState<string | null>(null);
@@ -198,6 +174,9 @@ export function WorkflowsPane({
                 onUpdate={catalog.update}
                 onNavigate={openSection}
                 onPreview={(kind, name) => setPreview({ kind, name })}
+                preview={preview ? previewArtifact : null}
+                previewLoading={artifacts.isLoading}
+                onPreviewBack={() => setPreview(null)}
                 onSupplySecret={(requirement) => {
                   // Secrets are entered on the Integrations surface, so this is
                   // the one requirement route that genuinely lives elsewhere.
@@ -208,16 +187,6 @@ export function WorkflowsPane({
                   navigateToAssistants({ sectionId: 'integrations' });
                 }}
                 onWatchInActions={() => navigateToAssistants({ sectionId: 'actions' })}
-              />
-              <WorkflowArtifactSheet
-                artifact={previewArtifact}
-                open={!!preview}
-                isLoading={artifacts.isLoading}
-                onBack={() => setPreview(null)}
-                onNavigate={(kind) => {
-                  setPreview(null);
-                  openSection(kind);
-                }}
               />
               <UninstallWorkflowDialog
                 item={bySlug(uninstallSlug)}

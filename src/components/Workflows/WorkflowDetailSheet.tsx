@@ -12,6 +12,7 @@ import { WorkflowTileIcon } from './WorkflowTileIcon';
 import { WorkflowDetailSkeleton } from './WorkflowCardSkeleton';
 import { WorkflowRequirementList } from './WorkflowRequirementList';
 import { WorkflowManifestGroups } from './WorkflowManifestGroups';
+import { WorkflowArtifactView } from './WorkflowArtifactView';
 import {
   WorkflowParamsForm,
   missingRequiredParams,
@@ -40,6 +41,7 @@ import {
   unmetRequirements,
   workflowCardState,
   type WorkflowDestination,
+  type WorkflowArtifact,
   type WorkflowGalleryItem,
   type WorkflowRequirement,
   type WorkflowSurfaceKind,
@@ -77,6 +79,9 @@ export function WorkflowDetailSheet({
   onUpdate,
   onNavigate,
   onPreview,
+  preview = null,
+  previewLoading,
+  onPreviewBack,
   onSupplySecret,
   onWatchInActions,
 }: {
@@ -107,8 +112,14 @@ export function WorkflowDetailSheet({
   onUpdate: (slug: string) => void;
   /** Opens the rail section where a planted surface lives. */
   onNavigate?: (kind: WorkflowSurfaceKind) => void;
-  /** Previews one manifest item in place, in a sheet above this one. */
+  /** Previews one manifest item by swapping this drawer to it. */
   onPreview?: (kind: WorkflowSurfaceKind, name: string) => void;
+  /** The artifact being previewed; when set, the drawer shows it instead. */
+  preview?: WorkflowArtifact | null;
+  /** True while the previewed artifact's body is still arriving. */
+  previewLoading?: boolean;
+  /** Returns from a preview to the workflow itself. */
+  onPreviewBack?: () => void;
   /** Opens wherever secrets are entered, for the secret-gated routes. */
   onSupplySecret?: (requirement: WorkflowRequirement) => void;
   onWatchInActions?: () => void;
@@ -135,6 +146,12 @@ export function WorkflowDetailSheet({
   const [values, setValues] = React.useState<WorkflowParamValues>(defaults);
   const [destinationKind, setDestinationKind] = React.useState<'personal' | 'team'>('personal');
   const [dirty, setDirty] = React.useState(false);
+  // Which way the pane last moved, so returning slides back rather than
+  // repeating the forward motion. Reading is a place you go and come back from.
+  const [wentForward, setWentForward] = React.useState(true);
+  React.useEffect(() => {
+    if (preview) setWentForward(true);
+  }, [preview]);
 
   React.useEffect(() => {
     setValues(defaults);
@@ -195,205 +212,234 @@ export function WorkflowDetailSheet({
         style={categoryStyle(workflow.category)}
         data-testid={`workflow-sheet-${workflow.slug}`}
       >
-        <header className="flex items-start gap-3 border-b p-5">
-          <WorkflowTileIcon iconId={workflow.iconId} category={workflow.category} size="lg" />
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              <span
-                className="h-1.5 w-1.5 rounded-[2px] bg-[color:var(--wf-cat)]"
-                aria-hidden="true"
-              />
-              {WORKFLOW_CATEGORY_LABEL[workflow.category]} · curated by Unify
-            </p>
-            <SheetTitle className="text-doc-title mt-1">{workflow.name}</SheetTitle>
-            <SheetDescription className="text-body-muted mt-1">
-              {workflow.description}
-            </SheetDescription>
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              <WorkflowStatusBadge state={workflowCardState(item)} />
-              <Badge
-                variant="outline"
-                className="rounded-full font-mono text-[10.5px] text-muted-foreground"
-              >
-                v{installation?.installedVersion ?? workflow.version}
-              </Badge>
-              {hasUpdate(item) && <WorkflowUpdateBadge version={workflow.version} />}
-              {installation?.destination.kind === 'team' && (
-                <WorkflowDestinationBadge
-                  teamName={installation.destination.teamName}
-                  memberCount={installation.destination.memberCount}
-                />
-              )}
-              {installation?.destination.kind === 'personal' && (
-                <Badge
-                  variant="outline"
-                  className="rounded-full text-[10.5px] text-muted-foreground"
-                >
-                  Personal install
-                </Badge>
-              )}
-            </div>
+        {preview ? (
+          <div
+            key="preview"
+            className="flex h-full min-h-0 flex-col duration-200 animate-in slide-in-from-right-8"
+          >
+            <WorkflowArtifactView
+              artifact={preview}
+              isLoading={previewLoading}
+              onBack={() => {
+                setWentForward(false);
+                onPreviewBack?.();
+              }}
+              onNavigate={onNavigate}
+            />
           </div>
-        </header>
-
-        <ScrollArea
-          className="min-h-0 flex-1"
-          viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
-        >
-          <div className="flex flex-col gap-5 p-4 sm:p-5">
-            {isLoading ? (
-              <WorkflowDetailSkeleton />
-            ) : isInstalling ? (
-              <ProvisioningProgress
-                kinds={plantedKinds}
-                step={provisioningStep ?? 0}
-                counts={Object.fromEntries(
-                  plantedKinds.map((kind) => [kind, workflow.sets[kind]?.length ?? 0])
-                )}
-                destinationLabel={destinationKind === 'team' && team ? team.name : 'your assistant'}
-                workflowName={workflow.name}
-              />
-            ) : (
-              <>
-                {banner()}
-
-                {workflow.about && (
-                  <Section title="About">
-                    <AssistantMarkdown>{workflow.about}</AssistantMarkdown>
-                  </Section>
-                )}
-
-                <Section
-                  title="What it needs"
-                  hint={`${workflow.requirements.length} app${workflow.requirements.length === 1 ? '' : 's'}${
-                    workflow.capabilities.length
-                      ? ` · ${workflow.capabilities.length} capability`
-                      : ''
-                  }`}
-                >
-                  <WorkflowRequirementList
-                    workflow={workflow}
-                    onConnect={onConnect}
-                    onSupplySecret={onSupplySecret}
+        ) : (
+          <div
+            key="detail"
+            className={cn(
+              'flex h-full min-h-0 flex-col duration-200 animate-in',
+              wentForward ? 'fade-in' : 'slide-in-from-left-8'
+            )}
+          >
+            <header className="flex items-start gap-3 border-b p-5">
+              <WorkflowTileIcon iconId={workflow.iconId} category={workflow.category} size="lg" />
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  <span
+                    className="h-1.5 w-1.5 rounded-[2px] bg-[color:var(--wf-cat)]"
+                    aria-hidden="true"
                   />
-                </Section>
+                  {WORKFLOW_CATEGORY_LABEL[workflow.category]} · curated by Unify
+                </p>
+                <SheetTitle className="text-doc-title mt-1">{workflow.name}</SheetTitle>
+                <SheetDescription className="text-body-muted mt-1">
+                  {workflow.description}
+                </SheetDescription>
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                  <WorkflowStatusBadge state={workflowCardState(item)} />
+                  <Badge
+                    variant="outline"
+                    className="rounded-full font-mono text-[10.5px] text-muted-foreground"
+                  >
+                    v{installation?.installedVersion ?? workflow.version}
+                  </Badge>
+                  {hasUpdate(item) && <WorkflowUpdateBadge version={workflow.version} />}
+                  {installation?.destination.kind === 'team' && (
+                    <WorkflowDestinationBadge
+                      teamName={installation.destination.teamName}
+                      memberCount={installation.destination.memberCount}
+                    />
+                  )}
+                  {installation?.destination.kind === 'personal' && (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full text-[10.5px] text-muted-foreground"
+                    >
+                      Personal install
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </header>
 
-                <Section
-                  title={installMode ? 'What it needs from you' : 'Settings'}
-                  hint={installMode ? 'set once, editable later' : 'changes apply to the next run'}
-                >
-                  <WorkflowParamsForm
-                    params={workflow.paramsSchema}
-                    values={values}
-                    onChange={handleChange}
+            <ScrollArea
+              className="min-h-0 flex-1"
+              viewportClassName="min-w-0 overflow-x-hidden [&>div]:!block"
+            >
+              <div className="flex flex-col gap-5 p-4 sm:p-5">
+                {isLoading ? (
+                  <WorkflowDetailSkeleton />
+                ) : isInstalling ? (
+                  <ProvisioningProgress
+                    kinds={plantedKinds}
+                    step={provisioningStep ?? 0}
+                    counts={Object.fromEntries(
+                      plantedKinds.map((kind) => [kind, workflow.sets[kind]?.length ?? 0])
+                    )}
+                    destinationLabel={
+                      destinationKind === 'team' && team ? team.name : 'your assistant'
+                    }
+                    workflowName={workflow.name}
                   />
-                </Section>
+                ) : (
+                  <>
+                    {banner()}
 
-                <Section
-                  title={installMode ? 'What it will set up' : 'What it set up'}
-                  hint="tap any item to read it"
-                >
-                  <WorkflowManifestGroups
-                    workflow={workflow}
-                    installation={installation}
-                    onNavigate={onNavigate}
-                    onPreview={onPreview}
-                  />
-                </Section>
+                    {workflow.about && (
+                      <Section title="About">
+                        <AssistantMarkdown>{workflow.about}</AssistantMarkdown>
+                      </Section>
+                    )}
 
-                {installMode && team && (
-                  <Section title="Install for">
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      <DestinationCard
-                        selected={destinationKind === 'personal'}
-                        icon={<User className="h-4 w-4" />}
-                        title="Just me"
-                        detail="Only your assistant is changed."
-                        onSelect={() => setDestinationKind('personal')}
+                    <Section
+                      title="What it needs"
+                      hint={`${workflow.requirements.length} app${workflow.requirements.length === 1 ? '' : 's'}${
+                        workflow.capabilities.length
+                          ? ` · ${workflow.capabilities.length} capability`
+                          : ''
+                      }`}
+                    >
+                      <WorkflowRequirementList
+                        workflow={workflow}
+                        onConnect={onConnect}
+                        onSupplySecret={onSupplySecret}
                       />
-                      <DestinationCard
-                        selected={destinationKind === 'team'}
-                        icon={<Users className="h-4 w-4" />}
-                        title={team.name}
-                        detail={`Plants into the shared assistant — ${team.memberCount} people see it and its jobs act for the team.`}
-                        onSelect={() => setDestinationKind('team')}
+                    </Section>
+
+                    <Section
+                      title={installMode ? 'What it needs from you' : 'Settings'}
+                      hint={
+                        installMode ? 'set once, editable later' : 'changes apply to the next run'
+                      }
+                    >
+                      <WorkflowParamsForm
+                        params={workflow.paramsSchema}
+                        values={values}
+                        onChange={handleChange}
                       />
-                    </div>
-                  </Section>
+                    </Section>
+
+                    <Section
+                      title={installMode ? 'What it will set up' : 'What it set up'}
+                      hint="tap any item to read it"
+                    >
+                      <WorkflowManifestGroups
+                        workflow={workflow}
+                        installation={installation}
+                        onNavigate={onNavigate}
+                        onPreview={onPreview}
+                      />
+                    </Section>
+
+                    {installMode && team && (
+                      <Section title="Install for">
+                        <div className="grid gap-2.5 sm:grid-cols-2">
+                          <DestinationCard
+                            selected={destinationKind === 'personal'}
+                            icon={<User className="h-4 w-4" />}
+                            title="Just me"
+                            detail="Only your assistant is changed."
+                            onSelect={() => setDestinationKind('personal')}
+                          />
+                          <DestinationCard
+                            selected={destinationKind === 'team'}
+                            icon={<Users className="h-4 w-4" />}
+                            title={team.name}
+                            detail={`Plants into the shared assistant — ${team.memberCount} people see it and its jobs act for the team.`}
+                            onSelect={() => setDestinationKind('team')}
+                          />
+                        </div>
+                      </Section>
+                    )}
+                  </>
                 )}
-              </>
+              </div>
+            </ScrollArea>
+
+            {!isInstalling && !isLoading && (
+              <footer className="flex flex-wrap items-center gap-2 border-t p-3.5">
+                {installMode ? (
+                  <>
+                    <span className="text-caption flex-1">
+                      {!canMutate
+                        ? 'Installing from Console is coming — ask your teammate in chat to install this.'
+                        : missingParams.length
+                          ? `Fill ${missingParams.map((param) => param.label.toLowerCase()).join(', ')} to install`
+                          : `${recurringCount} job${recurringCount === 1 ? '' : 's'} will be created`}
+                    </span>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      className="gap-1.5"
+                      disabled={missingParams.length > 0 || !canMutate}
+                      onClick={() =>
+                        onInstall(
+                          values,
+                          destinationKind === 'team' && team
+                            ? {
+                                kind: 'team',
+                                teamId: team.id,
+                                teamName: team.name,
+                                memberCount: team.memberCount,
+                              }
+                            : { kind: 'personal' }
+                        )
+                      }
+                      data-testid={`workflow-install-${workflow.slug}`}
+                    >
+                      <Download className="h-4 w-4" />
+                      {missing.length ? 'Install anyway' : 'Install'}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="warningOutline"
+                      className="gap-1.5"
+                      disabled={!canMutate}
+                      onClick={() => onUninstall(item)}
+                      data-testid={`workflow-uninstall-${workflow.slug}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Uninstall
+                    </Button>
+                    <span className="flex-1" />
+                    {!canMutate && (
+                      <span className="text-caption">Changes from Console are coming soon</span>
+                    )}
+                    {canMutate && dirty && <span className="text-caption">Unsaved settings</span>}
+                    <Button
+                      type="button"
+                      disabled={!dirty || !canMutate}
+                      onClick={() => {
+                        onSaveParams(workflow.slug, values);
+                        setDirty(false);
+                      }}
+                    >
+                      Save settings
+                    </Button>
+                  </>
+                )}
+              </footer>
             )}
           </div>
-        </ScrollArea>
-
-        {!isInstalling && !isLoading && (
-          <footer className="flex flex-wrap items-center gap-2 border-t p-3.5">
-            {installMode ? (
-              <>
-                <span className="text-caption flex-1">
-                  {!canMutate
-                    ? 'Installing from Console is coming — ask your teammate in chat to install this.'
-                    : missingParams.length
-                      ? `Fill ${missingParams.map((param) => param.label.toLowerCase()).join(', ')} to install`
-                      : `${recurringCount} job${recurringCount === 1 ? '' : 's'} will be created`}
-                </span>
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  className="gap-1.5"
-                  disabled={missingParams.length > 0 || !canMutate}
-                  onClick={() =>
-                    onInstall(
-                      values,
-                      destinationKind === 'team' && team
-                        ? {
-                            kind: 'team',
-                            teamId: team.id,
-                            teamName: team.name,
-                            memberCount: team.memberCount,
-                          }
-                        : { kind: 'personal' }
-                    )
-                  }
-                  data-testid={`workflow-install-${workflow.slug}`}
-                >
-                  <Download className="h-4 w-4" />
-                  {missing.length ? 'Install anyway' : 'Install'}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="warningOutline"
-                  className="gap-1.5"
-                  disabled={!canMutate}
-                  onClick={() => onUninstall(item)}
-                  data-testid={`workflow-uninstall-${workflow.slug}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Uninstall
-                </Button>
-                <span className="flex-1" />
-                {!canMutate && (
-                  <span className="text-caption">Changes from Console are coming soon</span>
-                )}
-                {canMutate && dirty && <span className="text-caption">Unsaved settings</span>}
-                <Button
-                  type="button"
-                  disabled={!dirty || !canMutate}
-                  onClick={() => {
-                    onSaveParams(workflow.slug, values);
-                    setDirty(false);
-                  }}
-                >
-                  Save settings
-                </Button>
-              </>
-            )}
-          </footer>
         )}
       </SheetContent>
     </Sheet>
@@ -411,11 +457,15 @@ function Section({
 }) {
   return (
     <section>
-      <div className="mb-2.5 flex items-baseline gap-2">
+      {/* Title and hint are pushed apart and underlined rather than set side by
+          side: at the same baseline with a small gap, a mono uppercase label ran
+          straight into its sentence-case annotation and read as one phrase
+          ("WHAT IT NEEDS 1 app"). The rule also makes each section a block. */}
+      <div className="mb-3 flex items-baseline justify-between gap-4 border-b pb-1.5">
         <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {title}
         </h3>
-        {hint && <span className="text-caption">{hint}</span>}
+        {hint && <span className="text-caption shrink-0 normal-case tracking-normal">{hint}</span>}
       </div>
       {children}
     </section>
