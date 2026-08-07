@@ -190,11 +190,7 @@ export function FunctionsPane({
           if (!open) setSelected(null);
         }}
       >
-        <SheetContent
-          side="right"
-          className="flex w-full max-w-[min(100vw,42rem)] flex-col"
-          data-testid="function-detail"
-        >
+        <SheetContent side="right" className="flex flex-col" data-testid="function-detail">
           <SheetHeader className="shrink-0 space-y-2">
             <div>
               <SheetTitle className="break-all font-mono text-[15px]">{selected?.name}</SheetTitle>

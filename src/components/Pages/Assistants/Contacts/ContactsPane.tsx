@@ -372,7 +372,7 @@ export function ContactsPane({
           if (!open) setSelected(null);
         }}
       >
-        <SheetContent side="right" className="flex w-full flex-col" data-testid="contact-detail">
+        <SheetContent side="right" className="flex flex-col" data-testid="contact-detail">
           <SheetHeader className="shrink-0">
             <div className="flex items-center gap-3">
               {selected && <ContactCardAvatar card={selected} assistant={assistant} size="lg" />}

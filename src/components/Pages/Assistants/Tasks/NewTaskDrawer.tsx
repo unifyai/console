@@ -55,7 +55,7 @@ export function NewTaskDrawer({ open, onClose, onCreate }: NewTaskDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent side="right" className="flex w-full flex-col" data-testid="new-task-drawer">
+      <SheetContent side="right" className="flex flex-col" data-testid="new-task-drawer">
         <SheetHeader className="shrink-0">
           <SheetDescription className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent-soft-foreground">
             New task
