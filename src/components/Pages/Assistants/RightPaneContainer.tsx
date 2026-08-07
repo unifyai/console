@@ -268,6 +268,8 @@ export function RightPaneContainer({
           assistant={assistant}
           ownerId={assistant.userId}
           assistantId={assistant.agentId}
+          isVisible={activeTab === 'canvas'}
+          isActiveSurface={isActiveSurface}
         />
       </TabsContent>
 
