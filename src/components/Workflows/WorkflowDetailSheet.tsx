@@ -235,7 +235,7 @@ export function WorkflowDetailSheet({
               wentForward ? 'fade-in' : 'slide-in-from-left-8'
             )}
           >
-            <header className="flex items-start gap-3 border-b p-5">
+            <header className="flex items-start gap-3 border-b p-5 pr-12">
               <WorkflowTileIcon iconId={workflow.iconId} category={workflow.category} size="lg" />
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">

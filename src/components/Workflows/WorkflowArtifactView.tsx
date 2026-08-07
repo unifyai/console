@@ -53,7 +53,7 @@ export function WorkflowArtifactView({
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="workflow-artifact-view">
-      <header className="flex items-center gap-2 border-b p-3.5">
+      <header className="flex items-center gap-2 border-b p-3.5 pr-12">
         <Button
           type="button"
           variant="ghost"
