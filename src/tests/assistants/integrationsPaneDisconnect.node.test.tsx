@@ -48,7 +48,11 @@ vi.mock('@/utils/assistants/oauth', () => ({
   subscribeOAuthComplete: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('@/components/Integrations', () => ({
+// The gallery shell is stubbed to a list of buttons; everything else in the
+// barrel stays real, because the disconnect flow under test now lives in
+// `ProviderConnectSurface` and stubbing it out would test nothing.
+vi.mock('@/components/Integrations', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/Integrations')>()),
   IntegrationGalleryShell: ({
     filters,
     items,
@@ -107,6 +111,11 @@ vi.mock('@/components/Integrations', () => ({
       ))}
     </div>
   ),
+}));
+
+// The drawer itself is stubbed where the surface imports it, so the surface —
+// which owns the disconnect confirm, the request and the refresh — is real.
+vi.mock('@/components/Integrations/ProviderIntegrationDetailSheet', () => ({
   ProviderIntegrationDetailSheet: ({
     item,
     onDisconnectConnection,
@@ -243,6 +252,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
       generatedAt: null,
       hasMore: false,
       hasLoaded: true,
+      hasLoadedRequest: true,
       isConnecting: null,
       isDetailLoading: null,
       isLoadingMore: false,
@@ -313,6 +323,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
       generatedAt: null,
       hasMore: false,
       hasLoaded: true,
+      hasLoadedRequest: true,
       isConnecting: null,
       isDetailLoading: null,
       isLoadingMore: false,
@@ -352,6 +363,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
       generatedAt: null,
       hasMore: false,
       hasLoaded: true,
+      hasLoadedRequest: true,
       isConnecting: null,
       isDetailLoading: null,
       isLoadingMore: false,
