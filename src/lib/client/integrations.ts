@@ -951,6 +951,51 @@ export async function getProviderIntegrationCatalogCount(args: {
  * be worse than the allow-list — it lets the row's embedding vector
  * through.)
  */
+/**
+ * Fold the owner's live connection rows onto their app definitions.
+ *
+ * The app row carries at most a *summary* of one connection — a status, an
+ * id and a label, flattened onto the app itself. The drawer needs the rows:
+ * "Authorization in progress", Cancel setup, Disconnect, per-account tool
+ * policy and the multi-account list are all read off `connections`, and a
+ * summary reconstituted into a single synthetic row silently drops eleven
+ * of its eighteen fields and every account after the first.
+ *
+ * Both the browse catalogue and a by-slug resolve go through here, so the
+ * two cannot hand the same drawer different data.
+ */
+export function mergeDefinitionsWithConnections(
+  providerDefinitions: IntegrationDefinition[],
+  providerConnections: IntegrationConnection[]
+): IntegrationDefinition[] {
+  const visibleConnections = providerConnections.filter(
+    (connection) => connection.status !== 'disconnected' && !isTriggerOnlyConnection(connection)
+  );
+  const bySlug = new Map<string, IntegrationConnection[]>();
+  for (const connection of visibleConnections) {
+    bySlug.set(connection.canonicalSlug, [
+      ...(bySlug.get(connection.canonicalSlug) ?? []),
+      connection,
+    ]);
+  }
+  return providerDefinitions.map((definition) => {
+    const connections = bySlug.get(definition.canonicalSlug) ?? [];
+    if (connections.length === 0) return definition;
+    return {
+      ...definition,
+      status: connections[0]?.status ?? definition.status,
+      connections: [
+        ...connections,
+        ...definition.connections.filter(
+          (item) =>
+            !connections.some((connection) => connection.id === item.id) &&
+            item.status !== 'disconnected'
+        ),
+      ],
+    };
+  });
+}
+
 export async function listProviderIntegrationDefinitionsBySlugs(args: {
   ownerScope: IntegrationOwnerScope;
   assistantId?: string | number;
@@ -974,10 +1019,11 @@ export async function listProviderIntegrationDefinitionsBySlugs(args: {
   ]);
 
   const bySlug = connectionsBySlug(providerConnections);
-  return (appPage.logs ?? [])
+  const definitions = (appPage.logs ?? [])
     .map((log) => log.entries)
     .filter(Boolean)
     .map((app) => mapProviderAppToDefinition(overlayAppConnections(app!, bySlug)));
+  return mergeDefinitionsWithConnections(definitions, providerConnections);
 }
 
 export async function getProviderIntegrationDetails(args: {

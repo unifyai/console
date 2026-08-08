@@ -8,6 +8,7 @@ import {
   getProviderIntegrationDetails,
   listProviderIntegrationConnections,
   listProviderIntegrationDefinitionsBySlugs,
+  mergeDefinitionsWithConnections,
   listProviderIntegrationDefinitionsPage,
   requestUnityIntegrationToolsSync,
   startProviderIntegrationConnect,
@@ -66,38 +67,6 @@ function buildProviderIntegrationCallbackUrl(returnTo: string, assistantId: stri
 
 function hasDeferredProviderDetails(source: IntegrationSourceKind): boolean {
   return source === 'provider_backed' || source === 'overlay_curated';
-}
-
-function mergeDefinitionsWithConnections(
-  providerDefinitions: IntegrationDefinition[],
-  providerConnections: IntegrationConnection[]
-): IntegrationDefinition[] {
-  const visibleConnections = providerConnections.filter(
-    (connection) => connection.status !== 'disconnected' && !isTriggerOnlyConnection(connection)
-  );
-  const connectionsBySlug = new Map<string, typeof visibleConnections>();
-  for (const connection of visibleConnections) {
-    connectionsBySlug.set(connection.canonicalSlug, [
-      ...(connectionsBySlug.get(connection.canonicalSlug) ?? []),
-      connection,
-    ]);
-  }
-  return providerDefinitions.map((definition) => {
-    const connections = connectionsBySlug.get(definition.canonicalSlug) ?? [];
-    if (connections.length === 0) return definition;
-    return {
-      ...definition,
-      status: connections[0]?.status ?? definition.status,
-      connections: [
-        ...connections,
-        ...definition.connections.filter(
-          (item) =>
-            !connections.some((connection) => connection.id === item.id) &&
-            item.status !== 'disconnected'
-        ),
-      ],
-    };
-  });
 }
 
 function statusGroupForDefinition(definition: IntegrationDefinition): ProviderAppStatusGroup {
