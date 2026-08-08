@@ -38,9 +38,12 @@ export function WorkflowCard({
   onConnect,
   onConnectWorkspace,
   request,
+  isResolving = false,
 }: {
   item: WorkflowGalleryItem;
   busy?: boolean;
+  /** True until the integrations catalogue has answered for this card's apps. */
+  isResolving?: boolean;
   /** A recorded change the assistant is carrying out for this workflow. */
   request?: WorkflowRequestState;
   onOpen: (item: WorkflowGalleryItem) => void;
@@ -73,6 +76,11 @@ export function WorkflowCard({
       );
     }
     if (installation.status === 'pending_requirements') {
+      if (isResolving) {
+        // Naming the apps it is waiting on states a verdict the catalogue
+        // has not given yet, and the names change once it does.
+        return <span className="bg-muted/50 block h-3 w-40 animate-pulse rounded" />;
+      }
       return (
         <span className="text-caption truncate">
           Waiting on{' '}
@@ -203,7 +211,7 @@ export function WorkflowCard({
       <CardContent className="flex h-full flex-col gap-2.5 p-4">
         <div className="flex items-start justify-between gap-2.5">
           <WorkflowTileIcon iconId={workflow.iconId} category={workflow.category} />
-          <WorkflowAppIconStack requirements={workflow.requirements} />
+          <WorkflowAppIconStack requirements={workflow.requirements} isResolving={isResolving} />
         </div>
 
         <div>

@@ -185,3 +185,71 @@ describe('WorkflowRequirementList', () => {
     expect(screen.queryByTestId('workflow-requirement-secret-gmail')).not.toBeInTheDocument();
   });
 });
+
+/**
+ * The skeletons exist; what regressed is them never being reached.
+ *
+ * `WorkflowDetailSheet` destructured `requirementsResolving` and never
+ * passed it on, so every requirement rendered its greyed "Unverified" row
+ * for as long as the catalogue took — the skeleton branch below was dead
+ * code the whole time. A prop dropped between a parent and its child is
+ * invisible to a test of either one alone, so this renders the sheet.
+ */
+describe('WorkflowDetailSheet — while requirements are unresolved', () => {
+  const item = {
+    workflow: {
+      ...workflow([
+        { canonicalSlug: 'gmail', displayName: 'Gmail', via: 'unresolved', connected: false },
+      ]),
+      paramsSchema: [],
+    },
+  };
+
+  it('shows placeholders rather than a verdict, and holds the install button', async () => {
+    const { WorkflowDetailSheet } = await import('@/components/Workflows/WorkflowDetailSheet');
+    render(
+      <WorkflowDetailSheet
+        item={item}
+        open
+        requirementsResolving
+        onOpenChange={vi.fn()}
+        onConnect={vi.fn()}
+        onInstall={vi.fn()}
+        onSaveParams={vi.fn()}
+        onUninstall={vi.fn()}
+        onToggleSetup={vi.fn()}
+        onStopSetup={vi.fn()}
+        onRetry={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    // No "Unverified", no grey letter-plate standing in for a logo.
+    expect(screen.queryByTestId('workflow-requirement-unresolved-gmail')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't check this app/)).not.toBeInTheDocument();
+    // And nothing installable on a verdict we do not have.
+    expect(screen.getByRole('button', { name: /install/i })).toBeDisabled();
+  });
+
+  it('states the verdict once there is one', async () => {
+    const { WorkflowDetailSheet } = await import('@/components/Workflows/WorkflowDetailSheet');
+    render(
+      <WorkflowDetailSheet
+        item={item}
+        open
+        requirementsResolving={false}
+        onOpenChange={vi.fn()}
+        onConnect={vi.fn()}
+        onInstall={vi.fn()}
+        onSaveParams={vi.fn()}
+        onUninstall={vi.fn()}
+        onToggleSetup={vi.fn()}
+        onStopSetup={vi.fn()}
+        onRetry={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('workflow-requirement-unresolved-gmail')).toBeInTheDocument();
+  });
+});

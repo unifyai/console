@@ -352,6 +352,7 @@ export function WorkflowDetailSheet({
                     >
                       <WorkflowRequirementList
                         workflow={workflow}
+                        isResolving={requirementsResolving}
                         onConnect={onConnect}
                         onConnectWorkspace={onConnectWorkspace}
                         onSupplySecret={onSupplySecret}
@@ -425,7 +426,7 @@ export function WorkflowDetailSheet({
                     <Button
                       type="button"
                       className="gap-1.5"
-                      disabled={missingParams.length > 0 || !canMutate}
+                      disabled={missingParams.length > 0 || !canMutate || requirementsResolving}
                       onClick={() =>
                         onInstall(
                           values,
