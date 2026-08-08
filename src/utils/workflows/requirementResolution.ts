@@ -82,6 +82,24 @@ export function resolveRequirement(
   requirement: CatalogRequirement,
   context: RequirementResolutionContext
 ): WorkflowRequirement {
+  // Workspace first, and without consulting the gallery at all. It is the
+  // user's own Google or Microsoft account, connected in their profile —
+  // deliberately not a catalogue app — so a slug lookup finds nothing and
+  // reports "couldn't check this app" about the one requirement whose
+  // answer never depended on the gallery. Its signal is the refresh-token
+  // secret the connect flow stores, which the bundle names.
+  if (requirement.kind === 'workspace') {
+    const declared = requirement.requiredSecrets ?? [];
+    const missing = declared.filter((name) => !context.secretNames.has(name));
+    return {
+      canonicalSlug: requirement.slug,
+      displayName: requirement.name,
+      via: 'workspace',
+      connected: declared.length > 0 && missing.length === 0,
+      missingSecrets: missing.length > 0 ? missing : undefined,
+    };
+  }
+
   const definition = context.definitionsBySlug.get(requirement.slug);
 
   // Nothing resolvable: the integrations catalogue has not answered for this

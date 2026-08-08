@@ -78,10 +78,24 @@ export function useProviderIntegrationDetail({
   detailsBySlug: Record<string, IntegrationDefinition>;
   fetchDetails: (item: IntegrationDefinition) => Promise<unknown>;
 }): IntegrationGalleryItem | null {
+  // Keyed on the slug, never on the item.
+  //
+  // A caller that derives `selected` from a list — the workflows connect
+  // drawer finds it in a freshly-mapped gallery model on every render — hands
+  // in a new object each time, so an effect keyed on identity refetches on
+  // every render, and each fetch sets state that causes the next render. The
+  // detail fetch pulls up to 500 tool rows, so the drawer sat in a loading
+  // state issuing forty-second queries forever.
+  const slug = selected && hasDeferredDetail(selected) ? selected.canonicalSlug : null;
+  const selectedRef = React.useRef(selected);
+  selectedRef.current = selected;
+  const alreadyFetched = slug ? slug in detailsBySlug : true;
   React.useEffect(() => {
-    if (!selected || !hasDeferredDetail(selected)) return;
-    void fetchDetails(selected);
-  }, [fetchDetails, selected]);
+    if (!slug || alreadyFetched) return;
+    const item = selectedRef.current;
+    if (!item) return;
+    void fetchDetails(item);
+  }, [fetchDetails, slug, alreadyFetched]);
 
   return React.useMemo(() => {
     if (!selected) return null;

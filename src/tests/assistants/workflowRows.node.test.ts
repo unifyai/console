@@ -97,11 +97,42 @@ describe('catalogRowToWorkflow', () => {
   });
 
   it('reads requirements without inventing connection state', () => {
-    // The catalogue is connection-agnostic on purpose.
-    expect(catalogRowRequirements(catalogRow())).toEqual([{ slug: 'gmail', name: 'Gmail' }]);
+    // The catalogue is connection-agnostic on purpose: it says what the
+    // requirement *is* and how to answer it, never whether it is answered.
+    expect(catalogRowRequirements(catalogRow())).toEqual([
+      { slug: 'gmail', name: 'Gmail', kind: 'app', requiredSecrets: [] },
+    ]);
     expect(
       catalogRowRequirements(catalogRow({ requirements: '[{"slug":"notion","name":"Notion"}]' }))
-    ).toEqual([{ slug: 'notion', name: 'Notion' }]);
+    ).toEqual([{ slug: 'notion', name: 'Notion', kind: 'app', requiredSecrets: [] }]);
+  });
+
+  it('carries how a requirement is resolved, not just its slug', () => {
+    // Without these a reader has nothing but a gallery lookup — and a
+    // workspace is the user's own account, deliberately not a catalogue
+    // app, so the lookup finds nothing and reports "couldn't check this
+    // app" about the one requirement the gallery never answered for.
+    expect(
+      catalogRowRequirements(
+        catalogRow({
+          requirements: JSON.stringify([
+            {
+              slug: 'google_workspace',
+              name: 'Google Workspace',
+              kind: 'workspace',
+              required_secrets: ['GOOGLE_REFRESH_TOKEN'],
+            },
+          ]),
+        })
+      )
+    ).toEqual([
+      {
+        slug: 'google_workspace',
+        name: 'Google Workspace',
+        kind: 'workspace',
+        requiredSecrets: ['GOOGLE_REFRESH_TOKEN'],
+      },
+    ]);
   });
 });
 
