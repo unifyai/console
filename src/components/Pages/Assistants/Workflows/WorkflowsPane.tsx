@@ -215,7 +215,7 @@ export function WorkflowsPane({
                 onUpdate={catalog.update}
                 onNavigate={openSection}
                 onPreview={(kind, name) => setPreview({ kind, name })}
-                requirementsResolving={!integrations.hasLoaded}
+                requirementsResolving={catalog.requirementsResolving}
                 preview={preview ? previewArtifact : null}
                 previewLoading={artifacts.isLoading}
                 onPreviewBack={() => setPreview(null)}
@@ -246,6 +246,7 @@ export function WorkflowsPane({
                 canonicalSlug={connectSlug}
                 displayName={connectRequirement?.displayName ?? null}
                 open={!!connectSlug}
+                canWrite={canWrite}
                 onOpenChange={(next) => !next && setConnectSlug(null)}
                 onConnected={handleConnected}
               />
