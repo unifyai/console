@@ -28,7 +28,11 @@ export function useRequirementDefinitions({
   /** Slugs the base catalogue already resolves — never refetched here. */
   knownSlugs: Set<string>;
   enabled?: boolean;
-}): Record<string, IntegrationDefinition | null> {
+}): {
+  bySlug: Record<string, IntegrationDefinition | null>;
+  /** True while a required slug still has no answer either way. */
+  isResolving: boolean;
+} {
   const [bySlug, setBySlug] = React.useState<Record<string, IntegrationDefinition | null>>({});
 
   React.useEffect(() => {
@@ -59,5 +63,15 @@ export function useRequirementDefinitions({
     };
   }, [enabled, slugs, knownSlugs, bySlug, assistantId]);
 
-  return bySlug;
+  // Outstanding until every required slug is either in the base map or has
+  // been answered here — including answered with `null`. Without this the
+  // shelf called itself resolved the moment the *browse* page landed and
+  // rendered every not-yet-fetched app as "Couldn't check this app" for a
+  // few seconds, which is a verdict it did not have.
+  const isResolving = React.useMemo(
+    () => enabled && slugs.some((slug) => !knownSlugs.has(slug) && !(slug in bySlug)),
+    [enabled, slugs, knownSlugs, bySlug]
+  );
+
+  return { bySlug, isResolving };
 }
