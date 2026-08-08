@@ -250,6 +250,10 @@ export function WorkflowDetailSheet({
             key="preview"
             className="flex h-full min-h-0 flex-col duration-200 animate-in slide-in-from-right-8"
           >
+            {/* The preview pane replaces the header, and with it the only
+                SheetTitle — which Radix requires on every dialog. Named
+                for what is actually on screen rather than hidden empty. */}
+            <SheetTitle className="sr-only">{preview.name}</SheetTitle>
             <WorkflowArtifactView
               artifact={preview}
               isLoading={previewLoading}
