@@ -55,7 +55,7 @@ export function DocAddDrawer({ open, kind, onClose, onSave }: DocAddDrawerProps)
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent side="right" className="flex w-full flex-col" data-testid="doc-add-drawer">
+      <SheetContent side="right" className="flex flex-col" data-testid="doc-add-drawer">
         <SheetHeader className="shrink-0">
           <SheetDescription className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent-soft-foreground">
             New {kind}

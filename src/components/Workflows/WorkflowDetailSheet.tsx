@@ -26,10 +26,12 @@ import {
 import {
   WorkflowHeldBanner,
   WorkflowPartialBanner,
+  WorkflowRequestBanner,
   WorkflowSettingUpBanner,
   WorkflowUnmetRequirementsBanner,
   WorkflowUpdateBanner,
 } from './WorkflowStateBanners';
+import type { WorkflowRequestState } from '@/hooks/Workflows/useWorkflowCatalog';
 import {
   WORKFLOW_CATEGORY_LABEL,
   WORKFLOW_SURFACES,
@@ -70,7 +72,10 @@ export function WorkflowDetailSheet({
   team,
   onOpenChange,
   onConnect,
+  onConnectWorkspace,
   onInstall,
+  request,
+  onDismissRequest,
   onSaveParams,
   onUninstall,
   onToggleSetup,
@@ -79,6 +84,7 @@ export function WorkflowDetailSheet({
   onUpdate,
   onNavigate,
   onPreview,
+  requirementsResolving,
   preview = null,
   previewLoading,
   onPreviewBack,
@@ -102,7 +108,13 @@ export function WorkflowDetailSheet({
   /** The team this assistant could install into, if any. */
   team?: { id: string; name: string; memberCount: number };
   onOpenChange: (open: boolean) => void;
+  /** The recorded change in flight for this workflow, when there is one. */
+  request?: WorkflowRequestState;
+  /** Stops showing a settled request. */
+  onDismissRequest?: (slug: string) => void;
   onConnect: (canonicalSlug: string) => void;
+  /** Opens the workspace manager, for a `workspace` requirement. */
+  onConnectWorkspace?: () => void;
   onInstall: (values: WorkflowParamValues, destination: WorkflowDestination) => void;
   onSaveParams: (slug: string, values: WorkflowParamValues) => void;
   onUninstall: (item: WorkflowGalleryItem) => void;
@@ -112,6 +124,8 @@ export function WorkflowDetailSheet({
   onUpdate: (slug: string) => void;
   /** Opens the rail section where a planted surface lives. */
   onNavigate?: (kind: WorkflowSurfaceKind) => void;
+  /** True until the integrations catalogue has answered for requirements. */
+  requirementsResolving?: boolean;
   /** Previews one manifest item by swapping this drawer to it. */
   onPreview?: (kind: WorkflowSurfaceKind, name: string) => void;
   /** The artifact being previewed; when set, the drawer shows it instead. */
@@ -174,13 +188,32 @@ export function WorkflowDetailSheet({
   };
 
   const banner = () => {
+    // A recorded change outranks every derived state: while one is in flight
+    // or has failed, what the assistant is doing with it is the only honest
+    // thing to say about this workflow.
+    if (request) {
+      return (
+        <WorkflowRequestBanner request={request} onRetry={onRetry} onDismiss={onDismissRequest} />
+      );
+    }
     if (isInstalling) return null;
     if (installMode) {
-      return <WorkflowUnmetRequirementsBanner missing={missing} onConnect={onConnect} />;
+      return (
+        <WorkflowUnmetRequirementsBanner
+          missing={missing}
+          onConnect={onConnect}
+          onConnectWorkspace={onConnectWorkspace}
+        />
+      );
     }
     if (installation.status === 'pending_requirements') {
       return (
-        <WorkflowHeldBanner installation={installation} missing={missing} onConnect={onConnect} />
+        <WorkflowHeldBanner
+          installation={installation}
+          missing={missing}
+          onConnect={onConnect}
+          onConnectWorkspace={onConnectWorkspace}
+        />
       );
     }
     if (installation.status === 'provisioning') {
@@ -208,7 +241,7 @@ export function WorkflowDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex !w-[min(640px,calc(100vw-2rem))] !max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:!max-w-[calc(100vw-2rem)]"
+        className="flex flex-col gap-0 overflow-hidden p-0"
         style={categoryStyle(workflow.category)}
         data-testid={`workflow-sheet-${workflow.slug}`}
       >
@@ -316,6 +349,7 @@ export function WorkflowDetailSheet({
                       <WorkflowRequirementList
                         workflow={workflow}
                         onConnect={onConnect}
+                        onConnectWorkspace={onConnectWorkspace}
                         onSupplySecret={onSupplySecret}
                       />
                     </Section>

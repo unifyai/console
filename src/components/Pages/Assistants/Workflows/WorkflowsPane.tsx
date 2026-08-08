@@ -27,6 +27,19 @@ interface WorkflowsPaneProps {
   canWrite?: boolean;
   /** The team this assistant could install into, once team context is wired. */
   team?: { id: string; name: string; memberCount: number };
+  /**
+   * Opens the workspace manager — the same modal the profile pane and the
+   * onboarding checklist open. Owned by the page because the modal lives
+   * there; a `workspace` requirement must reach it rather than get a
+   * Workflows-local imitation.
+   */
+  onConnectWorkspace?: (assistant: Assistant) => void;
+  /**
+   * Bumped when that manager closes. A workspace connection lands as a
+   * secret, which this pane read once on mount, so the requirement would sit
+   * unmet until something else forced a reload.
+   */
+  workspaceSettledSignal?: number;
 }
 
 /**
@@ -46,6 +59,8 @@ export function WorkflowsPane({
   isActiveSurface = true,
   canWrite = true,
   team,
+  onConnectWorkspace,
+  workspaceSettledSignal = 0,
 }: WorkflowsPaneProps) {
   const { navigateToAssistants } = useAppShellNavigation();
   const dataEnabled = isVisible && isActiveSurface;
@@ -134,6 +149,27 @@ export function WorkflowsPane({
     [catalog]
   );
 
+  // A Workspace is not an integration: it is connected in the manager the
+  // profile pane and the onboarding checklist open, and connecting it from
+  // here must be that same act — same modal, same OAuth, same checklist tick.
+  const handleConnectWorkspace = React.useCallback(() => {
+    if (!assistant) return;
+    onConnectWorkspace?.(assistant);
+  }, [assistant, onConnectWorkspace]);
+
+  // The connection lands as a secret this pane already read, so re-read it
+  // (and the installations, whose held state follows from it) once the
+  // manager closes rather than leaving a connected Workspace showing unmet.
+  const settledRef = React.useRef(workspaceSettledSignal);
+  const refreshSecrets = secrets.fetchSecrets;
+  const refreshCatalog = catalog.refresh;
+  React.useEffect(() => {
+    if (settledRef.current === workspaceSettledSignal) return;
+    settledRef.current = workspaceSettledSignal;
+    if (secretActions) void refreshSecrets({ showLoading: false });
+    refreshCatalog();
+  }, [workspaceSettledSignal, secretActions, refreshSecrets, refreshCatalog]);
+
   return (
     <div className="flex h-full flex-col" data-testid="workflows-pane">
       <div className="min-h-0 flex-1">
@@ -145,6 +181,8 @@ export function WorkflowsPane({
           onOpen={(item) => setOpenSlug(item.workflow.slug)}
           onInstall={(item) => setOpenSlug(item.workflow.slug)}
           onConnect={setConnectSlug}
+          onConnectWorkspace={onConnectWorkspace ? handleConnectWorkspace : undefined}
+          requests={catalog.requests}
           onToggleSetup={catalog.toggleSetup}
           onRetry={catalog.retry}
           renderDetailSheet={() => (
@@ -163,6 +201,9 @@ export function WorkflowsPane({
                   setPreview(null);
                 }}
                 onConnect={(canonicalSlug) => setConnectSlug(canonicalSlug)}
+                onConnectWorkspace={onConnectWorkspace ? handleConnectWorkspace : undefined}
+                request={openSlug ? catalog.requests[openSlug] : undefined}
+                onDismissRequest={catalog.dismissRequest}
                 onInstall={(values, destination) =>
                   openSlug && catalog.install(openSlug, values, destination)
                 }
@@ -174,6 +215,7 @@ export function WorkflowsPane({
                 onUpdate={catalog.update}
                 onNavigate={openSection}
                 onPreview={(kind, name) => setPreview({ kind, name })}
+                requirementsResolving={!integrations.hasLoaded}
                 preview={preview ? previewArtifact : null}
                 previewLoading={artifacts.isLoading}
                 onPreviewBack={() => setPreview(null)}

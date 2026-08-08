@@ -21,15 +21,17 @@ function workflow(requirements: WorkflowRequirement[]): Workflow {
 
 function renderList(requirements: WorkflowRequirement[]) {
   const onConnect = vi.fn();
+  const onConnectWorkspace = vi.fn();
   const onSupplySecret = vi.fn();
   render(
     <WorkflowRequirementList
       workflow={workflow(requirements)}
       onConnect={onConnect}
+      onConnectWorkspace={onConnectWorkspace}
       onSupplySecret={onSupplySecret}
     />
   );
-  return { onConnect, onSupplySecret };
+  return { onConnect, onConnectWorkspace, onSupplySecret };
 }
 
 /**
@@ -70,6 +72,52 @@ describe('WorkflowRequirementList', () => {
     fireEvent.click(screen.getByTestId('workflow-requirement-secret-google_drive'));
     expect(onSupplySecret).toHaveBeenCalledTimes(1);
     expect(onConnect).not.toHaveBeenCalled();
+  });
+
+  it('sends a workspace requirement to the workspace manager, never to secrets', () => {
+    // Workspace is connected in the manager the profile pane and the
+    // onboarding checklist open. It used to fall through to "Add secrets",
+    // which named the refresh token the connection happens to write and
+    // routed nowhere at all.
+    const { onConnect, onConnectWorkspace, onSupplySecret } = renderList([
+      {
+        canonicalSlug: 'google_workspace',
+        displayName: 'Google Workspace',
+        via: 'workspace',
+        connected: false,
+        missingSecrets: ['GOOGLE_REFRESH_TOKEN'],
+      },
+    ]);
+
+    expect(
+      screen.queryByTestId('workflow-requirement-secret-google_workspace')
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('workflow-requirement-google_workspace')).toHaveTextContent(
+      'No workspace connected'
+    );
+
+    fireEvent.click(screen.getByTestId('workflow-requirement-workspace-google_workspace'));
+    expect(onConnectWorkspace).toHaveBeenCalledTimes(1);
+    expect(onSupplySecret).not.toHaveBeenCalled();
+    expect(onConnect).not.toHaveBeenCalled();
+  });
+
+  it('reads a connected workspace as met, with nothing left to do', () => {
+    renderList([
+      {
+        canonicalSlug: 'google_workspace',
+        displayName: 'Google Workspace',
+        via: 'workspace',
+        connected: true,
+      },
+    ]);
+
+    expect(screen.getByTestId('workflow-requirement-met-google_workspace')).toHaveTextContent(
+      'Connected'
+    );
+    expect(
+      screen.queryByTestId('workflow-requirement-workspace-google_workspace')
+    ).not.toBeInTheDocument();
   });
 
   it('treats a native package the same way, naming every secret it waits on', () => {

@@ -38,12 +38,39 @@ function hasLiveConnection(definition: IntegrationDefinition): boolean {
   return definition.status === 'connected' || definition.status === 'configured';
 }
 
-/** Workspace BYOD OAuth (Google Workspace, Microsoft 365) is secret-gated. */
-function byodSecretKeys(definition: IntegrationDefinition): string[] {
+/**
+ * Whether the gallery itself can connect this app.
+ *
+ * If it can, "not connected" means "press Connect" and nothing else — offering
+ * a pasted secret instead sends the user to type a refresh token for an app
+ * that supports OAuth. Gmail is exactly that case: provider-backed, OAuth, and
+ * previously routed to a secret because the BYOD map matched on its name.
+ */
+function connectableViaGallery(definition: IntegrationDefinition): boolean {
+  const providerBacked =
+    definition.source === 'provider_backed' ||
+    definition.source === 'overlay_curated' ||
+    definition.source === 'static_package';
+  return (
+    providerBacked &&
+    definition.authModes.some(
+      (mode) => mode === 'oauth' || mode === 'api_key' || mode === 'api_key_multi'
+    )
+  );
+}
+
+/**
+ * The refresh-token secret a Workspace connection is signalled by.
+ *
+ * Keyed off the provider family, and only ever consulted for a definition the
+ * gallery does not connect. Matching on the name alone is what previously sent
+ * Gmail — a provider-backed OAuth app — to a pasted-token form.
+ */
+function workspaceSecretKeys(definition: IntegrationDefinition): string[] {
   const prefix = definition.canonicalSlug.split('_')[0].toUpperCase();
   const known: Record<string, string> = {
-    GMAIL: 'GOOGLE_REFRESH_TOKEN',
     GOOGLE: 'GOOGLE_REFRESH_TOKEN',
+    GMAIL: 'GOOGLE_REFRESH_TOKEN',
     MICROSOFT: 'MICROSOFT_REFRESH_TOKEN',
     OUTLOOK: 'MICROSOFT_REFRESH_TOKEN',
   };
@@ -100,8 +127,15 @@ export function resolveRequirement(
     };
   }
 
-  // A native integration package is gated on its own declared secrets, not
-  // on an OAuth handshake.
+  // Provider-backed comes first, and that includes the native packages we
+  // author: either kind may be OAuth, an API key, or both, and all of them
+  // connect through the gallery's own flow.
+  if (connectableViaGallery(definition)) {
+    return { ...base, via: 'connection', connected: false };
+  }
+
+  // A native package with no connect flow really is gated on its own declared
+  // secrets, so it answers for itself.
   const provider = getIntegrationProvider(definition.canonicalSlug as IntegrationProviderId);
   if (definition.source === 'static_package' && provider) {
     const required = requiredCustomerProvidedSecretKeysFor(provider);
@@ -114,13 +148,14 @@ export function resolveRequirement(
     };
   }
 
-  const byod = byodSecretKeys(definition);
-  if (byod.length > 0) {
-    const missing = byod.filter((key) => !context.secretNames.has(key));
+  // Workspace: not in the gallery, not a package, connected elsewhere.
+  if (definition.source === 'workspace_integration') {
+    const keys = workspaceSecretKeys(definition);
+    const missing = keys.filter((key) => !context.secretNames.has(key));
     return {
       ...base,
-      via: 'secret',
-      connected: missing.length === 0,
+      via: 'workspace',
+      connected: keys.length > 0 && missing.length === 0,
       missingSecrets: missing.length > 0 ? missing : undefined,
     };
   }

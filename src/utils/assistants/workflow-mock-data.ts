@@ -2,6 +2,7 @@ import { Globe } from 'lucide-react';
 import {
   SiGithub,
   SiGmail,
+  SiGoogle,
   SiGooglecalendar,
   SiGoogledrive,
   SiGooglemeet,
@@ -75,7 +76,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'google_calendar',
         displayName: 'Google Calendar',
-        via: 'secret',
+        via: 'connection',
         iconComponent: SiGooglecalendar,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -143,6 +144,13 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     iconId: 'comet',
     requirements: [
       {
+        canonicalSlug: 'google_workspace',
+        displayName: 'Google Workspace',
+        via: 'workspace',
+        iconComponent: SiGoogle,
+        connected: false,
+      },
+      {
         canonicalSlug: 'gmail',
         displayName: 'Gmail',
         via: 'connection',
@@ -209,7 +217,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'google_meet',
         displayName: 'Google Meet',
-        via: 'secret',
+        via: 'connection',
         iconComponent: SiGooglemeet,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -477,7 +485,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'google_drive',
         displayName: 'Google Drive',
-        via: 'secret',
+        via: 'connection',
         iconComponent: SiGoogledrive,
         connected: true,
         accountLabel: 'haris@unify.ai',
@@ -555,10 +563,9 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'google_drive',
         displayName: 'Google Drive',
-        via: 'secret',
+        via: 'connection',
         iconComponent: SiGoogledrive,
         connected: false,
-        missingSecrets: ['GOOGLE_REFRESH_TOKEN'],
       },
     ],
     capabilities: [],
@@ -609,7 +616,7 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       {
         canonicalSlug: 'google_sheets',
         displayName: 'Google Sheets',
-        via: 'secret',
+        via: 'connection',
         iconComponent: SiGooglesheets,
         connected: true,
         accountLabel: 'haris@unify.ai',

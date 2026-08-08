@@ -5,9 +5,11 @@ import {
   hasUpdate,
   provisioningTask,
   recurringTasks,
+  requirementIsConnectable,
   secretGatedRequirements,
   unmetRequirements,
   workflowCardState,
+  workspaceRequirements,
   type Workflow,
   type WorkflowGalleryItem,
   type WorkflowInstallation,
@@ -105,6 +107,31 @@ describe('workflow selectors', () => {
       ]);
     });
 
+    it('routes a workspace to its own manager — not the gallery, not a secret', () => {
+      // A Workspace is neither a gallery app nor an integration secret: it is
+      // connected in the workspace manager, so it must leave both the gallery
+      // list and the secret list while still counting as fixable in place.
+      const subject = workflow({
+        requirements: [
+          {
+            canonicalSlug: 'google_workspace',
+            displayName: 'Google Workspace',
+            via: 'workspace',
+            connected: false,
+            missingSecrets: ['GOOGLE_REFRESH_TOKEN'],
+          },
+        ],
+      });
+      expect(workspaceRequirements(subject).map((req) => req.canonicalSlug)).toEqual([
+        'google_workspace',
+      ]);
+      expect(connectableRequirements(subject)).toHaveLength(0);
+      expect(secretGatedRequirements(subject)).toHaveLength(0);
+      expect(unmetRequirements(subject)).toHaveLength(1);
+      // Surfaces with room for one action offer it: the card, the row, the banner.
+      expect(subject.requirements.filter(requirementIsConnectable)).toHaveLength(1);
+    });
+
     it('treats an app connected by connection row as met despite a missing secret', () => {
       // One route is enough — a live connection outranks a missing secret.
       const subject = workflow({
@@ -132,6 +159,7 @@ describe('workflow selectors', () => {
       expect(unmetRequirements(subject)).toHaveLength(0);
       expect(connectableRequirements(subject)).toHaveLength(0);
       expect(secretGatedRequirements(subject)).toHaveLength(0);
+      expect(workspaceRequirements(subject)).toHaveLength(0);
     });
   });
 

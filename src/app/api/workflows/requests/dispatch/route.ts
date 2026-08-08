@@ -29,11 +29,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
   }
 
-  const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
-  if (!adminKey) {
-    return NextResponse.json({ detail: 'Server configuration error' }, { status: 500 });
-  }
-
   const body = (await request.json().catch(() => null)) as {
     assistantId?: number | string;
     requestId?: string;
@@ -49,6 +44,20 @@ export async function POST(request: NextRequest) {
 
   if (!Number.isFinite(assistantId) || !requestId || !slug || !ACTIONS.has(action)) {
     return NextResponse.json({ detail: 'Invalid dispatch request' }, { status: 400 });
+  }
+
+  // An environment serving the Workflows tab without the admin key can record
+  // requests but cannot wake anyone. That is an undelivered wake, which this
+  // route reports rather than raises: a 500 here reads as "the install
+  // failed" while the row sits durable and the boot sweep drains it. The
+  // caller renders "queued" from `dispatched: false`.
+  const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
+  if (!adminKey) {
+    console.warn(
+      '[workflows] ORCHESTRA_ADMIN_KEY is not set — workflow requests are recorded ' +
+        'but no assistant is woken to apply them until its next boot.'
+    );
+    return NextResponse.json({ requestId, dispatched: false }, { status: 200 });
   }
 
   try {

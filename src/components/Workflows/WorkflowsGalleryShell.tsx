@@ -13,6 +13,7 @@ import { WorkflowCard } from './WorkflowCard';
 import { WorkflowGallerySkeleton, WorkflowInstalledSkeleton } from './WorkflowCardSkeleton';
 import { InstalledWorkflowRow } from './InstalledWorkflowRow';
 import { WORKFLOW_CATEGORIES } from './workflowCategories';
+import type { WorkflowRequestState } from '@/hooks/Workflows/useWorkflowCatalog';
 import type {
   WorkflowCategory,
   WorkflowGalleryItem,
@@ -47,8 +48,10 @@ export function WorkflowsGalleryShell({
   onOpen,
   onInstall,
   onConnect,
+  onConnectWorkspace,
   onToggleSetup,
   onRetry,
+  requests,
 }: {
   items: WorkflowGalleryItem[];
   isLoading?: boolean;
@@ -61,8 +64,11 @@ export function WorkflowsGalleryShell({
   onOpen: (item: WorkflowGalleryItem) => void;
   onInstall: (item: WorkflowGalleryItem) => void;
   onConnect: (canonicalSlug: string) => void;
+  onConnectWorkspace?: () => void;
   onToggleSetup: (slug: string) => void;
   onRetry: (slug: string) => void;
+  /** Recorded changes in flight, keyed by slug. */
+  requests?: Record<string, WorkflowRequestState>;
 }) {
   const installed = React.useMemo(
     () =>
@@ -222,8 +228,10 @@ export function WorkflowsGalleryShell({
                     canMutate={canMutate}
                     onOpen={onOpen}
                     onConnect={onConnect}
+                    onConnectWorkspace={onConnectWorkspace}
                     onToggleSetup={onToggleSetup}
                     onRetry={onRetry}
+                    request={requests?.[item.workflow.slug]}
                   />
                 ))}
               </div>
@@ -262,6 +270,8 @@ export function WorkflowsGalleryShell({
                       onOpen={onOpen}
                       onInstall={onInstall}
                       onConnect={onConnect}
+                      onConnectWorkspace={onConnectWorkspace}
+                      requests={requests}
                     />
                   </section>
                 );
@@ -273,6 +283,8 @@ export function WorkflowsGalleryShell({
               onOpen={onOpen}
               onInstall={onInstall}
               onConnect={onConnect}
+              onConnectWorkspace={onConnectWorkspace}
+              requests={requests}
             />
           )}
         </div>
@@ -296,11 +308,15 @@ function WorkflowGrid({
   onOpen,
   onInstall,
   onConnect,
+  onConnectWorkspace,
+  requests,
 }: {
   items: WorkflowGalleryItem[];
   onOpen: (item: WorkflowGalleryItem) => void;
   onInstall: (item: WorkflowGalleryItem) => void;
   onConnect: (canonicalSlug: string) => void;
+  onConnectWorkspace?: () => void;
+  requests?: Record<string, WorkflowRequestState>;
 }) {
   // Columns track the pane's own width, not the viewport's — the side panel
   // and rail change how much room the grid actually has, so Tailwind's
@@ -335,6 +351,8 @@ function WorkflowGrid({
           onOpen={onOpen}
           onInstall={onInstall}
           onConnect={onConnect}
+          onConnectWorkspace={onConnectWorkspace}
+          request={requests?.[item.workflow.slug]}
         />
       ))}
     </div>

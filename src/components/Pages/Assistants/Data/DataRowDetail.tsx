@@ -410,7 +410,7 @@ export function DataRowDetail({
     >
       <SheetContent
         side="right"
-        className="flex w-full max-w-[min(100vw,42rem)] flex-col"
+        className="flex flex-col"
         data-testid="data-row-detail"
         onAnimationEnd={() => {
           if (!row) setSnapshot(null);

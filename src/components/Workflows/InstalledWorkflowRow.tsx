@@ -11,8 +11,13 @@ import {
 } from './WorkflowStatusBadge';
 import { WorkflowAppIcon } from './WorkflowAppIcon';
 import {
+  workflowRequestCopy,
+  type WorkflowRequestState,
+} from '@/hooks/Workflows/useWorkflowCatalog';
+import {
   hasUpdate,
-  requirementNeedsConnection,
+  requirementIsConnectable,
+  requirementNeedsWorkspace,
   unmetRequirements,
   type WorkflowGalleryItem,
 } from '@/types/workflows';
@@ -29,13 +34,18 @@ export function InstalledWorkflowRow({
   canMutate = true,
   onOpen,
   onConnect,
+  onConnectWorkspace,
   onToggleSetup,
   onRetry,
+  request,
 }: {
   item: WorkflowGalleryItem;
   canMutate?: boolean;
+  /** A recorded change the assistant is carrying out for this workflow. */
+  request?: WorkflowRequestState;
   onOpen: (item: WorkflowGalleryItem) => void;
   onConnect: (canonicalSlug: string) => void;
+  onConnectWorkspace?: () => void;
   onToggleSetup: (slug: string) => void;
   onRetry: (slug: string) => void;
 }) {
@@ -45,8 +55,8 @@ export function InstalledWorkflowRow({
   const held = installation.status === 'pending_requirements';
   const partial = installation.status === 'partial';
   const nextTask = installation.tasks[0];
-  // Only a provider-backed route is fixed by connecting inline.
-  const connectable = missing.find(requirementNeedsConnection);
+  // Only a route with a connect view of its own is fixed inline.
+  const connectable = missing.find(requirementIsConnectable);
 
   return (
     <div
@@ -87,7 +97,19 @@ export function InstalledWorkflowRow({
           {hasUpdate(item) && <WorkflowUpdateBadge version={workflow.version} />}
         </div>
 
-        {installation.status === 'provisioning' && installation.setup ? (
+        {request && request.status !== 'succeeded' ? (
+          // A change the assistant is carrying out outranks the derived
+          // runtime line: until it settles, the row below it may not be true.
+          <p
+            className={cn(
+              'text-caption mt-1 leading-relaxed',
+              request.status === 'failed' && 'text-destructive'
+            )}
+            data-testid={`installed-workflow-request-${workflow.slug}`}
+          >
+            {workflowRequestCopy(request)}
+          </p>
+        ) : installation.status === 'provisioning' && installation.setup ? (
           <>
             <p className="text-caption mt-1">
               {installation.setup.label} —{' '}
@@ -145,7 +167,11 @@ export function InstalledWorkflowRow({
             type="button"
             size="sm"
             className="h-7 gap-1 px-2.5 text-xs"
-            onClick={() => onConnect(connectable.canonicalSlug)}
+            onClick={() =>
+              requirementNeedsWorkspace(connectable)
+                ? onConnectWorkspace?.()
+                : onConnect(connectable.canonicalSlug)
+            }
           >
             <WorkflowAppIcon requirement={connectable} size="xs" />
             Connect {connectable.displayName}

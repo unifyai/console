@@ -970,7 +970,7 @@ export function ProviderIntegrationDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex !w-[min(960px,calc(100vw-2rem))] !max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:!max-w-[calc(100vw-2rem)]"
+        className="flex flex-col overflow-hidden p-0"
         data-testid="provider-integration-detail-sheet"
       >
         {displayItem && (

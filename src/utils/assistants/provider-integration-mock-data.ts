@@ -1,4 +1,5 @@
 import { getIntegrationProvider } from '@/constants/assistants/integrations';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 import { mapStaticProviderToDefinition } from '@/utils/integrations/static-package-adapter';
 import type { IntegrationDefinition } from '@/types/integrations';
 
@@ -16,6 +17,10 @@ function canUseRuntimeMockFlag(): boolean {
 
 export function shouldUseMockProviderIntegrations(): boolean {
   if (USE_MOCK_PROVIDER_INTEGRATIONS) return true;
+  // Mock simulation has no backend at all, so the gallery has to be mocked
+  // too — otherwise connecting a workflow's required app from the Workflows
+  // tab opens the real provider drawer against a catalogue that cannot load.
+  if (mockSimulationEnabled()) return true;
   if (!canUseRuntimeMockFlag()) return false;
   const params = new URLSearchParams(window.location.search);
   return (
@@ -343,9 +348,34 @@ const clayApiKeyDefinition = providerDefinition({
   ],
 });
 
+/**
+ * The user's own Workspace, which is not a gallery app.
+ *
+ * It carries no auth modes because the gallery cannot connect it: the
+ * workspace manager the profile pane and the onboarding checklist open owns
+ * that flow, and this row exists so a requirement naming it resolves to the
+ * `workspace` route rather than reading as an unverifiable slug.
+ */
+const workspaceIntegrationDefinition = providerDefinition({
+  canonicalSlug: 'google_workspace',
+  displayName: 'Google Workspace',
+  description: 'Your own Google account, connected in the workspace manager.',
+  category: 'Workspace',
+  status: 'not_connected',
+  source: 'workspace_integration',
+  authModes: [],
+  sourceMetadata: {
+    source: 'workspace_integration',
+    label: 'Your workspace',
+    backendId: 'workspace',
+    providerAppId: 'google_workspace',
+  },
+});
+
 export const MOCK_PROVIDER_INTEGRATION_DEFINITIONS: IntegrationDefinition[] = [
   ...(staticEmploymentHero ? [staticEmploymentHero] : []),
   dynamicHubSpot,
   ...firstWaveDynamicDefinitions,
   clayApiKeyDefinition,
+  workspaceIntegrationDefinition,
 ];
