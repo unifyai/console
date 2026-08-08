@@ -7,6 +7,7 @@ import {
   getProviderIntegrationCatalogCount,
   getProviderIntegrationDetails,
   listProviderIntegrationConnections,
+  listProviderIntegrationDefinitionsBySlugs,
   listProviderIntegrationDefinitionsPage,
   requestUnityIntegrationToolsSync,
   startProviderIntegrationConnect,
@@ -39,6 +40,17 @@ type ProviderCatalogSourceType = 'native' | 'third_party';
 interface UseProviderIntegrationCatalogOptions {
   ownerScope?: IntegrationOwnerScope;
   query?: string;
+  /**
+   * Resolve exactly these apps instead of browsing.
+   *
+   * A caller that already knows which apps it wants — a workflow's declared
+   * requirements — must not go through `query`. That is a substring match
+   * across display name, slug and description, returned one page at a time,
+   * so the app asked for can be crowded off the page by everything else
+   * mentioning the same word, and there is no way to tell that from "the
+   * catalogue does not have it".
+   */
+  slugs?: string[];
   sourceType?: ProviderCatalogSourceType | null;
   category?: string | null;
   statusGroups?: ProviderAppStatusGroup[];
@@ -137,8 +149,18 @@ export function useProviderIntegrationCatalog(
     () => (statusGroupsKey ? (statusGroupsKey.split(',') as ProviderAppStatusGroup[]) : []),
     [statusGroupsKey]
   );
-  const requestKey = `${assistantId}:${ownerScope}:${query}:${sourceType ?? 'all'}:${category ?? 'all'}:${statusGroupsKey}`;
+  const slugsKey = [...new Set(options.slugs ?? [])].sort().join(',');
+  const slugs = React.useMemo(() => (slugsKey ? slugsKey.split(',') : []), [slugsKey]);
+  const requestKey = `${assistantId}:${ownerScope}:${slugsKey}:${query}:${sourceType ?? 'all'}:${category ?? 'all'}:${statusGroupsKey}`;
   const loadedRequestKeyRef = React.useRef<string | null>(null);
+  // Which request the rows on hand belong to.
+  //
+  // `hasLoaded` means "this hook has loaded something, ever" — it is never
+  // reset once true, so on a second request it stays true while `definitions`
+  // still holds the *previous* request's rows. A consumer reading it as "the
+  // answer is in" concluded the app was missing from a list that had not been
+  // asked for it yet.
+  const [loadedRequestKey, setLoadedRequestKey] = React.useState<string | null>(null);
   const [definitions, setDefinitions] = React.useState<IntegrationDefinition[]>([]);
   // Connected + needs-attention apps, fetched independently of the browse
   // pagination so they always surface at the top under the "All" filter even
@@ -191,6 +213,7 @@ export function useProviderIntegrationCatalog(
         providerConnectionsRef.current = [];
         isLoadingMoreRef.current = false;
         loadedRequestKeyRef.current = requestKey;
+        setLoadedRequestKey(requestKey);
         return;
       }
       if (!background) {
@@ -203,6 +226,33 @@ export function useProviderIntegrationCatalog(
         }
       }
       isLoadingMoreRef.current = false;
+      // Named apps: one exact `in` query, no paging and no facets. There is
+      // nothing to browse, so an app either comes back or genuinely is not
+      // published — a distinction the substring search cannot make.
+      if (slugs.length > 0) {
+        try {
+          const resolved = await listProviderIntegrationDefinitionsBySlugs({
+            ownerScope,
+            assistantId,
+            slugs,
+          });
+          setDefinitions(resolved);
+          setPinnedDefinitions([]);
+          setTotal(resolved.length);
+          setNextOffset(resolved.length);
+          setHasMoreServer(false);
+          setFacets(null);
+          loadedRequestKeyRef.current = requestKey;
+          setLoadedRequestKey(requestKey);
+        } catch (error) {
+          console.error('Failed to resolve provider integrations by slug', error);
+          toast.error('Could not load integrations. Please try again.');
+        } finally {
+          setIsLoading(false);
+          setHasLoaded(true);
+        }
+        return;
+      }
       // Only the "All" view needs the pinned connected/needs-attention rows; the
       // dedicated status filters already scope the main list to those apps.
       const shouldPinConnected = statusGroups.length === 0;
@@ -286,6 +336,7 @@ export function useProviderIntegrationCatalog(
         setCatalogVersion(page.catalogVersion);
         setGeneratedAt(page.generatedAt);
         loadedRequestKeyRef.current = requestKey;
+        setLoadedRequestKey(requestKey);
       } catch (error) {
         console.error('Failed to load provider integration catalog', error);
         toast.error('Could not load integrations. Please try again.');
@@ -304,7 +355,7 @@ export function useProviderIntegrationCatalog(
         setHasLoaded(true);
       }
     },
-    [assistantId, category, enabled, ownerScope, query, sourceType, statusGroups, requestKey]
+    [assistantId, category, enabled, ownerScope, query, slugs, sourceType, statusGroups, requestKey]
   );
 
   const loadMore = React.useCallback(async () => {
@@ -581,6 +632,7 @@ export function useProviderIntegrationCatalog(
     isLoading,
     isLoadingMore,
     hasLoaded,
+    hasLoadedRequest: loadedRequestKey === requestKey,
     hasMore,
     total,
     facets,

@@ -728,3 +728,90 @@ describe('listProviderIntegrationDefinitionsPage', () => {
     expect(params.get('filter')).toContain('label["key"] == "crm"');
   });
 });
+
+/**
+ * Resolving named apps, and knowing when the answer is in.
+ *
+ * A caller with a list of slugs — a workflow's requirements — used the
+ * browse `query`, which is a substring match over display name, slug and
+ * description returned one page at a time. The app asked for could be
+ * crowded off that page by anything else mentioning the same word, and an
+ * absent row is indistinguishable from an unpublished app.
+ */
+describe('useProviderIntegrationCatalog — resolving apps by slug', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+    window.history.replaceState({}, '', '/assistants');
+  });
+
+  it('asks for exactly those slugs, and never browses', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname.endsWith('/api/logs')) {
+        return builtinsLogsResponse([providerApp('slack'), providerApp('gmail')]);
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+
+    const { result } = renderHook(() =>
+      useProviderIntegrationCatalog('123', { slugs: ['slack', 'gmail'] })
+    );
+
+    await waitFor(() => expect(result.current.hasLoadedRequest).toBe(true));
+    expect(result.current.definitions.map((item) => item.canonicalSlug).sort()).toEqual([
+      'gmail',
+      'slack',
+    ]);
+
+    const logsCalls = fetchSpy.mock.calls
+      .map((call) => new URL(String(call[0]), window.location.origin))
+      .filter((url) => url.pathname.endsWith('/api/logs'));
+    expect(logsCalls.length).toBeGreaterThan(0);
+    for (const url of logsCalls) {
+      const filter = url.searchParams.get('filter') ?? '';
+      expect(filter).toContain('canonical_app_slug in');
+      expect(filter).not.toContain('contains');
+    }
+  });
+
+  it('reports the rows on hand as stale until this request answers', async () => {
+    let release: (() => void) | null = null;
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname.endsWith('/api/logs')) {
+        const filter = url.searchParams.get('filter') ?? '';
+        if (filter.includes('gmail')) {
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          return builtinsLogsResponse([providerApp('gmail')]);
+        }
+        return builtinsLogsResponse([providerApp('slack')]);
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+
+    const { result, rerender } = renderHook(
+      ({ slugs }: { slugs: string[] }) => useProviderIntegrationCatalog('123', { slugs }),
+      { initialProps: { slugs: ['slack'] } }
+    );
+
+    await waitFor(() => expect(result.current.hasLoadedRequest).toBe(true));
+
+    rerender({ slugs: ['gmail'] });
+
+    // `hasLoaded` is still true — it never goes back — but the rows on hand
+    // are Slack's. Only `hasLoadedRequest` distinguishes them, and reading
+    // the wrong one is what declared a present app missing.
+    await waitFor(() => expect(result.current.hasLoadedRequest).toBe(false));
+    expect(result.current.hasLoaded).toBe(true);
+
+    await act(async () => {
+      release?.();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.hasLoadedRequest).toBe(true));
+    expect(result.current.definitions.map((item) => item.canonicalSlug)).toEqual(['gmail']);
+  });
+});
