@@ -130,6 +130,13 @@ export function WorkflowsPane({
   const isProvisioningOpen = catalog.provisioning?.slug === openSlug && openSlug !== null;
   const canMutate = canWrite && catalog.canMutate;
 
+  // No verdict on any requirement until the integrations catalogue has
+  // answered *and* the per-slug gaps are filled. Either half missing means
+  // every requirement resolves to `unresolved`, which the surfaces would
+  // otherwise render as a grey chip reading "Couldn't check this app" —
+  // a verdict, stated for a few seconds, that nobody has reached.
+  const requirementsResolving = !integrations.hasLoaded || catalog.requirementsResolving;
+
   const connectRequirement = React.useMemo(
     () =>
       catalog.items
@@ -183,6 +190,7 @@ export function WorkflowsPane({
           onConnect={setConnectSlug}
           onConnectWorkspace={onConnectWorkspace ? handleConnectWorkspace : undefined}
           requests={catalog.requests}
+          requirementsResolving={requirementsResolving}
           onToggleSetup={catalog.toggleSetup}
           onRetry={catalog.retry}
           renderDetailSheet={() => (
@@ -215,7 +223,7 @@ export function WorkflowsPane({
                 onUpdate={catalog.update}
                 onNavigate={openSection}
                 onPreview={(kind, name) => setPreview({ kind, name })}
-                requirementsResolving={!integrations.hasLoaded}
+                requirementsResolving={requirementsResolving}
                 preview={preview ? previewArtifact : null}
                 previewLoading={artifacts.isLoading}
                 onPreviewBack={() => setPreview(null)}
@@ -246,6 +254,7 @@ export function WorkflowsPane({
                 canonicalSlug={connectSlug}
                 displayName={connectRequirement?.displayName ?? null}
                 open={!!connectSlug}
+                canWrite={canWrite}
                 onOpenChange={(next) => !next && setConnectSlug(null)}
                 onConnected={handleConnected}
               />

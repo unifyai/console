@@ -52,6 +52,7 @@ export function WorkflowsGalleryShell({
   onToggleSetup,
   onRetry,
   requests,
+  requirementsResolving = false,
 }: {
   items: WorkflowGalleryItem[];
   isLoading?: boolean;
@@ -69,6 +70,8 @@ export function WorkflowsGalleryShell({
   onRetry: (slug: string) => void;
   /** Recorded changes in flight, keyed by slug. */
   requests?: Record<string, WorkflowRequestState>;
+  /** True until the integrations catalogue has answered for the shelf's apps. */
+  requirementsResolving?: boolean;
 }) {
   const installed = React.useMemo(
     () =>
@@ -232,6 +235,7 @@ export function WorkflowsGalleryShell({
                     onToggleSetup={onToggleSetup}
                     onRetry={onRetry}
                     request={requests?.[item.workflow.slug]}
+                    isResolving={requirementsResolving}
                   />
                 ))}
               </div>
@@ -272,6 +276,7 @@ export function WorkflowsGalleryShell({
                       onConnect={onConnect}
                       onConnectWorkspace={onConnectWorkspace}
                       requests={requests}
+                      requirementsResolving={requirementsResolving}
                     />
                   </section>
                 );
@@ -285,6 +290,7 @@ export function WorkflowsGalleryShell({
               onConnect={onConnect}
               onConnectWorkspace={onConnectWorkspace}
               requests={requests}
+              requirementsResolving={requirementsResolving}
             />
           )}
         </div>
@@ -310,6 +316,7 @@ function WorkflowGrid({
   onConnect,
   onConnectWorkspace,
   requests,
+  requirementsResolving = false,
 }: {
   items: WorkflowGalleryItem[];
   onOpen: (item: WorkflowGalleryItem) => void;
@@ -317,6 +324,7 @@ function WorkflowGrid({
   onConnect: (canonicalSlug: string) => void;
   onConnectWorkspace?: () => void;
   requests?: Record<string, WorkflowRequestState>;
+  requirementsResolving?: boolean;
 }) {
   // Columns track the pane's own width, not the viewport's — the side panel
   // and rail change how much room the grid actually has, so Tailwind's
@@ -353,6 +361,7 @@ function WorkflowGrid({
           onConnect={onConnect}
           onConnectWorkspace={onConnectWorkspace}
           request={requests?.[item.workflow.slug]}
+          isResolving={requirementsResolving}
         />
       ))}
     </div>

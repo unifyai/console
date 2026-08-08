@@ -54,14 +54,19 @@ describe('submitWorkflowRequest', () => {
     // The assistant's own context, and Orchestra's row casing rather than the
     // view model's.
     expect(written.context).toBe('u1/7/Workflows/Requests');
-    expect(written.entries).toMatchObject({
+    // `/v0/logs` takes a list of rows, and this asserted a bare object — so
+    // it agreed with the bug that 422'd every install on staging rather
+    // than catching it. See workflowRequestWire.node.test.ts, which pins
+    // the whole body including `projectName`.
+    expect(written.entries).toHaveLength(1);
+    expect(written.entries[0]).toMatchObject({
       request_id: result.requestId,
       slug: 'daily_briefing',
       action: 'install',
       status: 'pending',
       destination: 'personal',
     });
-    expect(JSON.parse(written.entries.params)).toEqual({ focus: 'Q3' });
+    expect(JSON.parse(written.entries[0].params)).toEqual({ focus: 'Q3' });
 
     const [dispatchUrl] = fetchMock.mock.calls[1];
     expect(dispatchUrl).toBe('/api/workflows/requests/dispatch');
@@ -115,6 +120,6 @@ describe('submitWorkflowRequest', () => {
 
     const written = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(written.context).toBe('Teams/11/Workflows/Requests');
-    expect(written.entries.destination).toBe('team:11');
+    expect(written.entries[0].destination).toBe('team:11');
   });
 });

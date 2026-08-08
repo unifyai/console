@@ -310,12 +310,13 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     [requirementContext]
   );
 
-  const extraDefinitions = useRequirementDefinitions({
-    assistantId,
-    slugs: requirementSlugs,
-    knownSlugs,
-    enabled: resolveMissingDefinitions && !isMock,
-  });
+  const { bySlug: extraDefinitions, isResolving: requirementsResolving } =
+    useRequirementDefinitions({
+      assistantId,
+      slugs: requirementSlugs,
+      knownSlugs,
+      enabled: resolveMissingDefinitions && !isMock,
+    });
 
   /** The supplied context with per-slug gaps filled. Base definitions win: they
    * carry the connection state merged in by the integrations catalogue. */
@@ -564,7 +565,13 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       // The optimistic surface-by-surface list runs while the assistant does
       // the real work, so the wait shows what is landing rather than a spinner.
       setProvisioning({ slug, step: 0, values, destination });
-      void request(slug, 'install', { params: values, destination });
+      void request(slug, 'install', { params: values, destination }).then((recorded) => {
+        // A write that never landed must stop the list dead. It used to keep
+        // ticking off "Planted 2 procedures", "Planted 1 functions" beside a
+        // toast saying the change could not be recorded — the screen
+        // contradicting itself, and the reassuring half winning.
+        if (!recorded) setProvisioning((current) => (current?.slug === slug ? null : current));
+      });
     },
     [request]
   );
@@ -745,6 +752,13 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
      * actions on this rather than pretending.
      */
     canMutate: isMock || !!assistant,
+    /**
+     * True while any required app is still unanswered — the browse page
+     * having loaded is not the same as every requirement having a verdict,
+     * and rendering "couldn't check this app" in that gap states one it
+     * does not have.
+     */
+    requirementsResolving: !isMock && (!hasLoaded || requirementsResolving),
     provisioning,
     /**
      * The recorded changes this session is watching, keyed by slug. What the

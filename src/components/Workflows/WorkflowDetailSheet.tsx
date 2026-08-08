@@ -250,6 +250,10 @@ export function WorkflowDetailSheet({
             key="preview"
             className="flex h-full min-h-0 flex-col duration-200 animate-in slide-in-from-right-8"
           >
+            {/* The preview pane replaces the header, and with it the only
+                SheetTitle — which Radix requires on every dialog. Named
+                for what is actually on screen rather than hidden empty. */}
+            <SheetTitle className="sr-only">{preview.name}</SheetTitle>
             <WorkflowArtifactView
               artifact={preview}
               isLoading={previewLoading}
@@ -348,6 +352,7 @@ export function WorkflowDetailSheet({
                     >
                       <WorkflowRequirementList
                         workflow={workflow}
+                        isResolving={requirementsResolving}
                         onConnect={onConnect}
                         onConnectWorkspace={onConnectWorkspace}
                         onSupplySecret={onSupplySecret}
@@ -421,7 +426,7 @@ export function WorkflowDetailSheet({
                     <Button
                       type="button"
                       className="gap-1.5"
-                      disabled={missingParams.length > 0 || !canMutate}
+                      disabled={missingParams.length > 0 || !canMutate || requirementsResolving}
                       onClick={() =>
                         onInstall(
                           values,

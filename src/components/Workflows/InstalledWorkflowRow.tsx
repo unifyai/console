@@ -38,9 +38,12 @@ export function InstalledWorkflowRow({
   onToggleSetup,
   onRetry,
   request,
+  isResolving = false,
 }: {
   item: WorkflowGalleryItem;
   canMutate?: boolean;
+  /** True until the integrations catalogue has answered for this row's apps. */
+  isResolving?: boolean;
   /** A recorded change the assistant is carrying out for this workflow. */
   request?: WorkflowRequestState;
   onOpen: (item: WorkflowGalleryItem) => void;
@@ -52,7 +55,9 @@ export function InstalledWorkflowRow({
   const { workflow, installation } = item;
   if (!installation) return null;
   const missing = unmetRequirements(workflow);
-  const held = installation.status === 'pending_requirements';
+  // A held state derived from requirements nobody has resolved yet is a
+  // guess; hold the banner and the inline Connect until there is an answer.
+  const held = installation.status === 'pending_requirements' && !isResolving;
   const partial = installation.status === 'partial';
   const nextTask = installation.tasks[0];
   // Only a route with a connect view of its own is fixed inline.

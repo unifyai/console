@@ -59,17 +59,35 @@ export function WorkflowAppIcon({
 export function WorkflowAppIconStack({
   requirements,
   max = 4,
+  isResolving = false,
 }: {
   requirements: WorkflowRequirement[];
   max?: number;
+  /**
+   * True until the integrations catalogue has answered for these apps.
+   *
+   * A requirement carries no `iconUrl` until then, so the icon falls back
+   * to a grey plate with the app's initial — which is indistinguishable
+   * from an app that genuinely has no mark, and turns into the real logo
+   * seconds later. A placeholder that reads as loading is honest; a grey
+   * letter that reads as an answer is not.
+   */
+  isResolving?: boolean;
 }) {
   const shown = requirements.slice(0, max);
   const overflow = requirements.length - shown.length;
   return (
     <span className="flex items-center gap-1.5">
-      {shown.map((requirement) => (
-        <WorkflowAppIcon key={requirement.canonicalSlug} requirement={requirement} />
-      ))}
+      {shown.map((requirement) =>
+        isResolving ? (
+          <span
+            key={requirement.canonicalSlug}
+            className="bg-muted/50 h-[26px] w-[26px] shrink-0 animate-pulse rounded-lg"
+          />
+        ) : (
+          <WorkflowAppIcon key={requirement.canonicalSlug} requirement={requirement} />
+        )
+      )}
       {overflow > 0 && <span className="text-caption">+{overflow}</span>}
     </span>
   );

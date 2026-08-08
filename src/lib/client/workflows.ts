@@ -127,19 +127,28 @@ export async function submitWorkflowRequest(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      project: 'Assistants',
+      // `projectName`, not `project`: the Orchestra client camelizes the
+      // whole body on the way out, so this is what becomes `project_name`.
+      // Sending `project` reached Orchestra unrecognised and 422'd every
+      // install with "project_name: Field required".
+      projectName: 'Assistants',
       context,
-      // Converted to Orchestra's wire casing rather than written in it: the
-      // row fields are snake_case (unify's WorkflowRequest model), and the
-      // same conversion is what canvasAccess does at this boundary.
-      entries: camelToSnakeObject({
-        requestId,
-        slug,
-        action,
-        params: JSON.stringify(params),
-        destination: destinationValue,
-        status: 'pending',
-      }),
+      // A list of rows, matching `/v0/logs` — the same shape every other
+      // Console writer uses.
+      //
+      // The row fields themselves are converted rather than written in
+      // snake_case: they are unify's WorkflowRequest model, and the
+      // client's serializer would mangle an already-snake_case key.
+      entries: [
+        camelToSnakeObject({
+          requestId,
+          slug,
+          action,
+          params: JSON.stringify(params),
+          destination: destinationValue,
+          status: 'pending',
+        }),
+      ],
     }),
   });
 
