@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
-import { Input } from '@/components/UI/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,14 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/UI/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/UI/dialog';
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
 import {
   disconnectIntegration,
@@ -33,26 +24,14 @@ import {
 import { useProviderIntegrationCatalog } from '@/hooks/Assistants/useProviderIntegrationCatalog';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
 import { useProviderIntegrationDetail } from '@/hooks/Integrations/useProviderIntegrationDetail';
-import {
-  cancelProviderIntegration,
-  disconnectProviderIntegration,
-  reconnectProviderIntegration,
-  requestUnityIntegrationToolsSync,
-  testProviderIntegration,
-  updateProviderIntegrationConnection,
-  type ProviderAppStatusGroup,
-} from '@/lib/client/integrations';
+import { type ProviderAppStatusGroup } from '@/lib/client/integrations';
 import { buildStaticIntegrationDefinitions } from '@/utils/integrations/static-package-adapter';
 import {
   ENABLE_INTEGRATION_LABEL_FILTER,
   effectiveSemanticCategory,
   semanticCategoryFilterActive,
 } from '@/lib/integrations/integrationLabelFilter';
-import {
-  openPendingOAuthTab,
-  subscribeOAuthComplete,
-  copyAuthorizeUrlForPrivateWindow,
-} from '@/utils/assistants/oauth';
+import { openPendingOAuthTab } from '@/utils/assistants/oauth';
 import { subscribeIntegrationDisconnectSettled } from '@/lib/assistants/coordinatorIntegrationConnect';
 import { SecretFormDialog } from '../Secrets/SecretFormDialog';
 import { JsonUploadPreviewDialog } from '../Secrets/JsonUploadPreviewDialog';
@@ -69,12 +48,9 @@ import type {
 } from '@/types/integrations';
 import {
   IntegrationGalleryShell,
-  ProviderIntegrationDetailSheet,
-  type IntegrationConnectSuccessState,
+  ProviderConnectSurface,
   type IntegrationGalleryFilters,
-  type IntegrationOAuthWaitingState,
 } from '@/components/Integrations';
-import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { ApiKeyIntegrationDialog } from './ApiKeyIntegrationDialog';
 import { OAuthIntegrationDialog, type OAuthSubmitPayload } from './OAuthIntegrationDialog';
 import { getIntegrationProvider } from '@/constants/assistants/integrations';
@@ -291,23 +267,9 @@ export function IntegrationsPane({
   const [customDialogMode, setCustomDialogMode] = React.useState<'create' | 'edit' | null>(null);
   const [integrationDialog, setIntegrationDialog] = React.useState<IntegrationDialog>(null);
   const [pendingDelete, setPendingDelete] = React.useState<PendingDelete | null>(null);
-  const [pendingProviderDisconnect, setPendingProviderDisconnect] =
-    React.useState<IntegrationConnection | null>(null);
-  const [pendingConnectItem, setPendingConnectItem] = React.useState<IntegrationGalleryItem | null>(
-    null
-  );
-  const [pendingConnectLabel, setPendingConnectLabel] = React.useState('');
   const [selectedIntegration, setSelectedIntegration] =
     React.useState<IntegrationGalleryItem | null>(null);
-  const [busyConnectionId, setBusyConnectionId] = React.useState<string | null>(null);
-  const [oauthWaiting, setOauthWaiting] = React.useState<IntegrationOAuthWaitingState | null>(null);
-  const [connectSuccess, setConnectSuccess] = React.useState<IntegrationConnectSuccessState | null>(
-    null
-  );
-  const pendingOAuthMetaRef = React.useRef<{
-    item: IntegrationGalleryItem;
-    accountLabel?: string;
-  } | null>(null);
+  const [connectIntent, setConnectIntent] = React.useState<IntegrationGalleryItem | null>(null);
 
   // Auto-close the custom-secret dialog when its in-flight submit
   // settles (mirrors SecretsPane's pattern).
@@ -449,344 +411,77 @@ export function IntegrationsPane({
     setPendingDelete({ type: 'integration', provider, state });
   };
 
-  const handleOpenConnectDialog = (
-    item: IntegrationGalleryItem,
-    options: { keepSheetOpen?: boolean; preserveConnectSuccess?: boolean } = {}
-  ) => {
-    if (!options.keepSheetOpen) {
-      setSelectedIntegration(null);
-    }
-    if (!options.preserveConnectSuccess) {
-      setConnectSuccess(null);
-    }
-    setPendingConnectItem(item);
-    setPendingConnectLabel('');
-  };
-
-  const countLiveConnections = React.useCallback((item: IntegrationGalleryItem | null) => {
-    if (!item) return 0;
-    return item.connections.filter((connection) => connection.status !== 'disconnected').length;
-  }, []);
-
-  const finishConnectLoopSuccess = React.useCallback(
-    (item: IntegrationGalleryItem, accountLabel?: string) => {
-      const refreshed =
-        galleryItems.find((entry) => entry.canonicalSlug === item.canonicalSlug) ?? item;
-      setSelectedIntegration(refreshed);
-      setOauthWaiting(null);
-      setConnectSuccess({
-        canonicalSlug: refreshed.canonicalSlug,
-        displayName: refreshed.displayName,
-        accountLabel,
-        accountCount: Math.max(1, countLiveConnections(refreshed), countLiveConnections(item) + 1),
-      });
-      pendingOAuthMetaRef.current = null;
-    },
-    [countLiveConnections, galleryItems]
-  );
-
-  const beginProviderConnect = React.useCallback(
-    async (
-      item: IntegrationGalleryItem,
-      options: {
-        accountLabel?: string;
-        navigation?: 'popup' | 'manual';
-      } = {}
-    ) => {
-      const accountLabel = options.accountLabel?.trim() || undefined;
-      const navigation = options.navigation ?? 'popup';
-      pendingOAuthMetaRef.current = { item, accountLabel };
-      setConnectSuccess(null);
-      setSelectedIntegration(item);
-
-      const data = await startProviderConnect(item, undefined, {
-        accountLabel,
-        navigation,
-      });
-      if (!data) {
-        pendingOAuthMetaRef.current = null;
-        setOauthWaiting(null);
-        return;
-      }
-
-      if (isProviderCatalogMock || !data.connectUrl) {
-        finishConnectLoopSuccess(item, accountLabel);
-        return;
-      }
-
-      if (navigation === 'manual') {
-        const copied = await copyAuthorizeUrlForPrivateWindow(data.connectUrl);
-        if (copied) {
-          toast.message(
-            'Authorize URL copied. Paste it into a private/incognito window and sign in as the next account.'
-          );
-        } else {
-          toast.message(
-            'Open a private/incognito window and paste the authorize URL from Copy authorize URL.'
-          );
-        }
-      }
-
-      setOauthWaiting({
-        canonicalSlug: item.canonicalSlug,
-        displayName: item.displayName,
-        accountLabel,
-        connectUrl: data.connectUrl,
-        mode: navigation,
-      });
-    },
-    [finishConnectLoopSuccess, isProviderCatalogMock, startProviderConnect]
-  );
-
-  React.useEffect(() => {
-    return subscribeOAuthComplete((detail) => {
-      if (detail.kind !== 'integration') return;
-      refreshProviderCatalog();
-      const pending = pendingOAuthMetaRef.current;
-      if (pending) {
-        window.setTimeout(() => {
-          finishConnectLoopSuccess(pending.item, pending.accountLabel);
-        }, 900);
-      }
-      if (
-        selectedIntegration &&
-        (selectedIntegration.source === 'provider_backed' ||
-          selectedIntegration.source === 'overlay_curated')
-      ) {
-        window.setTimeout(() => void fetchDetails(selectedIntegration), 900);
-        window.setTimeout(() => void fetchDetails(selectedIntegration), 1800);
-      }
-    });
-  }, [fetchDetails, finishConnectLoopSuccess, refreshProviderCatalog, selectedIntegration]);
-
+  // A card for an app with no connection yet connects in one click: straight
+  // to the account label, no drawer in between.
   const handleGalleryPrimaryAction = (item: IntegrationGalleryItem) => {
-    if (item.status === 'connected' || item.status === 'configured') {
-      setSelectedIntegration(item);
-      return;
-    }
-    if (item.source === 'provider_backed' || item.source === 'overlay_curated') {
-      handleOpenConnectDialog(item);
+    const unconnectedProviderApp =
+      item.status !== 'connected' &&
+      item.status !== 'configured' &&
+      (item.source === 'provider_backed' || item.source === 'overlay_curated');
+    if (unconnectedProviderApp) {
+      setConnectIntent(item);
       return;
     }
     setSelectedIntegration(item);
   };
 
-  const handleDetailPrimaryAction = (
-    item: IntegrationGalleryItem,
-    options: { accountLabel?: string } = {}
-  ) => {
+  /**
+   * The primary actions the shared connect surface does not own.
+   *
+   * A native app needs no connection, a custom secret opens the secret
+   * dialog, and a static package has its own OAuth dialog. Everything else
+   * is an ordinary provider connect, which the surface handles.
+   */
+  const handleUnmanagedPrimaryAction = (item: IntegrationGalleryItem) => {
     if (item.sourceMetadata?.sourceType === 'native') {
       setSelectedIntegration(item);
       toast.message(
         `${item.displayName} is available natively and does not need a provider connection.`
       );
-      return;
+      return true;
     }
 
     if (item.source === 'custom_secret') {
       setSelectedIntegration(null);
       handleNewSecret();
       setCustomDialogMode('create');
-      return;
+      return true;
     }
 
     if (item.staticProvider) {
       setSelectedIntegration(null);
       const mode = item.status === 'connected' || item.status === 'configured' ? 'edit' : 'add';
       setIntegrationDialog({ mode, provider: item.staticProvider });
-      return;
+      return true;
     }
 
-    if (
-      !options.accountLabel &&
-      (item.source === 'provider_backed' || item.source === 'overlay_curated')
-    ) {
-      handleOpenConnectDialog(item, { keepSheetOpen: true });
-      return;
-    }
-
-    void beginProviderConnect(item, {
-      accountLabel: options.accountLabel,
-      navigation: 'popup',
-    });
+    return false;
   };
 
-  const handleProviderApiKeySubmit = (
-    item: IntegrationGalleryItem,
-    values: Record<string, string>,
-    options: { accountLabel?: string } = {}
-  ) => {
-    void (async () => {
-      const data = await startProviderConnect(item, values, {
-        accountLabel: options.accountLabel,
-      });
-      if (data) {
-        finishConnectLoopSuccess(item, options.accountLabel?.trim() || undefined);
-      }
-    })();
-  };
-
-  const handleConnectDialogSubmit = (navigation: 'popup' | 'manual' = 'popup') => {
-    const item = pendingConnectItem;
-    if (!item) return;
-    const accountLabel = pendingConnectLabel.trim() || undefined;
-    const addingAnother =
-      countLiveConnections(item) > 0 ||
-      (connectSuccess !== null && connectSuccess.canonicalSlug === item.canonicalSlug);
-    if (addingAnother && !accountLabel) {
-      toast.error('Account label is required when adding another account.');
-      return;
-    }
-    setPendingConnectItem(null);
-    setPendingConnectLabel('');
-    void beginProviderConnect(item, { accountLabel, navigation });
-  };
-
-  const isAddingAnotherAccount = Boolean(
-    pendingConnectItem &&
-    (countLiveConnections(pendingConnectItem) > 0 ||
-      (connectSuccess !== null &&
-        connectSuccess.canonicalSlug === pendingConnectItem.canonicalSlug))
-  );
-  const connectLabelRequiredMissing =
-    isAddingAnotherAccount && pendingConnectLabel.trim().length === 0;
-
-  const handleConnectionReconnect = async (connection: IntegrationConnection) => {
-    if (connection.source === 'static_package' && connection.sourceMetadata?.staticProviderId) {
-      const card = cards.find(
-        (item) => item.provider.id === connection.sourceMetadata?.staticProviderId
-      );
-      if (card) {
-        await handleReconnectIntegration(card.provider);
-      }
-      return;
-    }
-
-    setBusyConnectionId(connection.id);
-    try {
-      const updatedConnection = await reconnectProviderIntegration(connection.id);
-      const definition = galleryItems.find(
-        (item) => item.canonicalSlug === connection.canonicalSlug
-      );
-      if (definition?.authModes.includes('oauth')) {
-        await startProviderConnect(definition, undefined, {
-          accountLabel: connection.accountLabel ?? undefined,
-        });
-      } else {
-        await requestUnityIntegrationToolsSync({
-          assistantId,
-          connection: updatedConnection,
-        }).catch((error) => {
-          console.warn('Failed to request Unity integration tool sync after reconnect', error);
-        });
-        toast.success('Reconnect started.');
-      }
-      await refreshProviderCatalog();
-    } catch (error) {
-      console.error('Failed to reconnect provider integration', error);
-      toast.error('Could not reconnect. Please try again.');
-    } finally {
-      setBusyConnectionId(null);
-    }
-  };
-
-  const handleConnectionDisconnect = async (connection: IntegrationConnection) => {
-    if (connection.source === 'static_package' && connection.sourceMetadata?.staticProviderId) {
-      const card = cards.find(
-        (item) => item.provider.id === connection.sourceMetadata?.staticProviderId
-      );
-      if (card) handleDisconnectRequest(card.provider, card.state);
-      return;
-    }
-
-    setPendingProviderDisconnect(connection);
-  };
-
-  const confirmProviderDisconnect = async () => {
-    const connection = pendingProviderDisconnect;
-    if (!connection) return;
-    setPendingProviderDisconnect(null);
-    setBusyConnectionId(connection.id);
-    try {
-      await disconnectProviderIntegration(connection.id);
-      await requestUnityIntegrationToolsSync({
-        assistantId,
-        connection,
-        reason: 'disconnected',
-      }).catch((error) => {
-        console.warn('Failed to request Unity integration tool sync after disconnect', error);
-      });
-      toast.success('Disconnected.');
-      await refreshProviderCatalog();
-      if (selectedIntegration) await fetchDetails(selectedIntegration);
-    } catch (error) {
-      console.error('Failed to disconnect provider integration', error);
-      toast.error('Could not disconnect. Please try again.');
-    } finally {
-      setBusyConnectionId(null);
-    }
-  };
-
-  const handleConnectionCancel = async (connection: IntegrationConnection) => {
-    setBusyConnectionId(connection.id);
-    try {
-      await cancelProviderIntegration(connection.id);
-      toast.success('Setup cancelled.');
-      await refreshProviderCatalog();
-      if (selectedIntegration) await fetchDetails(selectedIntegration);
-    } catch (error) {
-      console.error('Failed to cancel provider integration setup', error);
-      toast.error('Could not cancel setup. Please try again.');
-    } finally {
-      setBusyConnectionId(null);
-    }
-  };
-
-  const handleConnectionTest = async (connection: IntegrationConnection) => {
-    if (connection.source !== 'provider_backed' && connection.source !== 'overlay_curated') return;
-
-    setBusyConnectionId(connection.id);
-    try {
-      const updatedConnection = await testProviderIntegration(connection.id);
-      await requestUnityIntegrationToolsSync({
-        assistantId,
-        connection: updatedConnection,
-      }).catch((error) => {
-        console.warn('Failed to request Unity integration tool sync after connection test', error);
-      });
-      toast.success('Connection is healthy.');
-      await refreshProviderCatalog();
-      if (selectedIntegration) await fetchDetails(selectedIntegration);
-    } catch (error) {
-      console.error('Failed to test provider integration', error);
-      toast.error('Could not test connection. Please try again.');
-    } finally {
-      setBusyConnectionId(null);
-    }
-  };
-
-  const handleConnectionLabelUpdate = async (
+  const handleUnmanagedConnectionAction = (
     connection: IntegrationConnection,
-    accountLabel: string
+    action: 'reconnect' | 'disconnect'
   ) => {
-    if (connection.source !== 'provider_backed' && connection.source !== 'overlay_curated') return;
-
-    setBusyConnectionId(connection.id);
-    try {
-      await updateProviderIntegrationConnection(connection.id, {
-        accountLabel: accountLabel.trim() || null,
-      });
-      toast.success('Account label updated.');
-      await refreshProviderCatalog();
-      if (selectedIntegration) await fetchDetails(selectedIntegration);
-    } catch (error) {
-      console.error('Failed to update provider integration label', error);
-      toast.error('Could not update label. Please try again.');
-      throw error;
-    } finally {
-      setBusyConnectionId(null);
+    if (connection.source !== 'static_package' || !connection.sourceMetadata?.staticProviderId) {
+      return false;
     }
+    const card = cards.find(
+      (item) => item.provider.id === connection.sourceMetadata?.staticProviderId
+    );
+    if (!card) return true;
+    if (action === 'reconnect') {
+      void handleReconnectIntegration(card.provider);
+    } else {
+      handleDisconnectRequest(card.provider, card.state);
+    }
+    return true;
   };
+
+  const findLatestGalleryItem = React.useCallback(
+    (canonicalSlug: string) =>
+      galleryItems.find((item) => item.canonicalSlug === canonicalSlug) ?? null,
+    [galleryItems]
+  );
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
@@ -1030,155 +725,29 @@ export function IntegrationsPane({
         />
       )}
 
-      <ProviderIntegrationDetailSheet
+      <ProviderConnectSurface
+        assistantId={assistantId}
         item={selectedDisplayItem}
         open={!!selectedDisplayItem}
-        assistantId={assistantId}
-        busy={Boolean(providerConnectingSlug)}
-        busyConnectionId={busyConnectionId}
         onOpenChange={(open) => {
-          if (!open) {
-            setSelectedIntegration(null);
-            setOauthWaiting(null);
-            setConnectSuccess(null);
-            pendingOAuthMetaRef.current = null;
-          }
+          if (!open) setSelectedIntegration(null);
         }}
-        onPrimaryAction={handleDetailPrimaryAction}
-        onApiKeySubmit={handleProviderApiKeySubmit}
-        onReconnectConnection={(connection) => void handleConnectionReconnect(connection)}
-        onDisconnectConnection={(connection) => void handleConnectionDisconnect(connection)}
-        onCancelConnection={(connection) => void handleConnectionCancel(connection)}
-        onTestConnection={(connection) => void handleConnectionTest(connection)}
-        onUpdateConnectionLabel={(connection, accountLabel) =>
-          handleConnectionLabelUpdate(connection, accountLabel)
-        }
-        canManageCustomAuth={canWrite}
+        findLatest={findLatestGalleryItem}
+        startConnect={startProviderConnect}
+        refresh={refreshProviderCatalog}
+        fetchDetails={fetchDetails}
+        isMock={isProviderCatalogMock}
         isDetailLoading={
           !!selectedDisplayItem && isDetailLoading === selectedDisplayItem.canonicalSlug
         }
-        oauthWaiting={
-          oauthWaiting &&
-          selectedDisplayItem &&
-          oauthWaiting.canonicalSlug === selectedDisplayItem.canonicalSlug
-            ? oauthWaiting
-            : null
-        }
-        connectSuccess={
-          connectSuccess &&
-          selectedDisplayItem &&
-          connectSuccess.canonicalSlug === selectedDisplayItem.canonicalSlug
-            ? connectSuccess
-            : null
-        }
-        onCancelOAuthWaiting={() => {
-          setOauthWaiting(null);
-          pendingOAuthMetaRef.current = null;
-        }}
-        onCopyOAuthAuthorizeUrl={() => {
-          if (!oauthWaiting?.connectUrl) return;
-          void copyAuthorizeUrlForPrivateWindow(oauthWaiting.connectUrl).then((copied) => {
-            if (copied) {
-              toast.message('Authorize URL copied. Paste it into a private/incognito window.');
-            } else {
-              toast.error('Could not copy authorize URL. Please try again.');
-            }
-          });
-        }}
-        onAddAnotherAccount={() => {
-          if (!selectedDisplayItem) return;
-          handleOpenConnectDialog(selectedDisplayItem, {
-            keepSheetOpen: true,
-            preserveConnectSuccess: true,
-          });
-        }}
-        onDismissConnectSuccess={() => setConnectSuccess(null)}
+        connectingSlug={providerConnectingSlug}
+        canManageCustomAuth={canWrite}
+        connectIntent={connectIntent}
+        onConnectIntentHandled={() => setConnectIntent(null)}
+        onSelectItem={setSelectedIntegration}
+        onUnmanagedPrimaryAction={handleUnmanagedPrimaryAction}
+        onUnmanagedConnectionAction={handleUnmanagedConnectionAction}
       />
-
-      <Dialog
-        open={!!pendingConnectItem}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPendingConnectItem(null);
-            setPendingConnectLabel('');
-          }
-        }}
-      >
-        <DialogContent data-testid="provider-integration-connect-dialog">
-          <DialogHeader>
-            <DialogTitle>
-              {isAddingAnotherAccount
-                ? `Add another ${pendingConnectItem?.displayName ?? 'app'} account`
-                : `Connect ${pendingConnectItem?.displayName ?? 'app'}`}
-            </DialogTitle>
-            <DialogDescription>
-              {isAddingAnotherAccount
-                ? 'A label is required so you can tell these accounts apart later. Then authorize in the popup — you stay signed into Console.'
-                : 'Label this account, then authorize it in the popup. You stay signed into Console — only the popup switches identity.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label htmlFor="provider-integration-connect-label" className="text-label-muted">
-                Account label{isAddingAnotherAccount ? ' (required)' : ''}
-              </label>
-              <Input
-                id="provider-integration-connect-label"
-                value={pendingConnectLabel}
-                onChange={(event) => setPendingConnectLabel(event.target.value)}
-                placeholder={`e.g. Work ${pendingConnectItem?.displayName ?? 'account'}`}
-                autoFocus
-                required={isAddingAnotherAccount}
-                aria-required={isAddingAnotherAccount}
-                data-testid="provider-integration-connect-label"
-              />
-              <p className="text-caption">
-                Examples: djl11, approver-bot, Work {pendingConnectItem?.displayName ?? 'account'}.
-              </p>
-            </div>
-            <Alert
-              className="border-[color:var(--status-warning)]/40 bg-[var(--status-warning-bg)]"
-              data-testid="provider-integration-connect-identity-warning"
-            >
-              <AlertTitle className="text-sm">Use a different identity</AlertTitle>
-              <AlertDescription className="text-xs leading-5 text-muted-foreground">
-                If the popup skips straight to Approve, it is still using the account already signed
-                into that provider in this browser. Switch accounts in the popup, or open the
-                authorize link in a private window.
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setPendingConnectItem(null);
-                setPendingConnectLabel('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={Boolean(providerConnectingSlug) || connectLabelRequiredMissing}
-              onClick={() => handleConnectDialogSubmit('manual')}
-              data-testid="provider-integration-connect-private-window"
-            >
-              Open in private window
-            </Button>
-            <Button
-              type="button"
-              disabled={Boolean(providerConnectingSlug) || connectLabelRequiredMissing}
-              onClick={() => handleConnectDialogSubmit('popup')}
-              data-testid="provider-integration-connect-submit"
-            >
-              Continue to authorize
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Confirmation dialog (covers all delete-style actions) */}
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
@@ -1198,30 +767,6 @@ export function IntegrationsPane({
                   ? 'Remove'
                   : 'Disconnect'
                 : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={!!pendingProviderDisconnect}
-        onOpenChange={(open) => !open && setPendingProviderDisconnect(null)}
-      >
-        <AlertDialogContent data-testid="provider-integration-disconnect-confirm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect this app?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the current authorization for this assistant. You can reconnect the app
-              later if you need it again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmProviderDisconnect}
-              className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
-            >
-              Disconnect
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

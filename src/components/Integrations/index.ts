@@ -8,6 +8,8 @@ export { ProviderApiKeyForm } from './ProviderApiKeyForm';
 export { ProviderCustomOAuthSection } from './ProviderCustomOAuthSection';
 export { ProviderIntegrationCard } from './ProviderIntegrationCard';
 export { IntegrationAccountStack } from './IntegrationAccountStack';
+export { ProviderConnectSurface } from './ProviderConnectSurface';
+export type { ProviderConnectSurfaceProps } from './ProviderConnectSurface';
 export { ProviderIntegrationDetailSheet } from './ProviderIntegrationDetailSheet';
 export {
   IntegrationConnectSuccessBanner,

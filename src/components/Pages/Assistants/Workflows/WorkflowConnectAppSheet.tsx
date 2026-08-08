@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import { ProviderIntegrationDetailSheet } from '@/components/Integrations';
+import { ProviderConnectSurface } from '@/components/Integrations';
 import { useProviderIntegrationCatalog } from '@/hooks/Assistants/useProviderIntegrationCatalog';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
 import { useProviderIntegrationDetail } from '@/hooks/Integrations/useProviderIntegrationDetail';
@@ -11,19 +11,17 @@ import type { IntegrationGalleryItem } from '@/types/integrations';
 /**
  * Connecting a workflow's required app never leaves the Workflows surface.
  *
- * This mounts the ordinary provider drawer — the same component the
- * Integrations gallery opens — as a nested overlay above the workflow
- * sheet, so OAuth, API keys, scopes, tools and the bring-your-own-OAuth
- * form all behave exactly as they do on the Integrations tab. Sending the
- * user to Integrations and expecting them to navigate back mid-install is
- * the flow this replaces.
+ * Everything below the resolution of *which* app is `ProviderConnectSurface`
+ * — the same component the Integrations gallery mounts, so the drawer, the
+ * account-label step, the OAuth round trip, and disconnect / cancel /
+ * reconnect / test / relabel are the same code, not the same-looking code.
+ * This file owns only what differs: the shelf knows the slug it needs, and
+ * the gallery knows a browse position.
  *
- * Same component is not enough on its own: the gallery list carries a
- * *summary* of each app, and scopes, tools and the API-key schema arrive
- * only from the per-app detail fetch. Mounting the drawer without that
- * showed Slack with its scopes and none of its 157 tools, which read as a
- * different product. `useProviderIntegrationDetail` is the same fetch and
- * merge the Integrations pane uses, so the two cannot drift again.
+ * Resolution is an exact `in` query on that slug. It used to be the browse
+ * search — a substring match over display name, slug and description,
+ * returned a page at a time — which could not distinguish "not published"
+ * from "crowded off the first page by other apps mentioning the same word".
  */
 export function WorkflowConnectAppSheet({
   assistantId,
@@ -45,8 +43,9 @@ export function WorkflowConnectAppSheet({
   /** Fired once the app reports connected, so held jobs can arm. */
   onConnected: (canonicalSlug: string) => void;
 }) {
+  const slugs = React.useMemo(() => (canonicalSlug ? [canonicalSlug] : []), [canonicalSlug]);
   const catalog = useProviderIntegrationCatalog(assistantId, {
-    query: canonicalSlug ?? undefined,
+    slugs,
     enabled: open && !!canonicalSlug,
   });
 
@@ -57,9 +56,14 @@ export function WorkflowConnectAppSheet({
     useMock: catalog.isMock,
   });
 
+  const findLatest = React.useCallback(
+    (slug: string) => items.find((candidate) => candidate.canonicalSlug === slug) ?? null,
+    [items]
+  );
+
   const listed = React.useMemo<IntegrationGalleryItem | null>(
-    () => items.find((candidate) => candidate.canonicalSlug === canonicalSlug) ?? null,
-    [items, canonicalSlug]
+    () => (canonicalSlug ? findLatest(canonicalSlug) : null),
+    [canonicalSlug, findLatest]
   );
 
   const item = useProviderIntegrationDetail({
@@ -69,10 +73,14 @@ export function WorkflowConnectAppSheet({
     fetchDetails: catalog.fetchDetails,
   });
 
-  const resolving = open && !catalog.hasLoaded;
+  // `hasLoaded` stays true across requests, so on a second open it reported
+  // the previous app's answer for this one — the drawer declared the app
+  // missing before its own query had even been issued. Only "this request
+  // has landed" is a verdict.
+  const resolving = open && !catalog.hasLoadedRequest;
 
-  // The provider catalog has settled and does not carry this app. That is a
-  // bundle bug — a requirement slug outside the gallery's id space (the
+  // The catalogue has answered for this slug and does not carry it. That is
+  // a bundle bug — a requirement slug outside the gallery's id space (the
   // shipped bundle once said `google_workspace`, a valid OAuth alias
   // upstream but invisible here).
   //
@@ -99,53 +107,24 @@ export function WorkflowConnectAppSheet({
     onOpenChange(false);
   }, [unresolved, canonicalSlug, displayName, onOpenChange]);
 
-  const handleConnect = React.useCallback(
-    async (
-      target: IntegrationGalleryItem,
-      options?: { accountLabel?: string },
-      apiKeyValues?: Record<string, string>
-    ) => {
-      const result = await catalog.startConnect(target, apiKeyValues, {
-        accountLabel: options?.accountLabel,
-      });
-      if (result?.connection?.status === 'connected') {
-        onConnected(target.canonicalSlug);
-        onOpenChange(false);
-        return;
-      }
-      if (!result) {
-        toast.error('Could not start the connection. Please try again.');
-      }
-      // OAuth popups settle asynchronously; the catalog's own connect-settled
-      // subscription refreshes this drawer, and the effect below arms the
-      // workflow when the connection lands.
-    },
-    [catalog, onConnected, onOpenChange]
-  );
-
-  // Arm held jobs the moment the catalog reports the app connected, however
-  // the connection settled (popup, manual authorize, or API key).
-  React.useEffect(() => {
-    if (!open || !canonicalSlug || !item) return;
-    if (item.status === 'connected' || item.status === 'configured') {
-      onConnected(canonicalSlug);
-    }
-  }, [open, canonicalSlug, item, onConnected]);
-
   if (!canonicalSlug) return null;
 
   return (
-    <ProviderIntegrationDetailSheet
+    <ProviderConnectSurface
+      assistantId={assistantId}
       item={item}
       open={open}
-      assistantId={assistantId}
-      isDetailLoading={resolving || catalog.isDetailLoading === canonicalSlug}
-      busy={catalog.isConnecting === canonicalSlug}
-      canManageCustomAuth={canWrite}
       onOpenChange={onOpenChange}
-      onPrimaryAction={(target, options) => void handleConnect(target, options)}
-      onApiKeySubmit={(target, values, options) => void handleConnect(target, options, values)}
-      aria-label={displayName ? `Connect ${displayName}` : undefined}
+      findLatest={findLatest}
+      startConnect={catalog.startConnect}
+      refresh={catalog.refresh}
+      fetchDetails={catalog.fetchDetails}
+      isMock={catalog.isMock}
+      isDetailLoading={resolving || catalog.isDetailLoading === canonicalSlug}
+      connectingSlug={catalog.isConnecting}
+      canManageCustomAuth={canWrite}
+      onConnected={onConnected}
+      ariaLabel={displayName ? `Connect ${displayName}` : undefined}
     />
   );
 }
