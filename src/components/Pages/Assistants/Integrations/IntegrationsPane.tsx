@@ -32,6 +32,7 @@ import {
 } from '@/hooks/Assistants/useAssistantIntegrations';
 import { useProviderIntegrationCatalog } from '@/hooks/Assistants/useProviderIntegrationCatalog';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
+import { useProviderIntegrationDetail } from '@/hooks/Integrations/useProviderIntegrationDetail';
 import {
   cancelProviderIntegration,
   disconnectProviderIntegration,
@@ -369,50 +370,23 @@ export function IntegrationsPane({
     useMock: isProviderCatalogMock,
   });
   const shouldShowGallerySkeleton = !hasProviderCatalogLoaded && !isProviderCatalogMock;
-  const selectedDetail = selectedIntegration
-    ? detailsBySlug[selectedIntegration.canonicalSlug]
-    : null;
-  const selectedDisplayItem = React.useMemo(() => {
-    if (!selectedIntegration) return null;
-    const refreshedGalleryItem = galleryItems.find(
-      (item) => item.canonicalSlug === selectedIntegration.canonicalSlug
-    );
-    const base = refreshedGalleryItem ?? selectedIntegration;
-    if (!selectedDetail) return base;
-    const baseConnection =
-      base.primaryConnection ??
-      base.connections.find((connection) => connection.status !== 'disconnected') ??
-      null;
-    const detailConnection =
-      selectedDetail.connections.find((connection) => connection.status !== 'disconnected') ?? null;
-    return {
-      ...selectedDetail,
-      ...base,
-      scopes: selectedDetail.scopes.length > 0 ? selectedDetail.scopes : base.scopes,
-      tools: selectedDetail.tools.length > 0 ? selectedDetail.tools : base.tools,
-      capabilityGroups:
-        selectedDetail.capabilityGroups.length > 0
-          ? selectedDetail.capabilityGroups
-          : base.capabilityGroups,
-      apiKeySchema: selectedDetail.apiKeySchema ?? base.apiKeySchema,
-      docsUrl: selectedDetail.docsUrl ?? base.docsUrl,
-      sources: base.sources,
-      isMock: base.isMock,
-      primaryConnection: baseConnection ?? detailConnection,
-      connections: base.connections.length > 0 ? base.connections : selectedDetail.connections,
-    } as IntegrationGalleryItem;
-  }, [galleryItems, selectedDetail, selectedIntegration]);
-
-  React.useEffect(() => {
-    if (!selectedIntegration) return;
-    if (
-      selectedIntegration.source !== 'provider_backed' &&
-      selectedIntegration.source !== 'overlay_curated'
-    ) {
-      return;
-    }
-    void fetchDetails(selectedIntegration);
-  }, [fetchDetails, selectedIntegration]);
+  // The drawer's data — the per-app detail fetched and folded over the
+  // list's summary. Shared with the Workflows shelf, which mounts the same
+  // drawer and must therefore show the same thing.
+  const selectedDisplayItem = useProviderIntegrationDetail({
+    selected: selectedIntegration,
+    latest: React.useMemo(
+      () =>
+        selectedIntegration
+          ? (galleryItems.find(
+              (item) => item.canonicalSlug === selectedIntegration.canonicalSlug
+            ) ?? null)
+          : null,
+      [galleryItems, selectedIntegration]
+    ),
+    detailsBySlug,
+    fetchDetails,
+  });
 
   React.useEffect(() => {
     return subscribeIntegrationDisconnectSettled((detail) => {
