@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { getProviderIntegrationDetails } from '@/lib/client/integrations';
+import { listProviderIntegrationDefinitionsBySlugs } from '@/lib/client/integrations';
 import type { IntegrationDefinition } from '@/types/integrations';
 
 /**
@@ -41,23 +41,26 @@ export function useRequirementDefinitions({
     if (missing.length === 0) return;
 
     let cancelled = false;
-    void Promise.all(
-      missing.map(async (slug) => {
-        try {
-          const detail = await getProviderIntegrationDetails({
-            ownerScope: 'assistant',
-            assistantId: Number.isNaN(Number(assistantId)) ? assistantId : Number(assistantId),
-            canonicalSlug: slug,
-          });
-          return [slug, detail] as const;
-        } catch {
-          return [slug, null] as const;
-        }
-      })
-    ).then((entries) => {
-      if (cancelled || entries.length === 0) return;
-      setBySlug((current) => ({ ...current, ...Object.fromEntries(entries) }));
-    });
+    void (async () => {
+      // One request for every missing slug, not one per slug. Each of those
+      // was a full detail fetch that also pulled up to 500 tool rows for an
+      // app whose tools no workflow surface renders — eight requirements
+      // meant eight of them, the slowest measured at forty seconds.
+      const found = await listProviderIntegrationDefinitionsBySlugs({
+        ownerScope: 'assistant',
+        assistantId: Number.isNaN(Number(assistantId)) ? assistantId : Number(assistantId),
+        slugs: missing,
+      }).catch(() => [] as Awaited<ReturnType<typeof listProviderIntegrationDefinitionsBySlugs>>);
+      if (cancelled) return;
+      const byCanonical = new Map(found.map((item) => [item.canonicalSlug, item]));
+      // A slug the gallery does not know is recorded as `null` rather than
+      // left absent, so it reads as answered-and-absent instead of being
+      // asked for again on every render.
+      setBySlug((current) => ({
+        ...current,
+        ...Object.fromEntries(missing.map((slug) => [slug, byCanonical.get(slug) ?? null])),
+      }));
+    })();
     return () => {
       cancelled = true;
     };

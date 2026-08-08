@@ -10,7 +10,7 @@ import { WorkflowConnectAppSheet } from './WorkflowConnectAppSheet';
 import { WORKFLOW_SURFACES } from '@/components/Workflows/workflowCategories';
 import { useWorkflowCatalog } from '@/hooks/Workflows/useWorkflowCatalog';
 import { useWorkflowArtifacts } from '@/hooks/Workflows/useWorkflowArtifacts';
-import { useProviderIntegrationCatalog } from '@/hooks/Assistants/useProviderIntegrationCatalog';
+import { shouldUseMockProviderIntegrations } from '@/utils/assistants/provider-integration-mock-data';
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
 import { useAppShellNavigation } from '@/lib/navigation/AppShellRouter';
 import type { Assistant } from '@/types/assistants/assistant';
@@ -65,37 +65,29 @@ export function WorkflowsPane({
   const { navigateToAssistants } = useAppShellNavigation();
   const dataEnabled = isVisible && isActiveSurface;
 
-  // Requirement routes resolve against the integrations layer this app
-  // already loads — connections and definitions by canonical slug, plus the
-  // secrets a native or BYOD-OAuth app is gated on. Never a second copy.
-  const integrations = useProviderIntegrationCatalog(assistantId, { enabled: dataEnabled });
   const secrets = useAssistantSecrets(assistantId, ownerId, secretActions as SecretActions, {
     enabled: dataEnabled && !!secretActions,
   });
+  const isMockIntegrations = shouldUseMockProviderIntegrations();
 
-  // One context, built from what this app already loads. Resolution itself —
-  // including fetching definitions for requirement slugs the browse page does
-  // not happen to carry — belongs to the catalogue hook, which is the only
-  // place that knows which slugs the shelf actually requires.
+  // The shelf deliberately does **not** load the integrations browse
+  // catalogue. It used to, purely to seed this lookup — a hundred-app page,
+  // a count metric, a pinned page and a connections read, for the eight apps
+  // its bundles actually name. Every slug it needs is fetched by slug in one
+  // request instead, so the base map starts empty on purpose.
   const requirementContext = React.useMemo(
     () => ({
-      definitionsBySlug: new Map(
-        integrations.definitions.map(
-          (definition) => [definition.canonicalSlug, definition] as const
-        )
-      ),
+      definitionsBySlug: new Map(),
       secretNames: new Set(secrets.secrets.map((secret) => secret.name)),
     }),
-    [integrations.definitions, secrets.secrets]
+    [secrets.secrets]
   );
 
   const catalog = useWorkflowCatalog(assistantId, {
     enabled: dataEnabled,
     assistant,
     requirementContext,
-    // Lets the hook fill gaps in the context by slug, for a required app that
-    // sorts past the browse page.
-    resolveMissingDefinitions: dataEnabled && integrations.hasLoaded && !integrations.isMock,
+    resolveMissingDefinitions: dataEnabled && !isMockIntegrations,
   });
 
   const [openSlug, setOpenSlug] = React.useState<string | null>(null);
@@ -130,12 +122,11 @@ export function WorkflowsPane({
   const isProvisioningOpen = catalog.provisioning?.slug === openSlug && openSlug !== null;
   const canMutate = canWrite && catalog.canMutate;
 
-  // No verdict on any requirement until the integrations catalogue has
-  // answered *and* the per-slug gaps are filled. Either half missing means
-  // every requirement resolves to `unresolved`, which the surfaces would
-  // otherwise render as a grey chip reading "Couldn't check this app" —
-  // a verdict, stated for a few seconds, that nobody has reached.
-  const requirementsResolving = !integrations.hasLoaded || catalog.requirementsResolving;
+  // No verdict on any requirement until every slug has been answered — with
+  // a definition or with a definite absence. Anything less renders as a grey
+  // chip reading "Couldn't check this app": a verdict, held on screen for
+  // seconds, that nobody has actually reached.
+  const requirementsResolving = catalog.requirementsResolving;
 
   const connectRequirement = React.useMemo(
     () =>

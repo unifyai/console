@@ -30,6 +30,17 @@ import type {
 export interface CatalogRequirement {
   slug: string;
   name: string;
+  /**
+   * `"app"` (the default) or `"workspace"`.
+   *
+   * A workspace is not in the gallery by design — it is the user's own
+   * Google or Microsoft account, connected in their profile. Resolving it
+   * by slug lookup finds nothing and reports "couldn't check this app"
+   * about the one requirement whose answer never depended on the gallery.
+   */
+  kind: string;
+  /** Secret names that answer for this requirement, for the routes that have one. */
+  requiredSecrets: string[];
 }
 
 /**
@@ -198,12 +209,22 @@ export function catalogRowRequirements(row: Record<string, unknown>): CatalogReq
   const raw = parseJsonField<unknown[]>((row as Record<string, unknown>).requirements, []);
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((entry) => {
-    if (typeof entry === 'string') return [{ slug: entry, name: entry }];
+    if (typeof entry === 'string') {
+      return [{ slug: entry, name: entry, kind: 'app', requiredSecrets: [] }];
+    }
     if (!entry || typeof entry !== 'object') return [];
     const record = entry as Record<string, unknown>;
     const slug = asString(record.slug);
     if (!slug) return [];
-    return [{ slug, name: asString(record.name) ?? slug }];
+    const secrets = record.requiredSecrets ?? record.required_secrets;
+    return [
+      {
+        slug,
+        name: asString(record.name) ?? slug,
+        kind: asString(record.kind) ?? 'app',
+        requiredSecrets: Array.isArray(secrets) ? secrets.map(String) : [],
+      },
+    ];
   });
 }
 

@@ -932,6 +932,54 @@ export async function getProviderIntegrationCatalogCount(args: {
   return extractMetricCount(parsed);
 }
 
+/**
+ * Gallery rows for a known set of slugs, in one request, with no tools.
+ *
+ * The workflows shelf needs a logo, a display name, the auth modes and the
+ * connection status for each app a bundle requires. It was getting them
+ * from `getProviderIntegrationDetails` once per slug — and that call also
+ * queries the `Integrations/Tools` context for up to 500 rows per app.
+ *
+ * Measured against the live catalogue, three of the shelf's eight slugs
+ * cost 34.9s and 16.9MB that way, essentially all of it tool rows the
+ * shelf never renders. All eight through this path: one request, 1.5s,
+ * 12KB. Tools stay where they belong — behind opening a drawer.
+ *
+ * Same field list as every other app read, deliberately: the win is not
+ * fetching tools, not trimming columns. (The row's own `tools` field is
+ * empty in the published catalogue, and an `exclude_fields` approach would
+ * be worse than the allow-list — it lets the row's embedding vector
+ * through.)
+ */
+export async function listProviderIntegrationDefinitionsBySlugs(args: {
+  ownerScope: IntegrationOwnerScope;
+  assistantId?: string | number;
+  slugs: string[];
+}): Promise<IntegrationDefinition[]> {
+  const slugs = [...new Set(args.slugs)].filter(Boolean);
+  if (slugs.length === 0) return [];
+
+  const [appPage, providerConnections] = await Promise.all([
+    builtinsLogFetch<ProviderAppPayload>({
+      context: 'Integrations/Apps',
+      limit: slugs.length,
+      offset: 0,
+      filter: `canonical_app_slug in ${JSON.stringify([...slugs].sort())}`,
+      fromFields: BUILTINS_APP_PUBLIC_FIELDS,
+    }),
+    listProviderIntegrationConnections({
+      ownerScope: args.ownerScope,
+      assistantId: args.assistantId,
+    }).catch(() => []),
+  ]);
+
+  const bySlug = connectionsBySlug(providerConnections);
+  return (appPage.logs ?? [])
+    .map((log) => log.entries)
+    .filter(Boolean)
+    .map((app) => mapProviderAppToDefinition(overlayAppConnections(app!, bySlug)));
+}
+
 export async function getProviderIntegrationDetails(args: {
   ownerScope: IntegrationOwnerScope;
   assistantId?: string | number;
