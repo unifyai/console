@@ -204,6 +204,58 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     },
   },
   {
+    // The Workspace route, uninstalled: the one requirement whose fix is the
+    // profile's own workspace manager rather than the integrations gallery.
+    // Present so that path is walkable in mock mode from install to armed.
+    slug: 'meeting-prep',
+    name: 'Meeting prep',
+    category: 'comms',
+    description:
+      'Half an hour before each meeting, a short brief on who you are seeing and what you last said to them.',
+    about:
+      'Walking into a meeting cold is rarely a knowledge problem — the context is in last month\u2019s thread, in the doc someone shared on Tuesday. It is just not in your head at 9:58.\n\nThirty minutes before each meeting, a brief arrives: who is attending, the last substantive exchange with each of them, anything attached to the invite, and any commitment of yours still open with those people. It closes with the one thing most likely to need deciding, phrased as a question.\n\nThis reads your own calendar and mailbox, so it needs your Workspace connected \u2014 the account you connect once in your profile, not a third-party app.',
+    version: '0.0.1',
+    iconId: 'scope',
+    requirements: [
+      {
+        canonicalSlug: 'google_workspace',
+        displayName: 'Google Workspace',
+        via: 'workspace',
+        iconComponent: SiGoogle,
+        connected: false,
+      },
+    ],
+    capabilities: [],
+    paramsSchema: [
+      {
+        name: 'leadMinutes',
+        label: 'Send the brief',
+        type: 'number',
+        required: false,
+        suffix: 'minutes before',
+        help: 'How long before a meeting the brief arrives. Left empty, 30 minutes.',
+      },
+      {
+        name: 'skipRecurring',
+        label: 'Skip recurring meetings',
+        type: 'boolean',
+        required: false,
+        help: 'Leave standing meetings alone \u2014 a daily stand-up rarely needs a brief.',
+      },
+    ],
+    sets: {
+      procedures: [
+        { name: 'How to write a meeting brief' },
+        { name: 'Which meetings get a brief' },
+      ],
+      functions: [{ name: 'brief_window' }],
+      knowledge: [{ name: 'What counts as a substantive exchange' }],
+      tasks: [
+        { name: 'Brief the next meeting', schedule: 'Every weekday at 7:45am, your timezone' },
+      ],
+    },
+  },
+  {
     slug: 'meeting-recaps',
     name: 'Meeting recaps',
     category: 'comms',
