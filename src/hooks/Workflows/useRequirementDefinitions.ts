@@ -32,8 +32,26 @@ export function useRequirementDefinitions({
   bySlug: Record<string, IntegrationDefinition | null>;
   /** True while a required slug still has no answer either way. */
   isResolving: boolean;
+  /**
+   * Drop a slug's answer so the next render resolves it again.
+   *
+   * An answer here is cached until something says it is stale, and a
+   * connection landing is exactly that. Without this the shelf kept showing
+   * "not connected" for an app the user had just connected, until a hard
+   * reload — the drawer knew, and the cards behind it did not.
+   */
+  forget: (slug: string) => void;
 } {
   const [bySlug, setBySlug] = React.useState<Record<string, IntegrationDefinition | null>>({});
+
+  const forget = React.useCallback((slug: string) => {
+    setBySlug((current) => {
+      if (!(slug in current)) return current;
+      const next = { ...current };
+      delete next[slug];
+      return next;
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!enabled) return;
@@ -76,5 +94,5 @@ export function useRequirementDefinitions({
     [enabled, slugs, knownSlugs, bySlug]
   );
 
-  return { bySlug, isResolving };
+  return { bySlug, isResolving, forget };
 }
