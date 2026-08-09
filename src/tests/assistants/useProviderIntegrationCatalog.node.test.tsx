@@ -815,3 +815,67 @@ describe('useProviderIntegrationCatalog — resolving apps by slug', () => {
     expect(result.current.definitions.map((item) => item.canonicalSlug)).toEqual(['gmail']);
   });
 });
+
+/**
+ * Both surfaces hand the drawer the same connection rows.
+ *
+ * The app row carries a flattened *summary* of one connection. Rebuilding a
+ * synthetic row from it drops eleven of the eighteen fields a real row has,
+ * and every account after the first — so the by-slug path showed one
+ * account where the gallery showed several, and the drawer's per-connection
+ * affordances ("Authorization in progress", Cancel setup, Disconnect) read
+ * off data that was not the same on the two surfaces.
+ */
+describe('useProviderIntegrationCatalog — connection rows reach the drawer', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+    window.history.replaceState({}, '', '/assistants');
+  });
+
+  function pendingGmailConnections() {
+    return [
+      {
+        connection_id: 'ic_pending',
+        canonical_app_slug: 'gmail',
+        status: 'pending',
+        external_account_label: 'work@example.com',
+        provider_connection_id: 'ca_upstream',
+        owner_scope: 'assistant',
+      },
+      {
+        connection_id: 'ic_second',
+        canonical_app_slug: 'gmail',
+        status: 'connected',
+        external_account_label: 'personal@example.com',
+        provider_connection_id: 'ca_second',
+        owner_scope: 'assistant',
+      },
+    ];
+  }
+
+  it('carries every account, with the fields the drawer acts on', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname.endsWith('/api/logs')) {
+        return builtinsLogsResponse([providerApp('gmail')]);
+      }
+      return new Response(JSON.stringify(pendingGmailConnections()), { status: 200 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123', { slugs: ['gmail'] }));
+
+    await waitFor(() => expect(result.current.hasLoadedRequest).toBe(true));
+    const gmail = result.current.definitions.find((item) => item.canonicalSlug === 'gmail');
+
+    // Both accounts, not just the one flattened onto the app row.
+    expect(gmail?.connections).toHaveLength(2);
+
+    // A pending row is what renders "Authorization in progress" and the
+    // Cancel setup button; losing its status loses both.
+    const pending = gmail?.connections.find((connection) => connection.status === 'pending');
+    expect(pending).toBeTruthy();
+    expect(pending?.accountLabel).toBe('work@example.com');
+    expect(pending?.sourceMetadata?.providerConnectionId).toBe('ca_upstream');
+  });
+});
