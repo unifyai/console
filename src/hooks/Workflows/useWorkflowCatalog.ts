@@ -35,11 +35,30 @@ import {
   type WorkflowGalleryItem,
 } from '@/types/workflows';
 
-/** Milliseconds between optimistic provisioning steps while an install plants. */
+/**
+ * Milliseconds between simulated provisioning steps — mock mode only.
+ *
+ * Against a real backend an install settles in about a second, well inside
+ * one poll interval, so a ladder of steps is not progress: it is an
+ * animation that finishes before anything is known and then contradicts
+ * itself when the request fails. Real per-surface progress would need a
+ * write per surface to report stages nothing can observe at this duration.
+ * The backend path therefore shows one honest indeterminate state and the
+ * request's real outcome.
+ */
 const PROVISIONING_STEP_MS = 620;
 
 /** How often the recorded request rows are re-read while one is in flight. */
 const REQUEST_POLL_MS = 2500;
+/**
+ * While a request is actually in flight, poll at this instead.
+ *
+ * The whole install settles in under a second — less than half the idle
+ * interval — so the slow poll turned a one-second operation into a
+ * two-and-a-half second wait for the answer. This is only ever active
+ * during that window.
+ */
+const REQUEST_POLL_ACTIVE_MS = 500;
 
 const INSTALLATIONS_CONTEXT = 'Workflows';
 const CATALOG_PAGE_SIZE = 200;
@@ -310,13 +329,16 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     [requirementContext]
   );
 
-  const { bySlug: extraDefinitions, isResolving: requirementsResolving } =
-    useRequirementDefinitions({
-      assistantId,
-      slugs: requirementSlugs,
-      knownSlugs,
-      enabled: resolveMissingDefinitions && !isMock,
-    });
+  const {
+    bySlug: extraDefinitions,
+    isResolving: requirementsResolving,
+    forget: forgetRequirementDefinition,
+  } = useRequirementDefinitions({
+    assistantId,
+    slugs: requirementSlugs,
+    knownSlugs,
+    enabled: resolveMissingDefinitions && !isMock,
+  });
 
   /** The supplied context with per-slug gaps filled. Base definitions win: they
    * carry the connection state merged in by the integrations catalogue. */
@@ -469,7 +491,11 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
         return changed ? next : current;
       });
     };
-    const timer = setInterval(() => void read(), REQUEST_POLL_MS);
+    void read();
+    const timer = setInterval(
+      () => void read(),
+      hasRequestInFlight ? REQUEST_POLL_ACTIVE_MS : REQUEST_POLL_MS
+    );
     return () => {
       cancelled = true;
       clearInterval(timer);
@@ -504,6 +530,12 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   /* --- connect loop ------------------------------------------------------- */
   const connect = React.useCallback(
     (canonicalSlug: string) => {
+      // The cached definition for this app says "not connected"; the
+      // connection that just landed makes that answer stale. Dropping it
+      // sends the shelf back for the real one, which is what the drawer
+      // already has and the cards behind it did not — the reason a freshly
+      // connected app kept reading unconnected until a hard reload.
+      forgetRequirementDefinition(canonicalSlug);
       // Derive the toast from the pre-update state — the state updater runs
       // later in React's cycle, so writes made inside it are not visible here.
       const connectedName =
@@ -556,7 +588,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
         );
       }
     },
-    [items]
+    [items, forgetRequirementDefinition]
   );
 
   /* --- install ------------------------------------------------------------ */
@@ -586,16 +618,16 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     const surfaces = WORKFLOW_SURFACE_ORDER.filter(
       (kind) => (item.workflow.sets[kind]?.length ?? 0) > 0
     );
+    // With a backend the assistant's own row is the truth about what landed,
+    // and the tracked request is what says when. Stepping a ladder first only
+    // delays that truth by 620ms per surface and shows motion that means
+    // nothing, so the backend path never enters it.
+    if (!isMock) {
+      setProvisioning(null);
+      return;
+    }
     if (provisioning.step >= surfaces.length) {
       const { workflow } = item;
-      // With a backend, the assistant's own row is the truth about what
-      // landed, and the tracked request is what says when. Stop the local
-      // list here rather than fabricating an installation that a failing
-      // request would then contradict.
-      if (!isMock) {
-        setProvisioning(null);
-        return;
-      }
       const held = unmetRequirements(workflow).length > 0;
       const oneShot = provisioningTask(workflow);
       patch(workflow.slug, (current) => ({
