@@ -91,6 +91,30 @@ describe('useRequirementDefinitions', () => {
     expect(client.listProviderIntegrationDefinitionsBySlugs).toHaveBeenCalledTimes(1);
   });
 
+  it('matches an app the gallery stores under the other spelling of its slug', async () => {
+    // The gallery holds the toolkit spelling; the bundle names the connection
+    // spelling. Both are this app, and an exact-match lookup found neither.
+    const calendar = {
+      ...definition('googlecalendar'),
+      displayName: 'Google Calendar',
+    } as IntegrationDefinition;
+    client.listProviderIntegrationDefinitionsBySlugs.mockResolvedValue([calendar]);
+
+    const { result } = renderHook(() =>
+      useRequirementDefinitions({
+        assistantId: '123',
+        slugs: ['google_calendar'],
+        knownSlugs: new Set<string>(),
+      })
+    );
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(client.listProviderIntegrationDefinitionsBySlugs).toHaveBeenCalledWith(
+      expect.objectContaining({ slugs: ['google_calendar', 'googlecalendar'] })
+    );
+    expect(result.current.bySlug.google_calendar?.canonicalSlug).toBe('googlecalendar');
+  });
+
   it('holds `isResolving` until every slug has an answer either way', async () => {
     let release: (value: IntegrationDefinition[]) => void = () => {};
     client.listProviderIntegrationDefinitionsBySlugs.mockReturnValue(

@@ -2,7 +2,24 @@
 
 import * as React from 'react';
 import { listProviderIntegrationDefinitionsBySlugs } from '@/lib/client/integrations';
+import { logicalAppKey } from '@/lib/client/provider-resolution';
 import type { IntegrationDefinition } from '@/types/integrations';
+
+/**
+ * The slugs worth asking the gallery about for one requirement.
+ *
+ * The gallery is queried by exact `canonical_app_slug`, and one app can be
+ * stored under either spelling of a compound name: a Composio connection
+ * reports `google_calendar` while the toolkit it came from is
+ * `googlecalendar`. A bundle naming the wrong one of the two got no row back
+ * and rendered "couldn't check this app" about an app sitting in the gallery,
+ * with a Connect button that had nothing to connect. `logicalAppKey` is the
+ * same equivalence the gallery itself uses to fold those rows together.
+ */
+function candidateSlugs(slug: string): string[] {
+  const logical = logicalAppKey({ canonicalAppSlug: slug });
+  return logical === slug ? [slug] : [slug, logical];
+}
 
 /**
  * Gallery definitions for requirement slugs the browse catalogue does not
@@ -67,16 +84,34 @@ export function useRequirementDefinitions({
       const found = await listProviderIntegrationDefinitionsBySlugs({
         ownerScope: 'assistant',
         assistantId: Number.isNaN(Number(assistantId)) ? assistantId : Number(assistantId),
-        slugs: missing,
+        slugs: missing.flatMap(candidateSlugs),
       }).catch(() => [] as Awaited<ReturnType<typeof listProviderIntegrationDefinitionsBySlugs>>);
       if (cancelled) return;
-      const byCanonical = new Map(found.map((item) => [item.canonicalSlug, item]));
+      // Indexed under both the slug the gallery stores and the logical key
+      // that folds its spellings together, so a requirement matches whichever
+      // of the two the bundle happens to name.
+      const byCanonical = new Map<string, IntegrationDefinition>();
+      for (const item of found) {
+        byCanonical.set(item.canonicalSlug, item);
+        const logical = logicalAppKey({
+          canonicalAppSlug: item.canonicalSlug,
+          displayName: item.displayName,
+        });
+        if (!byCanonical.has(logical)) byCanonical.set(logical, item);
+      }
       // A slug the gallery does not know is recorded as `null` rather than
       // left absent, so it reads as answered-and-absent instead of being
       // asked for again on every render.
       setBySlug((current) => ({
         ...current,
-        ...Object.fromEntries(missing.map((slug) => [slug, byCanonical.get(slug) ?? null])),
+        ...Object.fromEntries(
+          missing.map((slug) => [
+            slug,
+            candidateSlugs(slug)
+              .map((candidate) => byCanonical.get(candidate))
+              .find(Boolean) ?? null,
+          ])
+        ),
       }));
     })();
     return () => {
