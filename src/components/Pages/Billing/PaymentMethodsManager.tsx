@@ -238,8 +238,9 @@ export const PaymentMethodsSection = ({
 }: PaymentMethodsSectionProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const [cards, setCards] = useState<PaymentMethodCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ``null`` until the first list call resolves. Refreshes then swap the array
+  // in place, so a refetch never drops the summary back to its loading text.
+  const [cards, setCards] = useState<PaymentMethodCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -254,7 +255,6 @@ export const PaymentMethodsSection = ({
   const stripePromise = useMemo(() => getStripe(), []);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     setError(null);
     const result = await actions.listPaymentMethods();
     if (isBillingError(result)) {
@@ -264,7 +264,6 @@ export const PaymentMethodsSection = ({
     } else {
       setCards(result.paymentMethods);
     }
-    setLoading(false);
   }, [actions]);
 
   // Load once for the summary line; the subscribe gate reads card presence
@@ -379,7 +378,7 @@ export const PaymentMethodsSection = ({
             Payment methods
           </h2>
           <p className="text-body-muted mt-1" data-testid="payment-methods-summary">
-            {loading ? 'Cards used for your subscription' : summarize(cards)}
+            {cards === null ? 'Cards used for your subscription' : summarize(cards)}
           </p>
         </div>
         <Button
@@ -405,7 +404,7 @@ export const PaymentMethodsSection = ({
           </SheetHeader>
 
           <div className="mt-6 space-y-3" data-testid="payment-methods-list">
-            {loading ? (
+            {cards === null ? (
               <div className="flex items-center justify-center py-6">
                 <Loader size={20} />
               </div>

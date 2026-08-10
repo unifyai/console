@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Separator } from '../../UI/separator';
 import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 import { useBilling } from '@/hooks/Billing/useBilling';
@@ -80,6 +80,20 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
   // prerequisites checklist needs to pop it open, so its open state is lifted
   // here and shared between the two surfaces.
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+
+  // ``PaymentMethodsSection`` keys its card-list fetch off this object, so it
+  // has to keep its identity across renders — otherwise every re-render of
+  // this page refetches and the summary line flickers back to its loading text.
+  const paymentMethodActions = useMemo(
+    () => ({
+      createSetupIntent: actions.createSetupIntent,
+      listPaymentMethods: actions.listPaymentMethods,
+      setDefaultPaymentMethod: actions.setDefaultPaymentMethod,
+      detachPaymentMethod: actions.detachPaymentMethod,
+      getProfile: actions.getProfile,
+    }),
+    [actions]
+  );
 
   return (
     <div className="w-full max-w-4xl space-y-6 p-8">
@@ -213,13 +227,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
             re-checks the subscribe gate when the card set mutates.
           */}
           <PaymentMethodsSection
-            actions={{
-              createSetupIntent: actions.createSetupIntent,
-              listPaymentMethods: actions.listPaymentMethods,
-              setDefaultPaymentMethod: actions.setDefaultPaymentMethod,
-              detachPaymentMethod: actions.detachPaymentMethod,
-              getProfile: actions.getProfile,
-            }}
+            actions={paymentMethodActions}
             isSubscribed={isSubscribed}
             canEdit={orgContext ? orgContext.canEdit : true}
             onChanged={refreshPaymentMethods}
