@@ -160,7 +160,7 @@ export function DocLibraryPane({
 
   const { openBrainFunction } = useAppShellNavigation();
 
-  const { skills: functionSkills } = useFunctionsCatalog({
+  const { functions: functionEntries } = useFunctionsCatalog({
     assistant,
     kind: 'All',
     root: scope.root,
@@ -169,13 +169,13 @@ export function DocLibraryPane({
 
   const functionNameById = useMemo(() => {
     const map = new Map<number, string>();
-    for (const skill of functionSkills) {
-      if (skill.functionId !== null) {
-        map.set(skill.functionId, skill.name);
+    for (const fn of functionEntries) {
+      if (fn.functionId !== null) {
+        map.set(fn.functionId, fn.name);
       }
     }
     return map;
-  }, [functionSkills]);
+  }, [functionEntries]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const {

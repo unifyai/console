@@ -56,11 +56,11 @@ describe('provider integration Functions tab rows', () => {
     expect(data.rows[0]).toMatchObject({
       _table: 'Primitives',
       name: 'primitives.integrations.discord.list_my_guilds',
-      app_slug: 'discord',
-      provider_tool_id: 'DISCORD_LIST_MY_GUILDS',
-      activation_state: 'connected_ready',
-      confirmation_required: true,
-      connection_id: 'conn-discord',
+      appSlug: 'discord',
+      providerToolId: 'DISCORD_LIST_MY_GUILDS',
+      activationState: 'connected_ready',
+      confirmationRequired: true,
+      connectionId: 'conn-discord',
     });
     expect(
       fetchMock.mock.calls.some(([input]) =>
@@ -113,7 +113,7 @@ describe('provider integration Functions tab rows', () => {
     expect(data.rows).toHaveLength(1);
     expect(data.rows[0]).toMatchObject({
       _table: 'Primitives',
-      app_slug: 'salesforce',
+      appSlug: 'salesforce',
     });
     expect(
       fetchMock.mock.calls.some(([input]) =>

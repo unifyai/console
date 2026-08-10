@@ -10,7 +10,8 @@ import {
   FUNCTIONS_GRID_CLASS,
   readAutoFillGridColumnCount,
 } from '@/utils/assistants/functionsGrid';
-import { shortSignature, type FunctionSkill } from '@/utils/assistants/functions';
+import { shortSignature, type FunctionEntry } from '@/utils/assistants/functions';
+import { KindBadge } from './FunctionDetail';
 
 const CARD_ROW_GAP_PX = 16;
 const GRID_EDGE_PADDING_PX = 16;
@@ -18,60 +19,45 @@ const ESTIMATED_CARD_HEIGHT_PX = 168;
 const LOAD_MORE_ROW_THRESHOLD = 3;
 const COLUMN_PROBE_SLOTS = 32;
 
-function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
-  return (
-    <span
-      className={cn(
-        'shrink-0 rounded-full px-[7px] py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.04em]',
-        isPrimitive
-          ? 'bg-[color-mix(in_srgb,var(--role-purple)_14%,transparent)] text-[color:var(--role-purple)]'
-          : 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
-      )}
-    >
-      {isPrimitive ? 'primitive' : 'learned'}
-    </span>
-  );
-}
-
 function FunctionCard({
-  skill,
+  fn,
   onSelect,
 }: {
-  skill: FunctionSkill;
-  onSelect: (skill: FunctionSkill) => void;
+  fn: FunctionEntry;
+  onSelect: (fn: FunctionEntry) => void;
 }) {
   return (
     <button
       type="button"
       className="hover:bg-muted/40 flex min-h-[168px] w-full min-w-0 flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors hover:border-primary-tint-40"
-      onClick={() => onSelect(skill)}
-      data-testid={`function-card-${skill.name}`}
+      onClick={() => onSelect(fn)}
+      data-testid={`function-card-${fn.name}`}
     >
       <div className="flex items-center gap-2">
         <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg bg-accent-soft text-accent-soft-foreground">
           <Code2 className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0 flex-1 truncate font-mono text-[12.5px] font-semibold text-foreground">
-          {skill.name}
+          {fn.name}
         </div>
-        <KindBadge isPrimitive={skill.isPrimitive} />
+        <KindBadge isPrimitive={fn.isPrimitive} />
       </div>
 
-      {skill.argspec ? (
+      {fn.argspec ? (
         <div className="truncate rounded-md bg-muted px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
-          {shortSignature(skill)}
+          {shortSignature(fn)}
         </div>
       ) : null}
 
       <p className="text-foreground/80 line-clamp-2 flex-1 text-[12px] leading-relaxed">
-        {docstringPreview(skill.docstring) || 'No description.'}
+        {docstringPreview(fn.docstring) || 'No description.'}
       </p>
 
       <div className="mt-auto flex items-center gap-2.5 pt-0.5">
-        <span className="text-[10.5px] text-muted-foreground">{skill.language}</span>
-        {skill.dependsOn.length > 0 ? (
+        <span className="text-[10.5px] text-muted-foreground">{fn.language}</span>
+        {fn.dependsOn.length > 0 ? (
           <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-medium text-accent-soft-foreground">
-            {skill.dependsOn.length} dep{skill.dependsOn.length !== 1 ? 's' : ''}
+            {fn.dependsOn.length} dep{fn.dependsOn.length !== 1 ? 's' : ''}
           </span>
         ) : null}
       </div>
@@ -80,17 +66,17 @@ function FunctionCard({
 }
 
 export function FunctionsVirtualGrid({
-  skills,
+  functions,
   hasMore,
   isLoadingMore,
   onEndReached,
   onSelect,
 }: {
-  skills: FunctionSkill[];
+  functions: FunctionEntry[];
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onEndReached?: () => void;
-  onSelect: (skill: FunctionSkill) => void;
+  onSelect: (fn: FunctionEntry) => void;
 }) {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
@@ -119,7 +105,7 @@ export function FunctionsVirtualGrid({
     return () => observer.disconnect();
   }, []);
 
-  const rowCount = Math.ceil(skills.length / Math.max(columns, 1));
+  const rowCount = Math.ceil(functions.length / Math.max(columns, 1));
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
@@ -163,7 +149,7 @@ export function FunctionsVirtualGrid({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, requestLoadMore, skills.length]);
+  }, [hasMore, requestLoadMore, functions.length]);
 
   return (
     <>
@@ -199,7 +185,7 @@ export function FunctionsVirtualGrid({
         >
           {virtualRows.map((virtualRow) => {
             const startIndex = virtualRow.index * columns;
-            const rowSkills = skills.slice(startIndex, startIndex + columns);
+            const rowFunctions = functions.slice(startIndex, startIndex + columns);
             return (
               <div
                 key={virtualRow.key}
@@ -214,10 +200,10 @@ export function FunctionsVirtualGrid({
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
-                {rowSkills.map((skill) => (
+                {rowFunctions.map((fn) => (
                   <FunctionCard
-                    key={`${skill.isPrimitive ? 'p' : 'l'}-${skill.functionId ?? skill.name}`}
-                    skill={skill}
+                    key={`${fn.isPrimitive ? 'p' : 'l'}-${fn.functionId ?? fn.name}`}
+                    fn={fn}
                     onSelect={onSelect}
                   />
                 ))}

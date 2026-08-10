@@ -104,9 +104,22 @@ interface BrainRowDetailProps {
   onClose: () => void;
 }
 
-const DEFAULT_WIDTH = 360;
 const MIN_WIDTH = 380;
-const MAX_WIDTH = 900;
+const MAX_WIDTH = 1200;
+
+/**
+ * Where this drawer opens before the user drags it.
+ *
+ * The same ~40% of the viewport every other drawer uses (see
+ * `DRAWER_WIDTH_CLASS` in the sheet primitive), computed rather than
+ * declared because this one is resizable and so drives its width from
+ * state. Clamped by the drag bounds, so an opened width and a dragged
+ * width live on one scale.
+ */
+function defaultDrawerWidth(): number {
+  if (typeof window === 'undefined') return MIN_WIDTH;
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(window.innerWidth * 0.4)));
+}
 
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = React.useState(() =>
@@ -123,7 +136,7 @@ function useIsDesktop() {
 
 export function BrainRowDetail({ row, context, taskView, title, onClose }: BrainRowDetailProps) {
   const [snapshot, setSnapshot] = React.useState<Record<string, unknown> | null>(null);
-  const [width, setWidth] = React.useState(DEFAULT_WIDTH);
+  const [width, setWidth] = React.useState(defaultDrawerWidth);
   const [isResizing, setIsResizing] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
@@ -195,9 +208,7 @@ export function BrainRowDetail({ row, context, taskView, title, onClose }: Brain
       <SheetContent
         ref={contentRef}
         side="right"
-        className={
-          isDesktop ? 'flex !max-w-none flex-col' : 'flex w-full max-w-[min(100vw,42rem)] flex-col'
-        }
+        className={isDesktop ? 'flex !max-w-none flex-col' : 'flex flex-col'}
         style={
           isDesktop
             ? { width, minWidth: MIN_WIDTH, ...(isResizing ? { transition: 'none' } : {}) }

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
+import { StrayRootBadge } from './StrayRootBadge';
 import {
   requestTileExport,
   downloadBlob,
@@ -47,6 +48,8 @@ interface DashboardTileCardProps {
   defaultCollapsed?: boolean;
   /** Assistant that owns this tile; required to list/dispatch actions */
   assistantId?: string;
+  /** Row lives in a root that should be empty (personal root of a team assistant) */
+  stray?: boolean;
 }
 
 function formatShortDate(iso: string | null | undefined): string | null {
@@ -125,6 +128,7 @@ export function DashboardTileCard({
   onRefresh,
   defaultCollapsed,
   assistantId,
+  stray = false,
 }: DashboardTileCardProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
   const [refreshing, setRefreshing] = useState(false);
@@ -284,6 +288,7 @@ export function DashboardTileCard({
           {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </Button>
         <span className="text-label min-w-0 flex-1 truncate text-foreground">{title}</span>
+        {stray && <StrayRootBadge />}
         {hasDataBindings && (
           <span
             className="flex shrink-0 items-center gap-0.5 rounded-full bg-[color:var(--status-success-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--status-success)]"

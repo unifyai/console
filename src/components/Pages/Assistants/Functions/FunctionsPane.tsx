@@ -26,11 +26,16 @@ import { BrainScopeDropdown } from '../Common/BrainScopeDropdown';
 import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
-import { FunctionSignatureDocs } from './FunctionSignatureDocs';
+import {
+  CopySignatureButton,
+  FunctionBadges,
+  FunctionDetailBody,
+  KindBadge,
+} from './FunctionDetail';
 import { FunctionsVirtualGrid } from './FunctionsVirtualGrid';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { FUNCTIONS_GRID_CLASS } from '@/utils/assistants/functionsGrid';
-import { type FunctionSkill, type FunctionKindFilter } from '@/utils/assistants/functions';
+import { type FunctionEntry, type FunctionKindFilter } from '@/utils/assistants/functions';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface FunctionsPaneProps {
@@ -44,130 +49,6 @@ interface FunctionsPaneProps {
 
 const KINDS: FunctionKindFilter[] = ['All', 'Learned', 'Primitives'];
 
-function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
-  return (
-    <span
-      className={cn(
-        'shrink-0 rounded-full px-[7px] py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.04em]',
-        isPrimitive
-          ? 'bg-[color-mix(in_srgb,var(--role-purple)_14%,transparent)] text-[color:var(--role-purple)]'
-          : 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
-      )}
-    >
-      {isPrimitive ? 'primitive' : 'learned'}
-    </span>
-  );
-}
-
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="text-[12.5px] leading-relaxed text-foreground">{children}</div>
-    </div>
-  );
-}
-
-function FunctionBadges({ skill }: { skill: FunctionSkill }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2" data-testid="function-badges">
-      <KindBadge isPrimitive={skill.isPrimitive} />
-      {skill.verify && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--status-success-bg)] px-2 py-0.5 text-[10.5px] font-semibold text-[color:var(--status-success)]">
-          <Check className="h-3 w-3" /> verified
-        </span>
-      )}
-    </div>
-  );
-}
-
-function FunctionAbout({ skill }: { skill: FunctionSkill }) {
-  return (
-    <div className="space-y-4 pr-4" data-testid="function-detail-body">
-      {skill.staleReasons.length > 0 && (
-        <StaleReasonChips
-          reasons={skill.staleReasons}
-          banner
-          chipTestIdPrefix="function-stale-reason"
-        />
-      )}
-
-      <FunctionSignatureDocs
-        argspec={skill.argspec}
-        docstring={skill.docstring}
-        language={skill.language}
-      />
-
-      {skill.dependsOn.length > 0 && (
-        <DetailField label="Depends on">
-          <div className="flex flex-wrap gap-1.5">
-            {skill.dependsOn.map((dep) => (
-              <span
-                key={dep}
-                className="bg-muted/40 text-code-sm rounded-md border px-2 py-0.5 text-muted-foreground"
-              >
-                {dep}
-              </span>
-            ))}
-          </div>
-        </DetailField>
-      )}
-
-      {skill.guidanceIds.length > 0 && (
-        <DetailField label="Linked guidance">
-          <div className="flex flex-wrap gap-1.5">
-            {skill.guidanceIds.map((guidanceId) => (
-              <span
-                key={guidanceId}
-                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-soft-foreground"
-                data-testid={`function-guidance-chip-${guidanceId}`}
-              >
-                <Link2 className="h-3 w-3 shrink-0" aria-hidden="true" />
-                <span className="font-mono">guidance #{guidanceId}</span>
-              </span>
-            ))}
-          </div>
-        </DetailField>
-      )}
-
-      {skill.precondition && (
-        <DetailField label="Precondition">
-          <AssistantMarkdown>
-            {fencedCode(JSON.stringify(skill.precondition, null, 2), 'json')}
-          </AssistantMarkdown>
-        </DetailField>
-      )}
-
-      <DetailField label="Implementation">
-        {skill.implementation ? (
-          <AssistantMarkdown>{fencedCode(skill.implementation, skill.language)}</AssistantMarkdown>
-        ) : (
-          <p className="text-caption">
-            This is a primitive — its implementation lives in the platform&apos;s state-manager
-            class, not as stored source.
-          </p>
-        )}
-      </DetailField>
-    </div>
-  );
-}
-
-function CopySignatureButton({ skill }: { skill: FunctionSkill }) {
-  const { isCopied, handleCopy } = useCopyToClipboard({
-    text: skill.implementation || skill.argspec,
-    copyMessage: 'Copied',
-    showSuccessNotification: false,
-  });
-  return (
-    <Button variant="outline" size="sm" onClick={handleCopy} data-testid="function-copy">
-      {isCopied ? <Check className="mr-1 h-3.5 w-3.5" /> : <Code2 className="mr-1 h-3.5 w-3.5" />}
-      {isCopied ? 'Copied' : 'Copy'}
-    </Button>
-  );
-}
-
 export function FunctionsPane({
   assistant,
   ownerId: _ownerId,
@@ -178,7 +59,7 @@ export function FunctionsPane({
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [kind, setKind] = useState<FunctionKindFilter>('All');
-  const [selected, setSelected] = useState<FunctionSkill | null>(null);
+  const [selected, setSelected] = useState<FunctionEntry | null>(null);
   const {
     draft: searchDraft,
     setDraft: setSearchDraft,
@@ -187,14 +68,23 @@ export function FunctionsPane({
     clear: clearSearch,
   } = useTabSearchCommit();
 
-  const { skills, total, hasLoaded, isLoading, isLoadingMore, hasMore, error, loadMore, refetch } =
-    useFunctionsCatalog({
-      assistant,
-      kind,
-      query: searchQuery,
-      root: scope.root,
-      enabled: isActiveSurface,
-    });
+  const {
+    functions,
+    total,
+    hasLoaded,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    error,
+    loadMore,
+    refetch,
+  } = useFunctionsCatalog({
+    assistant,
+    kind,
+    query: searchQuery,
+    root: scope.root,
+    enabled: isActiveSurface,
+  });
 
   const { pendingFunctionId, clearPendingFunction } = usePendingFunctionTarget();
 
@@ -205,12 +95,12 @@ export function FunctionsPane({
 
   React.useEffect(() => {
     if (!pendingFunctionId || !hasLoaded || kind !== 'All') return;
-    const skill = skills.find((item) => item.functionId === pendingFunctionId);
-    if (skill) {
-      setSelected(skill);
+    const fn = functions.find((item) => item.functionId === pendingFunctionId);
+    if (fn) {
+      setSelected(fn);
     }
     clearPendingFunction();
-  }, [clearPendingFunction, hasLoaded, kind, pendingFunctionId, skills]);
+  }, [clearPendingFunction, hasLoaded, kind, pendingFunctionId, functions]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -270,14 +160,14 @@ export function FunctionsPane({
               <SkeletonCard key={i} lines={2} />
             ))}
           </div>
-        ) : skills.length === 0 ? (
+        ) : functions.length === 0 ? (
           <div className="text-body-muted flex h-full items-center justify-center">
             No functions found.
           </div>
         ) : (
           <FunctionsVirtualGrid
             key={kind}
-            skills={skills}
+            functions={functions}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             onEndReached={loadMore}
@@ -288,7 +178,7 @@ export function FunctionsPane({
 
       <TabFooter
         testId="functions-footer"
-        count={skills.length}
+        count={functions.length}
         total={total}
         singular="function"
         plural="functions"
@@ -300,11 +190,7 @@ export function FunctionsPane({
           if (!open) setSelected(null);
         }}
       >
-        <SheetContent
-          side="right"
-          className="flex w-full max-w-[min(100vw,42rem)] flex-col"
-          data-testid="function-detail"
-        >
+        <SheetContent side="right" className="flex flex-col" data-testid="function-detail">
           <SheetHeader className="shrink-0 space-y-2">
             <div>
               <SheetTitle className="break-all font-mono text-[15px]">{selected?.name}</SheetTitle>
@@ -312,14 +198,14 @@ export function FunctionsPane({
                 {selected?.isPrimitive ? 'Primitive' : 'Learned'} · {selected?.language}
               </SheetDescription>
             </div>
-            {selected && <FunctionBadges skill={selected} />}
+            {selected && <FunctionBadges fn={selected} />}
           </SheetHeader>
           <ScrollArea className="mt-4 min-h-0 flex-1">
-            {selected && <FunctionAbout skill={selected} />}
+            {selected && <FunctionDetailBody fn={selected} />}
           </ScrollArea>
           {selected && (
             <SheetFooter className="mt-0 shrink-0 flex-row justify-end gap-2 border-t pt-3">
-              <CopySignatureButton skill={selected} />
+              <CopySignatureButton fn={selected} />
             </SheetFooter>
           )}
         </SheetContent>

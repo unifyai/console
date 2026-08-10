@@ -80,8 +80,13 @@ scripts/call-avatar-harness/bundle.css
 /renders/
 .avatar-harness/
 
-# Service-account credential files
+# Service-account credential files. Globs, not exact names: these land in the
+# repo root under whatever name the console/gcloud download gives them, and an
+# unmatched one is a real key a single `git add -A` away from being published.
 comm-sa.json
+*_sa_credentials.json
+*-sa-credentials.json
+/saas-*.json
 
 .design/
 # call-avatar harness build artifacts

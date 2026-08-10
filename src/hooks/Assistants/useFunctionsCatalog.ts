@@ -9,9 +9,9 @@ import {
   listFunctionsFederatedPage,
 } from '@/lib/client/functions';
 import {
-  normalizeFunctionSkills,
+  normalizeFunctionEntries,
   type FunctionKindFilter,
-  type FunctionSkill,
+  type FunctionEntry,
 } from '@/utils/assistants/functions';
 import {
   invalidateTabDataCache,
@@ -22,7 +22,7 @@ import { roots, rootKey, type ContextRoot } from '@/lib/assistants/scope';
 
 interface FunctionsCatalogCacheEntry {
   rows: FunctionRow[];
-  skills: FunctionSkill[];
+  functions: FunctionEntry[];
   total: number;
   hasMoreServer: boolean;
 }
@@ -64,7 +64,9 @@ export function useFunctionsCatalog({
   const cacheKey = `${assistant.userId}:${assistant.agentId}:functionsCatalog:${kind}:${rootCacheKey}:${trimmedQuery}`;
   const initialCachedCatalog = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
   const [rows, setRows] = React.useState<FunctionRow[]>(initialCachedCatalog?.rows ?? []);
-  const [skills, setSkills] = React.useState<FunctionSkill[]>(initialCachedCatalog?.skills ?? []);
+  const [functions, setFunctions] = React.useState<FunctionEntry[]>(
+    initialCachedCatalog?.functions ?? []
+  );
   const [total, setTotal] = React.useState(initialCachedCatalog?.total ?? 0);
   const [isLoading, setIsLoading] = React.useState(enabled && !initialCachedCatalog);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
@@ -87,7 +89,7 @@ export function useFunctionsCatalog({
     const cached = readTabDataCache<FunctionsCatalogCacheEntry>(cacheKey);
     if (!cached) return;
     setRows(cached.rows);
-    setSkills(cached.skills);
+    setFunctions(cached.functions);
     setTotal(cached.total);
     setHasMoreServer(cached.hasMoreServer);
     setHasLoaded(true);
@@ -105,7 +107,7 @@ export function useFunctionsCatalog({
     setHasLoaded(false);
     setError(null);
     setRows([]);
-    setSkills([]);
+    setFunctions([]);
     setHasMoreServer(false);
     isLoadingMoreRef.current = false;
 
@@ -119,15 +121,15 @@ export function useFunctionsCatalog({
         filter: searchFilter,
       });
 
-      const nextSkills = normalizeFunctionSkills(page.rows);
+      const nextFunctions = normalizeFunctionEntries(page.rows);
       setRows(page.rows);
-      setSkills(nextSkills);
+      setFunctions(nextFunctions);
       setTotal(page.count);
       setHasMoreServer(page.hasMore);
       setHasLoaded(true);
       writeTabDataCache<FunctionsCatalogCacheEntry>(cacheKey, {
         rows: page.rows,
-        skills: nextSkills,
+        functions: nextFunctions,
         total: page.count,
         hasMoreServer: page.hasMore,
       });
@@ -171,14 +173,14 @@ export function useFunctionsCatalog({
       });
 
       const merged = [...rowsRef.current, ...page.rows];
-      const nextSkills = normalizeFunctionSkills(merged);
+      const nextFunctions = normalizeFunctionEntries(merged);
       setRows(merged);
-      setSkills(nextSkills);
+      setFunctions(nextFunctions);
       setTotal(page.count);
       setHasMoreServer(merged.length < page.count && page.rows.length > 0);
       writeTabDataCache<FunctionsCatalogCacheEntry>(cacheKey, {
         rows: merged,
-        skills: nextSkills,
+        functions: nextFunctions,
         total: page.count,
         hasMoreServer: merged.length < page.count && page.rows.length > 0,
       });
@@ -191,7 +193,7 @@ export function useFunctionsCatalog({
   }, [assistantAgentId, assistantUserId, enabled, kind, searchFilter, scopedRoots, cacheKey]);
 
   return {
-    skills,
+    functions,
     total,
     isLoading: isLoading || (enabled && !hasLoaded),
     isLoadingMore,

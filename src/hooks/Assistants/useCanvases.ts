@@ -13,6 +13,8 @@ interface UseCanvasesOptions {
   assistantId: string;
   /** Scope override: a team root reads `Teams/{id}/Canvas/Views` only. */
   root?: ContextRoot | null;
+  /** Gate every read on the pane being the visible one. */
+  enabled?: boolean;
 }
 
 interface UseCanvasesResult {
@@ -37,13 +39,14 @@ export function useCanvases({
   ownerId,
   assistantId,
   root = null,
+  enabled = true,
 }: UseCanvasesOptions): UseCanvasesResult {
   const { data, isInitialLoading, isRefreshing, error, refresh } = useShellResource<
     CanvasListRecord[]
   >({
     queryKey: ['canvases', ownerId, assistantId, rootKey(root ?? { kind: 'personal' })],
     queryFn: () => fetchCanvasList(assistant, root),
-    enabled: !!ownerId && !!assistantId,
+    enabled: enabled && !!ownerId && !!assistantId,
   });
 
   // Held in a ref so the subscription is not torn down and rebuilt every time

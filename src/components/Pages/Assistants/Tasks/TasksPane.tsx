@@ -31,6 +31,7 @@ import {
 } from '@/utils/assistants/tasks';
 import { TaskTagsDropdown } from './TaskTagsDropdown';
 import { BrainRowDetail } from '../Brain/BrainRowDetail';
+import { TaskFields, TaskMetaLine, TaskRunHistory } from './TaskDetail';
 import { ClampedAssistantMarkdown } from '../Common/ClampedAssistantMarkdown';
 // TODO(wire-backend): restore once task creation is wired to a backend
 // (Orchestra task-create endpoint or a Droid system-event).
@@ -431,12 +432,7 @@ function TaskCard({
               </span>
             )}
           </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-            <Clock className="h-3 w-3 shrink-0" />
-            <span className="truncate">
-              {cadence} · next {nextRun} · {priority} priority
-            </span>
-          </div>
+          <TaskMetaLine cadence={cadence} nextRun={nextRun} priority={priority} />
         </div>
         <span className="shrink-0">{taskStatusBadge(task.lifecycle)}</span>
       </button>
@@ -453,23 +449,7 @@ function TaskCard({
                 {task.description}
               </ClampedAssistantMarkdown>
             )}
-            <dl className="mb-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
-              {fields.map((field) => (
-                <div key={field.label} className="flex flex-col gap-0.5">
-                  <dt className="text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
-                    {field.label}
-                  </dt>
-                  <dd
-                    className={cn(
-                      'text-[12.5px] font-semibold text-foreground',
-                      field.mono && 'font-mono font-medium'
-                    )}
-                  >
-                    {field.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            <TaskFields fields={fields} className="mb-3" />
             {/*
               TODO(wire-backend): Task lifecycle actions (Run now / Pause / Edit)
               are not wired to any backend (handleAction only toasts). Restore
@@ -493,45 +473,7 @@ function TaskCard({
 
           {/* Right — run history */}
           <div className="p-4">
-            <div className="mb-2.5 flex items-center gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                Run history · {runs.length}
-              </span>
-              {runs.length > 0 && (
-                <span className="text-muted-foreground/70 text-[11px]">click a run to inspect</span>
-              )}
-            </div>
-            {runs.length === 0 ? (
-              <p className="text-caption text-muted-foreground">No runs recorded yet.</p>
-            ) : (
-              <div className="flex flex-col">
-                <div className="grid grid-cols-[1.1fr_1.1fr_1.2fr_1.2fr_0.7fr] gap-2.5 border-b pb-2 font-mono text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground">
-                  <span>State</span>
-                  <span>Why it started</span>
-                  <span>Started</span>
-                  <span>Finished</span>
-                  <span>Duration</span>
-                </div>
-                {runs.map((run, idx) => {
-                  const cells = getRunHistoryCells(run);
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => onRunClick(run)}
-                      className="hover:bg-muted/40 grid grid-cols-[1.1fr_1.1fr_1.2fr_1.2fr_0.7fr] items-center gap-2.5 border-b py-2 text-left text-xs last:border-b-0"
-                      data-testid="task-run-row"
-                    >
-                      <span>{taskStatusBadge(run.state, { showRunningDot: true })}</span>
-                      <span className="truncate text-muted-foreground">{cells.whyLabel}</span>
-                      <span className="truncate font-mono text-[11px]">{cells.startedLabel}</span>
-                      <span className="truncate font-mono text-[11px]">{cells.finishedLabel}</span>
-                      <span className="font-mono text-[11px]">{cells.durationLabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <TaskRunHistory runs={runs} onRunClick={onRunClick} />
           </div>
         </div>
       )}

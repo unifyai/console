@@ -26,6 +26,12 @@ export interface DashboardRecord {
   tileCount: number;
   createdAt: string | null;
   updatedAt: string | null;
+  /**
+   * Context root the row was read from, in rootKey form ('personal' /
+   * 'team-<id>'). A personal-root row on a team-owned assistant is stray:
+   * team assistants keep all state in their team root.
+   */
+  originRoot?: string;
 }
 
 export interface TileRecord {
@@ -39,6 +45,8 @@ export interface TileRecord {
   dataBindingContexts: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  /** Context root the row was read from — see DashboardRecord.originRoot. */
+  originRoot?: string;
 }
 
 export interface DashboardPaneData {

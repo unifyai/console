@@ -7,6 +7,7 @@ import { CanvasPane } from './Canvas/CanvasPane';
 import { DashboardsPane } from './Dashboards';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
+import { WorkflowsPane } from './Workflows';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
 import { AssistantDesktopPane } from './Desktop/AssistantDesktopPane';
 import type {
@@ -38,6 +39,7 @@ export type RightPaneTab =
   | 'tasks'
   | 'canvas'
   | 'dashboards'
+  | 'workflows'
   | 'integrations'
   | 'actions'
   | 'desktop';
@@ -127,6 +129,14 @@ interface RightPaneContainerProps {
   onActionsUnreadActivityChange?: (hasUnread: boolean) => void;
   /** Opens the Computer Use enable/disable manager from the Desktop upgrade state. */
   onOpenComputerUseManager?: (assistant: Assistant) => void;
+  /**
+   * Opens the workspace manager — the same modal the profile pane and the
+   * onboarding checklist open. The Workflows shelf needs it because a
+   * `workspace` requirement is connected there and nowhere else.
+   */
+  onConnectWorkspace?: (assistant: Assistant) => void;
+  /** Bumped when that manager closes, so surfaces gated on it re-read. */
+  workspaceSettledSignal?: number;
 }
 
 /**
@@ -169,6 +179,8 @@ export function RightPaneContainer({
   isActiveSurface = true,
   onActionsUnreadActivityChange,
   onOpenComputerUseManager,
+  onConnectWorkspace,
+  workspaceSettledSignal,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. The Actions body owns the
@@ -266,6 +278,8 @@ export function RightPaneContainer({
           assistant={assistant}
           ownerId={assistant.userId}
           assistantId={assistant.agentId}
+          isVisible={activeTab === 'canvas'}
+          isActiveSurface={isActiveSurface}
         />
       </TabsContent>
 
@@ -284,6 +298,20 @@ export function RightPaneContainer({
             <p className="text-body-muted">Select an assistant to view dashboards.</p>
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="workflows" className={TAB_CONTENT_CLASS} forceMount>
+        <WorkflowsPane
+          assistant={assistant}
+          ownerId={assistant.userId}
+          assistantId={assistant.agentId}
+          secretActions={assistantActions.secret}
+          canWrite={canWrite}
+          isVisible={activeTab === 'workflows'}
+          isActiveSurface={isActiveSurface}
+          onConnectWorkspace={onConnectWorkspace}
+          workspaceSettledSignal={workspaceSettledSignal}
+        />
       </TabsContent>
 
       <TabsContent value="integrations" className={TAB_CONTENT_CLASS} forceMount>

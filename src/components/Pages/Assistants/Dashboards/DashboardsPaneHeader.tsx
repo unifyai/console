@@ -13,6 +13,7 @@ import {
 } from '@/components/UI/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import type { DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
+import { StrayRootBadge, isStrayRootRecord } from './StrayRootBadge';
 
 function matchesQuery(text: string, query: string): boolean {
   return text.toLowerCase().includes(query);
@@ -24,12 +25,15 @@ export function DashboardViewSelector({
   selectedKey,
   onSelect,
   filterQuery = '',
+  flagPersonalAsStray = false,
 }: {
   dashboards: DashboardRecord[];
   tiles: TileRecord[];
   selectedKey: string | null;
   onSelect: (key: string) => void;
   filterQuery?: string;
+  /** True for team-owned assistants, whose personal root should be empty. */
+  flagPersonalAsStray?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const normalizedQuery = filterQuery.trim().toLowerCase();
@@ -106,6 +110,7 @@ export function DashboardViewSelector({
                     >
                       <LayoutDashboard className="h-3 w-3 shrink-0 text-muted-foreground" />
                       <span className="truncate">{dashboard.title}</span>
+                      {isStrayRootRecord(dashboard, flagPersonalAsStray) && <StrayRootBadge />}
                       <Check
                         className={cn(
                           'ml-auto h-3 w-3 shrink-0',
@@ -136,6 +141,7 @@ export function DashboardViewSelector({
                     >
                       <Code2 className="h-3 w-3 shrink-0 text-muted-foreground" />
                       <span className="truncate">{tile.title}</span>
+                      {isStrayRootRecord(tile, flagPersonalAsStray) && <StrayRootBadge />}
                       <Check
                         className={cn(
                           'ml-auto h-3 w-3 shrink-0',

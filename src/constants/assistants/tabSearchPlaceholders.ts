@@ -7,6 +7,7 @@ export type TabSearchScope =
   | 'canvas'
   | 'dashboards'
   | 'tasks'
+  | 'workflows'
   | 'integrations'
   | 'contacts'
   | 'transcripts'

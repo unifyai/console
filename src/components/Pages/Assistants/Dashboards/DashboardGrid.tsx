@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { DashboardTileCard } from './DashboardTileCard';
+import { isStrayRootRecord } from './StrayRootBadge';
 import type { DashboardTilePosition, TileRecord } from '@/types/assistants/dashboard';
 
 const ROW_HEIGHT = 120;
@@ -16,6 +17,8 @@ interface DashboardGridProps {
   defaultCollapsed?: boolean;
   /** Assistant that owns these tiles (for action buttons) */
   assistantId?: string;
+  /** True for team-owned assistants, whose personal root should be empty. */
+  flagPersonalAsStray?: boolean;
 }
 
 export function DashboardGrid({
@@ -24,6 +27,7 @@ export function DashboardGrid({
   onTileRefresh,
   defaultCollapsed,
   assistantId,
+  flagPersonalAsStray = false,
 }: DashboardGridProps) {
   const tileMap = useMemo(() => {
     const m = new Map<string, TileRecord>();
@@ -86,6 +90,7 @@ export function DashboardGrid({
               onRefresh={tile?.hasDataBindings ? onTileRefresh : undefined}
               defaultCollapsed={defaultCollapsed}
               assistantId={assistantId}
+              stray={tile ? isStrayRootRecord(tile, flagPersonalAsStray) : false}
             />
           </div>
         );

@@ -45,6 +45,7 @@ import {
   ExternalLink,
   type LucideIcon,
 } from 'lucide-react';
+import { resolveActionNodePresentation, type ActionNodeKind } from './actionNodePresentation';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTheme } from 'next-themes';
@@ -484,86 +485,7 @@ function getLabelStyles(status: ActionNodeStatus): string {
   return 'text-foreground font-medium';
 }
 
-/**
- * Map a display label to its icon. Exact matches first, then fuzzy substring
- * matches, with a generic fallback for unknown labels.
- */
-function getNodeIcon(displayLabel?: string): LucideIcon {
-  if (!displayLabel) return CircleDot;
-  const dl = displayLabel.toLowerCase();
-  if (dl === 'session') return Repeat;
-  if (dl === 'taking action') return Zap;
-  if (dl === 'running code') return SquareTerminal;
-  if (dl.startsWith('running:')) return Play;
-  if (dl === 'storing reusable skills') return Bookmark;
-  if (dl === 'reading file') return FileText;
-  if (dl === 'processing memory chunk') return Cpu;
-  if (dl === 'working on task') return Wrench;
-  if (dl === 'reorganizing notes') return RefreshCw;
-  if (displayLabel === 'Searching the Web') return Globe;
-  if (displayLabel === 'Answering Question') return MessageCircle;
-  if (displayLabel.includes('Contact')) return Users;
-  if (displayLabel.includes('Notes') || displayLabel.includes('Knowledge')) return BookOpen;
-  if (displayLabel.includes('Credential') || displayLabel.includes('Secret')) return KeyRound;
-  if (displayLabel.includes('Task')) return ListChecks;
-  if (displayLabel.includes('Conversation') || displayLabel.includes('Transcript'))
-    return MessageSquare;
-  return CircleDot;
-}
-
-function getNodeTooltip(displayLabel?: string): string {
-  if (!displayLabel) return 'event';
-  const dl = displayLabel.toLowerCase();
-  if (dl === 'session' || dl.includes('persistent session')) return 'persistent session';
-  if (dl === 'taking action' || dl === 'action') return 'action';
-  if (dl === 'running code') return 'code execution';
-  if (dl.startsWith('running:')) return 'function execution';
-  if (dl === 'storing reusable skills' || dl.includes('storage')) return 'storage';
-  if (dl === 'reading file') return 'file read';
-  if (dl === 'processing memory chunk') return 'memory processing';
-  if (dl === 'working on task') return 'task';
-  if (dl === 'reorganizing notes') return 'note reorganization';
-  if (dl === 'searching the web') return 'web search';
-  if (dl === 'answering question' || dl.includes('question answering')) return 'question answering';
-  if (dl.includes('contact')) return 'contact lookup';
-  if (dl.includes('notes') || dl.includes('knowledge')) return 'knowledge base';
-  if (dl.includes('credential') || dl.includes('secret')) return 'credential access';
-  if (dl.includes('task')) return 'task management';
-  if (dl.includes('conversation') || dl.includes('transcript')) return 'conversation';
-  if (dl.includes('handling request')) return 'action';
-  if (dl.includes('searching skills')) return 'storage';
-  return 'event';
-}
-
-/** Visual kind for the color-coded icon box on root action rows. */
-type NodeKind = 'request' | 'note' | 'question' | 'default';
-
-function getNodeKind(displayLabel?: string): NodeKind {
-  if (!displayLabel) return 'default';
-  const dl = displayLabel.toLowerCase();
-  if (dl === 'answering question' || dl === 'searching the web') return 'question';
-  if (
-    dl === 'storing reusable skills' ||
-    dl === 'reorganizing notes' ||
-    dl === 'reading file' ||
-    dl === 'processing memory chunk' ||
-    dl.includes('review')
-  ) {
-    return 'note';
-  }
-  if (
-    dl === 'taking action' ||
-    dl.startsWith('running:') ||
-    dl === 'running code' ||
-    dl === 'working on task' ||
-    dl === 'session'
-  ) {
-    return 'request';
-  }
-  return 'request';
-}
-
-const NODE_KIND_STYLES: Record<NodeKind, { bg: string; fg: string }> = {
+const NODE_KIND_STYLES: Record<ActionNodeKind, { bg: string; fg: string }> = {
   request: { bg: 'var(--status-success-bg)', fg: 'var(--status-success)' },
   note: { bg: 'var(--status-warning-bg)', fg: 'var(--status-warning)' },
   question: { bg: 'var(--status-info-bg)', fg: 'var(--status-info)' },
@@ -573,7 +495,7 @@ const NODE_KIND_STYLES: Record<NodeKind, { bg: string; fg: string }> = {
 const NodeIconBox = React.forwardRef<
   HTMLButtonElement,
   {
-    kind: NodeKind;
+    kind: ActionNodeKind;
     icon: LucideIcon;
     status: ActionNodeStatus;
     className?: string;
@@ -3439,7 +3361,8 @@ export function ActionNodeItem({
   const hasMergedData = mergedLogs.length > 0;
   const useTimeline = isExpanded && contentReady && hasMergedData;
 
-  const NodeIcon = getNodeIcon(node.displayLabel);
+  const presentation = resolveActionNodePresentation(node);
+  const NodeIcon = presentation.icon;
   const isMatch = !!matchedIds && matchedIds.has(node.id);
   const nodeRef = React.useRef<HTMLDivElement>(null);
 
@@ -3483,14 +3406,10 @@ export function ActionNodeItem({
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <NodeIconBox
-                  kind={getNodeKind(node.displayLabel)}
-                  icon={NodeIcon}
-                  status={node.status}
-                />
+                <NodeIconBox kind={presentation.kind} icon={NodeIcon} status={node.status} />
               </TooltipTrigger>
               <TooltipContent side="top" align="start" size="sm" className="px-2 py-1 text-xs">
-                {getNodeTooltip(node.displayLabel)}
+                {presentation.tooltip}
               </TooltipContent>
             </Tooltip>
             <span
@@ -3586,7 +3505,7 @@ export function ActionNodeItem({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" align="start" size="sm" className="px-2 py-1 text-xs">
-                {getNodeTooltip(node.displayLabel)}
+                {presentation.tooltip}
               </TooltipContent>
             </Tooltip>
 

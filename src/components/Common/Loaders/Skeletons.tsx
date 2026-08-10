@@ -272,6 +272,8 @@ export function AssistantSectionSkeleton({
         return <DashboardGridSkeleton className="h-full overflow-hidden" />;
       case 'tasks':
         return <TasksPaneSkeleton />;
+      case 'workflows':
+        return <IntegrationGridSkeleton className="m-4" />;
       case 'integrations':
         return <IntegrationGridSkeleton className="m-4" />;
       case 'contacts':

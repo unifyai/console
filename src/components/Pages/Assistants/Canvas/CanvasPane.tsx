@@ -34,6 +34,9 @@ interface CanvasPaneProps {
   assistantId: string;
   /** Scope override: a team root reads `Teams/{id}/Canvas/Views` only. */
   root?: ContextRoot | null;
+  /** False while another tab is showing; gates every read. */
+  isVisible?: boolean;
+  isActiveSurface?: boolean;
 }
 
 /** Only a published canvas is servable, so only a published one is selectable. */
@@ -50,18 +53,31 @@ function matches(record: CanvasListRecord, query: string): boolean {
   );
 }
 
-export function CanvasPane({ assistant, ownerId, assistantId, root = null }: CanvasPaneProps) {
+export function CanvasPane({
+  assistant,
+  ownerId,
+  assistantId,
+  root = null,
+  isVisible = true,
+  isActiveSurface = true,
+}: CanvasPaneProps) {
   const scope = useBrainScopeFilter(assistant, { fixedRoot: root });
   const [searchValue, setSearchValue] = React.useState('');
   const [selectedToken, setSelectedToken] = React.useState<string | null>(null);
   // Re-reads the selected canvas's record and rows without remounting the frame.
   const [dataRevision, setDataRevision] = React.useState(0);
 
+  // Mounted with forceMount alongside every other tab, so without this the
+  // canvas list and each view's rows were fetched on page load whether or not
+  // anyone opened the tab. Every sibling pane is gated the same way.
+  const dataEnabled = isVisible && isActiveSurface;
+
   const { canvases, isInitialLoading, isRefreshing, refetch } = useCanvases({
     assistant,
     ownerId,
     assistantId,
     root: scope.root,
+    enabled: dataEnabled,
   });
 
   const servable = React.useMemo(() => canvases.filter(isServable), [canvases]);

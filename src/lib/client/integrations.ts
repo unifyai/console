@@ -932,6 +932,100 @@ export async function getProviderIntegrationCatalogCount(args: {
   return extractMetricCount(parsed);
 }
 
+/**
+ * Gallery rows for a known set of slugs, in one request, with no tools.
+ *
+ * The workflows shelf needs a logo, a display name, the auth modes and the
+ * connection status for each app a bundle requires. It was getting them
+ * from `getProviderIntegrationDetails` once per slug — and that call also
+ * queries the `Integrations/Tools` context for up to 500 rows per app.
+ *
+ * Measured against the live catalogue, three of the shelf's eight slugs
+ * cost 34.9s and 16.9MB that way, essentially all of it tool rows the
+ * shelf never renders. All eight through this path: one request, 1.5s,
+ * 12KB. Tools stay where they belong — behind opening a drawer.
+ *
+ * Same field list as every other app read, deliberately: the win is not
+ * fetching tools, not trimming columns. (The row's own `tools` field is
+ * empty in the published catalogue, and an `exclude_fields` approach would
+ * be worse than the allow-list — it lets the row's embedding vector
+ * through.)
+ */
+/**
+ * Fold the owner's live connection rows onto their app definitions.
+ *
+ * The app row carries at most a *summary* of one connection — a status, an
+ * id and a label, flattened onto the app itself. The drawer needs the rows:
+ * "Authorization in progress", Cancel setup, Disconnect, per-account tool
+ * policy and the multi-account list are all read off `connections`, and a
+ * summary reconstituted into a single synthetic row silently drops eleven
+ * of its eighteen fields and every account after the first.
+ *
+ * Both the browse catalogue and a by-slug resolve go through here, so the
+ * two cannot hand the same drawer different data.
+ */
+export function mergeDefinitionsWithConnections(
+  providerDefinitions: IntegrationDefinition[],
+  providerConnections: IntegrationConnection[]
+): IntegrationDefinition[] {
+  const visibleConnections = providerConnections.filter(
+    (connection) => connection.status !== 'disconnected' && !isTriggerOnlyConnection(connection)
+  );
+  const bySlug = new Map<string, IntegrationConnection[]>();
+  for (const connection of visibleConnections) {
+    bySlug.set(connection.canonicalSlug, [
+      ...(bySlug.get(connection.canonicalSlug) ?? []),
+      connection,
+    ]);
+  }
+  return providerDefinitions.map((definition) => {
+    const connections = bySlug.get(definition.canonicalSlug) ?? [];
+    if (connections.length === 0) return definition;
+    return {
+      ...definition,
+      status: connections[0]?.status ?? definition.status,
+      connections: [
+        ...connections,
+        ...definition.connections.filter(
+          (item) =>
+            !connections.some((connection) => connection.id === item.id) &&
+            item.status !== 'disconnected'
+        ),
+      ],
+    };
+  });
+}
+
+export async function listProviderIntegrationDefinitionsBySlugs(args: {
+  ownerScope: IntegrationOwnerScope;
+  assistantId?: string | number;
+  slugs: string[];
+}): Promise<IntegrationDefinition[]> {
+  const slugs = [...new Set(args.slugs)].filter(Boolean);
+  if (slugs.length === 0) return [];
+
+  const [appPage, providerConnections] = await Promise.all([
+    builtinsLogFetch<ProviderAppPayload>({
+      context: 'Integrations/Apps',
+      limit: slugs.length,
+      offset: 0,
+      filter: `canonical_app_slug in ${JSON.stringify([...slugs].sort())}`,
+      fromFields: BUILTINS_APP_PUBLIC_FIELDS,
+    }),
+    listProviderIntegrationConnections({
+      ownerScope: args.ownerScope,
+      assistantId: args.assistantId,
+    }).catch(() => []),
+  ]);
+
+  const bySlug = connectionsBySlug(providerConnections);
+  const definitions = (appPage.logs ?? [])
+    .map((log) => log.entries)
+    .filter(Boolean)
+    .map((app) => mapProviderAppToDefinition(overlayAppConnections(app!, bySlug)));
+  return mergeDefinitionsWithConnections(definitions, providerConnections);
+}
+
 export async function getProviderIntegrationDetails(args: {
   ownerScope: IntegrationOwnerScope;
   assistantId?: string | number;

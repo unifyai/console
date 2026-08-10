@@ -30,6 +30,27 @@ const SheetOverlay = React.forwardRef<
 ));
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
+/**
+ * The width every right-side drawer opens at, stated once.
+ *
+ * About 40% of the viewport, floored at 26rem so it stays readable on a
+ * laptop and capped at 96vw so a phone keeps a gutter. One CSS expression
+ * rather than breakpoints, so the panel tracks the viewport continuously
+ * instead of stepping at Tailwind's cut-offs.
+ *
+ * **Drawers must not set their own width.** Every one of them used to pick
+ * a different value — 42rem in Functions, 640px in Workflows, 960px in
+ * Integrations, the variant default elsewhere — so moving between tabs
+ * resized the panel for no reason a user could see. Consistency is the
+ * feature here; a per-drawer width class is the regression.
+ *
+ * The two info panels (`AssistantInfoPanelLayout`, `EntityInfoPanelLayout`)
+ * deliberately keep their own narrower overlay: they are the profile
+ * surface, not a content drawer.
+ */
+export const DRAWER_WIDTH_CLASS =
+  'w-[min(96vw,max(40vw,26rem))] sm:max-w-[min(96vw,max(40vw,26rem))]';
+
 const sheetVariants = cva(
   'fixed z-50 gap-4 border-border bg-card p-6 shadow-[0_20px_70px_var(--shadow-soft)] transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out',
   {
@@ -39,8 +60,7 @@ const sheetVariants = cva(
         bottom:
           'inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
         left: 'inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm',
-        right:
-          'inset-y-0 right-0 h-full w-[min(960px,46vw)] border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-[min(960px,46vw)]',
+        right: `inset-y-0 right-0 h-full ${DRAWER_WIDTH_CLASS} border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right`,
       },
     },
     defaultVariants: {

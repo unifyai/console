@@ -970,9 +970,16 @@ export function ProviderIntegrationDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex !w-[min(960px,calc(100vw-2rem))] !max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:!max-w-[calc(100vw-2rem)]"
+        className="flex flex-col overflow-hidden p-0"
         data-testid="provider-integration-detail-sheet"
       >
+        {/* Radix requires a title on every dialog for screen readers, and
+            this drawer opens before its app resolves — while a detail is
+            still being fetched, or when a workflow asks for an app the
+            catalogue does not carry. A visually-hidden title covers that
+            window; the visible one replaces it as soon as there is a name
+            to show. */}
+        {!displayItem && <SheetTitle className="sr-only">Integration details</SheetTitle>}
         {displayItem && (
           <>
             <div className="border-b p-6 pb-4">

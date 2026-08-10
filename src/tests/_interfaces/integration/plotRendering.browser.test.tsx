@@ -569,7 +569,7 @@ describe('Plot Rendering Integration', () => {
   // =========================================================================
   describe('F: Callbacks Integration', () => {
     it(
-      'all callbacks fire correctly during complex workflow',
+      'all callbacks fire correctly during a complex interaction sequence',
       {
         meta: {
           alias: 'Integration-Callbacks-ComplexWorkflow',

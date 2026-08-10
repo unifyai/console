@@ -45,6 +45,7 @@ export const areas: AreaDef[] = [
   { id: 'account.support', priority: 'P1', minCriticalCapabilities: 1 },
   { id: 'account.reset', priority: 'P1', minCriticalCapabilities: 1 },
   { id: 'assistants.integrations', priority: 'P1', minCriticalCapabilities: 2 },
+  { id: 'assistants.workflows', priority: 'P1', minCriticalCapabilities: 1 },
 ];
 
 export const capabilities: CapabilityDef[] = [
@@ -770,6 +771,18 @@ export const capabilities: CapabilityDef[] = [
       {
         files: ['src/tests/assistants/workspace-provider-card.e2e.ts'],
         titleIncludes: 'workspace card shows the connected Microsoft provider',
+      },
+    ],
+  },
+  {
+    id: 'assistants.workflows.install-journey',
+    areaId: 'assistants.workflows',
+    priority: 'P1',
+    description: 'Workflows shelf install/uninstall journey',
+    matchers: [
+      {
+        files: ['src/tests/assistants/workflows.e2e.ts'],
+        titleIncludes: 'workflows rail section opens the shelf and installs a curated workflow',
       },
     ],
   },

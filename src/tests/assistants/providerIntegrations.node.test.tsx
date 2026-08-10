@@ -678,8 +678,11 @@ describe('provider integrations gallery model', () => {
     expect(screen.getByText('Enrich company')).toBeInTheDocument();
     expect(screen.getByText('Lookup record')).toBeInTheDocument();
     expect(screen.queryByText('CLAY_ENRICH_COMPANY')).not.toBeInTheDocument();
+    // The drawer takes the shared width from the sheet primitive rather than
+    // picking its own — it used to open at 960px while Workflows opened at
+    // 640px and Functions at 42rem, so the panel resized between tabs.
     expect(screen.getByTestId('provider-integration-detail-sheet')).toHaveClass(
-      '!max-w-[calc(100vw-2rem)]'
+      'w-[min(96vw,max(40vw,26rem))]'
     );
     const toolRow = screen.getByTestId('integration-tool-row-clay.enrich_company');
     expect(toolRow).toHaveTextContent('1.');

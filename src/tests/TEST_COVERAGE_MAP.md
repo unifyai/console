@@ -46,6 +46,7 @@ Capability registry enforced by `npm run check:test-coverage`. Source of truth f
 | `account.support`         | `support-ticket`                                   |
 | `account.reset`           | `reset-account`                                    |
 | `assistants.integrations` | `provider-integrations`, `workspace-provider-card` |
+| `assistants.workflows`    | `workflows`                                        |
 
 ## P3 removed
 

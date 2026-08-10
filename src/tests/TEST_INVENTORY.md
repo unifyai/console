@@ -105,6 +105,7 @@ Medium–high priority specs retained for full `[run-tests]` matrix:
 | `assistants/embed.e2e.ts`                   | P2            | 4 tests: merged URL types, expand @critical               |
 | `assistants/provider-integrations.e2e.ts`   | P1            | Provider integrations                                     |
 | `assistants/workspace-provider-card.e2e.ts` | P1            | Workspace provider card                                   |
+| `assistants/workflows.e2e.ts`               | P1            | Workflows shelf: install journey + held connection        |
 
 ## P3 deleted
 

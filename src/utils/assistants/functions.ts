@@ -11,7 +11,7 @@
 import type { FunctionRow, StaleReason } from '@/types/assistants/brain';
 import { mapStaleReasons } from '@/utils/assistants/staleReasons';
 
-export interface FunctionSkill {
+export interface FunctionEntry {
   functionId: number | null;
   name: string;
   language: string;
@@ -51,7 +51,7 @@ function asNumberArray(value: unknown): number[] {
     .filter((item) => Number.isFinite(item));
 }
 
-export function mapFunctionRow(row: FunctionRow): FunctionSkill {
+export function mapFunctionRow(row: FunctionRow): FunctionEntry {
   const raw = row as Record<string, unknown>;
   const table = asString(raw._table);
   const isPrimitiveField = readField(raw, 'is_primitive', 'isPrimitive');
@@ -82,8 +82,8 @@ export function mapFunctionRow(row: FunctionRow): FunctionSkill {
 }
 
 /** The function's bare (unqualified) name — last dotted segment. */
-export function bareFunctionName(skill: FunctionSkill): string {
-  return skill.name.includes('.') ? (skill.name.split('.').pop() ?? skill.name) : skill.name;
+export function bareFunctionName(fn: FunctionEntry): string {
+  return fn.name.includes('.') ? (fn.name.split('.').pop() ?? fn.name) : fn.name;
 }
 
 /**
@@ -94,44 +94,44 @@ export function bareFunctionName(skill: FunctionSkill): string {
  * `(self, task_id: int)`). Only prepend the name in the latter case — prefixing
  * an already-named argspec is what produced the `updateupdate(...)` duplication.
  */
-export function shortSignature(skill: FunctionSkill): string {
-  const args = skill.argspec.replace(/^\(self,\s*/, '(').replace(/^\(self\)/, '()');
-  return args.trimStart().startsWith('(') ? `${bareFunctionName(skill)}${args}` : args;
+export function shortSignature(fn: FunctionEntry): string {
+  const args = fn.argspec.replace(/^\(self,\s*/, '(').replace(/^\(self\)/, '()');
+  return args.trimStart().startsWith('(') ? `${bareFunctionName(fn)}${args}` : args;
 }
 
 export function filterFunctions(
-  skills: FunctionSkill[],
+  functions: FunctionEntry[],
   query: string,
   kind: FunctionKindFilter
-): FunctionSkill[] {
+): FunctionEntry[] {
   const q = query.trim().toLowerCase();
-  return skills.filter((skill) => {
-    if (!skill.name.trim()) return false;
-    if (kind === 'Learned' && skill.isPrimitive) return false;
-    if (kind === 'Primitives' && !skill.isPrimitive) return false;
+  return functions.filter((fn) => {
+    if (!fn.name.trim()) return false;
+    if (kind === 'Learned' && fn.isPrimitive) return false;
+    if (kind === 'Primitives' && !fn.isPrimitive) return false;
     if (!q) return true;
-    return (skill.name + ' ' + skill.docstring).toLowerCase().includes(q);
+    return (fn.name + ' ' + fn.docstring).toLowerCase().includes(q);
   });
 }
 
-function functionSkillKey(skill: FunctionSkill, table?: string): string {
-  return `${table ?? 'unknown'}:${skill.functionId ?? skill.name}`;
+function functionEntryKey(fn: FunctionEntry, table?: string): string {
+  return `${table ?? 'unknown'}:${fn.functionId ?? fn.name}`;
 }
 
-/** Maps log rows to view-model skills, dropping blank names and duplicate keys. */
-export function normalizeFunctionSkills(rows: FunctionRow[]): FunctionSkill[] {
+/** Maps log rows to view-model functions, dropping blank names and duplicate keys. */
+export function normalizeFunctionEntries(rows: FunctionRow[]): FunctionEntry[] {
   const seen = new Set<string>();
-  const skills: FunctionSkill[] = [];
+  const functions: FunctionEntry[] = [];
 
   for (const row of rows) {
-    const skill = mapFunctionRow(row);
-    if (!skill.name.trim()) continue;
+    const fn = mapFunctionRow(row);
+    if (!fn.name.trim()) continue;
     const table = asString((row as Record<string, unknown>)._table);
-    const key = functionSkillKey(skill, table);
+    const key = functionEntryKey(fn, table);
     if (seen.has(key)) continue;
     seen.add(key);
-    skills.push(skill);
+    functions.push(fn);
   }
 
-  return skills;
+  return functions;
 }
