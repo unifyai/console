@@ -9,6 +9,7 @@ import { DashboardSummaryCard } from './DashboardSummaryCard';
 import { DashboardGrid } from './DashboardGrid';
 import { DashboardTileCard } from './DashboardTileCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
+import { isStrayRootRecord } from './StrayRootBadge';
 import {
   SmartLeadReplyReviewPanel,
   isSmartLeadReplyReviewDashboard,
@@ -138,6 +139,10 @@ export function DashboardsPane({
 
   const showRefreshing = isRefreshing || isResourceRefreshing;
   const isEmpty = dashboards.length === 0 && tiles.length === 0;
+  // Team assistants keep all state in the team root, so any personal-root
+  // row is stray (written by a session that lost its team labeling) and gets
+  // badged rather than silently listed as a duplicate.
+  const flagPersonalAsStray = assistant.ownerTeamId != null;
 
   return (
     <div className="flex h-full flex-col" data-testid="dashboards-pane">
@@ -156,6 +161,7 @@ export function DashboardsPane({
               selectedKey={activeKey}
               onSelect={setSelectedKey}
               filterQuery={searchValue}
+              flagPersonalAsStray={flagPersonalAsStray}
             />
           ) : undefined
         }
@@ -194,6 +200,7 @@ export function DashboardsPane({
                     onTileRefresh={handleRefresh}
                     defaultCollapsed={allCollapsed}
                     assistantId={assistantId}
+                    flagPersonalAsStray={flagPersonalAsStray}
                   />
                 </DashboardSummaryCard>
                 {isSmartLeadReplyReviewDashboard(activeDashboard.title) && scope.root ? (
@@ -225,6 +232,7 @@ export function DashboardsPane({
                   onRefresh={activeTile.hasDataBindings ? handleRefresh : undefined}
                   defaultCollapsed={allCollapsed}
                   assistantId={assistantId}
+                  stray={isStrayRootRecord(activeTile, flagPersonalAsStray)}
                 />
               </section>
             )}

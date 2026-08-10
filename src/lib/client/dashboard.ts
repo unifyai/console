@@ -1,4 +1,4 @@
-import { rootContext, roots, type ContextRoot } from '@/lib/assistants/scope';
+import { rootContext, rootKey, roots, type ContextRoot } from '@/lib/assistants/scope';
 import { escapeFilterValue } from '@/utils/assistants/filterExpressions';
 import { snakeToCamelObject } from '@/utils/casing';
 import type { Assistant } from '@/types/assistants/assistant';
@@ -47,9 +47,15 @@ async function readAcrossDashboardRoots<T>(
 ): Promise<T[]> {
   const readableRoots = options?.root ? [options.root] : roots(assistant);
   const results = await Promise.all(
-    readableRoots.map((root) =>
-      fetchContext(rootContext(root, assistant.userId, assistant.agentId, table), options)
-    )
+    readableRoots.map(async (root) => {
+      const rows = await fetchContext(
+        rootContext(root, assistant.userId, assistant.agentId, table),
+        options
+      );
+      // Roots are concatenated without dedup, so keep each row's provenance:
+      // duplicates across roots are indistinguishable in the UI otherwise.
+      return rows.map((row) => ({ ...row, originRoot: rootKey(root) }));
+    })
   );
   return results.flat() as T[];
 }
