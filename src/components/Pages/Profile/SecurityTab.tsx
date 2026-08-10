@@ -217,7 +217,9 @@ const SecurityTab = ({ user }: { user: User }) => {
               <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
                 <p className="text-caption">
                   This key won&apos;t work yet. Free credits can only be spent inside the console,
-                  so API calls will be declined until you add a payment method.
+                  so API calls are declined until this account has made its first payment. Adding a
+                  card on its own does not enable it — you need an active subscription. The console
+                  keeps working as normal in the meantime.
                 </p>
                 <Button
                   variant="link"
