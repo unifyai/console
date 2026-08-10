@@ -319,7 +319,13 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   const requirementSlugs = React.useMemo(() => {
     const slugs = new Set<string>();
     for (const requirements of rawRequirements.values()) {
-      for (const requirement of requirements) slugs.add(requirement.slug);
+      for (const requirement of requirements) {
+        slugs.add(requirement.slug);
+        // Every alternative is resolved too: one of them being connected is
+        // what meets the requirement, and an unfetched option renders as an
+        // app nobody could check.
+        for (const option of requirement.alternatives) slugs.add(option.slug);
+      }
     }
     return [...slugs].sort();
   }, [rawRequirements]);

@@ -131,13 +131,22 @@ export function WorkflowsPane({
   // seconds, that nobody has actually reached.
   const requirementsResolving = catalog.requirementsResolving;
 
-  const connectRequirement = React.useMemo(
-    () =>
-      catalog.items
-        .flatMap((item) => item.workflow.requirements)
-        .find((requirement) => requirement.canonicalSlug === connectSlug) ?? null,
-    [catalog.items, connectSlug]
-  );
+  // Searched across each requirement's alternatives too: connecting is one
+  // of the apps a requirement offers, and only the recommended one carries
+  // the requirement's own slug — so a Discord chip on a Slack requirement
+  // otherwise opened the drawer with no name to show.
+  const connectRequirement = React.useMemo(() => {
+    const requirements = catalog.items.flatMap((item) => item.workflow.requirements);
+    const direct = requirements.find((requirement) => requirement.canonicalSlug === connectSlug);
+    if (direct) return direct;
+    for (const requirement of requirements) {
+      const option = requirement.options?.find(
+        (candidate) => candidate.canonicalSlug === connectSlug
+      );
+      if (option) return { ...requirement, ...option };
+    }
+    return null;
+  }, [catalog.items, connectSlug]);
 
   // Every connect entry point — card, installed row, requirement checklist,
   // held banner — opens the provider drawer in place; the workflow sheet

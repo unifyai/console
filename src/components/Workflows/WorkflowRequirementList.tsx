@@ -52,6 +52,12 @@ export function WorkflowRequirementList({
         const unresolved = requirement.via === 'unresolved';
         const met = !needsConnection && !needsWorkspace && !needsSecret && !unresolved;
 
+        // A requirement the bundle lets the user satisfy more than one way,
+        // and nothing connected yet: the choice is the action, so the row
+        // offers every option instead of a single Connect for whichever app
+        // the bundle happened to name first.
+        const choices = met || isResolving ? [] : (requirement.options ?? []);
+
         return (
           <div
             key={requirement.canonicalSlug}
@@ -64,11 +70,43 @@ export function WorkflowRequirementList({
               <WorkflowAppIcon requirement={requirement} size="md" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-title text-sm">{requirement.displayName}</p>
+              <p className="text-title text-sm">
+                {choices.length > 1
+                  ? choices.map((choice) => choice.displayName).join(' or ')
+                  : requirement.displayName}
+              </p>
               {isResolving ? (
                 <span className="bg-muted/50 mt-1 block h-3 w-48 animate-pulse rounded" />
               ) : (
-                <p className="text-caption">{requirementStatusCopy(requirement)}</p>
+                <p className="text-caption">
+                  {choices.length > 1
+                    ? 'Connect whichever you already use — any one of them works'
+                    : requirementStatusCopy(requirement)}
+                </p>
+              )}
+              {choices.length > 1 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {choices.map((choice) => (
+                    <button
+                      key={choice.canonicalSlug}
+                      type="button"
+                      disabled={connectingSlug === choice.canonicalSlug}
+                      onClick={() => onConnect(choice.canonicalSlug)}
+                      className="text-label flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 transition hover:border-primary hover:bg-accent-soft disabled:opacity-60"
+                      data-testid={`workflow-requirement-option-${choice.canonicalSlug}`}
+                    >
+                      <WorkflowAppIcon
+                        requirement={{
+                          displayName: choice.displayName,
+                          iconUrl: choice.iconUrl,
+                          iconComponent: choice.iconComponent,
+                        }}
+                        size="xs"
+                      />
+                      {choice.displayName}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -90,7 +128,9 @@ export function WorkflowRequirementList({
                 <Check className="h-3.5 w-3.5" />
                 {requirement.via === 'undeclared' ? 'Built in' : 'Connected'}
               </span>
-            ) : needsConnection ? (
+            ) : /* The chips are the action; a Connect button beside them
+                   would silently pick one of the choices for the user. */
+            choices.length > 1 ? null : needsConnection ? (
               <Button
                 type="button"
                 size="sm"

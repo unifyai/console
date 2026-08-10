@@ -78,10 +78,48 @@ function workspaceSecretKeys(definition: IntegrationDefinition): string[] {
   return key ? [key] : [];
 }
 
+/**
+ * A requirement the bundle lets the user satisfy more than one way.
+ *
+ * Each option resolves exactly like a requirement of its own and the first
+ * connected one settles it, recommendation order deciding ties. The whole
+ * set travels on the answer so the surface can offer the app the user
+ * already has instead of the one named first — declaring Slack and stopping
+ * there shuts out everyone on Discord for a workflow that serves them the
+ * same.
+ */
+function resolveChoice(
+  requirement: CatalogRequirement,
+  context: RequirementResolutionContext
+): WorkflowRequirement {
+  const resolved = [
+    { slug: requirement.slug, name: requirement.name },
+    ...requirement.alternatives,
+  ].map((option) =>
+    resolveRequirement(
+      { ...requirement, slug: option.slug, name: option.name, alternatives: [] },
+      context
+    )
+  );
+
+  const options = resolved.map((option) => ({
+    canonicalSlug: option.canonicalSlug,
+    displayName: option.displayName,
+    iconUrl: option.iconUrl,
+    iconComponent: option.iconComponent,
+    connected: option.connected,
+  }));
+
+  const satisfied = resolved.find((option) => option.connected);
+  return { ...(satisfied ?? resolved[0]), options };
+}
+
 export function resolveRequirement(
   requirement: CatalogRequirement,
   context: RequirementResolutionContext
 ): WorkflowRequirement {
+  if (requirement.alternatives.length > 0) return resolveChoice(requirement, context);
+
   // Workspace first, and without consulting the gallery at all. It is the
   // user's own Google or Microsoft account, connected in their profile —
   // deliberately not a catalogue app — so a slug lookup finds nothing and

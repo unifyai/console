@@ -49,7 +49,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('resolveRequirement', () => {
   it('reports a live provider connection as connected via connection', () => {
     const resolved = resolveRequirement(
-      { slug: 'notion', name: 'Notion', kind: 'app', requiredSecrets: [] },
+      { slug: 'notion', name: 'Notion', kind: 'app', alternatives: [], requiredSecrets: [] },
       context([
         definition({
           status: 'connected',
@@ -62,7 +62,7 @@ describe('resolveRequirement', () => {
 
   it('reports an unconnected provider-backed app as connection, unmet', () => {
     const resolved = resolveRequirement(
-      { slug: 'notion', name: 'Notion', kind: 'app', requiredSecrets: [] },
+      { slug: 'notion', name: 'Notion', kind: 'app', alternatives: [], requiredSecrets: [] },
       context([definition()])
     );
     expect(resolved).toMatchObject({ via: 'connection', connected: false });
@@ -71,7 +71,7 @@ describe('resolveRequirement', () => {
 
   it('ignores a trigger-only facade row, which cannot execute tools', () => {
     const resolved = resolveRequirement(
-      { slug: 'notion', name: 'Notion', kind: 'app', requiredSecrets: [] },
+      { slug: 'notion', name: 'Notion', kind: 'app', alternatives: [], requiredSecrets: [] },
       context([
         definition({
           status: 'not_connected',
@@ -88,7 +88,13 @@ describe('resolveRequirement', () => {
     // No provider auth modes, so the gallery cannot connect it and the
     // package's declared secrets really are the only signal.
     const resolved = resolveRequirement(
-      { slug: 'employmenthero', name: 'Employment Hero', kind: 'app', requiredSecrets: [] },
+      {
+        slug: 'employmenthero',
+        name: 'Employment Hero',
+        kind: 'app',
+        alternatives: [],
+        requiredSecrets: [],
+      },
       context([
         definition({
           canonicalSlug: 'employmenthero',
@@ -111,7 +117,7 @@ describe('resolveRequirement', () => {
     const gmail = definition({ canonicalSlug: 'gmail', displayName: 'Gmail' });
 
     const resolved = resolveRequirement(
-      { slug: 'gmail', name: 'Gmail', kind: 'app', requiredSecrets: [] },
+      { slug: 'gmail', name: 'Gmail', kind: 'app', alternatives: [], requiredSecrets: [] },
       context([gmail])
     );
     expect(resolved).toMatchObject({ via: 'connection', connected: false });
@@ -130,14 +136,26 @@ describe('resolveRequirement', () => {
     });
 
     const missing = resolveRequirement(
-      { slug: 'google_workspace', name: 'Google Workspace', kind: 'app', requiredSecrets: [] },
+      {
+        slug: 'google_workspace',
+        name: 'Google Workspace',
+        kind: 'app',
+        alternatives: [],
+        requiredSecrets: [],
+      },
       context([workspace])
     );
     expect(missing).toMatchObject({ via: 'workspace', connected: false });
     expect(missing.missingSecrets).toEqual(['GOOGLE_REFRESH_TOKEN']);
 
     const present = resolveRequirement(
-      { slug: 'google_workspace', name: 'Google Workspace', kind: 'app', requiredSecrets: [] },
+      {
+        slug: 'google_workspace',
+        name: 'Google Workspace',
+        kind: 'app',
+        alternatives: [],
+        requiredSecrets: [],
+      },
       context([workspace], ['GOOGLE_REFRESH_TOKEN'])
     );
     expect(present).toMatchObject({ via: 'workspace', connected: true });
@@ -155,7 +173,7 @@ describe('resolveRequirement', () => {
 
     expect(
       resolveRequirement(
-        { slug: 'hubspot', name: 'HubSpot', kind: 'app', requiredSecrets: [] },
+        { slug: 'hubspot', name: 'HubSpot', kind: 'app', alternatives: [], requiredSecrets: [] },
         context([connectable])
       )
     ).toMatchObject({ via: 'connection', connected: false });
@@ -163,7 +181,7 @@ describe('resolveRequirement', () => {
 
   it('lets a live connection outrank a missing secret — one route is enough', () => {
     const resolved = resolveRequirement(
-      { slug: 'gmail', name: 'Gmail', kind: 'app', requiredSecrets: [] },
+      { slug: 'gmail', name: 'Gmail', kind: 'app', alternatives: [], requiredSecrets: [] },
       context(
         [
           definition({
@@ -182,7 +200,13 @@ describe('resolveRequirement', () => {
   it('reports an unresolvable slug as unverified, and shouts about it in dev', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const resolved = resolveRequirement(
-      { slug: 'google_workspace', name: 'Google Workspace', kind: 'app', requiredSecrets: [] },
+      {
+        slug: 'google_workspace',
+        name: 'Google Workspace',
+        kind: 'app',
+        alternatives: [],
+        requiredSecrets: [],
+      },
       context([])
     );
 
@@ -205,6 +229,7 @@ describe('resolveRequirement', () => {
       slug: 'google_workspace',
       name: 'Google Workspace',
       kind: 'workspace',
+      alternatives: [],
       requiredSecrets: ['GOOGLE_REFRESH_TOKEN'],
     };
 
@@ -216,12 +241,73 @@ describe('resolveRequirement', () => {
     expect(connected).toMatchObject({ via: 'workspace', connected: true });
   });
 
+  it('is met by any one of the apps it offers, and says which', () => {
+    // The workflow needs somewhere to post, not Slack in particular. Someone
+    // on Discord would otherwise be told to connect an app they do not use
+    // for a workflow that serves them identically.
+    const resolved = resolveRequirement(
+      {
+        slug: 'slack',
+        name: 'Slack',
+        kind: 'app',
+        alternatives: [
+          { slug: 'discord', name: 'Discord' },
+          { slug: 'microsoft_teams', name: 'Microsoft Teams' },
+        ],
+        requiredSecrets: [],
+      },
+      context([
+        definition({ canonicalSlug: 'slack', displayName: 'Slack' }),
+        definition({
+          canonicalSlug: 'discord',
+          displayName: 'Discord',
+          status: 'connected',
+          connections: [connection({ canonicalSlug: 'discord', accountLabel: 'unify' })],
+        }),
+        definition({ canonicalSlug: 'microsoft_teams', displayName: 'Microsoft Teams' }),
+      ])
+    );
+
+    expect(resolved).toMatchObject({
+      canonicalSlug: 'discord',
+      connected: true,
+      accountLabel: 'unify',
+    });
+    expect(resolved.options?.map((option) => option.canonicalSlug)).toEqual([
+      'slack',
+      'discord',
+      'microsoft_teams',
+    ]);
+  });
+
+  it('falls back to the recommended app when none of the options is connected', () => {
+    const resolved = resolveRequirement(
+      {
+        slug: 'slack',
+        name: 'Slack',
+        kind: 'app',
+        alternatives: [{ slug: 'discord', name: 'Discord' }],
+        requiredSecrets: [],
+      },
+      context([
+        definition({ canonicalSlug: 'slack', displayName: 'Slack' }),
+        definition({ canonicalSlug: 'discord', displayName: 'Discord' }),
+      ])
+    );
+
+    expect(resolved).toMatchObject({ canonicalSlug: 'slack', connected: false });
+    // Both still travel with the answer: the surface offers the choice, and
+    // an option nobody resolved would render as an app it could not check.
+    expect(resolved.options).toHaveLength(2);
+  });
+
   it('never reports a workspace as unverified, whatever the gallery holds', () => {
     const resolved = resolveRequirement(
       {
         slug: 'google_workspace',
         name: 'Google Workspace',
         kind: 'workspace',
+        alternatives: [],
         requiredSecrets: [],
       },
       context([])

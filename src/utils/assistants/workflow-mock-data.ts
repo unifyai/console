@@ -1,5 +1,6 @@
 import { Globe } from 'lucide-react';
 import {
+  SiDiscord,
   SiGithub,
   SiGmail,
   SiGoogle,
@@ -11,6 +12,7 @@ import {
   SiLinear,
   SiLinkedin,
   SiNotion,
+  SiSalesforce,
   SiSlack,
   SiStripe,
 } from 'react-icons/si';
@@ -164,6 +166,28 @@ export const MOCK_WORKFLOWS: Workflow[] = [
         via: 'connection',
         iconComponent: SiNotion,
         connected: false,
+        // Somewhere to file a thread, not Notion specifically — so the row
+        // offers every app that would do and lets the user pick.
+        options: [
+          {
+            canonicalSlug: 'notion',
+            displayName: 'Notion',
+            iconComponent: SiNotion,
+            connected: false,
+          },
+          {
+            canonicalSlug: 'google_drive',
+            displayName: 'Google Drive',
+            iconComponent: SiGoogledrive,
+            connected: false,
+          },
+          {
+            canonicalSlug: 'linear',
+            displayName: 'Linear',
+            iconComponent: SiLinear,
+            connected: false,
+          },
+        ],
       },
     ],
     capabilities: [],
@@ -424,6 +448,21 @@ export const MOCK_WORKFLOWS: Workflow[] = [
         via: 'connection',
         iconComponent: SiHubspot,
         connected: false,
+        // A CRM, whichever one the team runs on.
+        options: [
+          {
+            canonicalSlug: 'hubspot',
+            displayName: 'HubSpot',
+            iconComponent: SiHubspot,
+            connected: false,
+          },
+          {
+            canonicalSlug: 'salesforce',
+            displayName: 'Salesforce',
+            iconComponent: SiSalesforce,
+            connected: false,
+          },
+        ],
       },
       {
         canonicalSlug: 'slack',
@@ -432,6 +471,22 @@ export const MOCK_WORKFLOWS: Workflow[] = [
         iconComponent: SiSlack,
         connected: true,
         accountLabel: 'unify.slack.com',
+        // Connected already, so this row shows Slack and no chooser: the
+        // choice only matters while nothing satisfies the requirement.
+        options: [
+          {
+            canonicalSlug: 'slack',
+            displayName: 'Slack',
+            iconComponent: SiSlack,
+            connected: true,
+          },
+          {
+            canonicalSlug: 'discord',
+            displayName: 'Discord',
+            iconComponent: SiDiscord,
+            connected: false,
+          },
+        ],
       },
     ],
     capabilities: [],
