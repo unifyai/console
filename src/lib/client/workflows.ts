@@ -178,6 +178,31 @@ export async function submitWorkflowRequest(
   }
 }
 
+/**
+ * Start one of an installed workflow's planted jobs immediately.
+ *
+ * The workflow itself has nothing to run: what it installed is an ordinary
+ * task, and running it now is that task's own trigger. Resolves to the reason
+ * when the runtime refuses — a job already in flight, a definition the install
+ * has since cancelled — so a surface can say which rather than "failed".
+ */
+export async function runWorkflowTask(
+  assistant: Assistant,
+  taskId: string
+): Promise<{ started: boolean; detail?: string }> {
+  const response = await fetch('/api/workflows/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assistantId: assistant.agentId, taskId }),
+  });
+  const body = (await response.json().catch(() => null)) as {
+    started?: boolean;
+    detail?: string;
+  } | null;
+  if (response.ok && body?.started) return { started: true };
+  return { started: false, detail: body?.detail };
+}
+
 /** This assistant's recorded requests, newest first, for rendering their state. */
 export async function fetchWorkflowRequests(
   assistant: Assistant,

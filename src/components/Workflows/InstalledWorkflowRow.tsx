@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Pause, Play, Plug, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Loader2, Pause, Play, Plug, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { WorkflowTileIcon } from './WorkflowTileIcon';
@@ -37,6 +37,8 @@ export function InstalledWorkflowRow({
   onConnectWorkspace,
   onToggleSetup,
   onRetry,
+  onRunNow,
+  isRunning = false,
   request,
   isResolving = false,
 }: {
@@ -44,6 +46,8 @@ export function InstalledWorkflowRow({
   canMutate?: boolean;
   /** True until the integrations catalogue has answered for this row's apps. */
   isResolving?: boolean;
+  /** True while this row's job is being started. */
+  isRunning?: boolean;
   /** A recorded change the assistant is carrying out for this workflow. */
   request?: WorkflowRequestState;
   onOpen: (item: WorkflowGalleryItem) => void;
@@ -51,6 +55,8 @@ export function InstalledWorkflowRow({
   onConnectWorkspace?: () => void;
   onToggleSetup: (slug: string) => void;
   onRetry: (slug: string) => void;
+  /** Starts the workflow's job now rather than at its next occurrence. */
+  onRunNow?: (slug: string) => void;
 }) {
   const { workflow, installation } = item;
   if (!installation) return null;
@@ -208,6 +214,28 @@ export function InstalledWorkflowRow({
           >
             <RefreshCw className="h-3.5 w-3.5" />
             Retry
+          </Button>
+        )}
+        {/* Offered only once the workflow is genuinely armed. A held or
+            still-provisioning installation has jobs that are deliberately not
+            allowed to start, and a button that reliably fails is worse than no
+            button. */}
+        {canMutate && onRunNow && installation.status === 'active' && nextTask && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 px-2.5 text-xs"
+            disabled={isRunning}
+            onClick={() => onRunNow(workflow.slug)}
+            data-testid={`workflow-run-now-${workflow.slug}`}
+          >
+            {isRunning ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+            Run now
           </Button>
         )}
         <Button

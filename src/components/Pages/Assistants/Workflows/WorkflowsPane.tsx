@@ -9,6 +9,7 @@ import { UninstallWorkflowDialog } from '@/components/Workflows/UninstallWorkflo
 import { WorkflowConnectAppSheet } from './WorkflowConnectAppSheet';
 import { WORKFLOW_SURFACES } from '@/components/Workflows/workflowCategories';
 import { useWorkflowCatalog } from '@/hooks/Workflows/useWorkflowCatalog';
+import { useWorkflowRun } from '@/hooks/Workflows/useWorkflowRun';
 import { useWorkflowArtifacts } from '@/hooks/Workflows/useWorkflowArtifacts';
 import { shouldUseMockProviderIntegrations } from '@/utils/assistants/provider-integration-mock-data';
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
@@ -89,6 +90,8 @@ export function WorkflowsPane({
     requirementContext,
     resolveMissingDefinitions: dataEnabled && !isMockIntegrations,
   });
+
+  const { running, runNow } = useWorkflowRun({ assistant, items: catalog.items });
 
   const [openSlug, setOpenSlug] = React.useState<string | null>(null);
   const [uninstallSlug, setUninstallSlug] = React.useState<string | null>(null);
@@ -184,6 +187,8 @@ export function WorkflowsPane({
           requirementsResolving={requirementsResolving}
           onToggleSetup={catalog.toggleSetup}
           onRetry={catalog.retry}
+          onRunNow={(slug) => void runNow(slug)}
+          running={running}
           renderDetailSheet={() => (
             <>
               <WorkflowDetailSheet
@@ -211,6 +216,8 @@ export function WorkflowsPane({
                 onToggleSetup={catalog.toggleSetup}
                 onStopSetup={catalog.stopSetup}
                 onRetry={catalog.retry}
+                onRunNow={(slug) => void runNow(slug)}
+                isRunning={openSlug ? running.has(openSlug) : false}
                 onUpdate={catalog.update}
                 onNavigate={openSection}
                 onPreview={(kind, name) => setPreview({ kind, name })}
