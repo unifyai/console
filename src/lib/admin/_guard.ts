@@ -20,6 +20,7 @@
  * dispatch).
  */
 
+import { isUnifyStaff } from '@/lib/auth/unify-staff';
 import { getCurrentUser } from '@/lib/user/user';
 import type { ResponseProps } from '@/types/common';
 
@@ -28,9 +29,13 @@ export async function requireUnifyAdmin(): Promise<ResponseProps | null> {
   if (!user) {
     return { detail: 'Unauthorized', status: 401 };
   }
-  const isUnifyAdmin = user.organizations?.some(
-    (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
-  );
+  // Org names are user-choosable, so membership in an org named "Unify"
+  // only counts for a verified unify.ai session email.
+  const isUnifyAdmin =
+    isUnifyStaff(user.email) &&
+    user.organizations?.some(
+      (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
+    );
   if (!isUnifyAdmin) {
     return { detail: 'Forbidden', status: 403 };
   }
@@ -50,7 +55,8 @@ export async function requireUnifyMember(): Promise<ResponseProps | null> {
   if (!user) {
     return { detail: 'Unauthorized', status: 401 };
   }
-  const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
+  const isUnifyMember =
+    isUnifyStaff(user.email) && (user.organizations?.some((o) => o.name === 'Unify') ?? false);
   if (!isUnifyMember) {
     return { detail: 'Forbidden', status: 403 };
   }

@@ -7,6 +7,7 @@ describe('resolveWorkspaceContext', () => {
       name: 'Tony',
       apiKey: 'personal-key',
       personalWorkspaceDisabled: true,
+      email: 'tony@clientbeta.example.com',
       organizations: [
         {
           id: 7,
@@ -31,6 +32,7 @@ describe('resolveWorkspaceContext', () => {
       name: 'Tony',
       apiKey: 'org-key',
       personalWorkspaceDisabled: true,
+      email: 'tony@clientbeta.example.com',
       organizations: [
         {
           id: 7,

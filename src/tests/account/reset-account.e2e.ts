@@ -43,10 +43,16 @@ import { railAccountTrigger } from '../helpers/shell';
 // Seed (module scope, synchronous)
 // ---------------------------------------------------------------------------
 
-// Unify staff member — must belong to an org literally named "Unify" (the
-// product convention the membership gate keys off). The org name is globally
-// unique, so reuse an existing "Unify" org if present and otherwise create one.
-const staffUser = createTestUser({ name: 'Reset', lastName: 'Victim', credits: 7500 });
+// Unify staff member — must belong to an org literally named "Unify" AND
+// carry a unify.ai mailbox, the two signals the membership gate now keys
+// off. The org name is globally unique, so reuse an existing "Unify" org if
+// present and otherwise create one.
+const staffUser = createTestUser({
+  name: 'Reset',
+  lastName: 'Victim',
+  credits: 7500,
+  email: `reset-staff-${Date.now()}@unify.ai`,
+});
 const resetDiscordId = `seed-discord-${staffUser.id.slice(0, 8)}`;
 
 const existingUnifyOrgId = dbExec(`SELECT id FROM organization WHERE name = 'Unify' LIMIT 1;`);

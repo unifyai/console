@@ -1,7 +1,8 @@
+import { isUnifyStaffMember } from '@/lib/auth/unify-staff';
 import type { User, UserOrganization, UserWorkspace } from '@/types/user';
 
 type WorkspaceResolvedUser =
-  | (Pick<User, 'apiKey' | 'organizations' | 'name' | 'personalWorkspaceDisabled'> &
+  | (Pick<User, 'apiKey' | 'email' | 'organizations' | 'name' | 'personalWorkspaceDisabled'> &
       Partial<Pick<User, 'image'>>)
   | null
   | undefined;
@@ -34,7 +35,7 @@ export function resolveWorkspaceContext(user: WorkspaceResolvedUser): ResolvedWo
   const organizations = user.organizations ?? [];
   const activeOrganization =
     organizations.find((organization) => organization.apiKey === user.apiKey) ?? null;
-  const isUnifyMember = organizations.some((organization) => organization.name === 'Unify');
+  const isUnifyMember = isUnifyStaffMember(user.email, organizations);
   const personalWorkspaceDisabled = user.personalWorkspaceDisabled === true;
   const activeWorkspace: UserWorkspace | null = activeOrganization
     ? {

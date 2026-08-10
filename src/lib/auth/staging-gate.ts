@@ -15,7 +15,7 @@
 
 import { resolveEnvironment } from '@/lib/environment/environment';
 
-const UNIFY_EMAIL_DOMAIN = '@unify.ai';
+import { isUnifyStaff } from '@/lib/auth/unify-staff';
 
 /** Whether this deployment is hosted staging (see `resolveEnvironment`). */
 export const IS_STAGING: boolean = resolveEnvironment().isStaging;
@@ -27,12 +27,8 @@ const STAGING_EMAIL_ALLOWLIST: ReadonlySet<string> = new Set(
     .filter(Boolean)
 );
 
-export function isUnifyMember(email: string | null | undefined): boolean {
-  return !!email && email.toLowerCase().endsWith(UNIFY_EMAIL_DOMAIN);
-}
-
 export function isStagingAllowedEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  if (isUnifyMember(email)) return true;
+  if (isUnifyStaff(email)) return true;
   return STAGING_EMAIL_ALLOWLIST.has(email.trim().toLowerCase());
 }

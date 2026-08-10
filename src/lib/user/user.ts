@@ -8,6 +8,7 @@ import { cookies, headers } from 'next/headers';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { populateApiKeyCache, invalidateApiKeyCache } from '@/app/api/_utils/api-key-cache';
+import { isUnifyStaffMember } from '@/lib/auth/unify-staff';
 import { resolveAuthMode } from '@/lib/environment/environment';
 import { requireUserApiKey } from '@/lib/server-action-session';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
@@ -280,7 +281,7 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   // Skip if context was resolved via an explicit header API key (API calls).
   let effectiveWorkspaceId: string | undefined = workspaceId;
   if (!headerApiKey) {
-    const isUnifyMember = user.organizations?.some((org) => org.name === 'Unify') ?? false;
+    const isUnifyMember = isUnifyStaffMember(user.email, user.organizations);
     if (!isUnifyMember && user.organizations && user.organizations.length > 0) {
       user.apiKey = user.organizations[0].apiKey;
       effectiveWorkspaceId = user.organizations[0].id.toString();

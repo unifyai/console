@@ -13,6 +13,7 @@
  * No API keys are exposed to the client.
  */
 
+import { isUnifyStaffMember } from '@/lib/auth/unify-staff';
 import type { UserOrganization } from '@/types/user';
 
 // ---------------------------------------------------------------------------
@@ -93,7 +94,7 @@ export function resolveApiKeyFromCache(
     return null;
   }
 
-  return resolveWorkspaceApiKey(entry, workspaceId, headerApiKey);
+  return resolveWorkspaceApiKey(email, entry, workspaceId, headerApiKey);
 }
 
 /**
@@ -142,6 +143,7 @@ export function getApiKeyCacheSize(): number {
 // ---------------------------------------------------------------------------
 
 function resolveWorkspaceApiKey(
+  email: string,
   entry: CachedUserKeys,
   workspaceId: string | undefined,
   headerApiKey: string | null
@@ -173,7 +175,7 @@ function resolveWorkspaceApiKey(
   // Priority 3: Non-Unify org members are always locked to their first org,
   // regardless of cookie value. This mirrors getCurrentUser() where the lock
   // runs unconditionally after Priority 2, overriding any earlier resolution.
-  const lockedKey = applyOrgLock(entry, headerApiKey);
+  const lockedKey = applyOrgLock(email, entry, headerApiKey);
   if (lockedKey) return lockedKey;
 
   return resolvedKey;
@@ -183,9 +185,13 @@ function resolveWorkspaceApiKey(
  * Non-Unify org members are locked to their first org's workspace.
  * Returns the forced org apiKey, or null if no lock applies.
  */
-function applyOrgLock(entry: CachedUserKeys, headerApiKey: string | null): string | null {
+function applyOrgLock(
+  email: string,
+  entry: CachedUserKeys,
+  headerApiKey: string | null
+): string | null {
   if (headerApiKey) return null;
-  const isUnifyMember = entry.organizations.some((org) => org.name === 'Unify');
+  const isUnifyMember = isUnifyStaffMember(email, entry.organizations);
   if (!isUnifyMember && entry.organizations.length > 0) {
     return entry.organizations[0].apiKey;
   }
