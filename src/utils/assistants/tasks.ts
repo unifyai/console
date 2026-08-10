@@ -189,10 +189,22 @@ function isRecurringTask(row: TaskRow): boolean {
   return readTaskRepeatPatterns(row).length > 0 || isRecurringTriggeredTask(row);
 }
 
+/**
+ * Whether anything starts this task by the clock.
+ *
+ * `schedule` holds a single start time, so a task that recurs states its
+ * cadence in `repeat` and has no start time to hold: a weekly briefing
+ * carries repeat patterns and no schedule at all. Reading `schedule` alone
+ * made every such definition look like it had no timing.
+ */
+function hasStandingSchedule(row: TaskRow): boolean {
+  return hasTaskSchedule(row) || readTaskRepeatPatterns(row).length > 0;
+}
+
 function resolveTaskStartMode(row: TaskRow): TaskStartMode {
   if (isOfflineTask(row)) return 'offline';
-  if (hasTaskSchedule(row)) return 'scheduled';
   if (hasTaskTrigger(row)) return 'triggered';
+  if (hasStandingSchedule(row)) return 'scheduled';
   return 'on_demand';
 }
 
@@ -291,7 +303,7 @@ function formatTaskStartDetail(row: TaskRow): string | undefined {
   const triggerMedium = readTaskTriggerMedium(row);
   switch (resolveTaskStartMode(row)) {
     case 'offline':
-      if (hasTaskSchedule(row)) return 'Runs in the background on a schedule';
+      if (hasStandingSchedule(row)) return 'Runs in the background on a schedule';
       if (hasTaskTrigger(row)) {
         return triggerMedium
           ? `Runs in the background for matching ${humanizeTaskLabel(triggerMedium)} activity`
