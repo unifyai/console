@@ -3,8 +3,12 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import { runWorkflowTask } from '@/lib/client/workflows';
+import { shouldUseMockWorkflows } from '@/utils/assistants/workflow-mock-data';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { WorkflowGalleryItem } from '@/types/workflows';
+
+/** How long the mock run pretends the trigger is in flight. */
+const MOCK_RUN_MS = 700;
 
 /**
  * Starting an installed workflow's work on demand.
@@ -38,10 +42,17 @@ export function useWorkflowRun({
       const task = taskId
         ? installation?.tasks.find((candidate) => candidate.taskId === taskId)
         : installation?.tasks[0];
-      if (!assistant || !task) return;
+      const isMock = shouldUseMockWorkflows();
+      if (!task || (!assistant && !isMock)) return;
 
       setRunning((current) => new Set(current).add(slug));
-      const { started, detail } = await runWorkflowTask(assistant, task.taskId);
+      // Mock mode reviews the interaction with no backend at all: the pause is
+      // there so the pending state is visible rather than a flicker.
+      const { started, detail } = isMock
+        ? await new Promise<{ started: boolean; detail?: string }>((resolve) =>
+            setTimeout(() => resolve({ started: true }), MOCK_RUN_MS)
+          )
+        : await runWorkflowTask(assistant!, task.taskId);
       setRunning((current) => {
         const next = new Set(current);
         next.delete(slug);
