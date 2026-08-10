@@ -48,17 +48,17 @@ import {
  */
 const PROVISIONING_STEP_MS = 620;
 
-/** How often the recorded request rows are re-read while one is in flight. */
-const REQUEST_POLL_MS = 2500;
 /**
- * While a request is actually in flight, poll at this instead.
+ * How often the recorded request rows are re-read while one is in flight.
  *
- * The whole install settles in under a second — less than half the idle
- * interval — so the slow poll turned a one-second operation into a
- * two-and-a-half second wait for the answer. This is only ever active
- * during that window.
+ * The read itself costs about 400ms server-side, so a faster cadence issues
+ * the next one before the last has answered: a request that never settles —
+ * an assistant that failed to wake, a row left pending — then holds an open
+ * connection more or less permanently. Two seconds keeps a settled install
+ * visible within one beat of it happening while leaving the poll idle most
+ * of the time. Nothing polls at all outside that window.
  */
-const REQUEST_POLL_ACTIVE_MS = 500;
+const REQUEST_POLL_MS = 2000;
 
 const INSTALLATIONS_CONTEXT = 'Workflows';
 const CATALOG_PAGE_SIZE = 200;
@@ -319,7 +319,13 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   const requirementSlugs = React.useMemo(() => {
     const slugs = new Set<string>();
     for (const requirements of rawRequirements.values()) {
-      for (const requirement of requirements) slugs.add(requirement.slug);
+      for (const requirement of requirements) {
+        slugs.add(requirement.slug);
+        // Every alternative is resolved too: one of them being connected is
+        // what meets the requirement, and an unfetched option renders as an
+        // app nobody could check.
+        for (const option of requirement.alternatives) slugs.add(option.slug);
+      }
     }
     return [...slugs].sort();
   }, [rawRequirements]);
@@ -492,10 +498,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       });
     };
     void read();
-    const timer = setInterval(
-      () => void read(),
-      hasRequestInFlight ? REQUEST_POLL_ACTIVE_MS : REQUEST_POLL_MS
-    );
+    const timer = setInterval(() => void read(), REQUEST_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);

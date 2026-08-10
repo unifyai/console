@@ -39,6 +39,14 @@ export interface CatalogRequirement {
    * about the one requirement whose answer never depended on the gallery.
    */
   kind: string;
+  /**
+   * Other apps that satisfy this same requirement, in the bundle's
+   * recommendation order after `slug`.
+   *
+   * A workflow needs somewhere to post or a calendar to read; which app
+   * provides it is the user's choice. Any one connected meets it.
+   */
+  alternatives: { slug: string; name: string }[];
   /** Secret names that answer for this requirement, for the routes that have one. */
   requiredSecrets: string[];
 }
@@ -210,7 +218,7 @@ export function catalogRowRequirements(row: Record<string, unknown>): CatalogReq
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((entry) => {
     if (typeof entry === 'string') {
-      return [{ slug: entry, name: entry, kind: 'app', requiredSecrets: [] }];
+      return [{ slug: entry, name: entry, kind: 'app', alternatives: [], requiredSecrets: [] }];
     }
     if (!entry || typeof entry !== 'object') return [];
     const record = entry as Record<string, unknown>;
@@ -222,9 +230,24 @@ export function catalogRowRequirements(row: Record<string, unknown>): CatalogReq
         slug,
         name: asString(record.name) ?? slug,
         kind: asString(record.kind) ?? 'app',
+        alternatives: toRequirementOptions(record.alternatives),
         requiredSecrets: Array.isArray(secrets) ? secrets.map(String) : [],
       },
     ];
+  });
+}
+
+/** The alternatives list, tolerating a bare slug the way requirements do. */
+function toRequirementOptions(value: unknown): { slug: string; name: string }[] {
+  const raw = parseJsonField<unknown[]>(value, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (typeof entry === 'string') return [{ slug: entry, name: entry }];
+    if (!entry || typeof entry !== 'object') return [];
+    const record = entry as Record<string, unknown>;
+    const slug = asString(record.slug);
+    if (!slug) return [];
+    return [{ slug, name: asString(record.name) ?? slug }];
   });
 }
 

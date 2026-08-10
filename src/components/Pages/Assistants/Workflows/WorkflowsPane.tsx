@@ -9,6 +9,7 @@ import { UninstallWorkflowDialog } from '@/components/Workflows/UninstallWorkflo
 import { WorkflowConnectAppSheet } from './WorkflowConnectAppSheet';
 import { WORKFLOW_SURFACES } from '@/components/Workflows/workflowCategories';
 import { useWorkflowCatalog } from '@/hooks/Workflows/useWorkflowCatalog';
+import { useWorkflowRun } from '@/hooks/Workflows/useWorkflowRun';
 import { useWorkflowArtifacts } from '@/hooks/Workflows/useWorkflowArtifacts';
 import { shouldUseMockProviderIntegrations } from '@/utils/assistants/provider-integration-mock-data';
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
@@ -90,6 +91,8 @@ export function WorkflowsPane({
     resolveMissingDefinitions: dataEnabled && !isMockIntegrations,
   });
 
+  const { running, runNow } = useWorkflowRun({ assistant, items: catalog.items });
+
   const [openSlug, setOpenSlug] = React.useState<string | null>(null);
   const [uninstallSlug, setUninstallSlug] = React.useState<string | null>(null);
   const [connectSlug, setConnectSlug] = React.useState<string | null>(null);
@@ -128,13 +131,22 @@ export function WorkflowsPane({
   // seconds, that nobody has actually reached.
   const requirementsResolving = catalog.requirementsResolving;
 
-  const connectRequirement = React.useMemo(
-    () =>
-      catalog.items
-        .flatMap((item) => item.workflow.requirements)
-        .find((requirement) => requirement.canonicalSlug === connectSlug) ?? null,
-    [catalog.items, connectSlug]
-  );
+  // Searched across each requirement's alternatives too: connecting is one
+  // of the apps a requirement offers, and only the recommended one carries
+  // the requirement's own slug — so a Discord chip on a Slack requirement
+  // otherwise opened the drawer with no name to show.
+  const connectRequirement = React.useMemo(() => {
+    const requirements = catalog.items.flatMap((item) => item.workflow.requirements);
+    const direct = requirements.find((requirement) => requirement.canonicalSlug === connectSlug);
+    if (direct) return direct;
+    for (const requirement of requirements) {
+      const option = requirement.options?.find(
+        (candidate) => candidate.canonicalSlug === connectSlug
+      );
+      if (option) return { ...requirement, ...option };
+    }
+    return null;
+  }, [catalog.items, connectSlug]);
 
   // Every connect entry point — card, installed row, requirement checklist,
   // held banner — opens the provider drawer in place; the workflow sheet
@@ -184,6 +196,8 @@ export function WorkflowsPane({
           requirementsResolving={requirementsResolving}
           onToggleSetup={catalog.toggleSetup}
           onRetry={catalog.retry}
+          onRunNow={(slug) => void runNow(slug)}
+          running={running}
           renderDetailSheet={() => (
             <>
               <WorkflowDetailSheet
@@ -211,6 +225,8 @@ export function WorkflowsPane({
                 onToggleSetup={catalog.toggleSetup}
                 onStopSetup={catalog.stopSetup}
                 onRetry={catalog.retry}
+                onRunNow={(slug) => void runNow(slug)}
+                isRunning={openSlug ? running.has(openSlug) : false}
                 onUpdate={catalog.update}
                 onNavigate={openSection}
                 onPreview={(kind, name) => setPreview({ kind, name })}

@@ -100,11 +100,13 @@ describe('catalogRowToWorkflow', () => {
     // The catalogue is connection-agnostic on purpose: it says what the
     // requirement *is* and how to answer it, never whether it is answered.
     expect(catalogRowRequirements(catalogRow())).toEqual([
-      { slug: 'gmail', name: 'Gmail', kind: 'app', requiredSecrets: [] },
+      { slug: 'gmail', name: 'Gmail', kind: 'app', alternatives: [], requiredSecrets: [] },
     ]);
     expect(
       catalogRowRequirements(catalogRow({ requirements: '[{"slug":"notion","name":"Notion"}]' }))
-    ).toEqual([{ slug: 'notion', name: 'Notion', kind: 'app', requiredSecrets: [] }]);
+    ).toEqual([
+      { slug: 'notion', name: 'Notion', kind: 'app', alternatives: [], requiredSecrets: [] },
+    ]);
   });
 
   it('carries how a requirement is resolved, not just its slug', () => {
@@ -130,7 +132,38 @@ describe('catalogRowToWorkflow', () => {
         slug: 'google_workspace',
         name: 'Google Workspace',
         kind: 'workspace',
+        alternatives: [],
         requiredSecrets: ['GOOGLE_REFRESH_TOKEN'],
+      },
+    ]);
+  });
+
+  it('carries every app that would satisfy a requirement, in order', () => {
+    // The bundle offers a choice; a reader that kept only the first would
+    // send a Discord user to connect Slack. A bare slug is a legal
+    // alternative, and stands in for its own name.
+    expect(
+      catalogRowRequirements(
+        catalogRow({
+          requirements: JSON.stringify([
+            {
+              slug: 'slack',
+              name: 'Slack',
+              alternatives: [{ slug: 'discord', name: 'Discord' }, 'microsoft_teams'],
+            },
+          ]),
+        })
+      )
+    ).toEqual([
+      {
+        slug: 'slack',
+        name: 'Slack',
+        kind: 'app',
+        alternatives: [
+          { slug: 'discord', name: 'Discord' },
+          { slug: 'microsoft_teams', name: 'microsoft_teams' },
+        ],
+        requiredSecrets: [],
       },
     ]);
   });

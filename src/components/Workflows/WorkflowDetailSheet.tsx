@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Loader2, Trash2, User, Users } from 'lucide-react';
+import { Download, Loader2, Play, Trash2, User, Users } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -81,6 +81,8 @@ export function WorkflowDetailSheet({
   onToggleSetup,
   onStopSetup,
   onRetry,
+  onRunNow,
+  isRunning = false,
   onUpdate,
   onNavigate,
   onPreview,
@@ -121,6 +123,10 @@ export function WorkflowDetailSheet({
   onToggleSetup: (slug: string) => void;
   onStopSetup: (slug: string) => void;
   onRetry: (slug: string) => void;
+  /** Starts the workflow's job now rather than at its next occurrence. */
+  onRunNow?: (slug: string) => void;
+  /** True while that job is being started. */
+  isRunning?: boolean;
   onUpdate: (slug: string) => void;
   /** Opens the rail section where a planted surface lives. */
   onNavigate?: (kind: WorkflowSurfaceKind) => void;
@@ -464,6 +470,26 @@ export function WorkflowDetailSheet({
                       <span className="text-caption">Changes from Console are coming soon</span>
                     )}
                     {canMutate && dirty && <span className="text-caption">Unsaved settings</span>}
+                    {/* Only for an armed installation: a held one's jobs are
+                        disarmed on purpose, and a run started against an app
+                        nobody has connected fails halfway through its work. */}
+                    {canMutate && onRunNow && installation.status === 'active' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={isRunning || installation.tasks.length === 0}
+                        onClick={() => onRunNow(workflow.slug)}
+                        data-testid={`workflow-sheet-run-now-${workflow.slug}`}
+                      >
+                        {isRunning ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                        Run now
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       disabled={!dirty || !canMutate}
