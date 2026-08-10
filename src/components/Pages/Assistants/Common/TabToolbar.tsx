@@ -4,6 +4,7 @@ import * as React from 'react';
 import { RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
+import { isImeComposing } from '@/utils/keyboard';
 
 /** Ghost icon buttons shared by section toolbars and the platform actions cluster. */
 export const tabToolbarIconButtonClass = 'h-7 w-7 shrink-0';
@@ -106,6 +107,7 @@ export function TabToolbar({
             value={searchValue}
             onChange={(e) => onSearchChange?.(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === 'Escape') {
                 handleClear();
                 (e.target as HTMLInputElement).blur();

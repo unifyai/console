@@ -5,6 +5,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { useQueryState } from 'nuqs';
 import { parseAsArrayOf, parseAsString } from 'nuqs';
 import { getPartAfterFirstUnderscore } from '@/utils/interfaces/selection/selection';
+import { isImeComposing } from '@/utils/keyboard';
 
 export type UseCellSelectionProps = {
   table: Table<any>;
@@ -144,6 +145,9 @@ export const useCellSelection = ({
 
   /* Handle keyboard navigation */
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    // An IME committing a conversion inside a cell editor must not be read as
+    // grid navigation (Enter would expand the cell mid-word).
+    if (isImeComposing(e)) return;
     const target = e.target as HTMLElement;
     if (
       (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') &&

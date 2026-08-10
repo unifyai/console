@@ -30,6 +30,7 @@ import { Label } from '../../../../UI/label';
 import SubmitButton from '../../../../Common/Buttons/Submit';
 import SelectionCommand from '@/components/Common/Commands/SelectionCommand';
 import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
+import { isImeComposing } from '@/utils/keyboard';
 
 const ProjectButtons = ({
   tabIdOrName,
@@ -312,7 +313,9 @@ const ProjectButtons = ({
                           setNewProjectName(e.target.value);
                           if (renameError) setRenameError('');
                         }}
-                        onKeyDown={(e) => e.key === 'Enter' && handleRenameProject()}
+                        onKeyDown={(e) =>
+                          !isImeComposing(e) && e.key === 'Enter' && handleRenameProject()
+                        }
                         placeholder="Enter new project name"
                       />
                       {renameError && (

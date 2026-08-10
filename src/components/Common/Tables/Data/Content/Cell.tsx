@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { sanitizeId } from '@/utils/interfaces/table/columnOperations';
 import { RowExpandingProps } from '../Buttons/RowExpanding';
 import { StateProps } from '@/types/dataTable';
+import { isImeComposing } from '@/utils/keyboard';
 
 const DataTableCell = ({
   cell,
@@ -328,6 +329,7 @@ const DataTableCell = ({
             value={draftValue ?? ''}
             onChange={(e) => setDraftValue(e.target.value === '' ? '' : Number(e.target.value))}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === 'Enter') {
                 e.preventDefault();
                 commitEdit();
@@ -366,6 +368,7 @@ const DataTableCell = ({
             }
             onChange={(e) => setDraftValue(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === 'Enter') {
                 e.preventDefault();
                 commitEdit();
@@ -387,6 +390,7 @@ const DataTableCell = ({
           value={draftValue ?? ''}
           onChange={(e) => setDraftValue(e.target.value)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === 'Enter') {
               e.preventDefault();
               commitEdit();

@@ -4,6 +4,7 @@ import { useState, useEffect, KeyboardEvent, useRef, KeyboardEventHandler } from
 import { cn } from '@/lib/utils';
 import { listToHexColors } from '@/utils/misc/color';
 import { TbMathFunction } from 'react-icons/tb';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface AutocompleteOption {
   name: string;
@@ -79,6 +80,9 @@ const FormulaInput = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation();
+    // The IME owns arrows/Enter/Tab while composing; the suggestion list must
+    // not consume them.
+    if (isImeComposing(e)) return;
 
     const suggestionCount = filteredOptions.length;
 

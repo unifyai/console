@@ -6,6 +6,7 @@ import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
 import BaseDialog from '@/components/Common/Dialogs/Base';
 import SubmitButton from '@/components/Common/Buttons/Submit';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface RenameProjectDialogProps {
   open: boolean;
@@ -99,6 +100,7 @@ export const RenameProjectDialog = React.memo(function RenameProjectDialog({
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === 'Enter' && !isSubmitting && !validationError) {
         handleSubmit();
       }

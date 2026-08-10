@@ -35,6 +35,7 @@ import { sanitizeId } from '@/utils/interfaces/table/columnOperations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import Tooltip from '@/components/Common/Misc/Tooltip';
 import FormulaInput from '@/components/Common/Input/Formula';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface StringFilter {
   key: number;
@@ -266,6 +267,7 @@ const StringColumnFilter = ({
     setOpen(false);
   };
   const onEnter: KeyboardEventHandler = (event) => {
+    if (isImeComposing(event)) return;
     if (event.key === 'Enter') {
       onSubmit();
     }

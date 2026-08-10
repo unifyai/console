@@ -55,6 +55,7 @@ import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import { isImeComposing } from '@/utils/keyboard';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -738,6 +739,7 @@ export function AssistantProfileChatPanel({
 
   const sendMessageOnEnter = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (isImeComposing(event)) return;
       if (isRecording) {
         event.preventDefault();
         stopRecording();

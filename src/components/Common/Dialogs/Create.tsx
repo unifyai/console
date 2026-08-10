@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { Form } from '@/components/UI/form';
 import SettingButton from '../Buttons/Setting';
 import { useKey } from 'react-use';
+import { isImeComposing } from '@/utils/keyboard';
 
 export default function CreateDialog({
   type,
@@ -100,10 +101,15 @@ export default function CreateDialog({
     />
   );
 
-  // Hotkey to trigger form submission when pressing enter
-  useKey('Enter', () => {
-    (form as any).handleSubmit(onSubmit)();
-  });
+  // Hotkey to trigger form submission when pressing enter. This listens on the
+  // document, so it also sees the Enter an IME uses to commit a conversion in
+  // one of the dialog's own fields — filter those out.
+  useKey(
+    (event) => event.key === 'Enter' && !isImeComposing(event),
+    () => {
+      (form as any).handleSubmit(onSubmit)();
+    }
+  );
 
   return (
     <Form {...form}>

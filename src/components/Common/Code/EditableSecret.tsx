@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/UI/input';
 import Tooltip from '@/components/Common/Misc/Tooltip';
+import { isImeComposing } from '@/utils/keyboard';
 
 export default function EditableSecret({
   value,
@@ -34,6 +35,7 @@ export default function EditableSecret({
       onChange={(e) => setTemp(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
+        if (isImeComposing(e)) return;
         if (e.key === 'Enter') commit();
       }}
     />

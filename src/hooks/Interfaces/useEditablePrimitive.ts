@@ -1,5 +1,6 @@
 import React from 'react';
 import { showErrorToast } from '@/components/Common/Toasts/notifications';
+import { isImeComposing } from '@/utils/keyboard';
 
 export function useEditablePrimitive<T>(
   initial: T,
@@ -29,6 +30,7 @@ export function useEditablePrimitive<T>(
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (isImeComposing(e)) return;
       if (e.key === 'Enter') {
         // Removed verbose debug logging – keydown enter
         if (e.shiftKey) {

@@ -16,6 +16,7 @@ import {
   ContextActions,
   LogsActions,
 } from '@/types/interfaces/grid';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface TileInfoPaletteProps {
   tileId: string;
@@ -120,6 +121,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 onKeyDown={(e) => {
+                  if (isImeComposing(e)) return;
                   if (e.key === 'Enter') handleSaveName();
                   if (e.key === 'Escape') handleCancelEdit();
                 }}

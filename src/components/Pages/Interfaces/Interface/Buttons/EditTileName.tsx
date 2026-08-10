@@ -9,6 +9,7 @@ import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getAnyTileLoading } from '@/contexts/utils/sliceUtils';
 import { useTabSync } from '@/contexts/hooks/tab/sync/useTabSync';
 import { GranularTabActions, GranularTileActions } from '@/types/interfaces/grid';
+import { isImeComposing } from '@/utils/keyboard';
 
 const EditTileName = ({
   tabIdOrName,
@@ -96,6 +97,7 @@ const EditTileName = ({
                 if (errorMsg) setErrorMsg(undefined); // clear on typing
               }}
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 if (e.key === 'Enter') {
                   saveTileName();
                 }

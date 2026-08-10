@@ -139,6 +139,7 @@ import ContextTreePicker from '@/components/Common/Dropdowns/ContextTreePicker';
 import { ShareProjectDialog } from './Dialogs/ShareProjectDialog';
 import { TransferProjectDialog } from './Dialogs/TransferProjectDialog';
 import { useProjectPermissions } from '@/contexts/hooks/interface/useProjectPermissions';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface ProjectInterface {
   id: string;
@@ -2903,7 +2904,7 @@ export default function InterfaceNav({
                     id="tab-rename"
                     value={newTabName}
                     onChange={(e) => setNewTabName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRenameTab()}
+                    onKeyDown={(e) => !isImeComposing(e) && e.key === 'Enter' && handleRenameTab()}
                     autoFocus
                   />
                 </div>
@@ -3218,7 +3219,9 @@ export default function InterfaceNav({
                     id="interface-rename"
                     value={newInterfaceName}
                     onChange={(e) => setNewInterfaceName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRenameInterface()}
+                    onKeyDown={(e) =>
+                      !isImeComposing(e) && e.key === 'Enter' && handleRenameInterface()
+                    }
                     autoFocus
                   />
                 </div>
@@ -3301,7 +3304,9 @@ export default function InterfaceNav({
                     id="new-interface-name"
                     value={saveAsNewInterfaceName}
                     onChange={(e) => setSaveAsNewInterfaceName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSaveAsNewInterface()}
+                    onKeyDown={(e) =>
+                      !isImeComposing(e) && e.key === 'Enter' && handleSaveAsNewInterface()
+                    }
                     autoFocus
                   />
                   <p className="text-body text-muted-foreground">

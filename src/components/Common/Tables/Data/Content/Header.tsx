@@ -48,6 +48,7 @@ import { shouldRenderHeader, calculateRowSpan } from '@/utils/interfaces/table/t
 import BaseDialog from '@/components/Common/Dialogs/Base';
 import { Input } from '@/components/UI/input';
 import SubmitButton from '@/components/Common/Buttons/Submit';
+import { isImeComposing } from '@/utils/keyboard';
 
 const DataTableHeader = ({
   interactive,
@@ -516,6 +517,7 @@ const DataTableHeader = ({
           value={renameValue}
           onChange={(e) => setRenameValue(e.target.value)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === 'Enter') submitRename();
           }}
           autoFocus

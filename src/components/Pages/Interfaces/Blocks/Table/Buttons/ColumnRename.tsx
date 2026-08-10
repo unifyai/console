@@ -7,6 +7,7 @@ import ActionButton from '@/components/Common/Buttons/Action';
 import { Pencil } from 'lucide-react';
 import { DropdownMenuItem } from '@radix-ui/react-dropdown-menu';
 import { sanitizeId } from '@/utils/interfaces/table/columnOperations';
+import { isImeComposing } from '@/utils/keyboard';
 
 export default function ColumnRename({
   column,
@@ -67,6 +68,7 @@ export default function ColumnRename({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === 'Enter') doRename();
           }}
           className="text-body-sm"

@@ -29,6 +29,7 @@ import { parseCellId, type LogGridRow } from '@/lib/logs/types';
 import { compareRowLabels, compressRowLabels } from '@/lib/logs/rowLabels';
 import { cn } from '@/lib/utils';
 import type { LogCellEditorDescriptor, ResolveLogCellEditor } from './editorTypes';
+import { isImeComposing } from '@/utils/keyboard';
 
 export type LogCellSelection = {
   cellId: string;
@@ -473,6 +474,7 @@ function CellBody({
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (isImeComposing(event)) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();

@@ -23,6 +23,7 @@ import { FieldsActions } from '@/types/interfaces/grid';
 import { ContextActions } from '@/types/interfaces/grid';
 import { ProjectsActions } from '@/types/interfaces/grid';
 import { LogsActions } from '@/types/interfaces/grid';
+import { isImeComposing } from '@/utils/keyboard';
 
 const extractSharedPath = (firstColumnName: string, secondColumnName: string) => {
   const firstPathParts = firstColumnName.split('/').filter((p) => p !== '');
@@ -244,6 +245,7 @@ const ColumnCreate = ({
   };
   const onEnter: KeyboardEventHandler = (e) => {
     e.stopPropagation();
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter' && name && expression && !nameError) onSubmit();
   };
 

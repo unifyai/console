@@ -25,6 +25,7 @@ import {
 import type { CoordinatorWorkspaceScope } from '@/lib/assistants/coordinatorIdentity';
 import { currentTeamIds } from '@/lib/assistants/scope';
 import { tabSearchPlaceholderForBrainContext } from '@/constants/assistants/tabSearchPlaceholders';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface BrainPaneProps {
   assistant: Assistant;
@@ -250,6 +251,7 @@ export function BrainPane({
 
   const handleSearchSubmit = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (isImeComposing(e)) return;
       if (e.key === 'Enter') {
         const val = searchValue.trim();
         if (val) {
