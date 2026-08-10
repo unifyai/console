@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { runWorkflowTask } from '@/lib/client/workflows';
 import { shouldUseMockWorkflows } from '@/utils/assistants/workflow-mock-data';
 import type { Assistant } from '@/types/assistants/assistant';
-import type { WorkflowGalleryItem } from '@/types/workflows';
+import { unmetRequirements, type WorkflowGalleryItem } from '@/types/workflows';
 
 /** How long the mock run pretends the trigger is in flight. */
 const MOCK_RUN_MS = 700;
@@ -38,12 +38,26 @@ export function useWorkflowRun({
 
   const runNow = React.useCallback(
     async (slug: string, taskId?: string) => {
-      const installation = items.find((item) => item.workflow.slug === slug)?.installation;
+      const item = items.find((candidate) => candidate.workflow.slug === slug);
+      const installation = item?.installation;
       const task = taskId
         ? installation?.tasks.find((candidate) => candidate.taskId === taskId)
         : installation?.tasks[0];
       const isMock = shouldUseMockWorkflows();
       if (!task || (!assistant && !isMock)) return;
+
+      // A held job refuses to start on the runtime side too, but there the
+      // answer is a generic failure after a round trip. The client already
+      // knows both the state and the reason, so say the useful thing now.
+      if (!task.enabled) {
+        const missing = item ? unmetRequirements(item.workflow) : [];
+        toast.error(`${task.name} is held.`, {
+          description: missing.length
+            ? `Connect ${missing.map((requirement) => requirement.displayName).join(' or ')} to arm it — it runs on its own schedule from then on.`
+            : 'A required connection is missing; connect the app it needs to arm it.',
+        });
+        return;
+      }
 
       setRunning((current) => new Set(current).add(slug));
       // Mock mode reviews the interaction with no backend at all: the pause is

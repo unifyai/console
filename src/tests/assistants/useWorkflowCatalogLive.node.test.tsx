@@ -16,12 +16,16 @@ vi.mock('@/utils/assistants/workflow-mock-data', () => ({
 const brain = vi.hoisted(() => ({ fetchBrainContext: vi.fn() }));
 vi.mock('@/lib/client/brain', () => ({ fetchBrainContext: brain.fetchBrainContext }));
 
-// The catalogue is platform data in the Builtins project, read through its
-// own client rather than the per-assistant brain fetch.
-const workflowsClient = vi.hoisted(() => ({ fetchWorkflowsCatalog: vi.fn() }));
-vi.mock('@/lib/client/workflows', () => ({
-  fetchWorkflowsCatalog: workflowsClient.fetchWorkflowsCatalog,
+// The catalogue is platform data in the Builtins project, and the
+// installations are the assistant's own rows — both read through the
+// workflows client rather than the per-assistant brain fetch.
+const workflowsClient = vi.hoisted(() => ({
+  fetchWorkflowsCatalog: vi.fn(),
+  fetchWorkflowInstallations: vi.fn(),
+  fetchWorkflowRequests: vi.fn(),
+  submitWorkflowRequest: vi.fn(),
 }));
+vi.mock('@/lib/client/workflows', () => workflowsClient);
 
 const assistant = { agentId: 123, userId: 'user-1' } as unknown as Assistant;
 
@@ -36,8 +40,9 @@ function respondWith({
   tasks = [] as Record<string, unknown>[],
 }) {
   workflowsClient.fetchWorkflowsCatalog.mockResolvedValue(catalog);
+  workflowsClient.fetchWorkflowInstallations.mockResolvedValue(installations);
+  workflowsClient.fetchWorkflowRequests.mockResolvedValue([]);
   brain.fetchBrainContext.mockImplementation(async (_a: unknown, context: string) => {
-    if (context === 'Workflows') return page(installations);
     if (context === 'Tasks') return page(tasks);
     return page([]);
   });

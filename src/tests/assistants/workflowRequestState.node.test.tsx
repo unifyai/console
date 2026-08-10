@@ -16,6 +16,7 @@ vi.mock('@/lib/client/brain', () => ({ fetchBrainContext: brain.fetchBrainContex
 
 const client = vi.hoisted(() => ({
   fetchWorkflowsCatalog: vi.fn(),
+  fetchWorkflowInstallations: vi.fn(),
   submitWorkflowRequest: vi.fn(),
   fetchWorkflowRequests: vi.fn(),
 }));
@@ -51,6 +52,7 @@ describe('useWorkflowCatalog — recorded request state', () => {
     vi.clearAllMocks();
     mockData.shouldUseMockWorkflows.mockReturnValue(false);
     client.fetchWorkflowsCatalog.mockResolvedValue([CATALOG_ROW]);
+    client.fetchWorkflowInstallations.mockResolvedValue([]);
     client.fetchWorkflowRequests.mockResolvedValue([]);
     brain.fetchBrainContext.mockResolvedValue({ rows: [], count: 0, fields: [] });
   });
