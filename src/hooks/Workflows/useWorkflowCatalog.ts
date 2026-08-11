@@ -11,6 +11,7 @@ import type { WorkflowParamValues } from '@/components/Workflows/WorkflowParamsF
 import { fetchBrainContext } from '@/lib/client/brain';
 import { camelToSnakeObject } from '@/utils/casing';
 import {
+  fetchWorkflowInstallations,
   fetchWorkflowRequests,
   fetchWorkflowsCatalog,
   submitWorkflowRequest,
@@ -60,7 +61,6 @@ const PROVISIONING_STEP_MS = 620;
  */
 const REQUEST_POLL_MS = 2000;
 
-const INSTALLATIONS_CONTEXT = 'Workflows';
 const CATALOG_PAGE_SIZE = 200;
 
 /**
@@ -164,8 +164,9 @@ interface WorkflowGalleryLoad {
  *
  * An environment whose Builtins project has not been seeded yet has no
  * catalogue rows, and a never-booted assistant has no installation rows;
- * both reads answer empty rather than throwing, so either lands on the
- * empty state, not an error.
+ * both land on the empty state. A *failed* installations read throws
+ * instead — folded into the join it reads as "nothing installed", which
+ * un-installs the whole shelf on screen until something reloads it.
  */
 async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGalleryLoad> {
   // The catalogue is platform data in the public-read Builtins project —
@@ -173,13 +174,13 @@ async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGaller
   // are this assistant's own rows. Two stores, one join key.
   const [catalogRows, installations] = await Promise.all([
     fetchWorkflowsCatalog(),
-    fetchBrainContext<BrainRow>(assistant, INSTALLATIONS_CONTEXT, { limit: CATALOG_PAGE_SIZE }),
+    fetchWorkflowInstallations(assistant),
   ]);
 
   const installationRows = new Map(
-    installations.rows.flatMap((row) => {
-      const slug = (row as Record<string, unknown>).slug;
-      return typeof slug === 'string' ? [[slug, row] as const] : [];
+    installations.flatMap((row) => {
+      const slug = row.slug;
+      return typeof slug === 'string' ? [[slug, row as BrainRow] as const] : [];
     })
   );
 
@@ -280,6 +281,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   );
   const [isMock, setIsMock] = React.useState(false);
   const [hasLoaded, setHasLoaded] = React.useState(false);
+  const [loadAttempt, setLoadAttempt] = React.useState(0);
   const [provisioning, setProvisioning] = React.useState<WorkflowProvisioningState | null>(null);
   // Recorded changes this session is watching, keyed by slug — one in flight
   // per workflow, because a second change to the same workflow supersedes the
@@ -298,18 +300,28 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     if (!assistant) return;
 
     let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
-      const next = await loadWorkflowGallery(assistant);
-      if (cancelled) return;
-      setBaseItems(next.items);
-      setRawRequirements(next.rawRequirements);
-      setIsMock(false);
-      setHasLoaded(true);
+      try {
+        const next = await loadWorkflowGallery(assistant);
+        if (cancelled) return;
+        setBaseItems(next.items);
+        setRawRequirements(next.rawRequirements);
+        setIsMock(false);
+        setHasLoaded(true);
+      } catch (error) {
+        console.error('Failed to load the workflow gallery', error);
+        if (cancelled) return;
+        // Whatever is already on screen stays; retry by nudging the nonce
+        // this effect keys on, since `hasLoaded` alone never re-fires it.
+        retry = setTimeout(() => setLoadAttempt((attempt) => attempt + 1), 5000);
+      }
     })();
     return () => {
       cancelled = true;
+      if (retry !== undefined) clearTimeout(retry);
     };
-  }, [enabled, hasLoaded, assistantId, assistant]);
+  }, [enabled, hasLoaded, assistantId, assistant, loadAttempt]);
 
   /**
    * Every requirement slug the shelf names, taken from the published rows so it

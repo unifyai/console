@@ -740,8 +740,18 @@ export function isPausedTaskStatus(status: unknown): boolean {
   return PAUSED_TASK_STATUSES.has(String(status).trim().toLowerCase());
 }
 
+/** The open scheduled head's due time, if the runs include one. */
+function scheduledHeadFor(runs: TaskRunRow[] | undefined): string | null {
+  if (!runs?.length) return null;
+  const heads = runs
+    .filter((run) => run.state === 'scheduled' && typeof run.scheduledFor === 'string')
+    .map((run) => run.scheduledFor as string)
+    .sort();
+  return heads[0] ?? null;
+}
+
 /** Six labelled fields shown in the open task card's left column. */
-export function getTaskCardFields(row: TaskRow): TaskCardField[] {
+export function getTaskCardFields(row: TaskRow, runs?: TaskRunRow[]): TaskCardField[] {
   const record = asRecord(row);
   const triggerMedium = readTaskTriggerMedium(row);
   const trigger = triggerMedium
@@ -756,7 +766,10 @@ export function getTaskCardFields(row: TaskRow): TaskCardField[] {
 
   const startCandidate =
     readFirstPresentValue(readTaskSchedule(row), ['startAt', 'start_at']) ?? row.createdAt;
-  const nextDue = readTaskDueAt(row);
+  // A repeat-only series has no start time on its definition: the next run
+  // lives on the projected open execution, so read the head when the
+  // definition itself names nothing.
+  const nextDue = readTaskDueAt(row) ?? scheduledHeadFor(runs);
   const priorityValue = readFirstPresentValue(record, ['priority']);
 
   return [

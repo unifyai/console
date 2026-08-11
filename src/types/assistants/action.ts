@@ -157,6 +157,8 @@ export interface ParsedManagerMethodEvent {
   error?: string;
   /** User-facing alias from Unity (e.g., "Checking Contact Book") */
   displayLabel?: string;
+  /** Definition name of the durable task this event ran under, when any. */
+  taskName?: string;
   /** Globally unique event identifier */
   eventId?: string;
   /** Error class name — present when status="error" */
