@@ -364,7 +364,7 @@ function TaskCard({
   tagFilters,
   onTagClick,
 }: TaskCardProps) {
-  const fields = useMemo(() => getTaskCardFields(task), [task]);
+  const fields = useMemo(() => getTaskCardFields(task, runs), [task, runs]);
   const tags = useMemo(() => readTaskTags(task), [task]);
   const cadence = fields.find((f) => f.label === 'Cadence')?.value ?? '—';
   const nextRun = fields.find((f) => f.label === 'Next run')?.value ?? '—';
@@ -473,7 +473,13 @@ function TaskCard({
 
           {/* Right — run history */}
           <div className="p-4">
-            <TaskRunHistory runs={runs} onRunClick={onRunClick} />
+            <TaskRunHistory
+              // The open scheduled head is the *next* occurrence — it feeds
+              // the Next run field above, not the history of runs that
+              // happened.
+              runs={runs.filter((run) => run.state !== 'scheduled')}
+              onRunClick={onRunClick}
+            />
           </div>
         </div>
       )}
