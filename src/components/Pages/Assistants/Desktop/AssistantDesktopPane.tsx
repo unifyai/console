@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { resolveManagedDesktopMode } from '@/utils/assistants/managed-desktop';
+import { DESKTOP_PANE_VIEWER_SOURCE } from '@/lib/assistants/desktopViewer';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 
 type DesktopStatus = 'idle' | 'starting' | 'loading' | 'ready' | 'error';
@@ -90,6 +92,7 @@ export function AssistantDesktopPane({
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const desktopFrameRef = React.useRef<HTMLIFrameElement | null>(null);
 
+  const { currentUserId } = useWorkspace();
   const assistantId = assistant.agentId;
   const ownerId = assistant.userId;
   const organizationId = assistant.organizationId ?? null;
@@ -124,6 +127,8 @@ export function AssistantDesktopPane({
   statusRef.current = status;
   const desktopActionsRef = React.useRef(desktopActions);
   desktopActionsRef.current = desktopActions;
+  const viewerUserIdRef = React.useRef(currentUserId);
+  viewerUserIdRef.current = currentUserId;
   const sessionStartRequestedAtRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
@@ -183,7 +188,8 @@ export function AssistantDesktopPane({
         .sendSystemEvent(
           assistantId,
           'assistant_screen_share_started',
-          'User opened the assistant desktop'
+          'User opened the assistant desktop',
+          { viewerUserId: viewerUserIdRef.current, viewerSource: DESKTOP_PANE_VIEWER_SOURCE }
         )
         .catch(console.error);
     } catch (e: unknown) {
@@ -331,7 +337,8 @@ export function AssistantDesktopPane({
         .sendSystemEvent(
           assistantId,
           'assistant_screen_share_stopped',
-          'User closed the assistant desktop'
+          'User closed the assistant desktop',
+          { viewerUserId: viewerUserIdRef.current, viewerSource: DESKTOP_PANE_VIEWER_SOURCE }
         )
         .catch(console.error);
     };

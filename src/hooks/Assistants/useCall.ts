@@ -17,6 +17,7 @@ import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import type { DesktopSessionScope } from '@/lib/assistants/desktopSessionScope';
 import { clearDesktopReadyCache } from '@/lib/assistants/desktopSessionScope';
+import { callViewerSource } from '@/lib/assistants/desktopViewer';
 import { fetchAssistantStatus } from '@/lib/client/assistant';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { resolveManagedDesktopMode } from '@/utils/assistants/managed-desktop';
@@ -1192,6 +1193,16 @@ export function useCall(
     });
   }, [eventLiveviewUrl, isDesktopReady, isRemoteControlActive, refreshRemoteControlUrl]);
 
+  // Names this viewer to the runtime, so one participant closing the desktop
+  // does not take it away from everyone else still watching it.
+  const callViewerFields = React.useCallback(
+    () => ({
+      viewerUserId: currentUserId ?? '',
+      viewerSource: callViewerSource(activeCallRef.current?.callId ?? ''),
+    }),
+    [currentUserId]
+  );
+
   const toggleRemoteControl = React.useCallback(async () => {
     if (!activeCallAssistant) return;
 
@@ -1209,7 +1220,8 @@ export function useCall(
         .sendSystemEvent(
           activeCallAssistant.agentId,
           'assistant_screen_share_stopped',
-          'User disabled assistant screen sharing'
+          'User disabled assistant screen sharing',
+          callViewerFields()
         )
         .catch(console.error);
       stopRemoteControl();
@@ -1257,7 +1269,8 @@ export function useCall(
         .sendSystemEvent(
           activeCallAssistant.agentId,
           'assistant_screen_share_started',
-          'User enabled assistant screen sharing'
+          'User enabled assistant screen sharing',
+          callViewerFields()
         )
         .catch(console.error);
       toast.success('Assistant screen sharing started.', { id: toastId });
@@ -1279,6 +1292,7 @@ export function useCall(
     eventLiveviewPassword,
     isDesktopReady,
     scopedLiveviewLookup,
+    callViewerFields,
   ]);
 
   const toggleRemoteControlInteractive = React.useCallback(async () => {

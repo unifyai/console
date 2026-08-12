@@ -334,12 +334,14 @@ async function dispatchAssistantUpdateRefresh(assistantId: string): Promise<void
 export async function sendSystemEvent(
   assistantId: string,
   eventType: SystemEventType,
-  message: string
+  message: string,
+  extraEventFields?: Record<string, unknown>
 ): Promise<ResponseProps> {
   const result = await dispatchUnitySystemEvent({
     assistantId: parseInt(assistantId),
     eventType,
     message,
+    extraEventFields,
   });
 
   if (!result.ok) {
