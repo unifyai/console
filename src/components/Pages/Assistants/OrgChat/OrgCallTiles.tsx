@@ -7,6 +7,7 @@ import { useIsSpeaking, useTracks } from '@livekit/components-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/UnityCallAvatar';
 import { cn } from '@/lib/utils';
+import type { DesktopMode, ManagedDesktopStatus } from '@/types/assistants/assistant';
 
 /** LiveKit participant attribute set by the unify runtime on org-call join. */
 export const ASSISTANT_ID_ATTRIBUTE = 'unify_assistant_id';
@@ -23,6 +24,12 @@ export interface OrgCallAssistantInfo {
   agentId: string;
   name: string;
   image: string | null;
+  /** Owner whose key resolves this assistant's desktop liveview. */
+  ownerUserId: string | null;
+  organizationId: number | null;
+  /** Shaped for `resolveManagedDesktopMode`, which gates any desktop surface. */
+  desktopMode: DesktopMode | null;
+  managedDesktopStatus: ManagedDesktopStatus | null;
 }
 
 export function HumanTile({

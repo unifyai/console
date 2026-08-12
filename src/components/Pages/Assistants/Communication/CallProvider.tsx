@@ -280,6 +280,10 @@ export function CallProvider({
         agentId: String(assistant.assistantId),
         name: assistant.name,
         image: assistant.image,
+        ownerUserId: assistant.ownerUserId,
+        organizationId: assistant.organizationId,
+        desktopMode: assistant.desktopMode,
+        managedDesktopStatus: assistant.managedDesktopStatus,
       };
     }
     return byId;

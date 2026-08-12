@@ -177,7 +177,15 @@ describe('MeetGrid with a live room', () => {
   it('shows a connecting assistant tile until the agent joins, then a live tile', () => {
     const call = makeCall({ assistantIds: [42] });
     const assistantsById = {
-      '42': { agentId: '42', name: 'T-W1N', image: null },
+      '42': {
+        agentId: '42',
+        name: 'T-W1N',
+        image: null,
+        ownerUserId: 'user-1',
+        organizationId: 7,
+        desktopMode: 'ubuntu' as const,
+        managedDesktopStatus: 'active' as const,
+      },
     };
 
     const withoutAgent = renderGrid(new FakeRoom([]), call, assistantsById);
