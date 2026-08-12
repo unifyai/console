@@ -4,7 +4,6 @@ import React, { useState, useCallback } from 'react';
 import { Tabs, TabsContent } from '@/components/UI/tabs';
 import { LiveActionsViewer } from './LiveActions';
 import { CanvasPane } from './Canvas/CanvasPane';
-import { DashboardsPane } from './Dashboards';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
 import { WorkflowsPane } from './Workflows';
@@ -16,7 +15,6 @@ import type {
 } from './Layout/AssistantInfoPanelLayout';
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import type { DashboardPaneData } from '@/types/assistants/dashboard';
 import type { ChatMessage, CallPill, RequestSentAck } from '@/types/assistants/chat';
 import {
   type SpendingGateStatus,
@@ -38,7 +36,6 @@ export type RightPaneTab =
   | 'chat'
   | 'tasks'
   | 'canvas'
-  | 'dashboards'
   | 'workflows'
   | 'integrations'
   | 'actions'
@@ -69,10 +66,6 @@ export const DEFAULT_RIGHT_PANE_STATE: RightPaneState = {
 interface RightPaneContainerProps {
   assistant: Assistant | null;
   actions: AssistantActionActions | null;
-  dashboardActions: {
-    getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
-    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
-  } | null;
   assistantActions: AssistantActions;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
@@ -140,7 +133,7 @@ interface RightPaneContainerProps {
 }
 
 /**
- * Hosts the assistant's right-pane bodies (Chat / Actions / Dashboards /
+ * Hosts the assistant's right-pane bodies (Chat / Actions / Canvas /
  * Integrations / Tasks). The rail owns navigation and supplies the active
  * tab via `paneState.primary.tab`; each body force-mounts so per-tab
  * scroll/mount state survives switching. The shared `/assistants`
@@ -149,7 +142,6 @@ interface RightPaneContainerProps {
 export function RightPaneContainer({
   assistant,
   actions,
-  dashboardActions,
   assistantActions,
   chatHistories,
   setChatHistories,
@@ -281,23 +273,6 @@ export function RightPaneContainer({
           isVisible={activeTab === 'canvas'}
           isActiveSurface={isActiveSurface}
         />
-      </TabsContent>
-
-      <TabsContent value="dashboards" className={TAB_CONTENT_CLASS} forceMount>
-        {dashboardActions ? (
-          <DashboardsPane
-            assistant={assistant}
-            ownerId={assistant.userId}
-            assistantId={assistant.agentId}
-            getMetadata={dashboardActions.getMetadata}
-            getTileContent={dashboardActions.getTileContent}
-            shouldPoll={hasActiveAction}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-body-muted">Select an assistant to view dashboards.</p>
-          </div>
-        )}
       </TabsContent>
 
       <TabsContent value="workflows" className={TAB_CONTENT_CLASS} forceMount>

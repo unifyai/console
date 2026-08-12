@@ -145,9 +145,7 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     pathname === '/auth/popup-start' ||
     pathname === '/auth/popup-complete' ||
     pathname.startsWith('/plot/view/') ||
-    pathname.startsWith('/table/view/') ||
-    pathname.startsWith('/tile/view/') ||
-    pathname.startsWith('/dashboard/view/')
+    pathname.startsWith('/table/view/')
   ) {
     return NextResponse.next();
   }

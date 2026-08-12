@@ -200,48 +200,6 @@
   display: none !important;
 }
 
-/*
- * Dashboards pane combobox: global [cmdk-list] uses max-height: none and
- * overflow: visible, so long tile lists grow the popover to the viewport.
- * Scope a fixed max height and native scrolling to this popover only.
- */
-[data-dashboard-combobox-popover] {
-  display: flex;
-  flex-direction: column;
-  max-height: min(70vh, 28rem);
-  overflow: hidden;
-}
-
-[data-dashboard-combobox-popover] [cmdk-root] {
-  display: flex;
-  min-height: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-[data-dashboard-combobox-popover] [cmdk-list] {
-  max-height: min(65vh, 26rem) !important;
-  min-height: 0 !important;
-  flex: 1 1 auto !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  scrollbar-width: thin !important;
-  scrollbar-color: var(--border) transparent !important;
-}
-
-[data-dashboard-combobox-popover] [cmdk-list]::-webkit-scrollbar {
-  display: block !important;
-  width: 8px;
-}
-
-[data-dashboard-combobox-popover] [cmdk-list]::-webkit-scrollbar-thumb {
-  background-color: var(--border);
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
 /* Styled scrollbar for table viewer and other components */
 .styled-scrollbar {
   scrollbar-width: thin;

@@ -1,5 +1,5 @@
 /**
- * Fixtures for the public shared-view routes (table/plot/tile/dashboard).
+ * Fixtures for the public shared-view routes (table/plot).
  */
 
 export const sharedTable = {

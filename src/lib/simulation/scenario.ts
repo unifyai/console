@@ -26,7 +26,7 @@ const personalWorkspace: MockScenario = {
   id: 'personal-workspace',
   label: 'Personal workspace',
   description:
-    'Single user with T-W1N. Populated workspace tabs (chat, actions, dashboards, tasks, integrations) and brain surfaces (contacts, transcripts, typed knowledge claims, functions, guidance, data).',
+    'Single user with T-W1N. Populated workspace tabs (chat, actions, canvas, tasks, integrations) and brain surfaces (contacts, transcripts, typed knowledge claims, functions, guidance, data).',
   user: personalUser,
   assistants: personalAssistants,
   projects,

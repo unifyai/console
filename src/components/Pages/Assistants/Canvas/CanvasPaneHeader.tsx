@@ -12,7 +12,14 @@
  */
 
 import * as React from 'react';
-import { Activity, Check, ChevronsUpDown, ExternalLink, Frame, RefreshCw } from 'lucide-react';
+import {
+  Activity,
+  Check,
+  ChevronsUpDown,
+  ExternalLink,
+  LayoutDashboard,
+  RefreshCw,
+} from 'lucide-react';
 
 import { Button } from '@/components/UI/button';
 import {
@@ -33,7 +40,7 @@ function matchesQuery(text: string, query: string): boolean {
 /**
  * Picker over the assistant's canvases.
  *
- * Mirrors the dashboards selector, including taking the toolbar's search text as a
+ * A combobox over this assistant's canvases, taking the toolbar's search text as a
  * filter rather than owning a search field of its own — typing in the tab's one
  * search box narrows the list, which is what the other tabs do.
  */
@@ -103,7 +110,7 @@ export function CanvasViewSelector({
                     setOpen(false);
                   }}
                 >
-                  <Frame className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <LayoutDashboard className="h-3 w-3 shrink-0 text-muted-foreground" />
                   <span className="truncate">{canvas.title}</span>
                   <Check
                     className={cn(

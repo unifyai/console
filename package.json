@@ -115,7 +115,6 @@
     "google-auth-library": "^9.15.1",
     "html2canvas": "^1.4.1",
     "immer": "^10.1.1",
-    "jszip": "^3.10.1",
     "livekit-client": "^2.15.13",
     "livekit-server-sdk": "^2.14.0",
     "lucide-react": "^0.471.2",

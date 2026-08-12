@@ -28,8 +28,8 @@ interface UseCanvasesResult {
 /**
  * The canvases an assistant has published, kept current by its action stream.
  *
- * Event-driven rather than polled, unlike the dashboards pane's five-second
- * interval. A canvas takes a full authoring pipeline to publish — lint, typecheck,
+ * Event-driven rather than polled. A canvas takes a full authoring
+ * pipeline to publish — lint, typecheck,
  * bundle, render, critique — so publishes are rare and clustered, and an interval
  * would be almost entirely wasted requests that still leave a gap after the one
  * moment it matters: the assistant finishing a canvas the user just asked for.

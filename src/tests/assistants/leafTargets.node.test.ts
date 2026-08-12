@@ -155,7 +155,6 @@ describe('measured against the whole console', () => {
       'knowledge-item-3',
       'transcripts-thread-9',
       'task-card-head',
-      'dashboard-selector',
       'assistant-info-button',
       'log-grid-sort-asc-name',
       'log-grid-group-by-status',

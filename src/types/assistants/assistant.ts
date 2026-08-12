@@ -735,11 +735,4 @@ export interface AssistantActions {
   };
   /** Actions panel - live action events */
   actions?: import('@/types/assistants/action').AssistantActionActions;
-  /** Dashboards pane - dashboard and tile data */
-  dashboards?: {
-    getMetadata: (
-      assistant: Assistant
-    ) => Promise<import('@/types/assistants/dashboard').DashboardPaneData>;
-    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
-  };
 }
