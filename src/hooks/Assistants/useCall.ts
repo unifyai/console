@@ -142,6 +142,11 @@ export function useCall(
   const [micEnabled, setMicEnabled] = React.useState(true);
   const [camEnabled, setCamEnabled] = React.useState(false);
   const [screenShareEnabled, setScreenShareEnabled] = React.useState(false);
+  // Which assistants are presenting their desktop to the room, by agent id.
+  // Room state rather than a local toggle: the desktop is a liveview each
+  // participant mounts for itself, so every client has to be told, and a room
+  // call can carry several assistants each presenting their own.
+  const [assistantSharesById, setAssistantSharesById] = React.useState<Record<string, boolean>>({});
   const [roomEpoch, setRoomEpoch] = React.useState(0);
   const audioElsRef = React.useRef<HTMLAudioElement[]>([]);
   const playbackMutedRef = React.useRef(false);
@@ -288,6 +293,7 @@ export function useCall(
     setMicEnabled(true);
     setCamEnabled(false);
     setScreenShareEnabled(false);
+    setAssistantSharesById({});
     devModeRef.current = false;
     activeConnectOptionsRef.current = undefined;
     sdkReconnectingRef.current = false;
@@ -342,6 +348,22 @@ export function useCall(
           // The assistant ended the call. Leave cleanly ourselves (which also
           // ends the session server-side for assistant_dm calls).
           disconnectRef.current?.();
+          return;
+        }
+        if (data.type === 'assistant_screenshare') {
+          const assistantId = String(data.assistantId || '');
+          if (!assistantId) return;
+          setAssistantSharesById((prev) => {
+            const active = Boolean(data.active);
+            if (Boolean(prev[assistantId]) === active) return prev;
+            const next = { ...prev };
+            if (active) {
+              next[assistantId] = true;
+            } else {
+              delete next[assistantId];
+            }
+            return next;
+          });
           return;
         }
       } catch {
@@ -1310,6 +1332,7 @@ export function useCall(
     micEnabled,
     camEnabled,
     screenShareEnabled,
+    assistantSharesById,
     isHost,
     isConnecting: status === 'connecting' || status === 'ringing',
     isConnected: status === 'connected',
