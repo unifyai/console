@@ -1,14 +1,19 @@
 import { Adapter, AdapterUser, AdapterAccount, VerificationToken } from 'next-auth/adapters';
 import { OrchestraAdminClient } from './orchestra-client';
+import { signupProvenanceFromContext } from '@/lib/server/signupProvenance';
 
 export function OrchestraAdapter(): Adapter {
   return {
     async createUser(user: Omit<AdapterUser, 'id'>): Promise<AdapterUser> {
+      // This is the OAuth signup path, and next-auth hands the adapter
+      // only the user — so the origin comes from the request context
+      // this call is already running inside.
       const response = await OrchestraAdminClient.post<AdapterUser>('/user', {
         email: user.email,
         name: user.name,
         lastName: user.lastName ?? null,
         image: user.image,
+        ...(await signupProvenanceFromContext()),
       });
       return response.data;
     },
