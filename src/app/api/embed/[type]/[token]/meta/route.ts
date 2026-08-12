@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '@/app/api/_utils/auth';
 import { authorizeCanvasRead } from '@/lib/canvas/canvasAccess';
 import { fetchCanvasSummary } from '@/lib/canvas/canvasRecord';
-import { fetchDashboardData } from '@/lib/dashboardData';
-import { fetchTileData } from '@/lib/tileData';
 import { fetchPlotData } from '@/lib/plotData';
 import { fetchTableData } from '@/lib/tableData';
 
-const VALID_TYPES = new Set(['table', 'plot', 'tile', 'dashboard', 'canvas']);
+const VALID_TYPES = new Set(['table', 'plot', 'canvas']);
 
 interface EmbedMeta {
   title: string | null;
@@ -30,16 +28,6 @@ async function resolveEmbedMeta(
       const summary = await fetchCanvasSummary(access.resolution, token);
       if (!summary.ok) return null;
       return { title: summary.summary.title, description: summary.summary.description };
-    }
-    case 'dashboard': {
-      const res = await fetchDashboardData(token);
-      if (!res.success) return null;
-      return { title: res.data.title, description: res.data.description };
-    }
-    case 'tile': {
-      const res = await fetchTileData(token);
-      if (!res.success) return null;
-      return { title: res.data.title, description: res.data.description };
     }
     case 'plot': {
       const res = await fetchPlotData(token);

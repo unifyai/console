@@ -75,9 +75,7 @@ export function rowLogId(tablePath: string, index: number, row: MockRow): number
     (row.messageId as number) ??
     (row.knowledgeId as number) ??
     (row.functionId as number) ??
-    (row.guidanceId as number) ??
-    (row.dashboardId as number) ??
-    (row.tileId as number);
+    (row.guidanceId as number);
   if (typeof explicit === 'number') return explicit;
   // Deterministic fallback so deletes target a stable id within a session.
   return 100_000 + hashPath(tablePath) + index;

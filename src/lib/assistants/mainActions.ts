@@ -69,7 +69,6 @@ import {
   getToolLoopEvents,
   backfillByCallingIds,
 } from '@/lib/assistants/action';
-import { getDashboardMetadata, getDashboardTileContent } from '@/lib/assistants/dashboard';
 import { getSlackInstallAction, revokeSlackInstallAction } from '@/lib/assistants/slackActions';
 import {
   getInstallStatusAction,
@@ -175,9 +174,5 @@ export const assistantMainActions: AssistantActions = {
     getManagerMethodEvents,
     getToolLoopEvents,
     backfillByCallingIds,
-  },
-  dashboards: {
-    getMetadata: getDashboardMetadata,
-    getTileContent: getDashboardTileContent,
   },
 };

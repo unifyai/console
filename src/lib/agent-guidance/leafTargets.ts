@@ -247,13 +247,6 @@ export const LEAF_TARGETS: readonly LeafTarget[] = [
     description: 'Switches that panel between its onboarding and profile views.',
   },
   {
-    id: 'dashboard-picker',
-    testId: 'dashboard-selector',
-    section: 'dashboards',
-    label: 'the dashboard picker',
-    description: 'Opens the list of dashboards saved for this teammate.',
-  },
-  {
     id: 'project-picker',
     testId: 'project-picker-trigger',
     label: 'the project picker',
@@ -287,13 +280,6 @@ export const LEAF_TARGETS: readonly LeafTarget[] = [
     section: 'actions',
     label: 'the action time window',
     description: 'Scopes history to a period.',
-  },
-  {
-    id: 'collapse-dashboard',
-    testId: 'dashboard-collapse-all',
-    section: 'dashboards',
-    label: 'collapse the dashboard',
-    description: 'Folds every tile down at once.',
   },
   {
     id: 'data-folder',

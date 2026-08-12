@@ -59,7 +59,6 @@ async function expectNoSectionBodySkeleton(page: import('@playwright/test').Page
 async function expectNoAssistantTabSkeletons(page: import('@playwright/test').Page): Promise<void> {
   const skeletonTestIds = [
     'tasks-skeleton',
-    'dashboards-loading',
     'functions-skeleton',
     'contacts-skeleton',
     'doc-list-skeleton',
@@ -79,7 +78,6 @@ const SHELL_FLICKER_SKELETON_TEST_IDS = [
   'assistant-section-skeleton',
   'rail-unity-switcher-skeleton',
   'tasks-skeleton',
-  'dashboards-loading',
   'functions-skeleton',
   'contacts-skeleton',
   'doc-list-skeleton',

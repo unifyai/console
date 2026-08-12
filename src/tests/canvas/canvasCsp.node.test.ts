@@ -2,10 +2,9 @@
  * The response headers on the standalone canvas page.
  *
  * A second `Content-Security-Policy` header on a more specific route *replaces* the
- * global one rather than adding to it. The `/tile/view` and `/dashboard/view` routes
- * emit a bare `frame-ancestors *`, so the pages rendering assistant-authored HTML
- * are the ones with no `script-src`, no `connect-src` and no `object-src` — the
- * exact inverse of what was intended.
+ * global one rather than adding to it, so a route that emits a bare
+ * `frame-ancestors` directive silently drops `script-src`, `connect-src` and
+ * `object-src` — the retired dashboard/tile view routes did exactly that.
  *
  * These tests pin the canvas route to the opposite shape: the whole base policy plus
  * a narrow `frame-ancestors`. They fail if someone shortens it back to a single

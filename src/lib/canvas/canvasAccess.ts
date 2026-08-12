@@ -9,10 +9,10 @@
  *   3. decide whether that viewer may read that canvas,
  *   4. only then use the admin key.
  *
- * The dashboard tile bridge routes check only that an admin key is configured on
- * the server, with no session check at all — so the admin key does the reading
- * and nobody establishes who asked. Doing that here would make the whole
- * visibility model decorative.
+ * A route that checks only that an admin key is configured — as the retired
+ * dashboard tile bridges did — lets the admin key do the reading with nobody
+ * establishing who asked. Doing that here would make the whole visibility
+ * model decorative.
  *
  * Server-only: this module reads `ORCHESTRA_ADMIN_KEY` and must never be imported
  * into a client bundle.

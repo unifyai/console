@@ -95,8 +95,6 @@ const vitestConfig = async () => {
         '@tanstack/react-table',
         // URL state management
         'nuqs',
-        // ZIP generation (used by DashboardSummaryCard)
-        'jszip',
       ],
       // Ensure Vite scans test files for dependencies before running
       entries: ['./src/tests/**/*.browser.test.tsx'],

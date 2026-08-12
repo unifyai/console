@@ -268,8 +268,6 @@ export function AssistantSectionSkeleton({
             ))}
           </div>
         );
-      case 'dashboards':
-        return <DashboardGridSkeleton className="h-full overflow-hidden" />;
       case 'tasks':
         return <TasksPaneSkeleton />;
       case 'workflows':
@@ -365,18 +363,6 @@ export function IntegrationGridSkeleton({ className }: { className?: string }) {
           <Skeleton className="mt-4 h-8 w-full rounded-md" />
         </div>
       ))}
-    </div>
-  );
-}
-
-/** Dashboard grid placeholder. */
-export function DashboardGridSkeleton({ className }: { className?: string }) {
-  return (
-    <div className={cn('grid grid-cols-1 gap-3 p-3 md:grid-cols-2', className)}>
-      <Skeleton className="col-span-1 h-40 rounded-xl md:col-span-2" />
-      <Skeleton className="h-32 rounded-xl" />
-      <Skeleton className="h-32 rounded-xl" />
-      <Skeleton className="h-48 rounded-xl md:col-span-2" />
     </div>
   );
 }

@@ -78,13 +78,11 @@ async function openAssistantChat(page: import('@playwright/test').Page) {
 }
 
 const EMBED_URL_CASES = [
-  { path: 'dashboard/view', label: 'Interactive Dashboard', prefix: 'dash' },
-  { path: 'tile/view', label: 'Interactive Tile', prefix: 'tile' },
   { path: 'table/view', label: 'Interactive Table', prefix: 'tbl' },
   { path: 'plot/view', label: 'Interactive Chart', prefix: 'plt' },
 ] as const;
 
-test('user messages with dashboard, tile, table, and plot URLs render embed cards @critical @area(assistants.embed)', async ({
+test('user messages with table and plot URLs render embed cards @critical @area(assistants.embed)', async ({
   authedPage: page,
 }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
@@ -114,17 +112,17 @@ test('assistant markdown links render embed cards @area(assistants.embed)', asyn
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
-  const dashToken = `dash-asst-${ts}`;
+  const tableToken = `tbl-asst-${ts}`;
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
     senderId: ASSISTANT_CONTACT_ID,
-    content: `Here is your dashboard: https://console.unify.ai/dashboard/view/${dashToken}`,
+    content: `Here is your table: https://console.unify.ai/table/view/${tableToken}`,
   });
 
   await openAssistantChat(page);
 
-  const bubble = page.locator(`[data-role="assistant"]:has-text("${dashToken}")`);
+  const bubble = page.locator(`[data-role="assistant"]:has-text("${tableToken}")`);
   await expect(bubble).toBeVisible({ timeout: 20_000 });
-  await expect(bubble.locator('text=Interactive Dashboard')).toBeVisible({ timeout: 5_000 });
+  await expect(bubble.locator('text=Interactive Table')).toBeVisible({ timeout: 5_000 });
 });
 
 test('non-embeddable URLs and plain text do not render embed cards @area(assistants.embed)', async ({
@@ -149,7 +147,7 @@ test('non-embeddable URLs and plain text do not render embed cards @area(assista
   for (const marker of [urlMarker, textMarker]) {
     const bubble = page.locator(`[data-role="user"]:has-text("${marker}")`);
     await expect(bubble).toBeVisible({ timeout: 20_000 });
-    await expect(bubble.locator('text=/Interactive (Dashboard|Table|Chart|Tile)/')).toHaveCount(0);
+    await expect(bubble.locator('text=/Interactive (Table|Chart|Canvas)/')).toHaveCount(0);
   }
 });
 
@@ -159,24 +157,24 @@ test('expand button reveals embedded iframe and collapse hides it @critical @are
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
-  const dashToken = `dash-expand-${ts}`;
+  const tableToken = `tbl-expand-${ts}`;
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
     senderId: CONTACT_ID,
-    content: `Expand test: https://console.unify.ai/dashboard/view/${dashToken}`,
+    content: `Expand test: https://console.unify.ai/table/view/${tableToken}`,
   });
 
   await openAssistantChat(page);
 
-  const bubble = page.locator(`[data-role="user"]:has-text("${dashToken}")`);
+  const bubble = page.locator(`[data-role="user"]:has-text("${tableToken}")`);
   await expect(bubble).toBeVisible({ timeout: 20_000 });
-  await expect(bubble.locator('text=Interactive Dashboard')).toBeVisible({ timeout: 5_000 });
+  await expect(bubble.locator('text=Interactive Table')).toBeVisible({ timeout: 5_000 });
 
   const expandBtn = bubble.locator('button[title="Expand inline"]');
   await expandBtn.scrollIntoViewIfNeeded();
   await expandBtn.click({ force: true });
   await page.waitForTimeout(1_000);
 
-  const iframe = page.locator(`iframe[src*="/dashboard/view/${dashToken}"]`);
+  const iframe = page.locator(`iframe[src*="/table/view/${tableToken}"]`);
   await expect(iframe).toBeVisible({ timeout: 10_000 });
   expect(await iframe.getAttribute('src')).toContain('embed=true');
 

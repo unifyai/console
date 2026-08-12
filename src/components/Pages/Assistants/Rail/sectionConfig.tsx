@@ -11,7 +11,6 @@ import {
   Braces,
   Compass,
   Database,
-  Frame,
   MonitorPlay,
   UsersRound,
   type LucideIcon,
@@ -114,7 +113,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
   {
     id: 'canvas',
     label: 'Canvas',
-    Icon: Frame,
+    Icon: LayoutDashboard,
     kind: 'view',
     tab: 'canvas',
     appliesTo: ['assistant', 'team'],
@@ -126,20 +125,6 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
         'Buttons and forms on a canvas run real work; you confirm before anything happens.',
       ],
       ['Ask for a change', 'Say what to adjust and the canvas updates in place.'],
-    ],
-  },
-  {
-    id: 'dashboards',
-    label: 'Dashboards',
-    Icon: LayoutDashboard,
-    kind: 'view',
-    tab: 'dashboards',
-    appliesTo: ['assistant', 'team'],
-    desc: 'Live tiles and reports your teammate builds for you, on request.',
-    steps: [
-      ['Switch dashboard', 'Use the picker to jump between dashboards saved for this teammate.'],
-      ['Search tiles', 'Find a tile by title when a dashboard grows large.'],
-      ['Open or pop out a tile', 'View a tile inline, or open it in its own tab for more space.'],
     ],
   },
   {

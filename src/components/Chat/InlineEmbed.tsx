@@ -13,8 +13,6 @@ import {
   Table2,
   BarChart3,
   LayoutDashboard,
-  Code2,
-  Frame,
   Maximize2,
   X,
   Loader2,
@@ -28,9 +26,9 @@ import { Button } from '@/components/UI/button';
 // Types
 // =============================================================================
 
-type EmbedType = 'table' | 'plot' | 'tile' | 'dashboard' | 'canvas';
+type EmbedType = 'table' | 'plot' | 'canvas';
 
-const EMBED_TYPES: readonly EmbedType[] = ['table', 'plot', 'tile', 'dashboard', 'canvas'];
+const EMBED_TYPES: readonly EmbedType[] = ['table', 'plot', 'canvas'];
 
 interface EmbedProps {
   url: string;
@@ -58,14 +56,10 @@ export function getEmbedViewPath(embed: Pick<ParsedEmbed, 'type' | 'token'>): st
 
 const TABLE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/table\/view\/([a-zA-Z0-9_%.-]+)/;
 const PLOT_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/plot\/view\/([a-zA-Z0-9_%.-]+)/;
-const TILE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/tile\/view\/([a-zA-Z0-9_%.-]+)/;
-const DASHBOARD_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/dashboard\/view\/([a-zA-Z0-9_%.-]+)/;
 const CANVAS_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/canvas\/view\/([a-zA-Z0-9_%.-]+)/;
 
 const EMBED_PATTERNS: { type: EmbedType; pattern: RegExp }[] = [
   { type: 'canvas', pattern: CANVAS_URL_PATTERN },
-  { type: 'dashboard', pattern: DASHBOARD_URL_PATTERN },
-  { type: 'tile', pattern: TILE_URL_PATTERN },
   { type: 'table', pattern: TABLE_URL_PATTERN },
   { type: 'plot', pattern: PLOT_URL_PATTERN },
 ];
@@ -120,9 +114,7 @@ interface InlineEmbedPreviewProps {
 const EMBED_META: Record<EmbedType, { icon: typeof Table2; label: string }> = {
   table: { icon: Table2, label: 'Interactive Table' },
   plot: { icon: BarChart3, label: 'Interactive Chart' },
-  tile: { icon: Code2, label: 'Interactive Tile' },
-  dashboard: { icon: LayoutDashboard, label: 'Interactive Dashboard' },
-  canvas: { icon: Frame, label: 'Interactive Canvas' },
+  canvas: { icon: LayoutDashboard, label: 'Interactive Canvas' },
 };
 
 function useEmbedMeta(embed: ParsedEmbed): {
@@ -369,8 +361,7 @@ export function InlineEmbed({
   className,
 }: InlineEmbedProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const resolvedHeight =
-    expandedHeight ?? (embed.type === 'dashboard' || embed.type === 'canvas' ? 600 : 420);
+  const resolvedHeight = expandedHeight ?? (embed.type === 'canvas' ? 600 : 420);
 
   if (isExpanded) {
     return (
