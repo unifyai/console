@@ -14,6 +14,7 @@
 import * as React from 'react';
 import {
   Activity,
+  Calendar,
   Check,
   ChevronsUpDown,
   ExternalLink,
@@ -169,8 +170,10 @@ function CanvasMetadata({ record }: { record: CanvasListRecord }) {
   const contexts = boundContexts(record);
   const updated = formatWhen(record.updatedAt);
 
+  // Secondary facts stay textual; recency leads with an icon because it is the
+  // one people scan for, and scanning is easier against a glyph than against
+  // another run of grey text.
   const facts: string[] = [];
-  if (updated) facts.push(`Updated ${updated}`);
   if (record.visibility && record.visibility !== 'private') facts.push(record.visibility);
   if (record.kitVersion) facts.push(`kit ${record.kitVersion}`);
 
@@ -179,17 +182,16 @@ function CanvasMetadata({ record }: { record: CanvasListRecord }) {
 
   return (
     <div className="text-caption flex flex-col gap-1 text-muted-foreground">
-      {facts.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-          {facts.map((fact, index) => (
-            <React.Fragment key={fact}>
-              {index > 0 ? (
-                <span aria-hidden className="opacity-40">
-                  ·
-                </span>
-              ) : null}
-              <span>{fact}</span>
-            </React.Fragment>
+      {updated || facts.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {updated ? (
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3 shrink-0" />
+              Updated {updated}
+            </span>
+          ) : null}
+          {facts.map((fact) => (
+            <span key={fact}>{fact}</span>
           ))}
         </div>
       ) : null}
@@ -272,19 +274,6 @@ export function CanvasCardHeader({ record, onRefresh, isRefreshing }: CanvasCard
             <RefreshCw className={cn('h-2.5 w-2.5', isRefreshing && 'animate-spin')} />
           </Button>
         ) : null}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          className="h-5 w-5 shrink-0"
-          title="Open in new tab"
-          data-testid="canvas-open-tab"
-        >
-          <a href={`/canvas/view/${record.token}`} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-2.5 w-2.5" />
-          </a>
-        </Button>
       </div>
 
       {record.description ? (
@@ -292,6 +281,22 @@ export function CanvasCardHeader({ record, onRefresh, isRefreshing }: CanvasCard
       ) : null}
 
       <CanvasMetadata record={record} />
+
+      <div className="flex items-center gap-2 pt-0.5">
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          className="h-7 gap-1.5 text-xs"
+          title="Open canvas in a new tab"
+          data-testid="canvas-open-tab"
+        >
+          <a href={`/canvas/view/${record.token}`} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-3 w-3" />
+            Open in new tab
+          </a>
+        </Button>
+      </div>
     </div>
   );
 }
