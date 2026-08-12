@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { Room, Track } from 'livekit-client';
 import {
+  Laptop,
+  LaptopMinimal,
   Mic,
   MicOff,
   Minimize2,
@@ -20,6 +22,7 @@ import { Button } from '@/components/UI/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { cn } from '@/lib/utils';
 import {
+  liveviewShareSid,
   presenterLabel,
   presentingCaption,
   resolveFocusedSid,
@@ -194,18 +197,38 @@ function AttachedVideo({
 function ScreenShareFocus({
   onActiveChange,
   onCountChange,
+  liveviewShares = [],
 }: {
   onActiveChange: (active: boolean) => void;
   onCountChange: (count: number) => void;
+  /** Assistant desktops on the stage, each already resolved to a URL. */
+  liveviewShares?: Array<{ assistantId: string; presenterName: string; url: string }>;
 }) {
   const tracks = useTracks([Track.Source.ScreenShare], { onlySubscribed: false });
   const live = tracks.filter((t) => t.publication?.track);
 
-  const shares: ShareEntry[] = live.map((t) => ({
-    sid: t.publication!.trackSid,
-    presenterName: t.participant.name ?? '',
-    isLocal: t.participant.isLocal,
-  }));
+  const urlBySid = new Map(
+    liveviewShares.map((share) => [liveviewShareSid(share.assistantId), share.url])
+  );
+  const shares: ShareEntry[] = [
+    ...live.map(
+      (t): ShareEntry => ({
+        kind: 'track',
+        sid: t.publication!.trackSid,
+        presenterName: t.participant.name ?? '',
+        isLocal: t.participant.isLocal,
+      })
+    ),
+    ...liveviewShares.map(
+      (share): ShareEntry => ({
+        kind: 'liveview',
+        sid: liveviewShareSid(share.assistantId),
+        presenterName: share.presenterName,
+        isLocal: false,
+        assistantId: share.assistantId,
+      })
+    ),
+  ];
 
   // First-seen times, so "newest" means newest rather than last-in-the-array.
   const [startedAt, setStartedAt] = React.useState<ShareStartTimes>({});
@@ -225,15 +248,17 @@ function ScreenShareFocus({
   const focused = live.find((t) => t.publication!.trackSid === focusedSid);
   const focusedShare = shares.find((s) => s.sid === focusedSid);
 
-  const active = live.length > 0;
+  const count = shares.length;
+  const active = count > 0;
   React.useEffect(() => {
     onActiveChange(active);
   }, [active, onActiveChange]);
   React.useEffect(() => {
-    onCountChange(live.length);
-  }, [live.length, onCountChange]);
+    onCountChange(count);
+  }, [count, onCountChange]);
 
-  if (!focused?.publication?.track || !focusedShare) return null;
+  if (!focusedShare) return null;
+  if (focusedShare.kind === 'track' && !focused?.publication?.track) return null;
 
   const ordered = sortSharesByStart(shares, startedAt);
 
@@ -270,11 +295,23 @@ function ScreenShareFocus({
         className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border bg-black"
         data-testid="org-call-focus"
       >
-        <AttachedVideo
-          track={focused.publication.track}
-          muted={focusedShare.isLocal}
-          className="h-full w-full object-contain"
-        />
+        {focusedShare.kind === 'liveview' ? (
+          // A desktop is a page, not a track: each viewer mounts the VM's own
+          // liveview. Non-interactive here — driving it belongs to the host, on
+          // the surface that owns remote control.
+          <iframe
+            src={urlBySid.get(focusedShare.sid)}
+            title={presentingCaption(focusedShare)}
+            className="pointer-events-none h-full w-full border-0 bg-black"
+            data-testid="org-call-focus-liveview"
+          />
+        ) : (
+          <AttachedVideo
+            track={focused!.publication!.track!}
+            muted={focusedShare.isLocal}
+            className="h-full w-full object-contain"
+          />
+        )}
         <div className="from-background/80 absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-3 py-2">
           <p className="text-caption text-foreground">{presentingCaption(focusedShare)}</p>
         </div>
@@ -306,6 +343,87 @@ function DeviceSelectList({ kind, label }: { kind: 'audioinput' | 'videoinput'; 
         ))
       )}
     </div>
+  );
+}
+
+/**
+ * Put a teammate's desktop up for the room, or take it down.
+ *
+ * Renders nothing for a non-host — presenting a teammate's desktop to everyone
+ * is the host's decision, like ending the call. With one candidate the button
+ * acts directly; with several it opens a picker, since "which teammate" is a
+ * real question then and a silent choice would be a guess.
+ */
+function AssistantDesktopControl({
+  startable,
+  stoppable,
+  onStart,
+  onStop,
+}: {
+  startable: OrgCallAssistantInfo[];
+  stoppable: OrgCallAssistantInfo[];
+  onStart?: (assistantId: string) => void;
+  onStop?: (assistantId: string) => void;
+}) {
+  const [open, setOpen] = React.useState<'start' | 'stop' | null>(null);
+
+  const act = (mode: 'start' | 'stop', assistantId: string) => {
+    setOpen(null);
+    if (mode === 'start') onStart?.(assistantId);
+    else onStop?.(assistantId);
+  };
+
+  const button = (
+    mode: 'start' | 'stop',
+    candidates: OrgCallAssistantInfo[],
+    label: string,
+    icon: React.ReactNode
+  ) => (
+    <Popover open={open === mode} onOpenChange={(next) => setOpen(next ? mode : null)} key={mode}>
+      <PopoverTrigger asChild>
+        <Button
+          size="icon"
+          variant={mode === 'stop' ? 'secondary' : 'outline'}
+          aria-label={label}
+          data-testid={`org-call-${mode}-assistant-desktop`}
+          onClick={(event) => {
+            if (candidates.length === 1) {
+              event.preventDefault();
+              act(mode, candidates[0].agentId);
+            }
+          }}
+        >
+          {icon}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="center" className="flex w-64 flex-col gap-1">
+        {candidates.map((assistant) => (
+          <button
+            key={assistant.agentId}
+            type="button"
+            className="text-body w-full truncate rounded-md px-2 py-1.5 text-left hover:bg-muted"
+            onClick={() => act(mode, assistant.agentId)}
+            data-testid={`org-call-${mode}-assistant-desktop-option`}
+          >
+            {assistant.name}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+
+  return (
+    <>
+      {stoppable.length > 0 &&
+        button(
+          'stop',
+          stoppable,
+          'Stop showing a teammate desktop',
+          <LaptopMinimal className="h-4 w-4" />
+        )}
+      {startable.length > 0 &&
+        button('start', startable, 'Show a teammate desktop', <Laptop className="h-4 w-4" />)}
+    </>
   );
 }
 
@@ -345,6 +463,15 @@ export interface OrgCallMeetStageProps {
   screenShareEnabled: boolean;
   isHost: boolean;
   addableAssistants: OrgCallAssistantInfo[];
+  /** Assistant desktops currently on the stage, resolved for this viewer. */
+  liveviewShares?: Array<{ assistantId: string; presenterName: string; url: string }>;
+  /**
+   * Assistants whose desktop the host may put up, and those it may take down.
+   * Empty for a non-host: presenting a teammate's desktop to the room is the
+   * host's call, the same way ending the call for everyone is.
+   */
+  startableDesktops?: OrgCallAssistantInfo[];
+  stoppableDesktops?: OrgCallAssistantInfo[];
   onToggleMic: () => void;
   onToggleCam: () => void;
   onToggleScreenShare: () => void;
@@ -352,6 +479,8 @@ export interface OrgCallMeetStageProps {
   onLeave: () => void;
   onEnd: () => void;
   onAddAssistant: (assistantId: number) => void;
+  onStartAssistantDesktop?: (assistantId: string) => void;
+  onStopAssistantDesktop?: (assistantId: string) => void;
 }
 
 /**
@@ -372,6 +501,9 @@ export function OrgCallMeetStage({
   screenShareEnabled,
   isHost,
   addableAssistants,
+  liveviewShares = [],
+  startableDesktops = [],
+  stoppableDesktops = [],
   onToggleMic,
   onToggleCam,
   onToggleScreenShare,
@@ -379,6 +511,8 @@ export function OrgCallMeetStage({
   onLeave,
   onEnd,
   onAddAssistant,
+  onStartAssistantDesktop,
+  onStopAssistantDesktop,
 }: OrgCallMeetStageProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [focusActive, setFocusActive] = React.useState(false);
@@ -430,7 +564,11 @@ export function OrgCallMeetStage({
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         {room && (
-          <ScreenShareFocus onActiveChange={setFocusActive} onCountChange={setPresentingCount} />
+          <ScreenShareFocus
+            onActiveChange={setFocusActive}
+            onCountChange={setPresentingCount}
+            liveviewShares={liveviewShares}
+          />
         )}
         <MeetGrid
           call={call}
@@ -503,6 +641,12 @@ export function OrgCallMeetStage({
             <MonitorUp className="h-4 w-4" />
           )}
         </Button>
+        <AssistantDesktopControl
+          startable={startableDesktops}
+          stoppable={stoppableDesktops}
+          onStart={onStartAssistantDesktop}
+          onStop={onStopAssistantDesktop}
+        />
         {room && <DeviceSettingsMenu />}
         {(call.scope === 'team' || call.scope === 'group') && addableAssistants.length > 0 && (
           <Button

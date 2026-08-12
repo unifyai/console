@@ -6,6 +6,8 @@ import { RoomContext } from '@livekit/components-react';
 import { Phone, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { useCall } from '@/hooks/Assistants/useCall';
+import { useAssistantLiveview } from '@/hooks/Assistants/useAssistantLiveview';
+import { resolveManagedDesktopMode } from '@/utils/assistants/managed-desktop';
 import { useOrgCallEvents } from '@/hooks/Assistants/useOrgCallEvents';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import {
@@ -92,6 +94,31 @@ export function useCallContext(): CallContextValue {
  * here app-wide. assistant_dm chrome docks into the /assistants page while
  * that route is active, and falls back to the floating window here off it.
  */
+/**
+ * Resolves one shared assistant desktop to a URL for this viewer.
+ *
+ * A component per desktop rather than a loop: each needs its own
+ * `useAssistantLiveview`, and every participant resolves independently — the
+ * URL is not passed around from whoever started the share.
+ */
+function SharedDesktopResolver({
+  assistant,
+  callActions,
+  onResolved,
+}: {
+  assistant: OrgCallAssistantInfo;
+  callActions: CallProviderActions;
+  onResolved: (assistantId: string, url: string | null) => void;
+}) {
+  const { liveviewUrl } = useAssistantLiveview(assistant, callActions, true);
+  const agentId = assistant.agentId;
+  React.useEffect(() => {
+    onResolved(agentId, liveviewUrl);
+    return () => onResolved(agentId, null);
+  }, [agentId, liveviewUrl, onResolved]);
+  return null;
+}
+
 export function CallProvider({
   callActions,
   userMeta,
@@ -316,6 +343,49 @@ export function CallProvider({
       .filter(Boolean);
   }, [call.activeCall, rosterTeams, roster?.groups, assistantsById]);
 
+  // Assistants on the call whose desktop the host may put up, and those already
+  // up. Both are empty for a non-host: the toggle is the host's, like End call.
+  const desktopCandidates = React.useMemo(() => {
+    const active = call.activeCall;
+    if (!active || !call.isHost) {
+      return { startable: [] as OrgCallAssistantInfo[], stoppable: [] as OrgCallAssistantInfo[] };
+    }
+    const onCall = active.assistantIds
+      .map((id) => assistantsById[String(id)])
+      .filter(Boolean)
+      .filter((assistant) => resolveManagedDesktopMode(assistant) != null);
+    return {
+      startable: onCall.filter((a) => !call.assistantSharesById[a.agentId]),
+      stoppable: onCall.filter((a) => call.assistantSharesById[a.agentId]),
+    };
+  }, [call.activeCall, call.isHost, call.assistantSharesById, assistantsById]);
+
+  // Assistants presenting a desktop, and the URL each resolved to here.
+  const sharedAssistants = React.useMemo(
+    () =>
+      Object.keys(call.assistantSharesById)
+        .map((agentId) => assistantsById[agentId])
+        .filter(Boolean),
+    [call.assistantSharesById, assistantsById]
+  );
+  const [liveviewUrls, setLiveviewUrls] = React.useState<Record<string, string | null>>({});
+  const handleLiveviewResolved = React.useCallback((agentId: string, url: string | null) => {
+    setLiveviewUrls((prev) => (prev[agentId] === url ? prev : { ...prev, [agentId]: url }));
+  }, []);
+  const liveviewShares = React.useMemo(
+    () =>
+      sharedAssistants
+        .map((assistant) => ({
+          assistantId: assistant.agentId,
+          presenterName: assistant.name,
+          url: liveviewUrls[assistant.agentId] ?? '',
+        }))
+        // Nothing to put on the stage until it resolves — a tile with no source
+        // reads as a broken share rather than one still coming up.
+        .filter((share) => Boolean(share.url)),
+    [sharedAssistants, liveviewUrls]
+  );
+
   const localName =
     (currentUserId && humansById[currentUserId]?.name) || user?.name || user?.email || 'You';
   const localImage = (currentUserId && humansById[currentUserId]?.image) || user?.image || null;
@@ -464,6 +534,14 @@ export function CallProvider({
           </div>
         </div>
       )}
+      {sharedAssistants.map((assistant) => (
+        <SharedDesktopResolver
+          key={assistant.agentId}
+          assistant={assistant}
+          callActions={callActions}
+          onResolved={handleLiveviewResolved}
+        />
+      ))}
       {activeOrgCall && (
         <RoomContext.Provider value={room}>
           <OrgCallErrorBoundary onLeave={() => void call.leaveCall()}>
@@ -482,6 +560,9 @@ export function CallProvider({
                 screenShareEnabled={call.screenShareEnabled}
                 isHost={call.isHost}
                 addableAssistants={addableAssistants}
+                liveviewShares={liveviewShares}
+                startableDesktops={desktopCandidates.startable}
+                stoppableDesktops={desktopCandidates.stoppable}
                 onToggleMic={() => void call.toggleMic()}
                 onToggleCam={() => void call.toggleCam()}
                 onToggleScreenShare={() => void call.toggleScreenShare()}
@@ -489,6 +570,12 @@ export function CallProvider({
                 onLeave={() => void call.leaveCall()}
                 onEnd={() => void call.endCall()}
                 onAddAssistant={(assistantId) => void call.addAssistant(assistantId)}
+                onStartAssistantDesktop={(assistantId) =>
+                  void call.setAssistantDesktopShared(assistantId, true)
+                }
+                onStopAssistantDesktop={(assistantId) =>
+                  void call.setAssistantDesktopShared(assistantId, false)
+                }
               />
             ) : (
               <OrgCallMinimized

@@ -12,6 +12,7 @@ import * as React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  liveviewShareSid,
   presenterLabel,
   presentingCaption,
   resolveFocusedSid,
@@ -43,9 +44,19 @@ const { RoomContext } = await import('@livekit/components-react');
 // ── Pure selection logic ────────────────────────────────────────────────────
 
 const entry = (sid: string, name = sid, isLocal = false): ShareEntry => ({
+  kind: 'track',
   sid,
   presenterName: name,
   isLocal,
+});
+
+/** An assistant desktop on the stage — no track, so a synthetic sid. */
+const desktopEntry = (assistantId: string, name = assistantId): ShareEntry => ({
+  kind: 'liveview',
+  sid: liveviewShareSid(assistantId),
+  presenterName: name,
+  isLocal: false,
+  assistantId,
 });
 
 describe('screen-share focus selection', () => {
@@ -116,6 +127,27 @@ describe('screen-share focus selection', () => {
   it('falls back to Teammate for an unnamed remote sharer', () => {
     expect(presenterLabel(entry('a', ''))).toBe('Teammate');
     expect(presentingCaption(entry('a', ''))).toBe('Teammate is presenting');
+  });
+
+  it("names an assistant desktop as that teammate's, not as them presenting", () => {
+    // "Ava is presenting" would read as Ava sharing a window; what is on the
+    // stage is Ava's whole machine.
+    expect(presenterLabel(desktopEntry('42', 'Ava'))).toBe("Ava's desktop");
+    expect(presentingCaption(desktopEntry('42', 'Ava'))).toBe('Ava is showing their desktop');
+  });
+
+  it('orders and focuses desktops alongside tracks', () => {
+    const shares = [entry('track-a'), desktopEntry('42', 'Ava')];
+    const startedAt = { 'track-a': 1000, [liveviewShareSid('42')]: 2000 };
+
+    // Newest wins with no explicit pick, whichever kind it is.
+    expect(resolveFocusedSid(shares, null, startedAt)).toBe(liveviewShareSid('42'));
+    expect(sortSharesByStart(shares, startedAt).map((s) => s.sid)).toEqual([
+      'track-a',
+      liveviewShareSid('42'),
+    ]);
+    // An explicit pick survives across kinds.
+    expect(resolveFocusedSid(shares, 'track-a', startedAt)).toBe('track-a');
   });
 });
 
