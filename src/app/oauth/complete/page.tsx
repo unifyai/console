@@ -26,6 +26,19 @@ import { BrandStatusCard } from '@/components/Brand';
 import { Loader } from '@/components/Common/Loader';
 import { broadcastOAuthComplete } from '@/utils/assistants/oauth';
 
+const DEFAULT_RETURN_TO = '/assistants';
+
+/**
+ * Constrain ``?return=`` to a path on this origin.
+ *
+ * The value reaches ``window.location.replace``, so anything else is a
+ * redirect an attacker controls: ``//evil.example`` and ``/\evil.example``
+ * are protocol-relative, and a ``javascript:`` URL would execute here.
+ */
+function sameOriginPath(requested: string | null): string {
+  return requested && /^\/[^/\\]/.test(requested) ? requested : DEFAULT_RETURN_TO;
+}
+
 export default function OAuthCompletePage() {
   const [showFallback, setShowFallback] = React.useState(false);
 
@@ -33,7 +46,7 @@ export default function OAuthCompletePage() {
     if (typeof window === 'undefined') return undefined;
 
     const params = new URLSearchParams(window.location.search);
-    const returnTo = params.get('return') || '/assistants';
+    const returnTo = sameOriginPath(params.get('return'));
     params.delete('return');
     const resultQuery = params.toString();
 
