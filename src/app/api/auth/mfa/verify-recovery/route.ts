@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { decode, encode } from 'next-auth/jwt';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { trustedClientIp } from '@/lib/server/clientIp';
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
     const res = await OrchestraAdminClient.post('/auth/mfa/verify-recovery', {
       userId: token.sub,
       code: body.code,
+      clientIp: trustedClientIp(request),
     });
 
     // Recovery code verified — patch the JWT cookie server-side to clear mfaPending

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { trustedClientIp } from '@/lib/server/clientIp';
 import { signupProvenanceFrom } from '@/lib/server/signupProvenance';
 
 /**
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
       email,
       code,
       purpose: 'signup',
+      clientIp: trustedClientIp(request),
     });
     const { token } = verifyRes.data;
 

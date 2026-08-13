@@ -4,6 +4,7 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { validatePassword } from '@/lib/auth/password';
 import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
 import { snakeToCamelObject } from '@/utils/casing';
+import { trustedClientIp } from '@/lib/server/clientIp';
 import { signupProvenanceFrom } from '@/lib/server/signupProvenance';
 
 type LandingAuthAction = 'email' | 'register' | 'verify' | 'login' | 'resend';
@@ -174,6 +175,8 @@ async function handleRegister(request: NextRequest, body: any) {
       lastName: lastName || undefined,
       password,
       captchaToken: body.captchaToken || undefined,
+      ...signupProvenanceFrom(request),
+      clientIp: trustedClientIp(request),
     });
     return json(request, res.data, { status: 200 });
   } catch (error: any) {
@@ -254,6 +257,7 @@ async function handleEmail(request: NextRequest, body: any) {
       captchaToken: body.captchaToken || undefined,
       // Self-host creates the user here; hosted records it at verify.
       ...signupProvenanceFrom(request),
+      clientIp: trustedClientIp(request),
     });
     return json(request, { ok: true, next: 'verify', ...res.data }, { status: 200 });
   } catch (error: any) {
@@ -269,6 +273,7 @@ async function handleVerify(request: NextRequest, body: any) {
       email: body.email,
       code: body.code,
       purpose: 'signup',
+      clientIp: trustedClientIp(request),
     });
     const createRes = await OrchestraAdminClient.post('/auth/create-user', {
       token: verifyRes.data.token,
