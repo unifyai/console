@@ -11,7 +11,8 @@
 
 import { formatTimestamp } from '@/utils/assistants/brain';
 import { humanizeTaskLabel } from '@/utils/assistants/tasks';
-import type { BrainRow, TaskRow } from '@/types/assistants/brain';
+import { summariseTaskRuns } from '@/utils/assistants/taskRuns';
+import type { BrainRow, TaskRow, TaskRunRow } from '@/types/assistants/brain';
 import type {
   Workflow,
   WorkflowArtifact,
@@ -291,15 +292,23 @@ export function installationRowToInstallation(
 }
 
 /**
- * A workflow has no runtime of its own — next run, last outcome and each
- * task's link all come from the ordinary `Tasks` rows it planted.
+ * A workflow has no runtime of its own — the task it planted does, so its
+ * arming comes from that `Tasks` row and everything about running from that
+ * task's execution rows.
  */
-export function taskRowToRuntime(row: TaskRow): WorkflowTaskRuntime {
+export function taskRowToRuntime(row: TaskRow, runs?: TaskRunRow[]): WorkflowTaskRuntime {
   const record = row as unknown as Record<string, unknown>;
-  const enabled = record.enabled !== false && !isPaused(record.lifecycle);
-  const nextDueAt = asString(record.nextDueAt);
-  const lastRunAt = asString(record.lastRunAt) ?? asString(record.lastExecutionAt);
-  const lastOutcome = asString(record.lastRunOutcome) ?? asString(record.lastRunStatus);
+  const summary = summariseTaskRuns(runs, { enabled: row.enabled });
+  const enabled = record.enabled !== false && !isPaused(summary.lifecycle ?? record.lifecycle);
+  // Read from the execution ledger, not the definition. These used to read
+  // `nextDueAt`, `lastRunAt` / `lastExecutionAt` and `lastRunOutcome` /
+  // `lastRunStatus` off the task row — none of which exist there, by explicit
+  // backend design, and all of which typecheck only through the row's index
+  // signature. Every installed workflow therefore reported "Never run" and
+  // "As scheduled" no matter how long it had been running.
+  const nextDueAt = summary.nextRunAt;
+  const lastRunAt = summary.lastRunAt;
+  const lastOutcome = summary.lastRunOutcome;
 
   return {
     taskId: String(record.taskId ?? record.name ?? ''),
@@ -332,6 +341,10 @@ function toRunOutcome(value: string | null): WorkflowTaskRuntime['lastRunOutcome
       return 'partial';
     case 'failed':
     case 'error':
+    // A cancelled run happened and delivered nothing, which is the same
+    // thing to a reader as a failed one. Reaching this at all is new: until
+    // these labels were read from the ledger, nothing ever arrived here.
+    case 'cancelled':
       return 'failed';
     default:
       return 'never';
