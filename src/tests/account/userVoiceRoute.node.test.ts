@@ -1,5 +1,7 @@
+import { File as NodeFile } from 'node:buffer';
+
 import { NextRequest } from 'next/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getApiKeyFromRequestMock = vi.hoisted(() => vi.fn());
 
@@ -16,11 +18,27 @@ vi.mock('@/app/api/_utils/auth', () => {
   };
 });
 
+/**
+ * jsdom supplies the global File/FormData while NextRequest parses bodies with
+ * Node's undici, whose multipart parser brand-checks entries against Node's own
+ * File class. The upload round-trip therefore has to run on undici's classes
+ * end to end: File comes from node:buffer, and FormData is recovered through
+ * Response since Node exposes no module path to it.
+ */
+let NativeFormData: typeof FormData;
+
+beforeAll(async () => {
+  const seed = new Response('', {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  NativeFormData = (await seed.formData()).constructor as typeof FormData;
+});
+
 function uploadRequest(): NextRequest {
-  const formData = new FormData();
+  const formData = new NativeFormData();
   formData.append(
     'file',
-    new File([new Uint8Array([1, 2, 3])], 'voice.wav', { type: 'audio/wav' })
+    new NodeFile([new Uint8Array([1, 2, 3])], 'voice.wav', { type: 'audio/wav' }) as unknown as File
   );
   return new NextRequest('http://localhost/api/user/voice/upload', {
     method: 'POST',
@@ -46,6 +64,9 @@ describe('user voice routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
+    // The parser inside request.formData() constructs entries with the global
+    // File and asserts they are Node's — jsdom's shadowing File fails that.
+    vi.stubGlobal('File', NodeFile);
     process.env.ORCHESTRA_URL = 'http://127.0.0.1:8000';
     getApiKeyFromRequestMock.mockResolvedValue('user-api-key');
   });

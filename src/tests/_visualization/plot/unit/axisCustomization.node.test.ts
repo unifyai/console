@@ -173,8 +173,10 @@ describe('AxisCustomization', () => {
         },
       };
 
-      // January 15, 2024
-      const timestamp = new Date('2024-01-15').getTime();
+      // January 15, 2024, constructed in local time because toLocaleDateString
+      // renders in local time; parsing '2024-01-15' would pin UTC midnight,
+      // which renders as Jan 14 in zones west of UTC.
+      const timestamp = new Date(2024, 0, 15).getTime();
       expect(config.xTickFormatter!(timestamp)).toBe('Jan 15');
     });
   });
