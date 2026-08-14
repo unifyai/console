@@ -56,6 +56,7 @@ function withConsoleSessionMarker(
   const domain = consoleSessionMarkerDomain(request);
   response.cookies.set(CONSOLE_SESSION_MARKER_COOKIE, authenticated ? '1' : '', {
     ...(domain ? { domain } : {}),
+    httpOnly: true,
     maxAge: authenticated ? CONSOLE_SESSION_MARKER_MAX_AGE_SECONDS : 0,
     path: '/',
     sameSite: 'lax',

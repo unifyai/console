@@ -41,6 +41,7 @@ const baseCspDirectives = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  ...(isSelfHost ? [] : ['upgrade-insecure-requests']),
 ];
 
 const serverActionAllowedOrigins = [
@@ -162,9 +163,11 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
-          { key: 'Content-Security-Policy', value: baseCspDirectives.join('; ') },
+          {
+            key: 'Content-Security-Policy',
+            value: [...baseCspDirectives, "frame-ancestors 'none'"].join('; '),
+          },
         ],
       },
       {

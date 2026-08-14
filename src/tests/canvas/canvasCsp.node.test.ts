@@ -46,8 +46,13 @@ describe('canvas response headers', () => {
     const canvas = policyFor(all, CANVAS_ROUTE);
 
     for (const directive of base.split('; ')) {
+      // The one directive that legitimately differs: the global policy denies
+      // framing outright, the canvas route narrows to same-origin.
+      if (directive.startsWith('frame-ancestors')) continue;
       expect(canvas).toContain(directive);
     }
+
+    expect(base).toContain("frame-ancestors 'none'");
   });
 
   it('restricts who may frame the standalone page to this origin', async () => {
