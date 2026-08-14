@@ -136,6 +136,20 @@ export const CreditsBillingSection = ({
                   {loading ? <span className="text-muted-foreground">Loading…</span> : remaining}
                 </p>
               )}
+              {/*
+                An account with nothing in it is where the rules have to be
+                stated: signup credits land on the first collected invoice,
+                not at signup, and free credits are console-only. Neither is
+                inferable from a balance of zero, and both are what someone
+                is looking at this page to find out.
+              */}
+              {!loading && !trialExpiresAt && fullBalance <= 0 && (
+                <p className="text-caption text-muted-foreground" data-testid="credits-empty-help">
+                  Your signup credits are added once your first invoice is collected — choose a plan
+                  below to get started. Credits are spent here in the console; using them through
+                  the API needs an account that has paid.
+                </p>
+              )}
             </div>
           )}
         </CardContent>

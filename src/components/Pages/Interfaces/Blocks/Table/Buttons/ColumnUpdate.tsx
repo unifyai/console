@@ -27,6 +27,7 @@ import { FieldsActions } from '@/types/interfaces/grid';
 import { ContextActions } from '@/types/interfaces/grid';
 import { ProjectsActions } from '@/types/interfaces/grid';
 import { LogsActions } from '@/types/interfaces/grid';
+import { isImeComposing } from '@/utils/keyboard';
 
 const ColumnUpdate = ({
   tileId,
@@ -176,6 +177,7 @@ const ColumnUpdate = ({
 
   const onEnter: KeyboardEventHandler = (e) => {
     e.stopPropagation();
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter' && expression) onSubmit();
   };
 

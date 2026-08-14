@@ -7,6 +7,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { trustedClientIpFromContext } from '@/lib/server/clientIp';
 import { isSelfHost } from '@/lib/environment/environment';
 import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
 import { baseColors } from '@/lib/design-tokens';
@@ -157,6 +158,7 @@ const authOptions: AuthOptions = {
           const res = await OrchestraAdminClient.post('/auth/authenticate', {
             email: credentials.email,
             password: credentials.password,
+            clientIp: await trustedClientIpFromContext(),
           });
 
           if (res.data?.id) {

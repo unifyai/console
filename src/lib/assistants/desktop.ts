@@ -7,6 +7,7 @@ import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import { getAdaptersBaseUrl, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
+import { resolveDesktopViewerGrant } from '@/lib/assistants/desktopAccess';
 import { isSelfHost } from '@/lib/environment/environment';
 import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 import { extractTunnelId } from '@/utils/assistants/tunnel';
@@ -95,7 +96,14 @@ export async function getLiveviewUrl(
   sessionScope?: DesktopSessionScope | null
 ): Promise<{ liveviewUrl?: string } | ResponseProps> {
   try {
-    if (isSelfHost()) {
+    const grant = await resolveDesktopViewerGrant(assistantId, ownerId);
+    if (!grant.allowed) {
+      return { detail: grant.detail };
+    }
+    // Self-host publishes no per-session password, so this path can only
+    // authenticate with the owner's own key -- owner-only, or it would hand that
+    // key to every participant on the call.
+    if (isSelfHost() && grant.isOwner) {
       const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
       if (selfHostLiveview) {
         return selfHostLiveview;
@@ -154,16 +162,26 @@ export async function getLiveviewUrl(
         'liveview_password',
         'liveviewPassword'
       );
-      const password =
-        typeof publishedPassword === 'string' && publishedPassword.trim()
-          ? publishedPassword
-          : await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+      // The published password is scoped to this desktop session. The fallback
+      // is the owner's own Orchestra API key, so it may only ever go back to the
+      // owner -- a participant with no published password is refused rather
+      // than handed a credential that outlives the call.
+      const hasPublishedPassword =
+        typeof publishedPassword === 'string' && Boolean(publishedPassword.trim());
+      if (!hasPublishedPassword && !grant.isOwner) {
+        return {
+          detail: 'This desktop session cannot be shared with other people on the call.',
+        };
+      }
+      const password = hasPublishedPassword
+        ? (publishedPassword as string)
+        : await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
       const urlObj = new URL(liveviewUrlValue);
       urlObj.searchParams.set('password', password);
       return { liveviewUrl: urlObj.toString() };
     }
 
-    if (isSelfHost()) {
+    if (isSelfHost() && grant.isOwner) {
       const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
       if (selfHostLiveview) {
         return selfHostLiveview;
@@ -183,16 +201,29 @@ export async function getLiveviewUrl(
     return { detail: errorMessage };
   }
 }
+/**
+ * Stamp the liveview password onto a URL the caller already holds (from an
+ * ``assistant_desktop_ready`` event).
+ *
+ * ``rawUrl`` comes from the client, so the owner-key fallback is restricted to
+ * the owner themselves: stamping that key onto an arbitrary caller-supplied URL
+ * would hand the owner's Orchestra credential to whoever chose the URL. With a
+ * password supplied there is no secret to lose -- the caller already had it.
+ */
 export async function buildLiveviewUrl(
   rawUrl: string,
   ownerId: string,
   organizationId: number | null,
   password?: string | null
 ): Promise<{ liveviewUrl: string }> {
-  const resolvedPassword =
-    password && password.trim()
-      ? password
-      : await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+  let resolvedPassword = password?.trim() || '';
+  if (!resolvedPassword) {
+    const caller = await getCurrentUser();
+    if (caller?.id !== ownerId) {
+      throw new Error('This desktop session cannot be opened without its session password.');
+    }
+    resolvedPassword = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+  }
   const urlObj = new URL(rawUrl);
   urlObj.searchParams.set('password', resolvedPassword);
   return { liveviewUrl: urlObj.toString() };
@@ -334,12 +365,14 @@ async function dispatchAssistantUpdateRefresh(assistantId: string): Promise<void
 export async function sendSystemEvent(
   assistantId: string,
   eventType: SystemEventType,
-  message: string
+  message: string,
+  extraEventFields?: Record<string, unknown>
 ): Promise<ResponseProps> {
   const result = await dispatchUnitySystemEvent({
     assistantId: parseInt(assistantId),
     eventType,
     message,
+    extraEventFields,
   });
 
   if (!result.ok) {

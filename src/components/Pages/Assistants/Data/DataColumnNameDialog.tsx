@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { DATA_COLUMN_TYPE_OPTIONS, type DataColumnType } from './dataTypes';
+import { isImeComposing } from '@/utils/keyboard';
 
 export type DataColumnNameDialogProps = {
   open: boolean;
@@ -103,6 +104,7 @@ export function DataColumnNameDialog({
               autoFocus
               data-testid={`${testId}-input`}
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 if (e.key === 'Enter') void submit();
               }}
             />

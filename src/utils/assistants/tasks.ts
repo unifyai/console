@@ -189,10 +189,22 @@ function isRecurringTask(row: TaskRow): boolean {
   return readTaskRepeatPatterns(row).length > 0 || isRecurringTriggeredTask(row);
 }
 
+/**
+ * Whether anything starts this task by the clock.
+ *
+ * `schedule` holds a single start time, so a task that recurs states its
+ * cadence in `repeat` and has no start time to hold: a weekly briefing
+ * carries repeat patterns and no schedule at all. Reading `schedule` alone
+ * made every such definition look like it had no timing.
+ */
+function hasStandingSchedule(row: TaskRow): boolean {
+  return hasTaskSchedule(row) || readTaskRepeatPatterns(row).length > 0;
+}
+
 function resolveTaskStartMode(row: TaskRow): TaskStartMode {
   if (isOfflineTask(row)) return 'offline';
-  if (hasTaskSchedule(row)) return 'scheduled';
   if (hasTaskTrigger(row)) return 'triggered';
+  if (hasStandingSchedule(row)) return 'scheduled';
   return 'on_demand';
 }
 
@@ -291,7 +303,7 @@ function formatTaskStartDetail(row: TaskRow): string | undefined {
   const triggerMedium = readTaskTriggerMedium(row);
   switch (resolveTaskStartMode(row)) {
     case 'offline':
-      if (hasTaskSchedule(row)) return 'Runs in the background on a schedule';
+      if (hasStandingSchedule(row)) return 'Runs in the background on a schedule';
       if (hasTaskTrigger(row)) {
         return triggerMedium
           ? `Runs in the background for matching ${humanizeTaskLabel(triggerMedium)} activity`
@@ -480,9 +492,16 @@ function formatTaskStartContext(row: TaskRow): React.ReactNode {
 
 function formatTaskTimingCell(row: TaskRow): React.ReactNode {
   const dueAt = readTaskDueAt(row);
+  const lastRunAt = typeof row.lastRunAt === 'string' ? row.lastRunAt : null;
+  const lastOutcome = typeof row.lastRunOutcome === 'string' ? row.lastRunOutcome : null;
   return stackedCell({
-    primary: dueAt ? `Next due ${formatTimestamp(dueAt)}` : 'No due time set',
-    secondary: row.createdAt ? `Created ${formatTimestamp(row.createdAt)}` : undefined,
+    primary: dueAt ? `Next due ${formatTimestamp(dueAt)}` : 'No run scheduled',
+    // The one thing this column was never able to say. `nextDueAt` and
+    // `lastRunAt` are both joined from the execution ledger before the row
+    // gets here; the definition carries neither.
+    secondary: lastRunAt
+      ? `Last ${humanizeTaskLabel(lastOutcome ?? 'completed').toLowerCase()} ${formatTimestamp(lastRunAt)}`
+      : 'Never run',
     tertiary: row.updatedAt ? `Updated ${formatTimestamp(row.updatedAt)}` : undefined,
   });
 }
@@ -562,7 +581,12 @@ export const TASK_COLUMNS: ColumnDef<TaskRow>[] = [
       }),
     280
   ),
-  accessorCell<TaskRow>('status', 'Status', (_row, value) => taskStatusBadge(value), 120),
+  // `lifecycle`, not `status`. The definition schema dropped `status`
+  // deliberately — every concurrent run wrote it and the last writer won — so
+  // this read an absent field, typechecking only through the row's index
+  // signature, and rendered an em dash for every task ever since. Lifecycle
+  // is joined from the run ledger before rows reach the table.
+  accessorCell<TaskRow>('lifecycle', 'Status', (_row, value) => taskStatusBadge(value), 120),
   accessorCell<TaskRow>('triggerType', 'Type', (row) => formatTaskStartContext(row), 240),
   accessorCell<TaskRow>('nextDueAt', 'Timing', (row) => formatTaskTimingCell(row), 220),
 ];
@@ -728,8 +752,18 @@ export function isPausedTaskStatus(status: unknown): boolean {
   return PAUSED_TASK_STATUSES.has(String(status).trim().toLowerCase());
 }
 
+/** The open scheduled head's due time, if the runs include one. */
+function scheduledHeadFor(runs: TaskRunRow[] | undefined): string | null {
+  if (!runs?.length) return null;
+  const heads = runs
+    .filter((run) => run.state === 'scheduled' && typeof run.scheduledFor === 'string')
+    .map((run) => run.scheduledFor as string)
+    .sort();
+  return heads[0] ?? null;
+}
+
 /** Six labelled fields shown in the open task card's left column. */
-export function getTaskCardFields(row: TaskRow): TaskCardField[] {
+export function getTaskCardFields(row: TaskRow, runs?: TaskRunRow[]): TaskCardField[] {
   const record = asRecord(row);
   const triggerMedium = readTaskTriggerMedium(row);
   const trigger = triggerMedium
@@ -744,7 +778,10 @@ export function getTaskCardFields(row: TaskRow): TaskCardField[] {
 
   const startCandidate =
     readFirstPresentValue(readTaskSchedule(row), ['startAt', 'start_at']) ?? row.createdAt;
-  const nextDue = readTaskDueAt(row);
+  // A repeat-only series has no start time on its definition: the next run
+  // lives on the projected open execution, so read the head when the
+  // definition itself names nothing.
+  const nextDue = readTaskDueAt(row) ?? scheduledHeadFor(runs);
   const priorityValue = readFirstPresentValue(record, ['priority']);
 
   return [

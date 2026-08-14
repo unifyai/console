@@ -5,6 +5,7 @@ import Tooltip from '../../../Common/Misc/Tooltip';
 import { FaPlus } from 'react-icons/fa';
 import { NodeProps } from '@/types/common';
 import * as path from 'path';
+import { isImeComposing } from '@/utils/keyboard';
 
 export default function NewFolder({
   node,
@@ -75,6 +76,7 @@ export default function NewFolder({
           value={newFolderName}
           onChange={(e) => setNewFolderName(e.currentTarget.value)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === 'Enter') updateNodes();
           }}
           onPointerOut={() => {

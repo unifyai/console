@@ -1,7 +1,7 @@
 /**
  * Standalone canvas page.
  *
- * Unlike `/dashboard/view/[token]`, holding the token is not by itself permission
+ * Holding the token is not by itself permission
  * to read: `/api/canvas/[token]` authenticates the viewer and checks the canvas's
  * visibility before any bytes are served, and this page renders whatever that
  * route decides — including its refusal.

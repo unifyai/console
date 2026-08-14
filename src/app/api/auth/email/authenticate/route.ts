@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { trustedClientIp } from '@/lib/server/clientIp';
 
 /**
  * POST /api/auth/email/authenticate
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest) {
     const res = await OrchestraAdminClient.post('/auth/authenticate', {
       email,
       password,
+      clientIp: trustedClientIp(request),
     });
 
     // Sign a short-lived JWT so `authorize` can skip the second Orchestra call.

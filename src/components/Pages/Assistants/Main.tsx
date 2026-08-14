@@ -4354,7 +4354,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                         <RightPaneContainer
                           assistant={visibleProfileAssistant}
                           actions={assistantActions.actions || null}
-                          dashboardActions={assistantActions.dashboards || null}
                           assistantActions={assistantActions}
                           chatHistories={profileChatHistories}
                           setChatHistories={setProfileChatHistories}

@@ -5,7 +5,6 @@ export type TabSearchScope =
   | 'chat'
   | 'actions'
   | 'canvas'
-  | 'dashboards'
   | 'tasks'
   | 'workflows'
   | 'integrations'

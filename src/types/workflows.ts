@@ -91,6 +91,26 @@ export interface WorkflowRequirement {
   accountLabel?: string;
   /** Secret names still to supply. Only meaningful for the secret-gated routes. */
   missingSecrets?: string[];
+  /**
+   * Every app that satisfies this requirement, recommended first, present
+   * only when the bundle offered a choice.
+   *
+   * The requirement is met as soon as one of them is connected, so a reader
+   * offers all of them and lets the user connect the app they already have
+   * rather than the one the bundle happened to name first.
+   */
+  options?: WorkflowRequirementOption[];
+}
+
+/** One interchangeable app behind a requirement, resolved like the rest. */
+export interface WorkflowRequirementOption {
+  canonicalSlug: string;
+  displayName: string;
+  /** Vendor mark from the live catalog feed. */
+  iconUrl?: string | null;
+  /** Client-side vendor mark, as the mock catalogue and the static registry use. */
+  iconComponent?: React.ComponentType<{ className?: string }>;
+  connected: boolean;
 }
 
 export interface WorkflowParam {

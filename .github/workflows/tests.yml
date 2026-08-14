@@ -124,19 +124,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -230,19 +230,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -322,19 +322,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -418,19 +418,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -510,19 +510,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -602,19 +602,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -698,19 +698,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -792,19 +792,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -882,19 +882,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -972,19 +972,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -1062,19 +1062,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -1152,19 +1152,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -1242,19 +1242,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -1332,19 +1332,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: pip install "poetry>=2.1.0"
+      - name: Install uv
+        run: pip install uv
 
-      - name: Cache Orchestra Poetry deps
+      - name: Cache Orchestra uv deps
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          path: ~/.cache/uv
+          key: orchestra-uv-${{ runner.os }}-${{ hashFiles('orchestra/uv.lock') }}
           restore-keys: |
-            orchestra-poetry-${{ runner.os }}-
+            orchestra-uv-${{ runner.os }}-
 
       - name: Install Orchestra dependencies
-        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+        run: cd "${{ github.workspace }}/orchestra" && uv sync --frozen
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

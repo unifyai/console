@@ -104,6 +104,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     errorType: entries.errorType,
     traceback: entries.traceback,
     persist: rawEntries.persist === true ? true : undefined,
+    taskName: typeof rawEntries.taskName === 'string' ? rawEntries.taskName : undefined,
   };
 }
 
@@ -136,6 +137,20 @@ export function createActionNode(event: ParsedManagerMethodEvent): ActionNode {
     requestContent: event.content,
     children: [],
   };
+}
+
+const TASK_RUN_SEGMENT = /^Task\.run\(task_id=(\d+)(?:,[^)]*)?\)$/;
+
+/**
+ * Human label for one hierarchy segment. The `Task.run(...)` lineage segment
+ * is machine identity — ids only, by design — so the name shown for it comes
+ * from the `taskName` the nested events carry, falling back to the task id
+ * until an event carrying the name arrives.
+ */
+function boundarySegmentLabel(segment: string, taskName?: string): string {
+  const match = TASK_RUN_SEGMENT.exec(segment);
+  if (!match) return segment;
+  return taskName ? `Task run · ${taskName}` : `Task run #${match[1]}`;
 }
 
 /**
@@ -459,7 +474,8 @@ function findNodeByCallingIdRecursive(nodes: ActionNode[], callingId: string): A
 function findOrCreateParent(
   roots: ActionNode[],
   hierarchy: string[],
-  timestamp: string
+  timestamp: string,
+  taskName?: string
 ): { parent: ActionNode | null; siblings: ActionNode[] } {
   if (hierarchy.length <= 1) {
     // This is a root-level node
@@ -498,12 +514,21 @@ function findOrCreateParent(
 
     if (!found) {
       // Create boundary node for missing segment
-      found = createBoundaryNode(segment, targetHierarchy, timestamp);
+      found = createBoundaryNode(
+        boundarySegmentLabel(segment, taskName),
+        targetHierarchy,
+        timestamp
+      );
       if (parent) {
         parent.children.push(found);
       } else {
         roots.push(found);
       }
+    } else if (found.type === 'boundary' && taskName) {
+      // The boundary may predate the first event that carried the task's
+      // name; upgrade its id-only label the moment the name is known.
+      const label = boundarySegmentLabel(segment, taskName);
+      if (label !== segment && found.label !== label) found.label = label;
     }
 
     parent = found;
@@ -524,9 +549,10 @@ function findOrCreateParent(
 function insertNodeAtHierarchy(
   roots: ActionNode[],
   nodeMap: Map<string, ActionNode>,
-  node: ActionNode
+  node: ActionNode,
+  taskName?: string
 ): void {
-  const { siblings } = findOrCreateParent(roots, node.hierarchy, node.startTime);
+  const { siblings } = findOrCreateParent(roots, node.hierarchy, node.startTime, taskName);
 
   // Check if there's a boundary placeholder with the same hierarchy that
   // this real node should replace (out-of-order SSE delivery).
@@ -580,7 +606,7 @@ export function buildActionTree(logs: ManagerMethodLog[]): ActionTreeResult {
       if (nodeMap.has(event.callingId)) continue;
 
       const node = createActionNode(event);
-      insertNodeAtHierarchy(roots, nodeMap, node);
+      insertNodeAtHierarchy(roots, nodeMap, node, event.taskName);
 
       // Check for stored orphan outgoing that matches
       const orphanIndex = orphanOutgoing.findIndex((o) => o.callingId === event.callingId);
@@ -627,7 +653,7 @@ export function mergeNewEvents(
       }
 
       const node = createActionNode(event);
-      insertNodeAtHierarchy(roots, nodeMap, node);
+      insertNodeAtHierarchy(roots, nodeMap, node, event.taskName);
     } else {
       applyNodeUpdateOrOrphan(event, roots, nodeMap, orphanOutgoing, promotedCallingIds);
     }

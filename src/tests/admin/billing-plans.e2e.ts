@@ -35,8 +35,13 @@ import { deferCoordinatorForUser } from '../helpers/coordinator';
 // ---------------------------------------------------------------------------
 
 // Admin user belongs to an org literally named "Unify" with the Owner role
-// — that's what the `/admin` route layout checks.
-const adminUser = createTestUser({ name: 'Admin', lastName: 'Operator' });
+// AND carries a unify.ai mailbox — the `/admin` route layout now requires
+// both signals so a squatted "Unify" org name cannot confer staff access.
+const adminUser = createTestUser({
+  name: 'Admin',
+  lastName: 'Operator',
+  email: `admin-staff-${Date.now()}@unify.ai`,
+});
 const unifyOrg = ensureUnifyOrg({
   ownerId: adminUser.id,
   existingOrgOwnerRole: 'Admin',

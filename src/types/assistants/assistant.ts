@@ -47,6 +47,7 @@ export interface AssistantCallConnectOptions {
 
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
+export type ManagedDesktopStatus = 'active' | 'grace_period' | 'disabled';
 export type HireOperatingSystem = 'none' | 'ubuntu' | 'windows';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
 export type ContactIdentityRoot =
@@ -154,7 +155,7 @@ export interface Assistant {
   isUserDesktop?: boolean;
   desktopMode?: DesktopMode | null;
   desktopUrl?: string | null;
-  managedDesktopStatus?: 'active' | 'grace_period' | 'disabled' | null;
+  managedDesktopStatus?: ManagedDesktopStatus | null;
   managedDesktopMonthlyCost?: number | null;
   // Per-user desktop link of the *requesting* user (the desktop they linked to
   // this assistant), resolved server-side. Null when this user has not linked
@@ -691,7 +692,8 @@ export interface AssistantActions {
     sendSystemEvent: (
       assistantId: string,
       eventType: import('@/lib/assistants/desktop').SystemEventType,
-      message: string
+      message: string,
+      extraEventFields?: Record<string, unknown>
     ) => Promise<ResponseProps>;
     getApiKey: () => Promise<string>;
     listUserDesktops: () => Promise<UserDesktop[] | ResponseProps>;
@@ -735,11 +737,4 @@ export interface AssistantActions {
   };
   /** Actions panel - live action events */
   actions?: import('@/types/assistants/action').AssistantActionActions;
-  /** Dashboards pane - dashboard and tile data */
-  dashboards?: {
-    getMetadata: (
-      assistant: Assistant
-    ) => Promise<import('@/types/assistants/dashboard').DashboardPaneData>;
-    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
-  };
 }

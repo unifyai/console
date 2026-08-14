@@ -79,9 +79,9 @@ describe('canvas embed URL recognition', () => {
     expect(escapeEmbedTokens('/canvas/view/tok_en_1')).toBe('/canvas/view/tok%5Fen%5F1');
   });
 
-  it('does not mistake a canvas URL for a dashboard', () => {
-    expect(parseEmbedUrl('/dashboard/view/abc123')?.type).toBe('dashboard');
+  it('recognises a canvas URL and nothing else at that path shape', () => {
     expect(parseEmbedUrl('/canvas/view/abc123')?.type).toBe('canvas');
+    expect(parseEmbedUrl('/dashboard/view/abc123')).toBeNull();
   });
 });
 

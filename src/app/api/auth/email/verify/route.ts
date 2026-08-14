@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { trustedClientIp } from '@/lib/server/clientIp';
+import { signupProvenanceFrom } from '@/lib/server/signupProvenance';
 
 /**
  * POST /api/auth/email/verify
@@ -20,11 +22,16 @@ export async function POST(request: NextRequest) {
       email,
       code,
       purpose: 'signup',
+      clientIp: trustedClientIp(request),
     });
     const { token } = verifyRes.data;
 
-    // Step 2: Create the user using the token
-    const createRes = await OrchestraAdminClient.post('/auth/create-user', { token });
+    // Step 2: Create the user using the token. The signup origin rides
+    // along because Orchestra sees this server, not the person.
+    const createRes = await OrchestraAdminClient.post('/auth/create-user', {
+      token,
+      ...signupProvenanceFrom(request),
+    });
     return NextResponse.json(createRes.data, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;

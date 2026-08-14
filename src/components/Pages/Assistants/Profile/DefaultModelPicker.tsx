@@ -175,6 +175,41 @@ export function DefaultModelPicker({
     (selectedValue === SYSTEM_DEFAULT_MODEL_VALUE ? 'System Default' : model) ||
     'Select a model';
 
+  // One renderer for every group. The recommended and search lists drifted
+  // apart once before -- only the search branch honoured `eligible`, so a
+  // model the account could not spend on stayed selectable in the list most
+  // people pick from, and the refusal only arrived on first use.
+  const renderOption = (option: DefaultModelOption) => {
+    const value = encodeDefaultModelValue(option.model, option.reasoningEffort);
+    const eligible = option.eligible !== false;
+    return (
+      <CommandItem
+        key={value}
+        value={value}
+        disabled={!eligible}
+        keywords={[option.label, option.model || '']}
+        onSelect={() => {
+          if (!eligible) return;
+          const decoded = decodeDefaultModelValue(value);
+          onChange(decoded.model, decoded.reasoningEffort);
+          setOpen(false);
+        }}
+      >
+        <div className="flex min-w-0 flex-1 flex-col items-start">
+          <span className="truncate">{option.label}</span>
+          <span className="text-caption text-muted-foreground">
+            {eligible
+              ? formatCostLine(option, creditUnit, creditSuffix)
+              : option.disabledReason || 'Unavailable'}
+          </span>
+        </div>
+        <Check
+          className={cn('ml-auto h-4 w-4', value === selectedValue ? 'opacity-100' : 'opacity-0')}
+        />
+      </CommandItem>
+    );
+  };
+
   return (
     <div className="space-y-1.5">
       <div className="flex flex-row items-center gap-2">
@@ -217,73 +252,12 @@ export function DefaultModelPicker({
             />
             <CommandList>
               <CommandEmpty>{isSearching ? 'Searching…' : 'No matching models.'}</CommandEmpty>
-              <CommandGroup heading="Recommended">
-                {recommended.map((option) => {
-                  const value = encodeDefaultModelValue(option.model, option.reasoningEffort);
-                  return (
-                    <CommandItem
-                      key={value}
-                      value={value}
-                      keywords={[option.label, option.model || '']}
-                      onSelect={() => {
-                        const decoded = decodeDefaultModelValue(value);
-                        onChange(decoded.model, decoded.reasoningEffort);
-                        setOpen(false);
-                      }}
-                    >
-                      <div className="flex min-w-0 flex-1 flex-col items-start">
-                        <span className="truncate">{option.label}</span>
-                        <span className="text-caption text-muted-foreground">
-                          {formatCostLine(option, creditUnit, creditSuffix)}
-                        </span>
-                      </div>
-                      <Check
-                        className={cn(
-                          'ml-auto h-4 w-4',
-                          value === selectedValue ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
+              <CommandGroup heading="Recommended">{recommended.map(renderOption)}</CommandGroup>
               {filteredSearchHits.length > 0 && (
                 <CommandGroup
                   heading={query.trim() ? 'Search results' : 'All models (newest first)'}
                 >
-                  {filteredSearchHits.map((option) => {
-                    const value = encodeDefaultModelValue(option.model, option.reasoningEffort);
-                    const eligible = option.eligible !== false;
-                    return (
-                      <CommandItem
-                        key={value}
-                        value={value}
-                        disabled={!eligible}
-                        keywords={[option.label, option.model || '']}
-                        onSelect={() => {
-                          if (!eligible) return;
-                          const decoded = decodeDefaultModelValue(value);
-                          onChange(decoded.model, decoded.reasoningEffort);
-                          setOpen(false);
-                        }}
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col items-start">
-                          <span className="truncate">{option.label}</span>
-                          <span className="text-caption text-muted-foreground">
-                            {eligible
-                              ? formatCostLine(option, creditUnit, creditSuffix)
-                              : option.disabledReason || 'Unavailable'}
-                          </span>
-                        </div>
-                        <Check
-                          className={cn(
-                            'ml-auto h-4 w-4',
-                            value === selectedValue ? 'opacity-100' : 'opacity-0'
-                          )}
-                        />
-                      </CommandItem>
-                    );
-                  })}
+                  {filteredSearchHits.map(renderOption)}
                 </CommandGroup>
               )}
             </CommandList>

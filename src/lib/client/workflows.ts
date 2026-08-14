@@ -20,6 +20,7 @@ import type { Assistant } from '@/types/assistants/assistant';
 const WORKFLOWS_CATALOG_CONTEXT = 'Workflows/Catalog';
 const WORKFLOWS_CONTENT_CONTEXT = 'Workflows/Content';
 const WORKFLOWS_REQUESTS_CONTEXT = 'Workflows/Requests';
+const WORKFLOWS_INSTALLATIONS_CONTEXT = 'Workflows';
 
 /** Mutations a reading surface may ask the assistant to carry out. */
 export type WorkflowRequestAction = 'install' | 'uninstall' | 'update' | 'save_params';
@@ -178,6 +179,60 @@ export async function submitWorkflowRequest(
   }
 }
 
+/**
+ * Start one of an installed workflow's planted jobs immediately.
+ *
+ * The workflow itself has nothing to run: what it installed is an ordinary
+ * task, and running it now is that task's own trigger. Resolves to the reason
+ * when the runtime refuses — a job already in flight, a definition the install
+ * has since cancelled — so a surface can say which rather than "failed".
+ */
+export async function runWorkflowTask(
+  assistant: Assistant,
+  taskId: string
+): Promise<{ started: boolean; detail?: string }> {
+  const response = await fetch('/api/workflows/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assistantId: assistant.agentId, taskId }),
+  });
+  const body = (await response.json().catch(() => null)) as {
+    started?: boolean;
+    detail?: string;
+  } | null;
+  if (response.ok && body?.started) return { started: true };
+  return { started: false, detail: body?.detail };
+}
+
+/**
+ * This assistant's installation rows, camelized. A missing context (a
+ * never-booted assistant, or one that has installed nothing) is an empty
+ * list; any other failure throws so the gallery load can retry instead of
+ * rendering every installed workflow as available.
+ */
+export async function fetchWorkflowInstallations(
+  assistant: Assistant
+): Promise<Record<string, unknown>[]> {
+  const params = new URLSearchParams();
+  params.set('projectName', 'Assistants');
+  params.set(
+    'context',
+    rootContext(
+      { kind: 'personal' },
+      assistant.userId,
+      String(assistant.agentId),
+      WORKFLOWS_INSTALLATIONS_CONTEXT
+    )
+  );
+  params.set('limit', '200');
+  const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+  if (response.status === 404) return [];
+  const data = await readJson<LogPayload<Record<string, unknown>>>(response);
+  return (data.logs ?? []).flatMap((log) =>
+    log.entries ? [snakeToCamelObject<Record<string, unknown>>(log.entries)] : []
+  );
+}
+
 /** This assistant's recorded requests, newest first, for rendering their state. */
 export async function fetchWorkflowRequests(
   assistant: Assistant,
@@ -196,14 +251,13 @@ export async function fetchWorkflowRequests(
   );
   params.set('limit', String(limit));
   const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
-  try {
-    const data = await readJson<LogPayload<Record<string, unknown>>>(response);
-    return (data.logs ?? []).flatMap((log) =>
-      log.entries ? [snakeToCamelObject<Record<string, unknown>>(log.entries)] : []
-    );
-  } catch {
-    // A never-booted assistant has no such context yet; that is an empty list,
-    // not an error.
-    return [];
-  }
+  // A never-booted assistant has no such context yet; that is an empty list,
+  // not an error. Every other failure must throw: callers fold these rows
+  // into the installed list, and a transient failure read as "no requests"
+  // makes every installed workflow vanish until something re-reads.
+  if (response.status === 404) return [];
+  const data = await readJson<LogPayload<Record<string, unknown>>>(response);
+  return (data.logs ?? []).flatMap((log) =>
+    log.entries ? [snakeToCamelObject<Record<string, unknown>>(log.entries)] : []
+  );
 }

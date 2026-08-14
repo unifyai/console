@@ -47,17 +47,24 @@ export default function BillingPanel() {
     }
   }, [activeOrganization, isUnifyMember, navigateTo]);
 
+  // Memoised because it is a dependency of ``useBilling``'s fetch callbacks
+  // and, transitively, of the effects that drive them. A fresh object each
+  // render re-runs those fetches on every ancestor re-render.
+  const orgContext: BillingOrgContext | null = React.useMemo(
+    () =>
+      activeOrganization
+        ? {
+            orgId: activeOrganization.id,
+            orgName: activeOrganization.name,
+            canEdit: ['owner', 'admin'].includes(activeOrganization.roleName?.toLowerCase() ?? ''),
+          }
+        : null,
+    [activeOrganization]
+  );
+
   if (!billing) {
     return <BillingUnavailable />;
   }
-
-  const orgContext: BillingOrgContext | null = activeOrganization
-    ? {
-        orgId: activeOrganization.id,
-        orgName: activeOrganization.name,
-        canEdit: ['owner', 'admin'].includes(activeOrganization.roleName?.toLowerCase() ?? ''),
-      }
-    : null;
 
   if (activeOrganization?.freeTrial && !isUnifyMember) {
     return <FreeTrialBillingLock />;

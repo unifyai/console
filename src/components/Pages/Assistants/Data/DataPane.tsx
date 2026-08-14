@@ -56,6 +56,7 @@ import { DataImportDialog } from './DataImportDialog';
 import { friendlyLogUpdateError, type DataField, type DataRow } from './dataTypes';
 import type { Assistant } from '@/types/assistants/assistant';
 import { resolveManagedTeamDisplayName } from '@/utils/teams/managedTeamDisplay';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface DataPaneProps {
   assistant: Assistant;
@@ -190,6 +191,7 @@ function TreeRow({
               aria-label={`Rename ${node.name}`}
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();

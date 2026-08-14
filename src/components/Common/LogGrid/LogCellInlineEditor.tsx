@@ -14,6 +14,7 @@ import { Switch } from '@/components/UI/switch';
 import { Textarea } from '@/components/UI/textarea';
 import { cn } from '@/lib/utils';
 import type { LogCellEditorDescriptor } from './editorTypes';
+import { isImeComposing } from '@/utils/keyboard';
 
 /** Matches RHS panel edit cap — grow with content up to this, then scroll. */
 const CELL_EDIT_MAX_HEIGHT_PX = 320;
@@ -162,6 +163,7 @@ export function LogCellInlineEditor({
   );
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (isImeComposing(event)) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();

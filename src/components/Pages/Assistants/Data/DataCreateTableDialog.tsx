@@ -14,6 +14,7 @@ import { Label } from '@/components/UI/label';
 import { createAssistantsContext } from '@/lib/assistants/dataContexts';
 import { resolveDataTableContext } from '@/lib/assistants/dataBrowser';
 import { toast } from 'sonner';
+import { isImeComposing } from '@/utils/keyboard';
 
 export type DataCreateTableDialogProps = {
   open: boolean;
@@ -81,6 +82,7 @@ export function DataCreateTableDialog({
             autoFocus
             data-testid="data-create-table-name"
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === 'Enter') void submit();
             }}
           />

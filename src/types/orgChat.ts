@@ -4,6 +4,19 @@
  * that maps the snake_case Orchestra API payload into the camelCase client shape.
  */
 
+import { DesktopMode, ManagedDesktopStatus } from '@/types/assistants/assistant';
+
+const DESKTOP_MODES: DesktopMode[] = ['ubuntu', 'windows', 'macos'];
+const MANAGED_DESKTOP_STATUSES: ManagedDesktopStatus[] = ['active', 'grace_period', 'disabled'];
+
+function parseDesktopMode(raw: unknown): DesktopMode | null {
+  return DESKTOP_MODES.find((mode) => mode === raw) ?? null;
+}
+
+function parseManagedDesktopStatus(raw: unknown): ManagedDesktopStatus | null {
+  return MANAGED_DESKTOP_STATUSES.find((status) => status === raw) ?? null;
+}
+
 export interface ChatMention {
   kind: 'user' | 'assistant';
   id: string;
@@ -123,6 +136,11 @@ export interface RosterAssistant {
   assistantId: number;
   name: string;
   image: string | null;
+  /** Creator / lifecycle owner, and the owner whose key resolves the liveview. */
+  ownerUserId: string | null;
+  organizationId: number | null;
+  desktopMode: DesktopMode | null;
+  managedDesktopStatus: ManagedDesktopStatus | null;
 }
 
 export function parseRosterAssistant(raw: Record<string, unknown>): RosterAssistant {
@@ -130,6 +148,10 @@ export function parseRosterAssistant(raw: Record<string, unknown>): RosterAssist
     assistantId: Number(raw.assistant_id),
     name: typeof raw.name === 'string' ? raw.name : '',
     image: typeof raw.image === 'string' ? raw.image : null,
+    ownerUserId: typeof raw.user_id === 'string' ? raw.user_id : null,
+    organizationId: typeof raw.organization_id === 'number' ? raw.organization_id : null,
+    desktopMode: parseDesktopMode(raw.desktop_mode),
+    managedDesktopStatus: parseManagedDesktopStatus(raw.managed_desktop_status),
   };
 }
 

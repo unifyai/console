@@ -77,6 +77,7 @@ import type {
   AdminBillingProfile,
 } from '@/types/admin';
 import OrgPlanSection from '@/components/Pages/Admin/OrgPlanSection';
+import { isImeComposing } from '@/utils/keyboard';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -595,7 +596,7 @@ export default function OrganizationsAdminMain({
                       placeholder="User email…"
                       value={lookupEmail}
                       onChange={(e) => setLookupEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                      onKeyDown={(e) => !isImeComposing(e) && e.key === 'Enter' && handleLookup()}
                       className="flex-1"
                     />
                     <Button
@@ -635,7 +636,9 @@ export default function OrganizationsAdminMain({
                           placeholder="Organization name…"
                           value={newOrgName}
                           onChange={(e) => setNewOrgName(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleCreateOrg()}
+                          onKeyDown={(e) =>
+                            !isImeComposing(e) && e.key === 'Enter' && handleCreateOrg()
+                          }
                           className="flex-1"
                         />
                         <Button
@@ -903,7 +906,9 @@ export default function OrganizationsAdminMain({
                         placeholder="user@example.com"
                         value={inviteEmail}
                         onChange={(e) => setInviteEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
+                        onKeyDown={(e) =>
+                          !isImeComposing(e) && e.key === 'Enter' && handleInviteUser()
+                        }
                         className="pl-9"
                       />
                     </div>
@@ -1058,7 +1063,9 @@ export default function OrganizationsAdminMain({
                                 placeholder="e.g. 100"
                                 value={creditAmount}
                                 onChange={(e) => setCreditAmount(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddCredits()}
+                                onKeyDown={(e) =>
+                                  !isImeComposing(e) && e.key === 'Enter' && handleAddCredits()
+                                }
                                 className="mt-1.5"
                                 min="0"
                                 step="1"

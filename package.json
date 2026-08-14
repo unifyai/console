@@ -115,7 +115,6 @@
     "google-auth-library": "^9.15.1",
     "html2canvas": "^1.4.1",
     "immer": "^10.1.1",
-    "jszip": "^3.10.1",
     "livekit-client": "^2.15.13",
     "livekit-server-sdk": "^2.14.0",
     "lucide-react": "^0.471.2",
@@ -222,9 +221,9 @@
       "sharp": "0.35.3"
     },
     "postcss": "$postcss",
-    "js-yaml": "4.3.0",
+    "js-yaml": "4.3.1",
     "protobufjs": "7.6.5",
-    "fast-uri": "3.1.4",
+    "fast-uri": "3.1.5",
     "svgo": "3.3.4"
   }
 }

@@ -7,6 +7,7 @@ import { Input } from '@/components/UI/input';
 import { cn } from '@/lib/utils';
 import { OrgChatSearchResult, parseOrgChatSearchResult } from '@/types/orgChat';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface OrgChatSearchDialogProps {
   open: boolean;
@@ -108,6 +109,7 @@ export function OrgChatSearchDialog({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
               if (e.key === 'Enter') {
                 e.preventDefault();
                 void runSearch();

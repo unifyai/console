@@ -11,6 +11,7 @@ import { Input } from '@/components/UI/input';
 
 import { X, LoaderCircle, Search } from 'lucide-react';
 import { TbMathFunction } from 'react-icons/tb';
+import { isImeComposing } from '@/utils/keyboard';
 
 const GlobalFilter = ({
   interactive,
@@ -84,6 +85,7 @@ const GlobalFilter = ({
         .map(([column, _]) => ({ name: column, type: 'Column Name', children: [] }))
     );
   const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter') {
       setCommonFilter(`${mode}§${value}`);
       setLoading(true);
@@ -112,6 +114,7 @@ const GlobalFilter = ({
     setGlobalFilter((filter) => ({ mode: filter.mode, value: input.currentTarget?.value }));
   };
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter') {
       setCommonFilter(`${mode}§${value}`);
       setLoading(true);

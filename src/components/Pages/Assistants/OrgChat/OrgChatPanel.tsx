@@ -45,6 +45,7 @@ import {
 } from '@/components/Chat/attachmentUtils';
 import { tabToolbarIconButtonClass } from '@/components/Pages/Assistants/Common/TabToolbar';
 import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
+import { isImeComposing } from '@/utils/keyboard';
 
 const messageActionButtonClass =
   'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors text-muted-foreground/50 hover:text-muted-foreground';
@@ -379,6 +380,9 @@ export function OrgChatPanel({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // While an IME is composing, Enter/Tab/arrows/Escape belong to the
+    // conversion candidate list, not to sending or to the mention popup.
+    if (isImeComposing(e)) return;
     if (mentionQuery && filteredCandidates.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();

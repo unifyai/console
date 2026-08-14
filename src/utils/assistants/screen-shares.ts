@@ -11,12 +11,37 @@
  * a LiveKit room.
  */
 
-/** One live screen share, as much of it as the focus decision needs. */
-export interface ShareEntry {
+/**
+ * One live screen share, as much of it as the focus decision needs.
+ *
+ * Two kinds share the stage. A `track` is a published LiveKit screenshare. A
+ * `liveview` is an assistant's desktop, which is not a media track at all —
+ * every participant mounts the VM's own page for itself — so it has no track
+ * sid and carries a synthetic one instead. The focus decision only ever compares
+ * and orders sids, so it does not care which kind it is looking at.
+ */
+export type ShareEntry = TrackShareEntry | LiveviewShareEntry;
+
+export interface TrackShareEntry {
+  kind: 'track';
   /** LiveKit track sid — stable for the life of the publication. */
   sid: string;
   presenterName: string;
   isLocal: boolean;
+}
+
+export interface LiveviewShareEntry {
+  kind: 'liveview';
+  /** Synthetic, stable for as long as this assistant is presenting. */
+  sid: string;
+  presenterName: string;
+  isLocal: false;
+  assistantId: string;
+}
+
+/** The focus sid for an assistant presenting its desktop. */
+export function liveviewShareSid(assistantId: string): string {
+  return `liveview:${assistantId}`;
 }
 
 /** When each share was first seen, by track sid. */
@@ -79,11 +104,17 @@ export function resolveFocusedSid(
 
 /** How a presenter is named on the focus caption and in the picker. */
 export function presenterLabel(share: ShareEntry): string {
+  if (share.kind === 'liveview') {
+    return `${share.presenterName || 'Teammate'}'s desktop`;
+  }
   return share.isLocal ? 'You' : share.presenterName || 'Teammate';
 }
 
 /** Caption over the focused share. */
 export function presentingCaption(share: ShareEntry): string {
+  if (share.kind === 'liveview') {
+    return `${share.presenterName || 'Teammate'} is showing their desktop`;
+  }
   return share.isLocal
     ? 'You are presenting'
     : `${share.presenterName || 'Teammate'} is presenting`;

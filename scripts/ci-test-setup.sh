@@ -14,7 +14,7 @@
 #
 # Prerequisites:
 #   - Docker (for PostgreSQL)
-#   - Python 3.12+ with Poetry (for Orchestra)
+#   - Python 3.12+ with uv (for Orchestra)
 #   - Node.js 20+ with npm (for Console)
 #   - Orchestra repo at $ORCHESTRA_REPO_PATH (or ../orchestra)
 #
@@ -85,12 +85,9 @@ if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "ORCHESTRA_REPO_PATH=$ORCHESTRA_REPO_PATH" >> "$GITHUB_ENV"
   echo "PUBSUB_EMULATOR_HOST=$PUBSUB_EMULATOR_HOST" >> "$GITHUB_ENV"
   echo "PUBSUB_PROJECT_ID=$PUBSUB_PROJECT_ID" >> "$GITHUB_ENV"
-  if command -v poetry &>/dev/null; then
-    poetry_venv="$(cd "$ORCHESTRA_REPO_PATH" && poetry env info -p 2>/dev/null || true)"
-    if [[ -n "$poetry_venv" && -x "$poetry_venv/bin/python" ]]; then
-      echo "ORCHESTRA_PYTHON=$poetry_venv/bin/python" >> "$GITHUB_ENV"
-      log_success "Resolved Orchestra Python: $poetry_venv/bin/python"
-    fi
+  if [[ -x "$ORCHESTRA_REPO_PATH/.venv/bin/python" ]]; then
+    echo "ORCHESTRA_PYTHON=$ORCHESTRA_REPO_PATH/.venv/bin/python" >> "$GITHUB_ENV"
+    log_success "Resolved Orchestra Python: $ORCHESTRA_REPO_PATH/.venv/bin/python"
   fi
 fi
 

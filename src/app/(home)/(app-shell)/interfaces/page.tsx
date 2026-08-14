@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/lib/user/user';
+import { isUnifyStaffMember } from '@/lib/auth/unify-staff';
 
 import * as projects from '@/lib/interfaces/projects';
 import * as interfaces from '@/lib/interfaces/interfaces';
@@ -60,8 +61,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: Promise<SearchPa
     redirect('/assistants');
   }
 
-  // Check if user is part of "Unify" - if not, redirect to assistants
-  const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify');
+  // Internal page: requires a verified unify.ai session email operating
+  // inside the Unify org (the org name alone is user-choosable).
+  const isUnifyMember = isUnifyStaffMember(user.email, user.organizations);
   if (!isUnifyMember) {
     redirect('/assistants');
   }

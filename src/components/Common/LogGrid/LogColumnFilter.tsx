@@ -16,6 +16,7 @@ import { searchParamToFilters, type FilterClause } from '@/lib/logs/filters';
 import { sanitizeId } from '@/lib/logs/columns';
 import type { FiltersByColumn } from '@/types/interfaces/columns';
 import { cn } from '@/lib/utils';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface LogColumnFilterProps {
   column: string;
@@ -340,6 +341,7 @@ export function LogColumnFilter({
           className="h-8"
           data-testid={index === 0 ? 'log-grid-filter-value' : `log-grid-filter-value-${index}`}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === 'Enter') apply();
           }}
         />

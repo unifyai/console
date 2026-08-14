@@ -51,6 +51,8 @@ export function WorkflowsGalleryShell({
   onConnectWorkspace,
   onToggleSetup,
   onRetry,
+  onRunNow,
+  running,
   requests,
   requirementsResolving = false,
 }: {
@@ -68,6 +70,10 @@ export function WorkflowsGalleryShell({
   onConnectWorkspace?: () => void;
   onToggleSetup: (slug: string) => void;
   onRetry: (slug: string) => void;
+  /** Starts an installed workflow's job now rather than at its next occurrence. */
+  onRunNow?: (slug: string) => void;
+  /** Slugs whose job is being started right now. */
+  running?: Set<string>;
   /** Recorded changes in flight, keyed by slug. */
   requests?: Record<string, WorkflowRequestState>;
   /** True until the integrations catalogue has answered for the shelf's apps. */
@@ -234,6 +240,8 @@ export function WorkflowsGalleryShell({
                     onConnectWorkspace={onConnectWorkspace}
                     onToggleSetup={onToggleSetup}
                     onRetry={onRetry}
+                    onRunNow={onRunNow}
+                    isRunning={running?.has(item.workflow.slug) ?? false}
                     request={requests?.[item.workflow.slug]}
                     isResolving={requirementsResolving}
                   />

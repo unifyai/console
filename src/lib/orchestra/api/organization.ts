@@ -1,5 +1,6 @@
 'use server';
 
+import { isUnifyStaffMember } from '@/lib/auth/unify-staff';
 import { requireUserApiKey } from '@/lib/server-action-session';
 import { getCurrentUser } from '@/lib/user/user';
 import { writeActiveWorkspaceId } from '@/lib/user/workspace-session';
@@ -102,7 +103,7 @@ export async function createOrgAction(
   if (!user?.apiKey) {
     return { detail: 'Unauthorized', status: 401 };
   }
-  const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
+  const isUnifyMember = isUnifyStaffMember(user.email, user.organizations);
   if (isUnifyMember) {
     return adminCreateOrganizationAction(user.id, name, dataSharingMode);
   }
@@ -445,7 +446,7 @@ export async function checkUserOrganizationAction(
     }
 
     const orgs = result.organizations as Array<{ name: string }> | undefined;
-    const isUnifyEmployee = orgs?.some((org) => org.name === 'Unify') ?? false;
+    const isUnifyEmployee = isUnifyStaffMember(email, orgs);
     const hasOrganizations = !isUnifyEmployee && orgs && orgs.length > 0;
 
     return {

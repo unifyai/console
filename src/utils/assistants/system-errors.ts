@@ -18,6 +18,7 @@ export type SystemErrorType =
   | 'startup_failed'
   | 'init_failed'
   | 'oom'
+  | 'billing_blocked'
   | 'unknown';
 
 export interface SystemError {
@@ -79,6 +80,15 @@ const FRIENDLY_COPY: Record<SystemErrorType, { title: string; detail: string }> 
     title: '{name} needs to restart',
     detail: 'Your conversation is saved. This usually resolves in under a minute.',
   },
+  // Detail is supplied by the server, not this table: a spending refusal
+  // names its own cause and remedy ("switch to one of the included models",
+  // "subscribe in billing"), and no fixed string here could stand in for it.
+  // Every other entry describes something that resolves on its own, which is
+  // the one thing a billing refusal never does.
+  billing_blocked: {
+    title: '{name} needs something from you to continue',
+    detail: '',
+  },
   unknown: {
     title: '{name} encountered an issue',
     detail: "If it doesn't respond, try refreshing.",
@@ -91,12 +101,17 @@ const FRIENDLY_COPY: Record<SystemErrorType, { title: string; detail: string }> 
  */
 export function getFriendlyErrorCopy(
   errorType: SystemErrorType,
-  assistantName: string
+  assistantName: string,
+  rawMessage?: string
 ): { title: string; detail: string } {
   const template = FRIENDLY_COPY[errorType];
+  // A refusal that states its own cause is shown in those words. Replacing it
+  // with generic copy is what made a billing block read as a crash the user
+  // should wait out.
+  const detail = errorType === 'billing_blocked' && rawMessage ? rawMessage : template.detail;
   return {
     title: template.title.replace('{name}', assistantName),
-    detail: template.detail,
+    detail,
   };
 }
 
@@ -112,6 +127,7 @@ const VALID_ERROR_TYPES = new Set<SystemErrorType>([
   'startup_failed',
   'init_failed',
   'oom',
+  'billing_blocked',
   'unknown',
 ]);
 

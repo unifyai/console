@@ -73,7 +73,7 @@ export function useAssistantSystemErrors(assistant: Assistant | null): void {
           }
           lastErrorRef.current = { type: parsed.type, time: now };
 
-          const { title, detail } = getFriendlyErrorCopy(parsed.type, name);
+          const { title, detail } = getFriendlyErrorCopy(parsed.type, name, parsed.rawMessage);
           toast.warning(title, { description: detail });
         } catch {
           // Ignore malformed messages

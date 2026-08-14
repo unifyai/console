@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { trustedClientIp } from '@/lib/server/clientIp';
 
 /**
  * POST /api/auth/email/resend-verification
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
     const res = await OrchestraAdminClient.post('/auth/resend-verification', {
       email,
       purpose,
+      clientIp: trustedClientIp(request),
     });
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {

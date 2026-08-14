@@ -11,7 +11,8 @@
 
 import { formatTimestamp } from '@/utils/assistants/brain';
 import { humanizeTaskLabel } from '@/utils/assistants/tasks';
-import type { BrainRow, TaskRow } from '@/types/assistants/brain';
+import { summariseTaskRuns } from '@/utils/assistants/taskRuns';
+import type { BrainRow, TaskRow, TaskRunRow } from '@/types/assistants/brain';
 import type {
   Workflow,
   WorkflowArtifact,
@@ -39,6 +40,14 @@ export interface CatalogRequirement {
    * about the one requirement whose answer never depended on the gallery.
    */
   kind: string;
+  /**
+   * Other apps that satisfy this same requirement, in the bundle's
+   * recommendation order after `slug`.
+   *
+   * A workflow needs somewhere to post or a calendar to read; which app
+   * provides it is the user's choice. Any one connected meets it.
+   */
+  alternatives: { slug: string; name: string }[];
   /** Secret names that answer for this requirement, for the routes that have one. */
   requiredSecrets: string[];
 }
@@ -210,7 +219,7 @@ export function catalogRowRequirements(row: Record<string, unknown>): CatalogReq
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((entry) => {
     if (typeof entry === 'string') {
-      return [{ slug: entry, name: entry, kind: 'app', requiredSecrets: [] }];
+      return [{ slug: entry, name: entry, kind: 'app', alternatives: [], requiredSecrets: [] }];
     }
     if (!entry || typeof entry !== 'object') return [];
     const record = entry as Record<string, unknown>;
@@ -222,9 +231,24 @@ export function catalogRowRequirements(row: Record<string, unknown>): CatalogReq
         slug,
         name: asString(record.name) ?? slug,
         kind: asString(record.kind) ?? 'app',
+        alternatives: toRequirementOptions(record.alternatives),
         requiredSecrets: Array.isArray(secrets) ? secrets.map(String) : [],
       },
     ];
+  });
+}
+
+/** The alternatives list, tolerating a bare slug the way requirements do. */
+function toRequirementOptions(value: unknown): { slug: string; name: string }[] {
+  const raw = parseJsonField<unknown[]>(value, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (typeof entry === 'string') return [{ slug: entry, name: entry }];
+    if (!entry || typeof entry !== 'object') return [];
+    const record = entry as Record<string, unknown>;
+    const slug = asString(record.slug);
+    if (!slug) return [];
+    return [{ slug, name: asString(record.name) ?? slug }];
   });
 }
 
@@ -268,15 +292,23 @@ export function installationRowToInstallation(
 }
 
 /**
- * A workflow has no runtime of its own — next run, last outcome and each
- * task's link all come from the ordinary `Tasks` rows it planted.
+ * A workflow has no runtime of its own — the task it planted does, so its
+ * arming comes from that `Tasks` row and everything about running from that
+ * task's execution rows.
  */
-export function taskRowToRuntime(row: TaskRow): WorkflowTaskRuntime {
+export function taskRowToRuntime(row: TaskRow, runs?: TaskRunRow[]): WorkflowTaskRuntime {
   const record = row as unknown as Record<string, unknown>;
-  const enabled = record.enabled !== false && !isPaused(record.lifecycle);
-  const nextDueAt = asString(record.nextDueAt);
-  const lastRunAt = asString(record.lastRunAt) ?? asString(record.lastExecutionAt);
-  const lastOutcome = asString(record.lastRunOutcome) ?? asString(record.lastRunStatus);
+  const summary = summariseTaskRuns(runs, { enabled: row.enabled });
+  const enabled = record.enabled !== false && !isPaused(summary.lifecycle ?? record.lifecycle);
+  // Read from the execution ledger, not the definition. These used to read
+  // `nextDueAt`, `lastRunAt` / `lastExecutionAt` and `lastRunOutcome` /
+  // `lastRunStatus` off the task row — none of which exist there, by explicit
+  // backend design, and all of which typecheck only through the row's index
+  // signature. Every installed workflow therefore reported "Never run" and
+  // "As scheduled" no matter how long it had been running.
+  const nextDueAt = summary.nextRunAt;
+  const lastRunAt = summary.lastRunAt;
+  const lastOutcome = summary.lastRunOutcome;
 
   return {
     taskId: String(record.taskId ?? record.name ?? ''),
@@ -309,6 +341,10 @@ function toRunOutcome(value: string | null): WorkflowTaskRuntime['lastRunOutcome
       return 'partial';
     case 'failed':
     case 'error':
+    // A cancelled run happened and delivered nothing, which is the same
+    // thing to a reader as a failed one. Reaching this at all is new: until
+    // these labels were read from the ledger, nothing ever arrived here.
+    case 'cancelled':
       return 'failed';
     default:
       return 'never';

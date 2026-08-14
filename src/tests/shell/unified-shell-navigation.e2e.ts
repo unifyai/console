@@ -26,8 +26,14 @@ import {
 import { ensureUnifyOrg } from '../helpers/seeds/client';
 import { assistantRail, railSection, visibleShellTestId } from '../helpers/shell';
 
-const user = createTestUser({ name: 'UnifiedShell', lastName: 'Navigator', credits: 50_000 });
-// Admin link in settings is gated on isUnifyAdmin (Unify org owner/admin).
+const user = createTestUser({
+  name: 'UnifiedShell',
+  lastName: 'Navigator',
+  credits: 50_000,
+  email: `unified-shell-staff-${Date.now()}@unify.ai`,
+});
+// Admin link in settings is gated on isUnifyAdmin: Unify org owner/admin
+// AND a unify.ai mailbox (the org name alone is user-choosable).
 ensureUnifyOrg({ memberId: user.id, memberRole: 'Admin', credits: 50_000 });
 ensureProjectSync(user.apiKey);
 
@@ -59,7 +65,6 @@ async function expectNoSectionBodySkeleton(page: import('@playwright/test').Page
 async function expectNoAssistantTabSkeletons(page: import('@playwright/test').Page): Promise<void> {
   const skeletonTestIds = [
     'tasks-skeleton',
-    'dashboards-loading',
     'functions-skeleton',
     'contacts-skeleton',
     'doc-list-skeleton',
@@ -79,7 +84,6 @@ const SHELL_FLICKER_SKELETON_TEST_IDS = [
   'assistant-section-skeleton',
   'rail-unity-switcher-skeleton',
   'tasks-skeleton',
-  'dashboards-loading',
   'functions-skeleton',
   'contacts-skeleton',
   'doc-list-skeleton',

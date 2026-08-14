@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/UI/button';
 import { Loader2 } from 'lucide-react';
 import TotpInput from '@/components/Common/Auth/TotpInput';
+import { isImeComposing } from '@/utils/keyboard';
 
 export type MfaCodeType = 'totp' | 'recovery';
 
@@ -135,6 +136,7 @@ const MfaModal = ({
                 className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-center font-mono text-lg focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid="recovery-code-input"
                 onKeyDown={(e) => {
+                  if (isImeComposing(e)) return;
                   if (e.key === 'Enter') handleRecoverySubmit();
                 }}
               />

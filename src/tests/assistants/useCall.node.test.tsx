@@ -366,4 +366,81 @@ describe('useCall (unified engine)', () => {
       expect(result.current.activeCall).toBeNull();
     });
   });
+
+  describe('assistant desktop share state', () => {
+    /** Deliver one `agent_status` data message the way the runtime would. */
+    function publish(room: FakeRoom, message: Record<string, unknown>) {
+      const payload = new TextEncoder().encode(JSON.stringify(message));
+      for (const handler of room.handlers.get('dataReceived') ?? []) {
+        handler(payload, undefined, undefined, 'agent_status');
+      }
+    }
+
+    async function connectedCall() {
+      mockFetch();
+      const room = new FakeRoom();
+      const { result } = renderHook(() =>
+        useCall(room as any, desktopActions, { orgId: null, currentUserId: 'user-1' })
+      );
+      await act(async () => {
+        await result.current.connect(desktopAssistant, 'audio');
+      });
+      return { room, result };
+    }
+
+    it('tracks which assistants are presenting, keyed by agent id', async () => {
+      const { room, result } = await connectedCall();
+      expect(result.current.assistantSharesById).toEqual({});
+
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '42', active: true });
+      });
+      expect(result.current.assistantSharesById).toEqual({ '42': true });
+
+      // A second assistant on the same call presents its own desktop.
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '77', active: true });
+      });
+      expect(result.current.assistantSharesById).toEqual({ '42': true, '77': true });
+
+      // One stopping must not disturb the other.
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '42', active: false });
+      });
+      expect(result.current.assistantSharesById).toEqual({ '77': true });
+    });
+
+    it('ignores a restated share and a message with no assistant id', async () => {
+      const { room, result } = await connectedCall();
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '42', active: true });
+      });
+      const first = result.current.assistantSharesById;
+
+      // The runtime restates state for late joiners; an unchanged restatement
+      // must not produce a new object, or every rejoin rerenders the stage.
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '42', active: true });
+      });
+      expect(result.current.assistantSharesById).toBe(first);
+
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', active: true });
+      });
+      expect(result.current.assistantSharesById).toEqual({ '42': true });
+    });
+
+    it('clears share state when the call ends', async () => {
+      const { room, result } = await connectedCall();
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '42', active: true });
+      });
+      expect(result.current.assistantSharesById).toEqual({ '42': true });
+
+      await act(async () => {
+        await result.current.leaveCall();
+      });
+      expect(result.current.assistantSharesById).toEqual({});
+    });
+  });
 });

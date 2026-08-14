@@ -43,6 +43,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import Tooltip from '@/components/Common/Misc/Tooltip';
 import FormulaInput from '@/components/Common/Input/Formula';
 import { TbMathFunction } from 'react-icons/tb';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface BooleanFilter {
   key: number;
@@ -262,6 +263,7 @@ const BooleanColumnFilter = ({
     setOpen(false);
   };
   const onEnter: KeyboardEventHandler = (event) => {
+    if (isImeComposing(event)) return;
     if (event.key === 'Enter') {
       onSubmit();
     }

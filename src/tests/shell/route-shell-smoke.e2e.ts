@@ -3,8 +3,8 @@
  * (ShellSectionPage) and `/interfaces` (rail chrome only). Verifies the
  * persistent rail renders beside each route body and that the route is reachable
  * inside the shell (no redirect to /login or the error boundary). The user is
- * seeded into a `Unify` org so `/interfaces` (gated to Unify members) is
- * accessible.
+ * seeded into a `Unify` org with a unify.ai mailbox — both signals the
+ * `/interfaces` staff gate requires.
  *
  * Run: npx playwright test src/tests/shell/route-shell-smoke.e2e.ts
  */
@@ -23,7 +23,12 @@ import {
 import { ensureUnifyOrg } from '../helpers/seeds/client';
 import { assistantRail } from '../helpers/shell';
 
-const user = createTestUser({ name: 'ShellRoutes', lastName: 'Smoke', credits: 50_000 });
+const user = createTestUser({
+  name: 'ShellRoutes',
+  lastName: 'Smoke',
+  credits: 50_000,
+  email: `shell-routes-staff-${Date.now()}@unify.ai`,
+});
 ensureUnifyOrg({ memberId: user.id, credits: 50_000 });
 ensureProjectSync(user.apiKey);
 

@@ -129,14 +129,20 @@ export function AssistantsBanners({
       >
         <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[color:var(--status-warning)]" />
         <p className="text-body text-[color:var(--status-warning)]">
+          {/*
+            States the balance, not a history. Credits now arrive with the
+            first collected invoice rather than at signup, so "have been
+            used" / "has been depleted" told a brand-new account it had
+            spent credits it was never granted.
+          */}
           <span className="font-medium">
             {isFreeTrial
               ? isOrgWorkspace
-                ? "Your organization's trial credits have been used"
-                : 'Your trial credits have been used'
+                ? 'Your organization has no trial credits available'
+                : 'You have no trial credits available'
               : isOrgWorkspace
-                ? "Your organization's credit balance has been depleted"
-                : 'Your credit balance has been depleted'}
+                ? 'Your organization has no credits available'
+                : 'You have no credits available'}
           </span>
           {' — '}
           {isFreeTrial ? (

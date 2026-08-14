@@ -7,6 +7,7 @@ import { Label } from '@/components/UI/label';
 import { IconSelector } from '@/components/UI/icon-selector';
 import BaseDialog from '@/components/Common/Dialogs/Base';
 import SubmitButton from '@/components/Common/Buttons/Submit';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface CreateInterfaceDialogProps {
   open: boolean;
@@ -49,6 +50,7 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === 'Enter' && !isSubmitting) {
         handleSubmit();
       }

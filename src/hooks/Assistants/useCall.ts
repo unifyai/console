@@ -17,6 +17,7 @@ import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import type { DesktopSessionScope } from '@/lib/assistants/desktopSessionScope';
 import { clearDesktopReadyCache } from '@/lib/assistants/desktopSessionScope';
+import { callViewerSource } from '@/lib/assistants/desktopViewer';
 import { fetchAssistantStatus } from '@/lib/client/assistant';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { resolveManagedDesktopMode } from '@/utils/assistants/managed-desktop';
@@ -142,6 +143,11 @@ export function useCall(
   const [micEnabled, setMicEnabled] = React.useState(true);
   const [camEnabled, setCamEnabled] = React.useState(false);
   const [screenShareEnabled, setScreenShareEnabled] = React.useState(false);
+  // Which assistants are presenting their desktop to the room, by agent id.
+  // Room state rather than a local toggle: the desktop is a liveview each
+  // participant mounts for itself, so every client has to be told, and a room
+  // call can carry several assistants each presenting their own.
+  const [assistantSharesById, setAssistantSharesById] = React.useState<Record<string, boolean>>({});
   const [roomEpoch, setRoomEpoch] = React.useState(0);
   const audioElsRef = React.useRef<HTMLAudioElement[]>([]);
   const playbackMutedRef = React.useRef(false);
@@ -253,6 +259,16 @@ export function useCall(
     setIsRemoteControlInteractive(false);
   }, []);
 
+  // Names this viewer to the runtime, so one participant closing the desktop
+  // does not take it away from everyone else still watching it.
+  const callViewerFields = React.useCallback(
+    () => ({
+      viewerUserId: currentUserId ?? '',
+      viewerSource: callViewerSource(activeCallRef.current?.callId ?? ''),
+    }),
+    [currentUserId]
+  );
+
   const cleanupAudio = React.useCallback(() => {
     for (const el of audioElsRef.current) {
       el.srcObject = null;
@@ -288,6 +304,7 @@ export function useCall(
     setMicEnabled(true);
     setCamEnabled(false);
     setScreenShareEnabled(false);
+    setAssistantSharesById({});
     devModeRef.current = false;
     activeConnectOptionsRef.current = undefined;
     sdkReconnectingRef.current = false;
@@ -342,6 +359,22 @@ export function useCall(
           // The assistant ended the call. Leave cleanly ourselves (which also
           // ends the session server-side for assistant_dm calls).
           disconnectRef.current?.();
+          return;
+        }
+        if (data.type === 'assistant_screenshare') {
+          const assistantId = String(data.assistantId || '');
+          if (!assistantId) return;
+          setAssistantSharesById((prev) => {
+            const active = Boolean(data.active);
+            if (Boolean(prev[assistantId]) === active) return prev;
+            const next = { ...prev };
+            if (active) {
+              next[assistantId] = true;
+            } else {
+              delete next[assistantId];
+            }
+            return next;
+          });
           return;
         }
       } catch {
@@ -954,6 +987,20 @@ export function useCall(
       const call = activeCallRef.current;
       isCancelledRef.current = true;
       clearAssistantTimers();
+      // Stop being counted as a viewer before the room goes. Best-effort only:
+      // the runtime closes every viewer the call owned when the call itself
+      // ends, which is what covers a tab that was killed rather than closed.
+      const watchedAssistant = activeCallAssistantRef.current;
+      if (isRemoteControlActive && watchedAssistant) {
+        assistantActions.desktop
+          .sendSystemEvent(
+            watchedAssistant.agentId,
+            'assistant_screen_share_stopped',
+            'User left the call',
+            callViewerFields()
+          )
+          .catch(console.error);
+      }
       stopRemoteControl();
       setCallPhase('ending');
       setConnectionError(null);
@@ -970,7 +1017,16 @@ export function useCall(
         }
       }
     },
-    [room, clearAssistantTimers, onDisconnected, setCallPhase, stopRemoteControl]
+    [
+      room,
+      clearAssistantTimers,
+      onDisconnected,
+      setCallPhase,
+      stopRemoteControl,
+      isRemoteControlActive,
+      assistantActions.desktop,
+      callViewerFields,
+    ]
   );
 
   const leaveCall = React.useCallback(() => finishCall('leave'), [finishCall]);
@@ -1037,6 +1093,31 @@ export function useCall(
       return false;
     }
   }, []);
+
+  /**
+   * Put one assistant's desktop up for the room, or take it down.
+   *
+   * The runtime owns the state: this reports the host as a viewer, and the
+   * broadcast that comes back is what actually tells every client (including
+   * this one) to mount or unmount. Setting local state here instead would let
+   * the host's view drift from the room's.
+   */
+  const setAssistantDesktopShared = React.useCallback(
+    async (assistantId: string, shared: boolean) => {
+      const result = await assistantActions.desktop.sendSystemEvent(
+        assistantId,
+        shared ? 'assistant_screen_share_started' : 'assistant_screen_share_stopped',
+        shared ? 'Host showed the assistant desktop' : 'Host stopped showing the assistant desktop',
+        callViewerFields()
+      );
+      if (result?.detail) {
+        setError(shared ? 'Could not show that desktop' : 'Could not stop that desktop');
+        return false;
+      }
+      return true;
+    },
+    [assistantActions.desktop, callViewerFields]
+  );
 
   // --- Incoming frames (from either SSE stream) ---
   const handleIncomingCall = React.useCallback(
@@ -1187,7 +1268,8 @@ export function useCall(
         .sendSystemEvent(
           activeCallAssistant.agentId,
           'assistant_screen_share_stopped',
-          'User disabled assistant screen sharing'
+          'User disabled assistant screen sharing',
+          callViewerFields()
         )
         .catch(console.error);
       stopRemoteControl();
@@ -1235,7 +1317,8 @@ export function useCall(
         .sendSystemEvent(
           activeCallAssistant.agentId,
           'assistant_screen_share_started',
-          'User enabled assistant screen sharing'
+          'User enabled assistant screen sharing',
+          callViewerFields()
         )
         .catch(console.error);
       toast.success('Assistant screen sharing started.', { id: toastId });
@@ -1257,6 +1340,7 @@ export function useCall(
     eventLiveviewPassword,
     isDesktopReady,
     scopedLiveviewLookup,
+    callViewerFields,
   ]);
 
   const toggleRemoteControlInteractive = React.useCallback(async () => {
@@ -1310,6 +1394,8 @@ export function useCall(
     micEnabled,
     camEnabled,
     screenShareEnabled,
+    assistantSharesById,
+    setAssistantDesktopShared,
     isHost,
     isConnecting: status === 'connecting' || status === 'ringing',
     isConnected: status === 'connected',

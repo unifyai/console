@@ -28,7 +28,15 @@ import {
 import { assistantRail, railAccountTrigger, waitForAssistantsRail } from '../helpers/shell';
 import { ensureUnifyOrg } from '../helpers/seeds/client';
 
-const user = createTestUser({ name: 'WsCtx', lastName: 'Test', credits: 5_000 });
+// Unify staff member — the workspace org-lock exempts only users with both a
+// unify.ai mailbox and Unify org membership, and this spec needs free
+// switching between the personal and org workspaces.
+const user = createTestUser({
+  name: 'WsCtx',
+  lastName: 'Test',
+  credits: 5_000,
+  email: `ws-ctx-staff-${Date.now()}@unify.ai`,
+});
 ensureUnifyOrg({ memberId: user.id });
 const org = createOrg({ name: `WsOrg-${user.id.slice(0, 8)}`, ownerId: user.id, credits: 12_000 });
 const lockedOrgAssistant = createAssistant({

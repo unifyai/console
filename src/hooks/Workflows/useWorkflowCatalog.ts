@@ -11,6 +11,7 @@ import type { WorkflowParamValues } from '@/components/Workflows/WorkflowParamsF
 import { fetchBrainContext } from '@/lib/client/brain';
 import { camelToSnakeObject } from '@/utils/casing';
 import {
+  fetchWorkflowInstallations,
   fetchWorkflowRequests,
   fetchWorkflowsCatalog,
   submitWorkflowRequest,
@@ -27,7 +28,8 @@ import { resolveRequirements } from '@/utils/workflows/requirementResolution';
 import { useRequirementDefinitions } from '@/hooks/Workflows/useRequirementDefinitions';
 import type { RequirementResolutionContext } from '@/utils/workflows/requirementResolution';
 import type { Assistant } from '@/types/assistants/assistant';
-import type { BrainRow, TaskRow } from '@/types/assistants/brain';
+import type { BrainRow, TaskRow, TaskRunRow } from '@/types/assistants/brain';
+import { groupRunsByTask } from '@/utils/assistants/taskRuns';
 import {
   provisioningTask,
   unmetRequirements,
@@ -48,19 +50,18 @@ import {
  */
 const PROVISIONING_STEP_MS = 620;
 
-/** How often the recorded request rows are re-read while one is in flight. */
-const REQUEST_POLL_MS = 2500;
 /**
- * While a request is actually in flight, poll at this instead.
+ * How often the recorded request rows are re-read while one is in flight.
  *
- * The whole install settles in under a second — less than half the idle
- * interval — so the slow poll turned a one-second operation into a
- * two-and-a-half second wait for the answer. This is only ever active
- * during that window.
+ * The read itself costs about 400ms server-side, so a faster cadence issues
+ * the next one before the last has answered: a request that never settles —
+ * an assistant that failed to wake, a row left pending — then holds an open
+ * connection more or less permanently. Two seconds keeps a settled install
+ * visible within one beat of it happening while leaving the poll idle most
+ * of the time. Nothing polls at all outside that window.
  */
-const REQUEST_POLL_ACTIVE_MS = 500;
+const REQUEST_POLL_MS = 2000;
 
-const INSTALLATIONS_CONTEXT = 'Workflows';
 const CATALOG_PAGE_SIZE = 200;
 
 /**
@@ -164,8 +165,9 @@ interface WorkflowGalleryLoad {
  *
  * An environment whose Builtins project has not been seeded yet has no
  * catalogue rows, and a never-booted assistant has no installation rows;
- * both reads answer empty rather than throwing, so either lands on the
- * empty state, not an error.
+ * both land on the empty state. A *failed* installations read throws
+ * instead — folded into the join it reads as "nothing installed", which
+ * un-installs the whole shelf on screen until something reloads it.
  */
 async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGalleryLoad> {
   // The catalogue is platform data in the public-read Builtins project —
@@ -173,18 +175,27 @@ async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGaller
   // are this assistant's own rows. Two stores, one join key.
   const [catalogRows, installations] = await Promise.all([
     fetchWorkflowsCatalog(),
-    fetchBrainContext<BrainRow>(assistant, INSTALLATIONS_CONTEXT, { limit: CATALOG_PAGE_SIZE }),
+    fetchWorkflowInstallations(assistant),
   ]);
 
   const installationRows = new Map(
-    installations.rows.flatMap((row) => {
-      const slug = (row as Record<string, unknown>).slug;
-      return typeof slug === 'string' ? [[slug, row] as const] : [];
+    installations.flatMap((row) => {
+      const slug = row.slug;
+      return typeof slug === 'string' ? [[slug, row as BrainRow] as const] : [];
     })
   );
 
   // A workflow has no runtime of its own: each installed slug's tasks are
   // ordinary Tasks rows, filtered server-side by the slug that manages them.
+  // Those rows carry authored intent only, so whether the work is actually
+  // happening comes from the execution ledger — fetched once and bucketed by
+  // task, because it is one context for the whole assistant rather than one
+  // per slug.
+  const executions = await fetchBrainContext<TaskRunRow>(assistant, 'Tasks/Executions', {
+    limit: CATALOG_PAGE_SIZE,
+  });
+  const runsByTask = groupRunsByTask(executions.rows);
+
   const runtimeBySlug = new Map<string, ReturnType<typeof taskRowToRuntime>[]>();
   await Promise.all(
     [...installationRows.keys()].map(async (slug) => {
@@ -192,7 +203,15 @@ async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGaller
         filter: `managed_by == ${JSON.stringify(slug)}`,
         limit: CATALOG_PAGE_SIZE,
       });
-      runtimeBySlug.set(slug, tasks.rows.map(taskRowToRuntime));
+      runtimeBySlug.set(
+        slug,
+        tasks.rows.map((row) =>
+          taskRowToRuntime(
+            row,
+            typeof row.taskId === 'number' ? runsByTask.get(row.taskId) : undefined
+          )
+        )
+      );
     })
   );
 
@@ -280,6 +299,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   );
   const [isMock, setIsMock] = React.useState(false);
   const [hasLoaded, setHasLoaded] = React.useState(false);
+  const [loadAttempt, setLoadAttempt] = React.useState(0);
   const [provisioning, setProvisioning] = React.useState<WorkflowProvisioningState | null>(null);
   // Recorded changes this session is watching, keyed by slug — one in flight
   // per workflow, because a second change to the same workflow supersedes the
@@ -298,18 +318,28 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
     if (!assistant) return;
 
     let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
-      const next = await loadWorkflowGallery(assistant);
-      if (cancelled) return;
-      setBaseItems(next.items);
-      setRawRequirements(next.rawRequirements);
-      setIsMock(false);
-      setHasLoaded(true);
+      try {
+        const next = await loadWorkflowGallery(assistant);
+        if (cancelled) return;
+        setBaseItems(next.items);
+        setRawRequirements(next.rawRequirements);
+        setIsMock(false);
+        setHasLoaded(true);
+      } catch (error) {
+        console.error('Failed to load the workflow gallery', error);
+        if (cancelled) return;
+        // Whatever is already on screen stays; retry by nudging the nonce
+        // this effect keys on, since `hasLoaded` alone never re-fires it.
+        retry = setTimeout(() => setLoadAttempt((attempt) => attempt + 1), 5000);
+      }
     })();
     return () => {
       cancelled = true;
+      if (retry !== undefined) clearTimeout(retry);
     };
-  }, [enabled, hasLoaded, assistantId, assistant]);
+  }, [enabled, hasLoaded, assistantId, assistant, loadAttempt]);
 
   /**
    * Every requirement slug the shelf names, taken from the published rows so it
@@ -319,7 +349,13 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
   const requirementSlugs = React.useMemo(() => {
     const slugs = new Set<string>();
     for (const requirements of rawRequirements.values()) {
-      for (const requirement of requirements) slugs.add(requirement.slug);
+      for (const requirement of requirements) {
+        slugs.add(requirement.slug);
+        // Every alternative is resolved too: one of them being connected is
+        // what meets the requirement, and an unfetched option renders as an
+        // app nobody could check.
+        for (const option of requirement.alternatives) slugs.add(option.slug);
+      }
     }
     return [...slugs].sort();
   }, [rawRequirements]);
@@ -492,10 +528,7 @@ export function useWorkflowCatalog(assistantId: string, options: UseWorkflowCata
       });
     };
     void read();
-    const timer = setInterval(
-      () => void read(),
-      hasRequestInFlight ? REQUEST_POLL_ACTIVE_MS : REQUEST_POLL_MS
-    );
+    const timer = setInterval(() => void read(), REQUEST_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);

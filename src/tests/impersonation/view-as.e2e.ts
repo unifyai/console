@@ -38,9 +38,13 @@ import { assistantRail, railAccountTrigger, railUnitySwitcher } from '../helpers
 // Seed (module scope, synchronous)
 // ---------------------------------------------------------------------------
 
-// Unify staff member — must belong to an org literally named "Unify" (the
-// product convention the membership gate keys off).
-const adminUser = createTestUser({ name: 'Staff', lastName: 'Member' });
+// Unify staff member — must belong to an org literally named "Unify" AND
+// carry a unify.ai mailbox, the two signals the membership gate now keys off.
+const adminUser = createTestUser({
+  name: 'Staff',
+  lastName: 'Member',
+  email: `view-as-staff-${Date.now()}@unify.ai`,
+});
 const unifyOrg = ensureUnifyOrg({ memberId: adminUser.id });
 const createdUnifyOrg = unifyOrg.ownerId === adminUser.id;
 

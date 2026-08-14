@@ -27,9 +27,8 @@ const canvasOrigin = (
 // A second `Content-Security-Policy` header on a more specific route *overrides*
 // this one rather than adding to it, so a route that emits a bare
 // `frame-ancestors` directive silently drops `default-src`, `script-src`,
-// `connect-src` and the rest. The `/tile/view` and `/dashboard/view` routes below
-// do exactly that, which is how a page rendering assistant-authored HTML ends up
-// with no script or connect restrictions at all. Canvas routes extend this list.
+// `connect-src` and the rest. Canvas routes extend this list rather than
+// replacing it, which is what keeps their frames inside the global policy.
 const baseCspDirectives = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://js.stripe.com https://challenges.cloudflare.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com`,
@@ -42,6 +41,7 @@ const baseCspDirectives = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  ...(isSelfHost ? [] : ['upgrade-insecure-requests']),
 ];
 
 const serverActionAllowedOrigins = [
@@ -163,9 +163,11 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
-          { key: 'Content-Security-Policy', value: baseCspDirectives.join('; ') },
+          {
+            key: 'Content-Security-Policy',
+            value: [...baseCspDirectives, "frame-ancestors 'none'"].join('; '),
+          },
         ],
       },
       {
@@ -196,20 +198,6 @@ const nextConfig = {
       },
       {
         source: '/table/view/:token*',
-        headers: [
-          { key: 'X-Frame-Options', value: 'ALLOWALL' },
-          { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
-        ],
-      },
-      {
-        source: '/tile/view/:token*',
-        headers: [
-          { key: 'X-Frame-Options', value: 'ALLOWALL' },
-          { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
-        ],
-      },
-      {
-        source: '/dashboard/view/:token*',
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
           { key: 'Content-Security-Policy', value: 'frame-ancestors *' },

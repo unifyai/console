@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { trustedClientIp } from '@/lib/server/clientIp';
+import { signupProvenanceFrom } from '@/lib/server/signupProvenance';
 import { validatePassword } from '@/lib/auth/password';
 import { isSelfHost } from '@/lib/environment/environment';
 import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
@@ -40,6 +42,10 @@ export async function POST(request: NextRequest) {
       lastName,
       password,
       captchaToken,
+      // The browser's agent for the bot heuristic, and its address for
+      // the rate limit. Orchestra sees this server, not the person.
+      ...signupProvenanceFrom(request),
+      clientIp: trustedClientIp(request),
     });
     const payload = res.data as Record<string, unknown>;
     const requiresVerification =

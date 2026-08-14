@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import Tooltip from '@/components/Common/Misc/Tooltip';
 import { LogsActions } from '@/types/interfaces/grid';
 import FormulaInput from '@/components/Common/Input/Formula';
+import { isImeComposing } from '@/utils/keyboard';
 
 interface NumericFilter {
   key: number;
@@ -298,6 +299,7 @@ const NumericColumnFilter = ({
     setOpen(false);
   };
   const onEnter: KeyboardEventHandler = (event) => {
+    if (isImeComposing(event)) return;
     if (event.key === 'Enter') {
       onSubmit();
     }
