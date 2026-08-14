@@ -7,7 +7,7 @@ import {
   parseJsonField,
   taskRowToRuntime,
 } from '@/utils/workflows/workflowRows';
-import type { BrainRow, TaskRow } from '@/types/assistants/brain';
+import type { BrainRow, TaskRow, TaskRunRow } from '@/types/assistants/brain';
 
 /**
  * The catalogue is published as Orchestra rows, so this is an untyped
@@ -274,5 +274,63 @@ describe('taskRowToRuntime', () => {
 
     expect(runtime.enabled).toBe(false);
     expect(runtime.nextRunLabel).toBe('Held — waiting on a connection');
+  });
+});
+
+describe('taskRowToRuntime reads runtime from the execution ledger', () => {
+  const armed = { taskId: 42, name: 'Daily briefing', enabled: true } as unknown as TaskRow;
+
+  it('reports the last run and its outcome from the runs, not the definition', () => {
+    const runtime = taskRowToRuntime(armed, [
+      {
+        taskId: 42,
+        state: 'completed',
+        scheduledFor: '2026-08-06T09:00:00Z',
+        startedAt: '2026-08-06T09:00:02Z',
+        completedAt: '2026-08-06T09:03:11Z',
+      },
+      {
+        taskId: 42,
+        state: 'scheduled',
+        scheduledFor: '2026-08-07T09:00:00Z',
+      },
+    ] as unknown as TaskRunRow[]);
+
+    expect(runtime.lastRunOutcome).toBe('success');
+    expect(runtime.lastRunLabel).not.toBe('Never run');
+    expect(runtime.nextRunLabel).not.toBe('As scheduled');
+  });
+
+  it('surfaces a failed run rather than reporting the workflow as fine', () => {
+    const runtime = taskRowToRuntime(armed, [
+      {
+        taskId: 42,
+        state: 'failed',
+        scheduledFor: '2026-08-06T09:00:00Z',
+        completedAt: '2026-08-06T09:00:04Z',
+        error: 'never started',
+      },
+    ] as unknown as TaskRunRow[]);
+
+    expect(runtime.lastRunOutcome).toBe('failed');
+  });
+
+  it('still reads "never run" when the ledger genuinely has no runs', () => {
+    // The old reads produced this for every workflow, however long it had
+    // been running, because the fields they looked for never existed. It has
+    // to keep being right when it is actually true.
+    const runtime = taskRowToRuntime(armed, []);
+    expect(runtime.lastRunLabel).toBe('Never run');
+    expect(runtime.lastRunOutcome).toBe('never');
+  });
+
+  it('ignores a next-run value invented on the definition row', () => {
+    // `nextDueAt` is not a task field: Orchestra strips it from executions and
+    // definitions never carried it. A row claiming one must not be believed.
+    const runtime = taskRowToRuntime(
+      { ...armed, nextDueAt: '2026-08-07T09:00:00Z' } as unknown as TaskRow,
+      []
+    );
+    expect(runtime.nextRunLabel).toBe('As scheduled');
   });
 });

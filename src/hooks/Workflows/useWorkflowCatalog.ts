@@ -28,7 +28,8 @@ import { resolveRequirements } from '@/utils/workflows/requirementResolution';
 import { useRequirementDefinitions } from '@/hooks/Workflows/useRequirementDefinitions';
 import type { RequirementResolutionContext } from '@/utils/workflows/requirementResolution';
 import type { Assistant } from '@/types/assistants/assistant';
-import type { BrainRow, TaskRow } from '@/types/assistants/brain';
+import type { BrainRow, TaskRow, TaskRunRow } from '@/types/assistants/brain';
+import { groupRunsByTask } from '@/utils/assistants/taskRuns';
 import {
   provisioningTask,
   unmetRequirements,
@@ -186,6 +187,15 @@ async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGaller
 
   // A workflow has no runtime of its own: each installed slug's tasks are
   // ordinary Tasks rows, filtered server-side by the slug that manages them.
+  // Those rows carry authored intent only, so whether the work is actually
+  // happening comes from the execution ledger — fetched once and bucketed by
+  // task, because it is one context for the whole assistant rather than one
+  // per slug.
+  const executions = await fetchBrainContext<TaskRunRow>(assistant, 'Tasks/Executions', {
+    limit: CATALOG_PAGE_SIZE,
+  });
+  const runsByTask = groupRunsByTask(executions.rows);
+
   const runtimeBySlug = new Map<string, ReturnType<typeof taskRowToRuntime>[]>();
   await Promise.all(
     [...installationRows.keys()].map(async (slug) => {
@@ -193,7 +203,15 @@ async function loadWorkflowGallery(assistant: Assistant): Promise<WorkflowGaller
         filter: `managed_by == ${JSON.stringify(slug)}`,
         limit: CATALOG_PAGE_SIZE,
       });
-      runtimeBySlug.set(slug, tasks.rows.map(taskRowToRuntime));
+      runtimeBySlug.set(
+        slug,
+        tasks.rows.map((row) =>
+          taskRowToRuntime(
+            row,
+            typeof row.taskId === 'number' ? runsByTask.get(row.taskId) : undefined
+          )
+        )
+      );
     })
   );
 

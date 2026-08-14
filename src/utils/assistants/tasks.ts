@@ -492,9 +492,16 @@ function formatTaskStartContext(row: TaskRow): React.ReactNode {
 
 function formatTaskTimingCell(row: TaskRow): React.ReactNode {
   const dueAt = readTaskDueAt(row);
+  const lastRunAt = typeof row.lastRunAt === 'string' ? row.lastRunAt : null;
+  const lastOutcome = typeof row.lastRunOutcome === 'string' ? row.lastRunOutcome : null;
   return stackedCell({
-    primary: dueAt ? `Next due ${formatTimestamp(dueAt)}` : 'No due time set',
-    secondary: row.createdAt ? `Created ${formatTimestamp(row.createdAt)}` : undefined,
+    primary: dueAt ? `Next due ${formatTimestamp(dueAt)}` : 'No run scheduled',
+    // The one thing this column was never able to say. `nextDueAt` and
+    // `lastRunAt` are both joined from the execution ledger before the row
+    // gets here; the definition carries neither.
+    secondary: lastRunAt
+      ? `Last ${humanizeTaskLabel(lastOutcome ?? 'completed').toLowerCase()} ${formatTimestamp(lastRunAt)}`
+      : 'Never run',
     tertiary: row.updatedAt ? `Updated ${formatTimestamp(row.updatedAt)}` : undefined,
   });
 }
@@ -574,7 +581,12 @@ export const TASK_COLUMNS: ColumnDef<TaskRow>[] = [
       }),
     280
   ),
-  accessorCell<TaskRow>('status', 'Status', (_row, value) => taskStatusBadge(value), 120),
+  // `lifecycle`, not `status`. The definition schema dropped `status`
+  // deliberately — every concurrent run wrote it and the last writer won — so
+  // this read an absent field, typechecking only through the row's index
+  // signature, and rendered an em dash for every task ever since. Lifecycle
+  // is joined from the run ledger before rows reach the table.
+  accessorCell<TaskRow>('lifecycle', 'Status', (_row, value) => taskStatusBadge(value), 120),
   accessorCell<TaskRow>('triggerType', 'Type', (row) => formatTaskStartContext(row), 240),
   accessorCell<TaskRow>('nextDueAt', 'Timing', (row) => formatTaskTimingCell(row), 220),
 ];

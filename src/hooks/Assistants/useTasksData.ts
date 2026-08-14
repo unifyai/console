@@ -18,6 +18,7 @@ import type { Assistant } from '@/types/assistants/assistant';
 import { fetchBrainContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/brain';
 import type { ContextRoot } from '@/lib/assistants/scope';
 import { fetchHasRunningTaskRun } from '@/lib/client/tasks';
+import { groupRunsByTask, withRunSummary } from '@/utils/assistants/taskRuns';
 import {
   invalidateTabDataCache,
   readTabDataCache,
@@ -178,15 +179,38 @@ export function useTasksData({
         fetchHasRunningTaskRun(assistant, root),
       ]);
       const loadedAt = Date.now();
+      const taskRunsState = contextStateFromData(
+        tr as BrainContextData<TaskRunRow>,
+        null,
+        null,
+        '',
+        loadedAt
+      );
+      const tasksState = contextStateFromData(
+        td as BrainContextData<TaskRow>,
+        null,
+        null,
+        '',
+        loadedAt
+      );
+      // Definitions carry authored intent only, so every column about what a
+      // task is *doing* has to be joined from its runs. Without this the
+      // Status column read a `status` field the definition schema dropped and
+      // rendered an em dash for every task, and Timing fell back to a
+      // `schedule.start_at` that a repeat-only definition — the shape every
+      // workflow plants — does not carry, and said "No due time set".
+      const runsByTask = groupRunsByTask(taskRunsState.rows);
       const nextStates = {
-        tasks: contextStateFromData(td as BrainContextData<TaskRow>, null, null, '', loadedAt),
-        taskRuns: contextStateFromData(
-          tr as BrainContextData<TaskRunRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
+        tasks: {
+          ...tasksState,
+          rows: tasksState.rows.map((row) =>
+            withRunSummary(
+              row,
+              typeof row.taskId === 'number' ? runsByTask.get(row.taskId) : undefined
+            )
+          ),
+        },
+        taskRuns: taskRunsState,
       };
       writeTabDataCache(cacheKey, { ...nextStates, hasRunningTaskRun: hasRunning });
       setStates(nextStates);
