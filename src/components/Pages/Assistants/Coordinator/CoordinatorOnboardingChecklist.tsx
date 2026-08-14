@@ -1522,19 +1522,35 @@ function ChecklistSubgroup({
           'group/onboarding-subgroup rounded-control items-center py-3 pl-5'
         )}
       >
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={isOpen}
-          className={cn(
-            'text-body-sm min-w-0 flex-1 truncate text-left font-medium text-foreground transition-colors',
-            'bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            'group-hover/onboarding-subgroup:text-muted-foreground group-focus-visible/onboarding-subgroup:text-muted-foreground'
-          )}
-          data-testid={`coordinator-onboarding-${sectionId}-${id}-toggle`}
-        >
-          {title}
-        </button>
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={isOpen}
+            className={cn(
+              'text-body-sm min-w-0 flex-1 truncate text-left font-medium text-foreground transition-colors',
+              'bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              'group-hover/onboarding-subgroup:text-muted-foreground group-focus-visible/onboarding-subgroup:text-muted-foreground'
+            )}
+            data-testid={`coordinator-onboarding-${sectionId}-${id}-toggle`}
+          >
+            {title}
+          </button>
+          {channelSkipped && canUnskipChannel ? (
+            <button
+              type="button"
+              onClick={handleUnskipChannel}
+              aria-label={`Unskip ${title}`}
+              className={cn(
+                'text-caption rounded-control flex-shrink-0 whitespace-nowrap border border-border px-1.5 py-0.5 text-muted-foreground',
+                'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              )}
+              data-testid={`coordinator-onboarding-unskip-channel-${id}`}
+            >
+              Skipped · Undo
+            </button>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={onToggle}
@@ -1565,30 +1581,6 @@ function ChecklistSubgroup({
               </TooltipTrigger>
               <TooltipContent side="left">
                 <p className="text-caption">Skip for now</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : canUnskipChannel ? (
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`Unskip ${title}`}
-                  onClick={handleUnskipChannel}
-                  className={cn(
-                    'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
-                    'flex h-6 w-6 flex-shrink-0 items-center justify-center justify-self-center',
-                    'opacity-0 focus-visible:opacity-100 group-hover/onboarding-subgroup:opacity-100',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-                  )}
-                  data-testid={`coordinator-onboarding-unskip-channel-${id}`}
-                >
-                  <SkipForward className="h-3.5 w-3.5 rotate-180" aria-hidden="true" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p className="text-caption">Unskip</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

@@ -376,7 +376,10 @@ describe('tick formatting', () => {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       };
 
-      const timestamp = new Date('2024-01-15').getTime();
+      // Constructed in local time because toLocaleDateString renders in local
+      // time; parsing '2024-01-15' would pin UTC midnight, which renders as
+      // Jan 14 in zones west of UTC.
+      const timestamp = new Date(2024, 0, 15).getTime();
       expect(formatter(timestamp)).toBe('Jan 15');
     });
 
