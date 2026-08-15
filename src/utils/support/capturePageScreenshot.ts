@@ -4,6 +4,17 @@
  * html2canvas struggles with mask-image, mix-blend-mode, backdrop-filter, and
  * color-mix in light mode — the onclone hook neutralizes those before rasterization.
  */
+
+/** Marks chrome that must stay out of the shot, e.g. the report dialog's own backdrop. */
+export const SCREENSHOT_IGNORE_CLASS = 'support-screenshot-ignore';
+
+/**
+ * Rasterizing a dense view takes seconds, and an image that never resolves
+ * would otherwise leave the capture pending forever. Past this, the ticket is
+ * worth more than the attachment.
+ */
+const CAPTURE_TIMEOUT_MS = 15_000;
+
 export async function capturePageScreenshot(): Promise<string | null> {
   try {
     const { default: html2canvas } = await import('html2canvas');
@@ -18,7 +29,7 @@ export async function capturePageScreenshot(): Promise<string | null> {
       getComputedStyle(document.body).backgroundColor ||
       getComputedStyle(document.documentElement).backgroundColor;
 
-    const canvas = await html2canvas(target, {
+    const render = html2canvas(target, {
       logging: false,
       useCORS: true,
       backgroundColor: bgColor,
@@ -26,6 +37,7 @@ export async function capturePageScreenshot(): Promise<string | null> {
       ignoreElements: (el) => {
         const node = el as HTMLElement;
         if (node.getAttribute?.('role') === 'dialog') return true;
+        if (node.classList?.contains(SCREENSHOT_IGNORE_CLASS)) return true;
         if (node.dataset?.testid === 'mock-mode-indicator') return true;
         return false;
       },
@@ -64,25 +76,42 @@ export async function capturePageScreenshot(): Promise<string | null> {
             }
           });
 
+        // Transparent elements are given their nearest painted ancestor's
+        // colour. Walking in document order means that colour is already
+        // known by the time a child is reached, so each element costs a
+        // single style resolution rather than one for itself and one for
+        // its parent — the dominant cost of this hook on a dense view.
+        const view = clonedDoc.defaultView;
+        if (!view) return;
+        const painted = new Map<Element, string>();
+
         clonedDoc.querySelectorAll('*').forEach((node) => {
           const el = node as HTMLElement;
-          const computed = clonedDoc.defaultView?.getComputedStyle(el);
-          if (!computed) return;
+          let background = view.getComputedStyle(el).backgroundColor;
 
-          if (
-            computed.backgroundColor.includes('color-mix') ||
-            computed.backgroundColor === 'rgba(0, 0, 0, 0)'
-          ) {
-            const parentBg = el.parentElement
-              ? clonedDoc.defaultView?.getComputedStyle(el.parentElement).backgroundColor
-              : bgColor;
+          if (background === 'rgba(0, 0, 0, 0)') {
+            const parentBg = el.parentElement ? painted.get(el.parentElement) : bgColor;
             if (parentBg && parentBg !== 'rgba(0, 0, 0, 0)') {
               el.style.backgroundColor = parentBg;
+              background = parentBg;
             }
           }
+
+          painted.set(el, background);
         });
       },
     });
+
+    // The render is settled here rather than by the race, so a rejection
+    // arriving after the timeout has already given up stays handled.
+    const canvas = await Promise.race([
+      render.catch((error) => {
+        console.warn('[support] screenshot capture failed', error);
+        return null;
+      }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), CAPTURE_TIMEOUT_MS)),
+    ]);
+    if (!canvas) return null;
 
     const dataUrl = canvas.toDataURL('image/png');
     return dataUrl.length > 100 ? dataUrl : null;
