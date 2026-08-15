@@ -111,10 +111,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -122,7 +121,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -236,10 +235,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -247,7 +245,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -347,10 +345,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -358,7 +355,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -462,10 +459,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -473,7 +469,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -573,10 +569,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -584,7 +579,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -684,10 +679,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -695,7 +689,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -799,10 +793,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -810,7 +803,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -912,10 +905,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -923,7 +915,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1021,10 +1013,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1032,7 +1023,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1130,10 +1121,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1141,7 +1131,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1239,10 +1229,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1250,7 +1239,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1348,10 +1337,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1359,7 +1347,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1457,10 +1445,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1468,7 +1455,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1566,10 +1553,9 @@ jobs:
       #
       # The submodule chain is two levels deep and every repository in it has
       # to be listed: console pulls branding and global-agent-rules, and
-      # branding in turn pulls global-cursor-rules and iso-animation. A
-      # missing entry surfaces as "Repository not found" against a repository
-      # that plainly exists, because that is GitHub's answer for one this
-      # token cannot see.
+      # branding in turn pulls iso-animation. A missing entry surfaces as
+      # "Repository not found" against a repository that plainly exists,
+      # because that is GitHub's answer for one this token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1577,7 +1563,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
+          repositories: console,branding,global-agent-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
