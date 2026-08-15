@@ -15,7 +15,7 @@ import { Textarea } from '@/components/UI/textarea';
 import { toast } from 'sonner';
 import { useSupportTicket } from '@/hooks/Support/useSupportTicket';
 import { submitSupportTicket } from '@/lib/support/ticket';
-import { cn } from '@/lib/utils';
+import { SCREENSHOT_IGNORE_CLASS } from '@/utils/support/capturePageScreenshot';
 import { RailNavButton } from '@/components/Pages/Assistants/Rail/RailNavButton';
 
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -43,10 +43,6 @@ function HelpSquareIcon({
       <path d="M12 17.1h.01" />
     </svg>
   );
-}
-
-function CapturingIcon({ className, strokeWidth }: { className?: string; strokeWidth?: number }) {
-  return <Loader2 className={cn(className, 'animate-spin')} strokeWidth={strokeWidth} />;
 }
 
 export default function SupportTicketDialog({ collapsed = false }: { collapsed?: boolean }) {
@@ -86,10 +82,9 @@ export default function SupportTicketDialog({ collapsed = false }: { collapsed?:
   return (
     <>
       <RailNavButton
-        Icon={isCapturing ? CapturingIcon : HelpSquareIcon}
+        Icon={HelpSquareIcon}
         label="Report an issue"
         collapsed={collapsed}
-        disabled={isCapturing}
         onClick={openDialog}
         testId="support-ticket-trigger"
       />
@@ -97,6 +92,7 @@ export default function SupportTicketDialog({ collapsed = false }: { collapsed?:
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent
           className="max-w-2xl overflow-hidden border-border bg-card p-0 shadow-pop-lg"
+          overlayClassName={SCREENSHOT_IGNORE_CLASS}
           data-testid="support-ticket-dialog"
         >
           <div className="bg-muted/30 border-b border-border px-6 py-5">
@@ -115,7 +111,15 @@ export default function SupportTicketDialog({ collapsed = false }: { collapsed?:
             </div>
           </div>
           <div className="space-y-4 bg-card p-6">
-            {screenshotDataUrl ? (
+            {isCapturing ? (
+              <p
+                className="text-caption bg-muted/20 flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-muted-foreground"
+                data-testid="support-ticket-capturing"
+              >
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Capturing a screenshot of your view — you can start writing now.
+              </p>
+            ) : screenshotDataUrl ? (
               <div className="overflow-hidden rounded-lg border border-border bg-background">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

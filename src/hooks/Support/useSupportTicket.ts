@@ -7,6 +7,11 @@
  * feedback.  Accepts the submit function as a parameter so the hook
  * remains testable (callers can pass a mock).
  *
+ * Rasterizing the page costs seconds on a dense view, so the dialog opens
+ * immediately and the capture runs alongside it — the preview fills in when
+ * it lands, and a submit issued mid-capture awaits the in-flight promise so
+ * the screenshot is still attached.
+ *
  * Pattern mirrors:
  *   @/hooks/Billing/useBilling.ts
  *   @/hooks/Assistants/useAssistantActions.ts
@@ -27,7 +32,7 @@ export interface UseSupportTicketReturn {
   isCapturing: boolean;
   isSubmitting: boolean;
   screenshotDataUrl: string | null;
-  openDialog: () => Promise<void>;
+  openDialog: () => void;
   closeDialog: () => void;
   submitTicket: (description: string) => Promise<SupportTicketResult>;
 }
@@ -42,29 +47,32 @@ export function useSupportTicket(submitFn: SubmitFn): UseSupportTicketReturn {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(null);
 
-  // Guard against double-clicks while capture is in progress
-  const capturingRef = useRef(false);
+  // The capture outlives the click, so submit reads the promise rather than
+  // the state; it also identifies the run, letting a result that lands after
+  // a close (or a re-open) be discarded.
+  const captureRef = useRef<Promise<string | null> | null>(null);
 
-  // ── Open (capture screenshot first, then show dialog) ─────────────
-  const openDialog = useCallback(async () => {
-    if (capturingRef.current) return;
-    capturingRef.current = true;
+  // ── Open (show dialog now, capture alongside it) ──────────────────
+  const openDialog = useCallback(() => {
+    setIsOpen(true);
+    setScreenshotDataUrl(null);
     setIsCapturing(true);
 
-    try {
-      setScreenshotDataUrl(await capturePageScreenshot());
-    } catch {
-      setScreenshotDataUrl(null);
-    } finally {
+    const capture = capturePageScreenshot();
+    captureRef.current = capture;
+
+    void capture.then((dataUrl) => {
+      if (captureRef.current !== capture) return;
+      setScreenshotDataUrl(dataUrl);
       setIsCapturing(false);
-      capturingRef.current = false;
-      setIsOpen(true);
-    }
+    });
   }, []);
 
   // ── Close ─────────────────────────────────────────────────────────
   const closeDialog = useCallback(() => {
+    captureRef.current = null;
     setIsOpen(false);
+    setIsCapturing(false);
     setScreenshotDataUrl(null);
   }, []);
 
@@ -75,7 +83,7 @@ export function useSupportTicket(submitFn: SubmitFn): UseSupportTicketReturn {
       try {
         const result = await submitFn({
           description,
-          screenshotDataUrl,
+          screenshotDataUrl: (await captureRef.current) ?? null,
           pageUrl: window.location.pathname,
           userAgent: navigator.userAgent,
         });
@@ -87,7 +95,7 @@ export function useSupportTicket(submitFn: SubmitFn): UseSupportTicketReturn {
         setIsSubmitting(false);
       }
     },
-    [submitFn, screenshotDataUrl, closeDialog]
+    [submitFn, closeDialog]
   );
 
   return {
