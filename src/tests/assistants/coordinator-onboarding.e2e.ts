@@ -33,6 +33,7 @@
 
 import { expect, type Page } from '@playwright/test';
 import {
+  createAssistant,
   createAssistantTest,
   createTestUser,
   cleanupUser,
@@ -41,10 +42,11 @@ import {
   dbExec,
   deleteAllAssistantsForUser,
   orchestraFetch,
-  openAssistantInfoPanel,
   openRailSection,
   openUnitySwitcher,
+  selectAssistantInList,
 } from './helpers';
+import { railSection, railUnitySwitcher } from '../helpers/shell';
 
 const user = createTestUser({ name: 'CoordOnboard', lastName: 'E2E', credits: 50_000 });
 const test = createAssistantTest(user);
@@ -90,11 +92,37 @@ async function expectPickerVisible(page: Page) {
   await expect(page.getByTestId('coordinator-onboarding-pick-chat')).toBeVisible();
 }
 
-/** Open the Coordinator's "Assistant info" panel onboarding sub-tab. */
+/**
+ * Open the Coordinator's "Assistant info" panel onboarding sub-tab.
+ *
+ * While onboarding is running the top bar carries the onboarding progress
+ * shortcut in that slot instead of the generic assistant-info toggle, so the
+ * two affordances are mutually exclusive.
+ */
 async function openOnboardingChecklist(page: Page) {
   const onboardingTab = page.getByTestId('assistant-info-tab-onboarding');
   if (!(await onboardingTab.isVisible({ timeout: 5_000 }).catch(() => false))) {
-    await openAssistantInfoPanel(page);
+    // Which affordance the top bar carries depends on onboarding state, and
+    // both arrive only once the coordinator and its state have loaded.
+    // The unified shell mounts a second, hidden copy of both, so match the
+    // visible instance rather than a bare test id.
+    const onboardingShortcut = page
+      .locator('[data-testid="top-nav-onboarding-shortcut"]:visible')
+      .last();
+    const infoPanelButton = page.locator('[data-testid="assistant-info-button"]:visible').last();
+    const isShortcutVisible = () => onboardingShortcut.isVisible().catch(() => false);
+    await expect
+      .poll(
+        async () => {
+          if (await isShortcutVisible()) return 'shortcut';
+          if (await infoPanelButton.isVisible().catch(() => false)) return 'info-button';
+          return 'pending';
+        },
+        { timeout: 30_000 }
+      )
+      .not.toBe('pending');
+
+    await ((await isShortcutVisible()) ? onboardingShortcut : infoPanelButton).click();
     await expect(onboardingTab).toBeVisible({ timeout: 10_000 });
   }
   await onboardingTab.click();
@@ -119,10 +147,9 @@ async function expectChecklistItemNotDimmed(page: Page, stepId: string) {
 }
 
 async function selectCoordinatorOnboardingSection(page: Page, sectionId: string) {
-  const label = page.getByTestId(`coordinator-onboarding-section-${sectionId}-toggle`);
-  const toggle = label.locator('xpath=ancestor::button[1]');
+  const toggle = page.getByTestId(`coordinator-onboarding-section-${sectionId}-toggle`);
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
-    await label.click();
+    await toggle.click();
   }
 }
 
@@ -133,8 +160,11 @@ async function selectCoordinatorCommunicationSubgroup(page: Page, subgroupId: st
   }
 }
 
-async function expectComingSoonVisible(page: Page) {
-  await expect(page.getByRole('button', { name: /^\[coming soon\]$/ }).first()).toBeVisible();
+/** The "My computer" section's own row, proving the section expanded. */
+async function expectMyComputerRowVisible(page: Page) {
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-my-computer-demo').first()
+  ).toBeVisible();
 }
 
 /**
@@ -148,17 +178,29 @@ async function expectComingSoonVisible(page: Page) {
  * single coordinator and restore the genuine first-time state on the latest
  * row directly — ``intro_watched`` back to false and ``onboarding_active``
  * back to true — so the next visit shows the picker exactly like a first-time user.
+ *
+ * The preceding resolution's write is async, so a single update can land before
+ * it and be overwritten. Re-apply until the read-back sticks, which converges
+ * as soon as that write has arrived.
  */
-function resetCoordinatorIntroWatched() {
-  dbExec(
-    `UPDATE log_event SET data = ` +
-      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_active}', 'true') ` +
-      `WHERE id = (SELECT le.id FROM log_event le ` +
-      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
-      `JOIN context c ON c.id = lec.context_id ` +
-      `WHERE c.name LIKE '${user.id}/%/Coordinator/State' ` +
-      `ORDER BY le.id DESC LIMIT 1);`
-  );
+async function resetCoordinatorIntroWatched() {
+  await expect
+    .poll(
+      () => {
+        dbExec(
+          `UPDATE log_event SET data = ` +
+            `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_active}', 'true') ` +
+            `WHERE id = (SELECT le.id FROM log_event le ` +
+            `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+            `JOIN context c ON c.id = lec.context_id ` +
+            `WHERE c.name LIKE '${user.id}/%/Coordinator/State' ` +
+            `ORDER BY le.id DESC LIMIT 1);`
+        );
+        return readPersistedIntroWatched();
+      },
+      { timeout: 15_000 }
+    )
+    .toBe('false');
 }
 
 /** Read the latest persisted ``intro_watched`` flag for the user's coordinator. */
@@ -267,7 +309,7 @@ async function markCoordinatorOnboardingStepComplete(
 test('picker shows on first visit with no skip or resume affordance @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
@@ -281,7 +323,7 @@ test('checklist allows independent sections to start out of order', async ({
   authedPage: page,
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -342,14 +384,19 @@ test('checklist allows independent sections to start out of order', async ({
     'data-blocked-feedback',
     'true'
   );
+  // Discord's first step is the contact-detail row, so the arrow points past
+  // the locked connect row to the actionable prerequisite behind it.
+  await expect(page.getByTestId('coordinator-onboarding-blocking-arrow-discord-id')).toHaveText(
+    '← Next'
+  );
   await expect(
     page.getByTestId('coordinator-onboarding-blocking-arrow-discord-connect')
-  ).toHaveText('← Locked');
+  ).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
   await selectCoordinatorOnboardingSection(page, 'my-computer');
-  await expectComingSoonVisible(page);
+  await expectMyComputerRowVisible(page);
 
   await selectCoordinatorOnboardingSection(page, 'workspace');
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toBeVisible();
@@ -365,7 +412,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // as done from the BYOD email contact on the Coordinator/State read.
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -408,7 +455,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(appsRow).toBeVisible();
   await expectChecklistItemClickable(page, 'apps');
   await selectCoordinatorOnboardingSection(page, 'my-computer');
-  await expectComingSoonVisible(page);
+  await expectMyComputerRowVisible(page);
   await selectCoordinatorOnboardingSection(page, 'communication');
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
@@ -508,7 +555,7 @@ test('workspace demos complete only when the assistant explicitly marks them don
       `https://www.googleapis.com/auth/userinfo.email') ` +
       `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
   );
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -594,7 +641,7 @@ test('integration onboarding dispatches row and chip events through to explicit 
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -700,7 +747,7 @@ test('the calendar demo only renders once the calendar scope is granted', async 
       `https://www.googleapis.com/auth/userinfo.email') ` +
       `ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;`
   );
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -728,7 +775,7 @@ test('starting a call connects and docks the call in the platform @critical @are
   authedPage: page,
 }) => {
   await enableDevCalls(page);
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
@@ -749,7 +796,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
 }) => {
   await enableDevCalls(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
@@ -767,7 +814,7 @@ test('mobile onboarding keeps the docked T-W1N call visible instead of auto-open
 test('resolving the picker persists intro_watched and reload lands on T-W1N without auto-opening Assistant info @critical @area(assistants.coordinator-onboarding)', async ({
   authedPage: page,
 }) => {
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
@@ -791,7 +838,7 @@ test('keeps the onboarding checklist visible while navigating assistant sections
   authedPage: page,
 }) => {
   createPersonalCoordinator(user.id);
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -811,11 +858,11 @@ test('keeps the onboarding checklist visible while navigating assistant sections
     { section: 'contacts', pane: 'contacts-pane' },
   ] as const) {
     await openRailSection(page, section);
-    await expect(page.getByTestId(`rail-section-${section}`)).toHaveAttribute(
-      'aria-current',
-      'page',
-      { timeout: 10_000 }
-    );
+    // Scope to the live rail: the unified shell keeps a second, hidden rail
+    // mounted, and a bare test id matches both.
+    await expect(railSection(page, section)).toHaveAttribute('aria-current', 'page', {
+      timeout: 10_000,
+    });
     await expect(page.getByTestId(pane)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 5_000 });
     await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
@@ -828,7 +875,7 @@ test('inactive onboarding offers a return affordance that re-enters onboarding',
   authedPage: page,
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   // Resolve the picker into the platform so the coordinator is selected
   // and the Assistant-info onboarding tab is reachable.
@@ -878,7 +925,7 @@ test('skipping an actionable checklist row does not trigger the row action', asy
   // Slack connect). Prefer Slack when that action is wired; otherwise use the
   // always-wired email reference trigger.
   const coordinator = createPersonalCoordinator(user.id);
-  resetCoordinatorIntroWatched();
+  await resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -912,4 +959,46 @@ test('skipping an actionable checklist row does not trigger the row action', asy
   await expect
     .poll(() => readPersistedSkippedStepIds(coordinator.agentId), { timeout: 10_000 })
     .toEqual(expect.arrayContaining([stepId]));
+});
+
+test('opening onboarding from the top bar confirms before switching away from another teammate', async ({
+  authedPage: page,
+}) => {
+  createPersonalCoordinator(user.id);
+  const other = createAssistant({ userId: user.id, firstName: 'Sidebar', surname: 'Teammate' });
+
+  await resetCoordinatorIntroWatched();
+
+  // Resolve the picker into the platform, leaving onboarding running so the
+  // top-bar shortcut renders.
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await selectAssistantInList(page, other.agentId);
+  const switcher = railUnitySwitcher(page);
+  await expect(switcher).toContainText('Sidebar', { timeout: 15_000 });
+
+  // The shortcut names both sides of the switch instead of performing it.
+  await page.getByTestId('top-nav-onboarding-shortcut').first().click();
+  const confirmDialog = page.getByTestId('onboarding-switch-teammate-dialog');
+  await expect(confirmDialog).toBeVisible({ timeout: 10_000 });
+  await expect(confirmDialog).toContainText('T-W1N');
+  await expect(confirmDialog).toContainText('Sidebar Teammate');
+
+  // Cancelling leaves the selection where it was.
+  await page.getByTestId('onboarding-switch-teammate-cancel').click();
+  await expect(confirmDialog).toHaveCount(0, { timeout: 10_000 });
+  await expect(switcher).toContainText('Sidebar');
+  await expect(page.getByTestId('coordinator-onboarding-checklist')).toHaveCount(0);
+
+  // Confirming selects the Coordinator and opens its onboarding checklist.
+  await page.getByTestId('top-nav-onboarding-shortcut').first().click();
+  await page.getByTestId('onboarding-switch-teammate-confirm').click();
+  await expect(confirmDialog).toHaveCount(0, { timeout: 10_000 });
+  await expect(switcher).toContainText('T-W1N', { timeout: 15_000 });
+  await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
+    timeout: 15_000,
+  });
 });
