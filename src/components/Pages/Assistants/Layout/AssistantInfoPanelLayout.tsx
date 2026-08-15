@@ -133,6 +133,8 @@ interface AssistantInfoPanelLayoutProps {
   latestUserMessageAt?: Date | null;
   onOpenUserSettings?: (tab?: string) => void;
   hasIncompleteOnboarding?: boolean;
+  /** True while the Coordinator's onboarding state read is still in flight. */
+  isOnboardingStatusPending?: boolean;
   infoPanelFocusLayoutRequest?: number;
   coordinatorOnboarding?: AssistantInfoPanelCoordinatorOnboarding;
   onOpenChatSection?: () => void;
@@ -167,6 +169,7 @@ export function AssistantInfoPanelLayout({
   latestUserMessageAt = null,
   onOpenUserSettings,
   hasIncompleteOnboarding = false,
+  isOnboardingStatusPending = false,
   infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
   onOpenChatSection,
@@ -285,6 +288,10 @@ export function AssistantInfoPanelLayout({
   React.useEffect(() => {
     if (!assistant?.agentId) return;
     if (initializedForRef.current === assistant.agentId) return;
+    // The Coordinator's default is the opposite of every other assistant's, and
+    // this runs once per assistant. Settling before the onboarding state read
+    // lands would pick the generic default and never revisit it.
+    if (assistant.isCoordinator === true && isOnboardingStatusPending) return;
     initializedForRef.current = assistant.agentId;
 
     const isCoordinatorOnboardingPanel =
@@ -314,6 +321,7 @@ export function AssistantInfoPanelLayout({
     assistant?.agentId,
     assistant?.isCoordinator,
     hasIncompleteOnboarding,
+    isOnboardingStatusPending,
     infoPanelFocusLayoutRequest,
     setIsInfoOpenAndPersist,
   ]);
