@@ -105,10 +105,16 @@ jobs:
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 25
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -116,7 +122,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -224,10 +230,16 @@ jobs:
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -235,7 +247,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -329,10 +341,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -340,7 +358,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -438,10 +456,16 @@ jobs:
       matrix:
         shard: [1, 2, 3]
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -449,7 +473,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -543,10 +567,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -554,7 +584,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -648,10 +678,16 @@ jobs:
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -659,7 +695,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -757,10 +793,16 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5]
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -768,7 +810,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -864,10 +906,16 @@ jobs:
       matrix:
         shard: [1, 2]
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -875,7 +923,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -967,10 +1015,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -978,7 +1032,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1070,10 +1124,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1081,7 +1141,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1173,10 +1233,16 @@ jobs:
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1184,7 +1250,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1276,10 +1342,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1287,7 +1359,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1379,10 +1451,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1390,7 +1468,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -1482,10 +1560,16 @@ jobs:
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 45
     steps:
-      # Scoped to what this job checks out: console itself, its two private
-      # submodules, and orchestra. Revoked when the job ends. 4606137 is the
-      # unifyai-ci-clone App, which holds Contents: Read only; an App id is
-      # not a secret.
+      # Scoped to what this job checks out and revoked when the job ends.
+      # 4606137 is the unifyai-ci-clone App, which holds Contents: Read only;
+      # an App id is not a secret.
+      #
+      # The submodule chain is two levels deep and every repository in it has
+      # to be listed: console pulls branding and global-agent-rules, and
+      # branding in turn pulls global-cursor-rules and iso-animation. A
+      # missing entry surfaces as "Repository not found" against a repository
+      # that plainly exists, because that is GitHub's answer for one this
+      # token cannot see.
       - name: Mint a token that can read the private repos
         id: clone-token
         uses: actions/create-github-app-token@v3
@@ -1493,7 +1577,7 @@ jobs:
           app-id: '4606137'
           private-key: ${{ secrets.CI_CLONE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: console,branding,global-agent-rules,orchestra
+          repositories: console,branding,global-agent-rules,global-cursor-rules,iso-animation,orchestra
 
       - name: Checkout Console
         uses: actions/checkout@v4
