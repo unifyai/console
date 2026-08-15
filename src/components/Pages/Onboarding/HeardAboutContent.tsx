@@ -7,6 +7,7 @@ import { Button } from '@/components/UI/button';
 import { Textarea } from '@/components/UI/textarea';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import { ResponseProps } from '@/types/common';
+import { clearFirstTouch, firstTouchAttribution, readFirstTouch } from '@/utils/user/firstTouch';
 
 export const HEARD_ABOUT_CHANNELS = [
   {
@@ -77,6 +78,10 @@ interface HeardAboutContentProps {
 /**
  * First account-onboarding step: how the user heard about Unify.
  *
+ * Sends the self-reported channel together with the browser's remembered
+ * first touch (UTMs, external referrer, landing URL), so observed and
+ * claimed attribution land in the same `step_data` row.
+ *
  * Advances to workspace_setup and stays on /login/onboarding so the
  * workspace picker renders next.
  */
@@ -103,6 +108,7 @@ const HeardAboutContent = ({ onUpdateOnboarding, onPatchSession }: HeardAboutCon
     setError(undefined);
     setIsLoading(true);
 
+    const firstTouch = readFirstTouch();
     let failure: ResponseProps | null;
     try {
       failure = await onUpdateOnboarding({
@@ -110,6 +116,7 @@ const HeardAboutContent = ({ onUpdateOnboarding, onPatchSession }: HeardAboutCon
         stepData: {
           heardAbout: channel,
           ...(trimmed ? { heardAboutDetail: trimmed.slice(0, 500) } : {}),
+          ...(firstTouch ? firstTouchAttribution(firstTouch) : {}),
         },
       });
     } catch {
@@ -122,6 +129,7 @@ const HeardAboutContent = ({ onUpdateOnboarding, onPatchSession }: HeardAboutCon
       return;
     }
 
+    clearFirstTouch();
     await onPatchSession({ onboardingStep: 'workspace_setup' }, '/login/onboarding');
   }, [channel, detail, detailRequired, onUpdateOnboarding, onPatchSession]);
 

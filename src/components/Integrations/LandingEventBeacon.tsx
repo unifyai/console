@@ -12,6 +12,14 @@
  * service), this component POSTs a single small JSON beacon to the
  * brain link-tracker service.
  *
+ * It is also where the browser remembers the visitor's first touch
+ * (`@/utils/user/firstTouch`): the `utm_*` parameters and any external
+ * referrer on the first page seen, kept in localStorage until the
+ * account-onboarding heard-about step sends them to Orchestra beside the
+ * self-reported answer. That memory is wider than the beacon — a bare
+ * external referrer with no UTMs is still a first touch — but nothing
+ * leaves the browser for it until onboarding.
+ *
  * Privacy posture
  *  - The beacon ONLY fires when `utm_source` is present in the URL.
  *    Organic / direct traffic is never reported.
@@ -38,6 +46,7 @@
  */
 
 import { useEffect } from 'react';
+import { rememberFirstTouch } from '@/utils/user/firstTouch';
 
 const DEFAULT_TRACKER_URL = 'https://r.unify.ai';
 const SESSION_KEY_PREFIX = 'unify_landing_event_';
@@ -116,6 +125,7 @@ async function sendBeacon(trackerUrl: string, query: Record<string, string>) {
 
 export function LandingEventBeacon() {
   useEffect(() => {
+    rememberFirstTouch();
     const query = queryFromLocation();
     if (!query) return;
     if (alreadyBeaconedThisSession(query)) return;

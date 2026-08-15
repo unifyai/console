@@ -179,7 +179,9 @@ test.describe('Onboarding', () => {
     const email = uniqueEmail('onboard-heard');
     const password = 'OnboardP@ss1';
 
-    await page.goto('/login');
+    // Land with campaign parameters: the heard-about step sends the
+    // remembered first touch beside the self-reported answer.
+    await page.goto('/login?utm_source=test&utm_campaign=kpi');
     await registerThroughVerification(page, email, password);
 
     if (!page.url().includes('/login/onboarding')) {
@@ -206,6 +208,15 @@ test.describe('Onboarding', () => {
         `SELECT step_data->>'heard_about_detail' FROM onboarding_status WHERE user_id = '${userId}'`
       )
     ).toBe('Conference booth');
+    expect(
+      dbExec(`SELECT step_data->>'utm_source' FROM onboarding_status WHERE user_id = '${userId}'`)
+    ).toBe('test');
+    expect(
+      dbExec(`SELECT step_data->>'utm_campaign' FROM onboarding_status WHERE user_id = '${userId}'`)
+    ).toBe('kpi');
+    expect(
+      dbExec(`SELECT step_data->>'landing_url' FROM onboarding_status WHERE user_id = '${userId}'`)
+    ).toBe('/login?utm_source=test&utm_campaign=kpi');
     expect(dbExec(`SELECT current_step FROM onboarding_status WHERE user_id = '${userId}'`)).toBe(
       'workspace_setup'
     );
