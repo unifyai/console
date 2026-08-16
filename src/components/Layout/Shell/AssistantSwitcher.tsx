@@ -136,6 +136,28 @@ export function AssistantSwitcher({
     if (!pickerWasOpenRef.current) setSwitcherOpen(true);
   }, [chatActive, onOpenChat]);
 
+  /**
+   * Picking a teammate is the whole errand, so the list dismisses itself on the
+   * way out and leaves the answer on the face behind it. The list's other exits
+   * stay open on purpose: the info disclosure is read in place, and hire /
+   * create-group raise a nested overlay this popover deliberately sits behind.
+   */
+  const { onShowProfile, onSelectHuman, onSelectTeam, onSelectGroup } = listProps;
+  const selectionProps = React.useMemo(() => {
+    const dismissThen =
+      <Args extends unknown[]>(select: (...args: Args) => void) =>
+      (...args: Args) => {
+        setSwitcherOpen(false);
+        select(...args);
+      };
+    return {
+      onShowProfile: dismissThen(onShowProfile),
+      onSelectHuman: onSelectHuman && dismissThen(onSelectHuman),
+      onSelectTeam: onSelectTeam && dismissThen(onSelectTeam),
+      onSelectGroup: onSelectGroup && dismissThen(onSelectGroup),
+    };
+  }, [onShowProfile, onSelectHuman, onSelectTeam, onSelectGroup]);
+
   const showSkeletonFace = !activeUnity && !activeEntityFace && isInitialAssistantIdentityLoading;
   const unityName = activeEntityFace
     ? activeEntityFace.label
@@ -334,7 +356,12 @@ export function AssistantSwitcher({
           if (nestedOverlayOpen) event.preventDefault();
         }}
       >
-        <AssistantList {...listProps} isFolded={false} onToggleFold={undefined} />
+        <AssistantList
+          {...listProps}
+          {...selectionProps}
+          isFolded={false}
+          onToggleFold={undefined}
+        />
       </PopoverContent>
     </Popover>
   );

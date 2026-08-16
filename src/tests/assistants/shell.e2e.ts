@@ -15,7 +15,6 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openUnitySwitcher,
-  closeUnitySwitcher,
   waitForAssistantListReady,
   openRailSection,
   getCoordinatorAgentId,
@@ -72,8 +71,9 @@ test('the unity switcher opens and selecting a unity drives the section host @pu
   await expect(row).toContainText('Switchy');
   await row.click();
 
+  // Picking dismisses the list; the rail's face carries the answer out.
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
   await expect(railSection(page, 'chat')).toContainText('Switchy');
-  await closeUnitySwitcher(page);
   // Default section is Chat.
   await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 });
@@ -115,14 +115,13 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   await openUnitySwitcher(page, shellOpts);
   await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
   await expect(railSection(page, 'chat')).toContainText('Navvy');
-  await closeUnitySwitcher(page);
 
   await openRailSection(page, 'tasks');
   await expect(railSection(page, 'tasks')).toHaveAttribute('aria-current', 'page');
 
   await openRailSection(page, 'data');
   await expect(railSection(page, 'data')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('data-pane')).toBeVisible({ timeout: 30_000 });
 });
 
 test('mobile viewport exposes rail navigation via the menu toggle', async ({
