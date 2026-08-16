@@ -252,7 +252,7 @@ export async function wakeAssistantSession(assistantId: string): Promise<Respons
       return { detail: 'Server configuration error: admin key not set.' };
     }
 
-    if (!process.env.LOCAL_ADAPTERS_URL && !process.env.UNITY_ADAPTERS_URL && isSelfHost()) {
+    if (!process.env.LOCAL_ADAPTERS_URL && !process.env.UNIFY_ADAPTERS_URL && isSelfHost()) {
       return { info: 'Self-host runtime start skipped (no adapters configured).' };
     }
 
@@ -336,7 +336,7 @@ async function dispatchAssistantUpdateRefresh(assistantId: string): Promise<void
     const parsedId = Number.parseInt(assistantId, 10);
     if (!Number.isFinite(parsedId)) return;
 
-    if (!process.env.LOCAL_ADAPTERS_URL && !process.env.UNITY_ADAPTERS_URL && isSelfHost()) {
+    if (!process.env.LOCAL_ADAPTERS_URL && !process.env.UNIFY_ADAPTERS_URL && isSelfHost()) {
       return;
     }
 
@@ -548,9 +548,9 @@ async function teardownDesktopTunnel(
 
   const hasCommsUrl =
     !!process.env.COMMUNICATION_URL ||
-    !!process.env.UNITY_COMMS_URL ||
+    !!process.env.UNIFY_COMMS_URL ||
     !!process.env.LOCAL_ADAPTERS_URL ||
-    !!process.env.UNITY_ADAPTERS_URL;
+    !!process.env.UNIFY_ADAPTERS_URL;
   if (!hasCommsUrl) return;
 
   if (httpTunnelId) await deleteTunnelById(apiKey, httpTunnelId);

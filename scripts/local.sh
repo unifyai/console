@@ -49,7 +49,7 @@
 #
 # Environment:
 #   ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)
-#   UNITY_REPO_PATH           Path to unity repo (default: ../unity)
+#   UNIFY_REPO_PATH           Path to unity repo (default: ../unity)
 #   CONSOLE_PORT              Next.js port (default: 3000)
 #   ORCHESTRA_PORT            Orchestra port (default: 8000)
 #
@@ -65,21 +65,21 @@ CONSOLE_REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ORCHESTRA_REPO_PATH="${ORCHESTRA_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../orchestra" 2>/dev/null && pwd -P || echo "")}"
 ORCHESTRA_LOCAL_SCRIPT="$ORCHESTRA_REPO_PATH/scripts/local.sh"
 
-UNITY_REPO_PATH="${UNITY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity" 2>/dev/null && pwd -P || echo "")}"
-UNITY_LOCAL_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/local.sh}"
-UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
-ENSURE_PREREQS_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/ensure_prereqs.sh}"
-UNITY_DEPLOY_REPO_PATH="${UNITY_DEPLOY_REPO_PATH:-${DEPLOY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity-deploy" 2>/dev/null && pwd -P || echo "")}}"
-UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT="${UNITY_DEPLOY_REPO_PATH:+$UNITY_DEPLOY_REPO_PATH/selfhost/self_host_env.sh}"
-UNITY_LEGACY_SELF_HOST_ENV_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_env.sh}"
+UNIFY_REPO_PATH="${UNIFY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity" 2>/dev/null && pwd -P || echo "")}"
+UNIFY_LOCAL_SCRIPT="${UNIFY_REPO_PATH:+$UNIFY_REPO_PATH/scripts/local.sh}"
+UNIFY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
+ENSURE_PREREQS_SCRIPT="${UNIFY_REPO_PATH:+$UNIFY_REPO_PATH/scripts/ensure_prereqs.sh}"
+UNIFY_DEPLOY_REPO_PATH="${UNIFY_DEPLOY_REPO_PATH:-${DEPLOY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity-deploy" 2>/dev/null && pwd -P || echo "")}}"
+UNIFY_DEPLOY_SELF_HOST_ENV_SCRIPT="${UNIFY_DEPLOY_REPO_PATH:+$UNIFY_DEPLOY_REPO_PATH/selfhost/self_host_env.sh}"
+UNIFY_LEGACY_SELF_HOST_ENV_SCRIPT="${UNIFY_REPO_PATH:+$UNIFY_REPO_PATH/scripts/self_host_env.sh}"
 if [[ -z "${SELF_HOST_ENV_SCRIPT:-}" ]]; then
-  if [[ -n "$UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT" && -f "$UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT" ]]; then
-    SELF_HOST_ENV_SCRIPT="$UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT"
+  if [[ -n "$UNIFY_DEPLOY_SELF_HOST_ENV_SCRIPT" && -f "$UNIFY_DEPLOY_SELF_HOST_ENV_SCRIPT" ]]; then
+    SELF_HOST_ENV_SCRIPT="$UNIFY_DEPLOY_SELF_HOST_ENV_SCRIPT"
   else
-    SELF_HOST_ENV_SCRIPT="$UNITY_LEGACY_SELF_HOST_ENV_SCRIPT"
+    SELF_HOST_ENV_SCRIPT="$UNIFY_LEGACY_SELF_HOST_ENV_SCRIPT"
   fi
 fi
-SELF_HOST_DESKTOP_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_desktop.sh}"
+SELF_HOST_DESKTOP_SCRIPT="${UNIFY_REPO_PATH:+$UNIFY_REPO_PATH/scripts/self_host_desktop.sh}"
 
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
@@ -228,15 +228,15 @@ check_gcloud() {
 }
 
 load_self_host_runtime_env() {
-  if [[ -z "${UNITY_REPO_PATH:-}" || ! -f "$SELF_HOST_ENV_SCRIPT" ]]; then
+  if [[ -z "${UNIFY_REPO_PATH:-}" || ! -f "$SELF_HOST_ENV_SCRIPT" ]]; then
     return 0
   fi
-  export UNITY_HOME="${UNITY_HOME:-$HOME/.unity}"
-  export SELF_HOST_STATE_DIR="${SELF_HOST_STATE_DIR:-$UNITY_HOME}"
+  export UNIFY_HOME="${UNIFY_HOME:-$HOME/.unity}"
+  export SELF_HOST_STATE_DIR="${SELF_HOST_STATE_DIR:-$UNIFY_HOME}"
   # shellcheck disable=SC1090
   source "$SELF_HOST_ENV_SCRIPT"
   export_self_host_coordinator_runtime_file
-  load_self_host_repo_env_file "$UNITY_REPO_PATH/.env"
+  load_self_host_repo_env_file "$UNIFY_REPO_PATH/.env"
   if declare -F self_host_export_livekit_backend &>/dev/null; then
     self_host_export_livekit_backend
   fi
@@ -257,9 +257,9 @@ keys = [
     "NEXTAUTH_URL",
     "ORCHESTRA_URL",
     "LOCAL_ADAPTERS_URL",
-    "UNITY_ADAPTERS_URL",
+    "UNIFY_ADAPTERS_URL",
     "COMMUNICATION_URL",
-    "UNITY_COMMS_URL",
+    "UNIFY_COMMS_URL",
     "PUBSUB_EMULATOR_HOST",
     "GCP_PROJECT_ID",
     "PUBSUB_TOPIC_SUFFIX",
@@ -301,7 +301,7 @@ required = [
     "NEXT_PUBLIC_CONSOLE_DEBUG",
     "ORCHESTRA_URL",
     "LOCAL_ADAPTERS_URL",
-    "UNITY_ADAPTERS_URL",
+    "UNIFY_ADAPTERS_URL",
     "PUBSUB_EMULATOR_HOST",
     "LIVEKIT_URL",
     "LIVEKIT_API_KEY_SHA256",
@@ -325,10 +325,10 @@ ensure_service_gateway() {
   if declare -F self_host_gateway_base_url &>/dev/null; then
     gateway_url="$(self_host_gateway_base_url)"
   else
-    gateway_url="http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
+    gateway_url="http://${UNIFY_GATEWAY_HOST:-127.0.0.1}:${UNIFY_GATEWAY_PORT:-8001}"
   fi
 
-  export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+  export UNIFY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
     export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0"
   fi
@@ -350,7 +350,7 @@ ensure_service_gateway() {
   fi
 
   log_info "Starting Unity gateway for service runtime ($gateway_url) ..."
-  if ! UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" start-gateway; then
+  if ! UNIFY_STACK_ORCHESTRATOR=console-local-harness bash "$UNIFY_LOCAL_SCRIPT" start-gateway; then
     log_error "Failed to start Unity gateway"
     return 1
   fi
@@ -365,7 +365,7 @@ start_self_host_stack_gateway() {
   local gateway_url
   gateway_url="$(unity_gateway_base_url)"
 
-  export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_STACK:-stack}"
+  export UNIFY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_STACK:-stack}"
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
     export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0"
   fi
@@ -393,7 +393,7 @@ start_self_host_stack_gateway() {
     append_workspace_oauth_env gateway_env
   fi
 
-  if ! env UNITY_STACK_ORCHESTRATOR=console-local-harness "${gateway_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start-gateway; then
+  if ! env UNIFY_STACK_ORCHESTRATOR=console-local-harness "${gateway_env[@]}" bash "$UNIFY_LOCAL_SCRIPT" start-gateway; then
     log_error "Failed to start Unity gateway"
     return 1
   fi
@@ -561,7 +561,7 @@ start_orchestra() {
       && self_host_desktop_enabled \
       && ! orchestra_listens_on_lan; then
       log_info "Restarting Orchestra so desktop containers can reach it on 0.0.0.0 ..."
-      UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
+      UNIFY_STACK_ORCHESTRATOR=console-local-harness bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
       sleep 1
     else
       log_success "Orchestra already running on port $ORCHESTRA_PORT"
@@ -584,9 +584,9 @@ start_orchestra() {
   # the shared cross-repo logs/all/ and per-request JSON traces to logs/orchestra/
   # in the unity repo, so a run's Orchestra spans correlate with unity/unify/
   # unillm. Opt-out by exporting these beforehand.
-  if [[ -n "${UNITY_REPO_PATH:-}" ]]; then
-    export ORCHESTRA_OTEL_LOG_DIR="${ORCHESTRA_OTEL_LOG_DIR:-$UNITY_REPO_PATH/logs/all}"
-    export ORCHESTRA_LOG_DIR="${ORCHESTRA_LOG_DIR:-$UNITY_REPO_PATH/logs/orchestra}"
+  if [[ -n "${UNIFY_REPO_PATH:-}" ]]; then
+    export ORCHESTRA_OTEL_LOG_DIR="${ORCHESTRA_OTEL_LOG_DIR:-$UNIFY_REPO_PATH/logs/all}"
+    export ORCHESTRA_LOG_DIR="${ORCHESTRA_LOG_DIR:-$UNIFY_REPO_PATH/logs/orchestra}"
     mkdir -p "$ORCHESTRA_OTEL_LOG_DIR" "$ORCHESTRA_LOG_DIR" 2>/dev/null || true
   fi
   local composio_key="${COMPOSIO_API_KEY:-$(read_env_value COMPOSIO_API_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
@@ -612,12 +612,12 @@ start_orchestra() {
   # (secret-landed narration, onboarding-session-started, ...) would
   # fail with "Request URL is missing an 'http://' or 'https://' protocol."
   if [[ -n "$CHAT_ADAPTERS_URL" ]]; then
-    export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-    log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
+    export UNIFY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+    log_info "  UNIFY_ADAPTERS_URL=$UNIFY_ADAPTERS_URL"
   fi
   if [[ -n "$CHAT_COMMS_URL" ]]; then
-    export UNITY_COMMS_URL="$CHAT_COMMS_URL"
-    log_info "  UNITY_COMMS_URL=$UNITY_COMMS_URL"
+    export UNIFY_COMMS_URL="$CHAT_COMMS_URL"
+    log_info "  UNIFY_COMMS_URL=$UNIFY_COMMS_URL"
   fi
   if [[ "${SELF_HOST:-0}" == "1" ]]; then
     export SELF_HOST=1
@@ -685,7 +685,7 @@ start_orchestra() {
     fi
   fi
 
-  if ! UNITY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
+  if ! UNIFY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
     log_error "Failed to start Orchestra"
     return 1
   fi
@@ -695,7 +695,7 @@ start_orchestra() {
 
 stop_orchestra() {
   log_info "Stopping Orchestra..."
-  UNITY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
+  UNIFY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
   log_success "Orchestra stopped"
 }
 
@@ -706,7 +706,7 @@ stop_orchestra() {
 # stale logins (and stale credit balances) in the Quick Sign-In panel.
 purge_orchestra_db() {
   log_info "Wiping Orchestra database (fresh schema + single seed on start)..."
-  UNITY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" purge 2>/dev/null || true
+  UNIFY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" purge 2>/dev/null || true
   log_success "Orchestra database wiped"
 }
 
@@ -717,16 +717,16 @@ purge_orchestra_db() {
 check_unity_gateway_prerequisites() {
   if ! is_unity_available; then
     log_error "Unity repo not found. Expected at: $CONSOLE_REPO_PATH/../unity"
-    log_info "Set UNITY_REPO_PATH to override."
+    log_info "Set UNIFY_REPO_PATH to override."
     log_info "(Only required for --chat; --pubsub works without it.)"
     return 1
   fi
-  log_success "Unity repo found at: $UNITY_REPO_PATH"
+  log_success "Unity repo found at: $UNIFY_REPO_PATH"
 }
 
 unity_gateway_python() {
-  if [[ -x "$UNITY_REPO_PATH/.venv/bin/python" ]]; then
-    echo "$UNITY_REPO_PATH/.venv/bin/python"
+  if [[ -x "$UNIFY_REPO_PATH/.venv/bin/python" ]]; then
+    echo "$UNIFY_REPO_PATH/.venv/bin/python"
   else
     echo "python3"
   fi
@@ -738,7 +738,7 @@ cmd_gateway_setup() {
   fi
   local python_bin
   python_bin="$(unity_gateway_python)"
-  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  local env_file="${UNIFY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
   local interactive_default="true"
   local arg
   for arg in "$@"; do
@@ -757,7 +757,7 @@ cmd_gateway_setup() {
   fi
   log_info "Delegating to Unity gateway setup..."
   (
-    cd "$UNITY_REPO_PATH"
+    cd "$UNIFY_REPO_PATH"
     ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unify.gateway "${args[@]}"
   )
 }
@@ -768,10 +768,10 @@ cmd_gateway_doctor() {
   fi
   local python_bin
   python_bin="$(unity_gateway_python)"
-  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  local env_file="${UNIFY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
   log_info "Delegating to Unity gateway doctor..."
   (
-    cd "$UNITY_REPO_PATH"
+    cd "$UNIFY_REPO_PATH"
     ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unify.gateway doctor --env-file "$env_file" "$@"
   )
 }
@@ -782,21 +782,21 @@ cmd_gateway_urls() {
   fi
   local python_bin
   python_bin="$(unity_gateway_python)"
-  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  local env_file="${UNIFY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
   local public_url
-  public_url="${UNITY_GATEWAY_PUBLIC_URL:-$(read_env_value UNITY_GATEWAY_PUBLIC_URL "$env_file" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+  public_url="${UNIFY_GATEWAY_PUBLIC_URL:-$(read_env_value UNIFY_GATEWAY_PUBLIC_URL "$env_file" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
   log_info "Delegating to Unity gateway URL printer..."
   (
-    cd "$UNITY_REPO_PATH"
-    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" UNITY_GATEWAY_PUBLIC_URL="$public_url" "$python_bin" -m unify.gateway urls "$@"
+    cd "$UNIFY_REPO_PATH"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" UNIFY_GATEWAY_PUBLIC_URL="$public_url" "$python_bin" -m unify.gateway urls "$@"
   )
 }
 
 unity_gateway_base_url() {
-  if [[ -n "${UNITY_GATEWAY_PUBLIC_URL:-}" ]]; then
-    echo "$UNITY_GATEWAY_PUBLIC_URL"
+  if [[ -n "${UNIFY_GATEWAY_PUBLIC_URL:-}" ]]; then
+    echo "$UNIFY_GATEWAY_PUBLIC_URL"
   else
-    echo "http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
+    echo "http://${UNIFY_GATEWAY_HOST:-127.0.0.1}:${UNIFY_GATEWAY_PORT:-8001}"
   fi
 }
 
@@ -804,14 +804,14 @@ configure_unity_gateway_urls() {
   CHAT_ADAPTERS_URL="$(unity_gateway_base_url)"
   CHAT_TEST_ASSISTANT_ID="${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
 
-  if [[ -f "$UNITY_GATEWAY_CONFIG_FILE" ]]; then
+  if [[ -f "$UNIFY_GATEWAY_CONFIG_FILE" ]]; then
     while IFS='=' read -r key value; do
       case "$key" in
-        UNITY_COMMS_URL)     CHAT_ADAPTERS_URL="$value" ;;
-        UNITY_ADAPTERS_URL)  CHAT_ADAPTERS_URL="$value" ;;
+        UNIFY_COMMS_URL)     CHAT_ADAPTERS_URL="$value" ;;
+        UNIFY_ADAPTERS_URL)  CHAT_ADAPTERS_URL="$value" ;;
         TEST_ASSISTANT_ID)   CHAT_TEST_ASSISTANT_ID="$value" ;;
       esac
-    done < "$UNITY_GATEWAY_CONFIG_FILE"
+    done < "$UNIFY_GATEWAY_CONFIG_FILE"
   fi
 
   log_info "Configured Unity gateway:"
@@ -828,11 +828,11 @@ CHAT_TEST_ASSISTANT_ID=""
 # =============================================================================
 
 is_unity_available() {
-  [[ -n "$UNITY_REPO_PATH" && -f "$UNITY_LOCAL_SCRIPT" ]]
+  [[ -n "$UNIFY_REPO_PATH" && -f "$UNIFY_LOCAL_SCRIPT" ]]
 }
 
 is_unity_running() {
-  is_unity_available && bash "$UNITY_LOCAL_SCRIPT" check &>/dev/null
+  is_unity_available && bash "$UNIFY_LOCAL_SCRIPT" check &>/dev/null
 }
 
 start_unity() {
@@ -840,7 +840,7 @@ start_unity() {
 
   if ! is_unity_available; then
     log_warn "Unity repo not found at $CONSOLE_REPO_PATH/../unity — skipping."
-    log_info "Set UNITY_REPO_PATH to override. Chat will work but no responses will come back."
+    log_info "Set UNIFY_REPO_PATH to override. Chat will work but no responses will come back."
     return 0
   fi
 
@@ -955,7 +955,7 @@ start_unity() {
     unity_args+=(--full)
   fi
 
-  if ! env UNITY_STACK_ORCHESTRATOR=console-local-harness "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" "${unity_args[@]}"; then
+  if ! env UNIFY_STACK_ORCHESTRATOR=console-local-harness "${unity_env[@]}" bash "$UNIFY_LOCAL_SCRIPT" "${unity_args[@]}"; then
     log_warn "Unity failed to start — chat will work but no responses will come back."
     return 0
   fi
@@ -964,7 +964,7 @@ start_unity() {
 }
 
 stop_unity() {
-  if [[ "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]] \
+  if [[ "${UNIFY_ALLOW_RUNTIME_STOP:-0}" != "1" ]] \
     && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
     && self_host_should_preserve_runtime_on_interactive_stop; then
     if declare -F self_host_adopt_coordinator_for_service &>/dev/null; then
@@ -978,7 +978,7 @@ stop_unity() {
 
   if is_unity_available; then
     log_info "Stopping Unity..."
-    UNITY_STACK_ORCHESTRATOR=console-local-harness UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    UNIFY_STACK_ORCHESTRATOR=console-local-harness UNIFY_ALLOW_RUNTIME_STOP=1 bash "$UNIFY_LOCAL_SCRIPT" stop 2>/dev/null || true
     if [[ -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
       bash "$SELF_HOST_DESKTOP_SCRIPT" stop 2>/dev/null || true
     fi
@@ -1039,8 +1039,8 @@ ensure_assistant_pubsub_topics() {
   local suffix="$PUBSUB_TOPIC_SUFFIX_VAL"
   local emulator_url
 
-  UNITY_INBOUND_SUB_RECREATED=0
-  export UNITY_INBOUND_SUB_RECREATED
+  UNIFY_INBOUND_SUB_RECREATED=0
+  export UNIFY_INBOUND_SUB_RECREATED
 
   if [[ -z "$agent_id" ]]; then
     return 0
@@ -1110,8 +1110,8 @@ ensure_assistant_pubsub_topics() {
     -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"inbound\\\"\"}" \
     2>/dev/null || true
 
-  UNITY_INBOUND_SUB_RECREATED=1
-  export UNITY_INBOUND_SUB_RECREATED
+  UNIFY_INBOUND_SUB_RECREATED=1
+  export UNIFY_INBOUND_SUB_RECREATED
   log_success "Inbound subscription ready: $inbound_sub"
 }
 
@@ -1141,15 +1141,15 @@ refresh_coordinator_ingress_if_running() {
   [[ "$running_id" == "$coordinator_agent_id" ]] || return 0
 
   log_info "Refreshing Coordinator Pub/Sub ingress..."
-  export UNITY_REFRESH_INBOUND_SUBSCRIPTION=1
-  export UNITY_ALLOW_RUNTIME_STOP=1
+  export UNIFY_REFRESH_INBOUND_SUBSCRIPTION=1
+  export UNIFY_ALLOW_RUNTIME_STOP=1
   start_unity_coordinator "$unify_key" "$coordinator_agent_id"
 }
 
 _load_self_host_coordinator_credentials() {
   local unify_key="${SELF_HOST_UNIFY_KEY:-}"
   local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
-  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNIFY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
 
   if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
     local parsed
@@ -1179,7 +1179,7 @@ PY
 start_unity_coordinator() {
   local unify_key="${1:-${SELF_HOST_UNIFY_KEY:-}}"
   local coordinator_agent_id="${2:-${SELF_HOST_COORDINATOR_AGENT_ID:-}}"
-  local runtime_owner="${UNITY_RUNTIME_OWNER:-${SELF_HOST_RUNTIME_OWNER_STACK:-stack}}"
+  local runtime_owner="${UNIFY_RUNTIME_OWNER:-${SELF_HOST_RUNTIME_OWNER_STACK:-stack}}"
 
   if [[ -z "$unify_key" || -z "$coordinator_agent_id" ]]; then
     log_error "UNIFY_KEY and Coordinator agent_id are required"
@@ -1202,9 +1202,9 @@ start_unity_coordinator() {
         && self_host_service_supervisor_is_running; then
         self_host_adopt_coordinator_for_service "$coordinator_agent_id" || true
       fi
-      if [[ "${UNITY_REFRESH_INBOUND_SUBSCRIPTION:-0}" == "1" ]]; then
+      if [[ "${UNIFY_REFRESH_INBOUND_SUBSCRIPTION:-0}" == "1" ]]; then
         log_info "Restarting Coordinator to refresh Pub/Sub subscription..."
-        UNITY_STACK_ORCHESTRATOR=console-local-harness UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+        UNIFY_STACK_ORCHESTRATOR=console-local-harness UNIFY_ALLOW_RUNTIME_STOP=1 bash "$UNIFY_LOCAL_SCRIPT" stop 2>/dev/null || true
         sleep 1
       else
         log_success "Unity Coordinator runtime already running (assistant=$coordinator_agent_id)"
@@ -1216,14 +1216,14 @@ start_unity_coordinator() {
       running_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
       if [[ "$(self_host_runtime_owner_for_pid "$running_pid")" == "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
         && "$runtime_owner" != "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
-        && "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]]; then
+        && "${UNIFY_ALLOW_RUNTIME_STOP:-0}" != "1" ]]; then
         log_error "Coordinator CM is owned by the runtime service (assistant=$running_id)"
         log_info "Stop it with: unity service stop"
         return 1
       fi
     fi
     log_info "Restarting Unity for Coordinator assistant=$coordinator_agent_id ..."
-    UNITY_STACK_ORCHESTRATOR=console-local-harness UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    UNIFY_STACK_ORCHESTRATOR=console-local-harness UNIFY_ALLOW_RUNTIME_STOP=1 bash "$UNIFY_LOCAL_SCRIPT" stop 2>/dev/null || true
     sleep 1
   fi
 
@@ -1240,12 +1240,12 @@ start_unity_coordinator() {
   fi
 
   local service_gateway_url=""
-  if [[ "${UNITY_SERVICE_RUNTIME:-0}" == "1" ]]; then
+  if [[ "${UNIFY_SERVICE_RUNTIME:-0}" == "1" ]]; then
     ensure_service_gateway || return 1
     if declare -F self_host_gateway_base_url &>/dev/null; then
       service_gateway_url="$(self_host_gateway_base_url)"
     else
-      service_gateway_url="http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
+      service_gateway_url="http://${UNIFY_GATEWAY_HOST:-127.0.0.1}:${UNIFY_GATEWAY_PORT:-8001}"
     fi
   fi
 
@@ -1260,8 +1260,8 @@ start_unity_coordinator() {
     ASSISTANT_IS_COORDINATOR=True
     EVENTBUS_PUBLISHING_ENABLED="${EVENTBUS_PUBLISHING_ENABLED:-true}"
     EVENTBUS_PUBSUB_STREAMING="${EVENTBUS_PUBSUB_STREAMING:-true}"
-    UNITY_LOCAL_SCHEDULER="${UNITY_LOCAL_SCHEDULER:-true}"
-    UNITY_RUNTIME_OWNER="$runtime_owner"
+    UNIFY_LOCAL_SCHEDULER="${UNIFY_LOCAL_SCHEDULER:-true}"
+    UNIFY_RUNTIME_OWNER="$runtime_owner"
     # The CM spawns subprocesses (rclone, agent tooling) while gRPC channels
     # are live; gRPC's fork handlers log a warning on every spawn, flooding
     # /tmp/unity-local.log. Only errors are actionable here.
@@ -1273,8 +1273,8 @@ start_unity_coordinator() {
   fi
 
   unity_env+=(
-    "UNITY_COMMS_URL=${service_gateway_url:-${CHAT_COMMS_URL:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}}"
-    "UNITY_ADAPTERS_URL=${service_gateway_url:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}"
+    "UNIFY_COMMS_URL=${service_gateway_url:-${CHAT_COMMS_URL:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}}"
+    "UNIFY_ADAPTERS_URL=${service_gateway_url:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}"
   )
 
   local _voice_provider _voice_id
@@ -1358,10 +1358,10 @@ start_unity_coordinator() {
   elif [[ -f "${SELF_HOST_ENV_SCRIPT:-}" ]]; then
     # shellcheck source=/dev/null
     source "$SELF_HOST_ENV_SCRIPT"
-    UNITY_REPO="$UNITY_REPO_PATH" self_host_apply_user_desktops_export "$coordinator_agent_id"
+    UNIFY_REPO="$UNIFY_REPO_PATH" self_host_apply_user_desktops_export "$coordinator_agent_id"
   fi
 
-  if ! env UNITY_STACK_ORCHESTRATOR=console-local-harness "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start --full; then
+  if ! env UNIFY_STACK_ORCHESTRATOR=console-local-harness "${unity_env[@]}" bash "$UNIFY_LOCAL_SCRIPT" start --full; then
     log_warn "Unity failed to start — chat will not get Coordinator replies"
     return 1
   fi
@@ -1407,7 +1407,7 @@ cmd_ensure_coordinator_topics() {
     return 1
   fi
 
-  if [[ "${UNITY_INBOUND_SUB_RECREATED:-0}" == "1" ]]; then
+  if [[ "${UNIFY_INBOUND_SUB_RECREATED:-0}" == "1" ]]; then
     if [[ -z "$unify_key" ]]; then
       log_warn "Inbound subscription recreated — sign in and run start-coordinator to refresh CM ingress"
     else
@@ -1469,13 +1469,13 @@ cmd_start_coordinator() {
 
 cmd_start_runtime_backend() {
   export SELF_HOST=1
-  export UNITY_SERVICE_RUNTIME=1
-  export UNITY_RUNTIME_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+  export UNIFY_SERVICE_RUNTIME=1
+  export UNIFY_RUNTIME_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
   load_self_host_runtime_env
 
   local unify_key=""
   local coordinator_id=""
-  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNIFY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
 
   if [[ -f "$runtime_file" ]]; then
     unify_key="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '1p')"
@@ -1513,8 +1513,8 @@ cmd_start_runtime_backend() {
       if declare -F self_host_gateway_is_healthy &>/dev/null \
         && ! self_host_gateway_is_healthy; then
         log_warn "Service gateway unhealthy — restarting gateway"
-        export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
-        UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" start-gateway || return 1
+        export UNIFY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+        UNIFY_STACK_ORCHESTRATOR=console-local-harness bash "$UNIFY_LOCAL_SCRIPT" start-gateway || return 1
       fi
       return 0
     fi
@@ -1529,11 +1529,11 @@ cmd_start_runtime_backend() {
 cmd_stop_runtime_backend() {
   export SELF_HOST=1
   load_self_host_runtime_env
-  export UNITY_ALLOW_RUNTIME_STOP=1
+  export UNIFY_ALLOW_RUNTIME_STOP=1
 
   if is_unity_available && is_unity_running; then
     log_info "Stopping service-managed Coordinator runtime..."
-    UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    UNIFY_STACK_ORCHESTRATOR=console-local-harness bash "$UNIFY_LOCAL_SCRIPT" stop 2>/dev/null || true
   fi
   self_host_clear_runtime_state
 
@@ -1949,10 +1949,10 @@ start_console() {
     if [[ "$with_chat" == "true" && -n "$CHAT_ADAPTERS_URL" ]]; then
       export COMMUNICATION_URL="$CHAT_ADAPTERS_URL"
       export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-      export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      export UNIFY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
       log_info "  COMMUNICATION_URL=$COMMUNICATION_URL"
       log_info "  LOCAL_ADAPTERS_URL=$LOCAL_ADAPTERS_URL"
-      log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
+      log_info "  UNIFY_ADAPTERS_URL=$UNIFY_ADAPTERS_URL"
     fi
   fi
 
@@ -1974,7 +1974,7 @@ start_console() {
     # unrelated shell value.
     unset SHARED_UNIFY_KEY
     load_self_host_runtime_env
-    local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
+    local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNIFY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
     # Console expects ORCHESTRA_URL without a /v0 suffix; self-host env must not override.
     export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
     if [[ -f "$_runtime_file" ]]; then
@@ -2000,18 +2000,18 @@ PY
     if [[ -n "$CHAT_ADAPTERS_URL" ]]; then
       export COMMUNICATION_URL="$CHAT_ADAPTERS_URL"
       export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-      export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-      export UNITY_COMMS_URL="${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}"
-      log_info "  UNITY_GATEWAY_URL=$CHAT_ADAPTERS_URL"
+      export UNIFY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      export UNIFY_COMMS_URL="${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}"
+      log_info "  UNIFY_GATEWAY_URL=$CHAT_ADAPTERS_URL"
     fi
   fi
 
   write_console_env_fingerprint
 
   if command -v setsid &>/dev/null; then
-    setsid env UNITY_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+    setsid env UNIFY_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
   else
-    nohup env UNITY_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+    nohup env UNIFY_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
   fi
   local pid=$!
   echo "$pid" > "$CONSOLE_PIDFILE"
@@ -2112,12 +2112,12 @@ cmd_repair_console() {
     export GCP_PROJECT_ID="${GCP_PROJECT_ID:-$PUBSUB_GCP_PROJECT_ID}"
     export PUBSUB_TOPIC_SUFFIX="${PUBSUB_TOPIC_SUFFIX:-$PUBSUB_TOPIC_SUFFIX_VAL}"
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
-    CHAT_ADAPTERS_URL="${CHAT_ADAPTERS_URL:-${LOCAL_ADAPTERS_URL:-${UNITY_ADAPTERS_URL:-http://127.0.0.1:${UNITY_GATEWAY_PORT:-8001}}}}"
+    CHAT_ADAPTERS_URL="${CHAT_ADAPTERS_URL:-${LOCAL_ADAPTERS_URL:-${UNIFY_ADAPTERS_URL:-http://127.0.0.1:${UNIFY_GATEWAY_PORT:-8001}}}}"
     export CHAT_ADAPTERS_URL
     export COMMUNICATION_URL="${COMMUNICATION_URL:-$CHAT_ADAPTERS_URL}"
     export LOCAL_ADAPTERS_URL="${LOCAL_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
-    export UNITY_ADAPTERS_URL="${UNITY_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
-    export UNITY_COMMS_URL="${UNITY_COMMS_URL:-${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}}"
+    export UNIFY_ADAPTERS_URL="${UNIFY_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
+    export UNIFY_COMMS_URL="${UNIFY_COMMS_URL:-${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}}"
     load_self_host_runtime_env
   fi
 
@@ -2514,7 +2514,7 @@ cmd_stop() {
     fi
   fi
   if [[ "$preserve_background" != "true" ]] && is_unity_available; then
-    UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
+    UNIFY_STACK_ORCHESTRATOR=console-local-harness bash "$UNIFY_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
   fi
   if is_emulator_running && [[ "$preserve_background" != "true" ]]; then
     stop_pubsub_emulator || failed=true
@@ -2633,7 +2633,7 @@ cmd_status() {
   elif is_unity_available; then
     echo -e "${YELLOW}not running${NC} (started by --chat)"
   else
-    echo -e "${YELLOW}not found${NC} (set UNITY_REPO_PATH)"
+    echo -e "${YELLOW}not found${NC} (set UNIFY_REPO_PATH)"
   fi
 
   if declare -F self_host_runtime_doctor_line &>/dev/null; then
@@ -2823,9 +2823,9 @@ main() {
       echo ""
       echo "Environment:"
       echo "  ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)"
-      echo "  UNITY_REPO_PATH           Path to unity repo (default: ../unity)"
-      echo "  UNITY_GATEWAY_PORT        Unity gateway port (default: 8001)"
-      echo "  UNITY_GATEWAY_PUBLIC_URL  Public callback URL for provider webhooks"
+      echo "  UNIFY_REPO_PATH           Path to unity repo (default: ../unity)"
+      echo "  UNIFY_GATEWAY_PORT        Unity gateway port (default: 8001)"
+      echo "  UNIFY_GATEWAY_PUBLIC_URL  Public callback URL for provider webhooks"
       echo "  CONSOLE_PORT              Console port (default: 3000)"
       echo "  ORCHESTRA_PORT            Orchestra port (default: 8000)"
       echo "  PUBSUB_EMULATOR_PORT      Pub/Sub emulator port (default: 8085)"

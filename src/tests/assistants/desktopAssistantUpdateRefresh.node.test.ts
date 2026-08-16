@@ -27,7 +27,7 @@ describe('linkDesktop assistant-update refresh', () => {
   beforeEach(() => {
     vi.stubEnv('ORCHESTRA_URL', 'http://orchestra.test');
     vi.stubEnv('ORCHESTRA_ADMIN_KEY', 'admin-key');
-    vi.stubEnv('UNITY_ADAPTERS_URL', 'http://adapters.test');
+    vi.stubEnv('UNIFY_ADAPTERS_URL', 'http://adapters.test');
   });
 
   afterEach(() => {
