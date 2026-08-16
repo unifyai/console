@@ -26,6 +26,9 @@ const MIN_FRAME_HEIGHT = 120;
 /** Inbound messages accepted per second before the child is considered hostile. */
 const MAX_MESSAGES_PER_SECOND = 120;
 
+/** When, after an applied height, the frame is nudged so Chrome re-embeds it. */
+const SETTLE_DELAYS_MS = [400, 1600, 4000, 8000];
+
 /** One lifecycle update for an invocation the canvas started. */
 export interface FrameInvocationEvent {
   invocationId: number;
@@ -339,10 +342,12 @@ export function CanvasFrame({
   // empty surface for a sandboxed cross-origin frame after the element grows
   // to the size the child asked for: the child has painted, the parent never
   // re-embeds its surface, and a tall canvas reads as a black block until any
-  // later geometry change. The change is what repairs it, so after each
-  // applied height the frame is nudged by a pixel and restored — twice, once
-  // the child has plausibly painted, and once more for a slow first render.
-  // Timers rather than animation frames: a background tab does not run frames.
+  // later geometry change. The change is what repairs it, but only once the
+  // child has actually painted, and a chart-heavy first render in the
+  // sandboxed process can take several seconds after the height is reported.
+  // So after each applied height the frame is nudged by a pixel and restored
+  // on a schedule that outlasts a slow first paint. Timers rather than
+  // animation frames: a background tab does not run frames.
   React.useEffect(() => {
     const frame = iframeRef.current;
     if (!frame || height != null) return;
@@ -352,7 +357,7 @@ export function CanvasFrame({
         frame.style.height = `${contentHeight}px`;
       }, 50);
     };
-    const timers = [400, 1600].map((delay) => window.setTimeout(settle, delay));
+    const timers = SETTLE_DELAYS_MS.map((delay) => window.setTimeout(settle, delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [contentHeight, height]);
 
