@@ -21,6 +21,8 @@ interface RailMoreMenuProps {
   collapsed: boolean;
   moreActivity: boolean;
   hiddenActivityCount: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSelectSection: (section: SectionDef) => void;
   onPin: (sectionId: string) => void;
   onCustomize: () => void;
@@ -40,6 +42,8 @@ export function RailMoreMenu({
   collapsed,
   moreActivity,
   hiddenActivityCount,
+  open,
+  onOpenChange,
   onSelectSection,
   onPin,
   onCustomize,
@@ -52,7 +56,7 @@ export function RailMoreMenu({
   const activityNote = moreActivity ? `, ${hiddenActivityCount} with new activity` : '';
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <div>
           <RailNavButton

@@ -21,6 +21,7 @@ import {
   type SelectorEntityKind,
 } from '@/components/Pages/Assistants/Rail/sectionConfig';
 import { useRailConfig } from '@/hooks/Shell/useRailConfig';
+import { useSurfacedSections } from '@/hooks/Shell/useSurfacedSections';
 import { computeRailLayout, type RailLayoutGroup } from '@/utils/shell/railLayout';
 import type { RailGroupId, SectionActivityMap } from '@/types/shell/rail';
 
@@ -121,6 +122,14 @@ export function AppRail({
 }: AppRailProps) {
   const { config, setPinned, reorder, resetGroup, unpinAll, reset } = useRailConfig();
   const [customizeOpen, setCustomizeOpen] = React.useState(false);
+  const [moreOpen, setMoreOpen] = React.useState(false);
+
+  const surfacedIds = useSurfacedSections({
+    activity: sectionActivity,
+    unpinned: config.unpinned,
+    activeSectionId: activeSection,
+    frozen: moreOpen || customizeOpen,
+  });
 
   const layout = React.useMemo(
     () =>
@@ -130,8 +139,9 @@ export function AppRail({
         config,
         activity: sectionActivity,
         activeSectionId: activeSection,
+        surfacedIds,
       }),
-    [entityKind, config, sectionActivity, activeSection]
+    [entityKind, config, sectionActivity, activeSection, surfacedIds]
   );
 
   const openCustomize = React.useCallback(() => setCustomizeOpen(true), []);
@@ -238,6 +248,8 @@ export function AppRail({
                 collapsed={collapsed}
                 moreActivity={layout.moreActivity}
                 hiddenActivityCount={layout.hiddenActivityCount}
+                open={moreOpen}
+                onOpenChange={setMoreOpen}
                 onSelectSection={onSelectSection}
                 onPin={(sectionId) => setPinned(sectionId, true)}
                 onCustomize={openCustomize}

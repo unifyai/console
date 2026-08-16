@@ -39,6 +39,12 @@ interface ComputeRailLayoutArgs {
   activity?: SectionActivityMap;
   /** The active section id, or null on surfaces whose nav lives elsewhere. */
   activeSectionId: string | null;
+  /**
+   * Unpinned section ids the rail is holding open, in the order they arrived.
+   * Owned by `useSurfacedSections` because retirement is time-based: deriving
+   * it from activity here would drop a row the instant its task finished.
+   */
+  surfacedIds?: string[];
 }
 
 /** Stored ids sort first in their stored order; unknown ids follow in default order. */
@@ -66,6 +72,7 @@ export function computeRailLayout({
   config,
   activity,
   activeSectionId,
+  surfacedIds,
 }: ComputeRailLayoutArgs): RailLayout {
   const unpinned = new Set(config.unpinned);
   const isActive = (id: string) => activity?.[id]?.active === true;
@@ -87,7 +94,15 @@ export function computeRailLayout({
     group.sections.filter((s) => unpinned.has(s.id))
   );
 
-  const surfaced = unpinnedSections.filter((s) => isActive(s.id)).slice(0, SURFACED_CAP);
+  // Held ids keep their arrival order; without a caller supplying them the
+  // zone falls back to live activity, which is what the rail shows on a first
+  // render before the hold has any history.
+  const held = surfacedIds ?? unpinnedSections.filter((s) => isActive(s.id)).map((s) => s.id);
+  const surfaced = held
+    .map((id) => unpinnedSections.find((s) => s.id === id))
+    .filter((s): s is SectionDef => s !== undefined)
+    .slice(0, SURFACED_CAP);
+
   const activeUnpinned = unpinnedSections.find((s) => s.id === activeSectionId);
   if (activeUnpinned && !surfaced.includes(activeUnpinned)) surfaced.unshift(activeUnpinned);
 
