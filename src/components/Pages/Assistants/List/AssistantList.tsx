@@ -148,7 +148,7 @@ function HumanListRow({
       tabIndex={0}
       data-testid={`human-list-item-${human.userId}`}
       className={cn(
-        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent px-2 py-1 transition-colors',
         !isSelected && 'hover:bg-[var(--surface-hover)]',
         isSelected && 'bg-accent-soft'
       )}
@@ -159,9 +159,9 @@ function HumanListRow({
         onSelect();
       }}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
-          <Avatar className="rounded-control h-8 w-8 flex-shrink-0">
+          <Avatar className="rounded-control h-7 w-7 flex-shrink-0">
             <AvatarImage src={human.image ?? undefined} alt={displayName} />
             <AvatarFallback
               className="rounded-control text-semibold text-primary-foreground"
@@ -171,7 +171,7 @@ function HumanListRow({
             </AvatarFallback>
           </Avatar>
           {isCallActive ? (
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+            <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
             </span>
@@ -195,7 +195,9 @@ function HumanListRow({
             {isYou ? <span className="text-caption text-muted-foreground">(you)</span> : null}
           </div>
           {human.roleName ? (
-            <p className="text-caption mt-0.5 truncate text-muted-foreground">{human.roleName}</p>
+            <p className="text-caption truncate leading-tight text-muted-foreground">
+              {human.roleName}
+            </p>
           ) : null}
         </div>
       </div>
@@ -235,7 +237,7 @@ function GroupListRow({
       tabIndex={0}
       data-testid={`group-list-item-${group.groupId}`}
       className={cn(
-        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent px-2 py-1 transition-colors',
         !isSelected && 'hover:bg-[var(--surface-hover)]',
         isSelected && 'bg-accent-soft'
       )}
@@ -246,11 +248,11 @@ function GroupListRow({
         onSelect();
       }}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
-          <GroupFaceStack members={faceMembers} sizeClassName="h-8 w-8" />
+          <GroupFaceStack members={faceMembers} sizeClassName="h-7 w-7" />
           {isCallActive ? (
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+            <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
             </span>
@@ -302,7 +304,7 @@ function TeamChatListRow({
       aria-label={`${team.name} team chat`}
       data-testid={`team-chat-list-item-${team.teamId}`}
       className={cn(
-        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent px-2 py-1 transition-colors',
         !isSelected && 'hover:bg-[var(--surface-hover)]',
         isSelected && 'bg-accent-soft'
       )}
@@ -313,16 +315,16 @@ function TeamChatListRow({
         onSelect();
       }}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
           <span
-            className="rounded-control bg-muted/40 flex h-8 w-8 flex-shrink-0 items-center justify-center border border-border text-muted-foreground"
+            className="rounded-control bg-muted/40 flex h-7 w-7 flex-shrink-0 items-center justify-center border border-border text-muted-foreground"
             aria-hidden="true"
           >
             <MessagesSquare className="h-4 w-4" />
           </span>
           {isCallActive ? (
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+            <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
             </span>
@@ -382,7 +384,7 @@ function TeamListRow({
       className={cn(
         // Match AssistantListItem padding/gap so the team face shares the
         // same avatar column (center-aligned with T-W1N above).
-        'group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-xl border p-2 transition-colors',
+        'group flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border px-2 py-1 transition-colors',
         // Neutral hover, matching the disclosure role: the primary-tinted hover
         // is reserved for rows that navigate, so the container header must not
         // signal navigability harder than the destinations nested under it.
@@ -401,7 +403,7 @@ function TeamListRow({
         name={team.name}
         imageUrl={team.image}
         isOrgWideSharing={team.isOrgWideSharing}
-        className="h-8 w-8"
+        className="h-7 w-7"
         iconClassName="h-4 w-4"
       />
       <span className="min-w-0 flex-1 text-left">
@@ -413,7 +415,7 @@ function TeamListRow({
         >
           {team.name}
         </span>
-        <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
+        <span className="block truncate text-[11px] font-normal leading-tight text-muted-foreground">
           {subtitle}
         </span>
       </span>
