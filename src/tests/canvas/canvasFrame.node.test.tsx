@@ -67,3 +67,34 @@ describe('CanvasFrame sandboxing', () => {
     expect(src).not.toContain('localhost:3000');
   });
 });
+
+describe('CanvasFrame settling', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('nudges the frame height after mount and restores it, so a stale surface is re-embedded', () => {
+    vi.useFakeTimers();
+    const { container } = render(<CanvasFrame source="export default () => null" />);
+    const iframe = container.querySelector('iframe')!;
+    expect(iframe.style.height).toBe('120px');
+
+    vi.advanceTimersByTime(400);
+    expect(iframe.style.height).toBe('121px');
+    vi.advanceTimersByTime(50);
+    expect(iframe.style.height).toBe('120px');
+
+    vi.advanceTimersByTime(1150);
+    expect(iframe.style.height).toBe('121px');
+    vi.advanceTimersByTime(50);
+    expect(iframe.style.height).toBe('120px');
+  });
+
+  it('leaves a fixed-height frame alone', () => {
+    vi.useFakeTimers();
+    const { container } = render(<CanvasFrame source="export default () => null" height={640} />);
+    const iframe = container.querySelector('iframe')!;
+    vi.advanceTimersByTime(2000);
+    expect(iframe.style.height).toBe('640px');
+  });
+});
