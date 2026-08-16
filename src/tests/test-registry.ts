@@ -404,6 +404,78 @@ export const capabilities: CapabilityDef[] = [
     ],
   },
   {
+    id: 'assistants.rail.default-pinned',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Every rail section pinned by default',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'every section is pinned by default, so there is no overflow',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.unpin-persists',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Unpinned section moves behind More and survives reload',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'unpinning a section moves it behind More and survives a reload',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.repin-from-more',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Hidden section re-pinned from the More menu',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'a hidden section can be re-pinned from the More menu',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.customize-editor',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Customize editor toggles a section',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'the customize editor opens from the More menu and toggles a section',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.unknown-section-pinned',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Section missing from a stored config stays pinned',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'a section absent from a stored config stays pinned',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.collapsed-overflow',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Folded dock reaches overflow and editor',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'the folded dock reaches the overflow and the editor',
+      },
+    ],
+  },
+  {
     id: 'assistants.list.hire',
     areaId: 'assistants.core',
     priority: 'P0',

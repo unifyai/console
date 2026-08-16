@@ -15,16 +15,16 @@ Sampling rates and shards: [`scripts/ci-playwright-manifest.json`](../../scripts
 
 ## P0 areas
 
-| Area ID                | Surface                          | Spec files                                               | Minimum `@critical` journeys                                                                        |
-| ---------------------- | -------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `auth.core`            | Login, session, signup, password | `auth/login`, `signup`, `session`, `password-management` | Valid login; invalid creds; signup→verify→onboard; session invalidation; password change + re-login |
-| `auth.mfa`             | MFA                              | `auth/mfa-login`, `mfa-profile`                          | TOTP login; invalid TOTP; MFA setup; MFA disable                                                    |
-| `billing.wallet`       | Credits, guard, banners          | `billing/balance`, `billable-action-guard`, `banners`    | UI↔DB balance; guard at zero; OOC banner; guard with credits; metered bypass                        |
-| `billing.subscription` | Tier lifecycle                   | `billing/subscription-billing`, `subscribe`              | Subscribe; tier change; cancel; delinquency banners                                                 |
-| `billing.access`       | Billing auth                     | `billing/access-control`                                 | Unauthenticated redirect; billing page loads                                                        |
-| `workspace`            | Org/personal context             | `account/workspace-context`, `teams`                     | API keys; org billing balance; team lifecycle + DB                                                  |
-| `assistants.core`      | Shell, list, hire                | `assistants/shell`, `list`, `shell/push-gate`            | Rail boot; switcher; hire/onboard; list selection                                                   |
-| `admin.impersonation`  | View-as                          | `impersonation/view-as`                                  | View-as + return                                                                                    |
+| Area ID                | Surface                          | Spec files                                                    | Minimum `@critical` journeys                                                                        |
+| ---------------------- | -------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `auth.core`            | Login, session, signup, password | `auth/login`, `signup`, `session`, `password-management`      | Valid login; invalid creds; signup→verify→onboard; session invalidation; password change + re-login |
+| `auth.mfa`             | MFA                              | `auth/mfa-login`, `mfa-profile`                               | TOTP login; invalid TOTP; MFA setup; MFA disable                                                    |
+| `billing.wallet`       | Credits, guard, banners          | `billing/balance`, `billable-action-guard`, `banners`         | UI↔DB balance; guard at zero; OOC banner; guard with credits; metered bypass                        |
+| `billing.subscription` | Tier lifecycle                   | `billing/subscription-billing`, `subscribe`                   | Subscribe; tier change; cancel; delinquency banners                                                 |
+| `billing.access`       | Billing auth                     | `billing/access-control`                                      | Unauthenticated redirect; billing page loads                                                        |
+| `workspace`            | Org/personal context             | `account/workspace-context`, `teams`                          | API keys; org billing balance; team lifecycle + DB                                                  |
+| `assistants.core`      | Shell, list, hire, rail pinning  | `assistants/shell`, `list`, `rail-pinning`, `shell/push-gate` | Rail boot; switcher; hire/onboard; list selection; rail pin/unpin + customize editor                |
+| `admin.impersonation`  | View-as                          | `impersonation/view-as`                                       | View-as + return                                                                                    |
 
 ## P1 areas
 

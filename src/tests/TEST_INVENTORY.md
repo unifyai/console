@@ -82,7 +82,7 @@ All auth PR specs kept; login trimmed to 4 @critical; signup trimmed (whitespace
 | `admin/billing-plans.e2e.ts`            | keep    |
 | `impersonation/view-as.e2e.ts`          | keep    |
 
-## Exhaustive-only (P1/P2 — kept, not on PR lists)
+## Exhaustive-only (P0–P2 — kept, not on PR lists)
 
 Medium–high priority specs retained for full `[run-tests]` matrix:
 
@@ -107,6 +107,7 @@ Medium–high priority specs retained for full `[run-tests]` matrix:
 | `assistants/provider-integrations.e2e.ts`   | P1            | Provider integrations                                     |
 | `assistants/workspace-provider-card.e2e.ts` | P1            | Workspace provider card                                   |
 | `assistants/workflows.e2e.ts`               | P1            | Workflows shelf: install journey + held connection        |
+| `assistants/rail-pinning.e2e.ts`            | P0            | Configurable rail: pin/unpin, More overflow, customize    |
 
 ## P3 deleted
 
