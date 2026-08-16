@@ -113,7 +113,7 @@
     "framer-motion": "^11.11.11",
     "fuse.js": "^7.1.0",
     "google-auth-library": "^9.15.1",
-    "html2canvas": "^1.4.1",
+    "html-to-image": "^1.11.13",
     "immer": "^10.1.1",
     "livekit-client": "^2.15.13",
     "livekit-server-sdk": "^2.14.0",
