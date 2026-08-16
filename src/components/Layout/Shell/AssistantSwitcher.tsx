@@ -5,10 +5,18 @@ import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/UI/dialog';
 import { Skeleton } from '@/components/UI/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
+import { ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT } from '@/lib/assistants/infoPanelVisibility';
+import { groupEntityKey, humanEntityKey, teamEntityKey } from '@/lib/assistants/selectedEntity';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
@@ -63,7 +71,7 @@ interface AssistantSwitcherProps {
   listProps: React.ComponentProps<typeof AssistantList>;
   collapsed: boolean;
   /**
-   * When true, the popover stays open through focus/pointer moves into a nested
+   * When true, the picker stays open through focus/pointer moves into a nested
    * overlay (hire / create-group). Closing that overlay returns to the switcher.
    */
   nestedOverlayOpen?: boolean;
@@ -92,6 +100,12 @@ function entityInitials(label: string): string {
  * it (collapsed) opens the teammate picker. The chevron is always drawn — never
  * hover-revealed — and never occupies the face's bottom-right corner, so the
  * presence badge stays legible while reaching for either control.
+ *
+ * The picker is a full-page dialog rather than a rail-anchored popover: the
+ * roster carries assistants, teams, group chats and colleagues at once, which
+ * outgrew a 320px column long ago. The roster itself stays a single readable
+ * column centred on that page — widening the rows would only stretch the gap
+ * between a face and its trailing controls.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -117,46 +131,87 @@ export function AssistantSwitcher({
     [nestedOverlayOpen]
   );
 
-  // Radix exempts only the chevron — the popover's actual trigger — from
-  // outside-dismiss, so a pointerdown on the face closes an open picker before
-  // the face's own click lands. Read the pre-dismiss state to tell a genuine
-  // open apart from a second click that should leave the picker shut.
-  const pickerWasOpenRef = React.useRef(false);
-  const handleFacePointerDown = React.useCallback(() => {
-    pickerWasOpenRef.current = switcherOpen;
-  }, [switcherOpen]);
-
   const handleFaceClick = React.useCallback(() => {
     // The face has nowhere left to go once its own surface is open, so it falls
-    // through to the picker rather than spending a click on nothing.
+    // through to the picker rather than spending a click on nothing. The open
+    // picker covers the rail, so the same click can never arrive twice — it
+    // lands on the backdrop and dismisses.
     if (!chatActive) {
       onOpenChat?.();
       return;
     }
-    if (!pickerWasOpenRef.current) setSwitcherOpen(true);
+    setSwitcherOpen(true);
   }, [chatActive, onOpenChat]);
 
   /**
-   * Picking a teammate is the whole errand, so the list dismisses itself on the
-   * way out and leaves the answer on the face behind it. The list's other exits
-   * stay open on purpose: the info disclosure is read in place, and hire /
-   * create-group raise a nested overlay this popover deliberately sits behind.
+   * The profile panel the info toggle reveals lives on the page behind this
+   * one, so the picker gets out of its way. Human and group rows raise the
+   * panel through the window event rather than a prop, so listening for the
+   * request covers every row shape at once.
    */
-  const { onShowProfile, onSelectHuman, onSelectTeam, onSelectGroup } = listProps;
+  React.useEffect(() => {
+    if (!switcherOpen) return;
+    const dismiss = () => setSwitcherOpen(false);
+    window.addEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, dismiss);
+    return () => window.removeEventListener(ASSISTANT_INFO_PANEL_TOGGLE_REQUEST_EVENT, dismiss);
+  }, [switcherOpen]);
+
+  /**
+   * Moving the selection is the whole errand, so the list dismisses itself on
+   * the way out and leaves the answer on the face behind it. Re-picking the row
+   * that is already current moves nothing, and that row is the only one wearing
+   * a `ListRowInfoToggle` — dismissing there would take the profile control off
+   * screen at the moment it appears. Hire and create-group stay open for a
+   * related reason: they raise a nested overlay this page deliberately sits
+   * behind, and dismissing it would strand them over a closed rail.
+   */
+  const {
+    onShowProfile,
+    onSelectHuman,
+    onSelectTeam,
+    onSelectGroup,
+    profileAssistantId,
+    selectedEntityKey,
+  } = listProps;
   const selectionProps = React.useMemo(() => {
-    const dismissThen =
-      <Args extends unknown[]>(select: (...args: Args) => void) =>
+    const dismissUnlessCurrent =
+      <Args extends unknown[]>(
+        select: (...args: Args) => void,
+        isCurrent: (...args: Args) => boolean
+      ) =>
       (...args: Args) => {
-        setSwitcherOpen(false);
+        if (!isCurrent(...args)) setSwitcherOpen(false);
         select(...args);
       };
     return {
-      onShowProfile: dismissThen(onShowProfile),
-      onSelectHuman: onSelectHuman && dismissThen(onSelectHuman),
-      onSelectTeam: onSelectTeam && dismissThen(onSelectTeam),
-      onSelectGroup: onSelectGroup && dismissThen(onSelectGroup),
+      onShowProfile: dismissUnlessCurrent(onShowProfile, (id: string) => id === profileAssistantId),
+      onSelectHuman:
+        onSelectHuman &&
+        dismissUnlessCurrent(
+          onSelectHuman,
+          (userId: string) => humanEntityKey(userId) === selectedEntityKey
+        ),
+      onSelectTeam:
+        onSelectTeam &&
+        dismissUnlessCurrent(
+          onSelectTeam,
+          (teamId: number) => teamEntityKey(teamId) === selectedEntityKey
+        ),
+      onSelectGroup:
+        onSelectGroup &&
+        dismissUnlessCurrent(
+          onSelectGroup,
+          (groupId: number) => groupEntityKey(groupId) === selectedEntityKey
+        ),
     };
-  }, [onShowProfile, onSelectHuman, onSelectTeam, onSelectGroup]);
+  }, [
+    onShowProfile,
+    onSelectHuman,
+    onSelectTeam,
+    onSelectGroup,
+    profileAssistantId,
+    selectedEntityKey,
+  ]);
 
   const showSkeletonFace = !activeUnity && !activeEntityFace && isInitialAssistantIdentityLoading;
   const unityName = activeEntityFace
@@ -240,7 +295,6 @@ export function AssistantSwitcher({
     <button
       type="button"
       data-testid="rail-chat-home"
-      onPointerDown={handleFacePointerDown}
       onClick={handleFaceClick}
       aria-current={chatActive ? 'page' : undefined}
       aria-haspopup={chatActive ? 'dialog' : undefined}
@@ -296,7 +350,7 @@ export function AssistantSwitcher({
    * the collapsed strip is wider than the glyph it carries.
    */
   const pickerButton = (
-    <PopoverTrigger asChild>
+    <DialogTrigger asChild>
       <button
         type="button"
         data-testid="rail-unity-switcher"
@@ -315,11 +369,11 @@ export function AssistantSwitcher({
           aria-hidden="true"
         />
       </button>
-    </PopoverTrigger>
+    </DialogTrigger>
   );
 
   return (
-    <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={switcherOpen} onOpenChange={handleOpenChange}>
       {/* The horizontal inset lives here rather than as margins on the card so
           the card can span the rail like the account switcher below it;
           margins left it hugging its content. */}
@@ -343,12 +397,9 @@ export function AssistantSwitcher({
           </div>
         )}
       </div>
-      <PopoverContent
-        align="start"
-        side="bottom"
-        sideOffset={6}
-        data-testid="rail-unity-switcher-popover"
-        className="flex h-[70vh] max-h-[560px] w-[320px] flex-col overflow-hidden p-0"
+      <DialogContent
+        data-testid="rail-unity-switcher-dialog"
+        className="!flex !h-[98vh] !w-[98vw] !max-w-[98vw] !flex-col !gap-0 !overflow-hidden !bg-background !p-0"
         onInteractOutside={(event) => {
           if (nestedOverlayOpen) event.preventDefault();
         }}
@@ -356,13 +407,22 @@ export function AssistantSwitcher({
           if (nestedOverlayOpen) event.preventDefault();
         }}
       >
-        <AssistantList
-          {...listProps}
-          {...selectionProps}
-          isFolded={false}
-          onToggleFold={undefined}
-        />
-      </PopoverContent>
-    </Popover>
+        {/* Right padding clears the dialog's own close control. */}
+        <div className="flex shrink-0 flex-col gap-1 border-b border-border px-6 py-4 pr-14">
+          <DialogTitle className="text-h2">Switch teammate</DialogTitle>
+          <DialogDescription>Open a teammate, team, or group chat.</DialogDescription>
+        </div>
+        <div className="min-h-0 flex-1 px-4 pb-6 pt-5">
+          <div className="mx-auto flex h-full w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-pop-lg">
+            <AssistantList
+              {...listProps}
+              {...selectionProps}
+              isFolded={false}
+              onToggleFold={undefined}
+            />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

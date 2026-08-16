@@ -16,6 +16,7 @@ import {
   closeHireDialogIfOpen,
   openHireDialog,
   openUnitySwitcher,
+  openAssistantInfoProfileTab,
   selectAssistantInList,
   fillProfileFields,
   selectVoice,
@@ -65,7 +66,7 @@ test('the Onboard button opens the hire dialog @push @critical @area(assistants.
 
   await openHireDialog(page, shellOpts);
 
-  // Switcher popover may stay open under the hire dialog — target by name.
+  // The switcher may stay open under the hire dialog — target by name.
   const dialog = page.getByRole('dialog', { name: 'Onboard Teammate' });
   await expect(dialog).toBeVisible({ timeout: 10_000 });
   await expect(dialog.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
@@ -84,7 +85,7 @@ test('seeded assistants appear in the list with correct names @push @critical @a
   await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
-  // The list now lives inside the rail's unity switcher popover.
+  // The list now lives inside the rail's unity switcher.
   await openUnitySwitcher(page);
 
   const item1 = page.getByTestId(`assistant-list-item-${a1.agentId}`);
@@ -187,6 +188,7 @@ test('assistant list item unfold control opens the info panel', async ({ authedP
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
   await openAssistantInfoPanelFromList(page, seeded.agentId);
+  await openAssistantInfoProfileTab(page);
   await expect(page.getByTestId('assistant-info-edit-profile')).toBeVisible({ timeout: 5_000 });
   await page.getByTestId('assistant-info-edit-profile').click();
   await expect(page.locator('[role="dialog"]').filter({ hasText: /^Edit / })).toHaveCount(0);
@@ -207,8 +209,8 @@ test('list updates after hiring a new assistant without page reload @critical @a
   await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
-  // The list lives inside the rail's unity switcher popover — open it to
-  // count visible list items before the hire, then close it (the popover is
+  // The list lives inside the rail's unity switcher — open it to
+  // count visible list items before the hire, then close it (the switcher is
   // itself a [role="dialog"], so leaving it open would make openHireDialog
   // think the hire dialog is already up).
   await openUnitySwitcher(page);
@@ -225,7 +227,7 @@ test('list updates after hiring a new assistant without page reload @critical @a
   await selectVoice(page);
   await clickHireButton(page);
 
-  // The hire dialog (and the switcher popover) dismiss on submit; reopen the
+  // The hire dialog (and the switcher) dismiss on submit; reopen the
   // switcher to confirm the freshly hired unity shows without a page reload.
   await openUnitySwitcher(page);
   const newItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });

@@ -33,7 +33,7 @@ interface AssistantRailProps {
 
 /**
  * The assistants-surface rail: the shared `AppRail` driven by the full unity
- * switcher (popover + `AssistantList`) and the page's in-page section state.
+ * switcher (picker page + `AssistantList`) and the page's in-page section state.
  */
 export function AssistantRail({
   activeUnity,

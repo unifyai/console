@@ -334,7 +334,7 @@ test('messages arriving while a chat is open do not leak an unread badge for tha
   await expect(bubble).toHaveCount(1);
 
   // No unread badge for the active assistant (open the switcher to inspect
-  // the list — rows/badges only mount inside the popover).
+  // the list — rows/badges only mount inside the switcher).
   await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-unread-badge-${target.agentId}`)).toHaveCount(0);
 });
@@ -468,7 +468,7 @@ test('unread badges fire correctly when there are many assistants in the workspa
     });
   }
 
-  // Rows/badges only mount inside the switcher popover — open it to inspect.
+  // Rows/badges only mount inside the switcher — open it to inspect.
   await openUnitySwitcher(page);
   for (const t of targets) {
     const badge = page.getByTestId(`assistant-unread-badge-${t.agentId}`);
@@ -575,7 +575,7 @@ test('messages eventually arrive when the assistant topic comes online after pag
   await expect(page.locator('textarea')).toBeEnabled({ timeout: 20_000 });
 
   // No badge yet on the late assistant — it has no topic to publish to.
-  // Rows/badges only mount inside the switcher popover — open it to inspect.
+  // Rows/badges only mount inside the switcher — open it to inspect.
   await page.waitForTimeout(3_500);
   await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-unread-badge-${late.agentId}`)).toHaveCount(0);

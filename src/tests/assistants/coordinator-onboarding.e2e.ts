@@ -425,7 +425,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
     timeout: 15_000,
   });
-  // Dismiss the switcher popover so it doesn't overlay the chat header
+  // Dismiss the switcher so it doesn't overlay the chat header
   // controls used below.
   await page.keyboard.press('Escape');
 

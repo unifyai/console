@@ -300,11 +300,11 @@ export async function switchWorkspace(page: Page, workspaceId: string | number):
 
 /**
  * The hire dialog title. Prefer this over a bare `[role="dialog"]` locator —
- * the unity switcher popover is also a dialog and may stay open underneath.
+ * the unity switcher is a dialog too and may stay open underneath.
  */
 export const HIRE_DIALOG_NAME = 'Onboard Teammate';
 
-/** Locator for the hire dialog (not the unity switcher popover). */
+/** Locator for the hire dialog (not the unity switcher). */
 export function hireDialog(page: Page) {
   return page.getByRole('dialog', { name: HIRE_DIALOG_NAME });
 }
@@ -312,7 +312,7 @@ export function hireDialog(page: Page) {
 /**
  * Close the hire dialog if it's visible.
  * Uses Escape key as primary close mechanism (works with Radix Dialog).
- * Targets the hire dialog by name so an open unity switcher popover is ignored.
+ * Targets the hire dialog by name so an open unity switcher is ignored.
  */
 export async function closeHireDialogIfOpen(page: Page) {
   const dialog = hireDialog(page);
@@ -331,12 +331,12 @@ export async function closeHireDialogIfOpen(page: Page) {
 }
 
 /**
- * Open the rail's unity switcher popover (which hosts the assistant list and
+ * Open the rail's unity switcher page (which hosts the assistant list and
  * search). Idempotent — returns early if already open.
  */
 export async function openUnitySwitcher(page: Page, opts?: { userId?: string; apiKey?: string }) {
-  const popover = page.getByTestId('rail-unity-switcher-popover');
-  if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
+  const picker = page.getByTestId('rail-unity-switcher-dialog');
+  if (await picker.isVisible({ timeout: 500 }).catch(() => false)) return;
   if (opts?.userId && opts?.apiKey) {
     await ensureShellReady(page, opts.userId, opts.apiKey);
   } else {
@@ -345,20 +345,20 @@ export async function openUnitySwitcher(page: Page, opts?: { userId?: string; ap
   const switcher = railUnitySwitcher(page);
   await expect(switcher).toBeVisible({ timeout: 10_000 });
   await switcher.click();
-  await expect(popover).toBeVisible({ timeout: 5_000 });
+  await expect(picker).toBeVisible({ timeout: 5_000 });
   await waitForAssistantListReady(page);
 }
 
-/** Dismiss the rail unity switcher popover (Escape). No-op if already closed. */
+/** Dismiss the rail unity switcher page (Escape). No-op if already closed. */
 export async function closeUnitySwitcher(page: Page) {
-  const popover = page.getByTestId('rail-unity-switcher-popover');
-  if (await popover.isVisible({ timeout: 500 }).catch(() => false)) {
+  const picker = page.getByTestId('rail-unity-switcher-dialog');
+  if (await picker.isVisible({ timeout: 500 }).catch(() => false)) {
     await page.keyboard.press('Escape');
-    await expect(popover).toHaveCount(0, { timeout: 5_000 });
+    await expect(picker).toHaveCount(0, { timeout: 5_000 });
   }
 }
 
-/** Wait until the switcher popover list finished loading assistants. */
+/** Wait until the switcher's list finished loading assistants. */
 export async function waitForAssistantListReady(page: Page, timeout = 45_000): Promise<void> {
   await expect
     .poll(
@@ -411,9 +411,9 @@ export async function openHireDialog(page: Page, opts?: { userId?: string; apiKe
 }
 
 /**
- * Select an assistant from the rail's unity switcher. Opens the switcher
- * popover (where the list now lives), clicks the row, then dismisses the
- * popover so rail navigation is clickable again.
+ * Select an assistant from the rail's unity switcher. Opens the switcher page
+ * (where the list now lives), clicks the row, then dismisses the page so rail
+ * navigation is clickable again.
  */
 export async function selectAssistantInList(page: Page, agentId: number) {
   await openUnitySwitcher(page);
@@ -583,9 +583,20 @@ export async function openAssistantInfoPanel(page: Page) {
 export async function openAssistantInfoToggleFromList(page: Page, agentId: number | string) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await listItem.click();
+  // Picking a teammate that was not already current dismisses the picker, and
+  // the info toggle only renders on the selected row — reopen to reach it.
+  await openUnitySwitcher(page);
   const toggle = page.getByTestId(`assistant-info-toggle-${agentId}`);
   await expect(toggle).toBeVisible({ timeout: 5_000 });
-  await toggle.click();
+  // Selecting the row can already have opened the panel, so drive the control
+  // to "showing" rather than toggling it blindly back shut.
+  if ((await toggle.getAttribute('aria-pressed')) !== 'true') {
+    await toggle.click();
+  }
+  // Showing the panel dismisses the picker on its own; when the panel was
+  // already up there was nothing to dismiss, and the picker's page would sit
+  // over the panel this helper exists to hand back.
+  await closeUnitySwitcher(page);
 }
 
 export async function openAssistantInfoPanelFromList(page: Page, agentId: number | string) {
@@ -593,7 +604,8 @@ export async function openAssistantInfoPanelFromList(page: Page, agentId: number
   await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 10_000 });
 }
 
-async function openAssistantInfoProfileTab(page: Page) {
+/** Select the info panel's Profile tab; the panel can land on Onboarding instead. */
+export async function openAssistantInfoProfileTab(page: Page) {
   const profileTab = page.getByRole('tab', { name: 'Profile' });
   if (await profileTab.isVisible().catch(() => false)) {
     await profileTab.click();

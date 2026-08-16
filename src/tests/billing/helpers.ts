@@ -120,9 +120,9 @@ export async function waitForUsageReady(page: Page) {
   await expect(page.getByTestId('usage-filters-bar')).toBeVisible({ timeout: 15_000 });
 }
 
-async function openUnitySwitcherPopover(page: Page, opts?: { userId: string; apiKey: string }) {
-  const popover = page.getByTestId('rail-unity-switcher-popover');
-  if (!(await popover.isVisible({ timeout: 500 }).catch(() => false))) {
+async function openUnitySwitcherDialog(page: Page, opts?: { userId: string; apiKey: string }) {
+  const picker = page.getByTestId('rail-unity-switcher-dialog');
+  if (!(await picker.isVisible({ timeout: 500 }).catch(() => false))) {
     if (opts) {
       await deferCoordinatorAfterAssistantsLoad(page, opts.userId, opts.apiKey);
     }
@@ -131,7 +131,7 @@ async function openUnitySwitcherPopover(page: Page, opts?: { userId: string; api
     await expect(switcher).toBeVisible({ timeout: 10_000 });
     await switcher.click({ timeout: 10_000 });
   }
-  await expect(popover).toBeVisible({ timeout: 5_000 });
+  await expect(picker).toBeVisible({ timeout: 5_000 });
 }
 
 /** Assert the rail onboard CTA is enabled (canonical billable action on /assistants). */
@@ -140,7 +140,7 @@ export async function expectOnboardButtonEnabled(
   opts?: { userId: string; apiKey: string }
 ) {
   await waitForAssistantsReady(page, opts);
-  await openUnitySwitcherPopover(page, opts);
+  await openUnitySwitcherDialog(page, opts);
   await expect(page.getByTestId('assistant-onboard-button')).toBeEnabled({ timeout: 10_000 });
 }
 
@@ -150,7 +150,7 @@ export async function expectOnboardButtonDisabled(
   opts?: { userId: string; apiKey: string }
 ) {
   await waitForAssistantsReady(page, opts);
-  await openUnitySwitcherPopover(page, opts);
+  await openUnitySwitcherDialog(page, opts);
   await expect
     .poll(async () => page.locator('[data-testid="billable-action-guard"]').isVisible(), {
       timeout: 20_000,
