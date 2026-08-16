@@ -7,6 +7,7 @@ import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 import { CHAT_SECTION, type SectionDef, type SelectorEntityKind } from './sectionConfig';
 import type { ActiveEntityFace } from '@/components/Layout/Shell/AssistantSwitcher';
+import type { SectionActivityMap } from '@/types/shell/rail';
 
 interface AssistantRailProps {
   /** Currently-open unity; drives the switcher card face. */
@@ -18,7 +19,7 @@ interface AssistantRailProps {
   listProps: React.ComponentProps<typeof AssistantList>;
   /** The active rail section id (a `SectionDef.id`). */
   activeSection: string;
-  sectionActivity?: Partial<Record<string, boolean>>;
+  sectionActivity?: SectionActivityMap;
   onSelectSection: (section: SectionDef) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
@@ -74,7 +75,7 @@ export function AssistantRail({
           onOpenChat={handleOpenChat}
           chatActive={activeSection === CHAT_SECTION.id}
           showChatActivity={
-            activeSection !== CHAT_SECTION.id && sectionActivity?.[CHAT_SECTION.id] === true
+            activeSection !== CHAT_SECTION.id && sectionActivity?.[CHAT_SECTION.id]?.active === true
           }
           activeCallAssistantId={activeCallAssistantId}
         />

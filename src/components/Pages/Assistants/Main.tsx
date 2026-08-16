@@ -23,6 +23,7 @@ import {
   type SectionDef,
   type SelectorEntityKind,
 } from './Rail/sectionConfig';
+import type { SectionActivityMap } from '@/types/shell/rail';
 import {
   groupEntityKey,
   humanEntityKey,
@@ -4020,23 +4021,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     assistant: visibleProfileAssistant,
     enabled: isActiveSurface && activeSectionId !== 'tasks' && !!visibleProfileAssistant,
   });
-  const railSectionActivity = React.useMemo(
-    () => ({
-      chat:
-        activeSectionId !== 'chat' &&
-        !!profileAssistantId &&
-        (chatStreamUnreadCounts[profileAssistantId] ?? 0) > 0,
-      actions: activeSectionId !== 'actions' && hasUnreadActionActivity,
-      tasks: activeSectionId !== 'tasks' && hasOffTabRunningTaskRun,
-    }),
-    [
-      activeSectionId,
-      chatStreamUnreadCounts,
-      hasOffTabRunningTaskRun,
-      hasUnreadActionActivity,
-      profileAssistantId,
-    ]
-  );
+  const railSectionActivity = React.useMemo<SectionActivityMap>(() => {
+    const chatUnread = profileAssistantId ? (chatStreamUnreadCounts[profileAssistantId] ?? 0) : 0;
+    return {
+      chat: {
+        active: activeSectionId !== 'chat' && chatUnread > 0,
+        count: chatUnread > 0 ? chatUnread : undefined,
+        kind: 'unread',
+      },
+      actions: {
+        active: activeSectionId !== 'actions' && hasUnreadActionActivity,
+        kind: 'unread',
+      },
+      // A task run is in progress rather than unread, so the rail and the
+      // More menu can say "running" instead of inventing a count.
+      tasks: {
+        active: activeSectionId !== 'tasks' && hasOffTabRunningTaskRun,
+        kind: 'running',
+      },
+    };
+  }, [
+    activeSectionId,
+    chatStreamUnreadCounts,
+    hasOffTabRunningTaskRun,
+    hasUnreadActionActivity,
+    profileAssistantId,
+  ]);
 
   return (
     <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>

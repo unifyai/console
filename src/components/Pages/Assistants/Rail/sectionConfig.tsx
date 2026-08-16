@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { RightPaneTab } from '@/components/Pages/Assistants/RightPaneContainer';
+import type { RailGroupId } from '@/types/shell/rail';
 
 /**
  * What kind of entity the selector currently points at. Sections declare
@@ -279,6 +280,28 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
       ['Edit in place', 'Double-click a cell to edit it, or open a row for the full record.'],
     ],
   },
+];
+
+/**
+ * A rail section group — a library, in the vocabulary's terms. The label is the
+ * section heading the rail prints; the sections it holds keep their own content
+ * kinds (Guidance holds procedures, Knowledge holds claims), so the two words
+ * stay distinct.
+ */
+export interface SectionGroupDef {
+  id: RailGroupId;
+  label: string;
+  sections: ReadonlyArray<SectionDef>;
+}
+
+/**
+ * The rail's groups in render order. Pinning reorders sections within a group
+ * and never across one, so this is the unit both the layout and the stored
+ * config key off.
+ */
+export const SECTION_GROUPS: ReadonlyArray<SectionGroupDef> = [
+  { id: 'workspace', label: 'Workspace', sections: WORKSPACE_SECTIONS },
+  { id: 'storage', label: 'Storage', sections: BRAIN_SECTIONS },
 ];
 
 export const ALL_SECTIONS: ReadonlyArray<SectionDef> = [
