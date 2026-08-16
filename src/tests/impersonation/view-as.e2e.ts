@@ -32,7 +32,7 @@ import {
   deferCoordinatorForUser,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail, railAccountTrigger, railUnitySwitcher } from '../helpers/shell';
+import { assistantRail, railAccountTrigger, railSection } from '../helpers/shell';
 
 // ---------------------------------------------------------------------------
 // Seed (module scope, synchronous)
@@ -166,5 +166,5 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   // The target's assistant is no longer in view once we are back as the admin.
   await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('impersonation-banner')).toBeHidden({ timeout: 30_000 });
-  await expect(railUnitySwitcher(page)).not.toContainText('Solo');
+  await expect(railSection(page, 'chat')).not.toContainText('Solo');
 });

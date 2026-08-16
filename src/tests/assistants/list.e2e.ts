@@ -28,7 +28,7 @@ import {
   openAssistantInfoPanelFromList,
   openAssistantInfoPanel,
 } from './helpers';
-import { railSection, railUnitySwitcher } from '../helpers/shell';
+import { railSection } from '../helpers/shell';
 
 const user = createTestUser({ name: 'ListE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -147,11 +147,11 @@ test('deep link ?profile=agentId opens the correct assistant', async ({ authedPa
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
 
-  const switcher = railUnitySwitcher(page);
-  await expect(switcher).toContainText(dbAssistant.firstName, {
+  const chatHome = railSection(page, 'chat');
+  await expect(chatHome).toContainText(dbAssistant.firstName, {
     timeout: 10_000,
   });
-  await expect(switcher).toContainText(dbAssistant.surname, {
+  await expect(chatHome).toContainText(dbAssistant.surname, {
     timeout: 5_000,
   });
 });

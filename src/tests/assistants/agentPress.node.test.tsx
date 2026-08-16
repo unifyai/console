@@ -65,10 +65,10 @@ describe('showing the press', () => {
   });
 
   it('replays when the same control is pressed twice in one script', () => {
-    const button = addButton('rail-section-chat');
+    const button = addButton('rail-section-tasks');
 
-    flashElement('rail-section-chat');
-    flashElement('rail-section-chat');
+    flashElement('rail-section-tasks');
+    flashElement('rail-section-tasks');
 
     expect(button.classList.contains(PRESS_CLASS)).toBe(true);
   });

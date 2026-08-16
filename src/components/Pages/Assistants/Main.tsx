@@ -130,6 +130,16 @@ import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
 import { Button } from '@/components/UI/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/UI/alert-dialog';
 import { Sheet, SheetContent } from '@/components/UI/sheet';
 import { Menu } from 'lucide-react';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
@@ -1462,12 +1472,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     );
   }, [refetchCoordinatorOnboardingState, userMeta.msTeamsBotOwner]);
 
-  React.useEffect(() => {
-    const onCoordinatorOnboardingPanelRequest = (event: Event) => {
-      const detail = (event as CustomEvent<CoordinatorOnboardingPanelRequestDetail>).detail;
-      if (!detail?.assistantId || !canonicalCoordinatorId) return;
-      if (detail.assistantId !== canonicalCoordinatorId) return;
-      if (isLoadingAssistants) return;
+  // Opening onboarding from the top bar switches the selection to the
+  // Coordinator. When another teammate is selected that switch is not what the
+  // user asked for, so it is confirmed first rather than applied silently.
+  const [pendingOnboardingPanelAction, setPendingOnboardingPanelAction] = React.useState<
+    CoordinatorOnboardingPanelRequestDetail['action'] | null
+  >(null);
+
+  const applyCoordinatorOnboardingPanelRequest = React.useCallback(
+    (action: CoordinatorOnboardingPanelRequestDetail['action']) => {
+      if (!canonicalCoordinatorId) return;
 
       setActiveBrainSectionId(null);
       setPaneState((prev) => ({
@@ -1477,7 +1491,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       }));
       handleShowProfile(canonicalCoordinatorId);
 
-      if (detail.action === 'close') {
+      if (action === 'close') {
         requestCoordinatorOnboardingInfoClose();
         return;
       }
@@ -1485,6 +1499,29 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       requestCoordinatorOnboardingFocusLayout();
       requestFirstLoginCommunicationEmailOpen();
       requestAssistantInfoPanelOpen(canonicalCoordinatorId);
+    },
+    [
+      canonicalCoordinatorId,
+      handleShowProfile,
+      requestCoordinatorOnboardingFocusLayout,
+      requestCoordinatorOnboardingInfoClose,
+      requestFirstLoginCommunicationEmailOpen,
+    ]
+  );
+
+  React.useEffect(() => {
+    const onCoordinatorOnboardingPanelRequest = (event: Event) => {
+      const detail = (event as CustomEvent<CoordinatorOnboardingPanelRequestDetail>).detail;
+      if (!detail?.assistantId || !canonicalCoordinatorId) return;
+      if (detail.assistantId !== canonicalCoordinatorId) return;
+      if (isLoadingAssistants) return;
+
+      if (profileAssistantId && profileAssistantId !== canonicalCoordinatorId) {
+        setPendingOnboardingPanelAction(detail.action);
+        return;
+      }
+
+      applyCoordinatorOnboardingPanelRequest(detail.action);
     };
 
     window.addEventListener(
@@ -1498,13 +1535,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       );
     };
   }, [
+    applyCoordinatorOnboardingPanelRequest,
     canonicalCoordinatorId,
-    handleShowProfile,
     isLoadingAssistants,
-    requestCoordinatorOnboardingFocusLayout,
-    requestCoordinatorOnboardingInfoClose,
-    requestFirstLoginCommunicationEmailOpen,
+    profileAssistantId,
   ]);
+
+  const confirmOnboardingPanelSelectionSwitch = React.useCallback(() => {
+    const action = pendingOnboardingPanelAction;
+    setPendingOnboardingPanelAction(null);
+    if (action) applyCoordinatorOnboardingPanelRequest(action);
+  }, [applyCoordinatorOnboardingPanelRequest, pendingOnboardingPanelAction]);
 
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses, markOnline: markAssistantOnline } = useAssistantStatus(
@@ -3045,43 +3086,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const isCoordinatorOnboardingFocusLayout =
     canApplyCoordinatorOnboardingFocusLayout && coordinatorOnboardingFocusLayoutRequest > 0;
 
-  const hasRequestedInitialCoordinatorFocusLayoutRef = React.useRef(false);
-  React.useEffect(() => {
-    if (hasRequestedInitialCoordinatorFocusLayoutRef.current) return;
-    if (isCoordinatorOnboardingResolvePending || isLoadingAssistants) return;
-
-    const pendingSection = pendingAssistantSectionId
-      ? SECTION_BY_ID[pendingAssistantSectionId]
-      : null;
-    const hasExplicitNonDefaultSection =
-      activeSectionId !== DEFAULT_SECTION_ID ||
-      (pendingSection &&
-        pendingSection.kind !== 'action' &&
-        pendingSection.id !== DEFAULT_SECTION_ID);
-    if (hasExplicitNonDefaultSection) {
-      hasRequestedInitialCoordinatorFocusLayoutRef.current = true;
-      return;
-    }
-
-    const awaitingBareLandingSelection =
-      !landedWithProfileDeepLinkRef.current && !!canonicalCoordinatorId && !profileAssistantId;
-    if (awaitingBareLandingSelection) return;
-
-    hasRequestedInitialCoordinatorFocusLayoutRef.current = true;
-    if (canApplyCoordinatorOnboardingFocusLayout) {
-      requestCoordinatorOnboardingFocusLayout();
-    }
-  }, [
-    activeSectionId,
-    canApplyCoordinatorOnboardingFocusLayout,
-    canonicalCoordinatorId,
-    isCoordinatorOnboardingResolvePending,
-    isLoadingAssistants,
-    pendingAssistantSectionId,
-    profileAssistantId,
-    requestCoordinatorOnboardingFocusLayout,
-  ]);
-
   const seededCoordinatorFocusPaneRequestRef = React.useRef(0);
   React.useLayoutEffect(() => {
     if (!isCoordinatorOnboardingFocusLayout) return;
@@ -3433,6 +3437,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const visibleProfileAssistant = canUseLastSettledProfileAssistant
     ? lastSettledProfileAssistant
     : profileAssistant;
+
+  const coordinatorDisplayName = assistantDisplayName(canonicalCoordinator);
+  // Name of whatever the selector currently holds, across all four entity
+  // kinds, for copy that has to say what is being deselected.
+  const selectedEntityDisplayName = React.useMemo(() => {
+    if (selectedHuman) return selectedHuman.name || 'this teammate';
+    if (selectedTeam) return selectedTeam.name || 'this team';
+    if (selectedGroup) return selectedGroup.name || 'this group';
+    return assistantDisplayName(visibleProfileAssistant, 'this teammate');
+  }, [selectedGroup, selectedHuman, selectedTeam, visibleProfileAssistant]);
 
   const forceCoordinatorChatIntroTyping =
     showCoordinatorChatIntroTyping &&
@@ -4344,6 +4358,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     latestUserMessageAt={profiledLatestUserMessageAt}
                     onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
                     hasIncompleteOnboarding={profileHasIncompleteOnboarding}
+                    isOnboardingStatusPending={isCoordinatorOnboardingStateLoading}
                     infoPanelFocusLayoutRequest={profileInfoPanelFocusLayoutRequest}
                     coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                     onOpenChatSection={handleOpenChatSection}
@@ -4520,6 +4535,33 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         </div>
 
         {/* Dialogs and Overlays */}
+        <AlertDialog
+          open={pendingOnboardingPanelAction !== null}
+          onOpenChange={(open) => {
+            if (!open) setPendingOnboardingPanelAction(null);
+          }}
+        >
+          <AlertDialogContent data-testid="onboarding-switch-teammate-dialog">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Switch to {coordinatorDisplayName}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Onboarding lives with {coordinatorDisplayName}. Opening it selects{' '}
+                {coordinatorDisplayName} and deselects {selectedEntityDisplayName}. Are you sure?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="onboarding-switch-teammate-cancel">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmOnboardingPanelSelectionSwitch}
+                data-testid="onboarding-switch-teammate-confirm"
+              >
+                Switch to {coordinatorDisplayName}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         {incomingMeetCall && !activeCallAssistant && !humanCall.incomingCall && (
           <IncomingMeetCallCard
             assistantName={assistantDisplayName(incomingMeetCall.assistant)}
