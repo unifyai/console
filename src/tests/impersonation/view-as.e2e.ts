@@ -26,7 +26,7 @@ import {
   completeAccountOnboardingIfPresent,
 } from '../auth/helpers';
 import { createAssistant, ensureUnifyOrg, deleteOrg } from '../helpers/seeds/client';
-import { closeUnitySwitcher, openUnitySwitcher } from '../assistants/helpers';
+import { openUnitySwitcher } from '../assistants/helpers';
 import {
   deferCoordinatorAfterAssistantsLoad,
   deferCoordinatorForUser,
@@ -157,8 +157,6 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
       timeout: 30_000,
     }
   );
-  // The switcher's page covers the banner it is read from, so close it first.
-  await closeUnitySwitcher(page);
   await expect(page.getByTestId('impersonation-banner')).toBeVisible();
 
   // Return to the original admin session.

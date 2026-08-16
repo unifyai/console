@@ -321,7 +321,7 @@ test.describe('Onboarding', () => {
     await expect(assistantRail(page)).toBeVisible({ timeout: 15_000 });
     await closeHireDialogIfOpen(page);
     await openUnitySwitcher(page, { userId, apiKey });
-    await expect(page.getByTestId('rail-unity-switcher-dialog')).toBeVisible({
+    await expect(page.getByTestId('rail-unity-switcher-popover')).toBeVisible({
       timeout: 5_000,
     });
 

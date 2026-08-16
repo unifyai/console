@@ -208,28 +208,28 @@ test('create group and onboard dismissals return to the unity switcher', async (
   const orgActions = orgTeamGroup.getByTestId('assistant-list-org-actions');
   await expect(orgActions).toBeVisible({ timeout: 15_000 });
 
-  const switcherDialog = page.getByTestId('rail-unity-switcher-dialog');
+  const switcherPopover = page.getByTestId('rail-unity-switcher-popover');
 
   await orgActions.getByTestId('create-group-button').click();
   await expect(page.getByTestId('create-group-dialog')).toBeVisible({ timeout: 5_000 });
-  await expect(switcherDialog).toBeVisible();
+  await expect(switcherPopover).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('create-group-dialog')).toHaveCount(0, { timeout: 5_000 });
-  await expect(switcherDialog).toBeVisible();
+  await expect(switcherPopover).toBeVisible();
 
   await orgActions.getByTestId('assistant-onboard-button').click();
   await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
     timeout: 10_000,
   });
-  await expect(switcherDialog).toBeVisible();
+  await expect(switcherPopover).toBeVisible();
   await page.getByRole('button', { name: 'Close onboard dialog' }).click();
   await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toHaveCount(0, {
     timeout: 5_000,
   });
-  await expect(switcherDialog).toBeVisible();
+  await expect(switcherPopover).toBeVisible();
 
   // The contrast those two exceptions are exceptions to: picking a teammate is
   // the errand itself, so the list dismisses rather than lingering over it.
   await page.getByTestId(`human-list-item-${member.id}`).click();
-  await expect(switcherDialog).toHaveCount(0, { timeout: 5_000 });
+  await expect(switcherPopover).toHaveCount(0, { timeout: 5_000 });
 });

@@ -80,7 +80,7 @@ async function expandFloatingChat(page: Page) {
 
 async function openSettingsFromRail(page: Page) {
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('rail-unity-switcher-dialog')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
   await visibleShellTestId(page, 'rail-nav-settings').click();
   await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
 }

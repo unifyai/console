@@ -87,7 +87,7 @@ async function openActionsPane(page: Page): Promise<void> {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  // Dismisses the switcher on the way out, so the rail is clickable.
+  // Dismisses the switcher popover on the way out, so the rail is clickable.
   await selectAssistantInList(page, assistant.agentId);
   await page.waitForTimeout(1_500);
 

@@ -1,6 +1,6 @@
 /**
  * Rail shell E2E — verifies the /assistants rail shell: the unity switcher
- * page, Workspace/Brain section navigation, the account menu, and
+ * popover, Workspace/Brain section navigation, the account menu, and
  * collapse-to-dock persistence.
  *
  * Run: npx playwright test src/tests/assistants/shell.e2e.ts
@@ -72,7 +72,7 @@ test('the unity switcher opens and selecting a unity drives the section host @pu
   await row.click();
 
   // Picking dismisses the list; the rail's face carries the answer out.
-  await expect(page.getByTestId('rail-unity-switcher-dialog')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
   await expect(railSection(page, 'chat')).toContainText('Switchy');
   // Default section is Chat.
   await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
@@ -88,7 +88,7 @@ test('the switcher face opens the picker once its own surface is already active'
   await closeHireDialogIfOpen(page);
 
   const face = railSection(page, 'chat');
-  const picker = page.getByTestId('rail-unity-switcher-dialog');
+  const picker = page.getByTestId('rail-unity-switcher-popover');
 
   // Away from Chat the face is a nav button: it goes home, picker untouched.
   await openRailSection(page, 'tasks');
@@ -101,11 +101,9 @@ test('the switcher face opens the picker once its own surface is already active'
   await expect(picker).toBeVisible({ timeout: 5_000 });
   await waitForAssistantListReady(page);
 
-  // The picker covers the rail it was opened from, so the way back out is the
-  // page's own dismissal rather than a second press on a face it now hides.
-  await page.keyboard.press('Escape');
+  // And reads as a toggle rather than reopening what the click just dismissed.
+  await face.click();
   await expect(picker).toHaveCount(0, { timeout: 5_000 });
-  await expect(face).toBeVisible();
 });
 
 test('Workspace and Brain section nav switches the active view', async ({ authedPage: page }) => {
