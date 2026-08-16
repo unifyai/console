@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { isChunkLoadError } from '@/utils/chunkLoadReload';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isChunkLoadError, tryReloadForChunkLoadError } from '@/utils/chunkLoadReload';
 
 describe('isChunkLoadError', () => {
   it('matches explicit webpack chunk load failures', () => {
@@ -30,5 +30,53 @@ describe('isChunkLoadError', () => {
   it('ignores unrelated runtime errors', () => {
     expect(isChunkLoadError(new Error('Network request failed'))).toBe(false);
     expect(isChunkLoadError(null)).toBe(false);
+  });
+});
+
+describe('tryReloadForChunkLoadError', () => {
+  const chunkError = () => new Error('Loading chunk 31255 failed.');
+  let reload: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    window.sessionStorage.clear();
+    reload = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, reload },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reloads on a chunk failure and ignores unrelated errors', () => {
+    expect(tryReloadForChunkLoadError(new Error('Network request failed'))).toBe(false);
+    expect(tryReloadForChunkLoadError(chunkError())).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reload again while the chunk is still missing', () => {
+    tryReloadForChunkLoadError(chunkError());
+    vi.advanceTimersByTime(2_000);
+
+    expect(tryReloadForChunkLoadError(chunkError())).toBe(false);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('reloads again for a failure episode a later deploy brings', () => {
+    tryReloadForChunkLoadError(chunkError());
+    vi.advanceTimersByTime(4 * 60 * 60 * 1000);
+
+    expect(tryReloadForChunkLoadError(chunkError())).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(2);
+  });
+
+  it('reloads once for a tab carrying the superseded latch value', () => {
+    window.sessionStorage.setItem('console:chunk-load-reload', '1');
+
+    expect(tryReloadForChunkLoadError(chunkError())).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

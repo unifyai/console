@@ -1,5 +1,8 @@
 const CHUNK_LOAD_RELOAD_SESSION_KEY = 'console:chunk-load-reload';
 
+/** How long one reload attempt suppresses the next. */
+const RELOAD_SUPPRESSION_MS = 30_000;
+
 const EXPLICIT_CHUNK_ERROR =
   /(?:Loading (?:CSS )?chunk \d+ failed|ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed|Failed to load module script)/i;
 
@@ -43,35 +46,43 @@ export function isChunkLoadError(error: unknown): boolean {
   return /\/_next\/static\/chunks\/|webpack-/i.test(stack);
 }
 
-function hasAlreadyReloadedForChunkLoad(): boolean {
+function lastReloadAttemptAt(): number {
   try {
-    return window.sessionStorage.getItem(CHUNK_LOAD_RELOAD_SESSION_KEY) === '1';
+    const stored = Number(window.sessionStorage.getItem(CHUNK_LOAD_RELOAD_SESSION_KEY));
+    return Number.isFinite(stored) ? stored : 0;
   } catch {
-    return false;
+    return 0;
   }
 }
 
-function markChunkLoadReloadAttempted(): void {
+function markChunkLoadReloadAttempted(at: number): void {
   try {
-    window.sessionStorage.setItem(CHUNK_LOAD_RELOAD_SESSION_KEY, '1');
+    window.sessionStorage.setItem(CHUNK_LOAD_RELOAD_SESSION_KEY, String(at));
   } catch {
     /* private mode — still attempt one reload */
   }
 }
 
 /**
- * Reload once per browser tab when stale bundles fail to load a chunk.
+ * Reload once per failure episode when stale bundles fail to load a chunk.
  * Returns true when a reload was triggered.
+ *
+ * The suppression is a cooldown rather than a once-ever latch because a tab
+ * outlives many deploys: recovering from one deploy must not spend the tab's
+ * only reload. A chunk that is still missing re-throws within a second or two
+ * of the reload, so the repeat lands inside the window and falls through to the
+ * error boundary instead of looping; the next deploy is far outside it.
  */
 export function tryReloadForChunkLoadError(error: unknown): boolean {
   if (typeof window === 'undefined' || !isChunkLoadError(error)) {
     return false;
   }
-  if (hasAlreadyReloadedForChunkLoad()) {
+  const now = Date.now();
+  if (now - lastReloadAttemptAt() < RELOAD_SUPPRESSION_MS) {
     return false;
   }
 
-  markChunkLoadReloadAttempted();
+  markChunkLoadReloadAttempted(now);
   window.location.reload();
   return true;
 }
