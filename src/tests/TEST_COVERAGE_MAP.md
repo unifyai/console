@@ -30,14 +30,15 @@ Capability registry enforced by `npm run check:test-coverage`. Source of truth f
 
 ## P2 areas (exhaustive tier — medium-high)
 
-| Area ID                  | Spec files                                    |
-| ------------------------ | --------------------------------------------- |
-| `assistants.chat-search` | `chat-search`                                 |
-| `assistants.brain`       | `brain`                                       |
-| `assistants.call-pose`   | `call-working-pose`                           |
-| `assistants.coordinator` | `coordinator-sidebar` (with onboarding specs) |
-| `assistants.desktop`     | `desktop-filesys`                             |
-| `assistants.embed`       | `embed`                                       |
+| Area ID                             | Spec files                          |
+| ----------------------------------- | ----------------------------------- |
+| `assistants.chat-search`            | `chat-search`                       |
+| `assistants.brain`                  | `brain`                             |
+| `assistants.call-pose`              | `call-working-pose`                 |
+| `assistants.coordinator`            | `coordinator-sidebar`, `onboarding` |
+| `assistants.coordinator-onboarding` | `coordinator-onboarding`            |
+| `assistants.desktop`                | `desktop-filesys`                   |
+| `assistants.embed`                  | `embed`                             |
 
 ## P1 areas (exhaustive tier — account + integrations)
 

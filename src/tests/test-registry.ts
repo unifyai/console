@@ -787,6 +787,56 @@ export const capabilities: CapabilityDef[] = [
     ],
   },
   {
+    id: 'assistants.coordinator-onboarding.picker',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Fresh-visit picker with no skip or resume affordance',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes: 'picker shows on first visit with no skip or resume affordance',
+      },
+    ],
+  },
+  {
+    id: 'assistants.coordinator-onboarding.pick-chat',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Chat choice lands in the platform with the checklist in Assistant info',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes:
+          'picking chat lands in the full platform with the checklist in Assistant info',
+      },
+    ],
+  },
+  {
+    id: 'assistants.coordinator-onboarding.start-call',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Call choice connects and docks the call in the platform',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes: 'starting a call connects and docks the call in the platform',
+      },
+    ],
+  },
+  {
+    id: 'assistants.coordinator-onboarding.intro-watched',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Resolved picker persists intro_watched and survives reload',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes:
+          'resolving the picker persists intro_watched and reload lands on T-W1N without auto-opening Assistant info',
+      },
+    ],
+  },
+  {
     id: 'assistants.shell.switcher',
     areaId: 'assistants.core',
     priority: 'P0',

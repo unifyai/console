@@ -94,6 +94,7 @@ Medium–high priority specs retained for full `[run-tests]` matrix:
 | `assistants/brain.e2e.ts`                   | P2            | Rail brain sections                                       |
 | `assistants/call-working-pose.e2e.ts`       | P2            | In-call pose states                                       |
 | `assistants/coordinator-sidebar.e2e.ts`     | P2            | Coordinator sidebar ordering                              |
+| `assistants/coordinator-onboarding.e2e.ts`  | P2            | Onboarding picker gate + checklist journeys               |
 | `assistants/desktop-filesys.e2e.ts`         | P2            | Filesystem consent                                        |
 | `assistants/chat.e2e.ts`                    | P2            | 4 tests: send, history+order, shared-root, credits guard  |
 | `assistants/chat-stream.e2e.ts`             | P2            | 9 tests (was 14): unread badge merged, tab title deleted  |

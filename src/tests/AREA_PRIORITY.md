@@ -51,21 +51,22 @@ Sampling rates and shards: [`scripts/ci-playwright-manifest.json`](../../scripts
 
 ## P2 areas
 
-| Area ID                   | Specs                                                                                            | Notes                                   |
-| ------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------- |
-| `assistants.chat`         | `chat`, `chat-attachments` → `chat.journey`                                                      | Send, attachment, DB                    |
-| `assistants.chat.stream`  | `chat-stream`                                                                                    | Long-pole Pub/Sub                       |
-| `assistants.call`         | `call`                                                                                           | Dev-stub connect/end                    |
-| `assistants.contacts`     | `contacts`                                                                                       | Create + delete                         |
-| `assistants.live-actions` | `live-actions`                                                                                   | Historical + live push                  |
-| `assistants.edit`         | `edit`, `delete`, `voice`                                                                        | Profile/voice DB                        |
-| `assistants.coordinator`  | `coordinator-onboarding`, `onboarding`, `coordinator-sidebar`                                    | Coordinator journeys + sidebar ordering |
-| `assistants.data`         | `dashboards`, `tasks`, `data-bridge`, `desktop-link`, `workspace-file-access`, `desktop-filesys` | Smokes + filesystem consent             |
-| `assistants.chat-search`  | `chat-search`                                                                                    | Search dialog + shared-root navigation  |
-| `assistants.call-pose`    | `call-working-pose`                                                                              | In-call pose state machine              |
-| `assistants.embed`        | `embed`                                                                                          | Embed parsing/rendering                 |
-| `assistants.brain`        | `brain`                                                                                          | Rail brain sections and navigation      |
-| `billing.profile-ui`      | `billing/profile`                                                                                | Save name persists                      |
+| Area ID                             | Specs                                                                                            | Notes                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| `assistants.chat`                   | `chat`, `chat-attachments` → `chat.journey`                                                      | Send, attachment, DB                    |
+| `assistants.chat.stream`            | `chat-stream`                                                                                    | Long-pole Pub/Sub                       |
+| `assistants.call`                   | `call`                                                                                           | Dev-stub connect/end                    |
+| `assistants.contacts`               | `contacts`                                                                                       | Create + delete                         |
+| `assistants.live-actions`           | `live-actions`                                                                                   | Historical + live push                  |
+| `assistants.edit`                   | `edit`, `delete`, `voice`                                                                        | Profile/voice DB                        |
+| `assistants.coordinator`            | `onboarding`, `coordinator-sidebar`                                                              | Coordinator journeys + sidebar ordering |
+| `assistants.coordinator-onboarding` | `coordinator-onboarding`                                                                         | Picker gate, checklist, docked call     |
+| `assistants.data`                   | `dashboards`, `tasks`, `data-bridge`, `desktop-link`, `workspace-file-access`, `desktop-filesys` | Smokes + filesystem consent             |
+| `assistants.chat-search`            | `chat-search`                                                                                    | Search dialog + shared-root navigation  |
+| `assistants.call-pose`              | `call-working-pose`                                                                              | In-call pose state machine              |
+| `assistants.embed`                  | `embed`                                                                                          | Embed parsing/rendering                 |
+| `assistants.brain`                  | `brain`                                                                                          | Rail brain sections and navigation      |
+| `billing.profile-ui`                | `billing/profile`                                                                                | Save name persists                      |
 
 ## P1 areas (continued — medium-high product surfaces)
 
