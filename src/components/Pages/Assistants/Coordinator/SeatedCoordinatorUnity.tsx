@@ -17,21 +17,21 @@ import type { CoordinatorOnboardingIntroUnityAppearance } from '@/utils/assistan
  * as they slide past, and constant across aspect ratios so T-W1N reads at the
  * same (larger) size whether the window is full or half width.
  */
-export const COORDINATOR_ONBOARDING_UNITY_WIDTH_PX = 176;
+export const COORDINATOR_ONBOARDING_UNIFY_WIDTH_PX = 176;
 
 // Each droid sits in a square frame a bit wider than the droid itself; the gap
 // is the spacing seen between droids as the wardrobe selector slides.
-const UNITY_FRAME_TO_WIDTH_RATIO = 4 / 3;
+const UNIFY_FRAME_TO_WIDTH_RATIO = 4 / 3;
 // Only shrink below the target on viewports too narrow to fit it, so the droid
 // never overflows a small window.
-const UNITY_MAX_VIEWPORT_FRACTION = 0.46;
+const UNIFY_MAX_VIEWPORT_FRACTION = 0.46;
 const COORDINATOR_INTRO_SPEECH_EYE_CONFIG = {
   expressionSequence: ['square', 'up'] as const,
 };
 
 function computeUnityWidth(viewportWidth: number) {
   return Math.round(
-    Math.min(COORDINATOR_ONBOARDING_UNITY_WIDTH_PX, viewportWidth * UNITY_MAX_VIEWPORT_FRACTION)
+    Math.min(COORDINATOR_ONBOARDING_UNIFY_WIDTH_PX, viewportWidth * UNIFY_MAX_VIEWPORT_FRACTION)
   );
 }
 
@@ -42,7 +42,7 @@ function computeUnityWidth(viewportWidth: number) {
  * the per-droid baseline stay correct as the size changes.
  */
 export function useCoordinatorUnityLayout() {
-  const [unityWidth, setUnityWidth] = React.useState(COORDINATOR_ONBOARDING_UNITY_WIDTH_PX);
+  const [unityWidth, setUnityWidth] = React.useState(COORDINATOR_ONBOARDING_UNIFY_WIDTH_PX);
 
   React.useEffect(() => {
     const update = () => setUnityWidth(computeUnityWidth(window.innerWidth || 1024));
@@ -51,7 +51,7 @@ export function useCoordinatorUnityLayout() {
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  return { unityWidth, framePx: Math.round(unityWidth * UNITY_FRAME_TO_WIDTH_RATIO) };
+  return { unityWidth, framePx: Math.round(unityWidth * UNIFY_FRAME_TO_WIDTH_RATIO) };
 }
 
 /**
@@ -75,7 +75,7 @@ export function useCoordinatorUnityLayout() {
  */
 export function SeatedCoordinatorUnity({
   unity,
-  width = COORDINATOR_ONBOARDING_UNITY_WIDTH_PX,
+  width = COORDINATOR_ONBOARDING_UNIFY_WIDTH_PX,
   isSpeaking,
   mouthShape = 'closed',
   speechLevel,

@@ -65,9 +65,20 @@ export function AssistantListItem({
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const creatureAppearance = parseCreatureSentinel(photoSrc);
 
-  const renderPhotoAvatar = (className: string) =>
+  /**
+   * A droid is drawn from a viewBox with slack around its body, so it renders
+   * well short of its box — roughly 24px tall in a 32px slot. Shrinking the
+   * slot for initials squares would shrink the droid twice over, so the list
+   * row hands the creature a box of its own to keep filling.
+   */
+  const renderPhotoAvatar = (className: string, creatureClassName?: string) =>
     creatureAppearance ? (
-      <CreatureAvatar appearance={creatureAppearance} className={className} label={displayName} />
+      <CreatureAvatar
+        appearance={creatureAppearance}
+        className={className}
+        creatureClassName={creatureClassName}
+        label={displayName}
+      />
     ) : (
       <Avatar className={cn('rounded-control', className)}>
         <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
@@ -134,19 +145,19 @@ export function AssistantListItem({
       tabIndex={0}
       data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
       className={cn(
-        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent px-2 py-1 transition-colors',
         !isSelected && 'hover:bg-[var(--surface-hover)]',
         isSelected && 'bg-accent-soft'
       )}
       onClick={handleProfileClick}
       onKeyDown={handleRowKeyDown}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
           {isCoordinator ? (
-            <CoordinatorLogoAvatar className="h-8 w-8 flex-shrink-0" />
+            <CoordinatorLogoAvatar className="h-7 w-7 flex-shrink-0" logoClassName="h-8 w-8" />
           ) : (
-            renderPhotoAvatar('h-8 w-8 flex-shrink-0')
+            renderPhotoAvatar('h-7 w-7 flex-shrink-0', 'h-8 w-8')
           )}
           <AssistantPresenceIndicator
             status={status}
@@ -165,7 +176,7 @@ export function AssistantListItem({
             </span>
           </div>
           {subtitle && !isCoordinator ? (
-            <p className="text-caption mt-0.5 truncate text-muted-foreground">{subtitle}</p>
+            <p className="text-caption truncate leading-tight text-muted-foreground">{subtitle}</p>
           ) : null}
         </div>
       </div>

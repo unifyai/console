@@ -1,14 +1,21 @@
 #!/usr/bin/env npx tsx
 /**
  * Ensures every @critical test in PR/push tier specs is registered in test-registry capabilities,
- * and every @push test lives in the push-gate pool within pushGateMaxTests.
+ * that every P0 @critical test sits in a tier spec list, and that every @push test lives in the
+ * push-gate pool within pushGateMaxTests.
  * Run: npm run check:test-inventory
  */
 
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { capabilities, parseTestTags, removedSpecFiles } from '../src/tests/test-registry';
+import {
+  capabilities,
+  defaultPriorityForSpec,
+  parseTestTags,
+  removedSpecFiles,
+  type AreaPriority,
+} from '../src/tests/test-registry';
 
 const ROOT = path.resolve(__dirname, '..');
 const TEST_RE = /(?:^|\n)\s*(?:test|(?:\w+)Test)\(\s*['"`]([^'"`]+)['"`]/g;
@@ -27,6 +34,13 @@ function listTaggedTests(relativePath: string, tag: 'critical' | 'push'): string
     }
   }
   return titles;
+}
+
+/** Mirrors the sampler in ci-playwright-list-tests.ts so the gate and the guard agree. */
+function priorityForTest(specPath: string, title: string): AreaPriority {
+  const { areaId } = parseTestTags(title);
+  const tagged = areaId ? capabilities.find((c) => c.areaId === areaId)?.priority : undefined;
+  return tagged ?? defaultPriorityForSpec(specPath);
 }
 
 function tierSpecs(tier: string): string[] {
@@ -115,9 +129,35 @@ for (const spec of allE2e) {
   }
 }
 
+// @critical only selects tests inside the tier file lists, so a P0 journey in a
+// spec no tier lists never reaches a merge gate — the tag reads as a guarantee
+// it cannot keep. P1/P2 specs may stay exhaustive-only; there the tag marks the
+// coverage floor that test-registry.ts enforces by title.
+const tierPool = new Set(allTierSpecs());
+const unreachableCritical: string[] = [];
+for (const spec of allE2e) {
+  if (removedSpecFiles.includes(spec) || tierPool.has(spec)) continue;
+  for (const title of listTaggedTests(spec, 'critical')) {
+    if (priorityForTest(spec, title) === 'P0') {
+      unreachableCritical.push(`${spec}: ${title}`);
+    }
+  }
+}
+
 if (missing.length > 0) {
   console.error('@critical tests missing from TEST_COVERAGE_MAP / test-registry:');
   for (const line of missing) {
+    console.error(`  - ${line}`);
+  }
+  process.exit(1);
+}
+
+if (unreachableCritical.length > 0) {
+  console.error(
+    'P0 @critical tests must be in a PR/push tier spec list (scripts/ci-playwright-tiers.sh);\n' +
+      'otherwise drop @critical and leave the spec exhaustive-only:'
+  );
+  for (const line of unreachableCritical) {
     console.error(`  - ${line}`);
   }
   process.exit(1);

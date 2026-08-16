@@ -100,7 +100,7 @@ For full local chat smoke tests, configure the local gateway first:
 ```bash
 ./scripts/local.sh gateway-setup
 ./scripts/local.sh gateway-doctor --check-credentials
-./scripts/local.sh gateway-urls --public-url "$UNITY_GATEWAY_PUBLIC_URL"
+./scripts/local.sh gateway-urls --public-url "$UNIFY_GATEWAY_PUBLIC_URL"
 ./scripts/local.sh start --chat --echo --seed personal-workspace-multi
 ```
 

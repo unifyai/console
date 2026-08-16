@@ -37,10 +37,10 @@ export function getInternalApiBaseUrl(): string {
  *
  * Resolution order:
  *   1. params.localAdaptersUrl  - explicit override for local stacks
- *   2. UNITY_ADAPTERS_URL       - per-environment host (staging vs production)
+ *   2. UNIFY_ADAPTERS_URL       - per-environment host (staging vs production)
  *
  * There is intentionally no baked-in default: each environment must set
- * UNITY_ADAPTERS_URL so the Cloud Run host is never hardcoded in source.
+ * UNIFY_ADAPTERS_URL so the Cloud Run host is never hardcoded in source.
  */
 export function getAdaptersBaseUrl(params?: { localAdaptersUrl?: string | null }): string {
   const explicitLocalAdaptersUrl = cleanUrl(params?.localAdaptersUrl);
@@ -48,13 +48,13 @@ export function getAdaptersBaseUrl(params?: { localAdaptersUrl?: string | null }
     return explicitLocalAdaptersUrl;
   }
 
-  const configuredAdaptersUrl = cleanUrl(process.env.UNITY_ADAPTERS_URL);
+  const configuredAdaptersUrl = cleanUrl(process.env.UNIFY_ADAPTERS_URL);
   if (configuredAdaptersUrl) {
     return configuredAdaptersUrl;
   }
 
   throw new Error(
-    'UNITY_ADAPTERS_URL is not set. Configure it per environment ' +
+    'UNIFY_ADAPTERS_URL is not set. Configure it per environment ' +
       '(staging vs production adapters host), or pass localAdaptersUrl for local stacks.'
   );
 }

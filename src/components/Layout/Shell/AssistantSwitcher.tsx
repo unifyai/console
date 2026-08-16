@@ -117,6 +117,47 @@ export function AssistantSwitcher({
     [nestedOverlayOpen]
   );
 
+  // Radix exempts only the chevron — the popover's actual trigger — from
+  // outside-dismiss, so a pointerdown on the face closes an open picker before
+  // the face's own click lands. Read the pre-dismiss state to tell a genuine
+  // open apart from a second click that should leave the picker shut.
+  const pickerWasOpenRef = React.useRef(false);
+  const handleFacePointerDown = React.useCallback(() => {
+    pickerWasOpenRef.current = switcherOpen;
+  }, [switcherOpen]);
+
+  const handleFaceClick = React.useCallback(() => {
+    // The face has nowhere left to go once its own surface is open, so it falls
+    // through to the picker rather than spending a click on nothing.
+    if (!chatActive) {
+      onOpenChat?.();
+      return;
+    }
+    if (!pickerWasOpenRef.current) setSwitcherOpen(true);
+  }, [chatActive, onOpenChat]);
+
+  /**
+   * Picking a teammate is the whole errand, so the list dismisses itself on the
+   * way out and leaves the answer on the face behind it. The list's other exits
+   * stay open on purpose: the info disclosure is read in place, and hire /
+   * create-group raise a nested overlay this popover deliberately sits behind.
+   */
+  const { onShowProfile, onSelectHuman, onSelectTeam, onSelectGroup } = listProps;
+  const selectionProps = React.useMemo(() => {
+    const dismissThen =
+      <Args extends unknown[]>(select: (...args: Args) => void) =>
+      (...args: Args) => {
+        setSwitcherOpen(false);
+        select(...args);
+      };
+    return {
+      onShowProfile: dismissThen(onShowProfile),
+      onSelectHuman: onSelectHuman && dismissThen(onSelectHuman),
+      onSelectTeam: onSelectTeam && dismissThen(onSelectTeam),
+      onSelectGroup: onSelectGroup && dismissThen(onSelectGroup),
+    };
+  }, [onShowProfile, onSelectHuman, onSelectTeam, onSelectGroup]);
+
   const showSkeletonFace = !activeUnity && !activeEntityFace && isInitialAssistantIdentityLoading;
   const unityName = activeEntityFace
     ? activeEntityFace.label
@@ -199,8 +240,11 @@ export function AssistantSwitcher({
     <button
       type="button"
       data-testid="rail-chat-home"
-      onClick={onOpenChat}
+      onPointerDown={handleFacePointerDown}
+      onClick={handleFaceClick}
       aria-current={chatActive ? 'page' : undefined}
+      aria-haspopup={chatActive ? 'dialog' : undefined}
+      aria-expanded={chatActive ? switcherOpen : undefined}
       aria-label={collapsed ? `Open ${unityName}` : undefined}
       className={cn(
         'relative flex items-center transition-colors',
@@ -312,7 +356,12 @@ export function AssistantSwitcher({
           if (nestedOverlayOpen) event.preventDefault();
         }}
       >
-        <AssistantList {...listProps} isFolded={false} onToggleFold={undefined} />
+        <AssistantList
+          {...listProps}
+          {...selectionProps}
+          isFolded={false}
+          onToggleFold={undefined}
+        />
       </PopoverContent>
     </Popover>
   );

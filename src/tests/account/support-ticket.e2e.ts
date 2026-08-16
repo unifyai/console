@@ -52,9 +52,12 @@ test.describe('Support Ticket', () => {
     await description.fill('Typed before the capture finished.');
     await expect(description).toHaveValue('Typed before the capture finished.');
 
-    // The preview slot resolves on its own to either an image or the
-    // unavailable notice; neither blocks the form.
+    // The preview resolves on its own, without blocking the form. Asserting
+    // the image rather than merely the end of the spinner is the point: a
+    // rasterizer that cannot read the theme's colour syntax fails by falling
+    // back to the "unavailable" notice, which an either-or assertion accepts.
     await expect(page.getByTestId('support-ticket-capturing')).toBeHidden({ timeout: 20_000 });
+    await expect(page.getByTestId('support-ticket-screenshot')).toBeVisible();
   });
 
   test('submits ticket and shows success toast (local mode) @critical @area(account.support)', async ({

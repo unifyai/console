@@ -15,16 +15,16 @@ Sampling rates and shards: [`scripts/ci-playwright-manifest.json`](../../scripts
 
 ## P0 areas
 
-| Area ID                | Surface                          | Spec files                                               | Minimum `@critical` journeys                                                                        |
-| ---------------------- | -------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `auth.core`            | Login, session, signup, password | `auth/login`, `signup`, `session`, `password-management` | Valid login; invalid creds; signup→verify→onboard; session invalidation; password change + re-login |
-| `auth.mfa`             | MFA                              | `auth/mfa-login`, `mfa-profile`                          | TOTP login; invalid TOTP; MFA setup; MFA disable                                                    |
-| `billing.wallet`       | Credits, guard, banners          | `billing/balance`, `billable-action-guard`, `banners`    | UI↔DB balance; guard at zero; OOC banner; guard with credits; metered bypass                        |
-| `billing.subscription` | Tier lifecycle                   | `billing/subscription-billing`, `subscribe`              | Subscribe; tier change; cancel; delinquency banners                                                 |
-| `billing.access`       | Billing auth                     | `billing/access-control`                                 | Unauthenticated redirect; billing page loads                                                        |
-| `workspace`            | Org/personal context             | `account/workspace-context`, `teams`                     | API keys; org billing balance; team lifecycle + DB                                                  |
-| `assistants.core`      | Shell, list, hire                | `assistants/shell`, `list`, `shell/push-gate`            | Rail boot; switcher; hire/onboard; list selection                                                   |
-| `admin.impersonation`  | View-as                          | `impersonation/view-as`                                  | View-as + return                                                                                    |
+| Area ID                | Surface                          | Spec files                                                    | Minimum `@critical` journeys                                                                        |
+| ---------------------- | -------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `auth.core`            | Login, session, signup, password | `auth/login`, `signup`, `session`, `password-management`      | Valid login; invalid creds; signup→verify→onboard; session invalidation; password change + re-login |
+| `auth.mfa`             | MFA                              | `auth/mfa-login`, `mfa-profile`                               | TOTP login; invalid TOTP; MFA setup; MFA disable                                                    |
+| `billing.wallet`       | Credits, guard, banners          | `billing/balance`, `billable-action-guard`, `banners`         | UI↔DB balance; guard at zero; OOC banner; guard with credits; metered bypass                        |
+| `billing.subscription` | Tier lifecycle                   | `billing/subscription-billing`, `subscribe`                   | Subscribe; tier change; cancel; delinquency banners                                                 |
+| `billing.access`       | Billing auth                     | `billing/access-control`                                      | Unauthenticated redirect; billing page loads                                                        |
+| `workspace`            | Org/personal context             | `account/workspace-context`, `teams`                          | API keys; org billing balance; team lifecycle + DB                                                  |
+| `assistants.core`      | Shell, list, hire, rail pinning  | `assistants/shell`, `list`, `rail-pinning`, `shell/push-gate` | Rail boot; switcher; hire/onboard; list selection; rail pin/unpin + customize editor                |
+| `admin.impersonation`  | View-as                          | `impersonation/view-as`                                       | View-as + return                                                                                    |
 
 ## P1 areas
 
@@ -51,21 +51,22 @@ Sampling rates and shards: [`scripts/ci-playwright-manifest.json`](../../scripts
 
 ## P2 areas
 
-| Area ID                   | Specs                                                                                            | Notes                                   |
-| ------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------- |
-| `assistants.chat`         | `chat`, `chat-attachments` → `chat.journey`                                                      | Send, attachment, DB                    |
-| `assistants.chat.stream`  | `chat-stream`                                                                                    | Long-pole Pub/Sub                       |
-| `assistants.call`         | `call`                                                                                           | Dev-stub connect/end                    |
-| `assistants.contacts`     | `contacts`                                                                                       | Create + delete                         |
-| `assistants.live-actions` | `live-actions`                                                                                   | Historical + live push                  |
-| `assistants.edit`         | `edit`, `delete`, `voice`                                                                        | Profile/voice DB                        |
-| `assistants.coordinator`  | `coordinator-onboarding`, `onboarding`, `coordinator-sidebar`                                    | Coordinator journeys + sidebar ordering |
-| `assistants.data`         | `dashboards`, `tasks`, `data-bridge`, `desktop-link`, `workspace-file-access`, `desktop-filesys` | Smokes + filesystem consent             |
-| `assistants.chat-search`  | `chat-search`                                                                                    | Search dialog + shared-root navigation  |
-| `assistants.call-pose`    | `call-working-pose`                                                                              | In-call pose state machine              |
-| `assistants.embed`        | `embed`                                                                                          | Embed parsing/rendering                 |
-| `assistants.brain`        | `brain`                                                                                          | Rail brain sections and navigation      |
-| `billing.profile-ui`      | `billing/profile`                                                                                | Save name persists                      |
+| Area ID                             | Specs                                                                                            | Notes                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| `assistants.chat`                   | `chat`, `chat-attachments` → `chat.journey`                                                      | Send, attachment, DB                    |
+| `assistants.chat.stream`            | `chat-stream`                                                                                    | Long-pole Pub/Sub                       |
+| `assistants.call`                   | `call`                                                                                           | Dev-stub connect/end                    |
+| `assistants.contacts`               | `contacts`                                                                                       | Create + delete                         |
+| `assistants.live-actions`           | `live-actions`                                                                                   | Historical + live push                  |
+| `assistants.edit`                   | `edit`, `delete`, `voice`                                                                        | Profile/voice DB                        |
+| `assistants.coordinator`            | `onboarding`, `coordinator-sidebar`                                                              | Coordinator journeys + sidebar ordering |
+| `assistants.coordinator-onboarding` | `coordinator-onboarding`                                                                         | Picker gate, checklist, docked call     |
+| `assistants.data`                   | `dashboards`, `tasks`, `data-bridge`, `desktop-link`, `workspace-file-access`, `desktop-filesys` | Smokes + filesystem consent             |
+| `assistants.chat-search`            | `chat-search`                                                                                    | Search dialog + shared-root navigation  |
+| `assistants.call-pose`              | `call-working-pose`                                                                              | In-call pose state machine              |
+| `assistants.embed`                  | `embed`                                                                                          | Embed parsing/rendering                 |
+| `assistants.brain`                  | `brain`                                                                                          | Rail brain sections and navigation      |
+| `billing.profile-ui`                | `billing/profile`                                                                                | Save name persists                      |
 
 ## P1 areas (continued — medium-high product surfaces)
 

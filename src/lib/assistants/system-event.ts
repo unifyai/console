@@ -28,7 +28,7 @@ function localOrchestraWithoutAdapters(): boolean {
   const orchestraUrl = (process.env.ORCHESTRA_URL ?? '').toLowerCase();
   return (
     !process.env.LOCAL_ADAPTERS_URL &&
-    !process.env.UNITY_ADAPTERS_URL &&
+    !process.env.UNIFY_ADAPTERS_URL &&
     (orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1'))
   );
 }

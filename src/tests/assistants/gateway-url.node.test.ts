@@ -6,9 +6,9 @@ import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
 const ENV_KEYS = [
   'COMMUNICATION_URL',
-  'UNITY_COMMS_URL',
+  'UNIFY_COMMS_URL',
   'LOCAL_ADAPTERS_URL',
-  'UNITY_ADAPTERS_URL',
+  'UNIFY_ADAPTERS_URL',
 ] as const;
 
 function clearGatewayEnv() {
@@ -23,7 +23,7 @@ describe('local gateway URL resolution', () => {
   });
 
   it('prefers explicit local adapter URLs for adapter dispatch', () => {
-    process.env.UNITY_ADAPTERS_URL = 'https://hosted-adapters.example.com/';
+    process.env.UNIFY_ADAPTERS_URL = 'https://hosted-adapters.example.com/';
 
     expect(
       getAdaptersBaseUrl({
@@ -32,15 +32,15 @@ describe('local gateway URL resolution', () => {
     ).toBe('http://127.0.0.1:8001');
   });
 
-  it('uses UNITY_ADAPTERS_URL when no local override is provided', () => {
-    process.env.UNITY_ADAPTERS_URL = 'http://127.0.0.1:8001/';
+  it('uses UNIFY_ADAPTERS_URL when no local override is provided', () => {
+    process.env.UNIFY_ADAPTERS_URL = 'http://127.0.0.1:8001/';
 
     expect(getAdaptersBaseUrl()).toBe('http://127.0.0.1:8001');
   });
 
-  it('prefers UNITY_COMMS_URL over adapter URLs for Communication clients', () => {
-    process.env.UNITY_COMMS_URL = 'https://comms.example.com';
-    process.env.UNITY_ADAPTERS_URL = 'http://127.0.0.1:8001';
+  it('prefers UNIFY_COMMS_URL over adapter URLs for Communication clients', () => {
+    process.env.UNIFY_COMMS_URL = 'https://comms.example.com';
+    process.env.UNIFY_ADAPTERS_URL = 'http://127.0.0.1:8001';
 
     const client = createCommunicationClient();
 

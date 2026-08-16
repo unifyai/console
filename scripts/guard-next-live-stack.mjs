@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 
 const mode = process.argv[2] ?? '';
 const repoRoot = resolve(import.meta.dirname, '..');
-const unityHome = process.env.UNITY_HOME || `${homedir()}/.unity`;
+const unityHome = process.env.UNIFY_HOME || `${homedir()}/.unity`;
 const stackStatePath = `${process.env.SELF_HOST_STATE_DIR || unityHome}/full-stack-state.json`;
 
 function run(command) {
@@ -45,26 +45,26 @@ function sameCheckoutNextDevIsRunning() {
 }
 
 if (mode === 'predev') {
-  const orchestrated = Boolean(process.env.UNITY_STACK_ORCHESTRATOR);
-  const explicitlyAllowed = process.env.UNITY_ALLOW_ISOLATED_CONSOLE === '1';
+  const orchestrated = Boolean(process.env.UNIFY_STACK_ORCHESTRATOR);
+  const explicitlyAllowed = process.env.UNIFY_ALLOW_ISOLATED_CONSOLE === '1';
   if (!orchestrated && !explicitlyAllowed && stackStateIsActive()) {
     console.error('Refusing bare `npm run dev`: a full local Unity stack appears to be running.');
     console.error('Use `unity-deploy/selfhost/stack.sh repair-console` or `status` instead.');
     console.error(
-      'Override only for intentionally isolated Console work: UNITY_ALLOW_ISOLATED_CONSOLE=1 npm run dev'
+      'Override only for intentionally isolated Console work: UNIFY_ALLOW_ISOLATED_CONSOLE=1 npm run dev'
     );
     process.exit(1);
   }
 }
 
 if (mode === 'prebuild') {
-  if (process.env.UNITY_ALLOW_LIVE_BUILD === '1') process.exit(0);
+  if (process.env.UNIFY_ALLOW_LIVE_BUILD === '1') process.exit(0);
   if (sameCheckoutNextDevIsRunning()) {
     console.error('Refusing `next build` while a Next dev server is running from this checkout.');
     console.error('`next build` and `next dev` share .next and can corrupt live chunks.');
     console.error('Use `npm run ci:live-safe` here, or run the full build in a separate worktree.');
     console.error(
-      'Override only when no browser/dev server depends on this checkout: UNITY_ALLOW_LIVE_BUILD=1 npm run build'
+      'Override only when no browser/dev server depends on this checkout: UNIFY_ALLOW_LIVE_BUILD=1 npm run build'
     );
     process.exit(1);
   }

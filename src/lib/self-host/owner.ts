@@ -5,7 +5,7 @@
  * Console. Once they have created their account we persist a tiny pointer to it
  * on disk so subsequent visits can sign them in automatically without ever
  * showing a password prompt. The file lives next to the other self-host runtime
- * state under ~/.unity (overridable via SELF_HOST_STATE_DIR / UNITY_HOME).
+ * state under ~/.unity (overridable via SELF_HOST_STATE_DIR / UNIFY_HOME).
  *
  * This is intentionally a local-machine trust boundary: anyone who can read
  * this file already controls the machine and the local admin key.
@@ -26,7 +26,7 @@ function ownerFilePath(): string {
     return process.env.SELF_HOST_OWNER_FILE;
   }
   const stateDir =
-    process.env.SELF_HOST_STATE_DIR || process.env.UNITY_HOME || path.join(os.homedir(), '.unity');
+    process.env.SELF_HOST_STATE_DIR || process.env.UNIFY_HOME || path.join(os.homedir(), '.unity');
   return path.join(stateDir, 'self-host-owner.json');
 }
 

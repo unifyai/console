@@ -227,4 +227,9 @@ test('create group and onboard dismissals return to the unity switcher', async (
     timeout: 5_000,
   });
   await expect(switcherPopover).toBeVisible();
+
+  // The contrast those two exceptions are exceptions to: picking a teammate is
+  // the errand itself, so the list dismisses rather than lingering over it.
+  await page.getByTestId(`human-list-item-${member.id}`).click();
+  await expect(switcherPopover).toHaveCount(0, { timeout: 5_000 });
 });

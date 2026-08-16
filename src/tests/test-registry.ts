@@ -404,6 +404,78 @@ export const capabilities: CapabilityDef[] = [
     ],
   },
   {
+    id: 'assistants.rail.default-pinned',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Every rail section pinned by default',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'every section is pinned by default, so there is no overflow',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.unpin-persists',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Unpinned section moves behind More and survives reload',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'unpinning a section moves it behind More and survives a reload',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.repin-from-more',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Hidden section re-pinned from the More menu',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'a hidden section can be re-pinned from the More menu',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.customize-editor',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Customize editor toggles a section',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'the customize editor opens from the More menu and toggles a section',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.unknown-section-pinned',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Section missing from a stored config stays pinned',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'a section absent from a stored config stays pinned',
+      },
+    ],
+  },
+  {
+    id: 'assistants.rail.collapsed-overflow',
+    areaId: 'assistants.core',
+    priority: 'P0',
+    description: 'Folded dock reaches overflow and editor',
+    matchers: [
+      {
+        files: ['src/tests/assistants/rail-pinning.e2e.ts'],
+        titleIncludes: 'the folded dock reaches the overflow and the editor',
+      },
+    ],
+  },
+  {
     id: 'assistants.list.hire',
     areaId: 'assistants.core',
     priority: 'P0',
@@ -783,6 +855,56 @@ export const capabilities: CapabilityDef[] = [
       {
         files: ['src/tests/assistants/workflows.e2e.ts'],
         titleIncludes: 'workflows rail section opens the shelf and installs a curated workflow',
+      },
+    ],
+  },
+  {
+    id: 'assistants.coordinator-onboarding.picker',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Fresh-visit picker with no skip or resume affordance',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes: 'picker shows on first visit with no skip or resume affordance',
+      },
+    ],
+  },
+  {
+    id: 'assistants.coordinator-onboarding.pick-chat',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Chat choice lands in the platform with the checklist in Assistant info',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes:
+          'picking chat lands in the full platform with the checklist in Assistant info',
+      },
+    ],
+  },
+  {
+    id: 'assistants.coordinator-onboarding.start-call',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Call choice connects and docks the call in the platform',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes: 'starting a call connects and docks the call in the platform',
+      },
+    ],
+  },
+  {
+    id: 'assistants.coordinator-onboarding.intro-watched',
+    areaId: 'assistants.coordinator-onboarding',
+    priority: 'P2',
+    description: 'Resolved picker persists intro_watched and survives reload',
+    matchers: [
+      {
+        files: ['src/tests/assistants/coordinator-onboarding.e2e.ts'],
+        titleIncludes:
+          'resolving the picker persists intro_watched and reload lands on T-W1N without auto-opening Assistant info',
       },
     ],
   },

@@ -12,11 +12,11 @@ export function AssistantListItemSkeleton({ isFolded }: { isFolded?: boolean }) 
   return (
     <div
       role="list-item-skeleton"
-      className={cn('flex items-center justify-between rounded-md p-2')}
+      className={cn('flex items-center justify-between rounded-md px-2 py-1')}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {/* Avatar Skeleton */}
-        <Skeleton className="h-8 w-8 flex-shrink-0 rounded-full bg-muted" />
+        <Skeleton className="h-7 w-7 flex-shrink-0 rounded-full bg-muted" />
         {/* Name Skeleton */}
         <Skeleton className="h-4 w-3/5 bg-muted" />
       </div>

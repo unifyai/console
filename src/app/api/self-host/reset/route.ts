@@ -14,7 +14,7 @@ function resetEnabled(): boolean {
 
 function resolveDeployRepoPath(): string {
   return (
-    process.env.UNITY_DEPLOY_REPO_PATH ??
+    process.env.UNIFY_DEPLOY_REPO_PATH ??
     process.env.DEPLOY_REPO_PATH ??
     path.resolve(process.cwd(), '..', 'unity-deploy')
   );
@@ -47,7 +47,7 @@ async function restartCoordinatorRuntime(): Promise<void> {
       env: {
         ...process.env,
         SELF_HOST: '1',
-        UNITY_STACK_ORCHESTRATOR: 'console-local-harness',
+        UNIFY_STACK_ORCHESTRATOR: 'console-local-harness',
       },
       timeout: 180_000,
       maxBuffer: 1024 * 1024,
