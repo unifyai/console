@@ -333,6 +333,29 @@ export function CanvasFrame({
     deliveredRef.current = 0;
   }, [source, channelId]);
 
+  // Settle the frame after it grows to the child's reported height.
+  //
+  // Chrome (observed on macOS with GPU compositing) can keep displaying an
+  // empty surface for a sandboxed cross-origin frame after the element grows
+  // to the size the child asked for: the child has painted, the parent never
+  // re-embeds its surface, and a tall canvas reads as a black block until any
+  // later geometry change. The change is what repairs it, so after each
+  // applied height the frame is nudged by a pixel and restored — twice, once
+  // the child has plausibly painted, and once more for a slow first render.
+  // Timers rather than animation frames: a background tab does not run frames.
+  React.useEffect(() => {
+    const frame = iframeRef.current;
+    if (!frame || height != null) return;
+    const settle = () => {
+      frame.style.height = `${contentHeight + 1}px`;
+      window.setTimeout(() => {
+        frame.style.height = `${contentHeight}px`;
+      }, 50);
+    };
+    const timers = [400, 1600].map((delay) => window.setTimeout(settle, delay));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [contentHeight, height]);
+
   return (
     <iframe
       ref={iframeRef}
