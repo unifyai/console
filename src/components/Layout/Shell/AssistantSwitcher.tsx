@@ -117,6 +117,25 @@ export function AssistantSwitcher({
     [nestedOverlayOpen]
   );
 
+  // Radix exempts only the chevron — the popover's actual trigger — from
+  // outside-dismiss, so a pointerdown on the face closes an open picker before
+  // the face's own click lands. Read the pre-dismiss state to tell a genuine
+  // open apart from a second click that should leave the picker shut.
+  const pickerWasOpenRef = React.useRef(false);
+  const handleFacePointerDown = React.useCallback(() => {
+    pickerWasOpenRef.current = switcherOpen;
+  }, [switcherOpen]);
+
+  const handleFaceClick = React.useCallback(() => {
+    // The face has nowhere left to go once its own surface is open, so it falls
+    // through to the picker rather than spending a click on nothing.
+    if (!chatActive) {
+      onOpenChat?.();
+      return;
+    }
+    if (!pickerWasOpenRef.current) setSwitcherOpen(true);
+  }, [chatActive, onOpenChat]);
+
   const showSkeletonFace = !activeUnity && !activeEntityFace && isInitialAssistantIdentityLoading;
   const unityName = activeEntityFace
     ? activeEntityFace.label
@@ -199,8 +218,11 @@ export function AssistantSwitcher({
     <button
       type="button"
       data-testid="rail-chat-home"
-      onClick={onOpenChat}
+      onPointerDown={handleFacePointerDown}
+      onClick={handleFaceClick}
       aria-current={chatActive ? 'page' : undefined}
+      aria-haspopup={chatActive ? 'dialog' : undefined}
+      aria-expanded={chatActive ? switcherOpen : undefined}
       aria-label={collapsed ? `Open ${unityName}` : undefined}
       className={cn(
         'relative flex items-center transition-colors',
