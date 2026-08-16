@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SECTION_GROUPS } from '@/components/Pages/Assistants/Rail/sectionConfig';
 import { computeRailLayout, SURFACED_CAP } from '@/utils/shell/railLayout';
-import { DEFAULT_RAIL_CONFIG } from '@/hooks/Shell/useRailConfig';
+import { DEFAULT_RAIL_CONFIG } from '@/utils/shell/railConfig';
 import type { RailConfig, SectionActivityMap } from '@/types/shell/rail';
 
 /**

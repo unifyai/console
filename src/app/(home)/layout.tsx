@@ -18,6 +18,8 @@ import {
 } from '@/components/Pages/Assistants/Communication/CallProvider';
 import { AppShellNavigationProvider } from '@/lib/navigation/AppShellRouter';
 import { AssistantSwitcherBridgeProvider } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
+import { RailConfigProvider } from '@/components/Layout/Shell/RailConfigProvider';
+import { getRailConfig } from '@/lib/shell/rail-config';
 import { getCurrentUser } from '@/lib/user/user';
 import { updateAssistant } from '@/lib/assistants/assistant';
 import {
@@ -87,6 +89,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
     image: user?.image ?? null,
     voiceSample: user?.voiceSample ?? null,
   };
+  const railConfig = await getRailConfig();
 
   return (
     <div className="h-screen w-full overflow-hidden">
@@ -99,11 +102,13 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
                   instantiated here in the server layout and handed to the client
                   chrome as a child — rendering it from inside HomeChrome would make
                   React treat it as an async client component and crash the tree. */}
-                <HomeChrome>
-                  <MfaEnforcementGate>
-                    <NuqsAdapter>{children}</NuqsAdapter>
-                  </MfaEnforcementGate>
-                </HomeChrome>
+                <RailConfigProvider config={railConfig}>
+                  <HomeChrome>
+                    <MfaEnforcementGate>
+                      <NuqsAdapter>{children}</NuqsAdapter>
+                    </MfaEnforcementGate>
+                  </HomeChrome>
+                </RailConfigProvider>
               </CallProvider>
             </AssistantSwitcherBridgeProvider>
           </AppShellNavigationProvider>

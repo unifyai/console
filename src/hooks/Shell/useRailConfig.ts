@@ -1,35 +1,14 @@
 'use client';
 
 import * as React from 'react';
+import { RailConfigContext } from '@/components/Layout/Shell/RailConfigProvider';
+import {
+  DEFAULT_RAIL_CONFIG,
+  RAIL_CONFIG_COOKIE,
+  RAIL_CONFIG_MAX_AGE_SECONDS,
+  serializeRailConfig,
+} from '@/utils/shell/railConfig';
 import type { RailConfig, RailGroupId } from '@/types/shell/rail';
-
-export const RAIL_CONFIG_STORAGE_KEY = 'console:assistants:railConfig';
-
-/** Everything pinned, default order — so an upgrade changes nobody's rail. */
-export const DEFAULT_RAIL_CONFIG: RailConfig = { v: 1, unpinned: [], order: {} };
-
-/**
- * Stored config, or the default when there is nothing usable to read. A config
- * written by a different version is discarded rather than migrated: the shape
- * is small enough that re-pinning costs less than a migration path nobody
- * exercises.
- */
-function readStoredConfig(): RailConfig {
-  const raw = window.localStorage.getItem(RAIL_CONFIG_STORAGE_KEY);
-  if (raw === null) return DEFAULT_RAIL_CONFIG;
-  // Hand-edited or half-written storage is an expected, recoverable input here.
-  try {
-    const parsed = JSON.parse(raw) as Partial<RailConfig>;
-    if (parsed.v !== 1) return DEFAULT_RAIL_CONFIG;
-    return {
-      v: 1,
-      unpinned: Array.isArray(parsed.unpinned) ? parsed.unpinned : [],
-      order: parsed.order ?? {},
-    };
-  } catch {
-    return DEFAULT_RAIL_CONFIG;
-  }
-}
 
 export interface RailConfigActions {
   config: RailConfig;
@@ -43,24 +22,21 @@ export interface RailConfigActions {
 }
 
 /**
- * Rail pin state, persisted per browser alongside the other `console:*`
- * preferences. Storage is read after mount, mirroring `railCollapsed` — the
- * rail renders its default for a frame rather than risking a hydration
- * mismatch against server-rendered markup that cannot know the config.
+ * Rail pin state, persisted per browser in a cookie.
+ *
+ * The initial value comes from the server, which read the same cookie off the
+ * request — so the first client render reproduces the markup it is hydrating
+ * and an unpinned rail never shows its full default set for a frame.
  */
 export function useRailConfig(): RailConfigActions {
-  const [config, setConfig] = React.useState<RailConfig>(DEFAULT_RAIL_CONFIG);
-
-  React.useEffect(() => {
-    setConfig(readStoredConfig());
-  }, []);
+  const [config, setConfig] = React.useState<RailConfig>(React.useContext(RailConfigContext));
 
   /** Apply a change to the freshest config and persist whatever it produces. */
   const update = React.useCallback((change: (current: RailConfig) => RailConfig) => {
     setConfig((current) => {
       const next = change(current);
       if (next === current) return current;
-      window.localStorage.setItem(RAIL_CONFIG_STORAGE_KEY, JSON.stringify(next));
+      document.cookie = `${RAIL_CONFIG_COOKIE}=${serializeRailConfig(next)}; path=/; max-age=${RAIL_CONFIG_MAX_AGE_SECONDS}; samesite=lax`;
       return next;
     });
   }, []);

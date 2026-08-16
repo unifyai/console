@@ -27,26 +27,29 @@ ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(90_000);
 
-const RAIL_CONFIG_KEY = 'console:assistants:railConfig';
+const RAIL_CONFIG_COOKIE = 'console_rail_config';
 const RAIL_COLLAPSED_KEY = 'console:assistants:railCollapsed';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
-/** Seed the stored rail config before the app boots. */
+/**
+ * Seed the stored rail config before the app boots. It is a cookie rather than
+ * localStorage so the server renders the configured rail directly.
+ */
 async function seedRailConfig(page: Page, config: unknown) {
-  await page.addInitScript(
-    ([key, value]) => {
-      try {
-        window.localStorage.setItem(key as string, value as string);
-      } catch {
-        /* private mode — ignore */
-      }
+  await page.context().addCookies([
+    {
+      name: RAIL_CONFIG_COOKIE,
+      value: encodeURIComponent(JSON.stringify(config)),
+      url: BASE_URL,
     },
-    [RAIL_CONFIG_KEY, JSON.stringify(config)] as const
-  );
+  ]);
 }
 
 async function readRailConfig(page: Page): Promise<{ unpinned?: string[] } | null> {
-  const raw = await page.evaluate((key) => window.localStorage.getItem(key), RAIL_CONFIG_KEY);
-  return raw === null ? null : JSON.parse(raw);
+  const cookie = (await page.context().cookies(BASE_URL)).find(
+    (entry) => entry.name === RAIL_CONFIG_COOKIE
+  );
+  return cookie === undefined ? null : JSON.parse(decodeURIComponent(cookie.value));
 }
 
 async function openApp(page: Page) {
@@ -109,6 +112,21 @@ test('unpinning a section moves it behind More and survives a reload', async ({
     timeout: 15_000,
   });
   await expect(railSection(page, 'workflows')).toHaveCount(0);
+});
+
+test('the configured rail is server-rendered, not corrected after mount', async ({
+  authedPage: page,
+}) => {
+  await seedRailConfig(page, { v: 1, unpinned: ['workflows'], order: {} });
+  await openApp(page);
+
+  // Asserting the document itself is the point. A hydrated-DOM check passes
+  // either way — a rail corrected on the client ends in the same state, one
+  // frame later — so only the HTML the server sent can tell the two apart.
+  const html = await (await page.request.get(`${BASE_URL}/assistants`)).text();
+  expect(html).toContain('rail-section-integrations');
+  expect(html).not.toContain('rail-section-workflows');
+  expect(html).toContain('rail-section-more');
 });
 
 test('a hidden section can be re-pinned from the More menu', async ({ authedPage: page }) => {
