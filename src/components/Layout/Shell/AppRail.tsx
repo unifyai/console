@@ -101,6 +101,11 @@ export function AppRail({
 
       {switcher}
 
+      {/* Collapsed, the switcher loses its card border and its label column, so
+          the face and chevron would read as the first two nav glyphs. A rule
+          mirroring the foot's restates the region boundary the card carried. */}
+      {collapsed && <div className="mb-2 h-px bg-border" />}
+
       {/* Section nav */}
       <ScrollArea className="min-h-0 flex-1" viewportClassName="overflow-x-hidden [&>div]:!block">
         <div className="px-2.5 pb-2">
