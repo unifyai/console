@@ -43,6 +43,7 @@ pr_assistants_specs() {
   cat <<'EOF'
 src/tests/assistants/shell.e2e.ts
 src/tests/assistants/list.e2e.ts
+src/tests/assistants/rail-pinning.e2e.ts
 src/tests/assistants/live-actions.e2e.ts
 src/tests/assistants/permissions.e2e.ts
 src/tests/assistants/coordinator-onboarding.e2e.ts

@@ -31,6 +31,10 @@ Tier resolution lives in `.github/workflows/tests.yml` (`resolve-tier` job).
 
 **Push vs PR:** `@push` = platform-entry blockers (login, shell boot, critical routes, minimum chat/billing). Runs on every branch push. `@critical` = merge-gate importance; PR Gate runs all `@critical` tests in its tier file lists plus sampled non-critical tests. Not every `@critical` test is `@push`.
 
+**`@critical` only selects inside the tier file lists.** PR Gate samples within `pr_*_specs()`; a spec no tier lists is reached only by the exhaustive matrix, where every test runs anyway. So in an exhaustive-only spec the tag selects nothing — it marks the coverage floor that `test-registry.ts` enforces by title, which is tag-independent. That is fine for P1/P2, whose absence from the PR lists is a deliberate cost trade.
+
+It is not fine for **P0**, whose contract is 100% of `@critical` on PR with no random exclusion. A P0 `@critical` test outside every tier list reads as a merge gate it cannot be, so `check:test-inventory` fails on it: either add the spec to a tier list, or drop `@critical` and leave the spec exhaustive-only. A test's priority resolves from its `@area(...)` tag, falling back to `defaultPriorityForSpec`.
+
 Manual tier override (e.g. PR Gate while a PR has merge conflicts):
 
 ```bash

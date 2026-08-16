@@ -62,12 +62,14 @@ Platform-entry blockers: login → shell → routes → list → chat → billin
 
 ## PR Gate — Assistants (`pr-assistants`)
 
-| File                  | Area                    | Verdict | Notes                                                      |
-| --------------------- | ----------------------- | ------- | ---------------------------------------------------------- |
-| `shell.e2e.ts`        | assistants.core         | trimmed | rail + switcher @critical; account menu + collapse deleted |
-| `list.e2e.ts`         | assistants.core         | trimmed | 3 @critical                                                |
-| `live-actions.e2e.ts` | assistants.live-actions | trimmed | historical + live @critical                                |
-| `permissions.e2e.ts`  | assistants.permissions  | keep    | RBAC boundaries                                            |
+| File                            | Area                    | Verdict | Notes                                                      |
+| ------------------------------- | ----------------------- | ------- | ---------------------------------------------------------- |
+| `shell.e2e.ts`                  | assistants.core         | trimmed | rail + switcher @critical; account menu + collapse deleted |
+| `list.e2e.ts`                   | assistants.core         | trimmed | 3 @critical                                                |
+| `rail-pinning.e2e.ts`           | assistants.core         | keep    | P0 default-pinned @critical; pin/unpin, More, customize    |
+| `live-actions.e2e.ts`           | assistants.live-actions | trimmed | historical + live @critical                                |
+| `permissions.e2e.ts`            | assistants.permissions  | keep    | RBAC boundaries                                            |
+| `coordinator-onboarding.e2e.ts` | assistants.coordinator  | keep    | picker gate + checklist journeys                           |
 
 ## PR Gate — Auth (`pr-auth`)
 
@@ -82,7 +84,7 @@ All auth PR specs kept; login trimmed to 4 @critical; signup trimmed (whitespace
 | `admin/billing-plans.e2e.ts`            | keep    |
 | `impersonation/view-as.e2e.ts`          | keep    |
 
-## Exhaustive-only (P0–P2 — kept, not on PR lists)
+## Exhaustive-only (P1/P2 — kept, not on PR lists)
 
 Medium–high priority specs retained for full `[run-tests]` matrix:
 
@@ -94,7 +96,6 @@ Medium–high priority specs retained for full `[run-tests]` matrix:
 | `assistants/brain.e2e.ts`                   | P2            | Rail brain sections                                       |
 | `assistants/call-working-pose.e2e.ts`       | P2            | In-call pose states                                       |
 | `assistants/coordinator-sidebar.e2e.ts`     | P2            | Coordinator sidebar ordering                              |
-| `assistants/coordinator-onboarding.e2e.ts`  | P2            | Onboarding picker gate + checklist journeys               |
 | `assistants/desktop-filesys.e2e.ts`         | P2            | Filesystem consent                                        |
 | `assistants/chat.e2e.ts`                    | P2            | 4 tests: send, history+order, shared-root, credits guard  |
 | `assistants/chat-stream.e2e.ts`             | P2            | 9 tests (was 14): unread badge merged, tab title deleted  |
@@ -107,7 +108,10 @@ Medium–high priority specs retained for full `[run-tests]` matrix:
 | `assistants/provider-integrations.e2e.ts`   | P1            | Provider integrations                                     |
 | `assistants/workspace-provider-card.e2e.ts` | P1            | Workspace provider card                                   |
 | `assistants/workflows.e2e.ts`               | P1            | Workflows shelf: install journey + held connection        |
-| `assistants/rail-pinning.e2e.ts`            | P0            | Configurable rail: pin/unpin, More overflow, customize    |
+
+Their `@critical` tags mark the coverage floor that `test-registry.ts` enforces by
+title; they do not select anything on PR Gate, which samples only within the tier
+file lists. A P0 journey may not sit here — see [CI_TESTING.md](./CI_TESTING.md).
 
 ## P3 deleted
 
