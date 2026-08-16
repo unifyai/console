@@ -27,13 +27,22 @@ export interface TargetNavigator {
 }
 
 /**
+ * The rail control a section lands on. Chat has no nav button — it opens from
+ * the switcher's face — so it resolves there instead of to a `rail-section-*`
+ * id that no longer renders.
+ */
+function sectionTestId(sectionId: string): string {
+  return sectionId === 'chat' ? 'rail-chat-home' : `rail-section-${sectionId}`;
+}
+
+/**
  * The element a target lands on, for the brief highlight that makes the move
  * legible. Read-only: if it is absent the navigation still happens, the user
  * just does not get the flash.
  */
 export function targetTestId(target: string): string | null {
   if (target.startsWith(SECTION_TARGET_PREFIX)) {
-    return `rail-section-${target.slice(SECTION_TARGET_PREFIX.length)}`;
+    return sectionTestId(target.slice(SECTION_TARGET_PREFIX.length));
   }
   if (target.startsWith(ACCOUNT_TAB_TARGET_PREFIX)) {
     return `settings-nav-${target.slice(ACCOUNT_TAB_TARGET_PREFIX.length)}`;
@@ -85,7 +94,7 @@ export async function executeTarget(
   if (section && !isPresent(testId)) {
     // Show the hop as its own press: the pane really did change, and hiding
     // that would leave the user with a click they did not see coming.
-    options.highlight?.(`rail-section-${section}`);
+    options.highlight?.(sectionTestId(section));
     nav.navigateToAssistants({ sectionId: section });
   }
 

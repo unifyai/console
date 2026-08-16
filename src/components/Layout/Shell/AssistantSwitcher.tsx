@@ -67,6 +67,12 @@ interface AssistantSwitcherProps {
    * overlay (hire / create-group). Closing that overlay returns to the switcher.
    */
   nestedOverlayOpen?: boolean;
+  /** Open the current selection's home surface (profile, thread, voice, share). */
+  onOpenChat?: () => void;
+  /** Whether that home surface is the active rail section. */
+  chatActive?: boolean;
+  /** Unread pulse on the face while another section is selected. */
+  showChatActivity?: boolean;
   /** Assistant currently on a live call; escalates that face's presence badge. */
   activeCallAssistantId?: string | null;
 }
@@ -81,10 +87,11 @@ function entityInitials(label: string): string {
 }
 
 /**
- * The rail's unity switcher: the whole card is the teammate picker. Expanded it
- * shows the active face, name, and role beside a chevron; collapsed to a dock
- * it is the face alone with a tooltip. Chat is a rail section of its own, so
- * the face is not a shortcut to it.
+ * The rail's unity switcher: two controls that never trade places. The face
+ * opens the selection's home surface; a chevron beside it (expanded) or beneath
+ * it (collapsed) opens the teammate picker. The chevron is always drawn — never
+ * hover-revealed — and never occupies the face's bottom-right corner, so the
+ * presence badge stays legible while reaching for either control.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -93,6 +100,9 @@ export function AssistantSwitcher({
   listProps,
   collapsed,
   nestedOverlayOpen = false,
+  onOpenChat,
+  chatActive = false,
+  showChatActivity = false,
   activeCallAssistantId = null,
 }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
@@ -185,7 +195,63 @@ export function AssistantSwitcher({
     </span>
   );
 
-  const switcherButton = (
+  const homeButton = (
+    <button
+      type="button"
+      data-testid="rail-chat-home"
+      onClick={onOpenChat}
+      aria-current={chatActive ? 'page' : undefined}
+      aria-label={collapsed ? `Open ${unityName}` : undefined}
+      className={cn(
+        'relative flex items-center transition-colors',
+        collapsed
+          ? cn(
+              'rounded-xl p-1.5',
+              chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
+            )
+          : cn(
+              'min-w-0 flex-1 gap-2 rounded-l-xl px-2 py-1.5 text-left',
+              chatActive ? 'bg-accent-soft/70' : 'hover:bg-muted/70'
+            )
+      )}
+    >
+      {face}
+      {!collapsed &&
+        (showSkeletonFace ? (
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
+            {unitySub ? (
+              <div className="truncate text-[11.5px] capitalize text-muted-foreground">
+                {unitySub}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      {showChatActivity && (
+        <span
+          className={cn(
+            'animate-rail-activity-dot h-2 w-2 shrink-0 rounded-full bg-primary ring-1 ring-primary-tint-30',
+            // Top-right: the face's bottom-right corner belongs to presence.
+            collapsed ? 'absolute right-1 top-1' : 'ml-1'
+          )}
+          aria-hidden="true"
+          data-testid="rail-chat-home-activity-dot"
+        />
+      )}
+    </button>
+  );
+
+  /**
+   * Sized for touch as well as pointer: the mobile rail renders expanded inside
+   * a drawer, so the expanded trigger stretches to the card's full height and
+   * the collapsed strip is wider than the glyph it carries.
+   */
+  const pickerButton = (
     <PopoverTrigger asChild>
       <button
         type="button"
@@ -193,57 +259,44 @@ export function AssistantSwitcher({
         title={collapsed ? `Switch teammate (${unityName})` : undefined}
         aria-label={`Switch teammate — ${unityName}`}
         className={cn(
-          'flex items-center transition-colors',
+          'flex shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           collapsed
-            ? 'mx-auto w-fit rounded-xl p-1.5 hover:bg-muted'
-            : 'hover:bg-muted/70 w-full gap-2 rounded-xl border border-border bg-card px-2 py-1.5 text-left'
+            ? 'h-5 w-11 rounded-md'
+            : 'w-11 self-stretch rounded-r-xl border-l border-border'
         )}
       >
-        {face}
-        {!collapsed &&
-          (showSkeletonFace ? (
-            <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          ) : (
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
-              {unitySub ? (
-                <div className="truncate text-[11.5px] capitalize text-muted-foreground">
-                  {unitySub}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        {!collapsed && (
-          <ChevronsUpDown
-            className="h-4 w-4 shrink-0 text-muted-foreground"
-            strokeWidth={1.75}
-            aria-hidden="true"
-          />
-        )}
+        <ChevronsUpDown
+          className={cn('shrink-0', collapsed ? 'h-3.5 w-3.5' : 'h-4 w-4')}
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
       </button>
     </PopoverTrigger>
   );
 
   return (
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
-      {/* The horizontal inset lives here rather than as margins on the button
-          so the trigger can be w-full and span the rail like the account
-          switcher below it; margins left it hugging its content. */}
+      {/* The horizontal inset lives here rather than as margins on the card so
+          the card can span the rail like the account switcher below it;
+          margins left it hugging its content. */}
       <div className={cn('mb-2', !collapsed && 'px-3.5')}>
         {collapsed ? (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>{switcherButton}</TooltipTrigger>
-              <TooltipContent side="right">
-                <p>Switch teammate · {unityName}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="mx-auto flex w-fit flex-col items-center gap-0.5">
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>{homeButton}</TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{unityName}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {pickerButton}
+          </div>
         ) : (
-          switcherButton
+          <div className="flex items-stretch overflow-hidden rounded-xl border border-border bg-card">
+            {homeButton}
+            {pickerButton}
+          </div>
         )}
       </div>
       <PopoverContent
