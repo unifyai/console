@@ -88,6 +88,12 @@ describe('CanvasFrame settling', () => {
     expect(iframe.style.height).toBe('121px');
     vi.advanceTimersByTime(50);
     expect(iframe.style.height).toBe('120px');
+
+    // A chart-heavy child paints late; the schedule outlasts it.
+    vi.advanceTimersByTime(6350);
+    expect(iframe.style.height).toBe('121px');
+    vi.advanceTimersByTime(50);
+    expect(iframe.style.height).toBe('120px');
   });
 
   it('leaves a fixed-height frame alone', () => {
