@@ -42,7 +42,7 @@ describe('assistant status route', () => {
 
     process.env.SELF_HOST = '1';
     process.env.NEXT_PUBLIC_SELF_HOST = '1';
-    process.env.UNITY_HOME = tempDir;
+    process.env.UNIFY_HOME = tempDir;
     process.env.SELF_HOST_STATE_DIR = tempDir;
     process.env.ORCHESTRA_URL = 'http://127.0.0.1:8000';
     delete process.env.ORCHESTRA_ADMIN_KEY;
@@ -58,7 +58,7 @@ describe('assistant status route', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
     delete process.env.SELF_HOST;
     delete process.env.NEXT_PUBLIC_SELF_HOST;
-    delete process.env.UNITY_HOME;
+    delete process.env.UNIFY_HOME;
     delete process.env.SELF_HOST_STATE_DIR;
     delete process.env.ORCHESTRA_URL;
     delete process.env.ORCHESTRA_ADMIN_KEY;

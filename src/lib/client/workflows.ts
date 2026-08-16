@@ -50,7 +50,7 @@ async function fetchBuiltinsWorkflowRows(
   filter?: string
 ): Promise<Record<string, unknown>[]> {
   const params = new URLSearchParams();
-  params.set('projectName', process.env.NEXT_PUBLIC_UNITY_BUILTINS_PROJECT || 'Builtins');
+  params.set('projectName', process.env.NEXT_PUBLIC_UNIFY_BUILTINS_PROJECT || 'Builtins');
   params.set('context', context);
   params.set('limit', '500');
   params.set('offset', '0');

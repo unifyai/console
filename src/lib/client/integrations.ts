@@ -231,7 +231,7 @@ async function builtinsLogFetch<T>(args: {
   sorting?: Record<string, 'ascending' | 'descending'>;
 }): Promise<LogPayload<T>> {
   const params = new URLSearchParams();
-  params.set('projectName', process.env.NEXT_PUBLIC_UNITY_BUILTINS_PROJECT || 'Builtins');
+  params.set('projectName', process.env.NEXT_PUBLIC_UNIFY_BUILTINS_PROJECT || 'Builtins');
   params.set('context', args.context);
   params.set('limit', String(args.limit));
   params.set('offset', String(args.offset));
@@ -919,7 +919,7 @@ export async function getProviderIntegrationCatalogCount(args: {
     : [];
   const filter = catalogFilterExpr({ ...args, connections });
   const params = new URLSearchParams();
-  params.set('projectName', process.env.NEXT_PUBLIC_UNITY_BUILTINS_PROJECT || 'Builtins');
+  params.set('projectName', process.env.NEXT_PUBLIC_UNIFY_BUILTINS_PROJECT || 'Builtins');
   params.set('context', 'Integrations/Apps');
   // Count over a field present on every catalog row; the log's own `id` is not an
   // entry field and would always yield 0.

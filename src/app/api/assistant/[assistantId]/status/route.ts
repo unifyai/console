@@ -17,7 +17,7 @@ type AssistantStatusPayload = {
 };
 
 function unityHome(): string {
-  return process.env.UNITY_HOME ?? path.join(os.homedir(), '.unity');
+  return process.env.UNIFY_HOME ?? path.join(os.homedir(), '.unity');
 }
 
 function selfHostStateDir(): string {

@@ -66,17 +66,17 @@ import {
 } from '@unity/brand/components';
 
 const staticSkillsText = `The bio doesn't influence the teammate's abilities. All teammates come with the same foundational skills and can specialize in whichever area you want them to.`;
-const UNITY_PREVIEW_SIZE = 120;
-const UNITY_PREVIEW_REST_SIZE = 152;
-const UNITY_PREVIEW_REST_SCALE = UNITY_PREVIEW_REST_SIZE / UNITY_PREVIEW_SIZE;
-const UNITY_PREVIEW_STAGE_HEIGHT = 192;
-const UNITY_PREVIEW_SCALE_BODY = 'standard' satisfies UnityBody;
-const UNITY_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
-const UNITY_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna;
-const UNITY_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
-const UNITY_PREVIEW_BODY_CONTROL_TOP = 72;
+const UNIFY_PREVIEW_SIZE = 120;
+const UNIFY_PREVIEW_REST_SIZE = 152;
+const UNIFY_PREVIEW_REST_SCALE = UNIFY_PREVIEW_REST_SIZE / UNIFY_PREVIEW_SIZE;
+const UNIFY_PREVIEW_STAGE_HEIGHT = 192;
+const UNIFY_PREVIEW_SCALE_BODY = 'standard' satisfies UnityBody;
+const UNIFY_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
+const UNIFY_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna;
+const UNIFY_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
+const UNIFY_PREVIEW_BODY_CONTROL_TOP = 72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
-const UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS = 'transition-all duration-300 ease-out';
+const UNIFY_PREVIEW_LAYOUT_TRANSITION_CLASS = 'transition-all duration-300 ease-out';
 const COLOR_SWATCH_TRANSITION = { type: 'spring', stiffness: 720, damping: 42, mass: 0.65 };
 
 const appearanceAntennaOptions = unityAntennaOptions;
@@ -114,18 +114,18 @@ function pickOption<T>(items: readonly T[], current: T): T {
 }
 
 function clampPreviewControlTop(top: number): number {
-  return Math.max(0, Math.min(UNITY_PREVIEW_STAGE_HEIGHT - 32, top));
+  return Math.max(0, Math.min(UNIFY_PREVIEW_STAGE_HEIGHT - 32, top));
 }
 
 function getUnityPreviewScale(): number {
   const referenceViewBox = getRotatingBotViewBox(
-    getUnityBodyForm(UNITY_PREVIEW_SCALE_BODY),
+    getUnityBodyForm(UNIFY_PREVIEW_SCALE_BODY),
     undefined,
     undefined,
     undefined,
-    UNITY_PREVIEW_LAYOUT_ANTENNA
+    UNIFY_PREVIEW_LAYOUT_ANTENNA
   );
-  return UNITY_PREVIEW_SIZE / referenceViewBox.w;
+  return UNIFY_PREVIEW_SIZE / referenceViewBox.w;
 }
 
 function SectionIconSlot({ children }: { children: React.ReactNode }) {
@@ -197,7 +197,7 @@ function HireUnityAvatar({
     undefined,
     undefined,
     undefined,
-    UNITY_PREVIEW_LAYOUT_ANTENNA
+    UNIFY_PREVIEW_LAYOUT_ANTENNA
   );
   const selectedViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, antenna);
   const scale = getUnityPreviewScale();
@@ -374,7 +374,7 @@ export function HireForm({
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
   const isAppearanceEditing = !lockAppearanceControls && isAppearanceControlsVisible;
-  const unityPreviewScale = isAppearanceEditing ? 1 : UNITY_PREVIEW_REST_SCALE;
+  const unityPreviewScale = isAppearanceEditing ? 1 : UNIFY_PREVIEW_REST_SCALE;
 
   // Persist the live creature as the avatar by syncing it into `profilePhotoUrl`
   // as an `appearance://` sentinel. We defer to a real image only when the user
@@ -455,26 +455,26 @@ export function HireForm({
       undefined,
       undefined,
       undefined,
-      UNITY_PREVIEW_LAYOUT_ANTENNA
+      UNIFY_PREVIEW_LAYOUT_ANTENNA
     );
     const antennaControlViewBox = getRotatingBotViewBox(
       form,
       undefined,
       undefined,
       undefined,
-      UNITY_PREVIEW_ANTENNA_CONTROL_REFERENCE
+      UNIFY_PREVIEW_ANTENNA_CONTROL_REFERENCE
     );
     const bodyViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, 'none');
     const scale = getUnityPreviewScale();
-    const layoutTop = (UNITY_PREVIEW_STAGE_HEIGHT - layoutViewBox.h * scale) / 2;
+    const layoutTop = (UNIFY_PREVIEW_STAGE_HEIGHT - layoutViewBox.h * scale) / 2;
     const bodyTop = layoutTop + (bodyViewBox.minY - layoutViewBox.minY) * scale;
     const antennaControlTop = layoutTop + (antennaControlViewBox.minY - layoutViewBox.minY) * scale;
 
     return {
       antenna: clampPreviewControlTop(antennaControlTop + 18),
-      body: UNITY_PREVIEW_BODY_CONTROL_TOP,
+      body: UNIFY_PREVIEW_BODY_CONTROL_TOP,
       outfit: clampPreviewControlTop(
-        bodyTop + bodyViewBox.h * scale * UNITY_PREVIEW_OUTFIT_REGION_RATIO - 16
+        bodyTop + bodyViewBox.h * scale * UNIFY_PREVIEW_OUTFIT_REGION_RATIO - 16
       ),
     };
   }, [selectedUnityBody]);
@@ -738,14 +738,14 @@ export function HireForm({
                         <div
                           className={cn(
                             'flex h-full w-full flex-col items-center justify-center',
-                            UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                            UNIFY_PREVIEW_LAYOUT_TRANSITION_CLASS,
                             isAppearanceEditing ? 'gap-3' : 'gap-0'
                           )}
                         >
                           <div
                             className={cn(
                               'relative flex max-w-full items-center justify-center overflow-visible',
-                              UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                              UNIFY_PREVIEW_LAYOUT_TRANSITION_CLASS,
                               isAppearanceEditing ? 'h-48 w-64' : 'h-60 w-full'
                             )}
                           >
@@ -898,7 +898,7 @@ export function HireForm({
                               >
                                 <span
                                   className="block h-full w-full transition-transform duration-300 ease-out"
-                                  style={{ transform: `scale(${UNITY_PREVIEW_REST_SCALE})` }}
+                                  style={{ transform: `scale(${UNIFY_PREVIEW_REST_SCALE})` }}
                                 >
                                   <HireUnityAvatar
                                     isVoicePreviewPlaying={isVoicePreviewPlaying}
@@ -917,7 +917,7 @@ export function HireForm({
                                 aria-label="Preview selected voice"
                                 className={cn(
                                   'relative z-0 flex h-full items-center justify-center bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                  UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                                  UNIFY_PREVIEW_LAYOUT_TRANSITION_CLASS,
                                   isAppearanceEditing ? 'w-40 sm:w-52 md:w-40' : 'w-56 sm:w-64'
                                 )}
                                 disabled={isSubmitting}

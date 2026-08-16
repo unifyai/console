@@ -188,7 +188,7 @@ This starts a local Orchestra backend (PostgreSQL + FastAPI), seeds a test user 
 
 Local chat routes Console adapter calls to `unity.gateway`, not the private
 hosted `communication` repository. The wrapper commands above delegate to the
-sibling Unity repo via `UNITY_REPO_PATH` and use Console's `.env.local` by
+sibling Unity repo via `UNIFY_REPO_PATH` and use Console's `.env.local` by
 default. Hosted deployments may still use managed Communication infrastructure.
 
 ### Configuration
