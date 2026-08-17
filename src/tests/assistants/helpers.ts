@@ -28,6 +28,7 @@ import {
 } from '../helpers/coordinator';
 import {
   assistantRail,
+  openAssistantCreateMenu,
   railSection,
   railUnitySwitcher,
   waitForAssistantsRail,
@@ -385,10 +386,10 @@ export async function openRailSection(page: Page, sectionId: string) {
 }
 
 /**
- * Open the hire dialog via the "Onboard" button in the unity switcher list.
- * In org workspaces the button lives under Org or Colleagues creation actions;
- * in personal workspaces it sits at the bottom of the assistant list. If the
- * dialog is already open (e.g. auto-opened on empty state), skip.
+ * Open the hire dialog via the "Teammate" create action in the unity switcher
+ * list. Org workspaces nest it behind the header's "+" menu; personal
+ * workspaces expose it directly. If the dialog is already open (e.g.
+ * auto-opened on empty state), skip.
  */
 export async function openHireDialog(page: Page, opts?: { userId?: string; apiKey?: string }) {
   const dialog = hireDialog(page);
@@ -396,13 +397,8 @@ export async function openHireDialog(page: Page, opts?: { userId?: string; apiKe
     return;
   }
   await openUnitySwitcher(page, opts);
+  await openAssistantCreateMenu(page);
   const onboardBtn = page.getByTestId('assistant-onboard-button');
-  if (!(await onboardBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
-    const colleagues = page.getByTestId('assistant-list-section-people');
-    if (await colleagues.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await colleagues.getByRole('button').first().click();
-    }
-  }
   await expect(onboardBtn).toBeEnabled({ timeout: 30_000 });
   await onboardBtn.click();
   // Switcher may remain open under the hire dialog; assert the hire dialog

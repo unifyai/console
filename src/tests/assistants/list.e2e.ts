@@ -93,10 +93,12 @@ test('seeded assistants appear in the list with correct names @push @critical @a
   await expect(item1).toBeVisible({ timeout: 15_000 });
   await expect(item2).toBeVisible({ timeout: 5_000 });
 
-  // Personal workspaces only list virtual assistants — no Real/Virtual filters
-  // and no org roster nesting (Teams / Groups / Colleagues).
-  await expect(page.getByTestId('assistant-list-filter-real')).toHaveCount(0);
-  await expect(page.getByTestId('assistant-list-filter-virtual')).toHaveCount(0);
+  // Personal workspaces only list virtual assistants — no list filters at all
+  // and no org roster nesting (Teams / Groups / Colleagues). Onboarding is the
+  // lone create action, so it stays a direct button rather than a "+" menu.
+  await expect(page.getByTestId('assistant-list-filter-menu')).toHaveCount(0);
+  await expect(page.getByTestId('assistant-create-menu')).toHaveCount(0);
+  await expect(page.getByTestId('assistant-onboard-button')).toBeVisible();
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);

@@ -35,6 +35,20 @@ export function railSection(page: Page, sectionId: string): Locator {
   return assistantRail(page).getByTestId(`rail-section-${sectionId}`);
 }
 
+/**
+ * Reveal the assistant list's create actions. Workspaces offering more than
+ * onboarding (org rosters: Group / Team / Teammate) nest them behind the
+ * header's "+" menu; personal workspaces expose onboarding directly, so there
+ * is no menu to open.
+ */
+export async function openAssistantCreateMenu(page: Page): Promise<void> {
+  const trigger = page.getByTestId('assistant-create-menu');
+  if (await trigger.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await trigger.click();
+    await expect(page.getByRole('menu')).toBeVisible({ timeout: 5_000 });
+  }
+}
+
 /** Wait until the assistants shell exposes an interactive rail or switcher. */
 export async function waitForAssistantsRail(page: Page, timeout = 60_000): Promise<void> {
   await expect

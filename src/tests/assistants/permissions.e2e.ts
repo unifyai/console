@@ -36,7 +36,7 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail } from '../helpers/shell';
+import { assistantRail, openAssistantCreateMenu } from '../helpers/shell';
 import {
   navigateToAssistants,
   openUnitySwitcher,
@@ -205,13 +205,7 @@ test('owner can see the "New" hire button in the assistant list', async ({ owner
   await closeHireDialogIfOpen(page);
   await openUnitySwitcher(page);
 
-  const colleagues = page.getByTestId('assistant-list-section-people');
-  if (await colleagues.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    const onboardBtn = page.getByTestId('assistant-onboard-button');
-    if (!(await onboardBtn.isVisible({ timeout: 1_000 }).catch(() => false))) {
-      await colleagues.getByRole('button').first().click();
-    }
-  }
+  await openAssistantCreateMenu(page);
 
   const newBtn = page.getByTestId('assistant-onboard-button');
   await expect(newBtn).toBeVisible({ timeout: 15_000 });
@@ -256,8 +250,10 @@ test('member cannot see the "New" hire button in the assistant list', async ({
     timeout: 15_000,
   });
 
-  // The hire ("Onboard") affordance is permission-gated and must NOT render
-  // for members — neither the labelled button nor its folded icon variant.
+  // The hire ("Teammate") affordance is permission-gated and must NOT render
+  // for members — the create menu still opens for Group / Team, but carries no
+  // onboard entry, and no standalone onboard control exists either.
+  await openAssistantCreateMenu(page);
   await expect(page.getByTestId('assistant-onboard-button')).toHaveCount(0);
 });
 

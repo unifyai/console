@@ -11,16 +11,23 @@ import {
   MessagesSquare,
   MousePointer2,
   User,
+  UserPlus,
   ChevronDown,
   ChevronRight,
+  ListChecks,
   Plus,
 } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { AssistantListItem } from './AssistantListItem';
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
-import { Checkbox } from '@/components/UI/checkbox';
-import { Label } from '@/components/UI/label';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 import {
@@ -488,7 +495,9 @@ export function AssistantList({
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
   const [showReal, setShowReal] = React.useState(true);
   const [showVirtual, setShowVirtual] = React.useState(true);
-  // Personal workspaces only list virtual assistants — Real/Virtual filters and
+  const [showTeams, setShowTeams] = React.useState(true);
+  const [showGroups, setShowGroups] = React.useState(true);
+  // Personal workspaces only list virtual assistants — the list filters and
   // Groups/Colleagues/Teams nesting are org-workspace concepts.
   const isOrgWorkspace = workspace.type === 'organization';
   const includeReal = isOrgWorkspace && showReal;
@@ -919,8 +928,7 @@ export function AssistantList({
     isOrgWorkspace &&
     (filteredHumans.length > 0 ||
       filteredSelectableTeams.length > 0 ||
-      (Boolean(onSelectHuman) && showHireButton) ||
-      (Boolean(onSelectGroup) && (filteredSelectableGroups.length > 0 || Boolean(onCreateGroup))));
+      (Boolean(onSelectGroup) && filteredSelectableGroups.length > 0));
   const shouldRenderFlatList =
     isFolded ||
     (!hasNonAssistantRows && assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
@@ -951,9 +959,12 @@ export function AssistantList({
     }
     return Array.from(byId.values());
   }, [filteredSelectableTeams, isOrgWorkspace, onSelectTeam, rosterTeamsById, teamGroups]);
+  // The Teams filter hides every team row, the elevated managed team included —
+  // leaving that one visible while the rest disappear reads as a bug.
   const elevatedOrgTeam = React.useMemo(
-    () => selectableTeamsForList.find((team) => team.isOrgWideSharing) ?? null,
-    [selectableTeamsForList]
+    () =>
+      showTeams ? (selectableTeamsForList.find((team) => team.isOrgWideSharing) ?? null) : null,
+    [selectableTeamsForList, showTeams]
   );
   const customTeamsForSection = React.useMemo(
     () => selectableTeamsForList.filter((team) => !team.isOrgWideSharing),
@@ -971,71 +982,22 @@ export function AssistantList({
   // GROUPS only appears once at least one group exists.
   const showTeamsSection =
     isOrgWorkspace &&
+    showTeams &&
     (customTeamsForSection.length > 0 || (!onSelectTeam && customTeamGroups.length > 0));
   const showGroupsSection =
-    isOrgWorkspace && Boolean(onSelectGroup) && filteredSelectableGroups.length > 0;
+    isOrgWorkspace && showGroups && Boolean(onSelectGroup) && filteredSelectableGroups.length > 0;
   // When the managed Org team exists, every human/assistant is already on it —
-  // COLLEAGUES would duplicate that roster, so hide the section.
+  // COLLEAGUES would duplicate that roster, so hide the section. Membership is
+  // read from the roster rather than the filtered list, so hiding teams does not
+  // resurrect a duplicate people section.
   const hasManagedOrgTeam =
     isOrgWorkspace && (selectableTeams ?? []).some((team) => team.isOrgWideSharing);
   const showColleaguesSection =
     isOrgWorkspace &&
     !hasManagedOrgTeam &&
     Boolean(onSelectHuman) &&
-    ((includeReal && filteredHumans.length > 0) || showHireButton);
-  const onboardListButton = renderOnboardButton(
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-      onClick={onOpenHireDialog}
-      disabled={isHireButtonDisabled}
-      aria-disabled={isHireButtonDisabled}
-      data-testid="assistant-onboard-button"
-    >
-      <Plus className="h-3.5 w-3.5" />
-      Onboard
-    </Button>
-  );
-  // Create group / Create team / Onboard sit below the managed Org team,
-  // outside its nest (or under Colleagues when there is no managed team) —
-  // not under an empty GROUPS section.
-  const showOrgCreationActions =
-    isOrgWorkspace && (Boolean(elevatedOrgTeam) || showColleaguesSection);
-  const orgCreationActions = showOrgCreationActions ? (
-    <div className="min-w-0 space-y-1" data-testid="assistant-list-org-actions">
-      {onCreateGroup ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-          onClick={onCreateGroup}
-          aria-label="Create group"
-          data-testid="create-group-button"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create group
-        </Button>
-      ) : null}
-      {onCreateTeam ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-          onClick={onCreateTeam}
-          aria-label="Create team"
-          data-testid="create-team-button"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create team
-        </Button>
-      ) : null}
-      {onboardListButton}
-    </div>
-  ) : null;
+    includeReal &&
+    filteredHumans.length > 0;
   const showRosterSections = showTeamsSection || showGroupsSection || showColleaguesSection;
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
@@ -1053,7 +1015,6 @@ export function AssistantList({
               {renderRosterTeam(elevatedOrgTeam, teamRowsById.get(elevatedOrgTeam.teamId) ?? [])}
             </div>
           ) : null}
-          {elevatedOrgTeam && !showColleaguesSection ? orgCreationActions : null}
         </div>
       ) : null}
       {showRosterSections ? (
@@ -1132,20 +1093,17 @@ export function AssistantList({
                 'Colleagues',
                 filteredHumans.length,
                 <div className="min-w-0 space-y-1">
-                  {includeReal
-                    ? filteredHumans.map((human) => (
-                        <HumanListRow
-                          key={`human:${human.userId}`}
-                          human={human}
-                          isSelected={selectedEntityKey === humanEntityKey(human.userId)}
-                          isYou={human.userId === currentUserId}
-                          unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
-                          isCallActive={orgCallUserIdSet.has(human.userId)}
-                          onSelect={() => onSelectHuman?.(human.userId)}
-                        />
-                      ))
-                    : null}
-                  {orgCreationActions}
+                  {filteredHumans.map((human) => (
+                    <HumanListRow
+                      key={`human:${human.userId}`}
+                      human={human}
+                      isSelected={selectedEntityKey === humanEntityKey(human.userId)}
+                      isYou={human.userId === currentUserId}
+                      unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+                      isCallActive={orgCallUserIdSet.has(human.userId)}
+                      onSelect={() => onSelectHuman?.(human.userId)}
+                    />
+                  ))}
                 </div>,
                 'assistant-list-section-people',
                 {
@@ -1160,17 +1118,174 @@ export function AssistantList({
           {soloRows.map((entry) =>
             renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
           )}
-          {!showOrgCreationActions ? onboardListButton : null}
         </div>
-      ) : !showOrgCreationActions ? (
-        onboardListButton
       ) : null}
     </div>
   );
 
+  // Groups and teams are org-workspace concepts, and the callers hand down
+  // their callbacks unconditionally — so the workspace gate lives here.
+  const createGroupAction = isOrgWorkspace ? onCreateGroup : undefined;
+  const createTeamAction = isOrgWorkspace ? onCreateTeam : undefined;
+  // Every create action lives behind one "+" in the header. A workspace that
+  // offers nothing but onboarding (personal workspaces, and org members who
+  // cannot hire) gets the action directly — a menu holding one item is only a
+  // slower button.
+  const createActionCount =
+    (createGroupAction ? 1 : 0) + (createTeamAction ? 1 : 0) + (showHireButton ? 1 : 0);
+  const useCreateMenu = createActionCount > 1 || !showHireButton;
+
+  const renderCreateControl = (options: {
+    variant: 'ghost' | 'outline';
+    icon: React.ReactNode;
+    tooltipSide: 'right' | 'bottom';
+  }): React.ReactNode => {
+    if (createActionCount === 0) return null;
+
+    if (!useCreateMenu) {
+      return renderOnboardButton(
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant={options.variant}
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={onOpenHireDialog}
+                disabled={isHireButtonDisabled}
+                aria-disabled={isHireButtonDisabled}
+                aria-label="Onboard new teammate"
+                data-testid="assistant-onboard-button"
+              >
+                {options.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side={options.tooltipSide}>
+              <p>Onboard new teammate</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <DropdownMenu modal={false}>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant={options.variant}
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  aria-label="Create"
+                  data-testid="assistant-create-menu"
+                >
+                  {options.icon}
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side={options.tooltipSide}>
+              <p>Create</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        {/* A credits-blocked onboard entry arrives wrapped in the guard's
+            inline-flex span, which would otherwise shrink it out of line with
+            the other items. */}
+        <DropdownMenuContent align="end" className="min-w-[9rem] [&>span]:w-full">
+          {createGroupAction ? (
+            <DropdownMenuItem
+              className="text-body-sm gap-2"
+              onSelect={createGroupAction}
+              data-testid="create-group-button"
+            >
+              <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
+              Group
+            </DropdownMenuItem>
+          ) : null}
+          {createTeamAction ? (
+            <DropdownMenuItem
+              className="text-body-sm gap-2"
+              onSelect={createTeamAction}
+              data-testid="create-team-button"
+            >
+              <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />
+              Team
+            </DropdownMenuItem>
+          ) : null}
+          {renderOnboardButton(
+            <DropdownMenuItem
+              className="text-body-sm gap-2"
+              onSelect={onOpenHireDialog}
+              disabled={isHireButtonDisabled}
+              data-testid="assistant-onboard-button"
+            >
+              <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+              Teammate
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
+  // Checkbox items keep the menu open so several filters can be toggled in one
+  // pass; Radix would otherwise dismiss it after the first click.
+  const renderFilterItem = (
+    label: string,
+    testId: string,
+    checked: boolean,
+    onCheckedChange: (next: boolean) => void
+  ) => (
+    <DropdownMenuCheckboxItem
+      className="text-body-sm"
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      onSelect={(event) => event.preventDefault()}
+      data-testid={testId}
+    >
+      {label}
+    </DropdownMenuCheckboxItem>
+  );
+
+  const filterMenu = isOrgWorkspace ? (
+    <DropdownMenu modal={false}>
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                aria-label="Filter list"
+                data-testid="assistant-list-filter-menu"
+              >
+                <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Filter list</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <DropdownMenuContent align="end" className="min-w-[9rem]">
+        {renderFilterItem('Real', 'assistant-list-filter-real', showReal, setShowReal)}
+        {renderFilterItem('Virtual', 'assistant-list-filter-virtual', showVirtual, setShowVirtual)}
+        {renderFilterItem('Teams', 'assistant-list-filter-teams', showTeams, setShowTeams)}
+        {renderFilterItem('Groups', 'assistant-list-filter-groups', showGroups, setShowGroups)}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
-      {/* Header: Search Bar + New Assistant Button */}
+      {/* Header: search, the create menu, and the list filters. */}
       <div
         className={cn(
           'flex-shrink-0 overflow-hidden border-b border-border bg-card px-3',
@@ -1179,30 +1294,13 @@ export function AssistantList({
       >
         {isFolded ? (
           <div className="flex h-9 items-center justify-center">
-            {renderOnboardButton(
-              <div className="hidden md:flex">
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        data-testid="assistant-onboard-button"
-                        variant={isFolded ? 'ghost' : 'outline'}
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={onOpenHireDialog}
-                        disabled={isHireButtonDisabled}
-                        aria-disabled={isHireButtonDisabled}
-                      >
-                        <OnboardPlusIcon className="h-6 w-6" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p>Onboard new teammate</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
+            <div className="hidden md:flex">
+              {renderCreateControl({
+                variant: 'ghost',
+                icon: <OnboardPlusIcon className="h-6 w-6" />,
+                tooltipSide: 'right',
+              })}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -1217,70 +1315,14 @@ export function AssistantList({
                 disabled={isLoading || !!error}
               />
             </div>
-            {/* Flat lists (the common personal-workspace case: one solo group,
-                no teams/humans/groups to section off) have no roster row to
-                nest Onboard under, so it sits beside the search bar instead of
-                inside the scrollable list below -- otherwise it read as
-                detached, single-item chrome under a one-row list. Grouped/org
-                rosters keep their own Onboard entry nested where it belongs
-                (inside the managed-team or Colleagues section). */}
-            {shouldRenderFlatList
-              ? renderOnboardButton(
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={onOpenHireDialog}
-                          disabled={isHireButtonDisabled}
-                          aria-disabled={isHireButtonDisabled}
-                          aria-label="Onboard new teammate"
-                          data-testid="assistant-onboard-button"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>Onboard new teammate</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )
-              : null}
-            {isOrgWorkspace ? (
-              <div
-                className="flex shrink-0 flex-col gap-1"
-                role="group"
-                aria-label="Show real and virtual teammates"
-              >
-                <Label
-                  htmlFor="assistant-list-filter-real"
-                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
-                >
-                  <Checkbox
-                    id="assistant-list-filter-real"
-                    checked={showReal}
-                    onCheckedChange={(checked) => setShowReal(checked === true)}
-                    data-testid="assistant-list-filter-real"
-                  />
-                  Real
-                </Label>
-                <Label
-                  htmlFor="assistant-list-filter-virtual"
-                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
-                >
-                  <Checkbox
-                    id="assistant-list-filter-virtual"
-                    checked={showVirtual}
-                    onCheckedChange={(checked) => setShowVirtual(checked === true)}
-                    data-testid="assistant-list-filter-virtual"
-                  />
-                  Virtual
-                </Label>
-              </div>
-            ) : null}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {renderCreateControl({
+                variant: 'outline',
+                icon: <Plus className="h-3.5 w-3.5" aria-hidden="true" />,
+                tooltipSide: 'bottom',
+              })}
+              {filterMenu}
+            </div>
           </div>
         )}
       </div>
@@ -1317,8 +1359,6 @@ export function AssistantList({
             </div>
           ) : filteredAssistants.length > 0 || hasNonAssistantRows ? (
             shouldRenderFlatList ? (
-              // Onboard for the flat-list case now lives in the header, next
-              // to search -- see the comment there.
               renderFlatAssistants()
             ) : (
               groupedAssistantList

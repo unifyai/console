@@ -21,7 +21,7 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail, railSection } from '../helpers/shell';
+import { assistantRail, openAssistantCreateMenu, railSection } from '../helpers/shell';
 import { openUnitySwitcher } from './helpers';
 
 const owner = createTestUser({ name: 'ChatGroup', lastName: 'Owner', credits: 50_000 });
@@ -178,6 +178,7 @@ test('create group from rail + opens dialog and persists membership', async ({
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
 
+  await openAssistantCreateMenu(page);
   await page.getByTestId('create-group-button').click();
   await expect(page.getByTestId('create-group-dialog')).toBeVisible({ timeout: 5_000 });
 

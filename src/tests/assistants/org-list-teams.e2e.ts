@@ -21,7 +21,7 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail } from '../helpers/shell';
+import { assistantRail, openAssistantCreateMenu } from '../helpers/shell';
 import { openUnitySwitcher } from './helpers';
 
 const owner = createTestUser({ name: 'OrgList', lastName: 'Owner', credits: 50_000 });
@@ -132,27 +132,29 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
   // No custom teams / groups yet — TEAMS and GROUPS nests stay hidden.
-  // Creation actions sit below the elevated Org team, outside its fold.
+  // Every creation action lives in the header's "+" menu, above the roster.
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
   const orgTeamGroup = page.getByTestId(`assistant-list-group-team:${orgTeamId}`);
   const orgTeamRow = orgTeamGroup.getByTestId(`team-list-item-${orgTeamId}`);
-  const orgActions = page.getByTestId('assistant-list-org-actions');
-  await expect(orgActions).toBeVisible();
-  await expect(orgTeamGroup.getByTestId('assistant-list-org-actions')).toHaveCount(0);
-  await expect(orgActions.getByTestId('create-group-button')).toBeVisible();
-  await expect(orgActions.getByTestId('create-team-button')).toBeVisible();
-  await expect(orgActions.getByTestId('assistant-onboard-button')).toBeVisible();
+  const createMenu = page.getByTestId('assistant-create-menu');
+  await expect(createMenu).toBeVisible();
+  await openAssistantCreateMenu(page);
+  await expect(page.getByTestId('create-group-button')).toBeVisible();
+  await expect(page.getByTestId('create-team-button')).toBeVisible();
+  await expect(page.getByTestId('assistant-onboard-button')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('create-group-button')).toHaveCount(0);
 
-  // Folding the Org team nest leaves the creation actions in place.
+  // Folding the Org team nest cannot swallow the creation actions.
   if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
     await orgTeamRow.click();
   }
   await orgTeamRow.click();
-  await expect(orgActions).toBeVisible();
+  await expect(createMenu).toBeVisible();
   await orgTeamRow.click();
-  await expect(orgActions).toBeVisible();
+  await expect(createMenu).toBeVisible();
 
   const customTeamName = `CustomTeam_${Date.now()}`;
   const rawCustomTeamId = dbExec(`
@@ -184,8 +186,9 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
   await expect(teamsSection.getByTestId(`team-list-item-${orgTeamId}`)).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
-  await expect(page.getByTestId('assistant-list-org-actions')).toBeVisible();
+  await expect(page.getByTestId('assistant-create-menu')).toBeVisible();
 
+  await openAssistantCreateMenu(page);
   await page.getByTestId('create-team-button').click();
   await expect(page).toHaveURL(/\/organizations\?tab=teams/, { timeout: 15_000 });
 });
@@ -197,19 +200,21 @@ test('create group and onboard dismissals return to the unity switcher', async (
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
 
-  const orgActions = page.getByTestId('assistant-list-org-actions');
-  await expect(orgActions).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-create-menu')).toBeVisible({ timeout: 15_000 });
 
   const switcherPopover = page.getByTestId('rail-unity-switcher-popover');
 
-  await orgActions.getByTestId('create-group-button').click();
+  await openAssistantCreateMenu(page);
+  await expect(switcherPopover).toBeVisible();
+  await page.getByTestId('create-group-button').click();
   await expect(page.getByTestId('create-group-dialog')).toBeVisible({ timeout: 5_000 });
   await expect(switcherPopover).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('create-group-dialog')).toHaveCount(0, { timeout: 5_000 });
   await expect(switcherPopover).toBeVisible();
 
-  await orgActions.getByTestId('assistant-onboard-button').click();
+  await openAssistantCreateMenu(page);
+  await page.getByTestId('assistant-onboard-button').click();
   await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
     timeout: 10_000,
   });
