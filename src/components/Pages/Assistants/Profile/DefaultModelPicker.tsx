@@ -123,12 +123,28 @@ export function DefaultModelPicker({
     };
   }, [query, usage, open]);
 
+  // cmdk's own filtering is off (results are a server query), so the curated
+  // group has to answer the query itself. Without this it renders in full
+  // whatever is typed, burying the search results under a list that never
+  // changes. Matched against id and label, like the catalog search.
+  const matchingRecommended = React.useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return recommended;
+    return recommended.filter((option) =>
+      `${option.model || ''} ${option.label}`.toLowerCase().includes(needle)
+    );
+  }, [recommended, query]);
+
+  // Keyed off the visible group: a curated entry the query hid should still be
+  // reachable as a search hit rather than deduplicated out of both groups.
   const recommendedKeys = React.useMemo(
     () =>
       new Set(
-        recommended.map((option) => encodeDefaultModelValue(option.model, option.reasoningEffort))
+        matchingRecommended.map((option) =>
+          encodeDefaultModelValue(option.model, option.reasoningEffort)
+        )
       ),
-    [recommended]
+    [matchingRecommended]
   );
 
   const filteredSearchHits = React.useMemo(
@@ -252,7 +268,11 @@ export function DefaultModelPicker({
             />
             <CommandList className="command-list-scrolls">
               <CommandEmpty>{isSearching ? 'Searching…' : 'No matching models.'}</CommandEmpty>
-              <CommandGroup heading="Recommended">{recommended.map(renderOption)}</CommandGroup>
+              {matchingRecommended.length > 0 && (
+                <CommandGroup heading="Recommended">
+                  {matchingRecommended.map(renderOption)}
+                </CommandGroup>
+              )}
               {filteredSearchHits.length > 0 && (
                 <CommandGroup
                   heading={query.trim() ? 'Search results' : 'All models (newest first)'}
