@@ -9,6 +9,7 @@ import {
   Building2,
   UsersRound,
   MessagesSquare,
+  SquareMousePointer,
   User,
   ChevronDown,
   ChevronRight,
@@ -301,7 +302,7 @@ function TeamChatListRow({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${team.name} team chat`}
+      aria-label={`Select ${team.name}`}
       data-testid={`team-chat-list-item-${team.teamId}`}
       className={cn(
         'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent px-2 py-1 transition-colors',
@@ -321,7 +322,7 @@ function TeamChatListRow({
             className="rounded-control bg-muted/40 flex h-7 w-7 flex-shrink-0 items-center justify-center border border-border text-muted-foreground"
             aria-hidden="true"
           >
-            <MessagesSquare className="h-4 w-4" />
+            <SquareMousePointer className="h-4 w-4" />
           </span>
           {isCallActive ? (
             <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
@@ -337,7 +338,7 @@ function TeamChatListRow({
               isSelected && 'text-accent-soft-foreground'
             )}
           >
-            Team chat
+            Select team
           </span>
         </div>
       </div>
@@ -371,9 +372,9 @@ function TeamListRow({
     currentUserId
   );
   const FoldIcon = isFoldedGroup ? ChevronRight : ChevronDown;
-  // The header is a pure disclosure control; the team's own conversation is a
-  // selectable row inside the nest. Selection surfaces here only while folded,
-  // where that row is hidden.
+  // The header is a pure disclosure control; the team itself is selected from a
+  // row inside the nest. Selection surfaces here only while folded, where that
+  // row is hidden.
   const showsSelection = isSelected && isFoldedGroup === true;
   return (
     <div
@@ -778,7 +779,7 @@ export function AssistantList({
             team={team}
             isSelected={isTeamSelected}
             // Unread and call state roll up to the header only while the nest
-            // hides the team chat row that owns them.
+            // hides the team selection row that owns them.
             unreadCount={isGroupFolded ? teamUnreadCount : 0}
             isCallActive={isGroupFolded && isTeamCallActive}
             isFoldedGroup={isGroupFolded}
