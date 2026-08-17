@@ -35,6 +35,7 @@ import { isParticipantInCall, presentUserIds } from '@/utils/assistants/call-par
 import { OrgCallSession } from '@/types/orgChat';
 import {
   AssistantTile,
+  AttachedVideo,
   HumanTile,
   LocalHumanTile,
   OrgCallAssistantInfo,
@@ -160,34 +161,6 @@ export function MeetGrid({
       })}
     </div>
   );
-}
-
-/**
- * One attached video element.
- *
- * Attaching in a ref callback runs on every render and never detaches, which
- * was survivable only while the focused track could never change: switching
- * presenters would otherwise leave the previous element attached and playing.
- */
-function AttachedVideo({
-  track,
-  muted,
-  className,
-}: {
-  track: Track;
-  muted: boolean;
-  className: string;
-}) {
-  const ref = React.useRef<HTMLVideoElement>(null);
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    track.attach(el);
-    return () => {
-      track.detach(el);
-    };
-  }, [track]);
-  return <video ref={ref} className={className} muted={muted} playsInline autoPlay />;
 }
 
 /**

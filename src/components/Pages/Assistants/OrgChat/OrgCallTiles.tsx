@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Participant, RemoteParticipant, Room } from 'livekit-client';
+import type { Participant, RemoteParticipant, Room, TrackPublication } from 'livekit-client';
 import { Track } from 'livekit-client';
 import { useIsSpeaking, useTracks } from '@livekit/components-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
@@ -81,17 +81,47 @@ export function HumanTile({
   );
 }
 
-function attachedVideo(track: Track, muted: boolean): React.ReactNode {
+/**
+ * One attached video element.
+ *
+ * Attach and detach are symmetric: a camera toggle unmounts and remounts this
+ * element on every flip, so attaching from a ref callback with no cleanup would
+ * leak an attachment per toggle.
+ */
+export function AttachedVideo({
+  track,
+  muted,
+  className,
+}: {
+  track: Track;
+  muted: boolean;
+  className: string;
+}) {
+  const ref = React.useRef<HTMLVideoElement>(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    track.attach(el);
+    return () => {
+      track.detach(el);
+    };
+  }, [track]);
+  return <video ref={ref} className={className} muted={muted} playsInline autoPlay />;
+}
+
+/**
+ * The video for a camera publication, or `null` when there is no live frame.
+ *
+ * `setCameraEnabled(false)` mutes the publication rather than unpublishing it —
+ * livekit-client only unpublishes screen share — and muting a camera stops its
+ * media track so the device indicator goes off. A publication that still
+ * carries a `track` can therefore be a dead black frame, which would cover the
+ * participant's avatar.
+ */
+function cameraVideo(publication: TrackPublication | undefined, muted: boolean): React.ReactNode {
+  if (!publication?.track || publication.isMuted) return null;
   return (
-    <video
-      ref={(el) => {
-        if (el) track.attach(el);
-      }}
-      className="h-full w-full object-cover"
-      muted={muted}
-      playsInline
-      autoPlay
-    />
+    <AttachedVideo track={publication.track} muted={muted} className="h-full w-full object-cover" />
   );
 }
 
@@ -111,9 +141,7 @@ export function LocalHumanTile({
     onlySubscribed: false,
   });
   const localCam = tracks.find((t) => t.participant.isLocal && t.publication?.track);
-  const videoEl = localCam?.publication?.track
-    ? attachedVideo(localCam.publication.track, true)
-    : null;
+  const videoEl = cameraVideo(localCam?.publication, true);
   return (
     <HumanTile
       name={name}
@@ -182,7 +210,7 @@ function ConnectedRemoteHumanTile({
       t.participant.identity === participant.identity &&
       t.publication?.track
   );
-  const videoEl = cam?.publication?.track ? attachedVideo(cam.publication.track, false) : null;
+  const videoEl = cameraVideo(cam?.publication, false);
   return (
     <HumanTile
       name={name}
