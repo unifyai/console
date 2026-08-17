@@ -2,6 +2,7 @@ import {
   Bookmark,
   BookOpen,
   Boxes,
+  CalendarClock,
   CircleDot,
   Cpu,
   FileText,
@@ -71,7 +72,14 @@ export const ACTION_PRESENTATION_BY_IDENTITY = new Map<string, ActionNodePresent
   ['GuidanceManager', { icon: BookOpen, tooltip: 'procedures', kind: 'note' }],
   ['FunctionManager', { icon: Play, tooltip: 'functions', kind: 'default' }],
 
-  // Durable work and the packages that install it
+  // Durable work and the packages that install it.
+  //
+  // `Task.run` is one execution of a scheduled task and is deliberately
+  // distinct from `TaskScheduler.execute`, which is the act of starting one:
+  // in the tree they are parent and child, and giving them the same glyph
+  // makes a run look like its own launcher.
+  ['Task', { icon: CalendarClock, tooltip: 'task run', kind: 'request' }],
+  ['Task.run', { icon: CalendarClock, tooltip: 'task run', kind: 'request' }],
   ['TaskScheduler', { icon: Wrench, tooltip: 'task', kind: 'request' }],
   ['TaskScheduler.execute', { icon: Wrench, tooltip: 'task', kind: 'request' }],
   ['TaskScheduler.create', { icon: ListChecks, tooltip: 'task management', kind: 'request' }],
@@ -172,14 +180,32 @@ export const LEGACY_LABEL_PRESENTATION: ReadonlyArray<{
 ];
 
 /**
+ * Drop the call arguments from a hierarchy segment.
+ *
+ * Some loop ids are parameterised — `Task.run(task_id=2,run_key=live:…)` names
+ * the run as well as the method. Left intact the arguments make the derived
+ * method unique to one execution, so it matches nothing and the row falls all
+ * the way through to the generic "event" glyph. A scheduled task run, the thing
+ * the workflows feature exists to produce, was rendering as the least legible
+ * row on the page for exactly this reason.
+ */
+function stripCallArguments(segment: string): string {
+  const open = segment.indexOf('(');
+  return open === -1 ? segment : segment.slice(0, open);
+}
+
+/**
  * Candidate identity keys for a node, most specific first. The hierarchy's
  * last segment is the method that produced the event; unify emits it either
  * as its own segment (`['SkillManager', 'store']`) or dotted
- * (`['SkillManager.store']`), so both are normalised here.
+ * (`['SkillManager.store']`), so both are normalised here, and a parameterised
+ * segment is reduced to the method it names.
  */
 export function actionIdentityKeys(hierarchy: readonly string[] | undefined): string[] {
   if (!hierarchy?.length) return [];
-  const segments = hierarchy.flatMap((segment) => segment.split('.')).filter(Boolean);
+  const segments = hierarchy
+    .flatMap((segment) => stripCallArguments(segment).split('.'))
+    .filter(Boolean);
   if (segments.length === 0) return [];
   const manager = segments[0];
   const method = segments[segments.length - 1];
