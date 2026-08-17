@@ -42,6 +42,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { getCurrentUser } from '@/lib/user/user';
+import { fetchProfileSignedUrls, readProfileSignedUrls } from '@/lib/client/profileMedia';
 import Image from 'next/image';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
@@ -101,24 +102,27 @@ export default function TopNav() {
   } = useWorkspace();
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!activeOrganization?.image) {
+    const img = activeOrganization?.image;
+    if (!img) {
       setOrgLogoUrl(null);
       return;
     }
-    const img = activeOrganization.image;
     if (!img.startsWith('gs://')) {
       setOrgLogoUrl(img);
       return;
     }
-    fetch('/api/storage/signed-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      body: JSON.stringify({ gs_url: img }),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setOrgLogoUrl(d?.signed_url ?? null))
-      .catch(() => setOrgLogoUrl(null));
+
+    // Seed from cache first so a logo already signed for the workspace
+    // switcher renders immediately instead of blanking while it re-resolves.
+    setOrgLogoUrl(readProfileSignedUrls([img])[img] ?? null);
+
+    let cancelled = false;
+    fetchProfileSignedUrls([img]).then((signedUrls) => {
+      if (!cancelled) setOrgLogoUrl(signedUrls[img] ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [activeOrganization?.image]);
 
   const handlePersonalWorkspaceSwitch = () => {
@@ -167,31 +171,25 @@ export default function TopNav() {
           setProfileName(userName);
           setUserOrgs(user.organizations || []);
 
-          const photos: Record<string, string> = {};
-          const resolve = async (gsUrl: string): Promise<string> => {
-            if (!gsUrl.startsWith('gs://')) return gsUrl;
-            const r = await fetch('/api/storage/signed-url', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              body: JSON.stringify({ gs_url: gsUrl }),
-            });
-            if (!r.ok) return '';
-            const d = await r.json();
-            return d.signed_url ?? '';
-          };
-          if (user.image) {
-            const url = await resolve(user.image).catch(() => '');
-            if (url) photos['personal'] = url;
-          }
-          await Promise.all(
-            (user.organizations || []).map(async (org) => {
-              if (org.image) {
-                const url = await resolve(org.image).catch(() => '');
-                if (url) photos[org.id.toString()] = url;
-              }
-            })
+          // Sign every workspace face — the personal avatar and each
+          // organization logo — in one batched pass, so the switcher opens
+          // with its logos already resolved rather than filling in per row.
+          const workspaceImages: ReadonlyArray<readonly [string, string]> = [
+            ...(user.image ? [['personal', user.image] as const] : []),
+            ...(user.organizations ?? []).flatMap((org) =>
+              org.image ? [[org.id.toString(), org.image] as const] : []
+            ),
+          ];
+          const signedUrls = await fetchProfileSignedUrls(
+            workspaceImages.map(([, image]) => image)
           );
+
+          const photos: Record<string, string> = {};
+          workspaceImages.forEach(([workspaceKey, image]) => {
+            // Non-`gs://` images are already renderable and pass through.
+            const resolvedUrl = image.startsWith('gs://') ? signedUrls[image] : image;
+            if (resolvedUrl) photos[workspaceKey] = resolvedUrl;
+          });
           setWorkspacePhotos(photos);
 
           const resolvedAvatarUrl = photos['personal'] || imageUrl;
