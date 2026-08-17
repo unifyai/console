@@ -241,7 +241,11 @@ export function DefaultModelPicker({
           </Tooltip>
         </TooltipProvider>
       </div>
-      <Popover open={open} onOpenChange={setOpen}>
+      {/* Modal so the popover carries its own scroll lock. Portalled out of the
+          enclosing dialog, it is neither that dialog's lock node nor one of its
+          shards, so the dialog's lock cancels every wheel event over the list
+          and the catalog cannot be scrolled. */}
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             id={id}
@@ -262,6 +266,10 @@ export function DefaultModelPicker({
               value={query}
               onValueChange={setQuery}
               onKeyDown={(e) => {
+                // List navigation is handled by cmdk on the Command root, so it
+                // has to reach it; everything else stays contained to the input
+                // rather than reaching the dialog or page shortcuts behind it.
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') return;
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();
               }}
