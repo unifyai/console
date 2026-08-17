@@ -27,7 +27,8 @@ src/tests/**/generated/
 
 # misc
 .DS_Store
-.claude/
+.claude/*
+!.claude/settings.json
 *.pem
 
 # debug
