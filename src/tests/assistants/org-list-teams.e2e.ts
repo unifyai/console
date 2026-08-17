@@ -132,24 +132,25 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
   // No custom teams / groups yet — TEAMS and GROUPS nests stay hidden.
-  // Creation actions nest inside the elevated Org team fold (hidden when folded).
+  // Creation actions sit below the elevated Org team, outside its fold.
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
   const orgTeamGroup = page.getByTestId(`assistant-list-group-team:${orgTeamId}`);
   const orgTeamRow = orgTeamGroup.getByTestId(`team-list-item-${orgTeamId}`);
-  // Ensure the nest is expanded so create actions are visible.
-  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
-    await orgTeamRow.click();
-  }
-  const orgActions = orgTeamGroup.getByTestId('assistant-list-org-actions');
+  const orgActions = page.getByTestId('assistant-list-org-actions');
   await expect(orgActions).toBeVisible();
+  await expect(orgTeamGroup.getByTestId('assistant-list-org-actions')).toHaveCount(0);
   await expect(orgActions.getByTestId('create-group-button')).toBeVisible();
   await expect(orgActions.getByTestId('create-team-button')).toBeVisible();
   await expect(orgActions.getByTestId('assistant-onboard-button')).toBeVisible();
 
+  // Folding the Org team nest leaves the creation actions in place.
+  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
+    await orgTeamRow.click();
+  }
   await orgTeamRow.click();
-  await expect(orgTeamGroup.getByTestId('assistant-list-org-actions')).toHaveCount(0);
+  await expect(orgActions).toBeVisible();
   await orgTeamRow.click();
   await expect(orgActions).toBeVisible();
 
@@ -183,11 +184,7 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
   await expect(teamsSection.getByTestId(`team-list-item-${orgTeamId}`)).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
-  await expect(
-    page
-      .getByTestId(`assistant-list-group-team:${orgTeamId}`)
-      .getByTestId('assistant-list-org-actions')
-  ).toBeVisible();
+  await expect(page.getByTestId('assistant-list-org-actions')).toBeVisible();
 
   await page.getByTestId('create-team-button').click();
   await expect(page).toHaveURL(/\/organizations\?tab=teams/, { timeout: 15_000 });
@@ -200,12 +197,7 @@ test('create group and onboard dismissals return to the unity switcher', async (
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
 
-  const orgTeamGroup = page.getByTestId(`assistant-list-group-team:${orgTeamId}`);
-  const orgTeamRow = orgTeamGroup.getByTestId(`team-list-item-${orgTeamId}`);
-  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
-    await orgTeamRow.click();
-  }
-  const orgActions = orgTeamGroup.getByTestId('assistant-list-org-actions');
+  const orgActions = page.getByTestId('assistant-list-org-actions');
   await expect(orgActions).toBeVisible({ timeout: 15_000 });
 
   const switcherPopover = page.getByTestId('rail-unity-switcher-popover');
@@ -230,6 +222,12 @@ test('create group and onboard dismissals return to the unity switcher', async (
 
   // The contrast those two exceptions are exceptions to: picking a teammate is
   // the errand itself, so the list dismisses rather than lingering over it.
+  const orgTeamRow = page
+    .getByTestId(`assistant-list-group-team:${orgTeamId}`)
+    .getByTestId(`team-list-item-${orgTeamId}`);
+  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
+    await orgTeamRow.click();
+  }
   await page.getByTestId(`human-list-item-${member.id}`).click();
   await expect(switcherPopover).toHaveCount(0, { timeout: 5_000 });
 });

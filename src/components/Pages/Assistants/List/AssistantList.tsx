@@ -756,14 +756,14 @@ export function AssistantList({
   );
 
   const renderRosterTeam = React.useCallback(
-    (team: RosterTeam, virtualEntries: AssistantListEntry[], nestedFooter?: React.ReactNode) => {
+    (team: RosterTeam, virtualEntries: AssistantListEntry[]) => {
       const groupId = `team:${team.teamId}`;
       const isGroupFolded = foldedGroups[groupId] === true;
       const memberIds = new Set(team.memberUserIds);
       const teamHumans = filteredHumans.filter((human) => memberIds.has(human.userId));
       const hasMembers =
         (Boolean(onSelectHuman) && teamHumans.length > 0) || virtualEntries.length > 0;
-      const hasNested = Boolean(onSelectTeam) || hasMembers || Boolean(nestedFooter);
+      const hasNested = Boolean(onSelectTeam) || hasMembers;
       const isTeamSelected = selectedEntityKey === teamEntityKey(team.teamId);
       const teamUnreadCount = entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0;
       const isTeamCallActive = orgCallActiveTeamId === team.teamId;
@@ -799,9 +799,6 @@ export function AssistantList({
                 </div>
               ) : null}
               {hasMembers ? renderTeamMembers(groupId, teamHumans, virtualEntries) : null}
-              {nestedFooter ? (
-                <div className="min-w-0 space-y-1 pl-3 pt-1">{nestedFooter}</div>
-              ) : null}
             </>
           ) : null}
         </div>
@@ -984,9 +981,9 @@ export function AssistantList({
       Onboard
     </Button>
   );
-  // Create group / Create team / Onboard nest inside the managed Org team
-  // (or under Colleagues when there is no managed team) — not under an
-  // empty GROUPS section.
+  // Create group / Create team / Onboard sit below the managed Org team,
+  // outside its nest (or under Colleagues when there is no managed team) —
+  // not under an empty GROUPS section.
   const showOrgCreationActions =
     isOrgWorkspace && (Boolean(elevatedOrgTeam) || showColleaguesSection);
   const orgCreationActions = showOrgCreationActions ? (
@@ -1036,13 +1033,10 @@ export function AssistantList({
           ) : null}
           {elevatedOrgTeam ? (
             <div className="min-w-0 space-y-1" data-testid="assistant-list-elevated-org-team">
-              {renderRosterTeam(
-                elevatedOrgTeam,
-                teamRowsById.get(elevatedOrgTeam.teamId) ?? [],
-                !showColleaguesSection ? orgCreationActions : null
-              )}
+              {renderRosterTeam(elevatedOrgTeam, teamRowsById.get(elevatedOrgTeam.teamId) ?? [])}
             </div>
           ) : null}
+          {elevatedOrgTeam && !showColleaguesSection ? orgCreationActions : null}
         </div>
       ) : null}
       {showRosterSections ? (
