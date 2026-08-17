@@ -56,6 +56,16 @@ test('members tab shows all members from DB', async ({ authedPage: page }) => {
   await expect(page.locator(`text=${owner.email}`)).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(`text=${member.email}`)).toBeVisible({ timeout: 10_000 });
 
+  const settingsRail = await page.getByTestId('settings-subrail').boundingBox();
+  const organizationRail = await page.getByTestId('organization-subrail').boundingBox();
+  expect(settingsRail).not.toBeNull();
+  expect(organizationRail).not.toBeNull();
+  expect(
+    Math.abs(
+      organizationRail!.y + organizationRail!.height - (settingsRail!.y + settingsRail!.height)
+    )
+  ).toBeLessThanOrEqual(2);
+
   const memberCount = getOrgMemberCount(org.id);
   expect(memberCount).toBe(2);
 });
