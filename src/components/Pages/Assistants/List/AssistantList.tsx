@@ -9,7 +9,7 @@ import {
   Building2,
   UsersRound,
   MessagesSquare,
-  SquareMousePointer,
+  MousePointer2,
   User,
   ChevronDown,
   ChevronRight,
@@ -317,19 +317,35 @@ function TeamChatListRow({
       }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {/*
+         * The selection glyph is the team's own face wearing a cursor, rather
+         * than a drawn square wearing one: the icon keeps the composition of
+         * `SquareMousePointer` — pointer at the lower-right of a square — while
+         * the square carries the team's colour instead of neutral chrome.
+         */}
         <div className="relative">
-          <span
-            className="rounded-control bg-muted/40 flex h-7 w-7 flex-shrink-0 items-center justify-center border border-border text-muted-foreground"
-            aria-hidden="true"
-          >
-            <SquareMousePointer className="h-4 w-4" />
-          </span>
+          <TeamAvatar
+            name={team.name}
+            imageUrl={team.image}
+            isOrgWideSharing={team.isOrgWideSharing}
+            className="h-7 w-7"
+            iconClassName="h-4 w-4"
+          />
           {isCallActive ? (
             <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
             </span>
-          ) : null}
+          ) : (
+            // The corner is the call indicator's while a call runs; the pointer
+            // stands down rather than stacking two marks in one spot.
+            <span
+              className="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-border bg-background text-foreground"
+              aria-hidden="true"
+            >
+              <MousePointer2 className="h-2.5 w-2.5" />
+            </span>
+          )}
         </div>
         <div className="min-w-0">
           <span
