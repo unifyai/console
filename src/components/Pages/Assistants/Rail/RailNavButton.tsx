@@ -51,8 +51,12 @@ function activityNote(activity: SectionActivity | undefined): string {
 
 /**
  * A single rail navigation entry. Mirrors the prototype's `.nav-item`: an
- * accent-soft active fill, a primary dot trailing the label when active, and an
- * icon-only compact form (with a tooltip) when the rail is collapsed to a dock.
+ * accent-soft active fill with a leading accent bar, and an icon-only compact
+ * form (with a tooltip) when the rail is collapsed to a dock.
+ *
+ * The trailing slot is reserved exclusively for the activity dot. Selection is
+ * carried by the fill, the ink shift and the bar, so a dot in that slot always
+ * means activity rather than changing meaning row to row.
  *
  * Section rows also carry pin controls — a glyph that fades in on hover or
  * keyboard focus, and a context menu that works from right-click on a pointer
@@ -72,7 +76,6 @@ export function RailNavButton({
   pinControl,
 }: RailNavButtonProps) {
   const showActivityDot = activity?.active === true;
-  const showActiveDot = !collapsed && active && !showActivityDot;
   const note = activityNote(activity);
   const button = (
     <button
@@ -92,6 +95,17 @@ export function RailNavButton({
         disabled && 'pointer-events-none opacity-50'
       )}
     >
+      {/*
+       * The accent fill alone separates from the page only by hue in the light
+       * theme, where it sits a hair off paper and reads close to the hover fill.
+       * The bar adds a contrast step that survives both themes.
+       */}
+      {active && (
+        <span
+          className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary"
+          aria-hidden="true"
+        />
+      )}
       <span
         className={cn(
           'grid shrink-0 place-items-center transition-colors',
@@ -121,9 +135,6 @@ export function RailNavButton({
           data-testid={testId ? `${testId}-activity-dot` : undefined}
         />
       )}
-      {showActiveDot && (
-        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
-      )}
     </button>
   );
 
@@ -140,7 +151,7 @@ export function RailNavButton({
           data-testid={testId ? `${testId}-pin-toggle` : undefined}
           className={cn(
             'absolute top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/nav:opacity-100',
-            showActivityDot || showActiveDot ? 'right-7' : 'right-2'
+            showActivityDot ? 'right-7' : 'right-2'
           )}
         >
           {pinControl.pinned ? (
