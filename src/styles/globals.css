@@ -179,6 +179,16 @@
   max-height: none !important;
 }
 
+/* Opt-in escape from the [cmdk-list] reset above, for lists long enough to need
+   their own scroll container. Specificity, not order, wins the override; the
+   axes must differ so react-remove-scroll's dialog lock treats this as
+   scrollable and lets wheel events through to it. */
+[cmdk-list].command-list-scrolls {
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
 /* Ensure the parent handles scrolling */
 [cmdk-root] {
   overflow: hidden !important;

@@ -250,7 +250,7 @@ export function DefaultModelPicker({
                 e.nativeEvent.stopImmediatePropagation();
               }}
             />
-            <CommandList>
+            <CommandList className="command-list-scrolls">
               <CommandEmpty>{isSearching ? 'Searching…' : 'No matching models.'}</CommandEmpty>
               <CommandGroup heading="Recommended">{recommended.map(renderOption)}</CommandGroup>
               {filteredSearchHits.length > 0 && (
