@@ -53,21 +53,39 @@ export const RAIL_TRAILING_GLYPH = 'h-3.5 w-3.5';
 export const RAIL_TRAILING_INSET = 'right-2.5';
 
 /**
- * The box a switcher's picker occupies — the teammate chevron in the rail's
- * head, the workspace chevron in its foot.
+ * The box a switcher's picker occupies inside an expanded row — the teammate
+ * chevron in the rail's head, the workspace chevron in its foot.
  *
- * A picker is not a trailing accessory the way a pin or a heading's menu is.
- * Folded, it leaves the trailing slot entirely and stands beneath its own
- * face, in the column the nav glyphs run down; at the slot's size it read as a
- * half-weight control there and was the smallest target in the rail, worst in
- * the mobile drawer where it is the only route to a different teammate or
- * workspace. So it takes a nav glyph in a square of its own, while the box
- * still ends on the rail's inset and keeps the spine.
+ * A picker is not a trailing accessory the way a pin or a heading's menu is:
+ * it is the only route to a different teammate or workspace. So it takes a
+ * square of its own rather than the trailing slot, while the box still ends on
+ * the rail's inset and keeps the spine.
  */
 export const RAIL_SWITCHER_SLOT = 'h-8 w-8 rounded-lg';
 
-/** The glyph inside that square — a nav row's size, not a trailing glyph's. */
-export const RAIL_SWITCHER_GLYPH = 'h-4 w-4';
+/**
+ * The box that same picker occupies once the rail folds to a dock.
+ *
+ * Folded, it leaves the trailing slot entirely and stands beneath its own
+ * face, in the column the nav glyphs run down. So it is a tile in that column
+ * and takes a nav row's box — the full width the gutter leaves, a nav row's
+ * height — rather than a smaller square of its own, which read as a
+ * half-weight control and was the smallest target in the rail.
+ *
+ * At that size the box is already a comfortable target, so it drops the
+ * trailing button's touch inflation: a target reaching past a nav row's height
+ * would overhang the face above it and take clicks meant for the face.
+ */
+export const RAIL_SWITCHER_DOCK_SLOT = 'h-10 w-full rounded-lg after:inset-0';
+
+/**
+ * The glyph inside either box.
+ *
+ * `ChevronsUpDown` inks under half the width of its own viewbox, so at a nav
+ * glyph's 16px it reads a size down from the glyphs it sits under. A size up
+ * puts the two arrows at the weight of the nav column they belong to.
+ */
+export const RAIL_SWITCHER_GLYPH = 'h-5 w-5';
 
 interface RailTrailingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;

@@ -20,6 +20,7 @@ import {
   RAIL_GUTTER,
   RAIL_ROW_PAD,
   RAIL_ROW_SHELL,
+  RAIL_SWITCHER_DOCK_SLOT,
   RAIL_SWITCHER_GLYPH,
   RAIL_SWITCHER_SLOT,
   RAIL_TRAILING_INSET,
@@ -248,8 +249,9 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         title={collapsed ? `Switch workspace (${displayName})` : undefined}
         aria-label={`Switch workspace — ${displayName}`}
         className={cn(
-          RAIL_SWITCHER_SLOT,
-          !collapsed && cn('absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
+          collapsed
+            ? RAIL_SWITCHER_DOCK_SLOT
+            : cn(RAIL_SWITCHER_SLOT, 'absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
         )}
       >
         {isSwitchingWorkspace ? (
@@ -264,17 +266,15 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   return (
     <div
       className={cn(
-        'mt-auto flex flex-col gap-0.5 border-t border-border pt-2',
-        collapsed ? 'px-3 pb-2.5' : cn(RAIL_GUTTER, 'pb-2.5')
+        'mt-auto flex flex-col gap-0.5 border-t border-border pb-2.5 pt-2',
+        RAIL_GUTTER
       )}
     >
       <DropdownMenu>
         {/* Siblings rather than one inside the other: only the chevron opens
             the menu. Folded, it drops beneath the face, as the teammate
             switcher's picker does at the other end of the rail. */}
-        <div
-          className={collapsed ? 'mx-auto flex w-fit flex-col items-center gap-0.5' : 'relative'}
-        >
+        <div className={collapsed ? 'flex flex-col items-center gap-0.5' : 'relative'}>
           {workspaceFace}
           {workspacePicker}
         </div>

@@ -7,6 +7,7 @@ import {
   RAIL_GUTTER,
   RAIL_ROW_PAD,
   RAIL_ROW_SHELL,
+  RAIL_SWITCHER_DOCK_SLOT,
   RAIL_SWITCHER_GLYPH,
   RAIL_SWITCHER_SLOT,
   RAIL_TRAILING_INSET,
@@ -306,7 +307,7 @@ export function AssistantSwitcher({
 
   /**
    * The teammate picker and the workspace picker are the same errand, so they
-   * are the same control: one square, one glyph size, one inset.
+   * are the same control: one box per rail state, one glyph size, one inset.
    */
   const pickerButton = (
     <PopoverTrigger asChild>
@@ -315,8 +316,9 @@ export function AssistantSwitcher({
         title={collapsed ? `Switch teammate (${unityName})` : undefined}
         aria-label={`Switch teammate — ${unityName}`}
         className={cn(
-          RAIL_SWITCHER_SLOT,
-          !collapsed && cn('absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
+          collapsed
+            ? RAIL_SWITCHER_DOCK_SLOT
+            : cn(RAIL_SWITCHER_SLOT, 'absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
         )}
       >
         <ChevronsUpDown className={RAIL_SWITCHER_GLYPH} strokeWidth={1.75} aria-hidden="true" />
@@ -328,9 +330,9 @@ export function AssistantSwitcher({
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
       {/* The gutter lives here rather than on the row, so the row's fill starts
           where every other filled row in the rail starts. */}
-      <div className={cn('mb-2', !collapsed && RAIL_GUTTER)}>
+      <div className={cn('mb-2', RAIL_GUTTER)}>
         {collapsed ? (
-          <div className="mx-auto flex w-fit flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center gap-0.5">
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>{homeButton}</TooltipTrigger>
