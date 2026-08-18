@@ -15,6 +15,8 @@ interface GroupFaceStackProps {
   members: GroupFaceStackMember[];
   /** Emoji the group chose for itself; it stands in for the whole collage. */
   icon?: string | null;
+  /** Type-ramp step for that emoji, chosen to suit `sizeClassName`. */
+  iconClassName?: string;
   className?: string;
   sizeClassName?: string;
 }
@@ -45,6 +47,7 @@ function EmptyCell({ className }: { className?: string }) {
 export function GroupFaceStack({
   members,
   icon = null,
+  iconClassName = 'text-base',
   className,
   sizeClassName = 'h-7 w-7',
 }: GroupFaceStackProps) {
@@ -52,13 +55,13 @@ export function GroupFaceStack({
     return (
       <div
         className={cn(
-          '@container rounded-control flex shrink-0 items-center justify-center bg-muted',
+          'rounded-control flex shrink-0 items-center justify-center overflow-hidden bg-muted',
           sizeClassName,
           className
         )}
         aria-hidden="true"
       >
-        <span className="text-[length:max(11px,58cqw)] leading-none">{icon}</span>
+        <span className={cn('leading-none', iconClassName)}>{icon}</span>
       </div>
     );
   }

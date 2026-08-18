@@ -222,6 +222,7 @@ export function AssistantSwitcher({
         <GroupFaceStack
           members={activeEntityFace.groupFaces ?? []}
           icon={activeEntityFace.groupIcon}
+          iconClassName="text-xl"
           sizeClassName="h-10 w-10"
         />
       ) : (
