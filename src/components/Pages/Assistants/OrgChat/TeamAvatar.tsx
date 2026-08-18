@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Building2, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { fetchProfileSignedUrls, readProfileSignedUrls } from '@/lib/client/profileMedia';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
 export interface TeamAvatarProps {
@@ -14,41 +14,6 @@ export interface TeamAvatarProps {
   isOrgWideSharing?: boolean;
   className?: string;
   iconClassName?: string;
-}
-
-/** Cached signed URL, or the URL itself when it needs no signing. */
-function readResolvedImageUrl(imageUrl: string | null | undefined): string | null {
-  if (!imageUrl) return null;
-  if (!imageUrl.startsWith('gs://')) return imageUrl;
-  return readProfileSignedUrls([imageUrl])[imageUrl] ?? null;
-}
-
-/**
- * Faces are pre-resolved in bulk when the roster loads, so the cache read in
- * the state initialiser almost always hits and the avatar paints on its first
- * frame. The fetch below is the cold path — a team whose photo changed since
- * the last roster poll, or an avatar rendered outside a roster surface.
- */
-function useResolvedImageUrl(imageUrl: string | null | undefined): string | null {
-  const [resolved, setResolved] = React.useState<string | null>(() =>
-    readResolvedImageUrl(imageUrl)
-  );
-
-  React.useEffect(() => {
-    const cached = readResolvedImageUrl(imageUrl);
-    setResolved(cached);
-    if (cached || !imageUrl) return;
-
-    let cancelled = false;
-    fetchProfileSignedUrls([imageUrl]).then((signedUrls) => {
-      if (!cancelled) setResolved(signedUrls[imageUrl] ?? null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [imageUrl]);
-
-  return resolved;
 }
 
 /**
@@ -64,7 +29,7 @@ export function TeamAvatar({
   className,
   iconClassName = 'h-4 w-4',
 }: TeamAvatarProps) {
-  const resolvedImageUrl = useResolvedImageUrl(imageUrl);
+  const resolvedImageUrl = useResolvedProfileImage(imageUrl);
   const displayName = name.trim() || (isOrgWideSharing ? 'Organization' : 'Team');
 
   if (isOrgWideSharing) {
