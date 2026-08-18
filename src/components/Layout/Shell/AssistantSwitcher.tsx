@@ -7,7 +7,8 @@ import {
   RAIL_GUTTER,
   RAIL_ROW_PAD,
   RAIL_ROW_SHELL,
-  RAIL_TRAILING_GLYPH,
+  RAIL_SWITCHER_GLYPH,
+  RAIL_SWITCHER_SLOT,
   RAIL_TRAILING_INSET,
   RailTrailingButton,
 } from '@/components/Layout/Shell/railGeometry';
@@ -262,9 +263,9 @@ export function AssistantSwitcher({
         'relative flex items-center transition-colors',
         collapsed
           ? 'rounded-lg p-1.5'
-          : // `pr-9` clears the picker, which sits in the row's trailing slot
+          : // `pr-11` clears the picker, which sits in the row's trailing slot
             // rather than in a bordered strip of its own.
-            cn(RAIL_ROW_SHELL, RAIL_ROW_PAD, 'py-1.5 pr-9 text-left'),
+            cn(RAIL_ROW_SHELL, RAIL_ROW_PAD, 'py-1.5 pr-11 text-left'),
         chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
       )}
     >
@@ -299,9 +300,7 @@ export function AssistantSwitcher({
 
   /**
    * The teammate picker and the workspace picker are the same errand, so they
-   * are the same control: one trailing slot, one glyph size, one inset. The
-   * rail renders expanded inside the mobile drawer, where the slot's extended
-   * touch target — not a wider box — is what keeps this reachable.
+   * are the same control: one square, one glyph size, one inset.
    */
   const pickerButton = (
     <PopoverTrigger asChild>
@@ -309,9 +308,12 @@ export function AssistantSwitcher({
         data-testid="rail-unity-switcher"
         title={collapsed ? `Switch teammate (${unityName})` : undefined}
         aria-label={`Switch teammate — ${unityName}`}
-        className={cn(!collapsed && cn('absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET))}
+        className={cn(
+          RAIL_SWITCHER_SLOT,
+          !collapsed && cn('absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
+        )}
       >
-        <ChevronsUpDown className={RAIL_TRAILING_GLYPH} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronsUpDown className={RAIL_SWITCHER_GLYPH} strokeWidth={1.75} aria-hidden="true" />
       </RailTrailingButton>
     </PopoverTrigger>
   );

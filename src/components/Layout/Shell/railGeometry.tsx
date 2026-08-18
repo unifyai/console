@@ -52,6 +52,23 @@ export const RAIL_TRAILING_GLYPH = 'h-3.5 w-3.5';
 /** Pulls a trailing control's box onto the rail's content inset. */
 export const RAIL_TRAILING_INSET = 'right-2.5';
 
+/**
+ * The box a switcher's picker occupies — the teammate chevron in the rail's
+ * head, the workspace chevron in its foot.
+ *
+ * A picker is not a trailing accessory the way a pin or a heading's menu is.
+ * Folded, it leaves the trailing slot entirely and stands beneath its own
+ * face, in the column the nav glyphs run down; at the slot's size it read as a
+ * half-weight control there and was the smallest target in the rail, worst in
+ * the mobile drawer where it is the only route to a different teammate or
+ * workspace. So it takes a nav glyph in a square of its own, while the box
+ * still ends on the rail's inset and keeps the spine.
+ */
+export const RAIL_SWITCHER_SLOT = 'h-8 w-8 rounded-lg';
+
+/** The glyph inside that square — a nav row's size, not a trailing glyph's. */
+export const RAIL_SWITCHER_GLYPH = 'h-4 w-4';
+
 interface RailTrailingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }

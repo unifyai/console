@@ -16,7 +16,8 @@ export function railUnitySwitcher(page: Page): Locator {
   return assistantRail(page).getByTestId('rail-unity-switcher');
 }
 
-/** Visible account trigger in the assistants rail (hidden global rail duplicates exist). */
+/** Visible workspace picker in the rail foot — the chevron that opens the
+ *  account menu. The row beside it is the settings entry, not this menu. */
 export function railAccountTrigger(page: Page): Locator {
   return page.locator('[data-testid="rail-account-trigger"]:visible').first();
 }

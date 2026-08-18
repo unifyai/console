@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import {
-  Settings,
   ChevronsUpDown,
   Check,
   LogOut,
@@ -21,8 +20,10 @@ import {
   RAIL_GUTTER,
   RAIL_ROW_PAD,
   RAIL_ROW_SHELL,
-  RAIL_TRAILING_GLYPH,
-  RAIL_TRAILING_SLOT,
+  RAIL_SWITCHER_GLYPH,
+  RAIL_SWITCHER_SLOT,
+  RAIL_TRAILING_INSET,
+  RailTrailingButton,
 } from '@/components/Layout/Shell/railGeometry';
 import {
   DropdownMenu,
@@ -111,8 +112,14 @@ interface RailFootProps {
 }
 
 /**
- * The rail's foot: quick Settings/Admin nav, an account row that opens the
- * workspace switcher and sign out, and the collapse-to-dock control.
+ * The rail's foot: the workspace row, the theme and support entries, and the
+ * collapse-to-dock control.
+ *
+ * The workspace row is the teammate switcher's twin at the other end of the
+ * rail, and reads the same way: the face is the settings entry — this
+ * workspace's own settings — while the chevron beside it (expanded) or beneath
+ * it (folded) is the only way to a different workspace. Settings therefore has
+ * no separate nav row; the identity it belongs to is the way in.
  */
 export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   const { navigateTo, activeHref } = useAppShellNavigation();
@@ -195,6 +202,64 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   const personalWorkspaces = workspaces.filter((w) => w.type === 'personal');
   const orgWorkspaces = workspaces.filter((w) => w.type === 'organization');
   const isDark = theme === 'dark';
+  const settingsActive = isSettingsFamilyPath(activePath);
+
+  const workspaceFace = (
+    <button
+      type="button"
+      data-testid="rail-nav-settings"
+      title={collapsed ? `Settings (${displayName})` : undefined}
+      aria-label={`Settings — ${displayName}`}
+      aria-current={settingsActive ? 'page' : undefined}
+      onClick={() => navigateTo('/account')}
+      className={cn(
+        collapsed
+          ? 'flex items-center rounded-lg p-1.5 transition-colors'
+          : // `pr-11` clears the picker, which sits in the row's trailing slot
+            // rather than in a strip of its own.
+            cn(RAIL_ROW_SHELL, RAIL_ROW_PAD, 'py-1.5 pr-11 text-left'),
+        settingsActive
+          ? 'bg-accent-soft text-accent-soft-foreground'
+          : 'text-foreground hover:bg-muted'
+      )}
+    >
+      <Avatar className="h-8 w-8 shrink-0">
+        <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+        <AvatarFallback
+          className="text-caption-sm font-display font-semibold text-primary-foreground"
+          style={{ backgroundColor: avatarTone }}
+        >
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+      {!collapsed && (
+        <div className="min-w-0 text-left">
+          <div className="text-h3 truncate">{displayName}</div>
+          <div className="text-caption-sm truncate">{subtitle}</div>
+        </div>
+      )}
+    </button>
+  );
+
+  const workspacePicker = (
+    <DropdownMenuTrigger asChild>
+      <RailTrailingButton
+        data-testid="rail-account-trigger"
+        title={collapsed ? `Switch workspace (${displayName})` : undefined}
+        aria-label={`Switch workspace — ${displayName}`}
+        className={cn(
+          RAIL_SWITCHER_SLOT,
+          !collapsed && cn('absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
+        )}
+      >
+        {isSwitchingWorkspace ? (
+          <Loader2 className={cn(RAIL_SWITCHER_GLYPH, 'animate-spin')} aria-hidden="true" />
+        ) : (
+          <ChevronsUpDown className={RAIL_SWITCHER_GLYPH} strokeWidth={1.75} aria-hidden="true" />
+        )}
+      </RailTrailingButton>
+    </DropdownMenuTrigger>
+  );
 
   return (
     <div
@@ -204,46 +269,20 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
       )}
     >
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            data-testid="rail-account-trigger"
-            title={collapsed ? displayName : undefined}
-            className={cn(
-              RAIL_ROW_SHELL,
-              'hover:bg-muted',
-              collapsed ? 'justify-center px-0 py-1.5' : cn(RAIL_ROW_PAD, 'py-1.5')
-            )}
-          >
-            <Avatar className="h-8 w-8 shrink-0">
-              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
-              <AvatarFallback
-                className="text-caption-sm font-display font-semibold text-primary-foreground"
-                style={{ backgroundColor: avatarTone }}
-              >
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            {!collapsed && (
-              <div className="min-w-0 text-left">
-                <div className="text-h3 truncate text-foreground">{displayName}</div>
-                <div className="text-caption-sm truncate">{subtitle}</div>
-              </div>
-            )}
-            {!collapsed && (
-              <span className={cn(RAIL_TRAILING_SLOT, 'ml-auto text-muted-foreground')}>
-                {isSwitchingWorkspace ? (
-                  <Loader2 className={cn(RAIL_TRAILING_GLYPH, 'animate-spin')} />
-                ) : (
-                  <ChevronsUpDown className={RAIL_TRAILING_GLYPH} />
-                )}
-              </span>
-            )}
-          </button>
-        </DropdownMenuTrigger>
+        {/* Siblings rather than one inside the other: only the chevron opens
+            the menu. Folded, it drops beneath the face, as the teammate
+            switcher's picker does at the other end of the rail. */}
+        <div
+          className={collapsed ? 'mx-auto flex w-fit flex-col items-center gap-0.5' : 'relative'}
+        >
+          {workspaceFace}
+          {workspacePicker}
+        </div>
+        {/* The chevron is the trigger, so the menu hangs from the row's
+            trailing edge rather than starting under it. */}
         <DropdownMenuContent
           side="top"
-          align="start"
+          align="end"
           className="w-[250px]"
           data-testid="rail-account-menu"
         >
@@ -335,14 +374,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <RailNavButton
-        Icon={Settings}
-        label="Settings"
-        collapsed={collapsed}
-        active={isSettingsFamilyPath(activePath)}
-        onClick={() => navigateTo('/account')}
-        testId="rail-nav-settings"
-      />
       <RailNavButton
         Icon={isDark ? Sun : Moon}
         label={isDark ? 'Switch to light' : 'Switch to dark'}
