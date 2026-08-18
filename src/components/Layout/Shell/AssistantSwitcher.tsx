@@ -12,6 +12,8 @@ import {
   RailTrailingButton,
 } from '@/components/Layout/Shell/railGeometry';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
+import { useAssistantInfoPanelVisibility } from '@/hooks/Assistants/useAssistantInfoPanelVisibility';
+import { requestAssistantInfoPanelToggle } from '@/lib/assistants/infoPanelVisibility';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Skeleton } from '@/components/UI/skeleton';
@@ -96,10 +98,12 @@ function entityInitials(label: string): string {
 
 /**
  * The rail's unity switcher: two controls that never trade places. The face
- * opens the selection's home surface; a chevron beside it (expanded) or beneath
- * it (collapsed) opens the teammate picker. The chevron is always drawn — never
- * hover-revealed — and never occupies the face's bottom-right corner, so the
- * presence badge stays legible while reaching for either control.
+ * stays on one teammate — it opens their home surface, then their profile once
+ * that surface is already open — while a chevron beside it (expanded) or
+ * beneath it (collapsed) is the only way to a different teammate. The chevron
+ * is always drawn — never hover-revealed — and never occupies the face's
+ * bottom-right corner, so the presence badge stays legible while reaching for
+ * either control.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -125,24 +129,31 @@ export function AssistantSwitcher({
     [nestedOverlayOpen]
   );
 
+  const infoPanelVisibility = useAssistantInfoPanelVisibility();
+  const selectionId = listProps.profileAssistantId;
+  const isProfileOpen =
+    !!selectionId && infoPanelVisibility?.assistantId === selectionId && infoPanelVisibility.isOpen;
+
   // Radix exempts only the chevron — the popover's actual trigger — from
   // outside-dismiss, so a pointerdown on the face closes an open picker before
-  // the face's own click lands. Read the pre-dismiss state to tell a genuine
-  // open apart from a second click that should leave the picker shut.
+  // the face's own click lands. Read the pre-dismiss state so that press is
+  // spent on the dismissal instead of also reaching the profile.
   const pickerWasOpenRef = React.useRef(false);
   const handleFacePointerDown = React.useCallback(() => {
     pickerWasOpenRef.current = switcherOpen;
   }, [switcherOpen]);
 
   const handleFaceClick = React.useCallback(() => {
-    // The face has nowhere left to go once its own surface is open, so it falls
-    // through to the picker rather than spending a click on nothing.
+    // One errand at two depths: from elsewhere the face lands on this
+    // teammate's surface, and from there it opens who they are. Reaching a
+    // different teammate stays with the chevron.
     if (!chatActive) {
       onOpenChat?.();
       return;
     }
-    if (!pickerWasOpenRef.current) setSwitcherOpen(true);
-  }, [chatActive, onOpenChat]);
+    if (pickerWasOpenRef.current || !selectionId) return;
+    requestAssistantInfoPanelToggle({ assistantId: selectionId });
+  }, [chatActive, onOpenChat, selectionId]);
 
   /**
    * Picking a teammate is the whole errand, so the list dismisses itself on the
@@ -188,6 +199,7 @@ export function AssistantSwitcher({
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;
   const activeUnityInCall = !!activeUnity && activeCallAssistantId === activeUnity.agentId;
+  const profileActionLabel = isProfileOpen ? 'Hide profile' : 'Show profile';
 
   const face = showSkeletonFace ? (
     <Skeleton
@@ -244,8 +256,8 @@ export function AssistantSwitcher({
       onClick={handleFaceClick}
       aria-current={chatActive ? 'page' : undefined}
       aria-haspopup={chatActive ? 'dialog' : undefined}
-      aria-expanded={chatActive ? switcherOpen : undefined}
-      aria-label={collapsed ? `Open ${unityName}` : undefined}
+      aria-expanded={chatActive ? isProfileOpen : undefined}
+      aria-label={chatActive ? `${profileActionLabel} — ${unityName}` : `Open ${unityName}`}
       className={cn(
         'relative flex items-center transition-colors',
         collapsed
@@ -316,6 +328,9 @@ export function AssistantSwitcher({
                 <TooltipTrigger asChild>{homeButton}</TooltipTrigger>
                 <TooltipContent side="right">
                   <p>{unityName}</p>
+                  {chatActive ? (
+                    <p className="text-caption-sm text-muted-foreground">{profileActionLabel}</p>
+                  ) : null}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -325,7 +340,20 @@ export function AssistantSwitcher({
           /* Siblings rather than nested, since both are triggers; the picker
              overlays the row's trailing slot the way a nav row's pin does. */
           <div className="relative">
-            {homeButton}
+            {chatActive ? (
+              // The row already reads as itself, so this hint waits out a pass
+              // through the rail and only names the press that isn't obvious.
+              <TooltipProvider delayDuration={400}>
+                <Tooltip>
+                  <TooltipTrigger asChild>{homeButton}</TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{profileActionLabel}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              homeButton
+            )}
             {pickerButton}
           </div>
         )}
