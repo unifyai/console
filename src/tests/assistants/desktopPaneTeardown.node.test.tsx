@@ -23,10 +23,13 @@ vi.mock('@/components/Pages/Providers/WorkspaceProvider', () => ({
 }));
 
 // The readiness hook owns polling and the desktop-ready event stream; this suite
-// is about what the pane does once a desktop is already up.
+// is about what the pane does around it. Readiness is a knob so the startup path
+// can be exercised too.
+const readiness = vi.hoisted(() => ({ isDesktopReady: true }));
+
 vi.mock('@/hooks/Assistants/useDesktopReady', () => ({
   useDesktopReady: () => ({
-    isDesktopReady: true,
+    isDesktopReady: readiness.isDesktopReady,
     eventLiveviewUrl: null,
     eventBindingId: null,
     eventLiveviewPassword: null,
@@ -35,9 +38,9 @@ vi.mock('@/hooks/Assistants/useDesktopReady', () => ({
 
 const LIVEVIEW_URL = 'https://vm.example.com/desktop/custom.html?password=secret';
 
-function makeAssistant(): Assistant {
+function makeAssistant(agentId = '42'): Assistant {
   return {
-    agentId: '42',
+    agentId,
     userId: 'user-1',
     organizationId: null,
     firstName: 'Ada',
@@ -80,6 +83,7 @@ async function renderReadyPane() {
 describe('AssistantDesktopPane — viewing session lifecycle', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    readiness.isDesktopReady = true;
   });
 
   afterEach(() => {
@@ -215,5 +219,161 @@ describe('AssistantDesktopPane — viewing session lifecycle', () => {
 
     expect(shareEvents(desktopActions, 'user_remote_control_stopped')).toHaveLength(1);
     expect(shareEvents(desktopActions, 'assistant_screen_share_stopped')).toHaveLength(1);
+  });
+});
+
+describe('AssistantDesktopPane — watch / unwatch', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    readiness.isDesktopReady = true;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  /** Press the one control that serves both directions. */
+  async function toggleWatch(view: Awaited<ReturnType<typeof renderReadyPane>>['view']) {
+    await act(async () => {
+      view.getByTestId('desktop-watch-toggle').click();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+  }
+
+  it('closes the viewer on unwatch and stays closed while the pane is visible', async () => {
+    const { view, desktopActions } = await renderReadyPane();
+
+    await toggleWatch(view);
+
+    expect(shareEvents(desktopActions, 'assistant_screen_share_stopped')).toHaveLength(1);
+    expect(view.container.querySelector('iframe')).toBeNull();
+    expect(view.getByTestId('desktop-not-watching')).toBeTruthy();
+
+    // The auto-connect effect would otherwise undo this on the next render.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(shareEvents(desktopActions, 'assistant_screen_share_started')).toHaveLength(1);
+    expect(view.container.querySelector('iframe')).toBeNull();
+  });
+
+  it('re-opens the viewer on watch', async () => {
+    const { view, desktopActions } = await renderReadyPane();
+
+    await toggleWatch(view);
+    await toggleWatch(view);
+
+    expect(shareEvents(desktopActions, 'assistant_screen_share_started')).toHaveLength(2);
+    expect(view.container.querySelector('iframe')).not.toBeNull();
+  });
+
+  it('keeps the unwatch across leaving the tab and coming back', async () => {
+    const { view, desktopActions, assistant } = await renderReadyPane();
+
+    await toggleWatch(view);
+    view.rerender(
+      <AssistantDesktopPane
+        assistant={assistant}
+        desktopActions={desktopActions}
+        isVisible={false}
+      />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    view.rerender(
+      <AssistantDesktopPane assistant={assistant} desktopActions={desktopActions} isVisible />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(shareEvents(desktopActions, 'assistant_screen_share_started')).toHaveLength(1);
+    expect(view.getByTestId('desktop-not-watching')).toBeTruthy();
+  });
+
+  it('still reconnects by itself after the grace teardown, which is not an unwatch', async () => {
+    const { view, desktopActions, assistant } = await renderReadyPane();
+
+    view.rerender(
+      <AssistantDesktopPane
+        assistant={assistant}
+        desktopActions={desktopActions}
+        isVisible={false}
+      />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    view.rerender(
+      <AssistantDesktopPane assistant={assistant} desktopActions={desktopActions} isVisible />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(shareEvents(desktopActions, 'assistant_screen_share_started')).toHaveLength(2);
+    expect(view.container.querySelector('iframe')).not.toBeNull();
+  });
+
+  it('releases remote control on unwatch', async () => {
+    const { view, desktopActions } = await renderReadyPane();
+
+    await act(async () => {
+      view.getByRole('button', { name: /take control/i }).click();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    await toggleWatch(view);
+
+    expect(shareEvents(desktopActions, 'user_remote_control_stopped')).toHaveLength(1);
+    expect(shareEvents(desktopActions, 'assistant_screen_share_stopped')).toHaveLength(1);
+  });
+
+  it('stops the startup attempts when unwatched before the desktop comes up', async () => {
+    readiness.isDesktopReady = false;
+    const desktopActions = makeDesktopActions();
+    const view = render(
+      <AssistantDesktopPane assistant={makeAssistant()} desktopActions={desktopActions} isVisible />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(desktopActions.wakeAssistantSession).toHaveBeenCalledTimes(1);
+
+    await toggleWatch(view);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    // No second wake, and nothing tried to resolve a URL for a desktop nobody
+    // is waiting for. Nothing was ever open, so there is no stop to send.
+    expect(desktopActions.wakeAssistantSession).toHaveBeenCalledTimes(1);
+    expect(desktopActions.getLiveviewUrl).not.toHaveBeenCalled();
+    expect(shareEvents(desktopActions, 'assistant_screen_share_stopped')).toHaveLength(0);
+    expect(view.getByTestId('desktop-not-watching')).toBeTruthy();
+  });
+
+  it('clears the unwatch when the active assistant changes', async () => {
+    const { view, desktopActions, assistant } = await renderReadyPane();
+
+    await toggleWatch(view);
+    view.rerender(
+      <AssistantDesktopPane
+        assistant={makeAssistant('43')}
+        desktopActions={desktopActions}
+        isVisible
+      />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(view.container.querySelector('iframe')).not.toBeNull();
+    const started = shareEvents(desktopActions, 'assistant_screen_share_started');
+    expect(started).toHaveLength(2);
+    expect(started[1][0]).toBe('43');
+    expect(assistant.agentId).toBe('42');
   });
 });
