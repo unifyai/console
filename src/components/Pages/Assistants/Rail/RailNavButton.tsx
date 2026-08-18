@@ -1,6 +1,13 @@
 import * as React from 'react';
 import { Pin, PinOff, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  RAIL_ROW_PAD,
+  RAIL_ROW_SHELL,
+  RAIL_TRAILING_GLYPH,
+  RAIL_TRAILING_INSET,
+  RailTrailingButton,
+} from '@/components/Layout/Shell/railGeometry';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
   ContextMenu,
@@ -86,11 +93,12 @@ export function RailNavButton({
       aria-label={collapsed || note ? `${label}${note}` : undefined}
       data-testid={testId}
       className={cn(
+        RAIL_ROW_SHELL,
         // `overflow-hidden` + nowrap labels keep rows a fixed height while the
         // rail animates between dock and expanded widths; without it the longer
         // labels wrap mid-transition and the rail foot visibly jumps.
-        'relative flex w-full items-center gap-3 overflow-hidden rounded-[10px] font-medium transition-colors',
-        collapsed ? 'justify-center px-0 py-[11px]' : 'px-[11px] py-[9px]',
+        'overflow-hidden',
+        collapsed ? 'justify-center px-0 py-3' : cn(RAIL_ROW_PAD, 'py-2.5'),
         active ? 'bg-accent-soft text-accent-soft-foreground' : 'text-foreground hover:bg-muted',
         disabled && 'pointer-events-none opacity-50'
       )}
@@ -118,7 +126,7 @@ export function RailNavButton({
       {!collapsed && (
         <span
           className={cn(
-            'truncate whitespace-nowrap text-[13px] font-normal',
+            'text-body-dense truncate whitespace-nowrap',
             guest && !active && 'text-muted-foreground'
           )}
         >
@@ -144,22 +152,21 @@ export function RailNavButton({
     <div className="group/nav relative">
       {button}
       {!collapsed && (
-        <button
-          type="button"
+        <RailTrailingButton
           onClick={pinControl.onTogglePin}
           aria-label={`${pinControl.pinned ? 'Unpin' : 'Pin'} ${label}`}
           data-testid={testId ? `${testId}-pin-toggle` : undefined}
           className={cn(
-            'absolute top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/nav:opacity-100',
-            showActivityDot ? 'right-7' : 'right-2'
+            'absolute top-1/2 -translate-y-1/2 opacity-0 focus-visible:opacity-100 group-hover/nav:opacity-100',
+            showActivityDot ? 'right-8' : RAIL_TRAILING_INSET
           )}
         >
           {pinControl.pinned ? (
-            <PinOff className="h-3.5 w-3.5" aria-hidden="true" />
+            <PinOff className={RAIL_TRAILING_GLYPH} aria-hidden="true" />
           ) : (
-            <Pin className="h-3.5 w-3.5" aria-hidden="true" />
+            <Pin className={RAIL_TRAILING_GLYPH} aria-hidden="true" />
           )}
-        </button>
+        </RailTrailingButton>
       )}
     </div>
   ) : (

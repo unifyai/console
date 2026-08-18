@@ -87,8 +87,6 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
   COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
   requestAssistantInfoPanelOpen,
-  requestAssistantInfoPanelOpenAfterSelect,
-  requestAssistantInfoPanelToggle,
   type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
@@ -441,18 +439,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     writeStoredSelectedAssistantId(null);
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
-  const handleToggleAssistantInfo = React.useCallback(
-    (assistantId: string) => {
-      if (profileAssistantId !== assistantId) {
-        requestAssistantInfoPanelOpenAfterSelect(assistantId);
-        handleShowProfile(assistantId);
-        return;
-      }
-      requestAssistantInfoPanelToggle({ assistantId });
-    },
-    [handleShowProfile, profileAssistantId]
-  );
-
   // Right-pane state lives above the tab host so it survives shell route
   // transitions while the app stays mounted. Reloads and direct landings
   // intentionally start from Chat.
@@ -3835,7 +3821,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       error: assistantError,
       profileAssistantId,
       onShowProfile: handleAssistantListSelect,
-      onToggleAssistantInfo: handleToggleAssistantInfo,
       onOpenHireDialog: handleOpenHireDialog,
       isFolded: false,
       activeCallAssistantId: activeCallId,
@@ -3878,7 +3863,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isInitialLoadingAssistants,
       profileAssistantId,
       handleAssistantListSelect,
-      handleToggleAssistantInfo,
       handleOpenHireDialog,
       activeCallId,
       canHire,
@@ -4073,8 +4057,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
             {isBelowMobile ? (
               <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
-                <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+                <SheetContent side="left" className="w-[min(100vw,258px)] p-0" hideClose>
                   <AssistantRail
+                    onRequestClose={() => setMobileRailOpen(false)}
                     activeUnity={visibleProfileAssistant}
                     activeEntityFace={activeEntityFace}
                     entityKind={selectedEntityKind}
