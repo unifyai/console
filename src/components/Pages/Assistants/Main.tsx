@@ -87,8 +87,6 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
   COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
   requestAssistantInfoPanelOpen,
-  requestAssistantInfoPanelOpenAfterSelect,
-  requestAssistantInfoPanelToggle,
   type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
@@ -441,19 +439,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     writeStoredSelectedAssistantId(null);
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
-  const handleToggleAssistantInfo = React.useCallback(
-    (assistantId: string) => {
-      // A row that isn't the current selection has no info panel mounted to
-      // hear a toggle, so select it first and open on arrival.
-      if (profileAssistantId !== assistantId) {
-        requestAssistantInfoPanelOpenAfterSelect(assistantId);
-        handleShowProfile(assistantId);
-        return;
-      }
-      requestAssistantInfoPanelToggle({ assistantId });
-    },
-    [handleShowProfile, profileAssistantId]
-  );
 
   // Right-pane state lives above the tab host so it survives shell route
   // transitions while the app stays mounted. Reloads and direct landings
@@ -3837,7 +3822,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       error: assistantError,
       profileAssistantId,
       onShowProfile: handleAssistantListSelect,
-      onToggleAssistantInfo: handleToggleAssistantInfo,
       onOpenHireDialog: handleOpenHireDialog,
       isFolded: false,
       activeCallAssistantId: activeCallId,
@@ -3880,7 +3864,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isInitialLoadingAssistants,
       profileAssistantId,
       handleAssistantListSelect,
-      handleToggleAssistantInfo,
       handleOpenHireDialog,
       activeCallId,
       canHire,
