@@ -110,8 +110,8 @@ async function loginAndSaveOrgState(
 }
 
 /**
- * The team header only folds its nest; the team conversation is the "Team chat"
- * row inside it.
+ * The team header only folds its nest; the team workspace opens from the
+ * "Select team" row inside it.
  */
 async function openTeamWorkspace(page: Page) {
   const teamRow = page.getByTestId(`team-list-item-${teamId}`);

@@ -39,6 +39,7 @@
     "check:colors:all": "npx tsx scripts/check-colors.ts",
     "check:styles": "npm run check:fonts && npm run check:colors",
     "check:styles:all": "npm run check:fonts:all && npm run check:colors:all",
+    "check:styles:baseline": "npx tsx scripts/check-font-classes.ts --update-baseline && npx tsx scripts/check-colors.ts --update-baseline",
     "check:test-coverage": "tsx scripts/check-test-coverage-map.ts",
     "check:test-inventory": "tsx scripts/check-test-inventory-sync.ts"
   },

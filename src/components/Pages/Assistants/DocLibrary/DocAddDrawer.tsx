@@ -57,7 +57,7 @@ export function DocAddDrawer({ open, kind, onClose, onSave }: DocAddDrawerProps)
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent side="right" className="flex flex-col" data-testid="doc-add-drawer">
         <SheetHeader className="shrink-0">
-          <SheetDescription className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent-soft-foreground">
+          <SheetDescription className="text-overline text-accent-soft-foreground">
             New {kind}
           </SheetDescription>
           <SheetTitle>Add {kind}</SheetTitle>
@@ -104,9 +104,7 @@ export function DocAddDrawer({ open, kind, onClose, onSave }: DocAddDrawerProps)
               >
                 Preview
               </button>
-              <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                Markdown
-              </span>
+              <span className="text-overline ml-auto">Markdown</span>
             </div>
             {tab === 'write' ? (
               <textarea

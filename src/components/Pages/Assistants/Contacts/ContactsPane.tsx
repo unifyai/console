@@ -270,7 +270,7 @@ export function ContactsPane({
             {onManageContacts ? (
               <Button
                 size="sm"
-                className="h-7 shrink-0"
+                className="h-7 shrink-0 shadow-none hover:translate-y-0 hover:shadow-none"
                 onClick={onManageContacts}
                 data-testid="contacts-add"
               >

@@ -399,9 +399,7 @@ export function KnowledgePane({
                     <React.Fragment key={group.sortKey}>
                       {group.sortKey === '__undated' ? (
                         <div className="mb-1 mt-2.5 flex items-center gap-2.5 px-1 first:mt-0">
-                          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            Undated
-                          </span>
+                          <span className="text-overline">Undated</span>
                           <span className="h-px flex-1 bg-border" />
                         </div>
                       ) : (
@@ -550,9 +548,7 @@ export function KnowledgePane({
 
                   {active.topics.length > 0 && (
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                        Topics
-                      </span>
+                      <span className="text-overline">Topics</span>
                       {active.topics.map((topic) => (
                         <span
                           key={topic}
@@ -566,9 +562,7 @@ export function KnowledgePane({
 
                   {active.sourceRefs.length > 0 && (
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                        Sources
-                      </span>
+                      <span className="text-overline">Sources</span>
                       {active.sourceRefs.map((sourceRef, index) => (
                         <SourceRefChip
                           key={`${sourceRef.kind}-${index}`}

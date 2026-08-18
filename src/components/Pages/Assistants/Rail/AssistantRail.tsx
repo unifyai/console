@@ -30,6 +30,8 @@ interface AssistantRailProps {
   nestedOverlayOpen?: boolean;
   /** Assistant currently on a live call; escalates that face's presence badge. */
   activeCallAssistantId?: string | null;
+  /** Set when the rail renders inside the mobile drawer; draws its close. */
+  onRequestClose?: () => void;
 }
 
 /**
@@ -50,6 +52,7 @@ export function AssistantRail({
   entityKind = 'assistant',
   nestedOverlayOpen = false,
   activeCallAssistantId = null,
+  onRequestClose,
 }: AssistantRailProps) {
   const handleOpenChat = React.useCallback(() => {
     onSelectSection(CHAT_SECTION);
@@ -64,6 +67,7 @@ export function AssistantRail({
       onCollapsedChange={onCollapsedChange}
       onBrandClick={onBrandClick}
       entityKind={entityKind}
+      onRequestClose={onRequestClose}
       switcher={
         <AssistantSwitcher
           activeUnity={activeUnity}

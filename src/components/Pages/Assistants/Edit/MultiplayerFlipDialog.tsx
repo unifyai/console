@@ -121,8 +121,15 @@ export function MultiplayerFlipDialog({
               <p>
                 Multiplayer gives your twin its own outward identity: a unique name, its own email
                 address, and open channels — anyone can reach it, and it can join Google Meet and
-                Microsoft Teams meetings like a hired teammate. It keeps its access to your
-                workspace.
+                Microsoft Teams meetings like a hired teammate.
+              </p>
+              <p>
+                <strong>
+                  It keeps the access it has to your own workspace, so once your team can reach it,
+                  they can ask it about your inbox, your files, and anything else it can see there.
+                </strong>{' '}
+                It is trained to decline your personal details to everyone but you — but that is an
+                instruction it follows, not a boundary anything enforces.
               </p>
               <p>
                 The shared {COORDINATOR_DISPLAY_NAME} contact details are retired in the process,

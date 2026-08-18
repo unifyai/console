@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Building2, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { fetchProfileSignedUrls, readProfileSignedUrls } from '@/lib/client/profileMedia';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
 export interface TeamAvatarProps {
@@ -15,35 +16,33 @@ export interface TeamAvatarProps {
   iconClassName?: string;
 }
 
+/** Cached signed URL, or the URL itself when it needs no signing. */
+function readResolvedImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  if (!imageUrl.startsWith('gs://')) return imageUrl;
+  return readProfileSignedUrls([imageUrl])[imageUrl] ?? null;
+}
+
+/**
+ * Faces are pre-resolved in bulk when the roster loads, so the cache read in
+ * the state initialiser almost always hits and the avatar paints on its first
+ * frame. The fetch below is the cold path — a team whose photo changed since
+ * the last roster poll, or an avatar rendered outside a roster surface.
+ */
 function useResolvedImageUrl(imageUrl: string | null | undefined): string | null {
-  const [resolved, setResolved] = React.useState<string | null>(() => {
-    if (!imageUrl) return null;
-    return imageUrl.startsWith('gs://') ? null : imageUrl;
-  });
+  const [resolved, setResolved] = React.useState<string | null>(() =>
+    readResolvedImageUrl(imageUrl)
+  );
 
   React.useEffect(() => {
-    if (!imageUrl) {
-      setResolved(null);
-      return;
-    }
-    if (!imageUrl.startsWith('gs://')) {
-      setResolved(imageUrl);
-      return;
-    }
+    const cached = readResolvedImageUrl(imageUrl);
+    setResolved(cached);
+    if (cached || !imageUrl) return;
+
     let cancelled = false;
-    fetch('/api/storage/signed-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      body: JSON.stringify({ gs_url: imageUrl }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setResolved(data.signed_url ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setResolved(null);
-      });
+    fetchProfileSignedUrls([imageUrl]).then((signedUrls) => {
+      if (!cancelled) setResolved(signedUrls[imageUrl] ?? null);
+    });
     return () => {
       cancelled = true;
     };

@@ -215,7 +215,7 @@ export function WorkflowCard({
         </div>
 
         <div>
-          <div className="flex items-center gap-1.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="text-overline flex items-center gap-1.5">
             <span
               className="h-1.5 w-1.5 rounded-[2px] bg-[color:var(--wf-cat)]"
               aria-hidden="true"

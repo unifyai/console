@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { RAIL_FLUSH_PAD } from '@/components/Layout/Shell/railGeometry';
 import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantSwitcher } from '@/components/Layout/Shell/AssistantSwitcher';
 import { useAssistantSwitcherBridge } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
@@ -29,13 +30,11 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
       <div
         className={cn(
           'mb-2 flex items-center gap-3',
-          collapsed ? 'mx-auto justify-center p-1.5' : 'mx-3.5 px-3 py-2'
+          collapsed ? 'mx-auto justify-center p-1.5' : cn(RAIL_FLUSH_PAD, 'py-1.5')
         )}
         data-testid="rail-unity-switcher-loading"
       >
-        <Skeleton
-          className={cn('shrink-0 rounded-full', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
-        />
+        <Skeleton className="rounded-control h-10 w-10 shrink-0" />
         {!collapsed && (
           <div className="min-w-0 flex-1 space-y-1.5">
             <Skeleton className="h-4 w-28" />

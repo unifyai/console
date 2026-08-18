@@ -119,7 +119,9 @@ const desktopActions = {
     getLiveviewUrl: vi.fn(),
     buildLiveviewUrl: vi.fn(),
     checkLiveviewHealth: vi.fn(),
-    sendSystemEvent: vi.fn(),
+    // Async like the real one: every call site attaches a .catch, so a mock
+    // returning undefined fails in a way the production path cannot.
+    sendSystemEvent: vi.fn(async () => ({})),
   },
 } as any;
 
@@ -441,6 +443,73 @@ describe('useCall (unified engine)', () => {
         await result.current.leaveCall();
       });
       expect(result.current.assistantSharesById).toEqual({});
+    });
+
+    /**
+     * A desktop the host put up for the room is closed by the client that put it
+     * there, rather than left to the runtime's call boundary. That boundary is
+     * skippable — a call torn down while its successor is already dispatching
+     * passes through neither of the resets that would have closed it — and a
+     * viewer outliving its own call can never be closed by anyone afterwards,
+     * because the only stop event that would match names a call nobody is on.
+     */
+    async function connectedGroupCall(currentUserId: string) {
+      const groupSession = sessionPayload({
+        scope: 'group',
+        group_id: 7,
+        created_by_user_id: 'user-1',
+        user_ids: ['user-1', 'user-2'],
+        participants: [
+          { user_id: 'user-1', role: 'host', status: 'joined' },
+          { user_id: 'user-2', role: 'guest', status: 'joined' },
+        ],
+      });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({ ok: true, status: 200, json: async () => groupSession }) as Response)
+      );
+      const room = new FakeRoom();
+      const { result } = renderHook(() =>
+        useCall(room as any, desktopActions, { orgId: '1', currentUserId })
+      );
+      await act(async () => {
+        await result.current.startGroupCall(7);
+      });
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '42', active: true });
+      });
+      return { room, result };
+    }
+
+    it('closes the desktops the host staged when the host leaves', async () => {
+      const { result } = await connectedGroupCall('user-1');
+      desktopActions.desktop.sendSystemEvent.mockClear();
+
+      await act(async () => {
+        await result.current.leaveCall();
+      });
+
+      expect(desktopActions.desktop.sendSystemEvent).toHaveBeenCalledWith(
+        '42',
+        'assistant_screen_share_stopped',
+        expect.any(String),
+        // Named as the viewer this call registered, or the runtime discards a
+        // key that was never added and keeps the desktop open.
+        { viewerUserId: 'user-1', viewerSource: 'call:sess-1' }
+      );
+    });
+
+    it('leaves the room alone when a guest leaves', async () => {
+      const { result } = await connectedGroupCall('user-2');
+      desktopActions.desktop.sendSystemEvent.mockClear();
+
+      await act(async () => {
+        await result.current.leaveCall();
+      });
+
+      // A guest never staged it and cannot take it down — the control belongs to
+      // the host, the same way End call does.
+      expect(desktopActions.desktop.sendSystemEvent).not.toHaveBeenCalled();
     });
   });
 });

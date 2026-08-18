@@ -86,6 +86,7 @@ export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) 
       collapsed={isBelowMobile ? false : collapsed}
       onBrandClick={handleBrandClick}
       entityKind={entityKind}
+      onRequestClose={isBelowMobile ? () => setMobileRailOpen(false) : undefined}
       onCollapsedChange={(next) => {
         if (isBelowMobile && next) {
           setMobileRailOpen(false);
@@ -106,7 +107,7 @@ export function HomeShell({ children, hideGlobalRail = false }: HomeShellProps) 
       <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
         {isBelowMobile ? (
           <Sheet open={!hideGlobalRail && mobileRailOpen} onOpenChange={setMobileRailOpen}>
-            <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+            <SheetContent side="left" className="w-[min(100vw,258px)] p-0" hideClose>
               {rail}
             </SheetContent>
           </Sheet>

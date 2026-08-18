@@ -204,9 +204,7 @@ export function SettingsShell({
         >
           {onAdmin ? (
             <>
-              <div className="px-3 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                Account
-              </div>
+              <div className="text-overline px-3 pb-1.5 pt-2">Account</div>
               <RailNavButton
                 Icon={Settings}
                 label="Settings"
@@ -214,9 +212,7 @@ export function SettingsShell({
                 onClick={() => navigateTo('/account')}
                 testId="settings-back-account"
               />
-              <div className="px-3 pb-1.5 pt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                Admin
-              </div>
+              <div className="text-overline px-3 pb-1.5 pt-4">Admin</div>
               {ADMIN_NAV_ITEMS.map((item) => (
                 <RailNavButton
                   key={item.href}
@@ -230,9 +226,7 @@ export function SettingsShell({
             </>
           ) : (
             <>
-              <div className="px-3 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                Account
-              </div>
+              <div className="text-overline px-3 pb-1.5 pt-2">Account</div>
               {SETTINGS_ACCOUNT_ITEMS.map((item) => (
                 <RailNavButton
                   key={item.id}
@@ -246,9 +240,7 @@ export function SettingsShell({
             </>
           )}
 
-          <div className="px-3 pb-1.5 pt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-            Workspace
-          </div>
+          <div className="text-overline px-3 pb-1.5 pt-4">Workspace</div>
           {workspaceLinks
             .filter((link) => link.show)
             .map((link) => (

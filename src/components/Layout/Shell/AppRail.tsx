@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, RotateCcw, SlidersHorizontal, PinOff } from 'lucide-react';
+import { MoreHorizontal, RotateCcw, SlidersHorizontal, PinOff, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UnifyBlockMark } from '@/components/Brand';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -20,6 +20,13 @@ import {
   type SectionDef,
   type SelectorEntityKind,
 } from '@/components/Pages/Assistants/Rail/sectionConfig';
+import {
+  RAIL_FLUSH_PAD,
+  RAIL_GUTTER,
+  RAIL_ROW_PAD,
+  RAIL_TRAILING_GLYPH,
+  RailTrailingButton,
+} from '@/components/Layout/Shell/railGeometry';
 import { useRailConfig } from '@/hooks/Shell/useRailConfig';
 import { useSurfacedSections } from '@/hooks/Shell/useSurfacedSections';
 import { computeRailLayout, type RailLayoutGroup } from '@/utils/shell/railLayout';
@@ -43,6 +50,12 @@ interface AppRailProps {
    * not apply to it (e.g. Guidance/Functions for a human) are hidden.
    */
   entityKind?: SelectorEntityKind;
+  /**
+   * Set when the rail is rendered inside the mobile drawer. The drawer's own
+   * close would sit on the Sheet's margin rather than the rail's, so the rail
+   * draws it in the brand row instead, on the same inset as everything else.
+   */
+  onRequestClose?: () => void;
 }
 
 interface RailGroupHeadingProps {
@@ -65,20 +78,22 @@ function RailGroupHeading({
   onUnpinGroup,
 }: RailGroupHeadingProps) {
   return (
-    <div className="group/heading flex items-center gap-1 whitespace-nowrap px-3 pb-1.5 pt-3">
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-        {group.label}
-      </span>
+    <div
+      className={cn(
+        'group/heading flex items-center gap-1 whitespace-nowrap pb-1.5 pt-3',
+        RAIL_ROW_PAD
+      )}
+    >
+      <span className="text-overline">{group.label}</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
+          <RailTrailingButton
             aria-label={`Customize ${group.label}`}
             data-testid={`rail-group-menu-${group.id}`}
-            className="ml-auto grid h-[18px] w-[18px] place-items-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/heading:opacity-100"
+            className="ml-auto opacity-0 focus-visible:opacity-100 group-hover/heading:opacity-100"
           >
-            <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
+            <MoreHorizontal className={RAIL_TRAILING_GLYPH} aria-hidden="true" />
+          </RailTrailingButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-52">
           <DropdownMenuItem onSelect={onCustomize} className="gap-2">
@@ -119,6 +134,7 @@ export function AppRail({
   onBrandClick,
   sectionActivity,
   entityKind = 'assistant',
+  onRequestClose,
 }: AppRailProps) {
   const { config, setPinned, reorder, resetGroup, unpinAll, reset } = useRailConfig();
   const [customizeOpen, setCustomizeOpen] = React.useState(false);
@@ -182,8 +198,8 @@ export function AppRail({
       {/* Brand */}
       <div
         className={cn(
-          'flex items-center gap-2 pb-3.5 pt-[18px]',
-          collapsed ? 'justify-center px-0' : 'px-[18px]'
+          'flex items-center gap-2 pb-3.5 pt-4',
+          collapsed ? 'justify-center px-0' : RAIL_FLUSH_PAD
         )}
       >
         <button
@@ -197,12 +213,21 @@ export function AppRail({
           )}
         >
           <UnifyBlockMark />
-          {!collapsed && (
-            <span className="whitespace-nowrap font-display text-[18px] font-semibold tracking-tight">
-              Unify
-            </span>
-          )}
+          {/* The wordmark names the app, not the page. It sits in the same
+              tier as the teammate and workspace names rather than above them,
+              so the rail leads with whoever the user is acting as. */}
+          {!collapsed && <span className="text-h3 whitespace-nowrap">Unify</span>}
         </button>
+        {!collapsed && onRequestClose && (
+          <RailTrailingButton
+            className="ml-auto"
+            aria-label="Close navigation"
+            data-testid="rail-drawer-close"
+            onClick={onRequestClose}
+          >
+            <X className={RAIL_TRAILING_GLYPH} aria-hidden="true" />
+          </RailTrailingButton>
+        )}
       </div>
 
       {switcher}
@@ -214,7 +239,7 @@ export function AppRail({
 
       {/* Section nav */}
       <ScrollArea className="min-h-0 flex-1" viewportClassName="overflow-x-hidden [&>div]:!block">
-        <div className="px-2.5 pb-2">
+        <div className={cn(RAIL_GUTTER, 'pb-2')}>
           {layout.groups.map((group, index) => (
             <React.Fragment key={group.id}>
               {collapsed

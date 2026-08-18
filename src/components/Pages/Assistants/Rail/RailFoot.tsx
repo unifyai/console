@@ -18,6 +18,13 @@ import { signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import {
+  RAIL_GUTTER,
+  RAIL_ROW_PAD,
+  RAIL_ROW_SHELL,
+  RAIL_TRAILING_GLYPH,
+  RAIL_TRAILING_SLOT,
+} from '@/components/Layout/Shell/railGeometry';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -193,7 +200,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     <div
       className={cn(
         'mt-auto flex flex-col gap-0.5 border-t border-border pt-2',
-        collapsed ? 'px-3 pb-2.5' : 'px-2.5 pb-2.5'
+        collapsed ? 'px-3 pb-2.5' : cn(RAIL_GUTTER, 'pb-2.5')
       )}
     >
       <DropdownMenu>
@@ -203,14 +210,15 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
             data-testid="rail-account-trigger"
             title={collapsed ? displayName : undefined}
             className={cn(
-              'flex items-center gap-3 rounded-[10px] transition-colors hover:bg-muted',
-              collapsed ? 'justify-center px-0 py-1.5' : 'px-2.5 py-1.5'
+              RAIL_ROW_SHELL,
+              'hover:bg-muted',
+              collapsed ? 'justify-center px-0 py-1.5' : cn(RAIL_ROW_PAD, 'py-1.5')
             )}
           >
-            <Avatar className="h-[30px] w-[30px] shrink-0 rounded-[9px]">
+            <Avatar className="h-8 w-8 shrink-0">
               <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
               <AvatarFallback
-                className="rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
+                className="text-caption-sm font-display font-semibold text-primary-foreground"
                 style={{ backgroundColor: avatarTone }}
               >
                 {initials}
@@ -218,18 +226,19 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
             </Avatar>
             {!collapsed && (
               <div className="min-w-0 text-left">
-                <div className="truncate text-[13px] font-semibold text-foreground">
-                  {displayName}
-                </div>
-                <div className="truncate text-[11.5px] text-muted-foreground">{subtitle}</div>
+                <div className="text-h3 truncate text-foreground">{displayName}</div>
+                <div className="text-caption-sm truncate">{subtitle}</div>
               </div>
             )}
-            {!collapsed &&
-              (isSwitchingWorkspace ? (
-                <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-              ) : (
-                <ChevronsUpDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              ))}
+            {!collapsed && (
+              <span className={cn(RAIL_TRAILING_SLOT, 'ml-auto text-muted-foreground')}>
+                {isSwitchingWorkspace ? (
+                  <Loader2 className={cn(RAIL_TRAILING_GLYPH, 'animate-spin')} />
+                ) : (
+                  <ChevronsUpDown className={RAIL_TRAILING_GLYPH} />
+                )}
+              </span>
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -240,7 +249,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         >
           {isWorkspaceSwitchable && (
             <>
-              <DropdownMenuLabel className="text-caption">Personal</DropdownMenuLabel>
+              <DropdownMenuLabel>Personal</DropdownMenuLabel>
               {personalWorkspaces.map((w) => (
                 <DropdownMenuItem
                   key={w.id}
@@ -256,7 +265,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
                   {activeWorkspace?.id === w.id && <Check className="ml-auto h-4 w-4" />}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuLabel className="text-caption">Organizations</DropdownMenuLabel>
+              <DropdownMenuLabel>Organizations</DropdownMenuLabel>
               {orgWorkspaces.length === 0 && (
                 <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
                   No organizations

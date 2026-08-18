@@ -28,7 +28,7 @@ export function TabHeader({ section, leading, right }: TabHeaderProps) {
       <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-hidden sm:gap-3">
         {leading}
         <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2.5 overflow-hidden sm:gap-3">
-          <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-accent-soft text-accent-soft-foreground">
+          <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg bg-accent-soft text-accent-soft-foreground">
             <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
           </span>
           <div className="flex min-w-0 items-center gap-1.5">
@@ -73,13 +73,11 @@ export function TabHeader({ section, leading, right }: TabHeaderProps) {
               <span className="text-title text-foreground">{section.label}</span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{section.desc}</p>
-            <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              Things to try
-            </div>
+            <div className="text-overline mt-3">Things to try</div>
             <ol className="mt-2 space-y-2.5">
               {section.steps.map(([title, how], i) => (
                 <li key={title} className="flex gap-2.5">
-                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-soft-foreground">
+                  <span className="text-caption-sm grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent-soft font-semibold text-accent-soft-foreground">
                     {i + 1}
                   </span>
                   <div className="min-w-0">

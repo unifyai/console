@@ -340,10 +340,9 @@ export const LEAF_TARGETS: readonly LeafTarget[] = [
   },
   {
     id: 'filter-teammates',
-    testId: 'assistant-list-filter-{param}',
-    parameterized: true,
+    testId: 'assistant-list-filter-menu',
     label: 'the teammate list filter',
-    description: 'Narrows the teammate list to people or AI teammates.',
+    description: 'Opens the filters that narrow the list to real, virtual, team or group rows.',
   },
 
   // ── Closing things ──────────────────────────────────────────────────────

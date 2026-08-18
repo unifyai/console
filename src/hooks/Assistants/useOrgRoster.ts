@@ -1,9 +1,37 @@
 import * as React from 'react';
+import { fetchProfileSignedUrls } from '@/lib/client/profileMedia';
 import { OrgRoster, parseOrgRoster } from '@/types/orgChat';
 
 const POLLING_INTERVAL = 60000;
 /** Keep optimistic online through slow roster polls after live signals. */
 const OPTIMISTIC_ONLINE_GRACE_MS = 30_000;
+
+/**
+ * Signs every roster face in one batched request as soon as the roster lands,
+ * so surfaces that render them — the teammate switcher, roster rows, chat
+ * headers — paint from cache instead of each avatar signing its own URL on
+ * mount. Resolution is cache-first, so the 60s poll below re-signs only once
+ * URLs approach expiry rather than on every tick.
+ *
+ * Signed URLs are then warmed into the browser's image cache. Without this the
+ * bytes would only start downloading when a surface first mounts the `<img>`,
+ * which for the switcher means on open — the round-trip this prefetch exists
+ * to move off that path.
+ */
+function prefetchRosterFaces(roster: OrgRoster): void {
+  void fetchProfileSignedUrls([
+    ...roster.teams.map((team) => team.image),
+    ...roster.humans.map((human) => human.image),
+    ...roster.assistants.map((assistant) => assistant.image),
+  ]).then((signedUrls) => {
+    if (typeof window === 'undefined') return;
+    Object.values(signedUrls).forEach((signedUrl) => {
+      const image = new window.Image();
+      image.decoding = 'async';
+      image.src = signedUrl;
+    });
+  });
+}
 
 /**
  * Fetches the org roster (human members, teams, and chat groups) and keeps it
@@ -47,7 +75,9 @@ export function useOrgRoster(orgId: string | null) {
       }
       const data = await response.json();
       setError(null);
-      setRoster(applyOptimisticOnline(parseOrgRoster(data)));
+      const next = applyOptimisticOnline(parseOrgRoster(data));
+      setRoster(next);
+      prefetchRosterFaces(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch roster');
     } finally {

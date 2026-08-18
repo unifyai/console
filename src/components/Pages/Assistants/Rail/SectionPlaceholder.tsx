@@ -18,7 +18,7 @@ export function SectionPlaceholder({ section }: { section: SectionDef }) {
         </span>
         <div className="text-h1 flex items-center justify-center gap-2 text-foreground">
           {section.label}
-          <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent-soft-foreground">
+          <span className="text-caption-sm inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 font-medium text-accent-soft-foreground">
             <Sparkles className="h-3 w-3" aria-hidden="true" />
             Coming soon
           </span>

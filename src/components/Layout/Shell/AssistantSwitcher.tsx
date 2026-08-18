@@ -3,6 +3,14 @@
 import * as React from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  RAIL_GUTTER,
+  RAIL_ROW_PAD,
+  RAIL_ROW_SHELL,
+  RAIL_TRAILING_GLYPH,
+  RAIL_TRAILING_INSET,
+  RailTrailingButton,
+} from '@/components/Layout/Shell/railGeometry';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
@@ -184,7 +192,7 @@ export function AssistantSwitcher({
   const face = showSkeletonFace ? (
     <Skeleton
       data-testid="rail-unity-switcher-skeleton"
-      className={cn('rounded-control shrink-0', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
+      className="rounded-control h-10 w-10 shrink-0"
     />
   ) : activeEntityFace ? (
     <span className="relative shrink-0">
@@ -193,18 +201,13 @@ export function AssistantSwitcher({
           name={activeEntityFace.label}
           imageUrl={activeEntityFace.imageUrl}
           isOrgWideSharing={activeEntityFace.isOrgWideSharing}
-          className={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
+          className="h-10 w-10"
           iconClassName="h-5 w-5"
         />
       ) : activeEntityFace.kind === 'group' ? (
-        <GroupFaceStack
-          members={activeEntityFace.groupFaces ?? []}
-          sizeClassName={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
-        />
+        <GroupFaceStack members={activeEntityFace.groupFaces ?? []} sizeClassName="h-10 w-10" />
       ) : (
-        <Avatar
-          className={cn('rounded-control shrink-0', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
-        >
+        <Avatar className="rounded-control h-10 w-10 shrink-0">
           <AvatarImage src={activeEntityFace.imageUrl ?? undefined} alt={activeEntityFace.label} />
           <AvatarFallback className="rounded-control">
             {entityInitials(activeEntityFace.label)}
@@ -220,10 +223,7 @@ export function AssistantSwitcher({
     </span>
   ) : activeUnity ? (
     <span className="relative shrink-0">
-      <UnityAvatar
-        assistant={activeUnity}
-        sizeClass={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
-      />
+      <UnityAvatar assistant={activeUnity} sizeClass="h-10 w-10" />
       <AssistantPresenceIndicator
         status={activeUnityStatus}
         inCall={activeUnityInCall}
@@ -249,14 +249,11 @@ export function AssistantSwitcher({
       className={cn(
         'relative flex items-center transition-colors',
         collapsed
-          ? cn(
-              'rounded-xl p-1.5',
-              chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
-            )
-          : cn(
-              'min-w-0 flex-1 gap-2 rounded-l-xl px-2 py-1.5 text-left',
-              chatActive ? 'bg-accent-soft/70' : 'hover:bg-muted/70'
-            )
+          ? 'rounded-lg p-1.5'
+          : // `pr-9` clears the picker, which sits in the row's trailing slot
+            // rather than in a bordered strip of its own.
+            cn(RAIL_ROW_SHELL, RAIL_ROW_PAD, 'py-1.5 pr-9 text-left'),
+        chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
       )}
     >
       {face}
@@ -268,11 +265,9 @@ export function AssistantSwitcher({
           </div>
         ) : (
           <div className="min-w-0 flex-1">
-            <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
+            <div className="text-h3 truncate">{unityName}</div>
             {unitySub ? (
-              <div className="truncate text-[11.5px] capitalize text-muted-foreground">
-                {unitySub}
-              </div>
+              <div className="text-caption-sm truncate capitalize">{unitySub}</div>
             ) : null}
           </div>
         ))}
@@ -281,7 +276,7 @@ export function AssistantSwitcher({
           className={cn(
             'animate-rail-activity-dot h-2 w-2 shrink-0 rounded-full bg-primary ring-1 ring-primary-tint-30',
             // Top-right: the face's bottom-right corner belongs to presence.
-            collapsed ? 'absolute right-1 top-1' : 'ml-1'
+            collapsed ? 'absolute right-1 top-1' : 'ml-auto'
           )}
           aria-hidden="true"
           data-testid="rail-chat-home-activity-dot"
@@ -291,39 +286,29 @@ export function AssistantSwitcher({
   );
 
   /**
-   * Sized for touch as well as pointer: the mobile rail renders expanded inside
-   * a drawer, so the expanded trigger stretches to the card's full height and
-   * the collapsed strip is wider than the glyph it carries.
+   * The teammate picker and the workspace picker are the same errand, so they
+   * are the same control: one trailing slot, one glyph size, one inset. The
+   * rail renders expanded inside the mobile drawer, where the slot's extended
+   * touch target — not a wider box — is what keeps this reachable.
    */
   const pickerButton = (
     <PopoverTrigger asChild>
-      <button
-        type="button"
+      <RailTrailingButton
         data-testid="rail-unity-switcher"
         title={collapsed ? `Switch teammate (${unityName})` : undefined}
         aria-label={`Switch teammate — ${unityName}`}
-        className={cn(
-          'flex shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          collapsed
-            ? 'h-5 w-11 rounded-md'
-            : 'w-11 self-stretch rounded-r-xl border-l border-border'
-        )}
+        className={cn(!collapsed && cn('absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET))}
       >
-        <ChevronsUpDown
-          className={cn('shrink-0', collapsed ? 'h-3.5 w-3.5' : 'h-4 w-4')}
-          strokeWidth={1.75}
-          aria-hidden="true"
-        />
-      </button>
+        <ChevronsUpDown className={RAIL_TRAILING_GLYPH} strokeWidth={1.75} aria-hidden="true" />
+      </RailTrailingButton>
     </PopoverTrigger>
   );
 
   return (
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
-      {/* The horizontal inset lives here rather than as margins on the card so
-          the card can span the rail like the account switcher below it;
-          margins left it hugging its content. */}
-      <div className={cn('mb-2', !collapsed && 'px-3.5')}>
+      {/* The gutter lives here rather than on the row, so the row's fill starts
+          where every other filled row in the rail starts. */}
+      <div className={cn('mb-2', !collapsed && RAIL_GUTTER)}>
         {collapsed ? (
           <div className="mx-auto flex w-fit flex-col items-center gap-0.5">
             <TooltipProvider delayDuration={100}>
@@ -337,7 +322,9 @@ export function AssistantSwitcher({
             {pickerButton}
           </div>
         ) : (
-          <div className="flex items-stretch overflow-hidden rounded-xl border border-border bg-card">
+          /* Siblings rather than nested, since both are triggers; the picker
+             overlays the row's trailing slot the way a nav row's pin does. */
+          <div className="relative">
             {homeButton}
             {pickerButton}
           </div>
