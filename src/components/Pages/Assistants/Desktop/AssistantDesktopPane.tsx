@@ -119,11 +119,15 @@ export function AssistantDesktopPane({
   const wakeAttemptedRef = React.useRef(false);
   const [startupAttempt, setStartupAttempt] = React.useState(0);
 
+  // `null` while the pane is not connecting: there is no session to look for
+  // until someone is looking at the pane. The unscoped fallback stays opted in
+  // because the pane has neither a binding id nor a job name to scope by, and
+  // the interval above is what decides whether it polls at all.
   const { isDesktopReady, eventLiveviewUrl, eventLiveviewPassword } = useDesktopReady(
     assistantId,
     boundGetLiveviewUrl,
     false,
-    shouldConnect ? DESKTOP_START_POLL_INTERVAL_MS : undefined,
+    shouldConnect ? DESKTOP_START_POLL_INTERVAL_MS : null,
     startupAttempt,
     undefined,
     undefined,

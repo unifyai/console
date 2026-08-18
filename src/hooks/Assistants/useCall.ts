@@ -54,6 +54,10 @@ const CALL_DISPATCH_TIMEOUT = 12000;
 const ASSISTANT_INITIAL_REDISPATCH_DELAY = 12000;
 const ASSISTANT_INITIAL_JOIN_TIMEOUT = 60000;
 const RUNTIME_JOB_NAME_POLL_INTERVAL_MS = 15000;
+// Backstop cadence for spotting a desktop the call never got a ready event for.
+// The event and the BroadcastChannel are the fast paths; this only has to catch
+// the ones that went missing, so it stays well below the job-status chatter.
+const DESKTOP_READY_POLL_INTERVAL_MS = 15000;
 const CALL_AUDIO_CAPTURE_OPTIONS: AudioCaptureOptions = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -1261,7 +1265,7 @@ export function useCall(
       isDesktopEnabled ? activeCallAssistant?.agentId : undefined,
       boundGetLiveviewUrl,
       false,
-      undefined,
+      DESKTOP_READY_POLL_INTERVAL_MS,
       0,
       activeCall?.callId ?? null,
       runtimePollScope

@@ -57,10 +57,10 @@ export function useAssistantLiveview(
   );
 
   const { eventLiveviewUrl, eventLiveviewPassword } = useDesktopReady(
-    agentId,
+    active ? agentId : undefined,
     boundGetLiveviewUrl,
     false,
-    active ? LIVEVIEW_POLL_INTERVAL_MS : undefined,
+    active ? LIVEVIEW_POLL_INTERVAL_MS : null,
     0,
     undefined,
     undefined,
