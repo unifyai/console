@@ -1,13 +1,7 @@
 import * as React from 'react';
 import { Pin, PinOff, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  RAIL_ROW_PAD,
-  RAIL_ROW_SHELL,
-  RAIL_TRAILING_GLYPH,
-  RAIL_TRAILING_INSET,
-  RailTrailingButton,
-} from '@/components/Layout/Shell/railGeometry';
+import { RAIL_ROW_PAD, RAIL_ROW_SHELL } from '@/components/Layout/Shell/railGeometry';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
   ContextMenu,
@@ -27,7 +21,7 @@ export type RailNavIcon =
   | LucideIcon
   | React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
-/** Pin/unpin controls, present only on rows that represent a rail section. */
+/** Context-menu actions, present only on rows that represent a rail section. */
 export interface RailNavPinControl {
   pinned: boolean;
   onTogglePin: () => void;
@@ -65,10 +59,10 @@ function activityNote(activity: SectionActivity | undefined): string {
  * carried by the fill, the ink shift and the bar, so a dot in that slot always
  * means activity rather than changing meaning row to row.
  *
- * Section rows also carry pin controls — a glyph that fades in on hover or
- * keyboard focus, and a context menu that works from right-click on a pointer
- * and long-press on touch, so the folded dock and the mobile drawer reach the
- * same actions without depending on hover.
+ * A pinned section is a button the user chose to keep, not a pin they are
+ * holding down, so the row carries no standing pin affordance. Pinning lives
+ * behind the section's context menu — right-click on a pointer, long-press on
+ * touch — and behind the group heading's menu and the customize sheet.
  */
 export function RailNavButton({
   Icon,
@@ -146,44 +140,17 @@ export function RailNavButton({
     </button>
   );
 
-  // The pin sits beside the trailing indicator rather than replacing it — a
-  // notification marker should not vanish because the pointer crossed it.
-  const row = pinControl ? (
-    <div className="group/nav relative">
-      {button}
-      {!collapsed && (
-        <RailTrailingButton
-          onClick={pinControl.onTogglePin}
-          aria-label={`${pinControl.pinned ? 'Unpin' : 'Pin'} ${label}`}
-          data-testid={testId ? `${testId}-pin-toggle` : undefined}
-          className={cn(
-            'absolute top-1/2 -translate-y-1/2 opacity-0 focus-visible:opacity-100 group-hover/nav:opacity-100',
-            showActivityDot ? 'right-8' : RAIL_TRAILING_INSET
-          )}
-        >
-          {pinControl.pinned ? (
-            <PinOff className={RAIL_TRAILING_GLYPH} aria-hidden="true" />
-          ) : (
-            <Pin className={RAIL_TRAILING_GLYPH} aria-hidden="true" />
-          )}
-        </RailTrailingButton>
-      )}
-    </div>
-  ) : (
-    button
-  );
-
   const withTooltip = collapsed ? (
     <TooltipProvider delayDuration={100}>
       <Tooltip>
-        <TooltipTrigger asChild>{row}</TooltipTrigger>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="right">
           <p>{label}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   ) : (
-    row
+    button
   );
 
   if (!pinControl) return withTooltip;

@@ -89,8 +89,11 @@ test('unpinning a section moves it behind More and survives a reload', async ({
 
   const rail = assistantRail(page);
   const workflows = railSection(page, 'workflows');
-  await workflows.hover();
-  await rail.getByTestId('rail-section-workflows-pin-toggle').click();
+  await workflows.click({ button: 'right' });
+  await page
+    .getByTestId('rail-section-workflows-context-menu')
+    .getByText('Unpin from rail')
+    .click();
 
   await expect(workflows).toHaveCount(0);
 
