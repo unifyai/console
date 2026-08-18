@@ -39,9 +39,7 @@ export function StaleReasonChips({
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-overline">{label}</span>
         {reasons.map((reason, index) => (
           <span
             key={`${reason.depKind}-${reason.id ?? reason.name ?? reason.path ?? index}`}

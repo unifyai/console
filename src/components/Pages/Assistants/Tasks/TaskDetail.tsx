@@ -82,9 +82,7 @@ export function TaskRunHistory({
   return (
     <div>
       <div className="mb-2.5 flex items-center gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-          Run history · {runs.length}
-        </span>
+        <span className="text-overline">Run history · {runs.length}</span>
         {runs.length > 0 && onRunClick && (
           <span className="text-muted-foreground/70 text-[11px]">click a run to inspect</span>
         )}
@@ -93,12 +91,7 @@ export function TaskRunHistory({
         <p className="text-caption text-muted-foreground">No runs recorded yet.</p>
       ) : (
         <div className="flex flex-col">
-          <div
-            className={cn(
-              RUN_COLUMNS,
-              'grid gap-2.5 border-b pb-2 font-mono text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground'
-            )}
-          >
+          <div className={cn(RUN_COLUMNS, 'text-overline grid gap-2.5 border-b pb-2')}>
             <span>State</span>
             <span>Why it started</span>
             <span>Started</span>

@@ -111,7 +111,7 @@ export const WORKFLOW_TILE_ICONS: Record<string, JSX.Element> = {
 };
 
 const PLATE_SIZE = {
-  sm: { box: 'h-[30px] w-[30px] rounded-[10px]', glyph: 17 },
+  sm: { box: 'h-[30px] w-[30px] rounded-lg', glyph: 17 },
   md: { box: 'h-10 w-10 rounded-xl', glyph: 22 },
   lg: { box: 'h-12 w-12 rounded-xl', glyph: 26 },
 } as const;

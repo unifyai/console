@@ -16,7 +16,7 @@ export function TabSegmentGroup({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-muted p-[3px]',
+        'inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted p-[3px]',
         className
       )}
       data-testid={testId}

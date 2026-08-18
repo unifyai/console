@@ -98,11 +98,11 @@ function AssistantsSurfaceSkeleton() {
         <div className="px-2.5 pb-2">
           <Skeleton className="mx-3 mb-2 mt-3 h-3 w-20" />
           {Array.from({ length: 5 }).map((_, index) => (
-            <Skeleton key={`workspace-${index}`} className="mb-1.5 h-9 rounded-[10px]" />
+            <Skeleton key={`workspace-${index}`} className="mb-1.5 h-9 rounded-lg" />
           ))}
           <Skeleton className="mx-3 mb-2 mt-4 h-3 w-14" />
           {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={`brain-${index}`} className="mb-1.5 h-9 rounded-[10px]" />
+            <Skeleton key={`brain-${index}`} className="mb-1.5 h-9 rounded-lg" />
           ))}
         </div>
       </aside>

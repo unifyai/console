@@ -20,7 +20,7 @@ export function WorkflowAppIcon({
 }) {
   const box =
     size === 'md'
-      ? 'h-[34px] w-[34px] rounded-[10px]'
+      ? 'h-[34px] w-[34px] rounded-lg'
       : size === 'sm'
         ? 'h-[26px] w-[26px] rounded-lg'
         : 'h-[18px] w-[18px] rounded';

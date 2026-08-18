@@ -531,9 +531,7 @@ const OrganizationWorkspaceView = ({
             className="h-full w-[200px] shrink-0 border-r border-border px-2.5 py-4"
             data-testid="organization-subrail"
           >
-            <div className="px-3 pb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              Organization
-            </div>
+            <div className="text-overline px-3 pb-1.5">Organization</div>
             <div className="flex flex-col gap-0.5">
               {organizationTabs(canUpdateOrg).map(({ id, label }) => (
                 <button

@@ -41,9 +41,7 @@ export function TimelineDateSeparator({
 }) {
   return (
     <div className={cn('mb-1 mt-2.5 flex min-w-0 items-center gap-2.5 first:mt-0', className)}>
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-        {formatCalendarDayLabel(timestamp)}
-      </span>
+      <span className="text-overline shrink-0">{formatCalendarDayLabel(timestamp)}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );

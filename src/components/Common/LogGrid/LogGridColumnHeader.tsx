@@ -137,7 +137,7 @@ export function LogGridColumnHeader({
       data-testid={`log-grid-header-${fieldKey}`}
     >
       <div
-        className="-ml-1 flex h-7 min-w-0 flex-1 items-center gap-1 px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+        className="text-data-header -ml-1 flex h-7 min-w-0 flex-1 items-center gap-1 px-2"
         data-testid={`log-grid-label-${fieldKey}`}
       >
         <span className="truncate">{fieldKey}</span>

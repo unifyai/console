@@ -21,16 +21,7 @@ export function DataTableColumnHeader<TData, TValue>({
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   if (!column.getCanSort()) {
-    return (
-      <span
-        className={cn(
-          'font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
-          className
-        )}
-      >
-        {title}
-      </span>
-    );
+    return <span className={cn('text-data-header', className)}>{title}</span>;
   }
 
   return (
@@ -38,7 +29,7 @@ export function DataTableColumnHeader<TData, TValue>({
       <Button
         variant="ghost"
         size="sm"
-        className="-ml-2 h-7 px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted"
+        className="text-data-header -ml-2 h-7 px-2 hover:bg-muted hover:text-foreground data-[state=open]:bg-muted"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
         <span>{title}</span>

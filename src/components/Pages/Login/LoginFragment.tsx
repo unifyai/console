@@ -65,7 +65,7 @@ const LoginFragment = ({
               markClassName="gap-3 [&_.glyph]:!h-10 [&_.glyph]:!w-10 [&_.text-title]:!text-[32px]"
             />
           </div>
-          <div className="inline-flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          <div className="text-overline inline-flex items-center gap-2">
             <span className="h-2 w-2 rounded-[2px] bg-primary" />
             Free up your day, one task at a time.
           </div>
