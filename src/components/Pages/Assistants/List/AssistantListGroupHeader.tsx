@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { RAIL_TRAILING_GLYPH, RAIL_TRAILING_SLOT } from '@/components/Layout/Shell/railGeometry';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
@@ -75,7 +76,11 @@ export function AssistantListGroupHeader({
             <span className="text-caption-sm mt-0.5 block truncate leading-tight">{subtitle}</span>
           ) : null}
         </span>
-        {isWorkspace ? null : <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />}
+        {isWorkspace ? null : (
+          <span className={RAIL_TRAILING_SLOT} aria-hidden="true">
+            <Icon className={RAIL_TRAILING_GLYPH} />
+          </span>
+        )}
       </button>
       {trailingAction ? <span className="flex shrink-0 items-center">{trailingAction}</span> : null}
     </div>

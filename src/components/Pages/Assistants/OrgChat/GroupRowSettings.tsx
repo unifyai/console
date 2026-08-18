@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Check, MoreHorizontal } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Theme as EmojiTheme, EmojiStyle, type EmojiClickData } from 'emoji-picker-react';
+import { RAIL_TRAILING_GLYPH, RailTrailingButton } from '@/components/Layout/Shell/railGeometry';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Input } from '@/components/UI/input';
 import { cn } from '@/lib/utils';
@@ -77,20 +78,19 @@ export function GroupRowSettings({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
+        <RailTrailingButton
           aria-label={`Settings for ${group.name}`}
           data-testid={`group-row-settings-${group.groupId}`}
           // The row underneath is itself a button; the press stops here.
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
           className={cn(
-            'flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100',
+            'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100',
             className
           )}
         >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
+          <MoreHorizontal className={RAIL_TRAILING_GLYPH} aria-hidden="true" />
+        </RailTrailingButton>
       </PopoverTrigger>
       <PopoverContent
         align="start"

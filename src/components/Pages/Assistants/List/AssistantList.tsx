@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { RAIL_TRAILING_GLYPH, RAIL_TRAILING_SLOT } from '@/components/Layout/Shell/railGeometry';
 import { cn } from '@/lib/utils';
 import {
   type CoordinatorWorkspaceScope,
@@ -443,7 +444,9 @@ function TeamListRow({
         ) : null}
         <EntityUnreadBadge count={unreadCount} testId={`team-unread-badge-${team.teamId}`} />
         {onToggleFold ? (
-          <FoldIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className={cn(RAIL_TRAILING_SLOT, 'text-muted-foreground')} aria-hidden="true">
+            <FoldIcon className={RAIL_TRAILING_GLYPH} />
+          </span>
         ) : null}
       </span>
     </div>
