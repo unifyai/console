@@ -4193,7 +4193,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             team={selectedTeam}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
-                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />
@@ -4273,7 +4272,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             group={selectedGroup}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
-                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />
