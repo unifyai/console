@@ -121,10 +121,7 @@ import {
 import { AssistantFloatingChatHost } from '@/components/Pages/Assistants/Chat/AssistantFloatingChatHost';
 import { AssistantSwitcherBridgeSync } from '@/components/Layout/Shell/AssistantSwitcherBridgeSync';
 import { writeStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
-import {
-  PLATFORM_HOME_NAVIGATION_EVENT,
-  requestPlatformHomeNavigation,
-} from '@/lib/navigation/platformHome';
+import { PLATFORM_HOME_NAVIGATION_EVENT } from '@/lib/navigation/platformHome';
 import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
@@ -4069,7 +4066,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
                     activeSection={railActiveSectionId}
                     sectionActivity={railSectionActivity}
-                    onBrandClick={requestPlatformHomeNavigation}
                     onSelectSection={(section) => {
                       handleSelectSection(section);
                       setMobileRailOpen(false);
@@ -4096,7 +4092,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
                 activeSection={railActiveSectionId}
                 sectionActivity={railSectionActivity}
-                onBrandClick={requestPlatformHomeNavigation}
                 onSelectSection={handleSelectSection}
                 activeCallAssistantId={activeCallId}
                 collapsed={railCollapsed}

@@ -43,7 +43,6 @@ interface AppRailProps {
   onSelectSection: (section: SectionDef) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
-  onBrandClick?: () => void;
   sectionActivity?: SectionActivityMap;
   /**
    * The kind of entity currently selected in the switcher. Sections that do
@@ -131,7 +130,6 @@ export function AppRail({
   onSelectSection,
   collapsed,
   onCollapsedChange,
-  onBrandClick,
   sectionActivity,
   entityKind = 'assistant',
   onRequestClose,
@@ -202,11 +200,10 @@ export function AppRail({
           collapsed ? 'justify-center px-0' : RAIL_FLUSH_PAD
         )}
       >
-        <button
-          type="button"
-          onClick={onBrandClick}
-          aria-label="Unify Console home"
-          data-testid="platform-home-button"
+        <a
+          href="https://unify.ai"
+          aria-label="Unify"
+          data-testid="rail-brand-link"
           className={cn(
             'flex items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             collapsed ? 'justify-center' : 'min-w-0'
@@ -217,7 +214,7 @@ export function AppRail({
               tier as the teammate and workspace names rather than above them,
               so the rail leads with whoever the user is acting as. */}
           {!collapsed && <span className="text-h3 whitespace-nowrap">Unify</span>}
-        </button>
+        </a>
         {!collapsed && onRequestClose && (
           <RailTrailingButton
             className="ml-auto"

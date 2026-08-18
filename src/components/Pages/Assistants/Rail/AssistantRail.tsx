@@ -23,7 +23,6 @@ interface AssistantRailProps {
   onSelectSection: (section: SectionDef) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
-  onBrandClick?: () => void;
   /** Selected entity kind — filters which rail sections are shown. */
   entityKind?: SelectorEntityKind;
   /** Keep the switcher open while hire / create-group overlays are up. */
@@ -48,7 +47,6 @@ export function AssistantRail({
   onSelectSection,
   collapsed,
   onCollapsedChange,
-  onBrandClick,
   entityKind = 'assistant',
   nestedOverlayOpen = false,
   activeCallAssistantId = null,
@@ -65,7 +63,6 @@ export function AssistantRail({
       onSelectSection={onSelectSection}
       collapsed={collapsed}
       onCollapsedChange={onCollapsedChange}
-      onBrandClick={onBrandClick}
       entityKind={entityKind}
       onRequestClose={onRequestClose}
       switcher={
