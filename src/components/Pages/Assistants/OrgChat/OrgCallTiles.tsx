@@ -5,6 +5,7 @@ import type { Participant, RemoteParticipant, Room, TrackPublication } from 'liv
 import { Track } from 'livekit-client';
 import { useIsSpeaking, useTracks } from '@livekit/components-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/UnityCallAvatar';
 import { cn } from '@/lib/utils';
 import type { DesktopMode, ManagedDesktopStatus } from '@/types/assistants/assistant';
@@ -53,6 +54,7 @@ export function HumanTile({
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() ?? '')
     .join('');
+  const imageUrl = useResolvedProfileImage(image);
 
   return (
     <div
@@ -67,7 +69,7 @@ export function HumanTile({
         <div className="absolute inset-0">{videoEl}</div>
       ) : (
         <Avatar className={compact ? 'h-10 w-10' : 'h-20 w-20'}>
-          {image ? <AvatarImage src={image} alt={name} /> : null}
+          <AvatarImage src={imageUrl ?? undefined} alt={name} />
           <AvatarFallback className="text-title">{initials || '?'}</AvatarFallback>
         </Avatar>
       )}

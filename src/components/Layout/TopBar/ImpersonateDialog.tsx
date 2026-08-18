@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from '@/components/UI/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { toast } from 'sonner';
 import {
   lookupImpersonationTarget,
@@ -44,6 +45,7 @@ export default function ImpersonateDialog({ open, onOpenChange }: ImpersonateDia
   const [target, setTarget] = useState<ImpersonationTarget | null>(null);
   const [isLooking, setIsLooking] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const targetImageUrl = useResolvedProfileImage(target?.image);
 
   const reset = () => {
     setEmail('');
@@ -154,7 +156,7 @@ export default function ImpersonateDialog({ open, onOpenChange }: ImpersonateDia
             data-testid="impersonate-target"
           >
             <Avatar className="rounded-control h-8 w-8">
-              <AvatarImage src={target.image ?? undefined} alt="" />
+              <AvatarImage src={targetImageUrl ?? undefined} alt="" />
               <AvatarFallback className="rounded-control text-label bg-primary text-primary-foreground">
                 {getInitials(target.name || target.email)}
               </AvatarFallback>

@@ -51,6 +51,7 @@ import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay'
 import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import { GroupFaceStack } from '@/components/Pages/Assistants/OrgChat/GroupFaceStack';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import {
   GroupRowSettings,
   type GroupPatch,
@@ -161,6 +162,7 @@ function HumanListRow({
   onSelect: () => void;
 }) {
   const displayName = human.name?.trim() || human.email || human.userId;
+  const imageUrl = useResolvedProfileImage(human.image);
   return (
     <div
       role="button"
@@ -181,7 +183,7 @@ function HumanListRow({
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
           <Avatar className="rounded-control h-7 w-7 flex-shrink-0">
-            <AvatarImage src={human.image ?? undefined} alt={displayName} />
+            {imageUrl ? <AvatarImage src={imageUrl} alt={displayName} /> : null}
             <AvatarFallback
               className="rounded-control text-semibold text-primary-foreground"
               style={{ backgroundColor: profileAvatarTone(displayName) }}

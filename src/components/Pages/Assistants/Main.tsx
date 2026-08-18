@@ -211,6 +211,7 @@ import {
 } from '@/lib/ms-teams-bot/connectLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
 import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSearchParams } from 'next/navigation';
@@ -3934,6 +3935,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     );
   }, [selectedTeam, sidebarAssistants]);
 
+  const selectedHumanImageUrl = useResolvedProfileImage(selectedHuman?.image);
+
   const activeEntityFace = React.useMemo<ActiveEntityFace | null>(() => {
     if (selectedEntity?.kind === 'human') {
       if (!selectedHuman) return { kind: 'human', label: 'Team member' };
@@ -3941,7 +3944,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         kind: 'human',
         label: selectedHuman.name?.trim() || selectedHuman.email || 'Team member',
         sublabel: selectedHuman.roleName ?? 'Team member',
-        imageUrl: selectedHuman.image ?? null,
+        imageUrl: selectedHumanImageUrl,
         online: selectedHuman.online,
       };
     }
@@ -3992,6 +3995,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [
     selectedEntity,
     selectedHuman,
+    selectedHumanImageUrl,
     selectedTeam,
     selectedGroup,
     rosterHumansById,

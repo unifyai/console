@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { useProfileImageResolver } from '@/hooks/User/useProfileImageResolver';
 import type { RosterHuman } from '@/types/orgChat';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
@@ -23,6 +24,11 @@ interface TeamMembersListProps {
 
 /** Shared human + AI roster list used by the team Members section and profile panel. */
 export function TeamMembersList({ humans, assistants, className, trailing }: TeamMembersListProps) {
+  const resolveFace = useProfileImageResolver([
+    ...humans.map((human) => human.image),
+    ...assistants.map((assistant) => assistant.image),
+  ]);
+
   return (
     <div className={cn('flex flex-col gap-3', className)} data-testid="team-members-list">
       {trailing}
@@ -30,7 +36,7 @@ export function TeamMembersList({ humans, assistants, className, trailing }: Tea
         <div key={human.userId} className="flex items-center gap-3">
           <div className="relative">
             <Avatar className="h-8 w-8">
-              {human.image && <AvatarImage src={human.image} alt={human.name} />}
+              <AvatarImage src={resolveFace(human.image) ?? undefined} alt={human.name} />
               <AvatarFallback
                 className="text-caption text-semibold text-primary-foreground"
                 style={{ backgroundColor: profileAvatarTone(human.name) }}
@@ -49,7 +55,7 @@ export function TeamMembersList({ humans, assistants, className, trailing }: Tea
       {assistants.map((assistant) => (
         <div key={assistant.agentId} className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
-            {assistant.image && <AvatarImage src={assistant.image} alt={assistant.name} />}
+            <AvatarImage src={resolveFace(assistant.image) ?? undefined} alt={assistant.name} />
             <AvatarFallback
               className="text-caption text-semibold text-primary-foreground"
               style={{ backgroundColor: profileAvatarTone(assistant.name) }}
