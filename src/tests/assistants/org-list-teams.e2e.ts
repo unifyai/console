@@ -1,6 +1,8 @@
 /**
  * Org unity switcher: managed Org team is elevated under T-W1N; TEAMS only
- * appears when custom teams exist. GROUPS stays visible even when empty.
+ * appears when custom teams exist. GROUPS stays visible even when empty. The
+ * header's filter menu persists per browser, and says so while it is cutting
+ * the roster.
  *
  * Run: npx playwright test src/tests/assistants/org-list-teams.e2e.ts
  */
@@ -21,7 +23,12 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail, openAssistantCreateMenu } from '../helpers/shell';
+import {
+  assistantRail,
+  openAssistantCreateMenu,
+  openAssistantFilterMenu,
+  railUnitySwitcher,
+} from '../helpers/shell';
 import { openUnitySwitcher } from './helpers';
 
 const owner = createTestUser({ name: 'OrgList', lastName: 'Owner', credits: 50_000 });
@@ -235,4 +242,62 @@ test('create group and onboard dismissals return to the unity switcher', async (
   }
   await page.getByTestId(`human-list-item-${member.id}`).click();
   await expect(switcherPopover).toHaveCount(0, { timeout: 5_000 });
+});
+
+test('list filters survive the menu, the popover and a reload until Show all clears them', async ({
+  ownerPage: page,
+}) => {
+  test.setTimeout(90_000);
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+
+  const elevated = page.getByTestId('assistant-list-elevated-org-team');
+  const filterTrigger = page.getByTestId('assistant-list-filter-menu');
+  await expect(elevated).toBeVisible({ timeout: 15_000 });
+  await expect(filterTrigger).not.toHaveAttribute('data-filtered', 'true');
+
+  // Unchecking Teams takes the elevated managed team with it.
+  await openAssistantFilterMenu(page);
+  await page.getByTestId('assistant-list-filter-teams').click();
+  await expect(elevated).toHaveCount(0, { timeout: 5_000 });
+  await expect(filterTrigger).toHaveAttribute('data-filtered', 'true');
+  expect(
+    await page.evaluate(() => window.localStorage.getItem('console:assistants:listFilters'))
+  ).toBe(JSON.stringify({ v: 1, hidden: ['teams'] }));
+
+  // The preference outlives the popover it was set in, and the page too.
+  // Escape only dismisses the menu here, so the switcher face does the closing.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0, { timeout: 5_000 });
+  await railUnitySwitcher(page).click();
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+  await expect(elevated).toHaveCount(0);
+  await expect(filterTrigger).toHaveAttribute('data-filtered', 'true');
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+  await expect(filterTrigger).toHaveAttribute('data-filtered', 'true');
+  await expect(elevated).toHaveCount(0);
+  await openAssistantFilterMenu(page);
+  await expect(page.getByTestId('assistant-list-filter-teams')).toHaveAttribute(
+    'aria-checked',
+    'false'
+  );
+
+  // Show all is the way back out, and that clearing persists as well.
+  await page.getByTestId('assistant-list-filter-show-all').click();
+  await expect(elevated).toBeVisible({ timeout: 10_000 });
+  await expect(filterTrigger).not.toHaveAttribute('data-filtered', 'true');
+  await expect(page.getByTestId('assistant-list-filter-show-all')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => window.localStorage.getItem('console:assistants:listFilters'))
+  ).toBe(JSON.stringify({ v: 1, hidden: [] }));
+
+  await page.keyboard.press('Escape');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+  await expect(elevated).toBeVisible({ timeout: 15_000 });
 });

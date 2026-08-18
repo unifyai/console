@@ -26,6 +26,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -53,6 +54,10 @@ import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/Presence
 import { ListRowInfoToggle } from './ListRowInfoToggle';
 import { requestAssistantInfoPanelToggle } from '@/lib/assistants/infoPanelVisibility';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import {
+  useAssistantListFilters,
+  type AssistantListFilterId,
+} from '@/hooks/Assistants/useAssistantListFilters';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
@@ -493,10 +498,11 @@ export function AssistantList({
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
-  const [showReal, setShowReal] = React.useState(true);
-  const [showVirtual, setShowVirtual] = React.useState(true);
-  const [showTeams, setShowTeams] = React.useState(true);
-  const [showGroups, setShowGroups] = React.useState(true);
+  const filters = useAssistantListFilters();
+  const showReal = filters.isVisible('real');
+  const showVirtual = filters.isVisible('virtual');
+  const showTeams = filters.isVisible('teams');
+  const showGroups = filters.isVisible('groups');
   // Personal workspaces only list virtual assistants — the list filters and
   // Groups/Colleagues/Teams nesting are org-workspace concepts.
   const isOrgWorkspace = workspace.type === 'organization';
@@ -1234,18 +1240,13 @@ export function AssistantList({
 
   // Checkbox items keep the menu open so several filters can be toggled in one
   // pass; Radix would otherwise dismiss it after the first click.
-  const renderFilterItem = (
-    label: string,
-    testId: string,
-    checked: boolean,
-    onCheckedChange: (next: boolean) => void
-  ) => (
+  const renderFilterItem = (label: string, id: AssistantListFilterId) => (
     <DropdownMenuCheckboxItem
       className="text-body-sm"
-      checked={checked}
-      onCheckedChange={onCheckedChange}
+      checked={filters.isVisible(id)}
+      onCheckedChange={(next) => filters.setVisible(id, next)}
       onSelect={(event) => event.preventDefault()}
-      data-testid={testId}
+      data-testid={`assistant-list-filter-${id}`}
     >
       {label}
     </DropdownMenuCheckboxItem>
@@ -1261,8 +1262,12 @@ export function AssistantList({
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-7 w-7 shrink-0"
+                className={cn(
+                  'h-7 w-7 shrink-0',
+                  filters.hasHidden && 'border-primary/40 bg-primary/10 text-primary'
+                )}
                 aria-label="Filter list"
+                data-filtered={filters.hasHidden ? 'true' : undefined}
                 data-testid="assistant-list-filter-menu"
               >
                 <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1270,15 +1275,32 @@ export function AssistantList({
             </DropdownMenuTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>Filter list</p>
+            {/* A filter survives the menu that set it, so the closed control has
+                to say so — a roster quietly missing rows reads as a bug. */}
+            <p>{filters.hasHidden ? 'Filter list (some rows hidden)' : 'Filter list'}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <DropdownMenuContent align="end" className="min-w-[9rem]">
-        {renderFilterItem('Real', 'assistant-list-filter-real', showReal, setShowReal)}
-        {renderFilterItem('Virtual', 'assistant-list-filter-virtual', showVirtual, setShowVirtual)}
-        {renderFilterItem('Teams', 'assistant-list-filter-teams', showTeams, setShowTeams)}
-        {renderFilterItem('Groups', 'assistant-list-filter-groups', showGroups, setShowGroups)}
+        {renderFilterItem('Real', 'real')}
+        {renderFilterItem('Virtual', 'virtual')}
+        {renderFilterItem('Teams', 'teams')}
+        {renderFilterItem('Groups', 'groups')}
+        {filters.hasHidden ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-body-sm justify-center text-muted-foreground"
+              onSelect={(event) => {
+                event.preventDefault();
+                filters.showAll();
+              }}
+              data-testid="assistant-list-filter-show-all"
+            >
+              Show all
+            </DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   ) : null;

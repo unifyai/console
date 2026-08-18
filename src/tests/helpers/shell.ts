@@ -49,6 +49,15 @@ export async function openAssistantCreateMenu(page: Page): Promise<void> {
   }
 }
 
+/**
+ * Open the assistant list's filter menu (Real / Virtual / Teams / Groups). Only
+ * org workspaces render it, so the caller asserts presence when that matters.
+ */
+export async function openAssistantFilterMenu(page: Page): Promise<void> {
+  await page.getByTestId('assistant-list-filter-menu').click();
+  await expect(page.getByRole('menu')).toBeVisible({ timeout: 5_000 });
+}
+
 /** Wait until the assistants shell exposes an interactive rail or switcher. */
 export async function waitForAssistantsRail(page: Page, timeout = 60_000): Promise<void> {
   await expect
