@@ -384,7 +384,6 @@ function TeamListRow({
   isCallActive,
   isFoldedGroup,
   onToggleFold,
-  currentUserId,
 }: {
   team: RosterTeam;
   isSelected: boolean;
@@ -392,13 +391,8 @@ function TeamListRow({
   isCallActive?: boolean;
   isFoldedGroup?: boolean;
   onToggleFold?: () => void;
-  currentUserId?: string | null;
 }) {
-  const subtitle = formatRealVirtualSubtitle(
-    team.memberUserIds,
-    team.assistantMemberIds.length,
-    currentUserId
-  );
+  const subtitle = formatRealVirtualSubtitle(team.memberUserIds, team.assistantMemberIds.length);
   const FoldIcon = isFoldedGroup ? ChevronRight : ChevronDown;
   // The header is a pure disclosure control; the team itself is selected from a
   // row inside the nest. Selection surfaces here only while folded, where that
@@ -815,7 +809,6 @@ export function AssistantList({
             isCallActive={isGroupFolded && isTeamCallActive}
             isFoldedGroup={isGroupFolded}
             onToggleFold={hasNested ? () => toggleGroupFold(groupId) : undefined}
-            currentUserId={currentUserId}
           />
           {!isGroupFolded && hasNested ? (
             <>
@@ -837,7 +830,6 @@ export function AssistantList({
       );
     },
     [
-      currentUserId,
       entityUnreadCounts,
       filteredHumans,
       foldedGroups,

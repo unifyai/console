@@ -129,11 +129,7 @@ export function GroupWorkspace({
     [assistantMembers, humanMembers]
   );
 
-  const subtitle = formatRealVirtualSubtitle(
-    group.memberUserIds,
-    assistantMembers.length,
-    currentUserId
-  );
+  const subtitle = formatRealVirtualSubtitle(group.memberUserIds, assistantMembers.length);
   const canLeave = Boolean(currentUserId && currentUserId !== group.createdByUserId);
 
   const rawMessages = groupMessages[group.groupId];

@@ -87,6 +87,7 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
   COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
   requestAssistantInfoPanelOpen,
+  requestAssistantInfoPanelOpenAfterSelect,
   requestAssistantInfoPanelToggle,
   type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
@@ -440,6 +441,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     writeStoredSelectedAssistantId(null);
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
+  const handleToggleAssistantInfo = React.useCallback(
+    (assistantId: string) => {
+      // A row that isn't the current selection has no info panel mounted to
+      // hear a toggle, so select it first and open on arrival.
+      if (profileAssistantId !== assistantId) {
+        requestAssistantInfoPanelOpenAfterSelect(assistantId);
+        handleShowProfile(assistantId);
+        return;
+      }
+      requestAssistantInfoPanelToggle({ assistantId });
+    },
+    [handleShowProfile, profileAssistantId]
+  );
+
   // Right-pane state lives above the tab host so it survives shell route
   // transitions while the app stays mounted. Reloads and direct landings
   // intentionally start from Chat.
@@ -3818,15 +3833,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       assistants: sidebarAssistants,
       assistantStatuses: displayedAssistantStatuses,
       assistantError,
-      // Unfolds the row's info panel, the same request AssistantList already
-      // makes for a human or a group row. The rail's own list was the one
-      // caller left without it.
-      onToggleAssistantInfo: (assistantId: string) =>
-        requestAssistantInfoPanelToggle({ assistantId }),
       isLoading: isInitialLoadingAssistants,
       error: assistantError,
       profileAssistantId,
       onShowProfile: handleAssistantListSelect,
+      onToggleAssistantInfo: handleToggleAssistantInfo,
       onOpenHireDialog: handleOpenHireDialog,
       isFolded: false,
       activeCallAssistantId: activeCallId,
@@ -3869,6 +3880,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isInitialLoadingAssistants,
       profileAssistantId,
       handleAssistantListSelect,
+      handleToggleAssistantInfo,
       handleOpenHireDialog,
       activeCallId,
       canHire,
@@ -4181,7 +4193,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             team={selectedTeam}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
-                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />
@@ -4261,7 +4272,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             group={selectedGroup}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
-                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />

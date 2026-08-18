@@ -6,8 +6,6 @@ import {
   readDesktopReadyEventField,
 } from '@/lib/assistants/desktopSessionScope';
 
-const DESKTOP_READY_FALLBACK_INTERVAL = 15000;
-
 export interface DesktopReadyState {
   isDesktopReady: boolean;
   /** Raw liveview URL from the `assistant_desktop_ready` event (no password). */
@@ -77,6 +75,12 @@ function applyDesktopReadyPayload(
  *    (binding id from SSE or job name from runtime status) is known. The
  *    standalone desktop pane opts into an unscoped fallback during its own
  *    startup because it has neither identifier before the first ready event.
+ *
+ * `pollIntervalMs` takes `null` to mean no fallback poll at all, and carries no
+ * default — callers own their cadence. An omitted interval that silently
+ * selected one is how a surface ends up polling `getLiveviewUrl` for every
+ * assistant the user opens while believing it had switched polling off, so
+ * saying nothing is not allowed to mean "poll anyway".
  */
 export function useDesktopReady(
   assistantId: string | undefined,
@@ -86,8 +90,8 @@ export function useDesktopReady(
         sessionScope?: DesktopSessionScope | null
       ) => Promise<{ liveviewUrl?: string } | { detail: string }>)
     | undefined,
-  initialValue = false,
-  pollIntervalMs = DESKTOP_READY_FALLBACK_INTERVAL,
+  initialValue: boolean,
+  pollIntervalMs: number | null,
   resetSignal = 0,
   sessionScope?: string | null,
   runtimePollScope?: DesktopSessionScope | null,
@@ -154,6 +158,7 @@ export function useDesktopReady(
 
   React.useEffect(() => {
     if (!assistantId || !getLiveviewUrl || isDesktopReady) return;
+    if (pollIntervalMs === null) return;
     if (!allowUnscopedFallback && !pollScope?.bindingId && !pollScope?.jobName) return;
 
     let cancelled = false;

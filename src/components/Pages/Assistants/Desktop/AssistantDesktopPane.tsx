@@ -8,6 +8,8 @@ import {
   Laptop,
   Maximize2,
   Minimize2,
+  MonitorOff,
+  MonitorPlay,
   MousePointerClick,
   RefreshCw,
 } from 'lucide-react';
@@ -26,6 +28,13 @@ type DesktopStatus = 'idle' | 'starting' | 'loading' | 'ready' | 'error';
 const DESKTOP_START_POLL_INTERVAL_MS = 3_000;
 const DESKTOP_START_TIMEOUT_MS = 120_000;
 const DESKTOP_CONNECT_RETRY_MS = 5_000;
+/**
+ * How long a ready desktop survives the pane being hidden. Long enough that
+ * stepping over to Chat and back does not pay for a fresh liveview handshake,
+ * short enough that walking away stops costing a live socket and a viewer the
+ * assistant thinks is watching.
+ */
+const DESKTOP_HIDE_GRACE_MS = 10_000;
 
 function formatUnknownError(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
@@ -75,6 +84,17 @@ interface AssistantDesktopPaneProps {
  * user is watching / driving its screen:
  *  - `assistant_screen_share_started` / `_stopped` around the viewing session
  *  - `user_remote_control_started` / `_stopped` around interactive control
+ *
+ * Leaving the pane ends the viewing session once the grace window elapses, and
+ * coming back re-opens it. Watching is what the pane is visibly doing, so it
+ * lasts as long as the pane is on screen and no longer.
+ *
+ * Unwatch ends the session on demand without leaving the tab, and survives until
+ * the user watches again or switches teammate — unlike the grace teardown, which
+ * keeps the intent so a trip to Chat and back does not need a second click.
+ * Neither stops the desktop itself: the controller starts and reclaims VMs from
+ * the assistant's own config, and other people watching the same desktop from a
+ * call are unaffected.
  */
 export function AssistantDesktopPane({
   assistant,
@@ -90,6 +110,10 @@ export function AssistantDesktopPane({
   const [isInteractive, setIsInteractive] = React.useState(false);
   const [isInteractiveLoading, setIsInteractiveLoading] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  // Whether the user wants to be watching. Starts true so opening the tab
+  // behaves as it always has; only an explicit unwatch turns it off, which is
+  // what stops the auto-connect below from immediately undoing that.
+  const [isWatching, setIsWatching] = React.useState(true);
   const desktopFrameRef = React.useRef<HTMLIFrameElement | null>(null);
 
   const { currentUserId } = useWorkspace();
@@ -108,28 +132,66 @@ export function AssistantDesktopPane({
   const wakeAttemptedRef = React.useRef(false);
   const [startupAttempt, setStartupAttempt] = React.useState(0);
 
+  // `null` unless someone is actually waiting for this desktop: no one is
+  // looking at the pane, or they unwatched it, so its readiness is not news. The
+  // unscoped fallback stays opted in because the pane has neither a binding id
+  // nor a job name to scope by, and the interval is what decides whether it
+  // polls at all.
   const { isDesktopReady, eventLiveviewUrl, eventLiveviewPassword } = useDesktopReady(
     assistantId,
     boundGetLiveviewUrl,
     false,
-    shouldConnect ? DESKTOP_START_POLL_INTERVAL_MS : undefined,
+    shouldConnect && isWatching ? DESKTOP_START_POLL_INTERVAL_MS : null,
     startupAttempt,
     undefined,
     undefined,
     true
   );
 
-  // Latest values for the teardown effect, which must not re-run (and thus fire
+  // Latest values for the teardown paths, which must not re-run (and thus fire
   // a spurious stop event) every time these change mid-session.
   const isInteractiveRef = React.useRef(isInteractive);
   isInteractiveRef.current = isInteractive;
-  const statusRef = React.useRef(status);
-  statusRef.current = status;
   const desktopActionsRef = React.useRef(desktopActions);
   desktopActionsRef.current = desktopActions;
   const viewerUserIdRef = React.useRef(currentUserId);
   viewerUserIdRef.current = currentUserId;
   const sessionStartRequestedAtRef = React.useRef<number | null>(null);
+  // Whether a viewer of ours may be registered against the running session.
+  // Tracked rather than inferred from `status` because a failed refresh leaves
+  // the pane in `error` while the viewer opened before it is still standing.
+  const viewerOpenRef = React.useRef(false);
+
+  /**
+   * Close this viewer of the assistant's desktop.
+   *
+   * Every exit routes through here — the pane being hidden, the active assistant
+   * changing, the pane unmounting — so the stop is sent exactly once however the
+   * user left. The runtime keys a viewer on `viewerUserId:viewerSource`, so a
+   * repeated start is idempotent and only the stop has to be guaranteed.
+   */
+  const closeViewerSession = React.useCallback((closingAssistantId: string) => {
+    if (!viewerOpenRef.current) return;
+    viewerOpenRef.current = false;
+    const actions = desktopActionsRef.current;
+    if (isInteractiveRef.current) {
+      actions
+        .sendSystemEvent(
+          closingAssistantId,
+          'user_remote_control_stopped',
+          'User released remote control of the assistant desktop'
+        )
+        .catch(console.error);
+    }
+    actions
+      .sendSystemEvent(
+        closingAssistantId,
+        'assistant_screen_share_stopped',
+        'User closed the assistant desktop',
+        { viewerUserId: viewerUserIdRef.current, viewerSource: DESKTOP_PANE_VIEWER_SOURCE }
+      )
+      .catch(console.error);
+  }, []);
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -184,6 +246,7 @@ export function AssistantDesktopPane({
       setLiveviewUrl(resolvedUrl);
       setStatus('ready');
       sessionStartRequestedAtRef.current = null;
+      viewerOpenRef.current = true;
       actions
         .sendSystemEvent(
           assistantId,
@@ -240,11 +303,13 @@ export function AssistantDesktopPane({
 
   // When the tab opens and Computer is enabled but no desktop is running yet,
   // request a session start then poll until the VM is ready (via useDesktopReady).
+  // Skipped while unwatched, so a failed wake cannot be retried on behalf of
+  // someone who has said they are not looking.
   React.useEffect(() => {
-    if (!shouldConnect) return;
+    if (!shouldConnect || !isWatching) return;
     if (isDesktopReady || wakeAttemptedRef.current) return;
     beginStartup();
-  }, [shouldConnect, isDesktopReady, assistantId, startupAttempt, beginStartup]);
+  }, [shouldConnect, isWatching, isDesktopReady, assistantId, startupAttempt, beginStartup]);
 
   // Fail gracefully if startup takes too long.
   React.useEffect(() => {
@@ -297,52 +362,64 @@ export function AssistantDesktopPane({
   // Auto-connect when the tab becomes visible and the desktop is ready. Kept
   // idempotent via the `idle`/`starting` guard so re-renders don't re-fetch.
   React.useEffect(() => {
-    if (!shouldConnect) return;
+    if (!shouldConnect || !isWatching) return;
     if (status !== 'idle') return;
     if (!isDesktopReady) return;
     void connect().catch((error: unknown) => {
       console.error('[AssistantDesktopPane] Connect failed:', error);
     });
-  }, [shouldConnect, status, isDesktopReady, connect]);
+  }, [shouldConnect, isWatching, status, isDesktopReady, connect]);
 
   // Reset the whole session when the assistant changes so we never show one
   // teammate's desktop under another. Also reset when Computer is enabled after
   // the upgrade empty state so startup can begin.
+  //
+  // Closing the viewer here catches Computer being switched off mid-view, which
+  // drops the desktop without changing assistant or unmounting the pane. React
+  // runs every cleanup before any body, so on an assistant change the teardown
+  // has already closed the old session and this call finds nothing to stop —
+  // it cannot mistake the incoming assistant for the outgoing one.
   React.useEffect(() => {
+    closeViewerSession(assistantId);
     setStatus('idle');
     setLiveviewUrl(null);
     setErrorMessage(null);
     setIsInteractive(false);
+    setIsWatching(true);
     wakeAttemptedRef.current = false;
     sessionStartRequestedAtRef.current = null;
     setStartupAttempt(0);
-  }, [assistantId, computerEnabled]);
+  }, [assistantId, computerEnabled, closeViewerSession]);
 
-  // Tell the running session the viewing session ended when we unmount or the
-  // active assistant changes while a desktop was open.
+  // Drop the desktop once the pane has been hidden for the grace window.
+  //
+  // Hiding is not enough on its own to end a viewing session: the tab bodies are
+  // force-mounted and merely CSS-hidden, and the whole assistants surface is only
+  // hidden behind other routes, so an iframe left mounted keeps its socket open
+  // and keeps decoding frames for the rest of the session. Nothing else closes
+  // the viewer either — a call ending drops only the viewers that call owned.
+  //
+  // Returning inside the window cancels the timeout, so the desktop is still
+  // there and no start/stop pair is spent.
   React.useEffect(() => {
-    return () => {
-      if (statusRef.current !== 'ready') return;
-      const actions = desktopActionsRef.current;
-      if (isInteractiveRef.current) {
-        actions
-          .sendSystemEvent(
-            assistantId,
-            'user_remote_control_stopped',
-            'User released remote control of the assistant desktop'
-          )
-          .catch(console.error);
-      }
-      actions
-        .sendSystemEvent(
-          assistantId,
-          'assistant_screen_share_stopped',
-          'User closed the assistant desktop',
-          { viewerUserId: viewerUserIdRef.current, viewerSource: DESKTOP_PANE_VIEWER_SOURCE }
-        )
-        .catch(console.error);
-    };
-  }, [assistantId]);
+    if (shouldConnect) return;
+    if (status !== 'ready') return;
+
+    const timeout = window.setTimeout(() => {
+      closeViewerSession(assistantId);
+      setStatus('idle');
+      setLiveviewUrl(null);
+      setIsInteractive(false);
+    }, DESKTOP_HIDE_GRACE_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [shouldConnect, status, assistantId, closeViewerSession]);
+
+  // Close the viewer on the way out, for the exits no timer can wait for: the
+  // pane unmounting, or the active assistant changing under it.
+  React.useEffect(() => {
+    return () => closeViewerSession(assistantId);
+  }, [assistantId, closeViewerSession]);
 
   const toggleInteractive = React.useCallback(async () => {
     if (status !== 'ready') return;
@@ -369,6 +446,32 @@ export function AssistantDesktopPane({
       setIsInteractiveLoading(false);
     }
   }, [status, isInteractive, assistantId, desktopActions]);
+
+  /**
+   * Stop watching. This ends only *this* viewer — the desktop keeps running, and
+   * anyone watching the same one from a call is untouched, because the runtime
+   * keys a viewer on `viewerUserId:viewerSource`.
+   */
+  const handleUnwatch = React.useCallback(() => {
+    setIsWatching(false);
+    closeViewerSession(assistantId);
+    setStatus('idle');
+    setLiveviewUrl(null);
+    setErrorMessage(null);
+    setIsInteractive(false);
+  }, [assistantId, closeViewerSession]);
+
+  /**
+   * Start watching again. A desktop already up is picked straight back up by the
+   * auto-connect effect; one that is not gets the same startup the pane performs
+   * on open, since asking to watch is the same intent as arriving here.
+   */
+  const handleWatch = React.useCallback(() => {
+    setIsWatching(true);
+    if (!isDesktopReady) {
+      beginStartup();
+    }
+  }, [isDesktopReady, beginStartup]);
 
   const handleRefresh = React.useCallback(() => {
     setLiveviewUrl(null);
@@ -419,45 +522,70 @@ export function AssistantDesktopPane({
             {displayName}&apos;s desktop
           </span>
           <span className="text-caption truncate text-muted-foreground">
-            {status === 'ready'
-              ? isInteractive
-                ? 'You have control of this desktop'
-                : 'Live view of the assistant desktop'
-              : 'Remote desktop'}
+            {!isWatching
+              ? 'Not watching'
+              : status === 'ready'
+                ? isInteractive
+                  ? 'You have control of this desktop'
+                  : 'Live view of the assistant desktop'
+                : 'Remote desktop'}
           </span>
         </div>
-        {status === 'ready' && (
+        {computerEnabled && (
           <div className="flex items-center gap-2">
+            {/* Watching is the one control that has to work from either side, so
+             *  it sits outside the ready-only group below. */}
             <Button
-              variant={isInteractive ? 'default' : 'outline'}
+              variant={isWatching ? 'outline' : 'default'}
               size="sm"
-              onClick={toggleInteractive}
-              disabled={isInteractiveLoading}
+              onClick={isWatching ? handleUnwatch : handleWatch}
+              data-testid="desktop-watch-toggle"
             >
-              {isInteractive ? (
-                <Eye className="mr-1.5 h-4 w-4" />
+              {isWatching ? (
+                <MonitorOff className="mr-1.5 h-4 w-4" />
               ) : (
-                <MousePointerClick className="mr-1.5 h-4 w-4" />
+                <MonitorPlay className="mr-1.5 h-4 w-4" />
               )}
-              {isInteractive ? 'View only' : 'Take control'}
+              {isWatching ? 'Unwatch' : 'Watch'}
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleFullscreen}
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen desktop'}
-              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen desktop'}
-            >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRefresh}
-              aria-label="Refresh desktop"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
+            {status === 'ready' && (
+              <>
+                <Button
+                  variant={isInteractive ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={toggleInteractive}
+                  disabled={isInteractiveLoading}
+                >
+                  {isInteractive ? (
+                    <Eye className="mr-1.5 h-4 w-4" />
+                  ) : (
+                    <MousePointerClick className="mr-1.5 h-4 w-4" />
+                  )}
+                  {isInteractive ? 'View only' : 'Take control'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleFullscreen}
+                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen desktop'}
+                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen desktop'}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="h-4 w-4" />
+                  ) : (
+                    <Maximize2 className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRefresh}
+                  aria-label="Refresh desktop"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -489,6 +617,13 @@ export function AssistantDesktopPane({
               )}
             </div>
           </div>
+        ) : !isWatching ? (
+          <p
+            className="text-body max-w-sm p-6 text-center text-muted-foreground"
+            data-testid="desktop-not-watching"
+          >
+            You stopped watching. {displayName}&apos;s desktop keeps running.
+          </p>
         ) : status === 'ready' && liveviewUrl ? (
           <>
             <iframe

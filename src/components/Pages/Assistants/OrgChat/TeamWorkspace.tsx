@@ -95,11 +95,7 @@ export function TeamWorkspace({
     [assistantMembers, humanMembers]
   );
 
-  const subtitle = formatRealVirtualSubtitle(
-    team.memberUserIds,
-    assistantMembers.length,
-    currentUserId
-  );
+  const subtitle = formatRealVirtualSubtitle(team.memberUserIds, assistantMembers.length);
 
   const rawMessages = teamMessages[team.teamId];
   const isLoading = rawMessages === undefined;
