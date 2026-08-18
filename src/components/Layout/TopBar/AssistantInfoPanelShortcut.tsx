@@ -1,36 +1,19 @@
 'use client';
 
-import * as React from 'react';
 import { usePathname } from 'next/navigation';
 import { PanelRight } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 import { isAssistantInfoPanelShortcutPath } from '@/lib/navigation/appShellRoutes';
-import {
-  ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
-  readAssistantInfoPanelVisibility,
-  requestAssistantInfoPanelToggle,
-  type AssistantInfoPanelVisibilityDetail,
-} from '@/lib/assistants/infoPanelVisibility';
+import { useAssistantInfoPanelVisibility } from '@/hooks/Assistants/useAssistantInfoPanelVisibility';
+import { requestAssistantInfoPanelToggle } from '@/lib/assistants/infoPanelVisibility';
 
 /** Toggles the assistants info side panel from the top navbar. */
 export function AssistantInfoPanelShortcut({ buttonClassName }: { buttonClassName?: string }) {
   const pathname = usePathname();
   const showOnAssistantPanelRoutes = isAssistantInfoPanelShortcutPath(pathname);
-  const [visibility, setVisibility] = React.useState<AssistantInfoPanelVisibilityDetail | null>(
-    () => readAssistantInfoPanelVisibility()
-  );
-
-  React.useEffect(() => {
-    const onVisibilityChange = (event: Event) => {
-      setVisibility((event as CustomEvent<AssistantInfoPanelVisibilityDetail>).detail ?? null);
-    };
-    window.addEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
-    return () => {
-      window.removeEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
-    };
-  }, []);
+  const visibility = useAssistantInfoPanelVisibility();
 
   if (!showOnAssistantPanelRoutes || !visibility?.assistantId) return null;
 
