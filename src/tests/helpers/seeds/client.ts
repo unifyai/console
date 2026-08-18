@@ -471,14 +471,17 @@ export function createOrg(opts: CreateOrgOpts): SeededOrg {
           `WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${parseInt(existingId, 10)});`
       );
     }
+    const existingOrgId = parseInt(existingId, 10);
+    const existingCoordinator = createWorkspaceCoordinator(opts.ownerId, existingOrgId);
     if (opts.dataSharingMode === 'shared') {
-      syncOrgWideSharingSeedState(parseInt(existingId, 10), opts.ownerId, true);
+      syncOrgWideSharingSeedState(existingOrgId, opts.ownerId, true);
     }
     return {
-      id: parseInt(existingId, 10),
+      id: existingOrgId,
       name,
       ownerId: opts.ownerId,
       ownerOrgApiKey: existingKey,
+      coordinator: existingCoordinator,
     };
   }
 
@@ -543,6 +546,12 @@ END
   );
   const parsedOrgId = parseInt(orgId, 10);
 
+  // Orchestra provisions the owner's workspace Coordinator with every org
+  // (`_create_organization_with_owner_coordinator`). Personal Coordinators are
+  // filtered out of an org-scoped list by `organization_id`, so without this the
+  // seeded org carries no coordinator at all and the list emits no pinned group.
+  const coordinator = createWorkspaceCoordinator(opts.ownerId, parsedOrgId);
+
   if (opts.dataSharingMode === 'shared') {
     syncOrgWideSharingSeedState(parsedOrgId, opts.ownerId, true);
   }
@@ -552,6 +561,7 @@ END
     name,
     ownerId: opts.ownerId,
     ownerOrgApiKey: ownerOrgKey,
+    coordinator,
   };
 }
 
@@ -611,10 +621,13 @@ BEGIN
   WHERE om.organization_id = ${orgId}
   ON CONFLICT DO NOTHING;
 
+  -- Coordinators are deliberately excluded from the managed org-wide team
+  -- (Orchestra's sync_org_wide_sharing filters is_coordinator).
   INSERT INTO team_assistant_memberships (team_id, assistant_id, added_by)
   SELECT _team_id, a.agent_id, ${sqlLiteral(actorUserId)}
   FROM assistants a
   WHERE a.organization_id = ${orgId}
+    AND NOT a.is_coordinator
   ON CONFLICT DO NOTHING;
 
   INSERT INTO contact_memberships (
@@ -768,7 +781,13 @@ export function ensureUnifyOrg(opts: EnsureUnifyOrgOpts): SeededOrg {
       });
     }
 
-    return { id: orgId, name: 'Unify', ownerId, ownerOrgApiKey };
+    return {
+      id: orgId,
+      name: 'Unify',
+      ownerId,
+      ownerOrgApiKey,
+      coordinator: createWorkspaceCoordinator(ownerId, orgId),
+    };
   }
 
   const ownerId = opts.ownerId ?? opts.memberId;
@@ -1146,42 +1165,51 @@ export function deleteMsTeamsBotInstall(installId: number): void {
 }
 
 // =============================================================================
-// Personal Coordinator
+// Workspace Coordinator
 // =============================================================================
 
 /**
- * Options for {@link createPersonalCoordinator}.
+ * Options for {@link createWorkspaceCoordinator}.
  *
  * The shape intentionally excludes fields that are fixed by Coordinator
- * semantics (org scoping, name, `is_coordinator`, contact IDs). The few
- * remaining knobs are mostly for test variants — e.g. seeding a specific
- * `timezone` or `profilePhoto`.
+ * semantics (name, `is_coordinator`, contact IDs); the workspace is its own
+ * parameter. The few remaining knobs are mostly for test variants — e.g.
+ * seeding a specific `timezone` or `profilePhoto`.
  */
-export type CreatePersonalCoordinatorOpts = Pick<
+export type CreateWorkspaceCoordinatorOpts = Pick<
   CreateAssistantOpts,
   'timezone' | 'profilePhoto' | 'about' | 'desktopMode' | 'nationality'
 >;
 
 /**
- * Create the user's personal Coordinator.
+ * Create the user's Coordinator for one workspace.
  *
- * Mirrors Orchestra's coordinator provisioning:
+ * Mirrors Orchestra's `create_workspace_coordinator`:
  *   - `first_name = 'T-W1N'`, `job_title = 'Your digital twin'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
  *   - Numeric limits default to NULL; voice uses the coordinator's fixed ElevenLabs profile
- *   - `is_coordinator = TRUE`, `organization_id = NULL`
+ *   - `is_coordinator = TRUE`, scoped to `organizationId` (`null` for personal)
  *   - Personal contact memberships pinned to `self=0` / `boss=1`
  *
- * Idempotent — if the user already has a personal Coordinator the
- * existing row is returned without re-inserting (matches the partial
- * unique index on `(user_id) WHERE is_coordinator AND organization_id IS NULL`).
+ * Idempotent — an existing Coordinator for the workspace is returned
+ * without re-inserting, matching the partial unique indexes
+ * `(user_id) WHERE is_coordinator AND organization_id IS NULL` and
+ * `(user_id, organization_id) WHERE is_coordinator AND organization_id IS NOT NULL`.
+ *
+ * The row alone leaves `Coordinator/State` unwritten, so the assistants
+ * page reads onboarding as active (the snapshot defaults `onboardingActive`
+ * to `true` when the field is absent). Tests that drive the standard shell
+ * pause it first — see `deferCoordinatorForUser`.
  */
-export function createPersonalCoordinator(
+export function createWorkspaceCoordinator(
   userId: string,
-  opts: CreatePersonalCoordinatorOpts = {}
+  organizationId: number | null,
+  opts: CreateWorkspaceCoordinatorOpts = {}
 ): SeededAssistant {
+  const workspaceScope =
+    organizationId === null ? 'organization_id IS NULL' : `organization_id = ${organizationId}`;
   const existingId = dbExec(
-    `SELECT agent_id FROM assistants WHERE user_id = ${sqlLiteral(userId)} AND is_coordinator = TRUE AND organization_id IS NULL LIMIT 1;`
+    `SELECT agent_id FROM assistants WHERE user_id = ${sqlLiteral(userId)} AND is_coordinator = TRUE AND ${workspaceScope} LIMIT 1;`
   );
   if (existingId) {
     const parsed = parseInt(existingId, 10);
@@ -1197,7 +1225,7 @@ export function createPersonalCoordinator(
         firstName: 'T-W1N',
         surname: '',
         userId,
-        organizationId: null,
+        organizationId,
         isCoordinator: true,
         selfContactId: COORDINATOR_SELF_CONTACT_ID,
         bossContactId: COORDINATOR_BOSS_CONTACT_ID,
@@ -1207,6 +1235,7 @@ export function createPersonalCoordinator(
 
   return createAssistant({
     userId,
+    ...(organizationId === null ? {} : { orgId: organizationId }),
     firstName: 'T-W1N',
     surname: null,
     jobTitle: COORDINATOR_DEFAULT_JOB_TITLE,
@@ -1226,6 +1255,14 @@ export function createPersonalCoordinator(
     bossContactId: COORDINATOR_BOSS_CONTACT_ID,
     bossResponsePolicy: null, // Coordinator uses an empty response policy
   });
+}
+
+/** Create the user's personal (non-org) Coordinator. */
+export function createPersonalCoordinator(
+  userId: string,
+  opts: CreateWorkspaceCoordinatorOpts = {}
+): SeededAssistant {
+  return createWorkspaceCoordinator(userId, null, opts);
 }
 
 // =============================================================================

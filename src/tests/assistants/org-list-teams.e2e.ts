@@ -21,7 +21,6 @@ import { loginAndWaitForRedirect, completeAccountOnboardingIfPresent } from '../
 import {
   deferCoordinatorForUser,
   deferCoordinatorAfterAssistantsLoad,
-  deferCoordinatorOnboarding,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
 import {
@@ -41,18 +40,6 @@ const org = createOrg({
 });
 addMember({ orgId: org.id, userId: member.id, role: 'Member' });
 ensureProjectSync(org.ownerOrgApiKey);
-
-// Orchestra provisions the owner's workspace Coordinator with every org it
-// creates (`_create_organization_with_owner_coordinator`); the org list pins it
-// above the elevated Org team. The raw-SQL org seed bypasses that path, so the
-// twin is seeded explicitly.
-const orgCoordinator = createAssistant({
-  userId: owner.id,
-  firstName: 'T-W1N',
-  surname: null,
-  orgId: org.id,
-  isCoordinator: true,
-});
 
 createAssistant({
   userId: owner.id,
@@ -129,13 +116,6 @@ const test = base.extend<{ ownerPage: Page }>({
     await use(page);
     await ctx.close();
   },
-});
-
-// A freshly provisioned Coordinator resolves with `onboarding_active: true`,
-// rendering the full-screen overlay that swallows pointer events. This suite
-// drives the regular rail switcher, so pause it before the first page load.
-test.beforeAll(async () => {
-  await deferCoordinatorOnboarding(org.ownerOrgApiKey, orgCoordinator.agentId);
 });
 
 test.afterAll(async () => {

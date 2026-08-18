@@ -17,6 +17,7 @@ import {
   createOrg,
   createTestUser,
   dbExec,
+  deferCoordinatorForUser,
   deferCoordinatorOnboarding,
   deleteAllAssistantsForUser,
   deleteOrg,
@@ -162,13 +163,9 @@ addMember({ orgId: org.id, userId: member.id, role: 'Member' });
 ensureProjectSync(org.ownerOrgApiKey);
 ensureProjectSync(personalUser.apiKey);
 
-const coordinator = createAssistant({
-  userId: owner.id,
-  orgId: org.id,
-  firstName: 'Atlas',
-  surname: 'Guide',
-  isCoordinator: true,
-});
+// The owner's workspace Coordinator is provisioned with the org, mirroring
+// Orchestra's `_create_organization_with_owner_coordinator`.
+const coordinator = org.coordinator;
 const regularAssistant = createAssistant({
   userId: owner.id,
   orgId: org.id,
@@ -276,7 +273,7 @@ test.describe.configure({ mode: 'serial' });
 // coordinators it views up front — exactly as ``createAssistantTest`` does for
 // the standard flows.
 test.beforeAll(async () => {
-  await deferCoordinatorOnboarding(org.ownerOrgApiKey, coordinator.agentId);
+  await deferCoordinatorForUser(owner.id, org.ownerOrgApiKey);
   await deferCoordinatorOnboarding(personalUser.apiKey, personalCoordinator.agentId);
 });
 
