@@ -62,6 +62,7 @@ export interface ActiveEntityFace {
   isOrgWideSharing?: boolean;
   /** Face-stack members for chat-group selections. */
   groupFaces?: Array<{ id: string; name: string; image?: string | null }>;
+  groupIcon?: string | null;
 }
 
 interface AssistantSwitcherProps {
@@ -218,7 +219,11 @@ export function AssistantSwitcher({
           iconClassName="h-5 w-5"
         />
       ) : activeEntityFace.kind === 'group' ? (
-        <GroupFaceStack members={activeEntityFace.groupFaces ?? []} sizeClassName="h-10 w-10" />
+        <GroupFaceStack
+          members={activeEntityFace.groupFaces ?? []}
+          icon={activeEntityFace.groupIcon}
+          sizeClassName="h-10 w-10"
+        />
       ) : (
         <Avatar className="rounded-control h-10 w-10 shrink-0">
           <AvatarImage src={activeEntityFace.imageUrl ?? undefined} alt={activeEntityFace.label} />

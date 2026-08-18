@@ -1397,6 +1397,8 @@ export interface CreateChatGroupOpts {
   userIds: string[];
   /** Assistant members (agent_id). */
   assistantIds?: number[];
+  /** Emoji the group wears in place of its member faces. */
+  icon?: string | null;
 }
 
 /**
@@ -1404,12 +1406,13 @@ export interface CreateChatGroupOpts {
  * Mirrors Orchestra `chat_group` / `chat_group_member` — not a Team.
  */
 export function createChatGroup(opts: CreateChatGroupOpts): SeededChatGroup {
-  const { organizationId, name, createdByUserId, userIds, assistantIds = [] } = opts;
+  const { organizationId, name, createdByUserId, userIds, assistantIds = [], icon = null } = opts;
   const rawGroupId = dbExec(`
-INSERT INTO chat_group (organization_id, name, created_by_user_id, status)
+INSERT INTO chat_group (organization_id, name, icon, created_by_user_id, status)
 VALUES (
   ${organizationId},
   '${sqlString(name)}',
+  ${icon ? `'${sqlString(icon)}'` : 'NULL'},
   '${sqlString(createdByUserId)}',
   'active'
 )

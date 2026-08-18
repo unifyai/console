@@ -1,6 +1,6 @@
 /**
  * Org unity switcher: managed Org team is elevated under T-W1N; TEAMS only
- * appears when custom teams exist. GROUPS stays visible even when empty. The
+ * appears when custom teams exist. GROUP CHATS stays visible even when empty. The
  * header's filter menu persists per browser, and says so while it is cutting
  * the roster.
  *
@@ -138,7 +138,7 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   await expect(elevated.getByTestId(`team-list-item-${orgTeamId}`)).toContainText(org.name);
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
-  // No custom teams / groups yet — TEAMS and GROUPS nests stay hidden.
+  // No custom teams / groups yet — TEAMS and GROUP CHATS nests stay hidden.
   // Every creation action lives in the header's "+" menu, above the roster.
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);

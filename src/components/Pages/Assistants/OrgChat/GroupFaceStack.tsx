@@ -13,6 +13,8 @@ export interface GroupFaceStackMember {
 
 interface GroupFaceStackProps {
   members: GroupFaceStackMember[];
+  /** Emoji the group chose for itself; it stands in for the whole collage. */
+  icon?: string | null;
   className?: string;
   sizeClassName?: string;
 }
@@ -42,9 +44,25 @@ function EmptyCell({ className }: { className?: string }) {
 /** Fixed-size 2×2 face collage for chat-group rows and switcher faces. */
 export function GroupFaceStack({
   members,
+  icon = null,
   className,
   sizeClassName = 'h-7 w-7',
 }: GroupFaceStackProps) {
+  if (icon) {
+    return (
+      <div
+        className={cn(
+          '@container rounded-control flex shrink-0 items-center justify-center bg-muted',
+          sizeClassName,
+          className
+        )}
+        aria-hidden="true"
+      >
+        <span className="text-[length:max(11px,58cqw)] leading-none">{icon}</span>
+      </div>
+    );
+  }
+
   if (members.length === 0) {
     return (
       <Avatar className={cn('rounded-control shrink-0', sizeClassName, className)}>

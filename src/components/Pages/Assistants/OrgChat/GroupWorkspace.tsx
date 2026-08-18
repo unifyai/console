@@ -229,7 +229,7 @@ export function GroupWorkspace({
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="group-workspace">
       <div className="flex items-center gap-3 border-b px-4 py-3">
-        <GroupFaceStack members={faceMembers} sizeClassName="h-9 w-9" />
+        <GroupFaceStack members={faceMembers} icon={group.icon} sizeClassName="h-9 w-9" />
         <div className="min-w-0 flex-1">
           <div className="text-title truncate">{group.name}</div>
           <div className="text-caption truncate text-muted-foreground">{subtitle}</div>

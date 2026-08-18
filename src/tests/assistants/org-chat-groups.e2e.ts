@@ -215,6 +215,65 @@ test('create group from rail + opens dialog and persists membership', async ({
   });
 });
 
+test('group row settings rename the group and set its icon', async ({ ownerPage: page }) => {
+  test.setTimeout(120_000);
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+
+  const groupRow = page.getByTestId(`group-list-item-${seededGroup.groupId}`);
+  await expect(groupRow).toBeVisible({ timeout: 30_000 });
+
+  const settingsButton = page.getByTestId(`group-row-settings-${seededGroup.groupId}`);
+  const panel = page.getByTestId(`group-settings-panel-${seededGroup.groupId}`);
+
+  await groupRow.hover();
+  await settingsButton.click();
+  await expect(panel).toBeVisible({ timeout: 10_000 });
+
+  const renamed = `RenamedGroup_${Date.now()}`;
+  await page.getByTestId(`group-settings-name-${seededGroup.groupId}`).fill(renamed);
+  await page.getByTestId(`group-settings-name-save-${seededGroup.groupId}`).click();
+  await expect(panel).toBeHidden({ timeout: 15_000 });
+
+  // The switcher survives the settings panel; the renamed row is still there.
+  await expect(groupRow).toContainText(renamed, { timeout: 15_000 });
+  expect(dbExec(`SELECT name FROM chat_group WHERE id = ${seededGroup.groupId}`)).toContain(
+    renamed
+  );
+
+  await groupRow.hover();
+  await settingsButton.click();
+  await expect(panel).toBeVisible({ timeout: 10_000 });
+  const emojiSearch = page.locator('.EmojiPickerReact').getByPlaceholder('Search');
+  await expect(emojiSearch).toBeVisible({ timeout: 10_000 });
+  await emojiSearch.fill('tada');
+  await page.locator('.EmojiPickerReact button').filter({ hasText: '🎉' }).first().click();
+  await expect(panel).toBeHidden({ timeout: 15_000 });
+  await expect(groupRow).toContainText('🎉', { timeout: 15_000 });
+
+  await expect
+    .poll(() => dbExec(`SELECT icon FROM chat_group WHERE id = ${seededGroup.groupId}`), {
+      timeout: 15_000,
+    })
+    .toContain('🎉');
+
+  await groupRow.hover();
+  await settingsButton.click();
+  await expect(panel).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId(`group-settings-icon-clear-${seededGroup.groupId}`).click();
+  await expect(panel).toBeHidden({ timeout: 15_000 });
+
+  await expect
+    .poll(
+      () =>
+        dbExec(
+          `SELECT count(*) FROM chat_group WHERE id = ${seededGroup.groupId} AND icon IS NULL`
+        ).includes('1'),
+      { timeout: 15_000 }
+    )
+    .toBe(true);
+});
+
 test('group call starts call_session with scope=group', async ({ ownerPage: page }) => {
   test.setTimeout(90_000);
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });

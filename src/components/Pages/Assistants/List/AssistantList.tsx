@@ -50,6 +50,10 @@ import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay'
 import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import { GroupFaceStack } from '@/components/Pages/Assistants/OrgChat/GroupFaceStack';
+import {
+  GroupRowSettings,
+  type GroupPatch,
+} from '@/components/Pages/Assistants/OrgChat/GroupRowSettings';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
@@ -111,6 +115,10 @@ interface AssistantListProps {
   onSelectHuman?: (userId: string) => void;
   onSelectTeam?: (teamId: number) => void;
   onSelectGroup?: (groupId: number) => void;
+  /** Saves a group's own settings (name, icon); resolves false when it failed. */
+  onUpdateGroup?: (groupId: number, patch: GroupPatch) => Promise<boolean>;
+  /** Raised while a group's settings panel is open, so the switcher stays put. */
+  onGroupSettingsOpenChange?: (open: boolean) => void;
   onCreateGroup?: () => void;
   /** Navigate to Organization → Teams to create a custom team. */
   onCreateTeam?: () => void;
@@ -225,6 +233,8 @@ function GroupListRow({
   unreadCount,
   isCallActive,
   onSelect,
+  onUpdate,
+  onSettingsOpenChange,
 }: {
   group: RosterGroup;
   faceMembers: Array<{ id: string; name: string; image?: string | null }>;
@@ -232,6 +242,8 @@ function GroupListRow({
   unreadCount: number;
   isCallActive?: boolean;
   onSelect: () => void;
+  onUpdate?: (patch: GroupPatch) => Promise<boolean>;
+  onSettingsOpenChange?: (open: boolean) => void;
 }) {
   return (
     <div
@@ -252,7 +264,7 @@ function GroupListRow({
     >
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
-          <GroupFaceStack members={faceMembers} sizeClassName="h-7 w-7" />
+          <GroupFaceStack members={faceMembers} icon={group.icon} sizeClassName="h-7 w-7" />
           {isCallActive ? (
             <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
@@ -273,6 +285,9 @@ function GroupListRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <EntityUnreadBadge count={unreadCount} testId={`group-unread-badge-${group.groupId}`} />
+        {onUpdate ? (
+          <GroupRowSettings group={group} onUpdate={onUpdate} onOpenChange={onSettingsOpenChange} />
+        ) : null}
       </div>
     </div>
   );
@@ -463,6 +478,8 @@ export function AssistantList({
   onSelectHuman,
   onSelectTeam,
   onSelectGroup,
+  onUpdateGroup,
+  onGroupSettingsOpenChange,
   onCreateGroup,
   onCreateTeam,
   entityUnreadCounts,
@@ -955,7 +972,7 @@ export function AssistantList({
     [rosterTeamsById, teamGroups]
   );
   // TEAMS collapses entirely when the only team is the managed Org team.
-  // GROUPS only appears once at least one group exists.
+  // GROUP CHATS only appears once at least one group exists.
   const showTeamsSection =
     isOrgWorkspace &&
     showTeams &&
@@ -1016,7 +1033,7 @@ export function AssistantList({
           {showGroupsSection
             ? renderSection(
                 'section:groups',
-                'Groups',
+                'Group chats',
                 filteredSelectableGroups.length,
                 <div className="min-w-0 space-y-1">
                   {filteredSelectableGroups.map((group) => {
@@ -1053,6 +1070,10 @@ export function AssistantList({
                         unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
                         isCallActive={orgCallActiveGroupId === group.groupId}
                         onSelect={() => onSelectGroup?.(group.groupId)}
+                        onUpdate={
+                          onUpdateGroup ? (patch) => onUpdateGroup(group.groupId, patch) : undefined
+                        }
+                        onSettingsOpenChange={onGroupSettingsOpenChange}
                       />
                     );
                   })}

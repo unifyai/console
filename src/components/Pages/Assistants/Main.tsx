@@ -47,6 +47,8 @@ import { TeamInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/
 import { GroupWorkspace } from '@/components/Pages/Assistants/OrgChat/GroupWorkspace';
 import { GroupInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/GroupInfoSidePanelContent';
 import { CreateGroupDialog } from '@/components/Pages/Assistants/OrgChat/CreateGroupDialog';
+import type { GroupPatch } from '@/components/Pages/Assistants/OrgChat/GroupRowSettings';
+import { updateOrgChatGroup } from '@/lib/client/orgChatGroups';
 import {
   TeamBrainSectionsHost,
   isTeamBrainSectionId,
@@ -344,6 +346,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const activeOrganizationId = activeWorkspace?.type === 'organization' ? activeWorkspace.id : null;
   const { roster, markHumanOnline, refresh: refreshOrgRoster } = useOrgRoster(activeOrganizationId);
   const [createGroupOpen, setCreateGroupOpen] = React.useState(false);
+  const [groupSettingsOpen, setGroupSettingsOpen] = React.useState(false);
   usePresenceHeartbeat(!!activeOrganizationId);
   const orgChat = useOrgChat({
     orgId: activeOrganizationId,
@@ -723,6 +726,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleShowProfile,
       isNonAssistantSelection,
     ]
+  );
+
+  const handleUpdateGroup = React.useCallback(
+    async (groupId: number, patch: GroupPatch) => {
+      if (!activeOrganizationId) return false;
+      const updated = await updateOrgChatGroup(activeOrganizationId, groupId, patch);
+      if (!updated) {
+        toast('Could not update group. Please try again.');
+        return false;
+      }
+      await refreshOrgRoster();
+      return true;
+    },
+    [activeOrganizationId, refreshOrgRoster]
   );
 
   const selectedHuman = React.useMemo(() => {
@@ -3834,6 +3851,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSelectHuman: handleSelectHuman,
       onSelectTeam: handleSelectTeam,
       onSelectGroup: handleSelectGroup,
+      onUpdateGroup: handleUpdateGroup,
+      onGroupSettingsOpenChange: setGroupSettingsOpen,
       onCreateGroup: () => setCreateGroupOpen(true),
       onCreateTeam: () => {
         router.push('/organizations?tab=teams');
@@ -3875,6 +3894,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleSelectHuman,
       handleSelectTeam,
       handleSelectGroup,
+      handleUpdateGroup,
       router,
       orgChat.unread,
       humanCall.isConnected,
@@ -3965,6 +3985,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         label: selectedGroup.name,
         sublabel: `${humanCount + aiCount} members`,
         groupFaces,
+        groupIcon: selectedGroup.icon,
       };
     }
     return null;
@@ -4036,7 +4057,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         activeUnity={profileAssistant}
         activeEntityFace={activeEntityFace}
         listProps={railListProps}
-        nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+        nestedOverlayOpen={isHireDialogOpen || createGroupOpen || groupSettingsOpen}
         activeCallAssistantId={activeCallId}
       />
       <div className="flex h-full flex-col overflow-hidden">
@@ -4063,7 +4084,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     entityKind={selectedEntityKind}
                     isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                     listProps={railListProps}
-                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen || groupSettingsOpen}
                     activeSection={railActiveSectionId}
                     sectionActivity={railSectionActivity}
                     onSelectSection={(section) => {
@@ -4089,7 +4110,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 entityKind={selectedEntityKind}
                 isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                 listProps={railListProps}
-                nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+                nestedOverlayOpen={isHireDialogOpen || createGroupOpen || groupSettingsOpen}
                 activeSection={railActiveSectionId}
                 sectionActivity={railSectionActivity}
                 onSelectSection={handleSelectSection}
