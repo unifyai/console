@@ -87,6 +87,7 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
   COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
   requestAssistantInfoPanelOpen,
+  requestAssistantInfoPanelToggle,
   type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
@@ -3817,6 +3818,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       assistants: sidebarAssistants,
       assistantStatuses: displayedAssistantStatuses,
       assistantError,
+      // Unfolds the row's info panel, the same request AssistantList already
+      // makes for a human or a group row. The rail's own list was the one
+      // caller left without it.
+      onToggleAssistantInfo: (assistantId: string) =>
+        requestAssistantInfoPanelToggle({ assistantId }),
       isLoading: isInitialLoadingAssistants,
       error: assistantError,
       profileAssistantId,
