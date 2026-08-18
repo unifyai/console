@@ -92,6 +92,19 @@ function hasAgentParticipant(room: Room): boolean {
   return false;
 }
 
+/**
+ * Whether this user runs the call: the one who may end it for everyone, add a
+ * teammate, or put a teammate's desktop up. A 1:1 assistant call belongs to its
+ * human by definition.
+ */
+function isCallHost(call: OrgCallSession | null, currentUserId: string | null): boolean {
+  return Boolean(
+    call &&
+    currentUserId &&
+    (call.createdByUserId === currentUserId || call.scope === 'assistant_dm')
+  );
+}
+
 type AssistantReadyWaiter = {
   attemptId: number;
   resolve: () => void;
@@ -148,6 +161,11 @@ export function useCall(
   // participant mounts for itself, so every client has to be told, and a room
   // call can carry several assistants each presenting their own.
   const [assistantSharesById, setAssistantSharesById] = React.useState<Record<string, boolean>>({});
+  // Read by the leave path, which must not re-create itself every time a share
+  // changes — a call control that swaps identity mid-call is a worse bug than
+  // the one this closes.
+  const assistantSharesByIdRef = React.useRef<Record<string, boolean>>({});
+  assistantSharesByIdRef.current = assistantSharesById;
   const [roomEpoch, setRoomEpoch] = React.useState(0);
   const audioElsRef = React.useRef<HTMLAudioElement[]>([]);
   const playbackMutedRef = React.useRef(false);
@@ -991,7 +1009,8 @@ export function useCall(
       // the runtime closes every viewer the call owned when the call itself
       // ends, which is what covers a tab that was killed rather than closed.
       const watchedAssistant = activeCallAssistantRef.current;
-      if (isRemoteControlActive && watchedAssistant) {
+      const remoteControlled = isRemoteControlActive && watchedAssistant;
+      if (remoteControlled) {
         assistantActions.desktop
           .sendSystemEvent(
             watchedAssistant.agentId,
@@ -1000,6 +1019,34 @@ export function useCall(
             callViewerFields()
           )
           .catch(console.error);
+      }
+      // Close the desktops this client put up for the room, rather than leaving
+      // it to the runtime's call boundary. That boundary is skippable — a call
+      // torn down while its successor is already dispatching passes through
+      // neither of the resets that would have closed these — and a viewer that
+      // survives its own call can never be closed by anyone, because the only
+      // stop event that would match names a call nobody is on.
+      //
+      // Host only, mirroring who could have started one. A share outliving the
+      // host would be unstoppable for everyone left: the take-down control is
+      // the host's, exactly like End call.
+      //
+      // The 1:1 desktop is skipped when the branch above already closed it. Both
+      // name the same viewer, so the second would be a no-op discard of a key
+      // already gone — harmless, but it would read as two people leaving.
+      if (isCallHost(call, currentUserId)) {
+        const viewerFields = callViewerFields();
+        for (const assistantId of Object.keys(assistantSharesByIdRef.current)) {
+          if (remoteControlled && assistantId === watchedAssistant.agentId) continue;
+          assistantActions.desktop
+            .sendSystemEvent(
+              assistantId,
+              'assistant_screen_share_stopped',
+              'Host left the call',
+              viewerFields
+            )
+            .catch(console.error);
+        }
       }
       stopRemoteControl();
       setCallPhase('ending');
@@ -1026,6 +1073,7 @@ export function useCall(
       isRemoteControlActive,
       assistantActions.desktop,
       callViewerFields,
+      currentUserId,
     ]
   );
 
@@ -1377,11 +1425,7 @@ export function useCall(
     assistantActions.desktop,
   ]);
 
-  const isHost = Boolean(
-    activeCall &&
-    currentUserId &&
-    (activeCall.createdByUserId === currentUserId || activeCall.scope === 'assistant_dm')
-  );
+  const isHost = isCallHost(activeCall, currentUserId);
 
   return {
     // Shared session surface
