@@ -575,17 +575,10 @@ export async function openAssistantInfoPanel(page: Page) {
   await btn.click();
 }
 
-/** Open the assistant info side panel from a list row's unfold control. */
-export async function openAssistantInfoToggleFromList(page: Page, agentId: number | string) {
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await listItem.click();
-  const toggle = page.getByTestId(`assistant-info-toggle-${agentId}`);
-  await expect(toggle).toBeVisible({ timeout: 5_000 });
-  await toggle.click();
-}
-
+/** Select an assistant in the list, then open its info panel from the top navbar. */
 export async function openAssistantInfoPanelFromList(page: Page, agentId: number | string) {
-  await openAssistantInfoToggleFromList(page, agentId);
+  await page.getByTestId(`assistant-list-item-${agentId}`).click();
+  await openAssistantInfoPanel(page);
   await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 10_000 });
 }
 

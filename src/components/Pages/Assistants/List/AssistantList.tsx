@@ -51,8 +51,6 @@ import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import { GroupFaceStack } from '@/components/Pages/Assistants/OrgChat/GroupFaceStack';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
-import { ListRowInfoToggle } from './ListRowInfoToggle';
-import { requestAssistantInfoPanelToggle } from '@/lib/assistants/infoPanelVisibility';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
   useAssistantListFilters,
@@ -88,7 +86,6 @@ interface AssistantListProps {
   error: string | null;
   profileAssistantId: string | null;
   onShowProfile: (id: string) => void;
-  onToggleAssistantInfo: (assistantId: string) => void;
   onOpenHireDialog: () => void;
   isFolded: boolean;
   activeCallAssistantId: string | null;
@@ -216,14 +213,6 @@ function HumanListRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <EntityUnreadBadge count={unreadCount} testId={`human-unread-badge-${human.userId}`} />
-        <ListRowInfoToggle
-          entityId={humanEntityKey(human.userId)}
-          isSelected={isSelected}
-          onToggle={() =>
-            requestAssistantInfoPanelToggle({ assistantId: humanEntityKey(human.userId) })
-          }
-          testId={`human-info-toggle-${human.userId}`}
-        />
       </div>
     </div>
   );
@@ -284,14 +273,6 @@ function GroupListRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <EntityUnreadBadge count={unreadCount} testId={`group-unread-badge-${group.groupId}`} />
-        <ListRowInfoToggle
-          entityId={groupEntityKey(group.groupId)}
-          isSelected={isSelected}
-          onToggle={() =>
-            requestAssistantInfoPanelToggle({ assistantId: groupEntityKey(group.groupId) })
-          }
-          testId={`group-info-toggle-${group.groupId}`}
-        />
       </div>
     </div>
   );
@@ -466,7 +447,6 @@ export function AssistantList({
   error,
   profileAssistantId,
   onShowProfile,
-  onToggleAssistantInfo,
   onOpenHireDialog,
   isFolded,
   activeCallAssistantId,
@@ -670,7 +650,6 @@ export function AssistantList({
           status={assistantStatuses.get(entry.assistant.agentId) || null}
           isSelected={profileAssistantId === entry.assistant.agentId}
           onShowProfile={onShowProfile}
-          onToggleAssistantInfo={onToggleAssistantInfo}
           isFolded={isFolded}
           isCallActive={activeCallAssistantId === entry.assistant.agentId}
           unreadCount={unreadCounts?.[entry.assistant.agentId] ?? 0}
@@ -687,7 +666,6 @@ export function AssistantList({
       assistantStatuses,
       isFolded,
       onShowProfile,
-      onToggleAssistantInfo,
       profileAssistantId,
       unreadCounts,
     ]
