@@ -371,7 +371,7 @@ export function AssistantSwitcher({
         side="bottom"
         sideOffset={6}
         data-testid="rail-unity-switcher-popover"
-        className="flex h-[70vh] max-h-[560px] w-[320px] flex-col overflow-hidden p-0"
+        className="flex h-[70vh] max-h-[560px] w-[258px] flex-col overflow-hidden p-0"
         onInteractOutside={(event) => {
           if (nestedOverlayOpen) event.preventDefault();
         }}

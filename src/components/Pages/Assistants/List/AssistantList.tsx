@@ -403,13 +403,11 @@ function TeamListRow({
       className={cn(
         // Match AssistantListItem padding/gap so the team face shares the
         // same avatar column (center-aligned with T-W1N above).
-        'group flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border px-2 py-1 transition-colors',
+        'group flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border border-transparent px-2 py-1 transition-colors',
         // Neutral hover, matching the disclosure role: the primary-tinted hover
         // is reserved for rows that navigate, so the container header must not
         // signal navigability harder than the destinations nested under it.
-        showsSelection
-          ? 'border-primary-tint-30 bg-accent-soft'
-          : 'bg-muted/15 border-border hover:bg-[var(--surface-hover)]'
+        showsSelection ? 'bg-accent-soft' : 'hover:bg-[var(--surface-hover)]'
       )}
       onClick={() => onToggleFold?.()}
       onKeyDown={(event) => {
@@ -428,15 +426,13 @@ function TeamListRow({
       <span className="min-w-0 flex-1 text-left">
         <span
           className={cn(
-            'block truncate text-xs font-medium',
+            'text-body text-strong block truncate',
             showsSelection ? 'text-accent-soft-foreground' : 'text-foreground'
           )}
         >
           {team.name}
         </span>
-        <span className="block truncate text-[11px] font-normal leading-tight text-muted-foreground">
-          {subtitle}
-        </span>
+        <span className="text-caption-sm block truncate leading-tight">{subtitle}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
         {isCallActive ? (
@@ -853,14 +849,13 @@ export function AssistantList({
             isFolded={isGroupFolded}
             onToggleFold={() => toggleGroupFold(group.id)}
             description={description}
-            variant={group.kind === 'team' ? 'workspace' : 'group'}
+            variant={group.kind === 'team' ? 'workspace' : 'section'}
             subtitle={subtitle}
             icon={
               group.kind === 'team' ? (
                 <Building2 className="h-4 w-4" aria-hidden="true" />
               ) : undefined
             }
-            badgeLabel={group.kind === 'team' ? 'Team' : undefined}
           />
           {!isGroupFolded && group.kind === 'team' ? (
             renderTeamMembers(group.id, [], group.rows)
@@ -897,11 +892,7 @@ export function AssistantList({
     ) => {
       const isSectionFolded = foldedGroups[sectionId] === true;
       return (
-        <div
-          key={sectionId}
-          data-testid={testId}
-          className="min-w-0 max-w-full border-b border-border"
-        >
+        <div key={sectionId} data-testid={testId} className="min-w-0 max-w-full">
           <AssistantListGroupHeader
             label={label}
             isFolded={isSectionFolded}
@@ -1011,7 +1002,7 @@ export function AssistantList({
         </div>
       ) : null}
       {showRosterSections ? (
-        <div className="min-w-0 max-w-full border-t border-border">
+        <div className="min-w-0 max-w-full space-y-2 pt-1">
           {showTeamsSection
             ? renderSection(
                 'section:teams',
@@ -1026,7 +1017,7 @@ export function AssistantList({
                 </>,
                 'assistant-list-section-teams',
                 {
-                  icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
+                  icon: <UsersRound className="h-3 w-3" aria-hidden="true" />,
                 }
               )
             : null}
@@ -1080,7 +1071,7 @@ export function AssistantList({
                 </div>,
                 'assistant-list-section-groups',
                 {
-                  icon: <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />,
+                  icon: <MessagesSquare className="h-3 w-3" aria-hidden="true" />,
                 }
               )
             : null}
@@ -1104,7 +1095,7 @@ export function AssistantList({
                 </div>,
                 'assistant-list-section-people',
                 {
-                  icon: <User className="h-3.5 w-3.5" aria-hidden="true" />,
+                  icon: <User className="h-3 w-3" aria-hidden="true" />,
                 }
               )
             : null}
