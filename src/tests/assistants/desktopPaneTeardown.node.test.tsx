@@ -377,3 +377,182 @@ describe('AssistantDesktopPane — watch / unwatch', () => {
     expect(assistant.agentId).toBe('42');
   });
 });
+
+/**
+ * Switching teammate has to close the outgoing viewer, and has to address the
+ * stop to the teammate being left rather than the one arriving. Correctness rests
+ * on React running every cleanup before any effect body, which is exactly the
+ * kind of thing a refactor breaks without any visible symptom.
+ */
+describe('AssistantDesktopPane — switching teammate', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    readiness.isDesktopReady = true;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('stops the outgoing viewer, naming the teammate being left', async () => {
+    const { view, desktopActions } = await renderReadyPane();
+
+    view.rerender(
+      <AssistantDesktopPane
+        assistant={makeAssistant('43')}
+        desktopActions={desktopActions}
+        isVisible
+      />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const stopped = shareEvents(desktopActions, 'assistant_screen_share_stopped');
+    expect(stopped).toHaveLength(1);
+    expect(stopped[0][0]).toBe('42');
+  });
+
+  it('tears down cleanly when the next teammate has no Computer at all', async () => {
+    const { view, desktopActions } = await renderReadyPane();
+
+    const noComputer = {
+      ...makeAssistant('43'),
+      desktopMode: null,
+      managedDesktopStatus: 'disabled',
+    } as unknown as Assistant;
+    view.rerender(
+      <AssistantDesktopPane assistant={noComputer} desktopActions={desktopActions} isVisible />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    const stopped = shareEvents(desktopActions, 'assistant_screen_share_stopped');
+    expect(stopped).toHaveLength(1);
+    expect(stopped[0][0]).toBe('42');
+    // Nothing starts up for a teammate with no desktop, and the old one is gone.
+    expect(shareEvents(desktopActions, 'assistant_screen_share_started')).toHaveLength(1);
+    expect(view.container.querySelector('iframe')).toBeNull();
+    expect(view.getByTestId('desktop-computer-upgrade')).toBeTruthy();
+  });
+});
+
+/**
+ * Pacing of the connect retries while a desktop is still warming up.
+ *
+ * The regression covered here: the retry was gated on `status === 'starting'`
+ * while connect() sets 'loading' on entry, so the effect tore down the interval
+ * that had just scheduled it. Retries then ran back to back at network speed for
+ * the whole 120s startup window instead of on any cadence.
+ */
+describe('AssistantDesktopPane — connect retry pacing', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    readiness.isDesktopReady = true;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  /** A desktop that is up but not yet reachable — connect()'s transient path. */
+  function makeWarmingUpActions() {
+    const actions = makeDesktopActions();
+    vi.mocked(actions.checkLiveviewHealth).mockResolvedValue(false);
+    return actions;
+  }
+
+  /**
+   * Mount before the desktop exists, so the pane performs its own wake and opens
+   * the startup window — connect()'s transient retry path only applies inside it.
+   * Then report the desktop as up, which is what starts the connect sequence.
+   */
+  async function renderWarmingUpPane() {
+    readiness.isDesktopReady = false;
+    const desktopActions = makeWarmingUpActions();
+    const assistant = makeAssistant();
+    const view = render(
+      <AssistantDesktopPane assistant={assistant} desktopActions={desktopActions} isVisible />
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(desktopActions.wakeAssistantSession).toHaveBeenCalledTimes(1);
+
+    readiness.isDesktopReady = true;
+    await act(async () => {
+      view.rerender(
+        <AssistantDesktopPane assistant={assistant} desktopActions={desktopActions} isVisible />
+      );
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    return { view, desktopActions, assistant };
+  }
+
+  it('does not retry until the backoff has elapsed', async () => {
+    const { desktopActions } = await renderWarmingUpPane();
+
+    // One attempt up front, then nothing until the first 3s delay is up.
+    expect(desktopActions.checkLiveviewHealth).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_500);
+    });
+    expect(desktopActions.checkLiveviewHealth).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(desktopActions.checkLiveviewHealth).toHaveBeenCalledTimes(2);
+  });
+
+  it('backs off rather than retrying at a flat rate', async () => {
+    const { desktopActions } = await renderWarmingUpPane();
+
+    // 3s, 6s, 12s, then capped at 15s — five attempts inside the first 25s.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+    });
+    expect(desktopActions.checkLiveviewHealth).toHaveBeenCalledTimes(4);
+
+    // A flat 3s retry would have produced far more than this by 120s.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(95_000);
+    });
+    expect(vi.mocked(desktopActions.checkLiveviewHealth).mock.calls.length).toBeLessThan(12);
+  });
+
+  it('stops retrying as soon as the desktop answers', async () => {
+    const { view, desktopActions } = await renderWarmingUpPane();
+
+    vi.mocked(desktopActions.checkLiveviewHealth).mockResolvedValue(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    expect(view.container.querySelector('iframe')).not.toBeNull();
+    const callsAtReady = vi.mocked(desktopActions.checkLiveviewHealth).mock.calls.length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(desktopActions.checkLiveviewHealth).toHaveBeenCalledTimes(callsAtReady);
+  });
+
+  it('abandons the retry sequence when the pane is unwatched', async () => {
+    const { view, desktopActions } = await renderWarmingUpPane();
+
+    await act(async () => {
+      view.getByTestId('desktop-watch-toggle').click();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const callsAtUnwatch = vi.mocked(desktopActions.checkLiveviewHealth).mock.calls.length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(desktopActions.checkLiveviewHealth).toHaveBeenCalledTimes(callsAtUnwatch);
+  });
+});

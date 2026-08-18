@@ -25,9 +25,23 @@ import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 
 type DesktopStatus = 'idle' | 'starting' | 'loading' | 'ready' | 'error';
 
+/**
+ * What a connect attempt settled on. Reported back to the caller rather than read
+ * off `status`, because the retry sequence needs the answer immediately and any
+ * ref it could read still holds the previous render's value at that point.
+ */
+type ConnectOutcome = 'ready' | 'retry' | 'failed';
+
 const DESKTOP_START_POLL_INTERVAL_MS = 3_000;
 const DESKTOP_START_TIMEOUT_MS = 120_000;
-const DESKTOP_CONNECT_RETRY_MS = 5_000;
+/**
+ * Backoff between attempts to reach a desktop that is still coming up. A refused
+ * connection fails in milliseconds, so an unpaced retry spends the whole startup
+ * window hammering the health probe; the ceiling holds a wedged desktop to a
+ * handful of attempts rather than dozens.
+ */
+const DESKTOP_CONNECT_RETRY_BASE_MS = 3_000;
+const DESKTOP_CONNECT_RETRY_MAX_MS = 15_000;
 /**
  * How long a ready desktop survives the pane being hidden. Long enough that
  * stepping over to Chat and back does not pay for a fresh liveview handshake,
@@ -44,6 +58,11 @@ function formatUnknownError(error: unknown, fallback: string): string {
     if (typeof detail === 'string' && detail) return detail;
   }
   return fallback;
+}
+
+/** Delay before retry `attempt`, 1-based: 3s, 6s, 12s, then 15s from there on. */
+function connectRetryDelayMs(attempt: number): number {
+  return Math.min(DESKTOP_CONNECT_RETRY_BASE_MS * 2 ** (attempt - 1), DESKTOP_CONNECT_RETRY_MAX_MS);
 }
 
 function isTransientDesktopError(message: string): boolean {
@@ -152,6 +171,10 @@ export function AssistantDesktopPane({
   // a spurious stop event) every time these change mid-session.
   const isInteractiveRef = React.useRef(isInteractive);
   isInteractiveRef.current = isInteractive;
+  // Read by the connect sequence on entry, so a desktop already up (or already
+  // failed) is not re-fetched when an unrelated dependency changes identity.
+  const statusRef = React.useRef(status);
+  statusRef.current = status;
   const desktopActionsRef = React.useRef(desktopActions);
   desktopActionsRef.current = desktopActions;
   const viewerUserIdRef = React.useRef(currentUserId);
@@ -204,7 +227,7 @@ export function AssistantDesktopPane({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const connect = React.useCallback(async () => {
+  const connect = React.useCallback(async (): Promise<ConnectOutcome> => {
     setStatus('loading');
     setErrorMessage(null);
     try {
@@ -255,6 +278,7 @@ export function AssistantDesktopPane({
           { viewerUserId: viewerUserIdRef.current, viewerSource: DESKTOP_PANE_VIEWER_SOURCE }
         )
         .catch(console.error);
+      return 'ready';
     } catch (e: unknown) {
       const message = formatUnknownError(e, 'Could not open the assistant desktop.');
       const startedAt = sessionStartRequestedAtRef.current;
@@ -264,12 +288,13 @@ export function AssistantDesktopPane({
       if (withinStartupWindow && isTransientDesktopError(message)) {
         setStatus('starting');
         setErrorMessage(null);
-        return;
+        return 'retry';
       }
 
       setStatus('error');
       setErrorMessage(message);
       setLiveviewUrl(null);
+      return 'failed';
     }
   }, [assistantId, ownerId, organizationId, eventLiveviewUrl, eventLiveviewPassword]);
 
@@ -341,34 +366,40 @@ export function AssistantDesktopPane({
     return () => window.clearTimeout(timeout);
   }, [shouldConnect, status, displayName]);
 
-  // Retry connect while the desktop URL exists but health checks are still warming up.
+  // Open the desktop once there is one to open, re-attempting with backoff while
+  // it is still warming up.
+  //
+  // The whole sequence lives in one effect that re-schedules itself, and must not
+  // depend on `status`: connect() moves the pane to 'loading' on entry, so an
+  // effect gated on 'starting' tears down the timer that just scheduled it, and
+  // every retry then lands one round trip after the last instead of on the
+  // cadence above. `statusRef` is read on entry only — refs are current when an
+  // effect runs, but not immediately after an await.
   React.useEffect(() => {
-    if (!shouldConnect || !isDesktopReady) return;
-    if (status !== 'starting') return;
+    if (!shouldConnect || !isWatching || !isDesktopReady) return;
+    if (statusRef.current === 'ready' || statusRef.current === 'error') return;
 
-    const interval = window.setInterval(() => {
-      void connect().catch((error: unknown) => {
-        console.error('[AssistantDesktopPane] Connect retry failed:', error);
+    let cancelled = false;
+    let retryTimeout = 0;
+    let attempt = 0;
+
+    const attemptConnect = async () => {
+      const outcome = await connect().catch((error: unknown) => {
+        console.error('[AssistantDesktopPane] Connect failed:', error);
+        return 'failed' as ConnectOutcome;
       });
-    }, DESKTOP_CONNECT_RETRY_MS);
+      if (cancelled || outcome !== 'retry') return;
+      attempt += 1;
+      retryTimeout = window.setTimeout(attemptConnect, connectRetryDelayMs(attempt));
+    };
 
-    void connect().catch((error: unknown) => {
-      console.error('[AssistantDesktopPane] Connect failed:', error);
-    });
+    void attemptConnect();
 
-    return () => window.clearInterval(interval);
-  }, [shouldConnect, isDesktopReady, status, connect]);
-
-  // Auto-connect when the tab becomes visible and the desktop is ready. Kept
-  // idempotent via the `idle`/`starting` guard so re-renders don't re-fetch.
-  React.useEffect(() => {
-    if (!shouldConnect || !isWatching) return;
-    if (status !== 'idle') return;
-    if (!isDesktopReady) return;
-    void connect().catch((error: unknown) => {
-      console.error('[AssistantDesktopPane] Connect failed:', error);
-    });
-  }, [shouldConnect, isWatching, status, isDesktopReady, connect]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(retryTimeout);
+    };
+  }, [shouldConnect, isWatching, isDesktopReady, connect]);
 
   // Reset the whole session when the assistant changes so we never show one
   // teammate's desktop under another. Also reset when Computer is enabled after
@@ -379,7 +410,17 @@ export function AssistantDesktopPane({
   // runs every cleanup before any body, so on an assistant change the teardown
   // has already closed the old session and this call finds nothing to stop —
   // it cannot mistake the incoming assistant for the outgoing one.
+  //
+  // Only on a *change*: every value below is already at its initial state on
+  // mount, so running then resets nothing — except the startup the effect above
+  // has just requested, whose window and wake flag this would wipe, taking the
+  // spinner and the whole transient-retry path with them.
+  const identityResetArmedRef = React.useRef(false);
   React.useEffect(() => {
+    if (!identityResetArmedRef.current) {
+      identityResetArmedRef.current = true;
+      return;
+    }
     closeViewerSession(assistantId);
     setStatus('idle');
     setLiveviewUrl(null);
