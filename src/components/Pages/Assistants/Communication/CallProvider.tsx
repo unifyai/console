@@ -30,7 +30,10 @@ import {
   withOrgProfileImageForTeams,
 } from '@/types/orgChat';
 import { IncomingHumanCallCard } from '@/components/Pages/Assistants/OrgChat/IncomingHumanCallCard';
-import { OrgCallMeetStage } from '@/components/Pages/Assistants/OrgChat/OrgCallMeetStage';
+import {
+  OrgCallMeetStage,
+  type AssistantDesktopToggle,
+} from '@/components/Pages/Assistants/OrgChat/OrgCallMeetStage';
 import { OrgCallMinimized } from '@/components/Pages/Assistants/OrgChat/OrgCallMinimized';
 import { OrgCallErrorBoundary } from '@/components/Pages/Assistants/OrgChat/OrgCallErrorBoundary';
 import type {
@@ -343,26 +346,29 @@ export function CallProvider({
       .filter(Boolean);
   }, [call.activeCall, rosterTeams, roster?.groups, assistantsById]);
 
-  // Assistants on the call whose desktop can be put up, and those already up.
+  // Every teammate on the call, with whether its desktop is on the stage and
+  // whether it has one to show.
   //
   // Open to everyone on the call, not just the host. A desktop on the stage is
   // shared room state — one switch the runtime keys to the call rather than to
   // whoever pressed it — so anybody here can put one up and anybody here can
   // take it down again, including one somebody else put up. Host-only was the
   // shape that left a share unstoppable the moment the host walked out.
-  const desktopCandidates = React.useMemo(() => {
+  //
+  // Teammates without a managed desktop stay in the list and render disabled.
+  // Dropping them silently made the roster disagree with the tiles above it, and
+  // "that name is missing" is a worse answer than "that one has no desktop".
+  const desktopToggles = React.useMemo<AssistantDesktopToggle[]>(() => {
     const active = call.activeCall;
-    if (!active) {
-      return { startable: [] as OrgCallAssistantInfo[], stoppable: [] as OrgCallAssistantInfo[] };
-    }
-    const onCall = active.assistantIds
+    if (!active) return [];
+    return active.assistantIds
       .map((id) => assistantsById[String(id)])
       .filter(Boolean)
-      .filter((assistant) => resolveManagedDesktopMode(assistant) != null);
-    return {
-      startable: onCall.filter((a) => !call.assistantSharesById[a.agentId]),
-      stoppable: onCall.filter((a) => call.assistantSharesById[a.agentId]),
-    };
+      .map((assistant) => ({
+        assistant,
+        sharing: Boolean(call.assistantSharesById[assistant.agentId]),
+        available: resolveManagedDesktopMode(assistant) != null,
+      }));
   }, [call.activeCall, call.assistantSharesById, assistantsById]);
 
   // Assistants presenting a desktop, and the URL each resolved to here.
@@ -566,8 +572,7 @@ export function CallProvider({
                 isHost={call.isHost}
                 addableAssistants={addableAssistants}
                 liveviewShares={liveviewShares}
-                startableDesktops={desktopCandidates.startable}
-                stoppableDesktops={desktopCandidates.stoppable}
+                desktopToggles={desktopToggles}
                 onToggleMic={() => void call.toggleMic()}
                 onToggleCam={() => void call.toggleCam()}
                 onToggleScreenShare={() => void call.toggleScreenShare()}
@@ -575,12 +580,7 @@ export function CallProvider({
                 onLeave={() => void call.leaveCall()}
                 onEnd={() => void call.endCall()}
                 onAddAssistant={(assistantId) => void call.addAssistant(assistantId)}
-                onStartAssistantDesktop={(assistantId) =>
-                  void call.setAssistantDesktopShared(assistantId, true)
-                }
-                onStopAssistantDesktop={(assistantId) =>
-                  void call.setAssistantDesktopShared(assistantId, false)
-                }
+                onToggleAssistantDesktop={call.setAssistantDesktopShared}
               />
             ) : (
               <OrgCallMinimized
