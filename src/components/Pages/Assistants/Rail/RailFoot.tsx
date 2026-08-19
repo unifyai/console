@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import {
-  Settings,
   ChevronsUpDown,
   Check,
   LogOut,
@@ -17,6 +16,16 @@ import {
 import { signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
+import {
+  RAIL_GUTTER,
+  RAIL_ROW_PAD,
+  RAIL_ROW_SHELL,
+  RAIL_SWITCHER_DOCK_SLOT,
+  RAIL_SWITCHER_GLYPH,
+  RAIL_SWITCHER_SLOT,
+  RAIL_TRAILING_INSET,
+  RailTrailingButton,
+} from '@/components/Layout/Shell/railGeometry';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,8 +113,14 @@ interface RailFootProps {
 }
 
 /**
- * The rail's foot: quick Settings/Admin nav, an account row that opens the
- * workspace switcher and sign out, and the collapse-to-dock control.
+ * The rail's foot: the workspace row, the theme and support entries, and the
+ * collapse-to-dock control.
+ *
+ * The workspace row is the teammate switcher's twin at the other end of the
+ * rail, and reads the same way: the face is the settings entry — this
+ * workspace's own settings — while the chevron beside it (expanded) or beneath
+ * it (folded) is the only way to a different workspace. Settings therefore has
+ * no separate nav row; the identity it belongs to is the way in.
  */
 export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   const { navigateTo, activeHref } = useAppShellNavigation();
@@ -188,59 +203,92 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   const personalWorkspaces = workspaces.filter((w) => w.type === 'personal');
   const orgWorkspaces = workspaces.filter((w) => w.type === 'organization');
   const isDark = theme === 'dark';
+  const settingsActive = isSettingsFamilyPath(activePath);
+
+  const workspaceFace = (
+    <button
+      type="button"
+      data-testid="rail-nav-settings"
+      title={collapsed ? `Settings (${displayName})` : undefined}
+      aria-label={`Settings — ${displayName}`}
+      aria-current={settingsActive ? 'page' : undefined}
+      onClick={() => navigateTo('/account')}
+      className={cn(
+        collapsed
+          ? 'flex items-center rounded-lg p-1.5 transition-colors'
+          : // `pr-11` clears the picker, which sits in the row's trailing slot
+            // rather than in a strip of its own.
+            cn(RAIL_ROW_SHELL, RAIL_ROW_PAD, 'py-1.5 pr-11 text-left'),
+        settingsActive
+          ? 'bg-accent-soft text-accent-soft-foreground'
+          : 'text-foreground hover:bg-muted'
+      )}
+    >
+      <Avatar className="h-8 w-8 shrink-0">
+        <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+        <AvatarFallback
+          className="text-caption-sm font-display font-semibold text-primary-foreground"
+          style={{ backgroundColor: avatarTone }}
+        >
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+      {!collapsed && (
+        <div className="min-w-0 text-left">
+          <div className="text-h3 truncate">{displayName}</div>
+          <div className="text-caption-sm truncate">{subtitle}</div>
+        </div>
+      )}
+    </button>
+  );
+
+  const workspacePicker = (
+    <DropdownMenuTrigger asChild>
+      <RailTrailingButton
+        data-testid="rail-account-trigger"
+        title={collapsed ? `Switch workspace (${displayName})` : undefined}
+        aria-label={`Switch workspace — ${displayName}`}
+        className={cn(
+          collapsed
+            ? RAIL_SWITCHER_DOCK_SLOT
+            : cn(RAIL_SWITCHER_SLOT, 'absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
+        )}
+      >
+        {isSwitchingWorkspace ? (
+          <Loader2 className={cn(RAIL_SWITCHER_GLYPH, 'animate-spin')} aria-hidden="true" />
+        ) : (
+          <ChevronsUpDown className={RAIL_SWITCHER_GLYPH} strokeWidth={1.75} aria-hidden="true" />
+        )}
+      </RailTrailingButton>
+    </DropdownMenuTrigger>
+  );
 
   return (
     <div
       className={cn(
-        'mt-auto flex flex-col gap-0.5 border-t border-border pt-2',
-        collapsed ? 'px-3 pb-2.5' : 'px-2.5 pb-2.5'
+        'mt-auto flex flex-col gap-0.5 border-t border-border pb-2.5 pt-2',
+        RAIL_GUTTER
       )}
     >
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            data-testid="rail-account-trigger"
-            title={collapsed ? displayName : undefined}
-            className={cn(
-              'flex items-center gap-3 rounded-[10px] transition-colors hover:bg-muted',
-              collapsed ? 'justify-center px-0 py-1.5' : 'px-2.5 py-1.5'
-            )}
-          >
-            <Avatar className="h-[30px] w-[30px] shrink-0 rounded-[9px]">
-              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
-              <AvatarFallback
-                className="rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
-                style={{ backgroundColor: avatarTone }}
-              >
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            {!collapsed && (
-              <div className="min-w-0 text-left">
-                <div className="truncate text-[13px] font-semibold text-foreground">
-                  {displayName}
-                </div>
-                <div className="truncate text-[11.5px] text-muted-foreground">{subtitle}</div>
-              </div>
-            )}
-            {!collapsed &&
-              (isSwitchingWorkspace ? (
-                <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-              ) : (
-                <ChevronsUpDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              ))}
-          </button>
-        </DropdownMenuTrigger>
+        {/* Siblings rather than one inside the other: only the chevron opens
+            the menu. Folded, it drops beneath the face, as the teammate
+            switcher's picker does at the other end of the rail. */}
+        <div className={collapsed ? 'flex flex-col items-center gap-0.5' : 'relative'}>
+          {workspaceFace}
+          {workspacePicker}
+        </div>
+        {/* The chevron is the trigger, so the menu hangs from the row's
+            trailing edge rather than starting under it. */}
         <DropdownMenuContent
           side="top"
-          align="start"
+          align="end"
           className="w-[250px]"
           data-testid="rail-account-menu"
         >
           {isWorkspaceSwitchable && (
             <>
-              <DropdownMenuLabel className="text-caption">Personal</DropdownMenuLabel>
+              <DropdownMenuLabel>Personal</DropdownMenuLabel>
               {personalWorkspaces.map((w) => (
                 <DropdownMenuItem
                   key={w.id}
@@ -256,7 +304,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
                   {activeWorkspace?.id === w.id && <Check className="ml-auto h-4 w-4" />}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuLabel className="text-caption">Organizations</DropdownMenuLabel>
+              <DropdownMenuLabel>Organizations</DropdownMenuLabel>
               {orgWorkspaces.length === 0 && (
                 <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
                   No organizations
@@ -326,14 +374,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <RailNavButton
-        Icon={Settings}
-        label="Settings"
-        collapsed={collapsed}
-        active={isSettingsFamilyPath(activePath)}
-        onClick={() => navigateTo('/account')}
-        testId="rail-nav-settings"
-      />
       <RailNavButton
         Icon={isDark ? Sun : Moon}
         label={isDark ? 'Switch to light' : 'Switch to dark'}

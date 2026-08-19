@@ -3,7 +3,19 @@
 import * as React from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  RAIL_GUTTER,
+  RAIL_ROW_PAD,
+  RAIL_ROW_SHELL,
+  RAIL_SWITCHER_DOCK_SLOT,
+  RAIL_SWITCHER_GLYPH,
+  RAIL_SWITCHER_SLOT,
+  RAIL_TRAILING_INSET,
+  RailTrailingButton,
+} from '@/components/Layout/Shell/railGeometry';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
+import { useAssistantInfoPanelVisibility } from '@/hooks/Assistants/useAssistantInfoPanelVisibility';
+import { requestAssistantInfoPanelToggle } from '@/lib/assistants/infoPanelVisibility';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Skeleton } from '@/components/UI/skeleton';
@@ -51,6 +63,7 @@ export interface ActiveEntityFace {
   isOrgWideSharing?: boolean;
   /** Face-stack members for chat-group selections. */
   groupFaces?: Array<{ id: string; name: string; image?: string | null }>;
+  groupIcon?: string | null;
 }
 
 interface AssistantSwitcherProps {
@@ -88,10 +101,12 @@ function entityInitials(label: string): string {
 
 /**
  * The rail's unity switcher: two controls that never trade places. The face
- * opens the selection's home surface; a chevron beside it (expanded) or beneath
- * it (collapsed) opens the teammate picker. The chevron is always drawn — never
- * hover-revealed — and never occupies the face's bottom-right corner, so the
- * presence badge stays legible while reaching for either control.
+ * stays on one teammate — it opens their home surface, then their profile once
+ * that surface is already open — while a chevron beside it (expanded) or
+ * beneath it (collapsed) is the only way to a different teammate. The chevron
+ * is always drawn — never hover-revealed — and never occupies the face's
+ * bottom-right corner, so the presence badge stays legible while reaching for
+ * either control.
  */
 export function AssistantSwitcher({
   activeUnity,
@@ -117,24 +132,31 @@ export function AssistantSwitcher({
     [nestedOverlayOpen]
   );
 
+  const infoPanelVisibility = useAssistantInfoPanelVisibility();
+  const selectionId = listProps.profileAssistantId;
+  const isProfileOpen =
+    !!selectionId && infoPanelVisibility?.assistantId === selectionId && infoPanelVisibility.isOpen;
+
   // Radix exempts only the chevron — the popover's actual trigger — from
   // outside-dismiss, so a pointerdown on the face closes an open picker before
-  // the face's own click lands. Read the pre-dismiss state to tell a genuine
-  // open apart from a second click that should leave the picker shut.
+  // the face's own click lands. Read the pre-dismiss state so that press is
+  // spent on the dismissal instead of also reaching the profile.
   const pickerWasOpenRef = React.useRef(false);
   const handleFacePointerDown = React.useCallback(() => {
     pickerWasOpenRef.current = switcherOpen;
   }, [switcherOpen]);
 
   const handleFaceClick = React.useCallback(() => {
-    // The face has nowhere left to go once its own surface is open, so it falls
-    // through to the picker rather than spending a click on nothing.
+    // One errand at two depths: from elsewhere the face lands on this
+    // teammate's surface, and from there it opens who they are. Reaching a
+    // different teammate stays with the chevron.
     if (!chatActive) {
       onOpenChat?.();
       return;
     }
-    if (!pickerWasOpenRef.current) setSwitcherOpen(true);
-  }, [chatActive, onOpenChat]);
+    if (pickerWasOpenRef.current || !selectionId) return;
+    requestAssistantInfoPanelToggle({ assistantId: selectionId });
+  }, [chatActive, onOpenChat, selectionId]);
 
   /**
    * Picking a teammate is the whole errand, so the list dismisses itself on the
@@ -180,11 +202,12 @@ export function AssistantSwitcher({
     ? listProps.assistantStatuses.get(activeUnity.agentId) || null
     : null;
   const activeUnityInCall = !!activeUnity && activeCallAssistantId === activeUnity.agentId;
+  const profileActionLabel = isProfileOpen ? 'Hide profile' : 'Show profile';
 
   const face = showSkeletonFace ? (
     <Skeleton
       data-testid="rail-unity-switcher-skeleton"
-      className={cn('rounded-control shrink-0', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
+      className="rounded-control h-10 w-10 shrink-0"
     />
   ) : activeEntityFace ? (
     <span className="relative shrink-0">
@@ -193,18 +216,18 @@ export function AssistantSwitcher({
           name={activeEntityFace.label}
           imageUrl={activeEntityFace.imageUrl}
           isOrgWideSharing={activeEntityFace.isOrgWideSharing}
-          className={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
+          className="h-10 w-10"
           iconClassName="h-5 w-5"
         />
       ) : activeEntityFace.kind === 'group' ? (
         <GroupFaceStack
           members={activeEntityFace.groupFaces ?? []}
-          sizeClassName={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
+          icon={activeEntityFace.groupIcon}
+          iconClassName="text-xl"
+          sizeClassName="h-10 w-10"
         />
       ) : (
-        <Avatar
-          className={cn('rounded-control shrink-0', collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]')}
-        >
+        <Avatar className="rounded-control h-10 w-10 shrink-0">
           <AvatarImage src={activeEntityFace.imageUrl ?? undefined} alt={activeEntityFace.label} />
           <AvatarFallback className="rounded-control">
             {entityInitials(activeEntityFace.label)}
@@ -220,10 +243,7 @@ export function AssistantSwitcher({
     </span>
   ) : activeUnity ? (
     <span className="relative shrink-0">
-      <UnityAvatar
-        assistant={activeUnity}
-        sizeClass={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
-      />
+      <UnityAvatar assistant={activeUnity} sizeClass="h-10 w-10" />
       <AssistantPresenceIndicator
         status={activeUnityStatus}
         inCall={activeUnityInCall}
@@ -244,19 +264,16 @@ export function AssistantSwitcher({
       onClick={handleFaceClick}
       aria-current={chatActive ? 'page' : undefined}
       aria-haspopup={chatActive ? 'dialog' : undefined}
-      aria-expanded={chatActive ? switcherOpen : undefined}
-      aria-label={collapsed ? `Open ${unityName}` : undefined}
+      aria-expanded={chatActive ? isProfileOpen : undefined}
+      aria-label={chatActive ? `${profileActionLabel} — ${unityName}` : `Open ${unityName}`}
       className={cn(
         'relative flex items-center transition-colors',
         collapsed
-          ? cn(
-              'rounded-xl p-1.5',
-              chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
-            )
-          : cn(
-              'min-w-0 flex-1 gap-2 rounded-l-xl px-2 py-1.5 text-left',
-              chatActive ? 'bg-accent-soft/70' : 'hover:bg-muted/70'
-            )
+          ? 'rounded-lg p-1.5'
+          : // `pr-11` clears the picker, which sits in the row's trailing slot
+            // rather than in a bordered strip of its own.
+            cn(RAIL_ROW_SHELL, RAIL_ROW_PAD, 'py-1.5 pr-11 text-left'),
+        chatActive ? 'bg-accent-soft text-accent-soft-foreground' : 'hover:bg-muted'
       )}
     >
       {face}
@@ -268,11 +285,9 @@ export function AssistantSwitcher({
           </div>
         ) : (
           <div className="min-w-0 flex-1">
-            <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
+            <div className="text-h3 truncate">{unityName}</div>
             {unitySub ? (
-              <div className="truncate text-[11.5px] capitalize text-muted-foreground">
-                {unitySub}
-              </div>
+              <div className="text-caption-sm truncate capitalize">{unitySub}</div>
             ) : null}
           </div>
         ))}
@@ -281,7 +296,7 @@ export function AssistantSwitcher({
           className={cn(
             'animate-rail-activity-dot h-2 w-2 shrink-0 rounded-full bg-primary ring-1 ring-primary-tint-30',
             // Top-right: the face's bottom-right corner belongs to presence.
-            collapsed ? 'absolute right-1 top-1' : 'ml-1'
+            collapsed ? 'absolute right-1 top-1' : 'ml-auto'
           )}
           aria-hidden="true"
           data-testid="rail-chat-home-activity-dot"
@@ -291,54 +306,64 @@ export function AssistantSwitcher({
   );
 
   /**
-   * Sized for touch as well as pointer: the mobile rail renders expanded inside
-   * a drawer, so the expanded trigger stretches to the card's full height and
-   * the collapsed strip is wider than the glyph it carries.
+   * The teammate picker and the workspace picker are the same errand, so they
+   * are the same control: one box per rail state, one glyph size, one inset.
    */
   const pickerButton = (
     <PopoverTrigger asChild>
-      <button
-        type="button"
+      <RailTrailingButton
         data-testid="rail-unity-switcher"
         title={collapsed ? `Switch teammate (${unityName})` : undefined}
         aria-label={`Switch teammate — ${unityName}`}
         className={cn(
-          'flex shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           collapsed
-            ? 'h-5 w-11 rounded-md'
-            : 'w-11 self-stretch rounded-r-xl border-l border-border'
+            ? RAIL_SWITCHER_DOCK_SLOT
+            : cn(RAIL_SWITCHER_SLOT, 'absolute top-1/2 -translate-y-1/2', RAIL_TRAILING_INSET)
         )}
       >
-        <ChevronsUpDown
-          className={cn('shrink-0', collapsed ? 'h-3.5 w-3.5' : 'h-4 w-4')}
-          strokeWidth={1.75}
-          aria-hidden="true"
-        />
-      </button>
+        <ChevronsUpDown className={RAIL_SWITCHER_GLYPH} strokeWidth={1.75} aria-hidden="true" />
+      </RailTrailingButton>
     </PopoverTrigger>
   );
 
   return (
     <Popover open={switcherOpen} onOpenChange={handleOpenChange}>
-      {/* The horizontal inset lives here rather than as margins on the card so
-          the card can span the rail like the account switcher below it;
-          margins left it hugging its content. */}
-      <div className={cn('mb-2', !collapsed && 'px-3.5')}>
+      {/* The gutter lives here rather than on the row, so the row's fill starts
+          where every other filled row in the rail starts. */}
+      <div className={cn('mb-2', RAIL_GUTTER)}>
         {collapsed ? (
-          <div className="mx-auto flex w-fit flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center gap-0.5">
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>{homeButton}</TooltipTrigger>
                 <TooltipContent side="right">
                   <p>{unityName}</p>
+                  {chatActive ? (
+                    <p className="text-caption-sm text-muted-foreground">{profileActionLabel}</p>
+                  ) : null}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             {pickerButton}
           </div>
         ) : (
-          <div className="flex items-stretch overflow-hidden rounded-xl border border-border bg-card">
-            {homeButton}
+          /* Siblings rather than nested, since both are triggers; the picker
+             overlays the row's trailing slot the way a nav row's pin does. */
+          <div className="relative">
+            {chatActive ? (
+              // The row already reads as itself, so this hint waits out a pass
+              // through the rail and only names the press that isn't obvious.
+              <TooltipProvider delayDuration={400}>
+                <Tooltip>
+                  <TooltipTrigger asChild>{homeButton}</TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{profileActionLabel}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              homeButton
+            )}
             {pickerButton}
           </div>
         )}
@@ -348,7 +373,7 @@ export function AssistantSwitcher({
         side="bottom"
         sideOffset={6}
         data-testid="rail-unity-switcher-popover"
-        className="flex h-[70vh] max-h-[560px] w-[320px] flex-col overflow-hidden p-0"
+        className="flex h-[70vh] max-h-[560px] w-[258px] flex-col overflow-hidden p-0"
         onInteractOutside={(event) => {
           if (nestedOverlayOpen) event.preventDefault();
         }}

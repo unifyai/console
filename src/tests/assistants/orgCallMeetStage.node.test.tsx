@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MeetGrid } from '@/components/Pages/Assistants/OrgChat/OrgCallMeetStage';
 import { OrgCallErrorBoundary } from '@/components/Pages/Assistants/OrgChat/OrgCallErrorBoundary';
 import { RoomContext } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import type { OrgCallSession } from '@/types/orgChat';
 
 class FakeParticipant {
@@ -46,6 +47,20 @@ class FakeParticipant {
   }
   getTrackPublications() {
     return [];
+  }
+
+  publishCamera(isMuted: boolean) {
+    const publication = {
+      source: Track.Source.Camera,
+      kind: Track.Kind.Video,
+      trackSid: `cam-${this.identity}`,
+      isMuted,
+      isSubscribed: true,
+      track: { attach: vi.fn(), detach: vi.fn(), kind: Track.Kind.Video },
+    };
+    this.trackPublications.set(publication.trackSid, publication);
+    this.videoTrackPublications.set(publication.trackSid, publication);
+    return this;
   }
 }
 
@@ -172,6 +187,30 @@ describe('MeetGrid with a live room', () => {
     );
 
     expect(screen.getByText(/ringing…/)).toBeDefined();
+  });
+
+  it('renders the camera of anyone publishing one', () => {
+    const peer = new FakeParticipant('user-peer-x1y2', 'Peer Person').publishCamera(false);
+    const room = new FakeRoom([peer]);
+    room.localParticipant.publishCamera(false);
+    const { container } = renderGrid(room, makeCall());
+
+    expect(container.querySelectorAll('video')).toHaveLength(2);
+  });
+
+  it('falls back to the avatar when a camera is muted rather than unpublished', () => {
+    // The regression: `setCameraEnabled(false)` mutes the publication instead
+    // of unpublishing it, and muting a camera stops its media track. Gating the
+    // video on the publication alone left a dead black frame covering the
+    // avatar for the rest of the call.
+    const peer = new FakeParticipant('user-peer-x1y2', 'Peer Person').publishCamera(true);
+    const room = new FakeRoom([peer]);
+    room.localParticipant.publishCamera(true);
+    const { container } = renderGrid(room, makeCall());
+
+    expect(container.querySelector('video')).toBeNull();
+    expect(screen.getByText('M')).toBeDefined();
+    expect(screen.getByText('PP')).toBeDefined();
   });
 
   it('shows a connecting assistant tile until the agent joins, then a live tile', () => {

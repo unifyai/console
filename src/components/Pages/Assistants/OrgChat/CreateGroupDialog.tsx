@@ -12,6 +12,7 @@ import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { Checkbox } from '@/components/UI/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import type { RosterGroup, RosterHuman } from '@/types/orgChat';
 import { parseRosterGroup } from '@/types/orgChat';
@@ -271,6 +272,7 @@ function MemberRow({
   onToggle: () => void;
   testId: string;
 }) {
+  const imageUrl = useResolvedProfileImage(image);
   return (
     <button
       type="button"
@@ -281,7 +283,7 @@ function MemberRow({
     >
       <Checkbox checked={checked} disabled={disabled} aria-hidden="true" tabIndex={-1} />
       <Avatar className="rounded-control h-7 w-7">
-        {image ? <AvatarImage src={image} alt={name} /> : null}
+        <AvatarImage src={imageUrl ?? undefined} alt={name} />
         <AvatarFallback
           className="rounded-control text-[10px] font-semibold text-primary-foreground"
           style={{ backgroundColor: profileAvatarTone(name) }}

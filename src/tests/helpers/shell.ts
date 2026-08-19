@@ -16,7 +16,8 @@ export function railUnitySwitcher(page: Page): Locator {
   return assistantRail(page).getByTestId('rail-unity-switcher');
 }
 
-/** Visible account trigger in the assistants rail (hidden global rail duplicates exist). */
+/** Visible workspace picker in the rail foot — the chevron that opens the
+ *  account menu. The row beside it is the settings entry, not this menu. */
 export function railAccountTrigger(page: Page): Locator {
   return page.locator('[data-testid="rail-account-trigger"]:visible').first();
 }
@@ -33,6 +34,29 @@ export function railSection(page: Page, sectionId: string): Locator {
     return assistantRail(page).getByTestId('rail-chat-home');
   }
   return assistantRail(page).getByTestId(`rail-section-${sectionId}`);
+}
+
+/**
+ * Reveal the assistant list's create actions. Workspaces offering more than
+ * onboarding (org rosters: Group / Team / Teammate) nest them behind the
+ * header's "+" menu; personal workspaces expose onboarding directly, so there
+ * is no menu to open.
+ */
+export async function openAssistantCreateMenu(page: Page): Promise<void> {
+  const trigger = page.getByTestId('assistant-create-menu');
+  if (await trigger.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await trigger.click();
+    await expect(page.getByRole('menu')).toBeVisible({ timeout: 5_000 });
+  }
+}
+
+/**
+ * Open the assistant list's filter menu (Real / Virtual / Teams / Groups). Only
+ * org workspaces render it, so the caller asserts presence when that matters.
+ */
+export async function openAssistantFilterMenu(page: Page): Promise<void> {
+  await page.getByTestId('assistant-list-filter-menu').click();
+  await expect(page.getByRole('menu')).toBeVisible({ timeout: 5_000 });
 }
 
 /** Wait until the assistants shell exposes an interactive rail or switcher. */

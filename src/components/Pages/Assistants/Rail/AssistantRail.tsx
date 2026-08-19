@@ -23,13 +23,14 @@ interface AssistantRailProps {
   onSelectSection: (section: SectionDef) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
-  onBrandClick?: () => void;
   /** Selected entity kind — filters which rail sections are shown. */
   entityKind?: SelectorEntityKind;
   /** Keep the switcher open while hire / create-group overlays are up. */
   nestedOverlayOpen?: boolean;
   /** Assistant currently on a live call; escalates that face's presence badge. */
   activeCallAssistantId?: string | null;
+  /** Set when the rail renders inside the mobile drawer; draws its close. */
+  onRequestClose?: () => void;
 }
 
 /**
@@ -46,10 +47,10 @@ export function AssistantRail({
   onSelectSection,
   collapsed,
   onCollapsedChange,
-  onBrandClick,
   entityKind = 'assistant',
   nestedOverlayOpen = false,
   activeCallAssistantId = null,
+  onRequestClose,
 }: AssistantRailProps) {
   const handleOpenChat = React.useCallback(() => {
     onSelectSection(CHAT_SECTION);
@@ -62,8 +63,8 @@ export function AssistantRail({
       onSelectSection={onSelectSection}
       collapsed={collapsed}
       onCollapsedChange={onCollapsedChange}
-      onBrandClick={onBrandClick}
       entityKind={entityKind}
+      onRequestClose={onRequestClose}
       switcher={
         <AssistantSwitcher
           activeUnity={activeUnity}

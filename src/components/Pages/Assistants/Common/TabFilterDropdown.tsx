@@ -62,9 +62,7 @@ export function TabFilterDropdown({
       <PopoverContent align="end" className="w-56 p-2">
         {renderable.map((group, index) => (
           <div key={group.id} className={index < renderable.length - 1 ? 'mb-2' : undefined}>
-            <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-              {group.label}
-            </div>
+            <div className="text-overline px-1 pb-1">{group.label}</div>
             {group.values.map((value) => {
               const key = `${group.id}:${value}`;
               return (

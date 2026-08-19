@@ -96,7 +96,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
   );
 
   return (
-    <div className="w-full max-w-4xl space-y-6 p-8">
+    <div className="h-full min-h-0 w-full max-w-4xl space-y-6 overflow-y-auto p-8">
       {!dataLoaded ? (
         <SectionBodySkeleton className="max-w-4xl p-8" />
       ) : manualTopup ? (

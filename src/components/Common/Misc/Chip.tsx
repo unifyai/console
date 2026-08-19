@@ -13,7 +13,7 @@ export default function Chip({
   className?: string;
 }) {
   return (
-    <Badge variant={variant} className={'flex flex-row items-center gap-1 rounded-[10px]'}>
+    <Badge variant={variant} className={'flex flex-row items-center gap-1 rounded-lg'}>
       {text}
       {button}
     </Badge>

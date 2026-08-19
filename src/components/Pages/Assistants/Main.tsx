@@ -47,6 +47,8 @@ import { TeamInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/
 import { GroupWorkspace } from '@/components/Pages/Assistants/OrgChat/GroupWorkspace';
 import { GroupInfoSidePanelContent } from '@/components/Pages/Assistants/OrgChat/GroupInfoSidePanelContent';
 import { CreateGroupDialog } from '@/components/Pages/Assistants/OrgChat/CreateGroupDialog';
+import type { GroupPatch } from '@/components/Pages/Assistants/OrgChat/GroupRowSettings';
+import { updateOrgChatGroup } from '@/lib/client/orgChatGroups';
 import {
   TeamBrainSectionsHost,
   isTeamBrainSectionId,
@@ -87,8 +89,6 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
   COORDINATOR_ONBOARDING_PANEL_REQUEST_EVENT,
   requestAssistantInfoPanelOpen,
-  requestAssistantInfoPanelOpenAfterSelect,
-  requestAssistantInfoPanelToggle,
   type CoordinatorOnboardingPanelRequestDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
@@ -123,10 +123,7 @@ import {
 import { AssistantFloatingChatHost } from '@/components/Pages/Assistants/Chat/AssistantFloatingChatHost';
 import { AssistantSwitcherBridgeSync } from '@/components/Layout/Shell/AssistantSwitcherBridgeSync';
 import { writeStoredSelectedAssistantId } from '@/components/Layout/Shell/AssistantSwitcherBridgeContext';
-import {
-  PLATFORM_HOME_NAVIGATION_EVENT,
-  requestPlatformHomeNavigation,
-} from '@/lib/navigation/platformHome';
+import { PLATFORM_HOME_NAVIGATION_EVENT } from '@/lib/navigation/platformHome';
 import { cn } from '@/lib/utils';
 import { maxWidthMediaQuery } from '@/constants/breakpoints';
 import { useBreakpoint } from '@/hooks/Common/useMobile';
@@ -214,6 +211,7 @@ import {
 } from '@/lib/ms-teams-bot/connectLink';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
 import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSearchParams } from 'next/navigation';
@@ -349,6 +347,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const activeOrganizationId = activeWorkspace?.type === 'organization' ? activeWorkspace.id : null;
   const { roster, markHumanOnline, refresh: refreshOrgRoster } = useOrgRoster(activeOrganizationId);
   const [createGroupOpen, setCreateGroupOpen] = React.useState(false);
+  const [groupSettingsOpen, setGroupSettingsOpen] = React.useState(false);
   usePresenceHeartbeat(!!activeOrganizationId);
   const orgChat = useOrgChat({
     orgId: activeOrganizationId,
@@ -441,17 +440,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     writeStoredSelectedAssistantId(null);
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
-  const handleToggleAssistantInfo = React.useCallback(
-    (assistantId: string) => {
-      if (profileAssistantId !== assistantId) {
-        requestAssistantInfoPanelOpenAfterSelect(assistantId);
-        handleShowProfile(assistantId);
-        return;
-      }
-      requestAssistantInfoPanelToggle({ assistantId });
-    },
-    [handleShowProfile, profileAssistantId]
-  );
 
   // Right-pane state lives above the tab host so it survives shell route
   // transitions while the app stays mounted. Reloads and direct landings
@@ -739,6 +727,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleShowProfile,
       isNonAssistantSelection,
     ]
+  );
+
+  const handleUpdateGroup = React.useCallback(
+    async (groupId: number, patch: GroupPatch) => {
+      if (!activeOrganizationId) return false;
+      const updated = await updateOrgChatGroup(activeOrganizationId, groupId, patch);
+      if (!updated) {
+        toast('Could not update group. Please try again.');
+        return false;
+      }
+      await refreshOrgRoster();
+      return true;
+    },
+    [activeOrganizationId, refreshOrgRoster]
   );
 
   const selectedHuman = React.useMemo(() => {
@@ -3835,7 +3837,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       error: assistantError,
       profileAssistantId,
       onShowProfile: handleAssistantListSelect,
-      onToggleAssistantInfo: handleToggleAssistantInfo,
       onOpenHireDialog: handleOpenHireDialog,
       isFolded: false,
       activeCallAssistantId: activeCallId,
@@ -3851,6 +3852,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSelectHuman: handleSelectHuman,
       onSelectTeam: handleSelectTeam,
       onSelectGroup: handleSelectGroup,
+      onUpdateGroup: handleUpdateGroup,
+      onGroupSettingsOpenChange: setGroupSettingsOpen,
       onCreateGroup: () => setCreateGroupOpen(true),
       onCreateTeam: () => {
         router.push('/organizations?tab=teams');
@@ -3878,7 +3881,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isInitialLoadingAssistants,
       profileAssistantId,
       handleAssistantListSelect,
-      handleToggleAssistantInfo,
       handleOpenHireDialog,
       activeCallId,
       canHire,
@@ -3893,6 +3895,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleSelectHuman,
       handleSelectTeam,
       handleSelectGroup,
+      handleUpdateGroup,
       router,
       orgChat.unread,
       humanCall.isConnected,
@@ -3932,6 +3935,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     );
   }, [selectedTeam, sidebarAssistants]);
 
+  const selectedHumanImageUrl = useResolvedProfileImage(selectedHuman?.image);
+
   const activeEntityFace = React.useMemo<ActiveEntityFace | null>(() => {
     if (selectedEntity?.kind === 'human') {
       if (!selectedHuman) return { kind: 'human', label: 'Team member' };
@@ -3939,7 +3944,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         kind: 'human',
         label: selectedHuman.name?.trim() || selectedHuman.email || 'Team member',
         sublabel: selectedHuman.roleName ?? 'Team member',
-        imageUrl: selectedHuman.image ?? null,
+        imageUrl: selectedHumanImageUrl,
         online: selectedHuman.online,
       };
     }
@@ -3983,12 +3988,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         label: selectedGroup.name,
         sublabel: `${humanCount + aiCount} members`,
         groupFaces,
+        groupIcon: selectedGroup.icon,
       };
     }
     return null;
   }, [
     selectedEntity,
     selectedHuman,
+    selectedHumanImageUrl,
     selectedTeam,
     selectedGroup,
     rosterHumansById,
@@ -4054,7 +4061,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         activeUnity={profileAssistant}
         activeEntityFace={activeEntityFace}
         listProps={railListProps}
-        nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+        nestedOverlayOpen={isHireDialogOpen || createGroupOpen || groupSettingsOpen}
         activeCallAssistantId={activeCallId}
       />
       <div className="flex h-full flex-col overflow-hidden">
@@ -4073,17 +4080,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           <div className="relative flex min-h-0 w-full min-w-0 flex-1 overflow-hidden">
             {isBelowMobile ? (
               <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
-                <SheetContent side="left" className="w-[min(100vw,258px)] p-0">
+                <SheetContent side="left" className="w-[min(100vw,258px)] p-0" hideClose>
                   <AssistantRail
+                    onRequestClose={() => setMobileRailOpen(false)}
                     activeUnity={visibleProfileAssistant}
                     activeEntityFace={activeEntityFace}
                     entityKind={selectedEntityKind}
                     isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                     listProps={railListProps}
-                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+                    nestedOverlayOpen={isHireDialogOpen || createGroupOpen || groupSettingsOpen}
                     activeSection={railActiveSectionId}
                     sectionActivity={railSectionActivity}
-                    onBrandClick={requestPlatformHomeNavigation}
                     onSelectSection={(section) => {
                       handleSelectSection(section);
                       setMobileRailOpen(false);
@@ -4107,10 +4114,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 entityKind={selectedEntityKind}
                 isInitialAssistantIdentityLoading={isInitialAssistantIdentityLoading}
                 listProps={railListProps}
-                nestedOverlayOpen={isHireDialogOpen || createGroupOpen}
+                nestedOverlayOpen={isHireDialogOpen || createGroupOpen || groupSettingsOpen}
                 activeSection={railActiveSectionId}
                 sectionActivity={railSectionActivity}
-                onBrandClick={requestPlatformHomeNavigation}
                 onSelectSection={handleSelectSection}
                 activeCallAssistantId={activeCallId}
                 collapsed={railCollapsed}
@@ -4190,7 +4196,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             team={selectedTeam}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
-                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />
@@ -4270,7 +4275,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             group={selectedGroup}
                             humansById={rosterHumansById}
                             assistantsById={assistantFacesById}
-                            currentUserId={currentUserId}
                             onClose={onClose}
                             hideHeaderActions={hideHeaderActions}
                           />

@@ -351,9 +351,7 @@ export function DocLibraryPane({
                     <React.Fragment key={group.sortKey}>
                       {group.sortKey === '__undated' ? (
                         <div className="mb-1 mt-2.5 flex items-center gap-2.5 px-1 first:mt-0">
-                          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            Undated
-                          </span>
+                          <span className="text-overline">Undated</span>
                           <span className="h-px flex-1 bg-border" />
                         </div>
                       ) : (
@@ -473,9 +471,7 @@ export function DocLibraryPane({
                   )}
                   {active.functionIds.length > 0 && (
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                        Linked functions
-                      </span>
+                      <span className="text-overline">Linked functions</span>
                       {active.functionIds.map((functionId) => {
                         const name = functionNameById.get(functionId);
                         const label = name ?? `fn #${functionId}`;
@@ -497,9 +493,7 @@ export function DocLibraryPane({
                   )}
                   {active.tags.length > 0 && (
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                        Tags
-                      </span>
+                      <span className="text-overline">Tags</span>
                       {active.tags.map((tag) => (
                         <span
                           key={tag}

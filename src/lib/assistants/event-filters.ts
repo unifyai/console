@@ -163,15 +163,116 @@ export function isToolLoopNoise(entries: Record<string, any>): boolean {
 // =============================================================================
 
 const STEERING_PREFIXES = ['stop_', 'pause_', 'resume_', 'interject_'];
+const STEERING_ACTIONS = new Set([
+  'stop',
+  'pause',
+  'resume',
+  'interject',
+  'clarify',
+  'call',
+  'ask',
+]);
+const STEER_TOOL_NAME = 'steer';
+
+/** Shape needed to recognize a steering call: the minted name, or `steer`'s raw JSON arguments. */
+export interface SteeringToolCallLike {
+  name: string;
+  arguments?: string;
+}
 
 /**
- * Given a steering helper tool-call name (e.g. `stop_execute_code_cPPmyQGz`),
- * returns the target tool-call-id suffix (`cPPmyQGz`).
- * Returns `null` for non-steering tool names.
+ * Given a steering tool call, returns the id of the tool call it targets.
+ *
+ * Two shapes:
+ * - Legacy per-call minted helpers (`stop_execute_code_cPPmyQGz`) — returns
+ *   the trailing segment (`cPPmyQGz`), which is a *suffix* of the target's
+ *   full tool-call id.
+ * - The `steer` dispatcher — returns `arguments.call_id` verbatim, which is
+ *   the target's *full* tool-call id. Callers that match targets via
+ *   `id.endsWith(returned)` (as `getSteeringForToolCall` does) handle both
+ *   shapes uniformly: a full id matched with `endsWith` only succeeds on an
+ *   exact match, which is exactly what a full id needs.
+ *
+ * Returns `null` for non-steering tool names or malformed `steer` arguments.
  */
-export function extractSteeringTarget(toolName: string): string | null {
-  const lower = toolName.toLowerCase();
+export function extractSteeringTarget(toolCall: SteeringToolCallLike): string | null {
+  const name = toolCall?.name;
+  if (typeof name !== 'string' || !name) return null;
+  const lower = name.toLowerCase();
+
+  if (lower === STEER_TOOL_NAME) {
+    if (typeof toolCall.arguments !== 'string') return null;
+    try {
+      const parsed = JSON.parse(toolCall.arguments);
+      const callId = parsed?.call_id;
+      return typeof callId === 'string' && callId.length > 0 ? callId : null;
+    } catch {
+      return null;
+    }
+  }
+
   if (!STEERING_PREFIXES.some((p) => lower.startsWith(p))) return null;
-  const parts = toolName.split('_');
+  const parts = name.split('_');
   return parts.length >= 3 ? parts[parts.length - 1] : null;
+}
+
+/**
+ * Given a steering tool call, returns the steering action it performs
+ * (`stop`, `pause`, `resume`, `interject`, `clarify`, `call`, `ask`) — used
+ * to pick an icon/label for the rendered sub-row. Returns `null` for
+ * non-steering tool names or malformed `steer` arguments.
+ */
+export function extractSteeringAction(toolCall: SteeringToolCallLike): string | null {
+  const name = toolCall?.name;
+  if (typeof name !== 'string' || !name) return null;
+  const lower = name.toLowerCase();
+
+  if (lower === STEER_TOOL_NAME) {
+    if (typeof toolCall.arguments !== 'string') return null;
+    try {
+      const parsed = JSON.parse(toolCall.arguments);
+      const action = typeof parsed?.action === 'string' ? parsed.action.toLowerCase() : null;
+      return action && STEERING_ACTIONS.has(action) ? action : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const prefix = STEERING_PREFIXES.find((p) => lower.startsWith(p));
+  return prefix ? prefix.slice(0, -1) : null;
+}
+
+// =============================================================================
+// Runtime lifecycle announcements
+// =============================================================================
+
+const LIFECYCLE_TAGS = ['steerable', 'askable', 'progress', 'clarification'] as const;
+export type LifecycleTag = (typeof LIFECYCLE_TAGS)[number];
+
+const LIFECYCLE_ANNOUNCEMENT_RE = new RegExp(
+  `^\\[(${LIFECYCLE_TAGS.join('|')})\\s+([^\\]]+)\\]\\s*`
+);
+
+export interface LifecycleAnnouncement {
+  tag: LifecycleTag;
+  callId: string;
+  /** Any text following the `[tag id]` marker, e.g. a clarification question. */
+  detail: string | null;
+}
+
+/**
+ * Recognizes the runtime's `[steerable <id>]` / `[askable <id>]` /
+ * `[progress <id>]` / `[clarification <id>]` lifecycle markers, which arrive
+ * as user-role transcript messages but are status announcements, not user
+ * speech. Prefix-sniffing mirrors the runtime's own convention for these.
+ * Returns `null` for anything else.
+ */
+export function extractLifecycleAnnouncement(
+  content: string | null | undefined
+): LifecycleAnnouncement | null {
+  if (typeof content !== 'string') return null;
+  const match = LIFECYCLE_ANNOUNCEMENT_RE.exec(content.trimStart());
+  if (!match) return null;
+  const detail = content.trimStart().slice(match[0].length).trim();
+  return { tag: match[1] as LifecycleTag, callId: match[2], detail: detail || null };
 }

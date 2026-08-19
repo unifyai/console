@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
+import { getCurrentUser } from '@/lib/user/user';
 import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 /**
@@ -8,6 +9,10 @@ import { mockSimulationEnabled } from '@/lib/simulation/config';
  *
  * Upload an attachment for org DM / team chat. Forwards to adapters
  * `/unify/attachment` using a synthetic storage key `org-{orgId}`.
+ *
+ * The forward carries the platform admin key, so the caller's membership
+ * of `org_id` must be established here before anything is uploaded into
+ * that org's storage prefix.
  */
 export async function POST(request: NextRequest) {
   if (mockSimulationEnabled()) {
@@ -56,14 +61,32 @@ export async function POST(request: NextRequest) {
     return badRequest('Missing org_id');
   }
 
+  const organizationId = parseInt(orgId, 10);
+  if (isNaN(organizationId)) {
+    return badRequest('Invalid org_id format. Must be an integer.');
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    return unauthorized();
+  }
+  const isMember = (user.organizations ?? []).some((org) => org.id === organizationId);
+  if (!isMember) {
+    return NextResponse.json(
+      { detail: 'You are not a member of this organization' },
+      { status: 403 }
+    );
+  }
+
   const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
   const adaptersBaseUrl = getAdaptersBaseUrl({ localAdaptersUrl });
   const webhookUrl = `${adaptersBaseUrl}/unify/attachment`;
 
   const forwardFormData = new FormData();
   forwardFormData.append('file', file);
-  // Reuse the assistant attachment storage path with an org-scoped key.
-  forwardFormData.append('assistant_id', `org-${orgId}`);
+  // Reuse the assistant attachment storage path with an org-scoped key,
+  // built from the parsed id so the prefix matches the membership check.
+  forwardFormData.append('assistant_id', `org-${organizationId}`);
 
   try {
     const webhookResponse = await fetch(webhookUrl, {

@@ -12,6 +12,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ratchet, reportRatchet, updateBaseline } from './style-baseline';
 
 // ============================================================================
 // Configuration
@@ -42,6 +43,10 @@ const SKIP_PATTERNS = [
   /dist/,
   /build/,
   /\.git/,
+  // Full runs scan `src/` only; lint-staged hands over whatever is staged.
+  // Excluding the tooling keeps the two modes agreeing — and these very
+  // scripts carry the forbidden patterns as regex literals.
+  /(^|\/)scripts\//,
   // Don't check the token definition files themselves — raw hex is their job.
   /globals\.css$/,
   /tokens\/(tokens|semantic|theme-v4)\.css$/,
@@ -61,6 +66,16 @@ const SKIP_PATTERNS = [
   // Demo recordings generate SVG content with inline colors
   /src\/demos\//,
 ];
+
+/**
+ * Radii are tokens too — `--radius` and its `rounded-sm/md/lg/xl/control/pill`
+ * classes — and an arbitrary one bypasses them the same way an arbitrary
+ * colour would. Most are a token spelled out by hand: `rounded-[10px]` is
+ * exactly `rounded-lg`. Ratcheted, per `scripts/style-baseline.ts`.
+ */
+const ARBITRARY_RADIUS = /\brounded(?:-[a-z]+)?-\[[0-9.]+(?:px|rem|em)\]/g;
+
+const ARBITRARY_RADIUS_RULE = 'arbitrary-radius';
 
 // Patterns that are acceptable (non-color hex codes)
 const ALLOWED_HEX_PATTERNS = [
@@ -229,6 +244,13 @@ function checkFile(filePath: string, cssVariables: Map<string, CSSVariable>): Vi
   return violations;
 }
 
+/** How many arbitrary border radii a file carries. */
+function countArbitraryRadii(filePath: string): number {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  ARBITRARY_RADIUS.lastIndex = 0;
+  return (content.match(ARBITRARY_RADIUS) ?? []).length;
+}
+
 function getFilesToCheck(args: string[]): string[] {
   if (args.length > 0) {
     // Check specific files passed as arguments (from lint-staged)
@@ -278,7 +300,9 @@ function walkDir(dir: string): string[] {
 // ============================================================================
 
 function main(): void {
-  const args = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
+  const shouldUpdateBaseline = rawArgs.includes('--update-baseline');
+  const args = rawArgs.filter((a) => a !== '--update-baseline');
 
   // Parse CSS variables first
   console.log('\n📋 Reading CSS variables from brand tokens + globals.css...');
@@ -295,15 +319,33 @@ function main(): void {
   console.log(`🔍 Checking ${files.length} file(s) for color compliance...\n`);
 
   let allViolations: Violation[] = [];
+  const radiusCounts = new Map<string, number>();
 
   for (const file of files) {
     const violations = checkFile(file, cssVariables);
     allViolations = allViolations.concat(violations);
+    const radii = countArbitraryRadii(file);
+    if (radii > 0) radiusCounts.set(file, radii);
   }
 
-  if (allViolations.length === 0) {
-    console.log('✅ All files comply with color standards!\n');
+  if (shouldUpdateBaseline) {
+    updateBaseline(ARBITRARY_RADIUS_RULE, radiusCounts, files);
+    console.log(`✅ Baseline updated for ${ARBITRARY_RADIUS_RULE}.\n`);
     process.exit(0);
+  }
+
+  const radiusOk = reportRatchet(
+    ARBITRARY_RADIUS_RULE,
+    ratchet(ARBITRARY_RADIUS_RULE, radiusCounts, files),
+    'Use rounded-sm/md/lg/xl, rounded-control or rounded-pill. Genuinely new radius? Add the token to the brand tokens first.'
+  );
+
+  if (allViolations.length === 0) {
+    if (radiusOk) {
+      console.log('✅ All files comply with color standards!\n');
+      process.exit(0);
+    }
+    process.exit(1);
   }
 
   // Report violations

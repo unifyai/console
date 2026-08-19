@@ -525,12 +525,13 @@ const OrganizationWorkspaceView = ({
 
   return (
     <div className="h-full w-full overflow-auto">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex min-h-full">
-          <aside className="w-[200px] shrink-0 border-r border-border px-2.5 py-4">
-            <div className="px-3 pb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              Organization
-            </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+        <div className="flex h-full min-h-full">
+          <aside
+            className="h-full w-[200px] shrink-0 border-r border-border px-2.5 py-4"
+            data-testid="organization-subrail"
+          >
+            <div className="text-overline px-3 pb-1.5">Organization</div>
             <div className="flex flex-col gap-0.5">
               {organizationTabs(canUpdateOrg).map(({ id, label }) => (
                 <button

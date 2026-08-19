@@ -119,7 +119,9 @@ const desktopActions = {
     getLiveviewUrl: vi.fn(),
     buildLiveviewUrl: vi.fn(),
     checkLiveviewHealth: vi.fn(),
-    sendSystemEvent: vi.fn(),
+    // Async like the real one: every call site attaches a .catch, so a mock
+    // returning undefined fails in a way the production path cannot.
+    sendSystemEvent: vi.fn(async () => ({})),
   },
 } as any;
 
@@ -441,6 +443,57 @@ describe('useCall (unified engine)', () => {
         await result.current.leaveCall();
       });
       expect(result.current.assistantSharesById).toEqual({});
+    });
+
+    /**
+     * A desktop on a group call's stage belongs to the call, not to whoever put
+     * it up. One person walking out is not a decision about what everybody still
+     * there can see, so leaving closes nothing — and anyone still on the call can
+     * take it down, which is what keeps that from stranding it. Ending the call
+     * is the decision that closes it, through the runtime's call boundary.
+     */
+    async function connectedGroupCall(currentUserId: string) {
+      const groupSession = sessionPayload({
+        scope: 'group',
+        group_id: 7,
+        created_by_user_id: 'user-1',
+        user_ids: ['user-1', 'user-2'],
+        participants: [
+          { user_id: 'user-1', role: 'host', status: 'joined' },
+          { user_id: 'user-2', role: 'guest', status: 'joined' },
+        ],
+      });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({ ok: true, status: 200, json: async () => groupSession }) as Response)
+      );
+      const room = new FakeRoom();
+      const { result } = renderHook(() =>
+        useCall(room as any, desktopActions, { orgId: '1', currentUserId })
+      );
+      await act(async () => {
+        await result.current.startGroupCall(7);
+      });
+      await act(async () => {
+        publish(room, { type: 'assistant_screenshare', assistantId: '42', active: true });
+      });
+      return { room, result };
+    }
+
+    it.each([
+      ['the host', 'user-1'],
+      ['a guest', 'user-2'],
+    ])('leaves a staged desktop up when %s leaves', async (_who, currentUserId) => {
+      const { result } = await connectedGroupCall(currentUserId);
+      desktopActions.desktop.sendSystemEvent.mockClear();
+
+      await act(async () => {
+        await result.current.leaveCall();
+      });
+
+      // Not even the host: the desktop is the call's, and the people still on it
+      // did not ask for it to go.
+      expect(desktopActions.desktop.sendSystemEvent).not.toHaveBeenCalled();
     });
   });
 });

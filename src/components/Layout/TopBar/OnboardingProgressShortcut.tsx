@@ -9,12 +9,10 @@ import { type OnboardingRender } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { cn } from '@/lib/utils';
 import { isAssistantInfoPanelShortcutPath } from '@/lib/navigation/appShellRoutes';
+import { useAssistantInfoPanelVisibility } from '@/hooks/Assistants/useAssistantInfoPanelVisibility';
 import {
-  ASSISTANT_INFO_PANEL_VISIBILITY_EVENT,
-  readAssistantInfoPanelVisibility,
   requestAssistantInfoPanelToggle,
   requestCoordinatorOnboardingPanel,
-  type AssistantInfoPanelVisibilityDetail,
 } from '@/lib/assistants/infoPanelVisibility';
 
 export function coordinatorOnboardingProgress(render: OnboardingRender | null): {
@@ -106,7 +104,6 @@ export function useCoordinatorOnboardingShortcutVisible(): boolean {
 export function OnboardingProgressShortcut({ className }: { className?: string }) {
   const coordinatorId = useWorkspaceCoordinatorId();
   const { state: coordinatorOnboardingState } = useCoordinatorOnboarding(coordinatorId);
-  const [isOnboardingPanelOpen, setIsOnboardingPanelOpen] = React.useState(false);
 
   const onboardingProgress = React.useMemo(
     () => coordinatorOnboardingProgress(coordinatorOnboardingState?.onboarding ?? null),
@@ -115,43 +112,25 @@ export function OnboardingProgressShortcut({ className }: { className?: string }
 
   const showOnboardingShortcut = useCoordinatorOnboardingShortcutVisible();
 
-  React.useEffect(() => {
-    if (!coordinatorId) {
-      setIsOnboardingPanelOpen(false);
-      return;
-    }
-
-    const applyVisibilityDetail = (detail: AssistantInfoPanelVisibilityDetail) => {
-      setIsOnboardingPanelOpen(
-        detail.assistantId === coordinatorId && detail.isCoordinatorOnboarding && detail.isOpen
-      );
-    };
-    const onVisibilityChange = (event: Event) => {
-      applyVisibilityDetail((event as CustomEvent<AssistantInfoPanelVisibilityDetail>).detail);
-    };
-
-    window.addEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
-    const currentVisibility = readAssistantInfoPanelVisibility();
-    if (currentVisibility) applyVisibilityDetail(currentVisibility);
-
-    return () => {
-      window.removeEventListener(ASSISTANT_INFO_PANEL_VISIBILITY_EVENT, onVisibilityChange);
-    };
-  }, [coordinatorId]);
-
-  const isShortcutActive = showOnboardingShortcut && isOnboardingPanelOpen;
+  const visibility = useAssistantInfoPanelVisibility();
+  const showsCoordinatorOnboarding =
+    !!coordinatorId &&
+    visibility?.assistantId === coordinatorId &&
+    visibility.isCoordinatorOnboarding;
+  const isShortcutActive =
+    showOnboardingShortcut && showsCoordinatorOnboarding && !!visibility?.isOpen;
 
   const openOnboarding = React.useCallback(() => {
     if (!coordinatorId) return;
-    const currentVisibility = readAssistantInfoPanelVisibility();
-    const canToggleCurrentPanel =
-      currentVisibility?.assistantId === coordinatorId && currentVisibility.isCoordinatorOnboarding;
-    if (canToggleCurrentPanel && requestAssistantInfoPanelToggle({ assistantId: coordinatorId })) {
+    if (
+      showsCoordinatorOnboarding &&
+      requestAssistantInfoPanelToggle({ assistantId: coordinatorId })
+    ) {
       return;
     }
 
     requestCoordinatorOnboardingPanel(isShortcutActive ? 'close' : 'open', coordinatorId);
-  }, [coordinatorId, isShortcutActive]);
+  }, [coordinatorId, isShortcutActive, showsCoordinatorOnboarding]);
 
   if (!showOnboardingShortcut) return null;
 

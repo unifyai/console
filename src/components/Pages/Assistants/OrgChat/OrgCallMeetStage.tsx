@@ -3,8 +3,10 @@
 import * as React from 'react';
 import { Room, Track } from 'livekit-client';
 import {
+  Check,
   Laptop,
   LaptopMinimal,
+  Loader2,
   Mic,
   MicOff,
   Minimize2,
@@ -35,6 +37,7 @@ import { isParticipantInCall, presentUserIds } from '@/utils/assistants/call-par
 import { OrgCallSession } from '@/types/orgChat';
 import {
   AssistantTile,
+  AttachedVideo,
   HumanTile,
   LocalHumanTile,
   OrgCallAssistantInfo,
@@ -160,34 +163,6 @@ export function MeetGrid({
       })}
     </div>
   );
-}
-
-/**
- * One attached video element.
- *
- * Attaching in a ref callback runs on every render and never detaches, which
- * was survivable only while the focused track could never change: switching
- * presenters would otherwise leave the previous element attached and playing.
- */
-function AttachedVideo({
-  track,
-  muted,
-  className,
-}: {
-  track: Track;
-  muted: boolean;
-  className: string;
-}) {
-  const ref = React.useRef<HTMLVideoElement>(null);
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    track.attach(el);
-    return () => {
-      track.detach(el);
-    };
-  }, [track]);
-  return <video ref={ref} className={className} muted={muted} playsInline autoPlay />;
 }
 
 /**
@@ -346,84 +321,128 @@ function DeviceSelectList({ kind, label }: { kind: 'audioinput' | 'videoinput'; 
   );
 }
 
+/** One teammate on the call whose desktop the room can put up. */
+export interface AssistantDesktopToggle {
+  assistant: OrgCallAssistantInfo;
+  /** On the stage for everyone, right now. */
+  sharing: boolean;
+  /** Has a managed desktop to show at all. */
+  available: boolean;
+}
+
 /**
- * Put a teammate's desktop up for the room, or take it down.
+ * The teammates on the call, and whose desktop is up.
  *
- * Renders nothing for a non-host — presenting a teammate's desktop to everyone
- * is the host's decision, like ending the call. With one candidate the button
- * acts directly; with several it opens a picker, since "which teammate" is a
- * real question then and a silent choice would be a guess.
+ * One list of names rather than a start control and a stop control. What a
+ * reader wants is which teammates are here and which of them is showing a
+ * desktop; two buttons that each opened a different subset of them made that
+ * something to work out, and neither said what the current state was. Every row
+ * carries its own, and flipping it is one click.
+ *
+ * Open to everyone on the call. A desktop on the stage is shared room state, so
+ * whoever is here can put one up and whoever is here can take it down again —
+ * including one somebody else put up. That is what keeps a share from outliving
+ * the person who started it with nobody able to reach the switch.
  */
 function AssistantDesktopControl({
-  startable,
-  stoppable,
-  onStart,
-  onStop,
+  toggles,
+  onToggle,
 }: {
-  startable: OrgCallAssistantInfo[];
-  stoppable: OrgCallAssistantInfo[];
-  onStart?: (assistantId: string) => void;
-  onStop?: (assistantId: string) => void;
+  toggles: AssistantDesktopToggle[];
+  onToggle?: (assistantId: string, next: boolean) => Promise<boolean>;
 }) {
-  const [open, setOpen] = React.useState<'start' | 'stop' | null>(null);
+  const [open, setOpen] = React.useState(false);
+  // What each in-flight row asked for. The runtime broadcast is what actually
+  // moves the switch, so a row stays pending until the room agrees rather than
+  // until the request returns — otherwise the click looks like it did nothing
+  // for as long as the round trip takes.
+  const [pending, setPending] = React.useState<Record<string, boolean>>({});
 
-  const act = (mode: 'start' | 'stop', assistantId: string) => {
-    setOpen(null);
-    if (mode === 'start') onStart?.(assistantId);
-    else onStop?.(assistantId);
+  const settled = toggles
+    .map((entry) => `${entry.assistant.agentId}:${entry.sharing}`)
+    .sort()
+    .join(',');
+  React.useEffect(() => {
+    setPending((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const entry of toggles) {
+        const id = entry.assistant.agentId;
+        if (id in next && next[id] === entry.sharing) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // Keyed on the states themselves, not the array identity, which is new every
+    // render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settled]);
+
+  // Leaves the list open. Each row is the state readout as well as the switch,
+  // so closing it would hide the answer the click just produced — and flipping
+  // two teammates should not mean opening the same list twice.
+  const act = async (assistantId: string, next: boolean) => {
+    setPending((prev) => ({ ...prev, [assistantId]: next }));
+    const accepted = await onToggle?.(assistantId, next);
+    // Released on refusal only. A request that succeeded is still waiting on the
+    // broadcast, and the effect above is what ends that wait.
+    if (accepted === false) {
+      setPending((prev) => {
+        const rest = { ...prev };
+        delete rest[assistantId];
+        return rest;
+      });
+    }
   };
 
-  const button = (
-    mode: 'start' | 'stop',
-    candidates: OrgCallAssistantInfo[],
-    label: string,
-    icon: React.ReactNode
-  ) => (
-    <Popover open={open === mode} onOpenChange={(next) => setOpen(next ? mode : null)} key={mode}>
+  if (toggles.length === 0) return null;
+  const anySharing = toggles.some((entry) => entry.sharing);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           size="icon"
-          variant={mode === 'stop' ? 'secondary' : 'outline'}
-          aria-label={label}
-          data-testid={`org-call-${mode}-assistant-desktop`}
-          onClick={(event) => {
-            if (candidates.length === 1) {
-              event.preventDefault();
-              act(mode, candidates[0].agentId);
-            }
-          }}
+          variant={anySharing ? 'secondary' : 'outline'}
+          aria-label="Teammate desktops"
+          data-testid="org-call-assistant-desktops"
         >
-          {icon}
+          {anySharing ? <LaptopMinimal className="h-4 w-4" /> : <Laptop className="h-4 w-4" />}
         </Button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="center" className="flex w-64 flex-col gap-1">
-        {candidates.map((assistant) => (
-          <button
-            key={assistant.agentId}
-            type="button"
-            className="text-body w-full truncate rounded-md px-2 py-1.5 text-left hover:bg-muted"
-            onClick={() => act(mode, assistant.agentId)}
-            data-testid={`org-call-${mode}-assistant-desktop-option`}
-          >
-            {assistant.name}
-          </button>
-        ))}
+      <PopoverContent side="top" align="center" className="flex w-72 flex-col gap-1">
+        {toggles.map((entry) => {
+          const id = entry.assistant.agentId;
+          const inFlight = id in pending;
+          return (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={entry.sharing}
+              disabled={!entry.available || inFlight}
+              className={cn(
+                'text-body flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
+                entry.available ? 'hover:bg-muted' : 'cursor-not-allowed opacity-60'
+              )}
+              onClick={() => void act(id, !entry.sharing)}
+              data-testid="org-call-assistant-desktop-option"
+              data-sharing={entry.sharing ? 'true' : 'false'}
+            >
+              <span className="flex-1 truncate">{entry.assistant.name}</span>
+              {inFlight ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : !entry.available ? (
+                <span className="text-caption shrink-0 text-muted-foreground">No desktop</span>
+              ) : entry.sharing ? (
+                <Check className="h-4 w-4 shrink-0" />
+              ) : null}
+            </button>
+          );
+        })}
       </PopoverContent>
     </Popover>
-  );
-
-  return (
-    <>
-      {stoppable.length > 0 &&
-        button(
-          'stop',
-          stoppable,
-          'Stop showing a teammate desktop',
-          <LaptopMinimal className="h-4 w-4" />
-        )}
-      {startable.length > 0 &&
-        button('start', startable, 'Show a teammate desktop', <Laptop className="h-4 w-4" />)}
-    </>
   );
 }
 
@@ -466,12 +485,10 @@ export interface OrgCallMeetStageProps {
   /** Assistant desktops currently on the stage, resolved for this viewer. */
   liveviewShares?: Array<{ assistantId: string; presenterName: string; url: string }>;
   /**
-   * Assistants whose desktop the host may put up, and those it may take down.
-   * Empty for a non-host: presenting a teammate's desktop to the room is the
-   * host's call, the same way ending the call for everyone is.
+   * Every teammate on the call whose desktop the room can put up, with whether
+   * it is up. Anyone on the call may flip one — see `AssistantDesktopControl`.
    */
-  startableDesktops?: OrgCallAssistantInfo[];
-  stoppableDesktops?: OrgCallAssistantInfo[];
+  desktopToggles?: AssistantDesktopToggle[];
   onToggleMic: () => void;
   onToggleCam: () => void;
   onToggleScreenShare: () => void;
@@ -479,8 +496,8 @@ export interface OrgCallMeetStageProps {
   onLeave: () => void;
   onEnd: () => void;
   onAddAssistant: (assistantId: number) => void;
-  onStartAssistantDesktop?: (assistantId: string) => void;
-  onStopAssistantDesktop?: (assistantId: string) => void;
+  /** Resolves false when the runtime refused, which releases the row. */
+  onToggleAssistantDesktop?: (assistantId: string, next: boolean) => Promise<boolean>;
 }
 
 /**
@@ -502,8 +519,7 @@ export function OrgCallMeetStage({
   isHost,
   addableAssistants,
   liveviewShares = [],
-  startableDesktops = [],
-  stoppableDesktops = [],
+  desktopToggles = [],
   onToggleMic,
   onToggleCam,
   onToggleScreenShare,
@@ -511,8 +527,7 @@ export function OrgCallMeetStage({
   onLeave,
   onEnd,
   onAddAssistant,
-  onStartAssistantDesktop,
-  onStopAssistantDesktop,
+  onToggleAssistantDesktop,
 }: OrgCallMeetStageProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [focusActive, setFocusActive] = React.useState(false);
@@ -641,12 +656,7 @@ export function OrgCallMeetStage({
             <MonitorUp className="h-4 w-4" />
           )}
         </Button>
-        <AssistantDesktopControl
-          startable={startableDesktops}
-          stoppable={stoppableDesktops}
-          onStart={onStartAssistantDesktop}
-          onStop={onStopAssistantDesktop}
-        />
+        <AssistantDesktopControl toggles={desktopToggles} onToggle={onToggleAssistantDesktop} />
         {room && <DeviceSettingsMenu />}
         {(call.scope === 'team' || call.scope === 'group') && addableAssistants.length > 0 && (
           <Button

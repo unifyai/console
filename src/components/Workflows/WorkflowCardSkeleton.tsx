@@ -75,7 +75,7 @@ export function WorkflowDetailSkeleton() {
           <div className="divide-y overflow-hidden rounded-xl border bg-card-2">
             {[0, 1].map((row) => (
               <div key={row} className="flex items-center gap-3 p-3">
-                <Skeleton className="h-[34px] w-[34px] rounded-[10px]" />
+                <Skeleton className="h-[34px] w-[34px] rounded-lg" />
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <Skeleton className="h-3.5 w-40" />
                   <Skeleton className="h-2.5 w-56 max-w-full" />

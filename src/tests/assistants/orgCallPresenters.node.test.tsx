@@ -129,10 +129,12 @@ describe('screen-share focus selection', () => {
     expect(presentingCaption(entry('a', ''))).toBe('Teammate is presenting');
   });
 
-  it("names an assistant desktop as that teammate's, not as them presenting", () => {
-    // "Ava is presenting" would read as Ava sharing a window; what is on the
-    // stage is Ava's whole machine.
-    expect(presenterLabel(desktopEntry('42', 'Ava'))).toBe("Ava's desktop");
+  it('names an assistant desktop by the teammate, like any other share', () => {
+    // The picker names people, whichever kind of share they have up. The
+    // caption is where a desktop reads as the whole machine rather than a
+    // window: "Ava is presenting" would say the wrong thing there.
+    expect(presenterLabel(desktopEntry('42', 'Ava'))).toBe('Ava');
+    expect(presenterLabel(desktopEntry('42', ''))).toBe('Teammate');
     expect(presentingCaption(desktopEntry('42', 'Ava'))).toBe('Ava is showing their desktop');
   });
 

@@ -123,12 +123,28 @@ export function DefaultModelPicker({
     };
   }, [query, usage, open]);
 
+  // cmdk's own filtering is off (results are a server query), so the curated
+  // group has to answer the query itself. Without this it renders in full
+  // whatever is typed, burying the search results under a list that never
+  // changes. Matched against id and label, like the catalog search.
+  const matchingRecommended = React.useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return recommended;
+    return recommended.filter((option) =>
+      `${option.model || ''} ${option.label}`.toLowerCase().includes(needle)
+    );
+  }, [recommended, query]);
+
+  // Keyed off the visible group: a curated entry the query hid should still be
+  // reachable as a search hit rather than deduplicated out of both groups.
   const recommendedKeys = React.useMemo(
     () =>
       new Set(
-        recommended.map((option) => encodeDefaultModelValue(option.model, option.reasoningEffort))
+        matchingRecommended.map((option) =>
+          encodeDefaultModelValue(option.model, option.reasoningEffort)
+        )
       ),
-    [recommended]
+    [matchingRecommended]
   );
 
   const filteredSearchHits = React.useMemo(
@@ -225,7 +241,11 @@ export function DefaultModelPicker({
           </Tooltip>
         </TooltipProvider>
       </div>
-      <Popover open={open} onOpenChange={setOpen}>
+      {/* Modal so the popover carries its own scroll lock. Portalled out of the
+          enclosing dialog, it is neither that dialog's lock node nor one of its
+          shards, so the dialog's lock cancels every wheel event over the list
+          and the catalog cannot be scrolled. */}
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             id={id}
@@ -246,13 +266,21 @@ export function DefaultModelPicker({
               value={query}
               onValueChange={setQuery}
               onKeyDown={(e) => {
+                // List navigation is handled by cmdk on the Command root, so it
+                // has to reach it; everything else stays contained to the input
+                // rather than reaching the dialog or page shortcuts behind it.
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') return;
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();
               }}
             />
-            <CommandList>
+            <CommandList className="command-list-scrolls">
               <CommandEmpty>{isSearching ? 'Searching…' : 'No matching models.'}</CommandEmpty>
-              <CommandGroup heading="Recommended">{recommended.map(renderOption)}</CommandGroup>
+              {matchingRecommended.length > 0 && (
+                <CommandGroup heading="Recommended">
+                  {matchingRecommended.map(renderOption)}
+                </CommandGroup>
+              )}
               {filteredSearchHits.length > 0 && (
                 <CommandGroup
                   heading={query.trim() ? 'Search results' : 'All models (newest first)'}

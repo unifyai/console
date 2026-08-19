@@ -1107,52 +1107,56 @@ export function HireForm({
                     </SectionIconSlot>
                     <span className="text-body">Voice</span>
                   </SectionHeader>
-                  <div className="min-h-0 flex-1">
-                    <VoiceCustomization
-                      assistantActions={assistantActions}
-                      onAddPaymentMethod={onAddPaymentMethod}
-                      activeTab={voiceCustomizationTab}
-                      setActiveTab={setVoiceCustomizationTab}
-                      onVoiceSelected={(selectedVoice) => {
-                        setValue('voiceId', selectedVoice?.voiceId, {
-                          shouldValidate: !!selectedVoice?.voiceId,
-                        });
-                        setValue('voiceName', selectedVoice?.name, {
-                          shouldValidate: !!selectedVoice?.name,
-                        });
-                        setValue(
-                          'voiceDescription',
-                          selectedVoice?.description ?? selectedVoice?.name,
-                          { shouldValidate: !!selectedVoice?.description }
-                        );
-                        setValue('voiceGender', selectedVoice?.gender, {
-                          shouldValidate: !!selectedVoice?.gender,
-                        });
-                        setValue('voiceLanguage', selectedVoice?.language, {
-                          shouldValidate: !!selectedVoice?.language,
-                        });
-                        setValue(
-                          'voiceProvider',
-                          selectedVoice?.provider || PRIMARY_VOICE_PROVIDER,
-                          {
+                  {/* The list is taken out of flow so its length can't size the grid
+                      row; it fills whatever height the Computer column settles on. */}
+                  <div className="relative min-h-[276px] flex-1">
+                    <div className="absolute inset-0">
+                      <VoiceCustomization
+                        assistantActions={assistantActions}
+                        onAddPaymentMethod={onAddPaymentMethod}
+                        activeTab={voiceCustomizationTab}
+                        setActiveTab={setVoiceCustomizationTab}
+                        onVoiceSelected={(selectedVoice) => {
+                          setValue('voiceId', selectedVoice?.voiceId, {
+                            shouldValidate: !!selectedVoice?.voiceId,
+                          });
+                          setValue('voiceName', selectedVoice?.name, {
+                            shouldValidate: !!selectedVoice?.name,
+                          });
+                          setValue(
+                            'voiceDescription',
+                            selectedVoice?.description ?? selectedVoice?.name,
+                            { shouldValidate: !!selectedVoice?.description }
+                          );
+                          setValue('voiceGender', selectedVoice?.gender, {
+                            shouldValidate: !!selectedVoice?.gender,
+                          });
+                          setValue('voiceLanguage', selectedVoice?.language, {
+                            shouldValidate: !!selectedVoice?.language,
+                          });
+                          setValue(
+                            'voiceProvider',
+                            selectedVoice?.provider || PRIMARY_VOICE_PROVIDER,
+                            {
+                              shouldValidate: true,
+                            }
+                          );
+                          setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
                             shouldValidate: true,
-                          }
-                        );
-                        setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
-                          shouldValidate: true,
-                        });
-                      }}
-                      initialVoiceId={getValues('voiceId')}
-                      disabled={isSubmitting}
-                      onProcessingStateChange={onVoiceProcessingStateChange}
-                      onPreviewPlayingChange={setIsVoicePreviewPlaying}
-                      onPreviewAudioElementChange={setPreviewAudioElement}
-                      onPlaySelectedVoicePreviewChange={handlePlaySelectedVoicePreviewChange}
-                      allDisplayableVoices={allDisplayableVoices}
-                      isLoadingUserVoices={isLoadingUserVoices}
-                      fetchUserVoices={fetchUserVoices}
-                      handleDeleteVoice={handleDeleteVoice}
-                    />
+                          });
+                        }}
+                        initialVoiceId={getValues('voiceId')}
+                        disabled={isSubmitting}
+                        onProcessingStateChange={onVoiceProcessingStateChange}
+                        onPreviewPlayingChange={setIsVoicePreviewPlaying}
+                        onPreviewAudioElementChange={setPreviewAudioElement}
+                        onPlaySelectedVoicePreviewChange={handlePlaySelectedVoicePreviewChange}
+                        allDisplayableVoices={allDisplayableVoices}
+                        isLoadingUserVoices={isLoadingUserVoices}
+                        fetchUserVoices={fetchUserVoices}
+                        handleDeleteVoice={handleDeleteVoice}
+                      />
+                    </div>
                   </div>
                   {errors.voiceId && (
                     <p className="text-body text-strong mt-1 text-destructive">
@@ -1410,10 +1414,7 @@ export function HireForm({
                     </div>
                   </section>
 
-                  <section
-                    className="flex min-w-0 flex-1 flex-col"
-                    data-testid="assistant-computer-section"
-                  >
+                  <section className="min-w-0 shrink-0" data-testid="assistant-computer-section">
                     <SectionHeader>
                       <SectionIconSlot>
                         <Laptop className="h-4 w-4" />
@@ -1441,13 +1442,10 @@ export function HireForm({
                       name="setup"
                       control={control}
                       render={({ field }) => (
-                        <div
-                          className="flex min-h-0 flex-1 flex-col"
-                          data-testid="computer-controls"
-                        >
+                        <div data-testid="computer-controls">
                           <div
                             className={cn(
-                              'flex min-h-28 flex-1 cursor-pointer flex-col justify-center space-y-3 rounded-md border p-3',
+                              'flex min-h-28 cursor-pointer flex-col justify-center space-y-3 rounded-md border p-3',
                               field.value === 'remote' && 'border-primary'
                             )}
                             onClick={() => field.onChange('remote')}

@@ -1,6 +1,8 @@
 /**
  * Org unity switcher: managed Org team is elevated under T-W1N; TEAMS only
- * appears when custom teams exist. GROUPS stays visible even when empty.
+ * appears when custom teams exist. GROUP CHATS stays visible even when empty. The
+ * header's filter menu persists per browser, and says so while it is cutting
+ * the roster.
  *
  * Run: npx playwright test src/tests/assistants/org-list-teams.e2e.ts
  */
@@ -21,7 +23,12 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail } from '../helpers/shell';
+import {
+  assistantRail,
+  openAssistantCreateMenu,
+  openAssistantFilterMenu,
+  railUnitySwitcher,
+} from '../helpers/shell';
 import { openUnitySwitcher } from './helpers';
 
 const owner = createTestUser({ name: 'OrgList', lastName: 'Owner', credits: 50_000 });
@@ -131,27 +138,30 @@ test('managed Org team sits under T-W1N; TEAMS hides until a custom team exists 
   await expect(elevated.getByTestId(`team-list-item-${orgTeamId}`)).toContainText(org.name);
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible();
 
-  // No custom teams / groups yet — TEAMS and GROUPS nests stay hidden.
-  // Creation actions nest inside the elevated Org team fold (hidden when folded).
+  // No custom teams / groups yet — TEAMS and GROUP CHATS nests stay hidden.
+  // Every creation action lives in the header's "+" menu, above the roster.
   await expect(page.getByTestId('assistant-list-section-teams')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
   const orgTeamGroup = page.getByTestId(`assistant-list-group-team:${orgTeamId}`);
   const orgTeamRow = orgTeamGroup.getByTestId(`team-list-item-${orgTeamId}`);
-  // Ensure the nest is expanded so create actions are visible.
+  const createMenu = page.getByTestId('assistant-create-menu');
+  await expect(createMenu).toBeVisible();
+  await openAssistantCreateMenu(page);
+  await expect(page.getByTestId('create-group-button')).toBeVisible();
+  await expect(page.getByTestId('create-team-button')).toBeVisible();
+  await expect(page.getByTestId('assistant-onboard-button')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('create-group-button')).toHaveCount(0);
+
+  // Folding the Org team nest cannot swallow the creation actions.
   if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
     await orgTeamRow.click();
   }
-  const orgActions = orgTeamGroup.getByTestId('assistant-list-org-actions');
-  await expect(orgActions).toBeVisible();
-  await expect(orgActions.getByTestId('create-group-button')).toBeVisible();
-  await expect(orgActions.getByTestId('create-team-button')).toBeVisible();
-  await expect(orgActions.getByTestId('assistant-onboard-button')).toBeVisible();
-
   await orgTeamRow.click();
-  await expect(orgTeamGroup.getByTestId('assistant-list-org-actions')).toHaveCount(0);
+  await expect(createMenu).toBeVisible();
   await orgTeamRow.click();
-  await expect(orgActions).toBeVisible();
+  await expect(createMenu).toBeVisible();
 
   const customTeamName = `CustomTeam_${Date.now()}`;
   const rawCustomTeamId = dbExec(`
@@ -183,12 +193,9 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
   await expect(teamsSection.getByTestId(`team-list-item-${orgTeamId}`)).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-groups')).toHaveCount(0);
   await expect(page.getByTestId('assistant-list-section-people')).toHaveCount(0);
-  await expect(
-    page
-      .getByTestId(`assistant-list-group-team:${orgTeamId}`)
-      .getByTestId('assistant-list-org-actions')
-  ).toBeVisible();
+  await expect(page.getByTestId('assistant-create-menu')).toBeVisible();
 
+  await openAssistantCreateMenu(page);
   await page.getByTestId('create-team-button').click();
   await expect(page).toHaveURL(/\/organizations\?tab=teams/, { timeout: 15_000 });
 });
@@ -200,24 +207,21 @@ test('create group and onboard dismissals return to the unity switcher', async (
   await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
   await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
 
-  const orgTeamGroup = page.getByTestId(`assistant-list-group-team:${orgTeamId}`);
-  const orgTeamRow = orgTeamGroup.getByTestId(`team-list-item-${orgTeamId}`);
-  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
-    await orgTeamRow.click();
-  }
-  const orgActions = orgTeamGroup.getByTestId('assistant-list-org-actions');
-  await expect(orgActions).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-create-menu')).toBeVisible({ timeout: 15_000 });
 
   const switcherPopover = page.getByTestId('rail-unity-switcher-popover');
 
-  await orgActions.getByTestId('create-group-button').click();
+  await openAssistantCreateMenu(page);
+  await expect(switcherPopover).toBeVisible();
+  await page.getByTestId('create-group-button').click();
   await expect(page.getByTestId('create-group-dialog')).toBeVisible({ timeout: 5_000 });
   await expect(switcherPopover).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('create-group-dialog')).toHaveCount(0, { timeout: 5_000 });
   await expect(switcherPopover).toBeVisible();
 
-  await orgActions.getByTestId('assistant-onboard-button').click();
+  await openAssistantCreateMenu(page);
+  await page.getByTestId('assistant-onboard-button').click();
   await expect(page.getByRole('heading', { name: 'Onboard Teammate' })).toBeVisible({
     timeout: 10_000,
   });
@@ -230,6 +234,70 @@ test('create group and onboard dismissals return to the unity switcher', async (
 
   // The contrast those two exceptions are exceptions to: picking a teammate is
   // the errand itself, so the list dismisses rather than lingering over it.
+  const orgTeamRow = page
+    .getByTestId(`assistant-list-group-team:${orgTeamId}`)
+    .getByTestId(`team-list-item-${orgTeamId}`);
+  if ((await orgTeamRow.getAttribute('aria-expanded')) === 'false') {
+    await orgTeamRow.click();
+  }
   await page.getByTestId(`human-list-item-${member.id}`).click();
   await expect(switcherPopover).toHaveCount(0, { timeout: 5_000 });
+});
+
+test('list filters survive the menu, the popover and a reload until Show all clears them', async ({
+  ownerPage: page,
+}) => {
+  test.setTimeout(90_000);
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+
+  const elevated = page.getByTestId('assistant-list-elevated-org-team');
+  const filterTrigger = page.getByTestId('assistant-list-filter-menu');
+  await expect(elevated).toBeVisible({ timeout: 15_000 });
+  await expect(filterTrigger).not.toHaveAttribute('data-filtered', 'true');
+
+  // Unchecking Teams takes the elevated managed team with it.
+  await openAssistantFilterMenu(page);
+  await page.getByTestId('assistant-list-filter-teams').click();
+  await expect(elevated).toHaveCount(0, { timeout: 5_000 });
+  await expect(filterTrigger).toHaveAttribute('data-filtered', 'true');
+  expect(
+    await page.evaluate(() => window.localStorage.getItem('console:assistants:listFilters'))
+  ).toBe(JSON.stringify({ v: 1, hidden: ['teams'] }));
+
+  // The preference outlives the popover it was set in, and the page too.
+  // Escape only dismisses the menu here, so the switcher face does the closing.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0, { timeout: 5_000 });
+  await railUnitySwitcher(page).click();
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+  await expect(elevated).toHaveCount(0);
+  await expect(filterTrigger).toHaveAttribute('data-filtered', 'true');
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+  await expect(filterTrigger).toHaveAttribute('data-filtered', 'true');
+  await expect(elevated).toHaveCount(0);
+  await openAssistantFilterMenu(page);
+  await expect(page.getByTestId('assistant-list-filter-teams')).toHaveAttribute(
+    'aria-checked',
+    'false'
+  );
+
+  // Show all is the way back out, and that clearing persists as well.
+  await page.getByTestId('assistant-list-filter-show-all').click();
+  await expect(elevated).toBeVisible({ timeout: 10_000 });
+  await expect(filterTrigger).not.toHaveAttribute('data-filtered', 'true');
+  await expect(page.getByTestId('assistant-list-filter-show-all')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => window.localStorage.getItem('console:assistants:listFilters'))
+  ).toBe(JSON.stringify({ v: 1, hidden: [] }));
+
+  await page.keyboard.press('Escape');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await openUnitySwitcher(page, { userId: owner.id, apiKey: owner.apiKey });
+  await expect(elevated).toBeVisible({ timeout: 15_000 });
 });

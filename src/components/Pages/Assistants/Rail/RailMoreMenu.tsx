@@ -77,9 +77,7 @@ export function RailMoreMenu({
       >
         {grouped.map((group) => (
           <React.Fragment key={group.label}>
-            <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              {group.label}
-            </DropdownMenuLabel>
+            <DropdownMenuLabel className="text-overline">{group.label}</DropdownMenuLabel>
             {group.sections.map((section) => {
               const sectionActivity = activity?.[section.id];
               return (

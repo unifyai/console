@@ -14,7 +14,6 @@ interface GroupInfoSidePanelContentProps {
   group: RosterGroup;
   humansById: Record<string, RosterHuman>;
   assistantsById: Record<string, TeamMemberAssistant>;
-  currentUserId?: string | null;
   onClose: () => void;
   hideHeaderActions?: boolean;
   className?: string;
@@ -25,7 +24,6 @@ export function GroupInfoSidePanelContent({
   group,
   humansById,
   assistantsById,
-  currentUserId = null,
   onClose,
   hideHeaderActions = false,
   className,
@@ -62,17 +60,18 @@ export function GroupInfoSidePanelContent({
     [humanMembers, assistantMembers]
   );
 
-  const subtitle = formatRealVirtualSubtitle(
-    group.memberUserIds,
-    assistantMembers.length,
-    currentUserId
-  );
+  const subtitle = formatRealVirtualSubtitle(group.memberUserIds, assistantMembers.length);
 
   return (
     <ScrollArea className={cn('flex-1', className)} data-testid="group-info-panel">
       <div className="flex flex-col gap-4 px-4 py-4">
         <div className="flex items-start gap-3">
-          <GroupFaceStack members={faceMembers} sizeClassName="h-12 w-12" />
+          <GroupFaceStack
+            members={faceMembers}
+            icon={group.icon}
+            iconClassName="text-2xl"
+            sizeClassName="h-12 w-12"
+          />
           <div className="min-w-0 flex-1 space-y-0.5">
             <div className="text-title truncate" data-testid="group-info-name">
               {group.name}

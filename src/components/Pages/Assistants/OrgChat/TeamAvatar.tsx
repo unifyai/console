@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Building2, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
 export interface TeamAvatarProps {
@@ -13,43 +14,6 @@ export interface TeamAvatarProps {
   isOrgWideSharing?: boolean;
   className?: string;
   iconClassName?: string;
-}
-
-function useResolvedImageUrl(imageUrl: string | null | undefined): string | null {
-  const [resolved, setResolved] = React.useState<string | null>(() => {
-    if (!imageUrl) return null;
-    return imageUrl.startsWith('gs://') ? null : imageUrl;
-  });
-
-  React.useEffect(() => {
-    if (!imageUrl) {
-      setResolved(null);
-      return;
-    }
-    if (!imageUrl.startsWith('gs://')) {
-      setResolved(imageUrl);
-      return;
-    }
-    let cancelled = false;
-    fetch('/api/storage/signed-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      body: JSON.stringify({ gs_url: imageUrl }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setResolved(data.signed_url ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setResolved(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [imageUrl]);
-
-  return resolved;
 }
 
 /**
@@ -65,7 +29,7 @@ export function TeamAvatar({
   className,
   iconClassName = 'h-4 w-4',
 }: TeamAvatarProps) {
-  const resolvedImageUrl = useResolvedImageUrl(imageUrl);
+  const resolvedImageUrl = useResolvedProfileImage(imageUrl);
   const displayName = name.trim() || (isOrgWideSharing ? 'Organization' : 'Team');
 
   if (isOrgWideSharing) {

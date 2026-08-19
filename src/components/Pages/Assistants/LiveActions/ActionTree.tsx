@@ -161,9 +161,7 @@ function TimelineDateSeparator({ timestamp }: { timestamp: string }) {
   });
   return (
     <div className="mb-1 mt-2.5 flex items-center gap-2.5 first:mt-0">
-      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </span>
+      <span className="text-overline">{label}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );

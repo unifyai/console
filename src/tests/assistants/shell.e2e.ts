@@ -147,3 +147,71 @@ test('mobile viewport exposes rail navigation via the menu toggle', async ({
   await expect(railSection(page, 'chat')).toBeVisible();
   await expect(page.getByTestId('chat-search-trigger')).toBeVisible();
 });
+
+test('the folded rail sizes its pickers to the nav column without covering the face', async ({
+  authedPage: page,
+}) => {
+  deleteAllAssistantsForUser(user.id);
+  createAssistant({ userId: user.id, firstName: 'Docky', surname: 'Fold' });
+
+  await navigateToAssistants(page, shellOpts);
+  await closeHireDialogIfOpen(page);
+
+  const rail = assistantRail(page);
+  const collapseToggle = rail.getByTestId('rail-collapse-toggle');
+  await collapseToggle.click();
+
+  const picker = railUnitySwitcher(page);
+  await expect(picker).toBeVisible({ timeout: 5_000 });
+
+  // Folded, a picker is a tile in the nav column, so it carries a nav tile's
+  // box. The rail's width animates as it folds, so compare the two boxes only
+  // once the fold has settled.
+  await expect
+    .poll(
+      async () => {
+        const pickerBox = await picker.boundingBox();
+        const navBox = await collapseToggle.boundingBox();
+        if (!pickerBox || !navBox) return 'a box is missing';
+        const size = (box: { width: number; height: number }) =>
+          `${Math.round(box.width)}x${Math.round(box.height)}`;
+        return size(pickerBox) === size(navBox)
+          ? "the picker takes a nav tile's box"
+          : `picker ${size(pickerBox)}, nav tile ${size(navBox)}`;
+      },
+      { timeout: 10_000 }
+    )
+    .toBe("the picker takes a nav tile's box");
+
+  // At that height the picker's target must not reach over the face above it:
+  // the face owns every point in its own box, including the edge they share.
+  const face = railSection(page, 'chat');
+  const faceBox = await face.boundingBox();
+  expect(faceBox).not.toBeNull();
+  const ownerAt = (offsetFromBottom: number) =>
+    page.evaluate(
+      ({ x, y }) => {
+        const hit = document.elementFromPoint(x, y);
+        if (hit?.closest('[data-testid="rail-chat-home"]')) return 'rail-chat-home';
+        return hit?.closest('[data-testid]')?.getAttribute('data-testid') ?? null;
+      },
+      {
+        x: faceBox!.x + faceBox!.width / 2,
+        y: faceBox!.y + faceBox!.height - offsetFromBottom,
+      }
+    );
+  expect(await ownerAt(faceBox!.height / 2)).toBe('rail-chat-home');
+  expect(await ownerAt(1)).toBe('rail-chat-home');
+
+  // And the picker itself still opens from its own box.
+  await picker.click();
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toBeVisible({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+
+  // Leave the rail as it was found, so dock state does not leak onward. Folded,
+  // the toggle sits under the dev overlay's own bottom-left badge, which would
+  // swallow a real click, so unfold through the DOM rather than the pointer.
+  await collapseToggle.evaluate((el: HTMLElement) => el.click());
+  await expect(rail.getByText('Unify', { exact: true })).toBeVisible({ timeout: 5_000 });
+});

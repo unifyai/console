@@ -104,6 +104,8 @@ export function withOrgNameForManagedTeams<T extends { isOrgWideSharing?: boolea
 export interface RosterGroup {
   groupId: number;
   name: string;
+  /** Emoji shown in place of the member face-stack, or null for the faces. */
+  icon: string | null;
   createdByUserId: string;
   createdAt: string | null;
   memberUserIds: string[];
@@ -118,6 +120,7 @@ export function parseRosterGroup(raw: Record<string, unknown>): RosterGroup {
   return {
     groupId: Number(groupIdRaw),
     name: typeof raw.name === 'string' ? raw.name : '',
+    icon: typeof raw.icon === 'string' && raw.icon.trim() ? raw.icon : null,
     createdByUserId: createdByRaw != null ? String(createdByRaw) : '',
     createdAt:
       typeof raw.created_at === 'string'

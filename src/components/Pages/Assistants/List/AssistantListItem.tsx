@@ -11,14 +11,12 @@ import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { AssistantPresenceIndicator } from '@/components/Pages/Assistants/Common/AssistantPresenceIndicator';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
-import { ListRowInfoToggle } from './ListRowInfoToggle';
 
 interface AssistantListItemProps {
   assistant: Assistant;
   status: AssistantStatus | null;
   isSelected: boolean;
   onShowProfile: (id: string) => void;
-  onToggleAssistantInfo: (assistantId: string) => void;
   isFolded: boolean;
   isCallActive: boolean;
   /**
@@ -38,7 +36,6 @@ export function AssistantListItem({
   status,
   isSelected,
   onShowProfile,
-  onToggleAssistantInfo,
   isFolded,
   isCallActive,
   unreadCount = 0,
@@ -243,12 +240,6 @@ export function AssistantListItem({
             </Tooltip>
           </TooltipProvider>
         )}
-        <ListRowInfoToggle
-          entityId={assistant.agentId}
-          isSelected={isSelected}
-          onToggle={() => onToggleAssistantInfo(assistant.agentId)}
-          testId={`assistant-info-toggle-${assistant.agentId}`}
-        />
       </div>
     </div>
   );

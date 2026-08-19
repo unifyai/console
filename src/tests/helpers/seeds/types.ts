@@ -39,6 +39,8 @@ export interface SeededOrg {
   ownerId: string;
   /** Org-scoped API key for the owner */
   ownerOrgApiKey: string;
+  /** The owner's workspace Coordinator, provisioned with the org. */
+  coordinator: SeededAssistant;
 }
 
 export interface SeededAssistant {

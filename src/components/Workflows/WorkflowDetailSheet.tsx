@@ -281,7 +281,7 @@ export function WorkflowDetailSheet({
             <header className="flex items-start gap-3 border-b p-5 pr-12">
               <WorkflowTileIcon iconId={workflow.iconId} category={workflow.category} size="lg" />
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                <p className="text-overline flex items-center gap-1.5">
                   <span
                     className="h-1.5 w-1.5 rounded-[2px] bg-[color:var(--wf-cat)]"
                     aria-hidden="true"
@@ -527,9 +527,7 @@ function Section({
           straight into its sentence-case annotation and read as one phrase
           ("WHAT IT NEEDS 1 app"). The rule also makes each section a block. */}
       <div className="mb-3 flex items-baseline justify-between gap-4 border-b pb-1.5">
-        <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {title}
-        </h3>
+        <h3 className="text-overline">{title}</h3>
         {hint && <span className="text-caption shrink-0 normal-case tracking-normal">{hint}</span>}
       </div>
       {children}

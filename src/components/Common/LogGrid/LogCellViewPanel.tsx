@@ -728,9 +728,7 @@ function ColumnGroupDisplay({
           )}
         </span>
         <span className="shrink-0 [&_svg]:size-3">{getTypeIcon(sampleType)}</span>
-        <span className="truncate font-mono text-[10px] font-semibold uppercase tracking-wide text-foreground">
-          {label}
-        </span>
+        <span className="text-overline truncate text-foreground">{label}</span>
         {showLock && (
           <span ref={lockRef} className="inline-flex shrink-0">
             <Lock

@@ -684,9 +684,7 @@ export function TranscriptsPane({
                   <React.Fragment key={group.sortKey}>
                     {group.sortKey === '__undated' ? (
                       <div className="mb-1 mt-2.5 flex min-w-0 items-center gap-2.5 px-1 first:mt-0">
-                        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                          Undated
-                        </span>
+                        <span className="text-overline">Undated</span>
                         <span className="h-px flex-1 bg-border" />
                       </div>
                     ) : (
@@ -801,7 +799,7 @@ export function TranscriptsPane({
                       </div>
                     ) : null}
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="mr-0.5 inline-flex items-center gap-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground">
+                      <span className="text-overline mr-0.5 inline-flex items-center gap-1">
                         <Users className="h-3 w-3" aria-hidden="true" /> Participants
                       </span>
                       {activeThread.participantIds.map((id) => (

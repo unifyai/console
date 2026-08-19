@@ -9,18 +9,28 @@ import {
   Building2,
   UsersRound,
   MessagesSquare,
+  MousePointer2,
   User,
+  UserPlus,
   ChevronDown,
   ChevronRight,
+  ListChecks,
   Plus,
 } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { AssistantListItem } from './AssistantListItem';
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
-import { Checkbox } from '@/components/UI/checkbox';
-import { Label } from '@/components/UI/label';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { RAIL_TRAILING_GLYPH, RAIL_TRAILING_SLOT } from '@/components/Layout/Shell/railGeometry';
 import { cn } from '@/lib/utils';
 import {
   type CoordinatorWorkspaceScope,
@@ -41,10 +51,17 @@ import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay'
 import { formatRealVirtualSubtitle } from '@/utils/orgChat/memberSubtitle';
 import { TeamAvatar } from '@/components/Pages/Assistants/OrgChat/TeamAvatar';
 import { GroupFaceStack } from '@/components/Pages/Assistants/OrgChat/GroupFaceStack';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
+import {
+  GroupRowSettings,
+  type GroupPatch,
+} from '@/components/Pages/Assistants/OrgChat/GroupRowSettings';
 import { PresenceStatusDot } from '@/components/Pages/Assistants/Common/PresenceStatusDot';
-import { ListRowInfoToggle } from './ListRowInfoToggle';
-import { requestAssistantInfoPanelToggle } from '@/lib/assistants/infoPanelVisibility';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import {
+  useAssistantListFilters,
+  type AssistantListFilterId,
+} from '@/hooks/Assistants/useAssistantListFilters';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
@@ -75,7 +92,6 @@ interface AssistantListProps {
   error: string | null;
   profileAssistantId: string | null;
   onShowProfile: (id: string) => void;
-  onToggleAssistantInfo: (assistantId: string) => void;
   onOpenHireDialog: () => void;
   isFolded: boolean;
   activeCallAssistantId: string | null;
@@ -101,6 +117,10 @@ interface AssistantListProps {
   onSelectHuman?: (userId: string) => void;
   onSelectTeam?: (teamId: number) => void;
   onSelectGroup?: (groupId: number) => void;
+  /** Saves a group's own settings (name, icon); resolves false when it failed. */
+  onUpdateGroup?: (groupId: number, patch: GroupPatch) => Promise<boolean>;
+  /** Raised while a group's settings panel is open, so the switcher stays put. */
+  onGroupSettingsOpenChange?: (open: boolean) => void;
   onCreateGroup?: () => void;
   /** Navigate to Organization → Teams to create a custom team. */
   onCreateTeam?: () => void;
@@ -142,6 +162,7 @@ function HumanListRow({
   onSelect: () => void;
 }) {
   const displayName = human.name?.trim() || human.email || human.userId;
+  const imageUrl = useResolvedProfileImage(human.image);
   return (
     <div
       role="button"
@@ -162,7 +183,7 @@ function HumanListRow({
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
           <Avatar className="rounded-control h-7 w-7 flex-shrink-0">
-            <AvatarImage src={human.image ?? undefined} alt={displayName} />
+            {imageUrl ? <AvatarImage src={imageUrl} alt={displayName} /> : null}
             <AvatarFallback
               className="rounded-control text-semibold text-primary-foreground"
               style={{ backgroundColor: profileAvatarTone(displayName) }}
@@ -203,14 +224,6 @@ function HumanListRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <EntityUnreadBadge count={unreadCount} testId={`human-unread-badge-${human.userId}`} />
-        <ListRowInfoToggle
-          entityId={humanEntityKey(human.userId)}
-          isSelected={isSelected}
-          onToggle={() =>
-            requestAssistantInfoPanelToggle({ assistantId: humanEntityKey(human.userId) })
-          }
-          testId={`human-info-toggle-${human.userId}`}
-        />
       </div>
     </div>
   );
@@ -223,6 +236,8 @@ function GroupListRow({
   unreadCount,
   isCallActive,
   onSelect,
+  onUpdate,
+  onSettingsOpenChange,
 }: {
   group: RosterGroup;
   faceMembers: Array<{ id: string; name: string; image?: string | null }>;
@@ -230,6 +245,8 @@ function GroupListRow({
   unreadCount: number;
   isCallActive?: boolean;
   onSelect: () => void;
+  onUpdate?: (patch: GroupPatch) => Promise<boolean>;
+  onSettingsOpenChange?: (open: boolean) => void;
 }) {
   return (
     <div
@@ -250,7 +267,7 @@ function GroupListRow({
     >
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="relative">
-          <GroupFaceStack members={faceMembers} sizeClassName="h-7 w-7" />
+          <GroupFaceStack members={faceMembers} icon={group.icon} sizeClassName="h-7 w-7" />
           {isCallActive ? (
             <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
@@ -271,14 +288,9 @@ function GroupListRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <EntityUnreadBadge count={unreadCount} testId={`group-unread-badge-${group.groupId}`} />
-        <ListRowInfoToggle
-          entityId={groupEntityKey(group.groupId)}
-          isSelected={isSelected}
-          onToggle={() =>
-            requestAssistantInfoPanelToggle({ assistantId: groupEntityKey(group.groupId) })
-          }
-          testId={`group-info-toggle-${group.groupId}`}
-        />
+        {onUpdate ? (
+          <GroupRowSettings group={group} onUpdate={onUpdate} onOpenChange={onSettingsOpenChange} />
+        ) : null}
       </div>
     </div>
   );
@@ -301,7 +313,7 @@ function TeamChatListRow({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${team.name} team chat`}
+      aria-label={`Select ${team.name}`}
       data-testid={`team-chat-list-item-${team.teamId}`}
       className={cn(
         'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent px-2 py-1 transition-colors',
@@ -316,19 +328,35 @@ function TeamChatListRow({
       }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {/*
+         * The selection glyph is the team's own face wearing a cursor, rather
+         * than a drawn square wearing one: the icon keeps the composition of
+         * `SquareMousePointer` — pointer at the lower-right of a square — while
+         * the square carries the team's colour instead of neutral chrome.
+         */}
         <div className="relative">
-          <span
-            className="rounded-control bg-muted/40 flex h-7 w-7 flex-shrink-0 items-center justify-center border border-border text-muted-foreground"
-            aria-hidden="true"
-          >
-            <MessagesSquare className="h-4 w-4" />
-          </span>
+          <TeamAvatar
+            name={team.name}
+            imageUrl={team.image}
+            isOrgWideSharing={team.isOrgWideSharing}
+            className="h-7 w-7"
+            iconClassName="h-4 w-4"
+          />
           {isCallActive ? (
             <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
             </span>
-          ) : null}
+          ) : (
+            // The corner is the call indicator's while a call runs; the pointer
+            // stands down rather than stacking two marks in one spot.
+            <span
+              className="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-border bg-background text-foreground"
+              aria-hidden="true"
+            >
+              <MousePointer2 className="h-2.5 w-2.5" />
+            </span>
+          )}
         </div>
         <div className="min-w-0">
           <span
@@ -337,7 +365,7 @@ function TeamChatListRow({
               isSelected && 'text-accent-soft-foreground'
             )}
           >
-            Team chat
+            Select team
           </span>
         </div>
       </div>
@@ -355,7 +383,6 @@ function TeamListRow({
   isCallActive,
   isFoldedGroup,
   onToggleFold,
-  currentUserId,
 }: {
   team: RosterTeam;
   isSelected: boolean;
@@ -363,17 +390,12 @@ function TeamListRow({
   isCallActive?: boolean;
   isFoldedGroup?: boolean;
   onToggleFold?: () => void;
-  currentUserId?: string | null;
 }) {
-  const subtitle = formatRealVirtualSubtitle(
-    team.memberUserIds,
-    team.assistantMemberIds.length,
-    currentUserId
-  );
+  const subtitle = formatRealVirtualSubtitle(team.memberUserIds, team.assistantMemberIds.length);
   const FoldIcon = isFoldedGroup ? ChevronRight : ChevronDown;
-  // The header is a pure disclosure control; the team's own conversation is a
-  // selectable row inside the nest. Selection surfaces here only while folded,
-  // where that row is hidden.
+  // The header is a pure disclosure control; the team itself is selected from a
+  // row inside the nest. Selection surfaces here only while folded, where that
+  // row is hidden.
   const showsSelection = isSelected && isFoldedGroup === true;
   return (
     <div
@@ -384,13 +406,11 @@ function TeamListRow({
       className={cn(
         // Match AssistantListItem padding/gap so the team face shares the
         // same avatar column (center-aligned with T-W1N above).
-        'group flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border px-2 py-1 transition-colors',
+        'group flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border border-transparent px-2 py-1 transition-colors',
         // Neutral hover, matching the disclosure role: the primary-tinted hover
         // is reserved for rows that navigate, so the container header must not
         // signal navigability harder than the destinations nested under it.
-        showsSelection
-          ? 'border-primary-tint-30 bg-accent-soft'
-          : 'bg-muted/15 border-border hover:bg-[var(--surface-hover)]'
+        showsSelection ? 'bg-accent-soft' : 'hover:bg-[var(--surface-hover)]'
       )}
       onClick={() => onToggleFold?.()}
       onKeyDown={(event) => {
@@ -409,15 +429,13 @@ function TeamListRow({
       <span className="min-w-0 flex-1 text-left">
         <span
           className={cn(
-            'block truncate text-xs font-medium',
+            'text-body text-strong block truncate',
             showsSelection ? 'text-accent-soft-foreground' : 'text-foreground'
           )}
         >
           {team.name}
         </span>
-        <span className="block truncate text-[11px] font-normal leading-tight text-muted-foreground">
-          {subtitle}
-        </span>
+        <span className="text-caption-sm block truncate leading-tight">{subtitle}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
         {isCallActive ? (
@@ -428,7 +446,9 @@ function TeamListRow({
         ) : null}
         <EntityUnreadBadge count={unreadCount} testId={`team-unread-badge-${team.teamId}`} />
         {onToggleFold ? (
-          <FoldIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className={cn(RAIL_TRAILING_SLOT, 'text-muted-foreground')} aria-hidden="true">
+            <FoldIcon className={RAIL_TRAILING_GLYPH} />
+          </span>
         ) : null}
       </span>
     </div>
@@ -443,7 +463,6 @@ export function AssistantList({
   error,
   profileAssistantId,
   onShowProfile,
-  onToggleAssistantInfo,
   onOpenHireDialog,
   isFolded,
   activeCallAssistantId,
@@ -460,6 +479,8 @@ export function AssistantList({
   onSelectHuman,
   onSelectTeam,
   onSelectGroup,
+  onUpdateGroup,
+  onGroupSettingsOpenChange,
   onCreateGroup,
   onCreateTeam,
   entityUnreadCounts,
@@ -469,9 +490,12 @@ export function AssistantList({
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
-  const [showReal, setShowReal] = React.useState(true);
-  const [showVirtual, setShowVirtual] = React.useState(true);
-  // Personal workspaces only list virtual assistants — Real/Virtual filters and
+  const filters = useAssistantListFilters();
+  const showReal = filters.isVisible('real');
+  const showVirtual = filters.isVisible('virtual');
+  const showTeams = filters.isVisible('teams');
+  const showGroups = filters.isVisible('groups');
+  // Personal workspaces only list virtual assistants — the list filters and
   // Groups/Colleagues/Teams nesting are org-workspace concepts.
   const isOrgWorkspace = workspace.type === 'organization';
   const includeReal = isOrgWorkspace && showReal;
@@ -644,7 +668,6 @@ export function AssistantList({
           status={assistantStatuses.get(entry.assistant.agentId) || null}
           isSelected={profileAssistantId === entry.assistant.agentId}
           onShowProfile={onShowProfile}
-          onToggleAssistantInfo={onToggleAssistantInfo}
           isFolded={isFolded}
           isCallActive={activeCallAssistantId === entry.assistant.agentId}
           unreadCount={unreadCounts?.[entry.assistant.agentId] ?? 0}
@@ -661,7 +684,6 @@ export function AssistantList({
       assistantStatuses,
       isFolded,
       onShowProfile,
-      onToggleAssistantInfo,
       profileAssistantId,
       unreadCounts,
     ]
@@ -756,14 +778,14 @@ export function AssistantList({
   );
 
   const renderRosterTeam = React.useCallback(
-    (team: RosterTeam, virtualEntries: AssistantListEntry[], nestedFooter?: React.ReactNode) => {
+    (team: RosterTeam, virtualEntries: AssistantListEntry[]) => {
       const groupId = `team:${team.teamId}`;
       const isGroupFolded = foldedGroups[groupId] === true;
       const memberIds = new Set(team.memberUserIds);
       const teamHumans = filteredHumans.filter((human) => memberIds.has(human.userId));
       const hasMembers =
         (Boolean(onSelectHuman) && teamHumans.length > 0) || virtualEntries.length > 0;
-      const hasNested = Boolean(onSelectTeam) || hasMembers || Boolean(nestedFooter);
+      const hasNested = Boolean(onSelectTeam) || hasMembers;
       const isTeamSelected = selectedEntityKey === teamEntityKey(team.teamId);
       const teamUnreadCount = entityUnreadCounts?.[teamEntityKey(team.teamId)] ?? 0;
       const isTeamCallActive = orgCallActiveTeamId === team.teamId;
@@ -778,12 +800,11 @@ export function AssistantList({
             team={team}
             isSelected={isTeamSelected}
             // Unread and call state roll up to the header only while the nest
-            // hides the team chat row that owns them.
+            // hides the team selection row that owns them.
             unreadCount={isGroupFolded ? teamUnreadCount : 0}
             isCallActive={isGroupFolded && isTeamCallActive}
             isFoldedGroup={isGroupFolded}
             onToggleFold={hasNested ? () => toggleGroupFold(groupId) : undefined}
-            currentUserId={currentUserId}
           />
           {!isGroupFolded && hasNested ? (
             <>
@@ -799,16 +820,12 @@ export function AssistantList({
                 </div>
               ) : null}
               {hasMembers ? renderTeamMembers(groupId, teamHumans, virtualEntries) : null}
-              {nestedFooter ? (
-                <div className="min-w-0 space-y-1 pl-3 pt-1">{nestedFooter}</div>
-              ) : null}
             </>
           ) : null}
         </div>
       );
     },
     [
-      currentUserId,
       entityUnreadCounts,
       filteredHumans,
       foldedGroups,
@@ -837,14 +854,13 @@ export function AssistantList({
             isFolded={isGroupFolded}
             onToggleFold={() => toggleGroupFold(group.id)}
             description={description}
-            variant={group.kind === 'team' ? 'workspace' : 'group'}
+            variant={group.kind === 'team' ? 'workspace' : 'section'}
             subtitle={subtitle}
             icon={
               group.kind === 'team' ? (
                 <Building2 className="h-4 w-4" aria-hidden="true" />
               ) : undefined
             }
-            badgeLabel={group.kind === 'team' ? 'Team' : undefined}
           />
           {!isGroupFolded && group.kind === 'team' ? (
             renderTeamMembers(group.id, [], group.rows)
@@ -881,11 +897,7 @@ export function AssistantList({
     ) => {
       const isSectionFolded = foldedGroups[sectionId] === true;
       return (
-        <div
-          key={sectionId}
-          data-testid={testId}
-          className="min-w-0 max-w-full border-b border-border"
-        >
+        <div key={sectionId} data-testid={testId} className="min-w-0 max-w-full">
           <AssistantListGroupHeader
             label={label}
             isFolded={isSectionFolded}
@@ -905,8 +917,7 @@ export function AssistantList({
     isOrgWorkspace &&
     (filteredHumans.length > 0 ||
       filteredSelectableTeams.length > 0 ||
-      (Boolean(onSelectHuman) && showHireButton) ||
-      (Boolean(onSelectGroup) && (filteredSelectableGroups.length > 0 || Boolean(onCreateGroup))));
+      (Boolean(onSelectGroup) && filteredSelectableGroups.length > 0));
   const shouldRenderFlatList =
     isFolded ||
     (!hasNonAssistantRows && assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
@@ -937,9 +948,12 @@ export function AssistantList({
     }
     return Array.from(byId.values());
   }, [filteredSelectableTeams, isOrgWorkspace, onSelectTeam, rosterTeamsById, teamGroups]);
+  // The Teams filter hides every team row, the elevated managed team included —
+  // leaving that one visible while the rest disappear reads as a bug.
   const elevatedOrgTeam = React.useMemo(
-    () => selectableTeamsForList.find((team) => team.isOrgWideSharing) ?? null,
-    [selectableTeamsForList]
+    () =>
+      showTeams ? (selectableTeamsForList.find((team) => team.isOrgWideSharing) ?? null) : null,
+    [selectableTeamsForList, showTeams]
   );
   const customTeamsForSection = React.useMemo(
     () => selectableTeamsForList.filter((team) => !team.isOrgWideSharing),
@@ -954,74 +968,25 @@ export function AssistantList({
     [rosterTeamsById, teamGroups]
   );
   // TEAMS collapses entirely when the only team is the managed Org team.
-  // GROUPS only appears once at least one group exists.
+  // GROUP CHATS only appears once at least one group exists.
   const showTeamsSection =
     isOrgWorkspace &&
+    showTeams &&
     (customTeamsForSection.length > 0 || (!onSelectTeam && customTeamGroups.length > 0));
   const showGroupsSection =
-    isOrgWorkspace && Boolean(onSelectGroup) && filteredSelectableGroups.length > 0;
+    isOrgWorkspace && showGroups && Boolean(onSelectGroup) && filteredSelectableGroups.length > 0;
   // When the managed Org team exists, every human/assistant is already on it —
-  // COLLEAGUES would duplicate that roster, so hide the section.
+  // COLLEAGUES would duplicate that roster, so hide the section. Membership is
+  // read from the roster rather than the filtered list, so hiding teams does not
+  // resurrect a duplicate people section.
   const hasManagedOrgTeam =
     isOrgWorkspace && (selectableTeams ?? []).some((team) => team.isOrgWideSharing);
   const showColleaguesSection =
     isOrgWorkspace &&
     !hasManagedOrgTeam &&
     Boolean(onSelectHuman) &&
-    ((includeReal && filteredHumans.length > 0) || showHireButton);
-  const onboardListButton = renderOnboardButton(
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-      onClick={onOpenHireDialog}
-      disabled={isHireButtonDisabled}
-      aria-disabled={isHireButtonDisabled}
-      data-testid="assistant-onboard-button"
-    >
-      <Plus className="h-3.5 w-3.5" />
-      Onboard
-    </Button>
-  );
-  // Create group / Create team / Onboard nest inside the managed Org team
-  // (or under Colleagues when there is no managed team) — not under an
-  // empty GROUPS section.
-  const showOrgCreationActions =
-    isOrgWorkspace && (Boolean(elevatedOrgTeam) || showColleaguesSection);
-  const orgCreationActions = showOrgCreationActions ? (
-    <div className="min-w-0 space-y-1" data-testid="assistant-list-org-actions">
-      {onCreateGroup ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-          onClick={onCreateGroup}
-          aria-label="Create group"
-          data-testid="create-group-button"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create group
-        </Button>
-      ) : null}
-      {onCreateTeam ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-caption h-7 w-full justify-start gap-1.5 px-2"
-          onClick={onCreateTeam}
-          aria-label="Create team"
-          data-testid="create-team-button"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create team
-        </Button>
-      ) : null}
-      {onboardListButton}
-    </div>
-  ) : null;
+    includeReal &&
+    filteredHumans.length > 0;
   const showRosterSections = showTeamsSection || showGroupsSection || showColleaguesSection;
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
@@ -1036,17 +1001,13 @@ export function AssistantList({
           ) : null}
           {elevatedOrgTeam ? (
             <div className="min-w-0 space-y-1" data-testid="assistant-list-elevated-org-team">
-              {renderRosterTeam(
-                elevatedOrgTeam,
-                teamRowsById.get(elevatedOrgTeam.teamId) ?? [],
-                !showColleaguesSection ? orgCreationActions : null
-              )}
+              {renderRosterTeam(elevatedOrgTeam, teamRowsById.get(elevatedOrgTeam.teamId) ?? [])}
             </div>
           ) : null}
         </div>
       ) : null}
       {showRosterSections ? (
-        <div className="min-w-0 max-w-full border-t border-border">
+        <div className="min-w-0 max-w-full space-y-2 pt-1">
           {showTeamsSection
             ? renderSection(
                 'section:teams',
@@ -1061,14 +1022,14 @@ export function AssistantList({
                 </>,
                 'assistant-list-section-teams',
                 {
-                  icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
+                  icon: <UsersRound className="h-3 w-3" aria-hidden="true" />,
                 }
               )
             : null}
           {showGroupsSection
             ? renderSection(
                 'section:groups',
-                'Groups',
+                'Group chats',
                 filteredSelectableGroups.length,
                 <div className="min-w-0 space-y-1">
                   {filteredSelectableGroups.map((group) => {
@@ -1105,13 +1066,17 @@ export function AssistantList({
                         unreadCount={entityUnreadCounts?.[groupEntityKey(group.groupId)] ?? 0}
                         isCallActive={orgCallActiveGroupId === group.groupId}
                         onSelect={() => onSelectGroup?.(group.groupId)}
+                        onUpdate={
+                          onUpdateGroup ? (patch) => onUpdateGroup(group.groupId, patch) : undefined
+                        }
+                        onSettingsOpenChange={onGroupSettingsOpenChange}
                       />
                     );
                   })}
                 </div>,
                 'assistant-list-section-groups',
                 {
-                  icon: <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />,
+                  icon: <MessagesSquare className="h-3 w-3" aria-hidden="true" />,
                 }
               )
             : null}
@@ -1121,24 +1086,21 @@ export function AssistantList({
                 'Colleagues',
                 filteredHumans.length,
                 <div className="min-w-0 space-y-1">
-                  {includeReal
-                    ? filteredHumans.map((human) => (
-                        <HumanListRow
-                          key={`human:${human.userId}`}
-                          human={human}
-                          isSelected={selectedEntityKey === humanEntityKey(human.userId)}
-                          isYou={human.userId === currentUserId}
-                          unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
-                          isCallActive={orgCallUserIdSet.has(human.userId)}
-                          onSelect={() => onSelectHuman?.(human.userId)}
-                        />
-                      ))
-                    : null}
-                  {orgCreationActions}
+                  {filteredHumans.map((human) => (
+                    <HumanListRow
+                      key={`human:${human.userId}`}
+                      human={human}
+                      isSelected={selectedEntityKey === humanEntityKey(human.userId)}
+                      isYou={human.userId === currentUserId}
+                      unreadCount={entityUnreadCounts?.[humanEntityKey(human.userId)] ?? 0}
+                      isCallActive={orgCallUserIdSet.has(human.userId)}
+                      onSelect={() => onSelectHuman?.(human.userId)}
+                    />
+                  ))}
                 </div>,
                 'assistant-list-section-people',
                 {
-                  icon: <User className="h-3.5 w-3.5" aria-hidden="true" />,
+                  icon: <User className="h-3 w-3" aria-hidden="true" />,
                 }
               )
             : null}
@@ -1149,17 +1111,190 @@ export function AssistantList({
           {soloRows.map((entry) =>
             renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
           )}
-          {!showOrgCreationActions ? onboardListButton : null}
         </div>
-      ) : !showOrgCreationActions ? (
-        onboardListButton
       ) : null}
     </div>
   );
 
+  // Groups and teams are org-workspace concepts, and the callers hand down
+  // their callbacks unconditionally — so the workspace gate lives here.
+  const createGroupAction = isOrgWorkspace ? onCreateGroup : undefined;
+  const createTeamAction = isOrgWorkspace ? onCreateTeam : undefined;
+  // Every create action lives behind one "+" in the header. A workspace that
+  // offers nothing but onboarding (personal workspaces, and org members who
+  // cannot hire) gets the action directly — a menu holding one item is only a
+  // slower button.
+  const createActionCount =
+    (createGroupAction ? 1 : 0) + (createTeamAction ? 1 : 0) + (showHireButton ? 1 : 0);
+  const useCreateMenu = createActionCount > 1 || !showHireButton;
+
+  const renderCreateControl = (options: {
+    variant: 'ghost' | 'outline';
+    icon: React.ReactNode;
+    tooltipSide: 'right' | 'bottom';
+  }): React.ReactNode => {
+    if (createActionCount === 0) return null;
+
+    if (!useCreateMenu) {
+      return renderOnboardButton(
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant={options.variant}
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={onOpenHireDialog}
+                disabled={isHireButtonDisabled}
+                aria-disabled={isHireButtonDisabled}
+                aria-label="Onboard new teammate"
+                data-testid="assistant-onboard-button"
+              >
+                {options.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side={options.tooltipSide}>
+              <p>Onboard new teammate</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <DropdownMenu modal={false}>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant={options.variant}
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  aria-label="Create"
+                  data-testid="assistant-create-menu"
+                >
+                  {options.icon}
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side={options.tooltipSide}>
+              <p>Create</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        {/* A credits-blocked onboard entry arrives wrapped in the guard's
+            inline-flex span, which would otherwise shrink it out of line with
+            the other items. */}
+        <DropdownMenuContent align="end" className="min-w-[9rem] [&>span]:w-full">
+          {createGroupAction ? (
+            <DropdownMenuItem
+              className="text-body-sm gap-2"
+              onSelect={createGroupAction}
+              data-testid="create-group-button"
+            >
+              <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
+              Group
+            </DropdownMenuItem>
+          ) : null}
+          {createTeamAction ? (
+            <DropdownMenuItem
+              className="text-body-sm gap-2"
+              onSelect={createTeamAction}
+              data-testid="create-team-button"
+            >
+              <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />
+              Team
+            </DropdownMenuItem>
+          ) : null}
+          {renderOnboardButton(
+            <DropdownMenuItem
+              className="text-body-sm gap-2"
+              onSelect={onOpenHireDialog}
+              disabled={isHireButtonDisabled}
+              data-testid="assistant-onboard-button"
+            >
+              <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+              Teammate
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
+  // Checkbox items keep the menu open so several filters can be toggled in one
+  // pass; Radix would otherwise dismiss it after the first click.
+  const renderFilterItem = (label: string, id: AssistantListFilterId) => (
+    <DropdownMenuCheckboxItem
+      className="text-body-sm"
+      checked={filters.isVisible(id)}
+      onCheckedChange={(next) => filters.setVisible(id, next)}
+      onSelect={(event) => event.preventDefault()}
+      data-testid={`assistant-list-filter-${id}`}
+    >
+      {label}
+    </DropdownMenuCheckboxItem>
+  );
+
+  const filterMenu = isOrgWorkspace ? (
+    <DropdownMenu modal={false}>
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className={cn(
+                  'h-7 w-7 shrink-0',
+                  filters.hasHidden && 'border-primary/40 bg-primary/10 text-primary'
+                )}
+                aria-label="Filter list"
+                data-filtered={filters.hasHidden ? 'true' : undefined}
+                data-testid="assistant-list-filter-menu"
+              >
+                <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {/* A filter survives the menu that set it, so the closed control has
+                to say so — a roster quietly missing rows reads as a bug. */}
+            <p>{filters.hasHidden ? 'Filter list (some rows hidden)' : 'Filter list'}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <DropdownMenuContent align="end" className="min-w-[9rem]">
+        {renderFilterItem('Real', 'real')}
+        {renderFilterItem('Virtual', 'virtual')}
+        {renderFilterItem('Teams', 'teams')}
+        {renderFilterItem('Groups', 'groups')}
+        {filters.hasHidden ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-body-sm justify-center text-muted-foreground"
+              onSelect={(event) => {
+                event.preventDefault();
+                filters.showAll();
+              }}
+              data-testid="assistant-list-filter-show-all"
+            >
+              Show all
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
-      {/* Header: Search Bar + New Assistant Button */}
+      {/* Header: search, the create menu, and the list filters. */}
       <div
         className={cn(
           'flex-shrink-0 overflow-hidden border-b border-border bg-card px-3',
@@ -1168,30 +1303,13 @@ export function AssistantList({
       >
         {isFolded ? (
           <div className="flex h-9 items-center justify-center">
-            {renderOnboardButton(
-              <div className="hidden md:flex">
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        data-testid="assistant-onboard-button"
-                        variant={isFolded ? 'ghost' : 'outline'}
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={onOpenHireDialog}
-                        disabled={isHireButtonDisabled}
-                        aria-disabled={isHireButtonDisabled}
-                      >
-                        <OnboardPlusIcon className="h-6 w-6" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p>Onboard new teammate</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
+            <div className="hidden md:flex">
+              {renderCreateControl({
+                variant: 'ghost',
+                icon: <OnboardPlusIcon className="h-6 w-6" />,
+                tooltipSide: 'right',
+              })}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -1206,70 +1324,14 @@ export function AssistantList({
                 disabled={isLoading || !!error}
               />
             </div>
-            {/* Flat lists (the common personal-workspace case: one solo group,
-                no teams/humans/groups to section off) have no roster row to
-                nest Onboard under, so it sits beside the search bar instead of
-                inside the scrollable list below -- otherwise it read as
-                detached, single-item chrome under a one-row list. Grouped/org
-                rosters keep their own Onboard entry nested where it belongs
-                (inside the managed-team or Colleagues section). */}
-            {shouldRenderFlatList
-              ? renderOnboardButton(
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={onOpenHireDialog}
-                          disabled={isHireButtonDisabled}
-                          aria-disabled={isHireButtonDisabled}
-                          aria-label="Onboard new teammate"
-                          data-testid="assistant-onboard-button"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>Onboard new teammate</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )
-              : null}
-            {isOrgWorkspace ? (
-              <div
-                className="flex shrink-0 flex-col gap-1"
-                role="group"
-                aria-label="Show real and virtual teammates"
-              >
-                <Label
-                  htmlFor="assistant-list-filter-real"
-                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
-                >
-                  <Checkbox
-                    id="assistant-list-filter-real"
-                    checked={showReal}
-                    onCheckedChange={(checked) => setShowReal(checked === true)}
-                    data-testid="assistant-list-filter-real"
-                  />
-                  Real
-                </Label>
-                <Label
-                  htmlFor="assistant-list-filter-virtual"
-                  className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-muted-foreground"
-                >
-                  <Checkbox
-                    id="assistant-list-filter-virtual"
-                    checked={showVirtual}
-                    onCheckedChange={(checked) => setShowVirtual(checked === true)}
-                    data-testid="assistant-list-filter-virtual"
-                  />
-                  Virtual
-                </Label>
-              </div>
-            ) : null}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {renderCreateControl({
+                variant: 'outline',
+                icon: <Plus className="h-3.5 w-3.5" aria-hidden="true" />,
+                tooltipSide: 'bottom',
+              })}
+              {filterMenu}
+            </div>
           </div>
         )}
       </div>
@@ -1306,8 +1368,6 @@ export function AssistantList({
             </div>
           ) : filteredAssistants.length > 0 || hasNonAssistantRows ? (
             shouldRenderFlatList ? (
-              // Onboard for the flat-list case now lives in the header, next
-              // to search -- see the comment there.
               renderFlatAssistants()
             ) : (
               groupedAssistantList

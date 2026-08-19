@@ -16,7 +16,7 @@ export function TabSegmentGroup({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-muted p-[3px]',
+        'inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted p-[3px]',
         className
       )}
       data-testid={testId}
@@ -61,7 +61,7 @@ export function TabSegment({
       data-testid={testId}
       style={active && activeStyle ? activeStyle : undefined}
       className={cn(
-        'text-caption inline-flex h-7 items-center gap-1.5 rounded-[7px] transition-colors',
+        'text-caption inline-flex h-5 items-center gap-1.5 rounded-[7px] transition-colors',
         iconOnly ? 'px-2.5' : 'px-3',
         active ? 'bg-accent-soft text-accent-soft-foreground' : 'text-foreground hover:bg-muted',
         active && activeStyle && 'text-accent-soft-foreground'

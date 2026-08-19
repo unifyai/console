@@ -96,7 +96,7 @@ export function ReferralPromoNavButton({
       className={
         collapsed
           ? 'flex justify-center'
-          : 'flex items-center gap-1 rounded-[10px] px-1 transition-colors hover:bg-muted'
+          : 'flex items-center gap-1 rounded-lg px-1 transition-colors hover:bg-muted'
       }
     >
       <Link
@@ -108,8 +108,8 @@ export function ReferralPromoNavButton({
         title={collapsed ? PROMO_LABEL : undefined}
         className={
           collapsed
-            ? 'flex h-9 w-9 items-center justify-center rounded-[10px] text-foreground transition-colors hover:bg-muted'
-            : 'flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-1.5 py-2 text-[13px] font-medium text-foreground transition-colors hover:text-foreground'
+            ? 'flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted'
+            : 'flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1.5 py-2 text-[13px] font-medium text-foreground transition-colors hover:text-foreground'
         }
       >
         <Gift className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />

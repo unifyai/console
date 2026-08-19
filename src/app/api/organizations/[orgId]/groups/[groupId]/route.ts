@@ -67,6 +67,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   let body: {
     name?: string | null;
+    icon?: string | null;
     userIds?: string[] | null;
     assistantIds?: number[] | null;
   };
@@ -78,6 +79,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const payload: Record<string, unknown> = {};
   if (body.name !== undefined) payload.name = body.name;
+  // A present-but-null icon clears it, so absence is the only thing that
+  // leaves the stored icon alone.
+  if (body.icon !== undefined) payload.icon = body.icon;
   if (body.userIds !== undefined) payload.user_ids = body.userIds;
   if (body.assistantIds !== undefined) payload.assistant_ids = body.assistantIds;
 

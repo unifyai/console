@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { OrgChatPanel, OrgChatPanelMessage } from './OrgChatPanel';
 import { OrgChatSearchDialog } from './OrgChatSearchDialog';
 import { ChatMention, OrgChatAttachment, OrgChatSearchResult, RosterHuman } from '@/types/orgChat';
@@ -58,6 +59,8 @@ export function HumanWorkspace({
     isCallActive,
   });
 
+  const humanImageUrl = useResolvedProfileImage(human.image);
+
   const messages = React.useMemo<OrgChatPanelMessage[]>(
     () =>
       (rawMessages ?? []).map((message) => {
@@ -69,12 +72,12 @@ export function HumanWorkspace({
           isSelf,
           content: message.content,
           timestamp: message.createdAt,
-          avatarUrl: isSelf ? null : human.image,
+          avatarUrl: isSelf ? null : humanImageUrl,
           attachments: message.attachments,
           reactions: message.reactions,
         };
       }),
-    [rawMessages, human.userId, human.name, human.image]
+    [rawMessages, human.userId, human.name, humanImageUrl]
   );
 
   const handleSend = React.useCallback(
@@ -109,7 +112,7 @@ export function HumanWorkspace({
       <div className="flex items-center gap-3 border-b px-4 py-3">
         <div className="relative">
           <Avatar className="h-10 w-10">
-            {human.image && <AvatarImage src={human.image} alt={human.name} />}
+            <AvatarImage src={humanImageUrl ?? undefined} alt={human.name} />
             <AvatarFallback
               className="text-semibold text-primary-foreground"
               style={{ backgroundColor: profileAvatarTone(human.name) }}

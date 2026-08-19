@@ -179,6 +179,16 @@
   max-height: none !important;
 }
 
+/* Opt-in escape from the [cmdk-list] reset above, for lists long enough to need
+   their own scroll container. Specificity, not order, wins the override; the
+   axes must differ so react-remove-scroll's dialog lock treats this as
+   scrollable and lets wheel events through to it. */
+[cmdk-list].command-list-scrolls {
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
 /* Ensure the parent handles scrolling */
 [cmdk-root] {
   overflow: hidden !important;
@@ -624,6 +634,12 @@
   .text-caption {
     @apply font-sans text-[12.5px] text-muted-foreground;
   }
+  /* Metadata under a row's own title — the workspace kind beneath its name,
+     a teammate's job title beneath theirs. Chrome sits below the reading
+     sizes, so the scale needs a step there rather than an arbitrary value. */
+  .text-caption-sm {
+    @apply font-sans text-[11px] text-muted-foreground;
+  }
   .text-mono {
     @apply font-mono;
   }
@@ -645,11 +661,17 @@
   .text-data {
     @apply font-sans text-xs leading-snug;
   }
+  /* Column header in a data grid: the same label voice as `text-overline`,
+     one step up and heavier, because it heads a column of dense values
+     rather than a block of prose. */
   .text-data-header {
-    @apply font-sans text-xs font-medium text-muted-foreground;
+    @apply font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground;
   }
+  /* Structural eyebrow: names a region rather than describing a row. Mono
+     uppercase is the label voice throughout the app — rail and settings
+     section headings, card category lines, field-group captions. */
   .text-overline {
-    @apply font-sans text-xs uppercase tracking-widest text-muted-foreground;
+    @apply font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground;
   }
 
   /* Weight modifiers */

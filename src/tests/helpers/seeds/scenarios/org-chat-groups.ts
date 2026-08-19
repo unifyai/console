@@ -1,14 +1,16 @@
 /**
  * Seed Scenario: Org chat Groups
  *
- * Creates an org with two humans and two assistants, plus one mixed chat
- * group so the Groups rail section is immediately usable for local testing.
+ * Creates an org with two humans and two assistants, plus two mixed chat
+ * groups so the GROUP CHATS rail section is immediately usable for local
+ * testing — one wearing its member faces, one wearing a chosen emoji.
  *
  * **What it creates:**
  *   - 2 users ("owner", "member")
  *   - 1 organization with org-wide sharing enabled
  *   - 2 org assistants
- *   - 1 chat group containing both humans and both assistants
+ *   - 2 chat groups containing both humans and both assistants, the second
+ *     carrying a custom icon
  *
  * **Credentials:**
  *   - `owner` — org owner (group creator)
@@ -73,6 +75,15 @@ export async function seedOrgChatGroups(): Promise<SeededState> {
     createdByUserId: owner.id,
     userIds: [owner.id, member.id],
     assistantIds: [assistantOne.agentId, assistantTwo.agentId],
+  });
+
+  createChatGroup({
+    organizationId: org.id,
+    name: 'Design Sync',
+    createdByUserId: owner.id,
+    userIds: [owner.id, member.id],
+    assistantIds: [assistantOne.agentId, assistantTwo.agentId],
+    icon: '🎨',
   });
 
   await seedCoordinatorChatForUsers([owner, member]);

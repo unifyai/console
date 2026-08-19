@@ -43,7 +43,7 @@ export function BrandFallback({
             <p className="brand-fallback-bubble">{bubble}</p>
           </div>
           <div className="grid gap-4">
-            <p className="text-overline text-muted-foreground">{eyebrow}</p>
+            <p className="text-overline">{eyebrow}</p>
             <h1 className="text-brand-heading text-foreground">{title}</h1>
             {apology ? <p className="brand-fallback-apology">{apology}</p> : null}
             <p className="text-body-muted mx-auto max-w-md">{description}</p>

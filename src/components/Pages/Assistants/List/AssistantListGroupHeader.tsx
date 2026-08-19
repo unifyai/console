@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { RAIL_TRAILING_GLYPH, RAIL_TRAILING_SLOT } from '@/components/Layout/Shell/railGeometry';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
@@ -8,46 +9,47 @@ interface AssistantListGroupHeaderProps {
   isFolded: boolean;
   onToggleFold: () => void;
   description?: string | null;
-  variant?: 'section' | 'group' | 'workspace';
+  /**
+   * `section` names a region; `workspace` is a row that happens to fold, so it
+   * takes a row's shell rather than a heading's.
+   */
+  variant?: 'section' | 'workspace';
   subtitle?: string | null;
   icon?: React.ReactNode;
-  badgeLabel?: string;
   /** Optional trailing control (e.g. create-group +) rendered beside the fold chevron. */
   trailingAction?: React.ReactNode;
 }
 
+/**
+ * A foldable heading inside the teammate list.
+ *
+ * The list renders the same objects the rail does, so it speaks the rail's
+ * vocabulary rather than a second one of its own: a region is named by an
+ * overline and separated by whitespace, and anything that reads as a row takes
+ * a row's shell. Full-bleed rules drawn across a column of rounded rows
+ * belonged to neither, and were what made the two read as different systems.
+ */
 export function AssistantListGroupHeader({
   label,
   isFolded,
   onToggleFold,
   description,
-  variant = 'group',
+  variant = 'section',
   subtitle,
   icon,
-  badgeLabel,
   trailingAction,
 }: AssistantListGroupHeaderProps) {
   const Icon = isFolded ? ChevronRight : ChevronDown;
+  const isWorkspace = variant === 'workspace';
   const header = (
-    <div
-      className={cn(
-        'flex w-full min-w-0 max-w-full items-stretch gap-1 overflow-hidden',
-        variant === 'workspace' && 'rounded-xl'
-      )}
-    >
+    <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-hidden">
       <button
         type="button"
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-xs transition-colors hover:bg-muted hover:text-foreground',
-          // Section rules live on the section stack/container so adjacent
-          // sections share one divider (no border-y + gap double-lines).
-          // Group/workspace keep borders on the button so hover fills flush.
-          variant === 'section' &&
-            'px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
-          variant === 'group' &&
-            'border-y border-border px-2 py-1.5 font-semibold uppercase tracking-wide text-muted-foreground',
-          variant === 'workspace' &&
-            'bg-muted/15 rounded-xl border border-border px-3 py-2.5 text-muted-foreground hover:border-primary-tint-30 hover:bg-primary-tint-5'
+          'flex min-w-0 flex-1 items-center overflow-hidden rounded-lg transition-colors',
+          isWorkspace
+            ? 'gap-2.5 border border-transparent px-2 py-1 hover:bg-[var(--surface-hover)]'
+            : 'text-overline gap-1.5 px-2 py-1.5 hover:bg-muted'
         )}
         aria-expanded={!isFolded}
         onClick={onToggleFold}
@@ -56,7 +58,9 @@ export function AssistantListGroupHeader({
           <span
             className={cn(
               'flex shrink-0 items-center justify-center text-muted-foreground',
-              variant === 'workspace' && 'bg-background/70 h-8 w-8 rounded-lg border border-border'
+              // A row's leading glyph stands in the avatar column the rows
+              // around it use, so the spine holds without painting a tile.
+              isWorkspace && 'h-7 w-7'
             )}
             aria-hidden="true"
           >
@@ -64,40 +68,21 @@ export function AssistantListGroupHeader({
           </span>
         ) : null}
         <span className="min-w-0 flex-1 text-left">
-          <span
-            className={cn(
-              'flex min-w-0 items-center gap-1',
-              variant === 'workspace' && 'text-foreground'
-            )}
-          >
-            <span className="truncate font-medium">{label}</span>
-            {variant === 'workspace' ? (
-              <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
-            ) : null}
+          <span className={cn('flex min-w-0 items-center gap-1', isWorkspace && 'text-foreground')}>
+            <span className={cn('truncate', isWorkspace && 'text-body text-strong')}>{label}</span>
+            {isWorkspace ? <Icon className="h-3 w-3 shrink-0" aria-hidden="true" /> : null}
           </span>
           {subtitle ? (
-            <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
-              {subtitle}
-            </span>
+            <span className="text-caption-sm mt-0.5 block truncate leading-tight">{subtitle}</span>
           ) : null}
         </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          {badgeLabel ? (
-            <span
-              className="rounded-full border border-primary-tint-20 bg-primary-tint-10 px-2 py-0.5 text-[10px] font-medium text-primary"
-              aria-hidden="true"
-            >
-              {badgeLabel}
-            </span>
-          ) : null}
-          {variant !== 'workspace' ? (
-            <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
-          ) : null}
-        </span>
+        {isWorkspace ? null : (
+          <span className={RAIL_TRAILING_SLOT} aria-hidden="true">
+            <Icon className={RAIL_TRAILING_GLYPH} />
+          </span>
+        )}
       </button>
-      {trailingAction ? (
-        <span className="flex shrink-0 items-center pr-1">{trailingAction}</span>
-      ) : null}
+      {trailingAction ? <span className="flex shrink-0 items-center">{trailingAction}</span> : null}
     </div>
   );
 

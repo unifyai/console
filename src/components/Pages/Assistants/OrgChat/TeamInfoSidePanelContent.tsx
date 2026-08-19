@@ -14,7 +14,6 @@ interface TeamInfoSidePanelContentProps {
   team: RosterTeam;
   humansById: Record<string, RosterHuman>;
   assistantsById: Record<string, TeamMemberAssistant>;
-  currentUserId?: string | null;
   onClose: () => void;
   hideHeaderActions?: boolean;
   className?: string;
@@ -25,7 +24,6 @@ export function TeamInfoSidePanelContent({
   team,
   humansById,
   assistantsById,
-  currentUserId = null,
   onClose,
   hideHeaderActions = false,
   className,
@@ -46,11 +44,7 @@ export function TeamInfoSidePanelContent({
     [team.assistantMemberIds, assistantsById]
   );
 
-  const subtitle = formatRealVirtualSubtitle(
-    team.memberUserIds,
-    assistantMembers.length,
-    currentUserId
-  );
+  const subtitle = formatRealVirtualSubtitle(team.memberUserIds, assistantMembers.length);
   const description = team.description?.trim() || null;
 
   return (

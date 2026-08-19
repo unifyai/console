@@ -60,8 +60,7 @@ export async function fetchAssistants(
     let res = await fetch(`/api/assistant?${params.toString()}`);
 
     // Org members without assistant:read cannot list every org assistant.
-    // Fall back to user-scoped org assistants while still injecting the
-    // canonical personal coordinator into the response.
+    // Fall back to the user-scoped org list.
     if (res.status === 403 && isOrgContext) {
       params = buildParams(false);
       res = await fetch(`/api/assistant?${params.toString()}`);

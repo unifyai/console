@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { useProfileImageResolver } from '@/hooks/User/useProfileImageResolver';
 import { cn } from '@/lib/utils';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
 
@@ -13,25 +14,41 @@ export interface GroupFaceStackMember {
 
 interface GroupFaceStackProps {
   members: GroupFaceStackMember[];
+  /** Emoji the group chose for itself; it stands in for the whole collage. */
+  icon?: string | null;
+  /** Type-ramp step for that emoji, chosen to suit `sizeClassName`. */
+  iconClassName?: string;
   className?: string;
   sizeClassName?: string;
 }
 
-function FaceCell({ member, className }: { member: GroupFaceStackMember; className?: string }) {
+/**
+ * A cell is a quarter of a rail tile, so it carries a single initial: two
+ * letters only fit here by shrinking below the point either is readable.
+ */
+function faceInitial(name: string): string {
+  return profileInitials(name).slice(0, 1);
+}
+
+function FaceCell({
+  member,
+  imageUrl,
+  className,
+}: {
+  member: GroupFaceStackMember;
+  imageUrl: string | null;
+  className?: string;
+}) {
   return (
-    <div className={cn('relative min-h-0 min-w-0 overflow-hidden bg-muted', className)}>
-      {member.image ? (
-        // eslint-disable-next-line @next/next/no-img-element -- signed profile URLs; matches AvatarImage
-        <img src={member.image} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <div
-          className="flex h-full w-full items-center justify-center text-[length:max(5px,28cqw)] font-semibold leading-none text-primary-foreground"
-          style={{ backgroundColor: profileAvatarTone(member.name) }}
-        >
-          {profileInitials(member.name)}
-        </div>
-      )}
-    </div>
+    <Avatar className={cn('h-full min-h-0 w-full min-w-0 rounded-none', className)}>
+      {imageUrl ? <AvatarImage src={imageUrl} alt="" /> : null}
+      <AvatarFallback
+        className="text-caption-sm rounded-none font-semibold leading-none text-primary-foreground"
+        style={{ backgroundColor: profileAvatarTone(member.name) }}
+      >
+        {faceInitial(member.name)}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -42,13 +59,32 @@ function EmptyCell({ className }: { className?: string }) {
 /** Fixed-size 2×2 face collage for chat-group rows and switcher faces. */
 export function GroupFaceStack({
   members,
+  icon = null,
+  iconClassName = 'text-base',
   className,
   sizeClassName = 'h-7 w-7',
 }: GroupFaceStackProps) {
+  const resolveFace = useProfileImageResolver(members.map((member) => member.image));
+
+  if (icon) {
+    return (
+      <div
+        className={cn(
+          'rounded-control flex shrink-0 items-center justify-center overflow-hidden bg-muted',
+          sizeClassName,
+          className
+        )}
+        aria-hidden="true"
+      >
+        <span className={cn('leading-none', iconClassName)}>{icon}</span>
+      </div>
+    );
+  }
+
   if (members.length === 0) {
     return (
       <Avatar className={cn('rounded-control shrink-0', sizeClassName, className)}>
-        <AvatarFallback className="rounded-control bg-muted text-[10px] font-semibold text-muted-foreground">
+        <AvatarFallback className="text-caption-sm rounded-control bg-muted font-semibold text-muted-foreground">
           G
         </AvatarFallback>
       </Avatar>
@@ -57,11 +93,12 @@ export function GroupFaceStack({
 
   if (members.length === 1) {
     const member = members[0];
+    const imageUrl = resolveFace(member.image);
     return (
       <Avatar className={cn('rounded-control shrink-0', sizeClassName, className)}>
-        {member.image ? <AvatarImage src={member.image} alt={member.name} /> : null}
+        {imageUrl ? <AvatarImage src={imageUrl} alt={member.name} /> : null}
         <AvatarFallback
-          className="rounded-control text-[10px] font-semibold text-primary-foreground"
+          className="text-caption-sm rounded-control font-semibold text-primary-foreground"
           style={{ backgroundColor: profileAvatarTone(member.name) }}
         >
           {profileInitials(member.name)}
@@ -76,29 +113,41 @@ export function GroupFaceStack({
   return (
     <div
       className={cn(
-        '@container rounded-control grid shrink-0 grid-cols-2 grid-rows-2 gap-px overflow-hidden bg-border',
+        'rounded-control grid shrink-0 grid-cols-2 grid-rows-2 gap-px overflow-hidden bg-border',
         sizeClassName,
         className
       )}
       aria-hidden="true"
     >
       {faces[0] ? (
-        <FaceCell member={faces[0]} className="col-start-1 row-start-1" />
+        <FaceCell
+          member={faces[0]}
+          imageUrl={resolveFace(faces[0].image)}
+          className="col-start-1 row-start-1"
+        />
       ) : (
         <EmptyCell className="col-start-1 row-start-1" />
       )}
       {faces[1] ? (
-        <FaceCell member={faces[1]} className="col-start-1 row-start-2" />
+        <FaceCell
+          member={faces[1]}
+          imageUrl={resolveFace(faces[1].image)}
+          className="col-start-1 row-start-2"
+        />
       ) : (
         <EmptyCell className="col-start-1 row-start-2" />
       )}
       {faces[2] ? (
-        <FaceCell member={faces[2]} className="col-start-2 row-start-1" />
+        <FaceCell
+          member={faces[2]}
+          imageUrl={resolveFace(faces[2].image)}
+          className="col-start-2 row-start-1"
+        />
       ) : (
         <EmptyCell className="col-start-2 row-start-1" />
       )}
       {overflow > 0 ? (
-        <div className="col-start-2 row-start-2 flex min-h-0 min-w-0 items-center justify-center bg-muted text-[length:max(5px,28cqw)] font-semibold leading-none text-muted-foreground">
+        <div className="text-caption-sm col-start-2 row-start-2 flex min-h-0 min-w-0 items-center justify-center bg-muted font-semibold leading-none text-muted-foreground">
           +{overflow}
         </div>
       ) : (

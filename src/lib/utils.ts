@@ -21,6 +21,7 @@ const twMerge = extendTailwindMerge({
         'text-body-muted',
         'text-body-lg-muted',
         'text-caption',
+        'text-caption-sm',
         'text-label',
         'text-label-muted',
         'text-data',

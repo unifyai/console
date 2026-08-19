@@ -6,6 +6,7 @@ import { WhatsApp } from '@mui/icons-material';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Button } from '@/components/UI/button';
+import { useResolvedProfileImage } from '@/hooks/User/useProfileImageResolver';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import type { RosterHuman } from '@/types/orgChat';
 import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
@@ -62,6 +63,7 @@ export function HumanInfoSidePanelContent({
   className,
 }: HumanInfoSidePanelContentProps) {
   const displayName = human.name?.trim() || human.email || 'Team member';
+  const imageUrl = useResolvedProfileImage(human.image);
   const bio = human.bio?.trim() || null;
   const jobTitle = human.jobTitle?.trim() || null;
   const lastSeenLabel = formatLastSeen(human.lastSeenAt);
@@ -87,9 +89,7 @@ export function HumanInfoSidePanelContent({
         <div className="flex items-start gap-3">
           <div className="relative shrink-0">
             <Avatar className="h-14 w-14 rounded-md">
-              {human.image && (
-                <AvatarImage src={human.image} alt={displayName} className="rounded-md" />
-              )}
+              <AvatarImage src={imageUrl ?? undefined} alt={displayName} className="rounded-md" />
               <AvatarFallback
                 className="text-semibold rounded-md text-primary-foreground"
                 style={{ backgroundColor: profileAvatarTone(displayName) }}

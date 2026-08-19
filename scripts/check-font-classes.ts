@@ -12,6 +12,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ratchet, reportRatchet, updateBaseline } from './style-baseline';
 
 // ============================================================================
 // Configuration
@@ -76,6 +77,16 @@ const NON_COMPLIANT_PATTERNS = [
   /\btext-(?:xs|sm|base)\s+font-mono\b/g,
 ];
 
+/**
+ * An arbitrary size answers to no scale. The named-scale patterns above never
+ * matched it, so it became the way to write any size the ramp did not cover —
+ * `text-[9.5px]` through `text-[32px]`, no two surfaces agreeing. Ratcheted
+ * rather than hard-failed: see `scripts/style-baseline.ts`.
+ */
+const ARBITRARY_FONT_SIZE = /\btext-\[[0-9.]+(?:px|rem|em)\]/g;
+
+const ARBITRARY_RULE = 'arbitrary-font-size';
+
 // Standalone patterns - only flag if they're the ONLY font class (likely missing standard)
 const STANDALONE_SUSPICIOUS = [
   // Bare sizes without accompanying standard class (needs context check)
@@ -96,6 +107,10 @@ const SKIP_PATTERNS = [
   /dist/,
   /build/,
   /\.git/,
+  // Full runs scan `src/` only; lint-staged hands over whatever is staged.
+  // Excluding the tooling keeps the two modes agreeing — and these very
+  // scripts carry the forbidden patterns as regex literals.
+  /(^|\/)scripts\//,
   /globals\.css$/, // Don't check the definition file itself
   /tailwind\.config/,
   // Canvas code embedded as strings: canvases are styled by the canvas host's
@@ -179,6 +194,19 @@ function checkFile(filePath: string): Violation[] {
   return violations;
 }
 
+/**
+ * How many arbitrary font sizes a file carries.
+ *
+ * Scanned over the whole file rather than per `className` line: class strings
+ * are routinely composed across several lines inside `cn(...)`, and a size on
+ * a continuation line is the same violation as one on the attribute itself.
+ */
+function countArbitrarySizes(filePath: string): number {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  ARBITRARY_FONT_SIZE.lastIndex = 0;
+  return (content.match(ARBITRARY_FONT_SIZE) ?? []).length;
+}
+
 function getFilesToCheck(args: string[]): string[] {
   if (args.length > 0) {
     // Check specific files passed as arguments (from lint-staged)
@@ -225,7 +253,9 @@ function walkDir(dir: string): string[] {
 // ============================================================================
 
 function main(): void {
-  const args = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
+  const shouldUpdateBaseline = rawArgs.includes('--update-baseline');
+  const args = rawArgs.filter((a) => a !== '--update-baseline');
   const files = getFilesToCheck(args);
 
   if (files.length === 0) {
@@ -236,15 +266,33 @@ function main(): void {
   console.log(`\n🔍 Checking ${files.length} file(s) for font class compliance...\n`);
 
   let allViolations: Violation[] = [];
+  const arbitraryCounts = new Map<string, number>();
 
   for (const file of files) {
     const violations = checkFile(file);
     allViolations = allViolations.concat(violations);
+    const arbitrary = countArbitrarySizes(file);
+    if (arbitrary > 0) arbitraryCounts.set(file, arbitrary);
   }
 
-  if (allViolations.length === 0) {
-    console.log('✅ All files comply with font class standards!\n');
+  if (shouldUpdateBaseline) {
+    updateBaseline(ARBITRARY_RULE, arbitraryCounts, files);
+    console.log(`✅ Baseline updated for ${ARBITRARY_RULE}.\n`);
     process.exit(0);
+  }
+
+  const arbitraryOk = reportRatchet(
+    ARBITRARY_RULE,
+    ratchet(ARBITRARY_RULE, arbitraryCounts, files),
+    'Use a class from the scale in globals.css. Genuinely new step? Add it there, register it in src/lib/utils.ts, then use it.'
+  );
+
+  if (allViolations.length === 0) {
+    if (arbitraryOk) {
+      console.log('✅ All files comply with font class standards!\n');
+      process.exit(0);
+    }
+    process.exit(1);
   }
 
   // Report violations

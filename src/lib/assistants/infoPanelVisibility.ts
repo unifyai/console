@@ -29,11 +29,6 @@ export interface CoordinatorOnboardingPanelRequestDetail {
 
 let pendingInfoPanelOpenAssistantId: string | null = null;
 
-/** Opens the info panel once the requested assistant becomes active. */
-export function requestAssistantInfoPanelOpenAfterSelect(assistantId: string): void {
-  requestAssistantInfoPanelOpen(assistantId);
-}
-
 /** Opens the info panel for the requested assistant, including when it is already selected. */
 export function requestAssistantInfoPanelOpen(assistantId: string): void {
   pendingInfoPanelOpenAssistantId = assistantId;

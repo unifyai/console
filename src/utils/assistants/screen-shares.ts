@@ -102,10 +102,17 @@ export function resolveFocusedSid(
   return ordered[ordered.length - 1]?.sid ?? null;
 }
 
-/** How a presenter is named on the focus caption and in the picker. */
+/**
+ * How a presenter is named in the picker.
+ *
+ * A desktop is named after the teammate, exactly like a published track: the
+ * picker is a row of who is sharing, and a lone entry reading differently from
+ * its neighbours looks like a different kind of thing rather than the same
+ * choice. What is on the stage is spelled out by the caption instead.
+ */
 export function presenterLabel(share: ShareEntry): string {
   if (share.kind === 'liveview') {
-    return `${share.presenterName || 'Teammate'}'s desktop`;
+    return share.presenterName || 'Teammate';
   }
   return share.isLocal ? 'You' : share.presenterName || 'Teammate';
 }

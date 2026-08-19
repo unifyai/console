@@ -1,13 +1,12 @@
 /**
  * Formats the team/group member subtitle shown in the roster list and chat
- * headers. Real count excludes the viewing user so it matches the dropdown,
- * which also omits "you".
+ * headers. Both counts cover the whole membership, including the viewing user,
+ * so the subtitle matches the roster list below it — which renders the viewer
+ * as an ordinary row marked "(you)".
  */
 export function formatRealVirtualSubtitle(
   memberUserIds: readonly string[],
-  assistantMemberCount: number,
-  currentUserId: string | null | undefined
+  assistantMemberCount: number
 ): string {
-  const realOthers = memberUserIds.filter((id) => id !== currentUserId).length;
-  return `${realOthers} real · ${assistantMemberCount} virtual`;
+  return `${memberUserIds.length} real · ${assistantMemberCount} virtual`;
 }

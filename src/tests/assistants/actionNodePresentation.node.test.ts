@@ -103,6 +103,8 @@ describe('pinned vocabulary', () => {
         'SkillManager',
         'SkillManager.search',
         'SkillManager.store',
+        'Task',
+        'Task.run',
         'TaskScheduler',
         'TaskScheduler.create',
         'TaskScheduler.execute',
@@ -159,5 +161,46 @@ describe('pinned vocabulary', () => {
     expect(taskIndex).toBeGreaterThanOrEqual(0);
     expect(LEGACY_LABEL_PRESENTATION[storageIndex].presentation.tooltip).toBe('storage');
     expect(LEGACY_LABEL_PRESENTATION[taskIndex].presentation.tooltip).toBe('task');
+  });
+});
+
+describe('a scheduled task run is legible', () => {
+  const RUN_SEGMENT =
+    'Task.run(task_id=2,run_key=live:scheduled:2103:2:aad0c8b87ef7:20260817T074500Z)';
+
+  it('reduces a parameterised segment to the method it names', () => {
+    // Left intact, the arguments make the derived method unique to one
+    // execution, so every candidate key misses and the row falls through to
+    // the generic glyph.
+    expect(actionIdentityKeys([RUN_SEGMENT])).toEqual(['Task.run', 'Task.run', 'run', 'Task']);
+  });
+
+  it('gives a task run its own icon rather than the generic event glyph', () => {
+    // A boundary node carries no displayLabel, so the prose fallback cannot
+    // rescue this either: before the fix it reached DEFAULT_PRESENTATION by
+    // two independent routes and rendered as "event" — the least legible row
+    // on a page whose whole purpose is showing scheduled runs.
+    const presentation = resolveActionNodePresentation({ hierarchy: [RUN_SEGMENT] });
+
+    expect(presentation.tooltip).toBe('task run');
+    expect(presentation.kind).toBe('request');
+  });
+
+  it('keeps a run distinct from the act of starting one', () => {
+    // Parent and child in the tree; one glyph for both makes a run look like
+    // its own launcher.
+    const run = resolveActionNodePresentation({ hierarchy: [RUN_SEGMENT] });
+    const start = resolveActionNodePresentation({ hierarchy: ['TaskScheduler', 'execute'] });
+
+    expect(run.icon).not.toBe(start.icon);
+  });
+
+  it('leaves an unparameterised segment untouched', () => {
+    expect(actionIdentityKeys(['SkillManager', 'store'])).toEqual([
+      'SkillManager.store',
+      'SkillManager.store',
+      'store',
+      'SkillManager',
+    ]);
   });
 });

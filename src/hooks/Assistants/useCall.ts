@@ -54,6 +54,10 @@ const CALL_DISPATCH_TIMEOUT = 12000;
 const ASSISTANT_INITIAL_REDISPATCH_DELAY = 12000;
 const ASSISTANT_INITIAL_JOIN_TIMEOUT = 60000;
 const RUNTIME_JOB_NAME_POLL_INTERVAL_MS = 15000;
+// Backstop cadence for spotting a desktop the call never got a ready event for.
+// The event and the BroadcastChannel are the fast paths; this only has to catch
+// the ones that went missing, so it stays well below the job-status chatter.
+const DESKTOP_READY_POLL_INTERVAL_MS = 15000;
 const CALL_AUDIO_CAPTURE_OPTIONS: AudioCaptureOptions = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -90,6 +94,19 @@ function hasAgentParticipant(room: Room): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Whether this user runs the call: the one who may end it for everyone, add a
+ * teammate, or put a teammate's desktop up. A 1:1 assistant call belongs to its
+ * human by definition.
+ */
+function isCallHost(call: OrgCallSession | null, currentUserId: string | null): boolean {
+  return Boolean(
+    call &&
+    currentUserId &&
+    (call.createdByUserId === currentUserId || call.scope === 'assistant_dm')
+  );
 }
 
 type AssistantReadyWaiter = {
@@ -987,9 +1004,17 @@ export function useCall(
       const call = activeCallRef.current;
       isCancelledRef.current = true;
       clearAssistantTimers();
-      // Stop being counted as a viewer before the room goes. Best-effort only:
-      // the runtime closes every viewer the call owned when the call itself
-      // ends, which is what covers a tab that was killed rather than closed.
+      // Stop being counted as a viewer of the 1:1 desktop before the room goes.
+      // Best-effort only: the runtime closes every viewer the call owned when the
+      // call itself ends, which is what covers a tab that was killed rather than
+      // closed.
+      //
+      // Scoped to remote control, which only a 1:1 call has, so a desktop on a
+      // group call's stage is deliberately left alone. That desktop belongs to
+      // the call rather than to whoever put it up: one person walking out is not
+      // a decision about what everybody still here can see, and anyone still on
+      // the call can take it down. Ending the call is the decision that closes
+      // it, through the runtime's own call boundary.
       const watchedAssistant = activeCallAssistantRef.current;
       if (isRemoteControlActive && watchedAssistant) {
         assistantActions.desktop
@@ -1213,7 +1238,7 @@ export function useCall(
       isDesktopEnabled ? activeCallAssistant?.agentId : undefined,
       boundGetLiveviewUrl,
       false,
-      undefined,
+      DESKTOP_READY_POLL_INTERVAL_MS,
       0,
       activeCall?.callId ?? null,
       runtimePollScope
@@ -1377,11 +1402,7 @@ export function useCall(
     assistantActions.desktop,
   ]);
 
-  const isHost = Boolean(
-    activeCall &&
-    currentUserId &&
-    (activeCall.createdByUserId === currentUserId || activeCall.scope === 'assistant_dm')
-  );
+  const isHost = isCallHost(activeCall, currentUserId);
 
   return {
     // Shared session surface

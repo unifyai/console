@@ -65,7 +65,7 @@ export function WorkflowRequirementList({
             data-testid={`workflow-requirement-${requirement.canonicalSlug}`}
           >
             {isResolving ? (
-              <span className="bg-muted/50 h-[34px] w-[34px] shrink-0 animate-pulse rounded-[10px]" />
+              <span className="bg-muted/50 h-[34px] w-[34px] shrink-0 animate-pulse rounded-lg" />
             ) : (
               <WorkflowAppIcon requirement={requirement} size="md" />
             )}
@@ -173,7 +173,7 @@ export function WorkflowRequirementList({
         const CapabilityIcon = capability === 'computer' ? Cpu : FolderTree;
         return (
           <div key={capability} className="flex items-center gap-3 p-3">
-            <span className="bg-muted/40 flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] border">
+            <span className="bg-muted/40 flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg border">
               <CapabilityIcon className="h-4 w-4 text-muted-foreground" />
             </span>
             <div className="min-w-0 flex-1">

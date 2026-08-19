@@ -11,15 +11,9 @@ function ParamTable({ params }: { params: ReturnType<typeof parseFunctionDocstri
       <table className="text-body-dense w-full">
         <thead>
           <tr className="bg-muted/30 border-b border-border">
-            <th className="px-3 py-2 text-left font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-              Parameter
-            </th>
-            <th className="px-3 py-2 text-left font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-              Type
-            </th>
-            <th className="px-3 py-2 text-left font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-              Description
-            </th>
+            <th className="text-overline px-3 py-2 text-left">Parameter</th>
+            <th className="text-overline px-3 py-2 text-left">Type</th>
+            <th className="text-overline px-3 py-2 text-left">Description</th>
           </tr>
         </thead>
         <tbody>
@@ -53,36 +47,28 @@ export function FunctionSignatureDocs({
     <div className="space-y-4">
       {argspec && (
         <div className="space-y-1.5">
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-            Signature
-          </div>
+          <div className="text-overline">Signature</div>
           <AssistantMarkdown>{fencedCode(argspec, language)}</AssistantMarkdown>
         </div>
       )}
 
       {parsed.summary && (
         <div className="space-y-1.5">
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-            Summary
-          </div>
+          <div className="text-overline">Summary</div>
           <p className="text-[12.5px] leading-relaxed text-foreground">{parsed.summary}</p>
         </div>
       )}
 
       {parsed.params.length > 0 && (
         <div className="space-y-1.5">
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-            Parameters
-          </div>
+          <div className="text-overline">Parameters</div>
           <ParamTable params={parsed.params} />
         </div>
       )}
 
       {parsed.returns && (
         <div className="space-y-1.5">
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-            Returns
-          </div>
+          <div className="text-overline">Returns</div>
           <div className="bg-muted/20 overflow-hidden rounded-lg border border-border px-3 py-2.5">
             {parsed.returns.type && (
               <span className="text-code-sm mr-2 font-medium text-primary">

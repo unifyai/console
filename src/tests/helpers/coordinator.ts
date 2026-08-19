@@ -48,10 +48,26 @@ export async function deferCoordinatorOnboarding(
   throw new Error('Failed to pause coordinator onboarding: 422');
 }
 
-/** Defer personal Coordinator onboarding when one exists for the user. */
+/** Agent IDs of every Coordinator the user owns, across all workspaces. */
+export function listCoordinatorAgentIds(userId: string): number[] {
+  const result = dbExec(
+    `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND is_coordinator = TRUE ORDER BY agent_id`
+  );
+  return result
+    .split('\n')
+    .map((line) => parseInt(line.trim(), 10))
+    .filter((id) => Number.isFinite(id));
+}
+
+/**
+ * Defer Coordinator onboarding across every workspace the user owns.
+ *
+ * A user has one Coordinator per workspace — personal plus one per org — and
+ * each carries its own onboarding state. The key authorizes by owning user,
+ * so a single key covers them all.
+ */
 export async function deferCoordinatorForUser(userId: string, apiKey: string): Promise<void> {
-  const coordinatorId = getCoordinatorAgentId(userId);
-  if (coordinatorId) {
+  for (const coordinatorId of listCoordinatorAgentIds(userId)) {
     await deferCoordinatorOnboarding(apiKey, coordinatorId);
   }
 }
@@ -109,10 +125,7 @@ export async function deferCoordinatorAfterAssistantsLoad(
   await dismissCoordinatorOnboardingIfOpen(page);
   if (!(await coordinatorOverlayVisible(page))) return;
 
-  const coordinatorId = getCoordinatorAgentId(userId);
-  if (coordinatorId) {
-    await deferCoordinatorOnboarding(apiKey, coordinatorId);
-  }
+  await deferCoordinatorForUser(userId, apiKey);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await waitForWorkspaceShell(page);

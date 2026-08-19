@@ -56,7 +56,12 @@ import {
   deferCoordinatorForUser,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail, railUnitySwitcher, waitForAssistantsRail } from '../helpers/shell';
+import {
+  assistantRail,
+  openAssistantCreateMenu,
+  railUnitySwitcher,
+  waitForAssistantsRail,
+} from '../helpers/shell';
 export { login, switchToEmailTab };
 
 /** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
@@ -141,6 +146,7 @@ export async function expectOnboardButtonEnabled(
 ) {
   await waitForAssistantsReady(page, opts);
   await openUnitySwitcherPopover(page, opts);
+  await openAssistantCreateMenu(page);
   await expect(page.getByTestId('assistant-onboard-button')).toBeEnabled({ timeout: 10_000 });
 }
 
@@ -151,6 +157,7 @@ export async function expectOnboardButtonDisabled(
 ) {
   await waitForAssistantsReady(page, opts);
   await openUnitySwitcherPopover(page, opts);
+  await openAssistantCreateMenu(page);
   await expect
     .poll(async () => page.locator('[data-testid="billable-action-guard"]').isVisible(), {
       timeout: 20_000,

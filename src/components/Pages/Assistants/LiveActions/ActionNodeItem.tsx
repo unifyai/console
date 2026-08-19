@@ -62,6 +62,9 @@ import {
   isToolLoopNoise,
   resolveToolLoopKind,
   extractSteeringTarget,
+  extractSteeringAction,
+  extractLifecycleAnnouncement,
+  type LifecycleTag,
 } from '@/lib/assistants/event-filters';
 import { compareLogsByTime } from '@/utils/assistants/assistant-actions';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
@@ -92,8 +95,12 @@ type SteeringEntry = {
 };
 
 /**
- * Build a map from target-call-id suffix to the ToolLoop logs that steer it.
- * The suffix is the trailing segment of `stop_execute_code_<suffix>` etc.
+ * Build a map from target-call-id (key) to the ToolLoop logs that steer it.
+ * Legacy minted helpers (`stop_execute_code_<suffix>`) key by the trailing
+ * suffix; `steer` calls key by the full `arguments.call_id`. Both shapes are
+ * matched against actual tool-call ids via `endsWith` in
+ * `getSteeringForToolCall`, so a full id (exact match) and a suffix (partial
+ * match) both resolve correctly.
  */
 function buildSteeringMap(logs: ToolLoopLog[]): Map<string, SteeringEntry[]> {
   const map = new Map<string, SteeringEntry[]>();
@@ -109,11 +116,11 @@ function buildSteeringMap(logs: ToolLoopLog[]): Map<string, SteeringEntry[]> {
     if (!Array.isArray(tcs)) continue;
     for (const tc of tcs) {
       const name = tc.function?.name ?? '';
-      const suffix = extractSteeringTarget(name);
-      if (!suffix) continue;
-      const arr = map.get(suffix) ?? [];
+      const target = extractSteeringTarget({ name, arguments: tc.function?.arguments });
+      if (!target) continue;
+      const arr = map.get(target) ?? [];
       arr.push({ log: l, toolCallName: name, toolCallId: tc.id });
-      map.set(suffix, arr);
+      map.set(target, arr);
     }
   }
   return map;
@@ -130,11 +137,19 @@ function buildSteeringLogIds(logs: ToolLoopLog[]): Set<number> {
     if (m.role !== 'assistant') continue;
     const tcs = (m.toolCalls ?? m.tool_calls) as
       | Array<{
-          function: { name: string };
+          function: { name: string; arguments?: string };
         }>
       | undefined;
     if (!Array.isArray(tcs) || tcs.length === 0) continue;
-    if (tcs.every((tc) => extractSteeringTarget(tc.function?.name ?? '') !== null)) {
+    if (
+      tcs.every(
+        (tc) =>
+          extractSteeringTarget({
+            name: tc.function?.name ?? '',
+            arguments: tc.function?.arguments,
+          }) !== null
+      )
+    ) {
       ids.add(l.id);
     }
   }
@@ -1117,6 +1132,9 @@ const STEERING_ICON_MAP: Record<string, { Icon: LucideIcon; color: string }> = {
   pause: { Icon: Pause, color: 'text-[color:var(--status-warning)]' },
   resume: { Icon: Play, color: 'text-[color:var(--role-teal)]' },
   interject: { Icon: CornerDownLeft, color: 'text-[color:var(--role-purple)]' },
+  clarify: { Icon: MessageCircle, color: 'text-[color:var(--status-info)]' },
+  call: { Icon: ArrowRight, color: 'text-[color:var(--role-teal)]' },
+  ask: { Icon: MessageSquare, color: 'text-[color:var(--status-info)]' },
 };
 
 function SteeringSubRow({
@@ -1128,8 +1146,19 @@ function SteeringSubRow({
   resolvedToolCallIds?: Set<string>;
   nodeCompleted?: boolean;
 }) {
-  const prefix = entry.toolCallName.split('_')[0].toLowerCase();
-  const style = STEERING_ICON_MAP[prefix] ?? {
+  const msg = entry.log.entries.message as Record<string, unknown>;
+  const tcs = (msg.toolCalls ?? msg.tool_calls) as
+    | Array<{ id: string; function: { arguments: string } }>
+    | undefined;
+  const argsJson = tcs?.find((tc) => tc.id === entry.toolCallId)?.function.arguments ?? '{}';
+
+  // `steer` names every action `steer` — the actual action (stop/pause/…)
+  // lives in the arguments, not the tool name. Legacy minted names encode
+  // the action as their prefix instead.
+  const action =
+    extractSteeringAction({ name: entry.toolCallName, arguments: argsJson }) ??
+    entry.toolCallName.split('_')[0].toLowerCase();
+  const style = STEERING_ICON_MAP[action] ?? {
     Icon: Zap,
     color: 'text-[color:var(--status-warning)]',
   };
@@ -1138,18 +1167,13 @@ function SteeringSubRow({
     : false;
   const time = formatEventTime(entry.log.entries.eventTimestamp || entry.log.ts);
 
-  let label: string;
+  let label: string = action;
   try {
-    const msg = entry.log.entries.message as Record<string, unknown>;
-    const tcs = (msg.toolCalls ?? msg.tool_calls) as
-      | Array<{ id: string; function: { arguments: string } }>
-      | undefined;
-    const argsJson = tcs?.find((tc) => tc.id === entry.toolCallId)?.function.arguments ?? '{}';
     const args = JSON.parse(argsJson);
     const reason = args.reason as string | undefined;
-    label = reason ? `${prefix} — ${reason}` : prefix;
+    if (reason) label = `${action} — ${reason}`;
   } catch {
-    label = prefix;
+    /* keep the bare action as the label */
   }
 
   return (
@@ -1158,6 +1182,50 @@ function SteeringSubRow({
         <style.Icon className="h-2.5 w-2.5" />
       </span>
       <span className={cn('min-w-0 truncate', style.color, pending && 'shimmer')}>{label}</span>
+      <span className="text-caption-sm text-muted-foreground/30 ml-auto shrink-0 pl-2 tabular-nums">
+        {time}
+      </span>
+    </div>
+  );
+}
+
+const LIFECYCLE_CHIP_STYLES: Record<
+  LifecycleTag,
+  { label: string; color: string; Icon: LucideIcon }
+> = {
+  steerable: { label: 'steerable', color: 'text-[color:var(--status-info)]', Icon: CircleDot },
+  askable: { label: 'askable', color: 'text-[color:var(--status-info)]', Icon: MessageCircle },
+  progress: { label: 'progress', color: 'text-muted-foreground', Icon: Loader2 },
+  clarification: {
+    label: 'clarification requested',
+    color: 'text-[color:var(--status-warning)]',
+    Icon: MessageSquare,
+  },
+};
+
+/**
+ * Runtime lifecycle announcement chip (`[steerable <id>]`, `[askable <id>]`,
+ * `[progress <id>]`, `[clarification <id>]`) — always a one-liner, never
+ * rendered as user speech.
+ */
+function LifecycleChip({
+  tag,
+  detail,
+  time,
+}: {
+  tag: LifecycleTag;
+  detail: string | null;
+  time: string;
+}) {
+  const style = LIFECYCLE_CHIP_STYLES[tag];
+  return (
+    <div className="flex items-center gap-2">
+      <span className={cn('shrink-0', style.color)}>
+        <style.Icon className="h-2.5 w-2.5" />
+      </span>
+      <span className={cn('min-w-0 truncate', style.color)}>
+        {detail ? `${style.label} — ${detail}` : style.label}
+      </span>
       <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
         {time}
       </span>
@@ -1808,6 +1876,14 @@ function ToolLoopMessage({
   const kind = resolveToolLoopKind(log.entries);
   const kindStyle = KIND_STYLES[kind];
   if (!kindStyle) return null;
+
+  // ── Runtime lifecycle announcements — status chip, never user speech ──
+  if (message.role === 'user') {
+    const lifecycle = extractLifecycleAnnouncement(textContent);
+    if (lifecycle) {
+      return <LifecycleChip tag={lifecycle.tag} detail={lifecycle.detail} time={time} />;
+    }
+  }
 
   // ── Steering events — always one-liners, not collapsible ──────────────
   if (kind === 'steering_pause' || kind === 'steering_resume' || kind === 'steering_stop') {
@@ -3078,7 +3154,11 @@ export function ActionNodeItem({
     let req: { content: string; time: string } | null = null;
     let requestId: number | null = null;
     let requestRawTs: string | null = null;
-    const userMsg = effectiveLogs.find((l) => l.entries.message.role === 'user');
+    const userMsg = effectiveLogs.find(
+      (l) =>
+        l.entries.message.role === 'user' &&
+        !extractLifecycleAnnouncement(extractTextContent(l.entries.message.content))
+    );
     if (userMsg) {
       const text = extractTextContent(userMsg.entries.message.content);
       if (text) {
