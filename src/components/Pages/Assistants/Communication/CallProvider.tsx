@@ -343,11 +343,16 @@ export function CallProvider({
       .filter(Boolean);
   }, [call.activeCall, rosterTeams, roster?.groups, assistantsById]);
 
-  // Assistants on the call whose desktop the host may put up, and those already
-  // up. Both are empty for a non-host: the toggle is the host's, like End call.
+  // Assistants on the call whose desktop can be put up, and those already up.
+  //
+  // Open to everyone on the call, not just the host. A desktop on the stage is
+  // shared room state — one switch the runtime keys to the call rather than to
+  // whoever pressed it — so anybody here can put one up and anybody here can
+  // take it down again, including one somebody else put up. Host-only was the
+  // shape that left a share unstoppable the moment the host walked out.
   const desktopCandidates = React.useMemo(() => {
     const active = call.activeCall;
-    if (!active || !call.isHost) {
+    if (!active) {
       return { startable: [] as OrgCallAssistantInfo[], stoppable: [] as OrgCallAssistantInfo[] };
     }
     const onCall = active.assistantIds
@@ -358,7 +363,7 @@ export function CallProvider({
       startable: onCall.filter((a) => !call.assistantSharesById[a.agentId]),
       stoppable: onCall.filter((a) => call.assistantSharesById[a.agentId]),
     };
-  }, [call.activeCall, call.isHost, call.assistantSharesById, assistantsById]);
+  }, [call.activeCall, call.assistantSharesById, assistantsById]);
 
   // Assistants presenting a desktop, and the URL each resolved to here.
   const sharedAssistants = React.useMemo(
