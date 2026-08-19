@@ -446,12 +446,11 @@ describe('useCall (unified engine)', () => {
     });
 
     /**
-     * A desktop the host put up for the room is closed by the client that put it
-     * there, rather than left to the runtime's call boundary. That boundary is
-     * skippable — a call torn down while its successor is already dispatching
-     * passes through neither of the resets that would have closed it — and a
-     * viewer outliving its own call can never be closed by anyone afterwards,
-     * because the only stop event that would match names a call nobody is on.
+     * A desktop on a group call's stage belongs to the call, not to whoever put
+     * it up. One person walking out is not a decision about what everybody still
+     * there can see, so leaving closes nothing — and anyone still on the call can
+     * take it down, which is what keeps that from stranding it. Ending the call
+     * is the decision that closes it, through the runtime's call boundary.
      */
     async function connectedGroupCall(currentUserId: string) {
       const groupSession = sessionPayload({
@@ -481,34 +480,19 @@ describe('useCall (unified engine)', () => {
       return { room, result };
     }
 
-    it('closes the desktops the host staged when the host leaves', async () => {
-      const { result } = await connectedGroupCall('user-1');
+    it.each([
+      ['the host', 'user-1'],
+      ['a guest', 'user-2'],
+    ])('leaves a staged desktop up when %s leaves', async (_who, currentUserId) => {
+      const { result } = await connectedGroupCall(currentUserId);
       desktopActions.desktop.sendSystemEvent.mockClear();
 
       await act(async () => {
         await result.current.leaveCall();
       });
 
-      expect(desktopActions.desktop.sendSystemEvent).toHaveBeenCalledWith(
-        '42',
-        'assistant_screen_share_stopped',
-        expect.any(String),
-        // Named as the viewer this call registered, or the runtime discards a
-        // key that was never added and keeps the desktop open.
-        { viewerUserId: 'user-1', viewerSource: 'call:sess-1' }
-      );
-    });
-
-    it('leaves the room alone when a guest leaves', async () => {
-      const { result } = await connectedGroupCall('user-2');
-      desktopActions.desktop.sendSystemEvent.mockClear();
-
-      await act(async () => {
-        await result.current.leaveCall();
-      });
-
-      // A guest never staged it and cannot take it down — the control belongs to
-      // the host, the same way End call does.
+      // Not even the host: the desktop is the call's, and the people still on it
+      // did not ask for it to go.
       expect(desktopActions.desktop.sendSystemEvent).not.toHaveBeenCalled();
     });
   });

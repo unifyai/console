@@ -165,11 +165,6 @@ export function useCall(
   // participant mounts for itself, so every client has to be told, and a room
   // call can carry several assistants each presenting their own.
   const [assistantSharesById, setAssistantSharesById] = React.useState<Record<string, boolean>>({});
-  // Read by the leave path, which must not re-create itself every time a share
-  // changes — a call control that swaps identity mid-call is a worse bug than
-  // the one this closes.
-  const assistantSharesByIdRef = React.useRef<Record<string, boolean>>({});
-  assistantSharesByIdRef.current = assistantSharesById;
   const [roomEpoch, setRoomEpoch] = React.useState(0);
   const audioElsRef = React.useRef<HTMLAudioElement[]>([]);
   const playbackMutedRef = React.useRef(false);
@@ -1009,12 +1004,19 @@ export function useCall(
       const call = activeCallRef.current;
       isCancelledRef.current = true;
       clearAssistantTimers();
-      // Stop being counted as a viewer before the room goes. Best-effort only:
-      // the runtime closes every viewer the call owned when the call itself
-      // ends, which is what covers a tab that was killed rather than closed.
+      // Stop being counted as a viewer of the 1:1 desktop before the room goes.
+      // Best-effort only: the runtime closes every viewer the call owned when the
+      // call itself ends, which is what covers a tab that was killed rather than
+      // closed.
+      //
+      // Scoped to remote control, which only a 1:1 call has, so a desktop on a
+      // group call's stage is deliberately left alone. That desktop belongs to
+      // the call rather than to whoever put it up: one person walking out is not
+      // a decision about what everybody still here can see, and anyone still on
+      // the call can take it down. Ending the call is the decision that closes
+      // it, through the runtime's own call boundary.
       const watchedAssistant = activeCallAssistantRef.current;
-      const remoteControlled = isRemoteControlActive && watchedAssistant;
-      if (remoteControlled) {
+      if (isRemoteControlActive && watchedAssistant) {
         assistantActions.desktop
           .sendSystemEvent(
             watchedAssistant.agentId,
@@ -1023,34 +1025,6 @@ export function useCall(
             callViewerFields()
           )
           .catch(console.error);
-      }
-      // Close the desktops this client put up for the room, rather than leaving
-      // it to the runtime's call boundary. That boundary is skippable — a call
-      // torn down while its successor is already dispatching passes through
-      // neither of the resets that would have closed these — and a viewer that
-      // survives its own call can never be closed by anyone, because the only
-      // stop event that would match names a call nobody is on.
-      //
-      // Host only, mirroring who could have started one. A share outliving the
-      // host would be unstoppable for everyone left: the take-down control is
-      // the host's, exactly like End call.
-      //
-      // The 1:1 desktop is skipped when the branch above already closed it. Both
-      // name the same viewer, so the second would be a no-op discard of a key
-      // already gone — harmless, but it would read as two people leaving.
-      if (isCallHost(call, currentUserId)) {
-        const viewerFields = callViewerFields();
-        for (const assistantId of Object.keys(assistantSharesByIdRef.current)) {
-          if (remoteControlled && assistantId === watchedAssistant.agentId) continue;
-          assistantActions.desktop
-            .sendSystemEvent(
-              assistantId,
-              'assistant_screen_share_stopped',
-              'Host left the call',
-              viewerFields
-            )
-            .catch(console.error);
-        }
       }
       stopRemoteControl();
       setCallPhase('ending');
@@ -1077,7 +1051,6 @@ export function useCall(
       isRemoteControlActive,
       assistantActions.desktop,
       callViewerFields,
-      currentUserId,
     ]
   );
 
