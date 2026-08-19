@@ -1182,7 +1182,7 @@ function SteeringSubRow({
         <style.Icon className="h-2.5 w-2.5" />
       </span>
       <span className={cn('min-w-0 truncate', style.color, pending && 'shimmer')}>{label}</span>
-      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+      <span className="text-caption-sm text-muted-foreground/30 ml-auto shrink-0 pl-2 tabular-nums">
         {time}
       </span>
     </div>
