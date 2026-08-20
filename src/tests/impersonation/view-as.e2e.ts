@@ -142,6 +142,14 @@ test('Unify member can view as another user and return', async ({ adminPage: pag
   const banner = page.getByTestId('impersonation-banner');
   await expect(banner).toBeVisible({ timeout: 30_000 });
   await expect(banner).toContainText('Customer');
+  await expect(banner).toHaveCSS('position', 'static');
+
+  const pageArea = page.locator('main').first();
+  const pageAreaBox = await pageArea.boundingBox();
+  const bannerBox = await banner.boundingBox();
+  expect(pageAreaBox).not.toBeNull();
+  expect(bannerBox).not.toBeNull();
+  expect(bannerBox!.y).toBeGreaterThanOrEqual(pageAreaBox!.y + pageAreaBox!.height - 1);
 
   await deferCoordinatorForUser(targetUser.id, targetUser.apiKey);
   await page.goto(`/assistants?profile=${targetAssistant.agentId}`, {

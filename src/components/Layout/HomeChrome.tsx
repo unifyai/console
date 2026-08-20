@@ -24,15 +24,15 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
 
   if (homeShell) {
     return (
-      <>
-        <main className="relative h-screen overflow-hidden bg-background">{children}</main>
+      <div className="flex h-full min-h-0 flex-1 flex-col">
+        <main className="relative min-h-0 flex-1 overflow-hidden bg-background">{children}</main>
         <MockModeIndicator />
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <MockModeIndicator />
       <div
         className="fixed left-0 right-0 top-0 z-40 h-10 border-b border-border bg-card"
@@ -49,10 +49,10 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
         <TopNav />
       </Suspense>
       <Suspense fallback={shellFallback}>
-        <main className="relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
+        <main className="relative mt-10 min-h-0 flex-1 overflow-hidden bg-background">
           {children}
         </main>
       </Suspense>
-    </>
+    </div>
   );
 }

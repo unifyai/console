@@ -29,7 +29,7 @@ export default function ImpersonationBanner() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[60] flex items-center justify-center gap-3 border-t border-[color:var(--status-warning)] bg-[color:var(--status-warning-bg)] px-4 py-1.5 text-foreground backdrop-blur-sm"
+      className="flex shrink-0 items-center justify-center gap-3 border-t border-[color:var(--status-warning)] bg-[color:var(--status-warning-bg)] px-4 py-1.5 text-foreground"
       data-testid="impersonation-banner"
     >
       <Eye className="h-4 w-4 shrink-0 text-[color:var(--status-warning)]" />
