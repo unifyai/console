@@ -159,21 +159,20 @@ test('seeded group shows Chat-only rail and accepts a message', async ({ ownerPa
   });
   await expect(composer).toHaveValue('');
 
+  // The panel renders optimistically, so the send is only real once the
+  // unified chat store holds the row, attributed to the sender.
   await expect
     .poll(
-      () => {
-        const count = dbExec(
-          `SELECT count(*) FROM log_event le
-           JOIN log_event_context lec ON lec.log_event_id = le.id
-           JOIN context c ON c.id = lec.context_id
-           WHERE c.name = 'Groups/${seededGroup.groupId}/GroupChat'
-             AND le.data->>'content' = '${body.replace(/'/g, "''")}'`
-        );
-        return parseInt(count.trim().split('\n').pop() || '0', 10);
-      },
+      () =>
+        dbExec(
+          `SELECT m.sender_user_id FROM chat_message m
+           JOIN chat_thread t ON t.id = m.thread_id
+           WHERE t.kind = 'group' AND t.group_id = ${seededGroup.groupId}
+             AND m.content = '${body.replace(/'/g, "''")}'`
+        ).trim(),
       { timeout: 15_000 }
     )
-    .toBeGreaterThanOrEqual(1);
+    .toBe(owner.id);
 });
 
 test('create group from rail + opens dialog and persists membership', async ({
