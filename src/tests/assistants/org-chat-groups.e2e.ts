@@ -21,7 +21,12 @@ import {
   deferCoordinatorAfterAssistantsLoad,
   dismissCoordinatorOnboardingIfOpen,
 } from '../helpers/coordinator';
-import { assistantRail, openAssistantCreateMenu, railSection } from '../helpers/shell';
+import {
+  assistantRail,
+  openAssistantCreateMenu,
+  railSection,
+  visibleShellTestId,
+} from '../helpers/shell';
 import { openUnitySwitcher } from './helpers';
 
 const owner = createTestUser({ name: 'ChatGroup', lastName: 'Owner', credits: 50_000 });
@@ -312,14 +317,50 @@ test('group call starts call_session with scope=group', async ({ ownerPage: page
   }
 });
 
-test('Groups are not under Organization settings', async ({ ownerPage: page }) => {
-  test.setTimeout(60_000);
-  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
-  await dismissCoordinatorOnboardingIfOpen(page);
-  // Groups live on the switcher rail only — no Organization Settings surface.
-  await page.getByRole('button', { name: /^Settings$/i }).click();
+/** No settings surface carries Groups: no heading, no create control, no nav entry. */
+async function expectNoGroupsSurface(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: /^Groups$/i })).toHaveCount(0);
   await expect(page.getByTestId('create-group-button')).toHaveCount(0);
-  // Teams settings may exist; Groups must not.
   await expect(page.getByRole('link', { name: /^Groups$/i })).toHaveCount(0);
+}
+
+test('Groups are not under Organization settings', async ({ ownerPage: page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/assistants', { waitUntil: 'domcontentloaded' });
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await expect(assistantRail(page)).toBeVisible({ timeout: 20_000 });
+
+  // Settings is reached through the workspace it belongs to — the rail foot's
+  // workspace face — so the entry carries that workspace's name rather than a
+  // bare label. The face routes through the shell's client router, so a click
+  // landing before that router mounts is dropped silently: click until the
+  // route takes. (`networkidle` is no substitute — the shell's SSE traffic
+  // never lets it settle.)
+  await expect
+    .poll(
+      async () => {
+        if (new URL(page.url()).pathname === '/account') return '/account';
+        await visibleShellTestId(page, 'rail-nav-settings').click();
+        await page.waitForURL(/\/account/, { timeout: 5_000 }).catch(() => {});
+        return new URL(page.url()).pathname;
+      },
+      { timeout: 45_000, intervals: [1_000] }
+    )
+    .toBe('/account');
+  await expect(page.getByTestId('settings-subrail')).toBeVisible({ timeout: 15_000 });
+  await expectNoGroupsSurface(page);
+
+  // Groups live on the switcher rail only, so Organization settings — where one
+  // would look for them if they had leaked off it — must not offer them. Read
+  // this surface by URL rather than by clicking the sub-rail: the teammate
+  // profile panel opens itself shortly after `/account` loads, and its overlay
+  // swallows clicks while leaving assertions intact.
+  await page.goto('/organizations', { waitUntil: 'domcontentloaded' });
+  const orgSubrail = page.getByTestId('organization-subrail');
+  await expect(orgSubrail).toBeVisible({ timeout: 20_000 });
+  // Text rather than role: that same overlay marks the background `aria-hidden`,
+  // which would empty a role query and let the absences below pass vacuously.
+  await expect(orgSubrail).toContainText('Teams');
+  await expect(orgSubrail).not.toContainText('Groups');
+  await expectNoGroupsSurface(page);
 });
