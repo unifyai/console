@@ -15,7 +15,6 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openUnitySwitcher,
-  waitForAssistantListReady,
   openRailSection,
   getCoordinatorAgentId,
   deferCoordinatorOnboarding,
@@ -78,32 +77,61 @@ test('the unity switcher opens and selecting a unity drives the section host @pu
   await expect(railSection(page, 'chat')).toHaveAttribute('aria-current', 'page');
 });
 
-test('the switcher face opens the picker once its own surface is already active', async ({
+test('the face opens its own teammate, then their profile, while the chevron reaches another', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
-  createAssistant({ userId: user.id, firstName: 'Facey', surname: 'Fallthrough' });
+  const facey = createAssistant({ userId: user.id, firstName: 'Facey', surname: 'Fallthrough' });
+  const chevvy = createAssistant({ userId: user.id, firstName: 'Chevvy', surname: 'Elsewhere' });
+
+  // The profile panel remembers whether it was last open, so seed it shut to
+  // give the face's toggle a known starting point.
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('console:assistants:info-panel-open', 'false');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
 
   await navigateToAssistants(page, shellOpts);
   await closeHireDialogIfOpen(page);
 
   const face = railSection(page, 'chat');
   const picker = page.getByTestId('rail-unity-switcher-popover');
+  const profile = page.getByTestId('assistant-info-sheet');
+
+  // The chevron is the only route to a teammate, so it settles which face the
+  // rest of this journey presses.
+  await openUnitySwitcher(page, shellOpts);
+  await page.getByTestId(`assistant-list-item-${facey.agentId}`).click();
+  await expect(picker).toHaveCount(0, { timeout: 5_000 });
+  await expect(face).toContainText('Facey');
 
   // Away from Chat the face is a nav button: it goes home, picker untouched.
   await openRailSection(page, 'tasks');
   await face.click();
   await expect(face).toHaveAttribute('aria-current', 'page');
   await expect(picker).toHaveCount(0);
+  await expect(profile).toHaveCount(0);
 
-  // Home already open, so the same click has nowhere to go and opens the picker.
+  // Home already open, so the same press goes one depth further into the same
+  // teammate and opens who they are — never out to a different one.
   await face.click();
-  await expect(picker).toBeVisible({ timeout: 5_000 });
-  await waitForAssistantListReady(page);
+  await expect(profile).toBeVisible({ timeout: 10_000 });
+  await expect(face).toHaveAttribute('aria-expanded', 'true');
+  await expect(picker).toHaveCount(0);
 
   // And reads as a toggle rather than reopening what the click just dismissed.
   await face.click();
+  await expect(profile).toHaveCount(0, { timeout: 5_000 });
+  await expect(face).toHaveAttribute('aria-expanded', 'false');
+
+  // Reaching a different teammate stays with the chevron beside the face.
+  await openUnitySwitcher(page, shellOpts);
+  await page.getByTestId(`assistant-list-item-${chevvy.agentId}`).click();
   await expect(picker).toHaveCount(0, { timeout: 5_000 });
+  await expect(face).toContainText('Chevvy');
 });
 
 test('Workspace and Brain section nav switches the active view', async ({ authedPage: page }) => {

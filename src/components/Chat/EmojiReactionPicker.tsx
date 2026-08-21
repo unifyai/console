@@ -1,14 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import dynamic from 'next/dynamic';
 import { Plus, SmilePlus } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { Theme as EmojiTheme, EmojiStyle, type EmojiClickData } from 'emoji-picker-react';
+import { EmojiPicker } from '@/components/UI/emoji-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { cn } from '@/lib/utils';
-
-const FullEmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
 export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
 
@@ -45,7 +41,6 @@ export function EmojiReactionPicker({
   const [expanded, setExpanded] = React.useState(false);
   const [pickerHeight, setPickerHeight] = React.useState(PICKER_MAX_HEIGHT);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
-  const { resolvedTheme } = useTheme();
 
   React.useLayoutEffect(() => {
     if (!open || !expanded) {
@@ -83,13 +78,6 @@ export function EmojiReactionPicker({
     setExpanded(false);
   };
 
-  const emojiPickerTheme =
-    resolvedTheme === 'dark'
-      ? EmojiTheme.DARK
-      : resolvedTheme === 'light'
-        ? EmojiTheme.LIGHT
-        : EmojiTheme.AUTO;
-
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
@@ -121,18 +109,7 @@ export function EmojiReactionPicker({
         className={cn('w-auto', expanded ? 'overflow-hidden p-0' : 'p-2')}
       >
         {expanded ? (
-          <FullEmojiPicker
-            open
-            theme={emojiPickerTheme}
-            emojiStyle={EmojiStyle.NATIVE}
-            className="chat-emoji-picker"
-            width={PICKER_WIDTH}
-            height={pickerHeight}
-            lazyLoadEmojis
-            autoFocusSearch={false}
-            previewConfig={{ showPreview: false }}
-            onEmojiClick={(data: EmojiClickData) => handleSelect(data.emoji)}
-          />
+          <EmojiPicker width={PICKER_WIDTH} height={pickerHeight} onSelect={handleSelect} />
         ) : (
           <div className="flex items-center gap-1">
             {QUICK_REACTIONS.map((emoji) => (

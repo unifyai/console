@@ -95,25 +95,27 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
     <div className="h-screen w-full overflow-hidden">
       <Providers>
         <ThemeLoader>
-          <AppShellNavigationProvider>
-            <AssistantSwitcherBridgeProvider>
-              <CallProvider callActions={callActions} userMeta={callUserMeta}>
-                {/* The MFA gate is an async server component, so it must be
-                  instantiated here in the server layout and handed to the client
-                  chrome as a child — rendering it from inside HomeChrome would make
-                  React treat it as an async client component and crash the tree. */}
-                <RailConfigProvider config={railConfig}>
-                  <HomeChrome>
-                    <MfaEnforcementGate>
-                      <NuqsAdapter>{children}</NuqsAdapter>
-                    </MfaEnforcementGate>
-                  </HomeChrome>
-                </RailConfigProvider>
-              </CallProvider>
-            </AssistantSwitcherBridgeProvider>
-          </AppShellNavigationProvider>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <AppShellNavigationProvider>
+              <AssistantSwitcherBridgeProvider>
+                <CallProvider callActions={callActions} userMeta={callUserMeta}>
+                  {/* The MFA gate is an async server component, so it must be
+                    instantiated here in the server layout and handed to the client
+                    chrome as a child — rendering it from inside HomeChrome would make
+                    React treat it as an async client component and crash the tree. */}
+                  <RailConfigProvider config={railConfig}>
+                    <HomeChrome>
+                      <MfaEnforcementGate>
+                        <NuqsAdapter>{children}</NuqsAdapter>
+                      </MfaEnforcementGate>
+                    </HomeChrome>
+                  </RailConfigProvider>
+                </CallProvider>
+              </AssistantSwitcherBridgeProvider>
+            </AppShellNavigationProvider>
+            <ImpersonationBanner />
+          </div>
           <Toaster position="bottom-right" closeButton />
-          <ImpersonationBanner />
           <SelfHostRuntimeBootstrap />
           <TimezoneSync />
           <NetworkStatusToast />

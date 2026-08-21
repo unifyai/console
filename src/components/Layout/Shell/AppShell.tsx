@@ -190,7 +190,7 @@ export function AppShell({ children }: AppShellProps) {
 
   if (showColdAssistantsBoot) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="flex h-full w-full items-center justify-center bg-background">
         <Loader size={64} />
       </div>
     );

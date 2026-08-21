@@ -1,17 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import dynamic from 'next/dynamic';
 import { Check, MoreHorizontal } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { Theme as EmojiTheme, EmojiStyle, type EmojiClickData } from 'emoji-picker-react';
 import { RAIL_TRAILING_GLYPH, RailTrailingButton } from '@/components/Layout/Shell/railGeometry';
+import { EmojiPicker } from '@/components/UI/emoji-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Input } from '@/components/UI/input';
 import { cn } from '@/lib/utils';
 import type { RosterGroup } from '@/types/orgChat';
-
-const FullEmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
 const PICKER_WIDTH = 264;
 const PICKER_HEIGHT = 260;
@@ -47,7 +43,6 @@ export function GroupRowSettings({
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(group.name);
   const [isSaving, setIsSaving] = React.useState(false);
-  const { resolvedTheme } = useTheme();
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -67,13 +62,6 @@ export function GroupRowSettings({
     setIsSaving(false);
     if (saved) handleOpenChange(false);
   };
-
-  const emojiPickerTheme =
-    resolvedTheme === 'dark'
-      ? EmojiTheme.DARK
-      : resolvedTheme === 'light'
-        ? EmojiTheme.LIGHT
-        : EmojiTheme.AUTO;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -147,16 +135,11 @@ export function GroupRowSettings({
                 </button>
               ) : null}
             </div>
-            <FullEmojiPicker
-              open
-              theme={emojiPickerTheme}
-              emojiStyle={EmojiStyle.NATIVE}
+            <EmojiPicker
               width={PICKER_WIDTH}
               height={PICKER_HEIGHT}
-              lazyLoadEmojis
-              autoFocusSearch={false}
-              previewConfig={{ showPreview: false }}
-              onEmojiClick={(data: EmojiClickData) => void submit({ icon: data.emoji })}
+              skinTonesDisabled
+              onSelect={(emoji) => void submit({ icon: emoji })}
             />
           </div>
         </div>

@@ -129,8 +129,10 @@
   display: none !important;
 }
 
-/* Chat reaction picker — inherit popover glass styling from the Radix wrapper */
-.chat-emoji-picker.EmojiPickerReact {
+/* The emoji picker, on our surface rather than its own opaque card. Applied
+   by `EmojiPicker` (components/UI/emoji-picker.tsx) — the library renders its
+   own internals, so its class names are the only handle on them. */
+.app-emoji-picker.EmojiPickerReact {
   --epr-bg-color: transparent;
   --epr-picker-border-color: transparent;
   --epr-reactions-bg-color: transparent;
@@ -167,7 +169,7 @@
   font-size: 12px;
 }
 
-.chat-emoji-picker .epr-emoji-category-label {
+.app-emoji-picker .epr-emoji-category-label {
   backdrop-filter: blur(10px);
   font-size: 11px;
   font-weight: 500;
