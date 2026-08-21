@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/user/user';
 import { parseOrgCallSession } from '@/types/orgChat';
+import { assistantField, readableAssistantRow } from '@/lib/assistants/assistantAccess';
 
 /**
  * Who may resolve an assistant's desktop liveview.
@@ -8,10 +9,12 @@ import { parseOrgCallSession } from '@/types/orgChat';
  * owner need the liveview URL, so the resolvers can no longer hand it to any
  * caller that asks. Two things are decided here:
  *
- *  - **Entitlement.** The owner always qualifies. Anyone else qualifies only
- *    while they share a live call with that assistant, which is checked against
- *    Orchestra using the *caller's own* API key — so it reports the caller's
- *    real membership and cannot be widened by asking differently.
+ *  - **Entitlement.** The owner always qualifies. So does anyone sharing a live
+ *    call with the assistant, and anyone Orchestra will show that assistant to —
+ *    the same question the shell asks to draw its roster, so a teammate visible
+ *    in the UI has a visible desktop. Both are resolved against Orchestra with
+ *    the *caller's own* API key, so they report the caller's real scope and
+ *    cannot be widened by asking differently.
  *  - **Which secret may be used.** A per-session `liveview_password` is scoped
  *    to one desktop session and is safe to hand a participant. The fallback is
  *    the owner's own Orchestra API key, which is not: it must never leave the
@@ -52,6 +55,24 @@ async function callerSharesLiveCallWithAssistant(
 }
 
 /**
+ * Whether Orchestra will show this assistant to the caller.
+ *
+ * `assistantId` and `ownerId` reach the resolvers as independent client-supplied
+ * arguments, and `ownerId` goes on to address a startup row and resolve an owner
+ * key. The row Orchestra returns is the authority on which owner an assistant
+ * actually has, so a pair that disagrees with it is refused rather than
+ * resolved.
+ */
+async function callerMayReadAssistant(
+  apiKey: string,
+  assistantId: string,
+  ownerId: string
+): Promise<boolean> {
+  const row = await readableAssistantRow(apiKey, assistantId);
+  return row !== null && assistantField(row, 'user_id', 'userId') === ownerId;
+}
+
+/**
  * Decide whether the current caller may resolve this assistant's liveview.
  *
  * `ownerId` is the assistant's creator / lifecycle owner, as carried by
@@ -71,8 +92,11 @@ export async function resolveDesktopViewerGrant(
   if (await callerSharesLiveCallWithAssistant(caller.apiKey, assistantId)) {
     return { allowed: true, isOwner: false };
   }
+  if (await callerMayReadAssistant(caller.apiKey, assistantId, ownerId)) {
+    return { allowed: true, isOwner: false };
+  }
   return {
     allowed: false,
-    detail: 'You can only view this desktop while you are on a call with this teammate.',
+    detail: "You do not have access to this teammate's desktop.",
   };
 }
