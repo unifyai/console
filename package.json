@@ -62,7 +62,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fortawesome/fontawesome-svg-core": "^6.6.0",
-    "@google-cloud/pubsub": "^5.2.0",
+    "@google-cloud/pubsub": "^6.0.1",
     "@google-cloud/storage": "^7.15.1",
     "@hookform/resolvers": "^3.9.1",
     "@jvmr/pptx-to-html": "^1.0.1",
